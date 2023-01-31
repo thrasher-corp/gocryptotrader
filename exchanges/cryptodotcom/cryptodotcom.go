@@ -42,15 +42,12 @@ const (
 	cryptodotcomAPIVersion1 = "/v1/"
 
 	// Public endpoints
-	publicAuth                      = "public/auth"
-	publicInstruments               = "public/get-instruments"
-	publicOrderbook                 = "public/get-book"
-	publicCandlestick               = "public/get-candlestick"
-	publicTicker                    = "public/get-ticker"
-	publicTrades                    = "public/get-trades"
-	publicGetValuations             = "public/get-valuations"               // skipped
-	publicGetExpiredSettlementPrice = "public/get-expired-settlement-price" // skipped
-	publicGetInsurance              = "public/get-insurance"                // skipped
+	publicAuth        = "public/auth"
+	publicInstruments = "public/get-instruments"
+	publicOrderbook   = "public/get-book"
+	publicCandlestick = "public/get-candlestick"
+	publicTicker      = "public/get-ticker"
+	publicTrades      = "public/get-trades"
 
 	// Authenticated endpoints
 	privateSetCancelOnDisconnect = "private/set-cancel-on-disconnect"
@@ -76,7 +73,7 @@ const (
 	privateGetTransactions       = "private/get-transactions"
 
 	// Wallet management API
-	postWithdrawal = "private/create-withdrawal"
+	privateWithdrawal = "private/create-withdrawal"
 
 	privateGetCurrencyNetworks = "private/get-currency-networks"
 	privateGetDepositAddress   = "private/get-deposit-address"
@@ -181,22 +178,22 @@ func (cr *Cryptodotcom) WithdrawFunds(ctx context.Context, ccy currency.Code, am
 		params["network_id"] = networkID
 	}
 	var resp *WithdrawalItem
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, postWithdrawalRate, postWithdrawal, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, postWithdrawalRate, privateWithdrawal, params, &resp)
 }
 
-// GetCurrencyNetworks retrives the symbol network mapping.
+// GetCurrencyNetworks retrieves the symbol network mapping.
 func (cr *Cryptodotcom) GetCurrencyNetworks(ctx context.Context) (*CurrencyNetworkResponse, error) {
 	var resp *CurrencyNetworkResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetCurrencyNetworksRate, privateGetCurrencyNetworks, nil, &resp)
 }
 
-// GetWithdrawalHistory retrives accounts withdrawal history.
+// GetWithdrawalHistory retrieves accounts withdrawal history.
 func (cr *Cryptodotcom) GetWithdrawalHistory(ctx context.Context) (*WithdrawalResponse, error) {
 	var resp *WithdrawalResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetWithdrawalHistoryRate, privateGetWithdrawalHistory, nil, &resp)
 }
 
-// GetDepositHistory retrives deposit history. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Keys, this feature is not yet available for you.
+// GetDepositHistory retrieves deposit history. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Keys, this feature is not yet available for you.
 func (cr *Cryptodotcom) GetDepositHistory(ctx context.Context, ccy currency.Code, startTimestamp, endTimestamp time.Time, pageSize, page, status int64) (*DepositResponse, error) {
 	params := make(map[string]interface{})
 	if ccy.IsEmpty() {
@@ -248,7 +245,7 @@ func (cr *Cryptodotcom) GetAccountSummary(ctx context.Context, ccy currency.Code
 
 // CreateOrder created a new BUY or SELL order on the Exchange.
 func (cr *Cryptodotcom) CreateOrder(ctx context.Context, arg *CreateOrderParam) (*CreateOrderResponse, error) {
-	params, err := cr.getCreateParamMap(arg)
+	params, err := arg.getCreateParamMap()
 	if err != nil {
 		return nil, err
 	}
@@ -258,108 +255,31 @@ func (cr *Cryptodotcom) CreateOrder(ctx context.Context, arg *CreateOrderParam) 
 
 // CancelExistingOrder cancels and existing open order.
 func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, instrumentName, orderID string) error {
-	params := make(map[string]interface{})
 	if instrumentName == "" {
 		return errSymbolIsRequired
 	}
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
+	params := make(map[string]interface{})
 	params["instrument_name"] = instrumentName
 	params["order_id"] = orderID
 	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderRate, privateCancelOrder, params, nil)
-}
-
-func (cr *Cryptodotcom) getCreateParamMap(arg *CreateOrderParam) (map[string]interface{}, error) {
-	if arg == nil {
-		return nil, fmt.Errorf("%w nil argument", common.ErrNilPointer)
-	}
-	if arg.InstrumentName == "" {
-		return nil, errSymbolIsRequired
-	}
-	if arg.Side != order.Sell && arg.Side != order.Buy {
-		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, arg.Side)
-	}
-	if arg.OrderType == order.UnknownType || arg.OrderType == order.AnyType {
-		return nil, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, arg.OrderType)
-	}
-	switch arg.OrderType {
-	case order.Limit, order.StopLimit, order.TakeProfitLimit:
-		if arg.Price <= 0 { // Unit price
-			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
-		}
-		if arg.Quantity <= 0 {
-			return nil, fmt.Errorf("quantity must be non-zero positive decimal value")
-		}
-		switch arg.OrderType {
-		case order.StopLimit, order.TakeProfitLimit:
-			if arg.TriggerPrice <= 0 {
-				return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
-			}
-		}
-	case order.Market:
-		if arg.Side == order.Buy {
-			if arg.Notional <= 0 && arg.Quantity <= 0 {
-				return nil, fmt.Errorf("either notional or quantity must be non-zero value for order type: %v and order side: %v", arg.OrderType, arg.Side)
-			}
-		} else {
-			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
-			}
-		}
-	case order.StopLoss, order.TakeProfit:
-		if arg.Side == order.Sell {
-			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
-			}
-		} else {
-			if arg.Notional <= 0 {
-				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v", arg.OrderType)
-			}
-		}
-		if arg.TriggerPrice <= 0 {
-			return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
-		}
-	}
-	params := make(map[string]interface{})
-	params["instrument_name"] = arg.InstrumentName
-	params["side"] = arg.Side.String()
-	params["type"] = arg.OrderType.String()
-	params["price"] = arg.Price
-	if arg.Quantity > 0 {
-		params["quantity"] = arg.Quantity
-	}
-	if arg.Notional > 0 {
-		params["notional"] = arg.Notional
-	}
-	if arg.ClientOrderID != "" {
-		params["client_oid"] = arg.ClientOrderID
-	}
-	if arg.TimeInForce != "" {
-		params["time_in_force"] = arg.TimeInForce
-	}
-	if arg.PostOnly {
-		params["exec_inst"] = "POST_ONLY"
-	}
-	if arg.TriggerPrice > 0 {
-		params["trigger_price"] = arg.TriggerPrice
-	}
-	return params, nil
 }
 
 // CreateOrderList create a list of orders on the Exchange.
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
 func (cr *Cryptodotcom) CreateOrderList(ctx context.Context, contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
-	params := make(map[string]interface{})
 	orderParams := make([]map[string]interface{}, len(arg))
 	for x := range arg {
-		p, err := cr.getCreateParamMap(&arg[x])
+		p, err := arg[x].getCreateParamMap()
 		if err != nil {
 			return nil, err
 		}
 		orderParams[x] = p
 	}
+	params := make(map[string]interface{})
 	params["order_list"] = orderParams
 	var resp *OrderCreationResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOrderListRate, privateCreateOrderList, params, &resp)
@@ -370,8 +290,7 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 	if len(args) == 0 {
 		return nil, errNoArgumentPassed
 	}
-	params := make(map[string]interface{})
-	cancelOrderList := []map[string]interface{}{}
+	cancelOrderList := make([]map[string]interface{}, 0, len(args))
 	for x := range args {
 		if args[x].InstrumentName == "" && args[x].OrderID == "" {
 			return nil, errors.New("either InstrumentName or OrderID is required")
@@ -385,6 +304,7 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 		}
 		cancelOrderList = append(cancelOrderList, result)
 	}
+	params := make(map[string]interface{})
 	params["order_list"] = cancelOrderList
 	var resp *CancelOrdersResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderListRate, privateCancelOrderList, params, &resp)
@@ -401,7 +321,7 @@ func (cr *Cryptodotcom) CancelAllPersonalOrders(ctx context.Context, instrumentN
 	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelAllOrdersRate, privateCancelAllOrders, params, nil)
 }
 
-// GetAccounts retrives Account and its Sub Accounts
+// GetAccounts retrieves Account and its Sub Accounts
 func (cr *Cryptodotcom) GetAccounts(ctx context.Context) (*AccountResponse, error) {
 	var resp *AccountResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetAccountsRate, privateGetAccounts, nil, &resp)
@@ -431,7 +351,6 @@ func (cr *Cryptodotcom) GetTransactions(ctx context.Context, instrumentName, jou
 
 // CreateSubAccountTransfer transfer between subaccounts (and master account).
 func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
-	params := make(map[string]interface{})
 	if from == "" {
 		return errors.New("'from' subaccount address is required")
 	}
@@ -444,6 +363,7 @@ func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to s
 	if amount <= 0 {
 		return errors.New("'amount' must be greater than 0")
 	}
+	params := make(map[string]interface{})
 	params["from"] = from
 	params["to"] = to
 	params["currency"] = ccy.String()
@@ -475,7 +395,7 @@ func (cr *Cryptodotcom) GetPersonalOrderHistory(ctx context.Context, instrumentN
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderHistoryRate, privateGetOrderHistory, params, &resp)
 }
 
-// GetPersonalOpenOrders retrives all open orders of particular instrument.
+// GetPersonalOpenOrders retrieves all open orders of particular instrument.
 func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context, instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]interface{})
 	if instrumentName != "" {
@@ -491,7 +411,7 @@ func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context, instrumentNam
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOpenOrdersRate, privateGetOpenOrders, params, &resp)
 }
 
-// GetOrderDetail retrives details on a particular order ID
+// GetOrderDetail retrieves details on a particular order ID
 func (cr *Cryptodotcom) GetOrderDetail(ctx context.Context, orderID string) (*OrderDetail, error) {
 	var resp *OrderDetail
 	if orderID == "" {
@@ -527,7 +447,7 @@ func (cr *Cryptodotcom) GetPrivateTrades(ctx context.Context, instrumentName str
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetTradesRate, privateGetTrades, params, &resp)
 }
 
-// GetOTCUser retrives OTC User.
+// GetOTCUser retrieves OTC User.
 func (cr *Cryptodotcom) GetOTCUser(ctx context.Context) (*OTCTrade, error) {
 	var resp *OTCTrade
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCUserRate, privateGetOTCUser, nil, &resp)
@@ -541,13 +461,10 @@ func (cr *Cryptodotcom) GetOTCInstruments(ctx context.Context) (*OTCInstrumentsR
 
 // RequestOTCQuote request a quote to buy or sell with either base currency or quote currency.
 // direction represents the order side enum with value of BUY, SELL, or TWO-WAY
-func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, baseCurrency, quoteCurrency currency.Code,
+func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair currency.Pair,
 	baseCurrencySize, quoteCurrencySize float64, direction string) (*OTCQuoteResponse, error) {
-	if baseCurrency.IsEmpty() {
-		return nil, fmt.Errorf("%w, empty base_currency", currency.ErrCurrencyCodeEmpty)
-	}
-	if quoteCurrency.IsEmpty() {
-		return nil, fmt.Errorf("%w, empty quote_currency", currency.ErrCurrencyCodeEmpty)
+	if !currencyPair.IsPopulated() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if baseCurrencySize <= 0 && quoteCurrencySize <= 0 {
 		return nil, errors.New("either base_currency_size or quote_currency_size is required")
@@ -557,8 +474,8 @@ func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, baseCurrency, quote
 		return nil, errors.New("invalid order direction; must be BUY, SELL, or TWO-WAY")
 	}
 	params := make(map[string]interface{})
-	params["base_currency"] = baseCurrency.String()
-	params["quote_currency"] = quoteCurrency.String()
+	params["base_currency"] = currencyPair.Base.String()
+	params["quote_currency"] = currencyPair.Quote.String()
 	if baseCurrencySize != 0 {
 		params["base_currency_size"] = strconv.FormatFloat(baseCurrencySize, 'f', -1, 64)
 	}
@@ -584,15 +501,15 @@ func (cr *Cryptodotcom) AcceptOTCQuote(ctx context.Context, quoteID, direction s
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCAcceptQuoteRate, privateOTCAcceptQuote, params, &resp)
 }
 
-// GetOTCQuoteHistory retrives quote history.
-func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, baseCurrency, quoteCurrency currency.Code,
+// GetOTCQuoteHistory retrieves quote history.
+func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, currencyPair currency.Pair,
 	startTimestamp, endTimestamp time.Time, pageSize, page int64) (*QuoteHistoryResponse, error) {
 	params := make(map[string]interface{})
-	if !baseCurrency.IsEmpty() {
-		params["base_currency"] = baseCurrency.String()
+	if !currencyPair.Base.IsEmpty() {
+		params["base_currency"] = currencyPair.Base.String()
 	}
-	if !quoteCurrency.IsEmpty() {
-		params["quote_currency"] = quoteCurrency.String()
+	if !currencyPair.Quote.IsEmpty() {
+		params["quote_currency"] = currencyPair.Quote.String()
 	}
 	if !startTimestamp.IsZero() {
 		params["start_ts"] = startTimestamp.UnixMilli()
@@ -610,14 +527,14 @@ func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, baseCurrency, qu
 	return resp, cr.SendAuthHTTPRequest(context.Background(), exchange.RestSpot, request.Unset, privateGetOTCQuoteHistory, params, &resp)
 }
 
-// GetOTCTradeHistory retrives otc trade history
-func (cr *Cryptodotcom) GetOTCTradeHistory(ctx context.Context, baseCurrency, quoteCurrency currency.Code, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*OTCTradeHistoryResponse, error) {
+// GetOTCTradeHistory retrieves otc trade history
+func (cr *Cryptodotcom) GetOTCTradeHistory(ctx context.Context, currencyPair currency.Pair, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*OTCTradeHistoryResponse, error) {
 	params := make(map[string]interface{})
-	if !baseCurrency.IsEmpty() {
-		params["base_currency"] = baseCurrency.String()
+	if !currencyPair.Base.IsEmpty() {
+		params["base_currency"] = currencyPair.Base.String()
 	}
-	if !quoteCurrency.IsEmpty() {
-		params["quote_currency"] = quoteCurrency.String()
+	if !currencyPair.Base.IsEmpty() {
+		params["quote_currency"] = currencyPair.Quote.String()
 	}
 	if !startTimestamp.IsZero() {
 		params["start_ts"] = startTimestamp.UnixMilli()
@@ -705,7 +622,9 @@ func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL,
 	if err != nil {
 		return err
 	}
-	response := &RespData{}
+	response := &RespData{
+		Result: result,
+	}
 	err = cr.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
@@ -726,7 +645,7 @@ func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL,
 		}
 		return errors.New(mes)
 	}
-	return json.Unmarshal(response.Result, &result)
+	return nil
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request to the server
@@ -739,7 +658,9 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 	if err != nil {
 		return err
 	}
-	response := &RespData{}
+	response := &RespData{
+		Result: resp,
+	}
 	newRequest := func() (*request.Item, error) {
 		timestamp := time.Now()
 		var body io.Reader
@@ -763,9 +684,6 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 		}
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		if arg == nil {
-			arg = map[string]interface{}{}
-		}
 		req := &PrivateRequestParam{
 			ID:        idInt,
 			Method:    path,
@@ -802,7 +720,7 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 		}
 		return errors.New(mes)
 	}
-	return json.Unmarshal(response.Result, resp)
+	return nil
 }
 
 func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
@@ -834,7 +752,7 @@ func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
 		case reflect.Map:
 			param, ok := params[keys[x]].(map[string]interface{})
 			if !ok {
-				param = map[string]interface{}{}
+				param = make(map[string]interface{})
 			}
 			paramString += keys[x] + cr.getParamString((param))
 		case reflect.String:

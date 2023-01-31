@@ -3,7 +3,9 @@ package cryptodotcom
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
@@ -19,9 +21,9 @@ var (
 
 // InstrumentsResponse represents instruments response.
 type InstrumentsResponse struct {
-	ID     int    `json:"id"`
+	ID     int64  `json:"id"`
 	Method string `json:"method"`
-	Code   int    `json:"code"`
+	Code   int64  `json:"code"`
 	Result struct {
 		Instruments []Instrument `json:"instruments"`
 	} `json:"result"`
@@ -32,13 +34,13 @@ type Instrument struct {
 	InstrumentName          string  `json:"instrument_name"`
 	QuoteCurrency           string  `json:"quote_currency"`
 	BaseCurrency            string  `json:"base_currency"`
-	PriceDecimals           int     `json:"price_decimals"`
-	QuantityDecimals        int     `json:"quantity_decimals"`
+	PriceDecimals           int64   `json:"price_decimals"`
+	QuantityDecimals        int64   `json:"quantity_decimals"`
 	MarginTradingEnabled    bool    `json:"margin_trading_enabled"`
 	MarginTradingEnabled5X  bool    `json:"margin_trading_enabled_5x"`
 	MarginTradingEnabled10X bool    `json:"margin_trading_enabled_10x"`
-	MaxQuantity             string  `json:"max_quantity"`
-	MinQuantity             string  `json:"min_quantity"`
+	MaxQuantity             float64 `json:"max_quantity,string"`
+	MinQuantity             float64 `json:"min_quantity,string"`
 	MaxPrice                float64 `json:"max_price,string"`
 	MinPrice                float64 `json:"min_price,string"`
 	LastUpdateDate          int64   `json:"last_update_date"`
@@ -48,7 +50,7 @@ type Instrument struct {
 
 // OrderbookDetail public order book detail.
 type OrderbookDetail struct {
-	Depth int `json:"depth"`
+	Depth int64 `json:"depth"`
 	Data  []struct {
 		Asks [][3]string `json:"asks"`
 		Bids [][3]string `json:"bids"`
@@ -95,7 +97,7 @@ type TickerItem struct {
 	BestAskPrice         float64              `json:"k,string"` // The current best ask price, null if there aren't any asks
 	TradeTimestamp       cryptoDotComMilliSec `json:"t"`
 
-	// Added for websocket push datas.
+	// Added for websocket push data.
 	BestBidSize float64 `json:"bs,string"`
 	BestAskSize float64 `json:"ks,string"`
 }
@@ -131,7 +133,7 @@ type PrivateRequestParam struct {
 	Signature string                 `json:"sig"`
 }
 
-// CurrencyNetworkResponse retrives the symbol network mapping.
+// CurrencyNetworkResponse retrieves the symbol network mapping.
 type CurrencyNetworkResponse struct {
 	UpdateTime  int64 `json:"update_time"`
 	CurrencyMap map[string]struct {
@@ -148,7 +150,7 @@ type NetworkListDetail struct {
 	WithdrawEnabled      bool    `json:"withdraw_enabled"`
 	MinWithdrawalAmount  float64 `json:"min_withdrawal_amount"`
 	DepositEnabled       bool    `json:"deposit_enabled"`
-	ConfirmationRequired int     `json:"confirmation_required"`
+	ConfirmationRequired int64   `json:"confirmation_required"`
 }
 
 // WithdrawalResponse represents a list of withdrawal notifications.
@@ -158,16 +160,15 @@ type WithdrawalResponse struct {
 
 // WithdrawalItem represents a withdrawal instance item.
 type WithdrawalItem struct {
-	Currency      string               `json:"currency"`
-	Fee           float64              `json:"fee"`
-	ID            string               `json:"id"`
-	UpdateTime    cryptoDotComMilliSec `json:"update_time"`
-	Amount        float64              `json:"amount"`
-	Address       string               `json:"address"`
-	Status        string               `json:"status"`
-	TransactionID string               `json:"txid"`
-	NetworkID     string               `json:"network_id"`
-
+	Currency           string               `json:"currency"`
+	Fee                float64              `json:"fee"`
+	ID                 string               `json:"id"`
+	UpdateTime         cryptoDotComMilliSec `json:"update_time"`
+	Amount             float64              `json:"amount"`
+	Address            string               `json:"address"`
+	Status             string               `json:"status"`
+	TransactionID      string               `json:"txid"`
+	NetworkID          string               `json:"network_id"`
 	Symbol             string               `json:"symbol"`
 	ClientWithdrawalID string               `json:"client_wid"` // client generated withdrawal id.
 	CreateTime         cryptoDotComMilliSec `json:"create_time"`
@@ -225,26 +226,6 @@ type CreateOrderResponse struct {
 	ClientOid string `json:"client_oid"`
 }
 
-type something struct {
-	ContingencyType string `json:"contingency_type,omitempty"`
-	OrderList       []struct {
-		InstrumentName string `json:"instrument_name"`
-		Side           string `json:"side"`
-		Type           string `json:"type"`
-		Price          int    `json:"price"`
-		Quantity       int    `json:"quantity"`
-		ClientOid      string `json:"client_oid"`
-		TimeInForce    string `json:"time_in_force"`
-		ExecInst       string `json:"exec_inst"`
-	} `json:"order_list,omitempty"`
-	ResultList []struct {
-		Index     int    `json:"index"`
-		Code      int    `json:"code"`
-		OrderID   string `json:"order_id"`
-		ClientOid string `json:"client_oid"`
-	} `json:"result_list,omitempty"`
-}
-
 // PersonalTrades represents a personal trade list response.
 type PersonalTrades struct {
 	TradeList []PersonalTradeItem `json:"trade_list"`
@@ -271,8 +252,8 @@ type OrderDetail struct {
 		Fee            float64 `json:"fee"`
 		TradeID        string  `json:"trade_id"`
 		CreateTime     int64   `json:"create_time"`
-		TradedPrice    int     `json:"traded_price"`
-		TradedQuantity int     `json:"traded_quantity"`
+		TradedPrice    float64 `json:"traded_price"`
+		TradedQuantity float64 `json:"traded_quantity"`
 		FeeCurrency    string  `json:"fee_currency"`
 		OrderID        string  `json:"order_id"`
 	} `json:"trade_list"`
@@ -295,9 +276,8 @@ type OrderItem struct {
 	FeeCurrency        string               `json:"fee_currency"`
 	TimeInForce        string               `json:"time_in_force"`
 	ExecInst           string               `json:"exec_inst"`
-	// --
-	Price    float64 `json:"price"`
-	Quantity float64 `json:"quantity"`
+	Price              float64              `json:"price"`
+	Quantity           float64              `json:"quantity"`
 }
 
 // PersonalOrdersResponse represents a personal order.
@@ -320,6 +300,85 @@ type CreateOrderParam struct {
 	TriggerPrice   float64    `json:"trigger_price"`
 }
 
+func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w nil argument", common.ErrNilPointer)
+	}
+	if arg.InstrumentName == "" {
+		return nil, errSymbolIsRequired
+	}
+	if arg.Side != order.Sell && arg.Side != order.Buy {
+		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, arg.Side)
+	}
+	if arg.OrderType == order.UnknownType || arg.OrderType == order.AnyType {
+		return nil, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, arg.OrderType)
+	}
+	switch arg.OrderType {
+	case order.Limit, order.StopLimit, order.TakeProfitLimit:
+		if arg.Price <= 0 { // Unit price
+			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
+		}
+		if arg.Quantity <= 0 {
+			return nil, fmt.Errorf("quantity must be non-zero positive decimal value")
+		}
+		switch arg.OrderType {
+		case order.StopLimit, order.TakeProfitLimit:
+			if arg.TriggerPrice <= 0 {
+				return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
+			}
+		}
+	case order.Market:
+		if arg.Side == order.Buy {
+			if arg.Notional <= 0 && arg.Quantity <= 0 {
+				return nil, fmt.Errorf("either notional or quantity must be non-zero value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+			}
+		} else {
+			if arg.Quantity <= 0 {
+				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+			}
+		}
+	case order.StopLoss, order.TakeProfit:
+		if arg.Side == order.Sell {
+			if arg.Quantity <= 0 {
+				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+			}
+		} else {
+			if arg.Notional <= 0 {
+				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v", arg.OrderType)
+			}
+		}
+		if arg.TriggerPrice <= 0 {
+			return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported order type: %v", arg.OrderType)
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = arg.InstrumentName
+	params["side"] = arg.Side.String()
+	params["type"] = arg.OrderType.String()
+	params["price"] = arg.Price
+	if arg.Quantity > 0 {
+		params["quantity"] = arg.Quantity
+	}
+	if arg.Notional > 0 {
+		params["notional"] = arg.Notional
+	}
+	if arg.ClientOrderID != "" {
+		params["client_oid"] = arg.ClientOrderID
+	}
+	if arg.TimeInForce != "" {
+		params["time_in_force"] = arg.TimeInForce
+	}
+	if arg.PostOnly {
+		params["exec_inst"] = "POST_ONLY"
+	}
+	if arg.TriggerPrice > 0 {
+		params["trigger_price"] = arg.TriggerPrice
+	}
+	return params, nil
+}
+
 // CancelOrderParam represents the parameters to cancel an existing order.
 type CancelOrderParam struct {
 	InstrumentName string
@@ -334,21 +393,21 @@ type OrderCreationResponse struct {
 // CancelOrdersResponse represents list of cancel orders response.
 type CancelOrdersResponse struct {
 	ResultList []struct {
-		Index int `json:"index"`
-		Code  int `json:"code"`
+		Index int64 `json:"index"`
+		Code  int64 `json:"code"`
 	} `json:"result_list"`
 }
 
 // OrderCreationResultItem represents order creation result Item.
 // This represents single order information.
 type OrderCreationResultItem struct {
-	Index     int    `json:"index"`
-	Code      int    `json:"code"`
+	Index     int64  `json:"index"`
+	Code      int64  `json:"code"`
 	OrderID   string `json:"order_id"`
 	ClientOid string `json:"client_oid"`
 }
 
-// AccountResponse represents main and sub account detail informations
+// AccountResponse represents main and sub account detail information
 type AccountResponse struct {
 	MasterAccount  AccountInfo   `json:"master_account"`
 	SubAccountList []AccountInfo `json:"sub_account_list"`
@@ -384,30 +443,30 @@ type TransactionResponse struct {
 
 // TransactionItem represents a transaction instance.
 type TransactionItem struct {
-	AccountID        string `json:"account_id"`
-	EventDate        string `json:"event_date"`
-	JournalType      string `json:"journal_type"`
-	JournalID        string `json:"journal_id"`
-	TransactionQty   string `json:"transaction_qty"`
-	TransactionCost  string `json:"transaction_cost"`
-	RealizedPnl      string `json:"realized_pnl"`
-	OrderID          string `json:"order_id,omitempty"`
-	TradeID          string `json:"trade_id,omitempty"`
-	TradeMatchID     string `json:"trade_match_id"`
-	EventTimestampMs int64  `json:"event_timestamp_ms"`
-	EventTimestampNs string `json:"event_timestamp_ns"`
-	ClientOid        string `json:"client_oid"`
-	TakerSide        string `json:"taker_side"`
-	Side             string `json:"side,omitempty"`
-	InstrumentName   string `json:"instrument_name"`
+	OrderID             string                    `json:"order_id,omitempty"`
+	AccountID           string                    `json:"account_id"`
+	TradeMatchID        string                    `json:"trade_match_id"`
+	TradeID             string                    `json:"trade_id,omitempty"`
+	EventDate           string                    `json:"event_date"` // format 2021-02-18
+	JournalType         string                    `json:"journal_type"`
+	JournalID           string                    `json:"journal_id"`
+	TransactionCost     float64                   `json:"transaction_cost,string"`
+	TransactionQuantity float64                   `json:"transaction_qty,string"`
+	RealizedPnl         float64                   `json:"realized_pnl,string"`
+	EventTimestampMs    cryptoDotComMilliSec      `json:"event_timestamp_ms"` // Event timestamp in milliseconds
+	EventTimestampNs    cryptoDotComNanoSecString `json:"event_timestamp_ns"` // Event timestamp in nanoseconds
+	ClientOrderID       string                    `json:"client_oid"`
+	TakerSide           string                    `json:"taker_side"`
+	Side                string                    `json:"side,omitempty"`
+	InstrumentName      string                    `json:"instrument_name"`
 }
 
 // OTCTrade represents an OTC trade.
 type OTCTrade struct {
 	AccountUUID         string               `json:"account_uuid"`
-	RequestsPerMinute   int                  `json:"requests_per_minute"`
-	MaxTradeValueUsd    string               `json:"max_trade_value_usd"`
-	MinTradeValueUsd    string               `json:"min_trade_value_usd"`
+	RequestsPerMinute   int64                `json:"requests_per_minute"`
+	MaxTradeValueUSD    float64              `json:"max_trade_value_usd,string"`
+	MinTradeValueUSD    float64              `json:"min_trade_value_usd,string"`
 	AcceptOtcTcDatetime cryptoDotComMilliSec `json:"accept_otc_tc_datetime"`
 }
 
@@ -418,14 +477,14 @@ type OTCInstrumentsResponse struct {
 
 // OTCInstrument represents an OTC instrument.
 type OTCInstrument struct {
-	InstrumentName               string `json:"instrument_name"`
-	BaseCurrency                 string `json:"base_currency"`
-	QuoteCurrency                string `json:"quote_currency"`
-	BaseCurrencyDecimals         int    `json:"base_currency_decimals"`
-	QuoteCurrencyDecimals        int    `json:"quote_currency_decimals"`
-	BaseCurrencyDisplayDecimals  int    `json:"base_currency_display_decimals"`
-	QuoteCurrencyDisplayDecimals int    `json:"quote_currency_display_decimals"`
-	Tradable                     bool   `json:"tradable"`
+	InstrumentName               string  `json:"instrument_name"`
+	BaseCurrency                 string  `json:"base_currency"`
+	QuoteCurrency                string  `json:"quote_currency"`
+	BaseCurrencyDecimals         float64 `json:"base_currency_decimals"`
+	QuoteCurrencyDecimals        float64 `json:"quote_currency_decimals"`
+	BaseCurrencyDisplayDecimals  float64 `json:"base_currency_display_decimals"`
+	QuoteCurrencyDisplayDecimals float64 `json:"quote_currency_display_decimals"`
+	Tradable                     bool    `json:"tradable"`
 }
 
 // OTCQuoteResponse represents quote to buy or sell with either base currency or quote currency.
@@ -435,43 +494,43 @@ type OTCQuoteResponse struct {
 	QuoteDirection    string               `json:"quote_direction"`
 	BaseCurrency      string               `json:"base_currency"`
 	QuoteCurrency     string               `json:"quote_currency"`
-	BaseCurrencySize  float64              `json:"base_currency_size"`
-	QuoteCurrencySize string               `json:"quote_currency_size"`
-	QuoteBuy          string               `json:"quote_buy"`
-	QuoteBuyQuantity  string               `json:"quote_buy_quantity"`
-	QuoteBuyValue     string               `json:"quote_buy_value"`
-	QuoteSell         string               `json:"quote_sell"`
-	QuoteSellQuantity string               `json:"quote_sell_quantity"`
-	QuoteSellValue    string               `json:"quote_sell_value"`
-	QuoteDuration     int                  `json:"quote_duration"`
+	BaseCurrencySize  float64              `json:"base_currency_size,string"`
+	QuoteCurrencySize float64              `json:"quote_currency_size,string"`
+	QuoteBuy          float64              `json:"quote_buy,string"`
+	QuoteBuyQuantity  float64              `json:"quote_buy_quantity,string"`
+	QuoteBuyValue     float64              `json:"quote_buy_value,string"`
+	QuoteSell         float64              `json:"quote_sell,string"`
+	QuoteSellQuantity float64              `json:"quote_sell_quantity,string"`
+	QuoteSellValue    float64              `json:"quote_sell_value,string"`
+	QuoteDuration     int64                `json:"quote_duration"`
 	QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
 	QuoteExpiryTime   cryptoDotComMilliSec `json:"quote_expiry_time"`
 }
 
 // AcceptQuoteResponse represents response param for accepting quote.
 type AcceptQuoteResponse struct {
-	QuoteID           string      `json:"quote_id"`
-	QuoteStatus       string      `json:"quote_status"`
-	QuoteDirection    string      `json:"quote_direction"`
-	BaseCurrency      string      `json:"base_currency"`
-	QuoteCurrency     string      `json:"quote_currency"`
-	BaseCurrencySize  interface{} `json:"base_currency_size"`
-	QuoteCurrencySize string      `json:"quote_currency_size"`
-	QuoteBuy          string      `json:"quote_buy"`
-	QuoteSell         interface{} `json:"quote_sell"`
-	QuoteDuration     int         `json:"quote_duration"`
-	QuoteTime         int64       `json:"quote_time"`
-	QuoteExpiryTime   int64       `json:"quote_expiry_time"`
-	TradeDirection    string      `json:"trade_direction"`
-	TradePrice        string      `json:"trade_price"`
-	TradeQuantity     string      `json:"trade_quantity"`
-	TradeValue        string      `json:"trade_value"`
-	TradeTime         int64       `json:"trade_time"`
+	QuoteID           string               `json:"quote_id"`
+	QuoteStatus       string               `json:"quote_status"`
+	TradeDirection    string               `json:"trade_direction"`
+	QuoteDirection    string               `json:"quote_direction"`
+	BaseCurrency      string               `json:"base_currency"`
+	QuoteCurrency     string               `json:"quote_currency"`
+	BaseCurrencySize  float64              `json:"base_currency_size,string"`
+	QuoteCurrencySize float64              `json:"quote_currency_size,string"`
+	QuoteBuy          float64              `json:"quote_buy,string"`
+	QuoteSell         float64              `json:"quote_sell,string"`
+	QuoteDuration     int64                `json:"quote_duration"`
+	QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
+	QuoteExpiryTime   cryptoDotComMilliSec `json:"quote_expiry_time"`
+	TradePrice        float64              `json:"trade_price,string"`
+	TradeQuantity     float64              `json:"trade_quantity,string"`
+	TradedValue       float64              `json:"trade_value,string"`
+	TradeTime         cryptoDotComMilliSec `json:"trade_time"`
 }
 
 // QuoteHistoryResponse represents a quote history instance.
 type QuoteHistoryResponse struct {
-	Count     int `json:"count"`
+	Count     int64 `json:"count"`
 	QuoteList []struct {
 		QuoteID           string               `json:"quote_id"`
 		QuoteStatus       string               `json:"quote_status"`
@@ -479,12 +538,12 @@ type QuoteHistoryResponse struct {
 		BaseCurrency      string               `json:"base_currency"`
 		QuoteCurrency     string               `json:"quote_currency"`
 		BaseCurrencySize  float64              `json:"base_currency_size"`
-		QuoteCurrencySize string               `json:"quote_currency_size"`
-		QuoteBuy          string               `json:"quote_buy"`
-		QuoteSell         float64              `json:"quote_sell"`
-		QuoteDuration     int                  `json:"quote_duration"`
+		QuoteCurrencySize float64              `json:"quote_currency_size,string"`
+		QuoteBuy          float64              `json:"quote_buy,string"`
+		QuoteSell         float64              `json:"quote_sell,string"`
+		QuoteDuration     int64                `json:"quote_duration"`
 		QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
-		QuoteExpiryTime   int64                `json:"quote_expiry_time"`
+		QuoteExpiryTime   cryptoDotComMilliSec `json:"quote_expiry_time"`
 		TradeDirection    string               `json:"trade_direction"`
 		TradePrice        float64              `json:"trade_price"`
 		TradeQuantity     float64              `json:"trade_quantity"`
@@ -495,31 +554,34 @@ type QuoteHistoryResponse struct {
 
 // OTCTradeHistoryResponse represents an OTC trade history response.
 type OTCTradeHistoryResponse struct {
-	Count     int `json:"count"`
-	TradeList []struct {
-		QuoteID           string               `json:"quote_id"`
-		QuoteStatus       string               `json:"quote_status"`
-		QuoteDirection    string               `json:"quote_direction"`
-		BaseCurrency      string               `json:"base_currency"`
-		QuoteCurrency     string               `json:"quote_currency"`
-		BaseCurrencySize  string               `json:"base_currency_size"`
-		QuoteCurrencySize string               `json:"quote_currency_size"`
-		QuoteBuy          string               `json:"quote_buy"`
-		QuoteSell         string               `json:"quote_sell"`
-		QuoteDuration     int                  `json:"quote_duration"`
-		QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
-		QuoteExpiryTime   int64                `json:"quote_expiry_time"`
-		TradeDirection    string               `json:"trade_direction"`
-		TradePrice        string               `json:"trade_price"`
-		TradeQuantity     string               `json:"trade_quantity"`
-		TradeValue        string               `json:"trade_value"`
-		TradeTime         cryptoDotComMilliSec `json:"trade_time"`
-	} `json:"trade_list"`
+	Count     int64          `json:"count"`
+	TradeList []OTCTradeItem `json:"trade_list"`
+}
+
+// OTCTradeItem represents an OTC trade item detail.
+type OTCTradeItem struct {
+	QuoteID           string               `json:"quote_id"`
+	QuoteStatus       string               `json:"quote_status"`
+	QuoteDirection    string               `json:"quote_direction"`
+	BaseCurrency      string               `json:"base_currency"`
+	QuoteCurrency     string               `json:"quote_currency"`
+	BaseCurrencySize  float64              `json:"base_currency_size,string"`
+	QuoteCurrencySize float64              `json:"quote_currency_size,string"`
+	QuoteBuy          string               `json:"quote_buy"`
+	QuoteSell         string               `json:"quote_sell"`
+	QuoteDuration     int64                `json:"quote_duration"`
+	QuoteTime         cryptoDotComMilliSec `json:"quote_time"`
+	QuoteExpiryTime   cryptoDotComMilliSec `json:"quote_expiry_time"`
+	TradeDirection    string               `json:"trade_direction"`
+	TradePrice        float64              `json:"trade_price,string"`
+	TradeQuantity     float64              `json:"trade_quantity,string"`
+	TradeValue        float64              `json:"trade_value,string"`
+	TradeTime         cryptoDotComMilliSec `json:"trade_time"`
 }
 
 // SubscriptionPayload represents a subscription payload
 type SubscriptionPayload struct {
-	ID            int                 `json:"id"`
+	ID            int64               `json:"id"`
 	Method        string              `json:"method"`
 	Params        map[string][]string `json:"params"`
 	Nonce         int64               `json:"nonce"`
@@ -546,10 +608,8 @@ type WsResult struct {
 	Subscription   string          `json:"subscription"`
 	Data           json.RawMessage `json:"data"`
 	InstrumentName string          `json:"instrument_name"`
-
-	Depth int64 `json:"depth"` // for orderbooks
-
-	Interval string `json:"interval"` // for candlestick datas.
+	Depth          int64           `json:"depth"`    // for orderbooks
+	Interval       string          `json:"interval"` // for candlestick data.
 }
 
 // UserOrderbook represents a user orderbook object.
@@ -590,7 +650,7 @@ type UserBalance struct {
 	Balance   float64 `json:"balance"`
 	Available float64 `json:"available"`
 	Order     float64 `json:"order"`
-	Stake     int     `json:"stake"`
+	Stake     int64   `json:"stake"`
 }
 
 // WsOrderbook represents an orderbook websocket push data.
@@ -600,7 +660,7 @@ type WsOrderbook struct {
 	PushTime            cryptoDotComMilliSec `json:"t"`
 	OrderbookUpdateTime cryptoDotComMilliSec `json:"tt"`
 	UpdateSequence      int64                `json:"u"`
-	Cs                  int                  `json:"cs"`
+	Cs                  int64                `json:"cs"`
 }
 
 // WsRequestPayload represents authentication and request sending payload
@@ -615,20 +675,20 @@ type WsRequestPayload struct {
 
 // RespData represents a generalized object structure of responses.
 type RespData struct {
-	ID            int             `json:"id"`
-	Method        string          `json:"method"`
-	Code          int             `json:"code"`
-	Message       string          `json:"message"`
-	DetailCode    string          `json:"detail_code"`
-	DetailMessage string          `json:"detail_message"`
-	Result        json.RawMessage `json:"result"`
+	ID            int64       `json:"id"`
+	Method        string      `json:"method"`
+	Code          int64       `json:"code"`
+	Message       string      `json:"message"`
+	DetailCode    string      `json:"detail_code"`
+	DetailMessage string      `json:"detail_message"`
+	Result        interface{} `json:"result"`
 }
 
 // WSRespData represents a generalized object structure of websocket responses.
 type WSRespData struct {
-	ID            int         `json:"id"`
+	ID            int64       `json:"id"`
 	Method        string      `json:"method"`
-	Code          int         `json:"code"`
+	Code          int64       `json:"code"`
 	Message       string      `json:"message"`
 	DetailCode    string      `json:"detail_code"`
 	DetailMessage string      `json:"detail_message"`

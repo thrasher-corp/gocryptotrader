@@ -216,8 +216,6 @@ func SetRateLimit() *RateLimiter {
 		PublicGetValuations:             request.NewRateLimit(oneSecondInterval, hundredPerInterval),
 		PublicGetExpiredSettlementPrice: request.NewRateLimit(oneSecondInterval, hundredPerInterval),
 		PublicGetInsurance:              request.NewRateLimit(oneSecondInterval, hundredPerInterval),
-		// PrivateSetCancelOnDisconnect:    request.NewRateLimit(),
-		// PrivateGetCancelOnDisconnect:    request.NewRateLimit(),
 		PrivateUserBalance:              request.NewRateLimit(hundredMilliSecondsInterval, threePerInterval),
 		PrivateUserBalanceHistory:       request.NewRateLimit(hundredMilliSecondsInterval, threePerInterval),
 		PrivateCreateSubAccountTransfer: request.NewRateLimit(hundredMilliSecondsInterval, threePerInterval),

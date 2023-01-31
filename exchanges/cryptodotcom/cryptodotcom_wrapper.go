@@ -236,15 +236,14 @@ func (cr *Cryptodotcom) UpdateTradablePairs(ctx context.Context, forceUpdate boo
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := cr.GetTicker(ctx, p.String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 	if len(tick.Data) != 1 {
-		return tickerPrice, errInvalidResponseFromServer
+		return nil, errInvalidResponseFromServer
 	}
-	tickerPrice = &ticker.Price{
+	tickerPrice := &ticker.Price{
 		High:         tick.Data[0].HighestTradePrice,
 		Low:          tick.Data[0].LowestTradePrice,
 		Bid:          tick.Data[0].BestBidPrice,
@@ -286,7 +285,7 @@ func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item)
 			Pair:         cp,
 			ExchangeName: cr.Name,
 			AssetType:    assetType,
-			// QuoteVolume:  tick.Data[y].QuoteVolume,
+			QuoteVolume:  tick.Data[y].TradedVolumeInUSD24H,
 		})
 		if err != nil {
 			return err
@@ -925,18 +924,12 @@ func (cr *Cryptodotcom) ValidateCredentials(ctx context.Context, assetType asset
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	if pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	if !a.IsValid() {
-		return nil, asset.ErrNotSupported
-	}
-	formattedPair, err := cr.FormatSymbol(pair, a)
+func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := cr.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
-	candles, err := cr.GetCandlestickDetail(ctx, formattedPair, interval)
+	candles, err := cr.GetCandlestickDetail(ctx, req.RequestFormatted.String(), interval)
 	if err != nil {
 		return nil, err
 	}
@@ -953,7 +946,7 @@ func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pa
 	}
 	return &kline.Item{
 		Exchange: cr.Name,
-		Pair:     pair,
+		Pair:     req.RequestFormatted,
 		Asset:    a,
 		Interval: interval,
 		Candles:  candleElements,
@@ -962,5 +955,5 @@ func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pa
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (cr *Cryptodotcom) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return cr.GetHistoricCandles(ctx, pair, a, interval, time.Time{}, time.Time{})
+	return nil, common.ErrFunctionNotSupported
 }

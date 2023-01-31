@@ -1377,9 +1377,9 @@
     "enabled": {
      "autoPairUpdates": true,
      "websocketAPI": true,
-     "saveTradeData": false,
-     "tradeFeed": false,
-     "fillsFeed": false
+     "saveTradeData": true,
+     "tradeFeed": true,
+     "fillsFeed": true
     }
    },
    "bankAccounts": [

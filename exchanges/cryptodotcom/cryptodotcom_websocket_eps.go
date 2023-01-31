@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// WsGetInstruments retrives information on all supported instruments through the public websocket connection.
+// WsGetInstruments retrieves information on all supported instruments through the public websocket connection.
 func (cr *Cryptodotcom) WsGetInstruments() (*InstrumentList, error) {
 	var resp *InstrumentList
 	return resp, cr.SendWebsocketRequest(publicInstruments, nil, &resp, false)
@@ -39,7 +39,7 @@ func (cr *Cryptodotcom) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconne
 	return resp, cr.SendWebsocketRequest(privateSetCancelOnDisconnect, params, &resp, true)
 }
 
-// WsRetriveCancelOnDisconnect retrives cancel-on-disconnect scope information.
+// WsRetriveCancelOnDisconnect retrieves cancel-on-disconnect scope information.
 func (cr *Cryptodotcom) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope, error) {
 	var resp *CancelOnDisconnectScope
 	return resp, cr.SendWebsocketRequest(privateGetCancelOnDisconnect, nil, &resp, true)
@@ -72,10 +72,10 @@ func (cr *Cryptodotcom) WsCreateWithdrawal(ccy currency.Code, amount float64, ad
 		params["network_id"] = networkID
 	}
 	var resp *WithdrawalItem
-	return resp, cr.SendWebsocketRequest(postWithdrawal, params, &resp, true)
+	return resp, cr.SendWebsocketRequest(privateWithdrawal, params, &resp, true)
 }
 
-// WsRetriveWithdrawalHistory retrives accounts withdrawal history through the websocket connection
+// WsRetriveWithdrawalHistory retrieves accounts withdrawal history through the websocket connection
 func (cr *Cryptodotcom) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error) {
 	var resp *WithdrawalResponse
 	return resp, cr.SendWebsocketRequest(privateGetWithdrawalHistory, nil, &resp, true)
@@ -83,7 +83,7 @@ func (cr *Cryptodotcom) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error
 
 // WsPlaceOrder created a new BUY or SELL order on the Exchange through the websocket connection.
 func (cr *Cryptodotcom) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderResponse, error) {
-	params, err := cr.getCreateParamMap(arg)
+	params, err := arg.getCreateParamMap()
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 	params := make(map[string]interface{})
 	orderParams := make([]map[string]interface{}, len(arg))
 	for x := range arg {
-		p, err := cr.getCreateParamMap(&arg[x])
+		p, err := arg[x].getCreateParamMap()
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +183,7 @@ func (cr *Cryptodotcom) WsRetrivePersonalOrderHistory(instrumentName string, sta
 	return resp, cr.SendWebsocketRequest(privateGetOrderHistory, params, &resp, true)
 }
 
-// WsRetrivePersonalOpenOrders retrives all open orders of particular instrument through the websocket connection
+// WsRetrivePersonalOpenOrders retrieves all open orders of particular instrument through the websocket connection
 func (cr *Cryptodotcom) WsRetrivePersonalOpenOrders(instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]interface{})
 	if instrumentName != "" {
@@ -197,7 +197,7 @@ func (cr *Cryptodotcom) WsRetrivePersonalOpenOrders(instrumentName string, pageS
 	return resp, cr.SendWebsocketRequest(privateGetOpenOrders, params, &resp, true)
 }
 
-// WsRetriveOrderDetail retrives details on a particular order ID through the websocket connection
+// WsRetriveOrderDetail retrieves details on a particular order ID through the websocket connection
 func (cr *Cryptodotcom) WsRetriveOrderDetail(orderID string) (*OrderDetail, error) {
 	var resp *OrderDetail
 	if orderID == "" {

@@ -252,6 +252,7 @@ func TestGetPersonalOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	t.Error(err)
 	_, err = cr.WsRetrivePersonalOpenOrders("", 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -391,7 +392,7 @@ func TestRequestOTCQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInfoNotProvided)
 	}
-	_, err := cr.RequestOTCQuote(context.Background(), currency.BTC, currency.USDT, .001, 232, "BUY")
+	_, err := cr.RequestOTCQuote(context.Background(), currency.NewPair(currency.BTC, currency.USDT), .001, 232, "BUY")
 	if err != nil {
 		t.Error(err)
 	}
@@ -413,7 +414,7 @@ func TestGetOTCQuoteHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInfoNotProvided)
 	}
-	_, err := cr.GetOTCQuoteHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 10)
+	_, err := cr.GetOTCQuoteHistory(context.Background(), currency.NewPair(currency.EMPTYCODE, currency.EMPTYCODE), time.Time{}, time.Time{}, 0, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -424,7 +425,7 @@ func TestGetOTCTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInfoNotProvided)
 	}
-	_, err := cr.GetOTCTradeHistory(context.Background(), currency.BTC, currency.USDT, time.Time{}, time.Time{}, 0, 0)
+	_, err := cr.GetOTCTradeHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -546,7 +547,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 40)
+	startTime := time.Now().Add(-time.Minute * 40)
 	endTime := time.Now()
 	_, err = cr.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
@@ -617,6 +618,23 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	_, err := cr.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Error("Cryptodotcom SubmitOrder() error", err)
+	}
+	orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Base:  currency.LTC,
+			Quote: currency.BTC,
+		},
+		Exchange:  cr.Name,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1000000000,
+		ClientID:  "myOwnOrder",
+		AssetType: asset.Spot,
+	}
+	_, err = cr.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
 		t.Error("Cryptodotcom SubmitOrder() error", err)
 	}
