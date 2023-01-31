@@ -1,12 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
@@ -46,33 +45,38 @@ func TestCheckExchangeName(t *testing.T) {
 	}
 }
 
-func TestNewExchange(t *testing.T) {
-	testExchangeName := "testexch"
+func TestNewExchangeAndSaveConfig(t *testing.T) {
+	const testExchangeName = "testexch"
 	testExchangeDir := filepath.Join(targetPath, testExchangeName)
+	cfg := config.GetConfig()
 
-	_, err := makeExchange(
+	t.Cleanup(func() {
+		if err := os.RemoveAll(testExchangeDir); err != nil {
+			t.Errorf("RemoveAll failed: %s, manual deletion of test directory required", err)
+		}
+	})
+
+	exchCfg, err := makeExchange(
 		testExchangeDir,
-		config.GetConfig(),
+		cfg,
 		&exchange{
 			Name: testExchangeName,
 			REST: true,
 			WS:   true,
-		})
+		},
+	)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "build")
-	cmd.Dir = testExchangeDir
-
-	if _, err = cmd.Output(); err != nil {
-		if stdErr, ok := err.(*exec.ExitError); ok {
-			err = fmt.Errorf("%s: stderr: %s", err, stdErr.Stderr)
-		}
+	cfgData, err := os.ReadFile(exchangeConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = saveConfig(testExchangeDir, cfg, exchCfg); err != nil {
 		t.Error(err)
 	}
-
-	if err = os.RemoveAll(testExchangeDir); err != nil {
-		t.Errorf("RemoveAll failed: %s, manual deletion of test directory required", err)
+	if err = os.WriteFile(exchangeConfigPath, cfgData, file.DefaultPermissionOctal); err != nil {
+		t.Error(err)
 	}
 }
