@@ -496,7 +496,7 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 		},
 		Market: currency.NewPair(currency.GT, currency.USDT),
 	}); err != nil {
-		t.Errorf("%s CreatePriceTriggeredOrder() erro %v", g.Name, err)
+		t.Errorf("%s CreatePriceTriggeredOrder() error %v", g.Name, err)
 	}
 }
 

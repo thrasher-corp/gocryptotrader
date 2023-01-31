@@ -185,7 +185,7 @@ var (
 	errInvalidUnderlying                   = errors.New("missing underlying")
 	errInvalidOrderSize                    = errors.New("invalid order size")
 	errInvalidOrderID                      = errors.New("invalid order id")
-	errInvalidWithdrawalDestinationAddress = errors.New("invalid withdrawal destination addresss")
+	errInvalidWithdrawalDestinationAddress = errors.New("invalid withdrawal destination address")
 	errInvalidAmount                       = errors.New("invalid amount")
 	errInvalidOrEmptySubaccount            = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection            = errors.New("invalid transfer direction")
@@ -281,7 +281,7 @@ func (g *Gateio) DeleteAPIKeyOfSubAccount(ctx context.Context, userID int64, api
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelOrdersEPL, http.MethodDelete, fmt.Sprintf(subAccountKeysUserID, userID), nil, nil, nil)
 }
 
-// GetAPIKeyOfSubAccount retrives the API Key of the sub-account
+// GetAPIKeyOfSubAccount retrieves the API Key of the sub-account
 func (g *Gateio) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int64, apiKey string) (*CreateAPIKeyResponse, error) {
 	if subAccountUserID == 0 {
 		return nil, errInvalidSubAccountUserID
@@ -333,7 +333,7 @@ func (g *Gateio) ListAllCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail
 	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, spotDefaultEPL, spotCurrencyPairs, &resp)
 }
 
-// GetCurrencyPairDetail to get details of a specifc order for spot/margin accounts.
+// GetCurrencyPairDetail to get details of a specific order for spot/margin accounts.
 func (g *Gateio) GetCurrencyPairDetail(ctx context.Context, currencyPair string) (*CurrencyPairDetail, error) {
 	if currencyPair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -2009,7 +2009,7 @@ func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle, contract st
 		&candlesticks)
 }
 
-// PremiumIndexKLine retrives premium Index K-Line
+// PremiumIndexKLine retrieves premium Index K-Line
 // Maximum of 1000 points can be returned in a query. Be sure not to exceed the limit when specifying from, to and interval
 func (g *Gateio) PremiumIndexKLine(ctx context.Context, settleCurrency string, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]FuturesPremiumIndexKLineResponse, error) {
 	if settleCurrency == "" {

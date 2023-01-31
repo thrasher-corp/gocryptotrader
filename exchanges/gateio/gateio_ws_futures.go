@@ -120,7 +120,7 @@ func (g *Gateio) WsFuturesConnect() error {
 	return nil
 }
 
-// GenerateFuturesDefaultSubscriptions returns default subscriptions informations.
+// GenerateFuturesDefaultSubscriptions returns default subscriptions information.
 func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {

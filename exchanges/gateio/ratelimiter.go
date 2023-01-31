@@ -40,7 +40,7 @@ const (
 	threeSecondsInterval = time.Second * 3
 )
 
-// RateLimitter respresents a rate limiter structure for gateIO endpoints.
+// RateLimitter represents a rate limiter structure for gateIO endpoints.
 type RateLimitter struct {
 	SpotDefault               *rate.Limiter
 	SpotPrivate               *rate.Limiter

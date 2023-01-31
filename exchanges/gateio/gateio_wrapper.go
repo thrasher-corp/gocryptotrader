@@ -366,7 +366,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	return ticker.GetTicker(g.Name, fPair, a)
 }
 
-// FetchTicker retrives a list of tickers.
+// FetchTicker retrieves a list of tickers.
 func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	fPair, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -1068,7 +1068,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		} else if orderTypeFormat == "ask" && s.Price > 0 {
 			s.Price = -s.Price
 		}
-		dOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
+		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
 			Contract:    fPair,
 			Size:        s.Amount,
 			Price:       s.Price,
@@ -1080,20 +1080,20 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		response, err := s.DeriveSubmitResponse(strconv.FormatInt(dOrder.ID, 10))
+		response, err := s.DeriveSubmitResponse(strconv.FormatInt(newOrder.ID, 10))
 		if err != nil {
 			return nil, err
 		}
-		status, err := order.StringToOrderStatus(dOrder.Status)
+		status, err := order.StringToOrderStatus(newOrder.Status)
 		if err != nil {
 			return nil, err
 		}
 		response.Status = status
 		response.Pair = fPair
-		response.Date = dOrder.CreateTime.Time()
-		response.ClientOrderID = dOrder.Text
-		response.Amount = dOrder.Size
-		response.Price = dOrder.OrderPrice
+		response.Date = newOrder.CreateTime.Time()
+		response.ClientOrderID = newOrder.Text
+		response.Amount = newOrder.Size
+		response.Price = newOrder.OrderPrice
 		return response, nil
 	case asset.Options:
 		optionOrder, err := g.PlaceOptionOrder(ctx, OptionOrderParam{

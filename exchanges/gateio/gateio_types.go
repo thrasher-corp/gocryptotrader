@@ -2662,7 +2662,7 @@ type SubAccountKey struct {
 	Permissions []APIV4KeyPerm `json:"perms,omitempty"`
 }
 
-// APIV4KeyPerm represents an API Version 4 Key permission informations
+// APIV4KeyPerm represents an API Version 4 Key permission information
 type APIV4KeyPerm struct {
 	PermissionName string   `json:"name,omitempty"`
 	ReadOnly       bool     `json:"read_only,omitempty"`
