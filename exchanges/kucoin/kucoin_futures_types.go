@@ -110,8 +110,8 @@ type FuturesInterestRate struct {
 	Granularity int64              `json:"granularity"`
 }
 
-// Decomposion stores decomposion data
-type Decomposion struct {
+// Decomposition stores decomposition data
+type Decomposition struct {
 	Exchange string  `json:"exchange"`
 	Price    float64 `json:"price"`
 	Weight   float64 `json:"weight"`
@@ -120,7 +120,7 @@ type Decomposion struct {
 // FuturesIndex stores index data
 type FuturesIndex struct {
 	FuturesInterestRate
-	DecomposionList []Decomposion `json:"decomposionList"`
+	DecompositionList []Decomposition `json:"decompositionList"`
 }
 
 // FuturesMarkPrice stores mark price data

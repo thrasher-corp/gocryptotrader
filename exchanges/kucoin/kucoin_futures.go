@@ -179,7 +179,7 @@ func (ku *Kucoin) GetFuturesInterestRate(ctx context.Context, symbol string, sta
 	return resp.List, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesInterestRate, params), &resp)
 }
 
-// GetFuturesIndexList retrives futures index information for a symbol
+// GetFuturesIndexList retrieves futures index information for a symbol
 func (ku *Kucoin) GetFuturesIndexList(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) ([]FuturesIndex, error) {
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
@@ -800,7 +800,7 @@ func (ku *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount floa
 	return ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, kucoinFuturesTransferFundtoFuturesAccount, params, &resp)
 }
 
-// GetFuturesTransferOutList gets list of trasfer out
+// GetFuturesTransferOutList gets list of transfer out
 func (ku *Kucoin) GetFuturesTransferOutList(ctx context.Context, currency, status string, startAt, endAt time.Time) (*TransferListsResponse, error) {
 	if currency == "" {
 		return nil, errors.New("currency can't be empty")

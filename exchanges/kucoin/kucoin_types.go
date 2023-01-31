@@ -26,6 +26,7 @@ var (
 	errInvalidSubAccountName     = errors.New("invalid sub-account name")
 	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
 	errNoValidResponseFromServer = errors.New("no valud response from server")
+	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 )
 
 var offlineTradeFee = map[currency.Code]float64{
@@ -950,10 +951,10 @@ type WsOrderbook struct {
 		Asks [][3]string `json:"asks"`
 		Bids [][3]string `json:"bids"`
 	} `json:"changes"`
-	SequenceEnd   int64  `json:"sequenceEnd"`
-	SequenceStart int64  `json:"sequenceStart"`
-	Symbol        string `json:"symbol"`
-	TimeMS        int64  `json:"time"`
+	SequenceEnd   int64              `json:"sequenceEnd"`
+	SequenceStart int64              `json:"sequenceStart"`
+	Symbol        string             `json:"symbol"`
+	TimeMS        kucoinTimeMilliSec `json:"time"`
 }
 
 // WsLevel2Orderbook represents orderbook information.

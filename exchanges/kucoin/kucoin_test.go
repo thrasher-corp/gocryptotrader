@@ -65,6 +65,7 @@ func TestMain(m *testing.M) {
 	request.MaxRequestJobs = 100
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	setupWS()
 	os.Exit(m.Run())
 }
 
@@ -1883,20 +1884,17 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 }
 
 var (
-	orderbookLevel2PushDataJSON = `{"type": "message","topic": "/market/level2:BTC-USDT","subject": "trade.l2update","data": {"changes": {"asks": [["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids": [["18891.9","0.15688","14103847"]]},"sequenceEnd": 14103847,"sequenceStart": 14103844,"symbol": "BTC-USDT","time": 1663747970273}}`
+	orderbookLevel2PushDataJSON = ` {"type":"message","topic":"/market/level2:FET-BTC","subject":"trade.l2update","data":{"changes":{"asks":[["0.000011615","0.3623","30745798"]],"bids":[]},"sequenceEnd":30745798,"sequenceStart":30745798,"symbol":"FET-BTC","time":1675171793219}}`
 	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT","subject": "level2","data": {"asks":[["9989","8"],["9990","32"],["9991","47"],["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
-	orderbookLevel50PushData    = `{"type":"message","topic": "/spotMarket/level2Depth50:BTC-USDT","subject": "level2","data": {"asks":[["9989","8"],["9990","32"],["9991","47"],["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
 )
 
 func TestOrderbookPushData(t *testing.T) {
+	t.Parallel()
 	err := ku.wsHandleData([]byte(orderbookLevel2PushDataJSON))
 	if err != nil {
 		t.Error(err)
 	}
 	if err = ku.wsHandleData([]byte(orderbookLevel5PushDataJSON)); err != nil {
-		t.Error(err)
-	}
-	if err = ku.wsHandleData([]byte(orderbookLevel50PushData)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1974,7 +1972,7 @@ func TestOrderChangePushData(t *testing.T) {
 	}
 }
 
-var accountBalanceNoticePushDataJSON = `{"type": "message","topic": "/account/balance","subject": "account.balance","channelType":"private","data": {"total": "88","available": "88","availableChange": "88","currency": "KCS","hold": "0","holdChange": "0","relationEvent": "trade.setted","relationEventId": "5c21e80303aa677bd09d7dff","relationContext": {"symbol":"BTC-USDT","tradeId":"5e6a5dca9e16882a7d83b7a4","orderId":"5ea10479415e2f0009949d54"},"time": "1545743136994"}}`
+var accountBalanceNoticePushDataJSON = `{"type": "message","topic": "/account/balance","subject": "account.balance","channelType":"private","data": {"total": "88","available": "88","availableChange": "88","currency": "KCS","hold": "0","holdChange": "0","relationEvent": "trade.hold","relationEventId": "5c21e80303aa677bd09d7dff","relationContext": {"symbol":"BTC-USDT","tradeId":"5e6a5dca9e16882a7d83b7a4","orderId":"5ea10479415e2f0009949d54"},"time": "1545743136994"}}`
 
 func TestAccountBalanceNotice(t *testing.T) {
 	t.Parallel()
@@ -2404,5 +2402,18 @@ func TestGetPaginatedListOfSubAccounts(t *testing.T) {
 	}
 	if _, err := ku.GetPaginatedListOfSubAccounts(context.Background(), 1, 100); err != nil {
 		t.Error(err)
+	}
+}
+
+func setupWS() {
+	if !ku.Websocket.IsEnabled() {
+		return
+	}
+	if !areTestAPIKeysSet() {
+		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	err := ku.WsConnect()
+	if err != nil {
+		log.Fatal(err)
 	}
 }

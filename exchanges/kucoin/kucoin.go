@@ -29,6 +29,7 @@ import (
 // Kucoin is the overarching type across this package
 type Kucoin struct {
 	exchange.Base
+	obm *orderbookManager
 }
 
 const (
@@ -212,6 +213,12 @@ func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 		return nil, err
 	}
 	s.Time = o.Time.Time()
+	if o.Sequence != "" {
+		s.Sequence, err = strconv.ParseInt(o.Sequence, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &s, err
 }
 
@@ -846,7 +853,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 		case funds > 0:
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		default:
-			return "", errors.New("atleast one required among size and funds")
+			return "", errors.New("at least one required among size and funds")
 		}
 	default:
 		return "", errors.New("invalid orderType")
@@ -915,7 +922,7 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, 
 		case funds > 0:
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		default:
-			return nil, errors.New("atleast one required among size and funds")
+			return nil, errors.New("at least one required among size and funds")
 		}
 	default:
 		return nil, errors.New("invalid orderType")
@@ -1142,7 +1149,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		case funds > 0:
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		default:
-			return "", errors.New("atleast one required among size and funds")
+			return "", errors.New("at least one required among size and funds")
 		}
 	default:
 		return "", errors.New("invalid orderType")
