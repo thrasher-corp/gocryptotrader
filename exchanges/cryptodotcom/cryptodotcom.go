@@ -33,7 +33,6 @@ const (
 	// cryptodotcom API endpoints.
 	cryptodotcomUATSandboxAPIURL = "https://uat-api.3ona.co"
 	cryptodotcomAPIURL           = "https://api.crypto.com"
-	// cryptodotcomAPIURL           = "https://uat-api.3ona.co"
 
 	// cryptodotcom websocket endpoints.
 	cryptodotcomWebsocketUserAPI   = "wss://stream.crypto.com/v2/user"
@@ -67,7 +66,7 @@ const (
 	privateCancelOrder           = "private/cancel-order"
 	privateCreateOrderList       = "private/create-order-list"
 	privateCancelOrderList       = "private/cancel-order-list"
-	privateCancelAllOrders       = "private/cancel-all-orders" // TODO:
+	privateCancelAllOrders       = "private/cancel-all-orders"
 	privateClosePosition         = "private/close-position"
 	privateGetOrderHistory       = "private/get-order-history"
 	privateGetOpenOrders         = "private/get-open-orders"
