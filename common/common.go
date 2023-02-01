@@ -437,26 +437,26 @@ func InArray(val, array interface{}) (exists bool, index int) {
 // AppendError appends error in a more idiomatic way. This can start out as a
 // standard error e.g. err := errors.New("random error")
 // err = AppendError(err, errors.New("another random error"))
-func AppendError(p error, incoming error) error {
+func AppendError(original, incoming error) error {
 	if incoming == nil {
 		if _, file, no, ok := runtime.Caller(1); ok {
 			log.Errorf(log.Global, "AppendError() failed: incoming error is nil %s#%d\n", file, no)
 		}
-		if errSlice, ok := p.(*errorSlice); ok {
+		if errSlice, ok := original.(*multipleErrors); ok {
 			errSlice.offset = 0
 		}
-		return p // Skip append - continue as normal.
+		return original // Skip append - continue as normal.
 	}
-	errSliceP, ok := p.(*errorSlice)
+	errSliceP, ok := original.(*multipleErrors)
 	if !ok {
 		// This assumes that a standard error is passed in and we can want to
 		// track it and add additional errors.
-		errSliceP = &errorSlice{}
-		if p != nil {
-			errSliceP.Errors = append(errSliceP.Errors, p)
+		errSliceP = &multipleErrors{}
+		if original != nil {
+			errSliceP.Errors = append(errSliceP.Errors, original)
 		}
 	}
-	if incomingSlice, ok := incoming.(*errorSlice); ok {
+	if incomingSlice, ok := incoming.(*multipleErrors); ok {
 		// Join slices if needed.
 		errSliceP.Errors = append(errSliceP.Errors, incomingSlice.Errors...)
 	} else {
@@ -466,15 +466,15 @@ func AppendError(p error, incoming error) error {
 	return errSliceP
 }
 
-// errorSlice holds all the errors as a slice, this is unexported so it keeps
+// multipleErrors holds all the errors as a slice, this is unexported so it keeps
 // current error handling the same.
-type errorSlice struct {
+type multipleErrors struct {
 	Errors []error
 	offset int
 }
 
 // Error displays all errors comma separated.
-func (e *errorSlice) Error() string {
+func (e *multipleErrors) Error() string {
 	allErrors := make([]string, len(e.Errors))
 	for x := range e.Errors {
 		allErrors[x] = e.Errors[x].Error()
@@ -484,7 +484,7 @@ func (e *errorSlice) Error() string {
 
 // Unwrap increments the offset so errors.Is() can be called to its individual
 // error.
-func (e *errorSlice) Unwrap() error {
+func (e *multipleErrors) Unwrap() error {
 	e.offset++
 	if e.offset == len(e.Errors) {
 		e.offset = 0
@@ -496,7 +496,7 @@ func (e *errorSlice) Unwrap() error {
 // Is checks to see if the errors match. It calls package errors.Is() so that
 // we can keep fmt.Errorf() trimmings. This is called in errors package
 // interface assertion err.(interface{ Is(error) bool }). Pretty neat.
-func (e *errorSlice) Is(incoming error) bool {
+func (e *multipleErrors) Is(incoming error) bool {
 	if errors.Is(e.Errors[e.offset], incoming) {
 		e.offset = 0
 		return true
