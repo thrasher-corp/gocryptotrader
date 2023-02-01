@@ -442,21 +442,21 @@ func AppendError(original, incoming error) error {
 		if _, file, no, ok := runtime.Caller(1); ok {
 			log.Errorf(log.Global, "AppendError() failed: incoming error is nil %s#%d\n", file, no)
 		}
-		if errSlice, ok := original.(*multipleErrors); ok {
+		if errSlice, ok := original.(*multiError); ok {
 			errSlice.offset = 0
 		}
 		return original // Skip append - continue as normal.
 	}
-	errSliceP, ok := original.(*multipleErrors)
+	errSliceP, ok := original.(*multiError)
 	if !ok {
 		// This assumes that a standard error is passed in and we can want to
 		// track it and add additional errors.
-		errSliceP = &multipleErrors{}
+		errSliceP = &multiError{}
 		if original != nil {
 			errSliceP.Errors = append(errSliceP.Errors, original)
 		}
 	}
-	if incomingSlice, ok := incoming.(*multipleErrors); ok {
+	if incomingSlice, ok := incoming.(*multiError); ok {
 		// Join slices if needed.
 		errSliceP.Errors = append(errSliceP.Errors, incomingSlice.Errors...)
 	} else {
@@ -466,15 +466,15 @@ func AppendError(original, incoming error) error {
 	return errSliceP
 }
 
-// multipleErrors holds all the errors as a slice, this is unexported so it keeps
-// current error handling the same.
-type multipleErrors struct {
+// multiError holds all the errors as a slice, this is unexported so it forces
+// ibuilt error handling.
+type multiError struct {
 	Errors []error
 	offset int
 }
 
 // Error displays all errors comma separated.
-func (e *multipleErrors) Error() string {
+func (e *multiError) Error() string {
 	allErrors := make([]string, len(e.Errors))
 	for x := range e.Errors {
 		allErrors[x] = e.Errors[x].Error()
@@ -483,8 +483,8 @@ func (e *multipleErrors) Error() string {
 }
 
 // Unwrap increments the offset so errors.Is() can be called to its individual
-// error.
-func (e *multipleErrors) Unwrap() error {
+// error for correct matching.
+func (e *multiError) Unwrap() error {
 	e.offset++
 	if e.offset == len(e.Errors) {
 		e.offset = 0
@@ -494,9 +494,9 @@ func (e *multipleErrors) Unwrap() error {
 }
 
 // Is checks to see if the errors match. It calls package errors.Is() so that
-// we can keep fmt.Errorf() trimmings. This is called in errors package
-// interface assertion err.(interface{ Is(error) bool }). Pretty neat.
-func (e *multipleErrors) Is(incoming error) bool {
+// we can keep fmt.Errorf() trimmings. This is called in errors package at
+// interface assertion err.(interface{ Is(error) bool }).
+func (e *multiError) Is(incoming error) bool {
 	if errors.Is(e.Errors[e.offset], incoming) {
 		e.offset = 0
 		return true
