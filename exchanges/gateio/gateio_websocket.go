@@ -373,7 +373,7 @@ func (g *Gateio) processOrderbookTicker(data []byte) error {
 
 func (g *Gateio) processOrderbookUpdate(data []byte) error {
 	var response WsResponse
-	update := &WsOrderbookUpdate{}
+	update := new(WsOrderbookUpdate)
 	response.Result = update
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -384,7 +384,7 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 		return err
 	}
 	updates := orderbook.Update{
-		UpdateTime: time.UnixMilli(update.UpdateTimeMs),
+		UpdateTime: update.UpdateTimeMs.Time(),
 		Pair:       pair,
 		Asset:      asset.Spot,
 	}
@@ -440,7 +440,7 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 		Asset:           asset.Spot,
 		Exchange:        g.Name,
 		Pair:            pair,
-		LastUpdated:     time.UnixMilli(snapshot.UpdateTimeMs),
+		LastUpdated:     snapshot.UpdateTimeMs.Time(),
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
 	bases.Bids = make([]orderbook.Item, len(snapshot.Bids))

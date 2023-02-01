@@ -454,7 +454,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte) erro
 			Asset:           futuresAssetType,
 			Exchange:        g.Name,
 			Pair:            pair,
-			LastUpdated:     time.UnixMilli(snapshot.TimestampInMs),
+			LastUpdated:     snapshot.TimestampInMs.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Bids = make([]orderbook.Item, len(snapshot.Bids))
@@ -560,13 +560,13 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte) error {
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           currencyPair,
-			LastUpdated:    time.UnixMilli(resp.Result[x].FinishTimeMs),
-			Date:           time.UnixMilli(resp.Result[x].CreateTimeMs),
+			LastUpdated:    resp.Result[x].FinishTimeMs.Time(),
+			Date:           resp.Result[x].CreateTimeMs.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
 			AssetType:      futuresAssetType,
 			AccountID:      resp.Result[x].User,
-			CloseTime:      time.UnixMilli(resp.Result[x].FinishTimeMs),
+			CloseTime:      resp.Result[x].FinishTimeMs.Time(),
 		}
 	}
 	g.Websocket.DataHandler <- orderDetails
@@ -591,7 +591,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte) error {
 			return err
 		}
 		fills[x] = fill.Data{
-			Timestamp:    time.UnixMilli(resp.Result[x].CreateTimeMs),
+			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: currencyPair,
 			OrderID:      resp.Result[x].OrderID,

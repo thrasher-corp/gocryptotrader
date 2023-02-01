@@ -319,7 +319,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []by
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            pair,
-			LastUpdated:     time.Unix(snapshot.Timestamp, 0),
+			LastUpdated:     snapshot.Timestamp.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Item, len(snapshot.Asks))
@@ -425,7 +425,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           currencyPair,
-			Date:           time.UnixMilli(resp.Result[x].CreationTimeMs),
+			Date:           resp.Result[x].CreationTimeMs.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
 			AssetType:      asset.Options,
@@ -454,7 +454,7 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 			return err
 		}
 		fills[x] = fill.Data{
-			Timestamp:    time.UnixMilli(resp.Result[x].CreateTimeMs),
+			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: currencyPair,
 			OrderID:      resp.Result[x].OrderID,
