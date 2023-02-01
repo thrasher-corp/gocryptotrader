@@ -74,20 +74,16 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 // For dollarcostaverage, the strategy is always "buy", so it uses the OnSignal function
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	var resp []signal.Event
-	var errs gctcommon.Errors
+	var errs error
 	for i := range d {
 		sigEvent, err := s.OnSignal(d[i], nil, nil)
 		if err != nil {
-			errs = append(errs, err)
+			errs = gctcommon.AppendError(errs, err)
 		} else {
 			resp = append(resp, sigEvent)
 		}
 	}
-
-	if len(errs) > 0 {
-		return nil, errs
-	}
-	return resp, nil
+	return resp, errs
 }
 
 // SetCustomSettings not required for DCA

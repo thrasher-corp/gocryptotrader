@@ -1384,10 +1384,10 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 				if len(data.Data) == 0 {
 					return nil, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
 				}
-				errs := common.Errors{}
+				var errs error
 				for x := range resp.Data {
 					if resp.Data[x].SCode != "0" {
-						errs = append(errs, fmt.Errorf("error code:%s message: %s", resp.Data[x].SCode, resp.Data[x].SMessage))
+						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %s", resp.Data[x].SCode, resp.Data[x].SMessage))
 					}
 				}
 				return nil, errs
@@ -1514,10 +1514,10 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 				if err != nil {
 					return nil, err
 				}
-				errs := common.Errors{}
+				var errs error
 				for x := range resp.Data {
 					if resp.Data[x].SCode != "0" {
-						errs = append(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
+						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
 					}
 				}
 				return nil, errs
@@ -1652,10 +1652,10 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 				if err != nil {
 					return nil, err
 				}
-				errs := common.Errors{}
+				var errs error
 				for x := range resp.Data {
 					if resp.Data[x].SCode != "0" {
-						errs = append(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
+						errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp.Data[x].SCode, resp.Data[x].SMessage))
 					}
 				}
 				return nil, errs

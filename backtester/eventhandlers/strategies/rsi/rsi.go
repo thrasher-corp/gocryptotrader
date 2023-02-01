@@ -114,7 +114,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	var resp []signal.Event
-	var errs gctcommon.Errors
+	var errs error
 	for i := range d {
 		latest, err := d[i].Latest()
 		if err != nil {
@@ -122,16 +122,16 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 		}
 		sigEvent, err := s.OnSignal(d[i], nil, nil)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%v %v %v %w", latest.GetExchange(), latest.GetAssetType(), latest.Pair(), err))
+			errs = gctcommon.AppendError(errs, fmt.Errorf("%v %v %v %w",
+				latest.GetExchange(),
+				latest.GetAssetType(),
+				latest.Pair(),
+				err))
 		} else {
 			resp = append(resp, sigEvent)
 		}
 	}
-
-	if len(errs) > 0 {
-		return nil, errs
-	}
-	return resp, nil
+	return resp, errs
 }
 
 // SetCustomSettings allows a user to modify the RSI limits in their config

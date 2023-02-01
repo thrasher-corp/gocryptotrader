@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -623,18 +624,66 @@ func TestInArray(t *testing.T) {
 
 func TestErrors(t *testing.T) {
 	t.Parallel()
-	var test Errors
-	if test.Error() != "" {
-		t.Fatal("string should be nil")
-	}
-	errTestOne := errors.New("test1")
-	test = append(test, errTestOne)
+
+	var errTestOne = errors.New("test1")
+	var test error
+	test = AppendError(test, errTestOne)
 	if !errors.Is(test, errTestOne) {
 		t.Fatal("does not match error")
 	}
-	test = append(test, errors.New("test2"))
+
+	var errTestTwo = errors.New("test2")
+	test = AppendError(test, errTestTwo)
+	if !errors.Is(test, errTestTwo) {
+		t.Fatal("does not match error")
+	}
+
+	if !errors.Is(test, errTestTwo) {
+		t.Fatal("does not match error")
+	}
+
+	// Append nil should log
+	test = AppendError(test, nil)
+
 	if test.Error() != "test1, test2" {
 		t.Fatal("does not match error")
+	}
+
+	// Join slices for whatever reason
+	test = AppendError(test, test)
+
+	if test.Error() != "test1, test2, test1, test2" {
+		t.Fatal("does not match error")
+	}
+
+	var errTestThree = errors.New("test3")
+	if errors.Is(test, errTestThree) {
+		t.Fatal("expected errors.Is() should not match")
+	}
+
+	if errors.Is(test, errTestThree) {
+		t.Fatal("expected errors.Is() should not match")
+	}
+
+	strangeError := errors.New("this is a strange error")
+
+	strangeError = AppendError(strangeError, errTestOne)
+	if strangeError.Error() != "this is a strange error, test1" {
+		t.Fatal("does not match error")
+	}
+
+	// Add trimmings
+	strangeError = AppendError(strangeError, fmt.Errorf("TRIMMINGS: %w", errTestTwo))
+	if strangeError.Error() != "this is a strange error, test1, TRIMMINGS: test2" {
+		t.Fatal("does not match error")
+	}
+
+	if !errors.Is(strangeError, errTestTwo) {
+		t.Fatal("does not match error")
+	}
+
+	if errors.Is(strangeError, errTestThree) {
+		t.Fatal("should not match")
 	}
 }
 

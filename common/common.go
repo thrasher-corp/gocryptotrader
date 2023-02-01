@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -433,28 +434,74 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	return
 }
 
-// Errors defines multiple errors
-type Errors []error
-
-// Error implements error interface
-func (e Errors) Error() string {
-	if len(e) == 0 {
-		return ""
+// AppendError appends error in a more idiomatic way. This can start out as a
+// standard error e.g. err := errors.New("random error")
+// err = AppendError(err, errors.New("another random error"))
+func AppendError(p error, incoming error) error {
+	if incoming == nil {
+		if _, file, no, ok := runtime.Caller(1); ok {
+			log.Errorf(log.Global, "AppendError() failed: incoming error is nil %s#%d\n", file, no)
+		}
+		if errSlice, ok := p.(*errorSlice); ok {
+			errSlice.offset = 0
+		}
+		return p // Skip append - continue as normal.
 	}
-	var r string
-	for i := range e {
-		r += e[i].Error() + ", "
+	errSliceP, ok := p.(*errorSlice)
+	if !ok {
+		// This assumes that a standard error is passed in and we can want to
+		// track it and add additional errors.
+		errSliceP = &errorSlice{}
+		if p != nil {
+			errSliceP.Errors = append(errSliceP.Errors, p)
+		}
 	}
-	return r[:len(r)-2]
+	if incomingSlice, ok := incoming.(*errorSlice); ok {
+		// Join slices if needed.
+		errSliceP.Errors = append(errSliceP.Errors, incomingSlice.Errors...)
+	} else {
+		errSliceP.Errors = append(errSliceP.Errors, incoming)
+	}
+	errSliceP.offset = 0 // Needed to test incremental changes.
+	return errSliceP
 }
 
-// Unwrap implements interface behaviour for errors.Is() matching NOTE: only
-// returns first element.
-func (e Errors) Unwrap() error {
-	if len(e) == 0 {
-		return nil
+// errorSlice holds all the errors as a slice, this is unexported so it keeps
+// current error handling the same.
+type errorSlice struct {
+	Errors []error
+	offset int
+}
+
+// Error displays all errors comma separated.
+func (e *errorSlice) Error() string {
+	allErrors := make([]string, len(e.Errors))
+	for x := range e.Errors {
+		allErrors[x] = e.Errors[x].Error()
 	}
-	return e[0]
+	return strings.Join(allErrors, ", ")
+}
+
+// Unwrap increments the offset so errors.Is() can be called to its individual
+// error.
+func (e *errorSlice) Unwrap() error {
+	e.offset++
+	if e.offset == len(e.Errors) {
+		e.offset = 0
+		return nil // Force errors.Is package to return false.
+	}
+	return e
+}
+
+// Is checks to see if the errors match. It calls package errors.Is() so that
+// we can keep fmt.Errorf() trimmings. This is called in errors package
+// interface assertion err.(interface{ Is(error) bool }). Pretty neat.
+func (e *errorSlice) Is(incoming error) bool {
+	if errors.Is(e.Errors[e.offset], incoming) {
+		e.offset = 0
+		return true
+	}
+	return false
 }
 
 // StartEndTimeCheck provides some basic checks which occur
