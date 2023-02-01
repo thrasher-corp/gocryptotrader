@@ -330,6 +330,9 @@ func TestSubscribe(t *testing.T) {
 }
 func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(missingAuthenticationCredentials)
+	}
 	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
@@ -338,6 +341,9 @@ func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 
 func TestGetRegistration(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(missingAuthenticationCredentials)
+	}
 	_, err := dy.GetRegistration(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
@@ -346,6 +352,9 @@ func TestGetRegistration(t *testing.T) {
 
 func TestRegisterAPIKey(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(missingAuthenticationCredentials)
+	}
 	_, err := dy.RegisterAPIKey(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
@@ -354,6 +363,9 @@ func TestRegisterAPIKey(t *testing.T) {
 
 func TestGetAPIKeys(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(missingAuthenticationCredentials)
+	}
 	_, err := dy.GetAPIKeys(context.Background(), etheriumAddress)
 	if err != nil {
 		t.Error(err)
@@ -362,6 +374,9 @@ func TestGetAPIKeys(t *testing.T) {
 
 func TestDeleteAPIKeys(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(missingAuthenticationCredentials)
+	}
 	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", etheriumAddress)
 	if err != nil {
 		t.Error(err)
@@ -370,6 +385,9 @@ func TestDeleteAPIKeys(t *testing.T) {
 
 func TestOnboarding(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(missingAuthenticationCredentials)
+	}
 	_, err := dy.Onboarding(context.Background(), &OnboardingParam{
 		StarkXCoordinate: starkPrivateKey,
 		StarkYCoordinate: starkKeyYCoordinate,
