@@ -275,11 +275,6 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := ku.GetAssetTypes(false)
 	for a := range assets {
-		// Since the tradable pairs of Margin is same as that of Spot, calling the tradable pairs for Margin is not necessary.
-		// Instead, calling the UpdatePairs() method with Spot and Margin for Spot instruments saves call to FetchTradablePair() method with Margin.
-		if assets[a] == asset.Margin {
-			continue
-		}
 		pairs, err := ku.FetchTradablePairs(ctx, assets[a])
 		if err != nil {
 			return err
@@ -287,12 +282,6 @@ func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 		err = ku.UpdatePairs(pairs, assets[a], false, forceUpdate)
 		if err != nil {
 			return err
-		}
-		if assets[a] == asset.Spot {
-			err = ku.UpdatePairs(pairs, asset.Margin, false, forceUpdate)
-			if err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -339,7 +328,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			}
 		}
 		return nil
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		ticks, err := ku.GetAllTickers(ctx)
 		if err != nil {
 			return err
@@ -370,9 +359,6 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				return err
 			}
 		}
-	case asset.Margin:
-		// Since margin and spot use the same currencies, update call to Spot tradable pairs ticker information updates
-		// the ticker information of Margin currencies too.
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}

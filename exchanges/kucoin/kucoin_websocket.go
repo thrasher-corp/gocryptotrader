@@ -135,11 +135,13 @@ func (ku *Kucoin) WsConnect() error {
 	}
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
 		instances, err = ku.GetAuthenticatedInstanceServers(context.Background())
-	} else {
-		instances, err = ku.GetInstanceServers(context.Background())
 	}
-	if err != nil {
-		return err
+	if instances == nil || err != nil {
+		println("Going for the public")
+		instances, err = ku.GetInstanceServers(context.Background())
+		if err != nil {
+			return err
+		}
 	}
 	if len(instances.InstanceServers) == 0 {
 		return errors.New("no websocket instance server found")
@@ -189,14 +191,14 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 // GetAuthenticatedInstanceServers retrieves server instances for authenticated users.
 func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
 	response := struct {
-		Data WSInstanceServers `json:"data"`
+		Data *WSInstanceServers `json:"data"`
 		Error
 	}{}
 	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, privateBullets, nil, &response)
 	if err != nil && strings.Contains(err.Error(), "400003") {
-		return &response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, privateBullets, nil, &response)
+		return response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, privateBullets, nil, &response)
 	}
-	return &response.Data, err
+	return response.Data, err
 }
 
 // wsReadData receives and passes on websocket messages for processing

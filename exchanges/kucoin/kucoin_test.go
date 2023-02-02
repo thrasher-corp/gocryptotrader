@@ -29,7 +29,7 @@ const (
 	passPhrase              = ""
 	canManipulateRealOrders = false
 
-	cantManipulateRealOrdersOrKeysNotSet = "either API keys are missing or canManipulateRealOrders not enabled"
+	cantManipulateRealOrdersOrKeysNotSet = "skipping test: api keys not set or canManipulateRealOrders set to false"
 	credentialsNotSet                    = "credentials not set" // "skipping test message: api keys not set"
 )
 
@@ -88,7 +88,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetTicker(context.Background(), "BTC-USDT")
+	_, err := ku.GetTicker(context.Background(), "OXEN-USDT")
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
@@ -246,7 +246,7 @@ func TestGetMarginRiskLimit(t *testing.T) {
 func TestPostBorrowOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.PostBorrowOrder(context.Background(), "USDT", "FOK", "", 10, 0)
@@ -254,7 +254,7 @@ func TestPostBorrowOrder(t *testing.T) {
 		t.Error("PostBorrowOrder() error", err)
 	}
 
-	_, err = ku.PostBorrowOrder(context.Background(), "USDT", "IOC", "7,14,28", 10, 10)
+	_, err = ku.PostBorrowOrder(context.Background(), "USDT", "IOC", "7,14,28", 10, 0.05)
 	if err != nil {
 		t.Error("PostBorrowOrder() error", err)
 	}
@@ -298,7 +298,7 @@ func TestGetRepaidRecord(t *testing.T) {
 func TestOneClickRepayment(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.OneClickRepayment(context.Background(), "BTC", "RECENTLY_EXPIRE_FIRST", 2.5)
@@ -310,7 +310,7 @@ func TestOneClickRepayment(t *testing.T) {
 func TestSingleOrderRepayment(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.SingleOrderRepayment(context.Background(), "BTC", "fa3e34c980062c10dad74016", 2.5)
@@ -322,10 +322,9 @@ func TestSingleOrderRepayment(t *testing.T) {
 func TestPostLendOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
-	_, err := ku.PostLendOrder(context.Background(), "BTC", 0.001, 5, 7)
+	_, err := ku.PostLendOrder(context.Background(), "BTC", 0.0001, 5, 7)
 	if err != nil && err.Error() != "Balance insufficient" {
 		t.Error("PostLendOrder() error", err)
 	}
@@ -334,7 +333,7 @@ func TestPostLendOrder(t *testing.T) {
 func TestCancelLendOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.CancelLendOrder(context.Background(), "OrderID")
@@ -346,10 +345,10 @@ func TestCancelLendOrder(t *testing.T) {
 func TestSetAutoLend(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
-	err := ku.SetAutoLend(context.Background(), "BTC", 0.002, 0.005, 7, true)
+	err := ku.SetAutoLend(context.Background(), "BTC", 0.0002, 0.005, 7, true)
 	if err != nil {
 		t.Error("SetAutoLend() error", err)
 	}
@@ -511,7 +510,7 @@ func TestGetSingleIsolatedMarginAccountInfo(t *testing.T) {
 func TestInitiateIsolateMarginBorrowing(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.InitiateIsolateMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
@@ -557,7 +556,7 @@ func TestGetIsolatedMarginRepaymentRecords(t *testing.T) {
 func TestInitiateIsolatedMarginQuickRepayment(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.InitiateIsolatedMarginQuickRepayment(context.Background(), "BTC-USDT", "USDT", "RECENTLY_EXPIRE_FIRST", 10)
@@ -569,7 +568,7 @@ func TestInitiateIsolatedMarginQuickRepayment(t *testing.T) {
 func TestInitiateIsolatedMarginSingleRepayment(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.InitiateIsolatedMarginSingleRepayment(context.Background(), "BTC-USDT", "USDT", "628c570f7818320001d52b69", 10)
@@ -598,7 +597,7 @@ func TestGetServiceStatus(t *testing.T) {
 func TestPostOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	// default order type is limit
@@ -617,7 +616,7 @@ func TestPostOrder(t *testing.T) {
 func TestPostMarginOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	// default order type is limit and margin mode is cross
@@ -636,7 +635,7 @@ func TestPostMarginOrder(t *testing.T) {
 func TestPostBulkOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	req := []OrderRequest{
@@ -665,7 +664,7 @@ func TestPostBulkOrder(t *testing.T) {
 func TestCancelSingleOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelSingleOrder(context.Background(), "5bd6e9286d99522a52e458de")
@@ -677,7 +676,7 @@ func TestCancelSingleOrder(t *testing.T) {
 func TestCancelOrderByClientOID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelOrderByClientOID(context.Background(), "5bd6e9286d99522a52e458de")
@@ -689,7 +688,7 @@ func TestCancelOrderByClientOID(t *testing.T) {
 func TestCancelAllOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelAllOpenOrders(context.Background(), "", "")
@@ -775,9 +774,9 @@ func TestGetRecentFills(t *testing.T) {
 func TestPostStopOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-	_, err := ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "10000", "11000", "", 0.1, 1, 0, 0, 0, 0, true, false, false)
+	_, err := ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "10000", "11000", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	if err != nil {
 		t.Error("PostStopOrder() error", err)
 	}
@@ -786,7 +785,7 @@ func TestPostStopOrder(t *testing.T) {
 func TestCancelStopOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
@@ -798,7 +797,7 @@ func TestCancelStopOrder(t *testing.T) {
 func TestCancelAllStopOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelAllStopOrder(context.Background(), "", "", "")
@@ -949,7 +948,7 @@ func TestGetTransferableBalance(t *testing.T) {
 func TestTransferMainToSubAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.TransferMainToSubAccount(context.Background(), "62fcd1969474ea0001fd20e4", "BTC", "1", "OUT", "", "", "5caefba7d9575a0688f83c45")
@@ -961,7 +960,7 @@ func TestTransferMainToSubAccount(t *testing.T) {
 func TestMakeInnerTransfer(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.MakeInnerTransfer(context.Background(), "62fcd1969474ea0001fd20e4", "BTC", "trade", "main", "1", "", "")
@@ -973,7 +972,7 @@ func TestMakeInnerTransfer(t *testing.T) {
 func TestCreateDepositAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CreateDepositAddress(context.Background(), "BTC", "")
@@ -992,10 +991,20 @@ func TestGetDepositAddressV2(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetDepositAddressesV2(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetDepositAddressV2() error", err)
+	}
+}
+
+func TestGetDepositAddressesV1(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	_, err := ku.GetDepositAddressesV1(context.Background(), "BTC", "")
+	if err != nil {
+		t.Error("GetDepositAddressesV1() error", err)
 	}
 }
 
@@ -1062,7 +1071,7 @@ func TestGetWithdrawalQuotas(t *testing.T) {
 func TestApplyWithdrawal(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.ApplyWithdrawal(context.Background(), "ETH", "0x597873884BC3a6C10cB6Eb7C69172028Fa85B25A", "", "", "", "", false, 1)
@@ -1074,7 +1083,7 @@ func TestApplyWithdrawal(t *testing.T) {
 func TestCancelWithdrawal(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.CancelWithdrawal(context.Background(), "5bffb63303aa675e8bbe18f9")
@@ -1246,7 +1255,7 @@ func TestGetFuturesKline(t *testing.T) {
 func TestPostFuturesOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	_, err := ku.PostFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de",
 		"buy", "XBTUSDM", "", "10", "", "", "", 1, 1000, 0, 0.02,
@@ -1259,7 +1268,7 @@ func TestPostFuturesOrder(t *testing.T) {
 func TestCancelFuturesOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de")
@@ -1271,7 +1280,7 @@ func TestCancelFuturesOrder(t *testing.T) {
 func TestCancelAllFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelAllFuturesOpenOrders(context.Background(), "XBTUSDM")
@@ -1283,7 +1292,7 @@ func TestCancelAllFuturesOpenOrders(t *testing.T) {
 func TestCancelAllFuturesStopOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	_, err := ku.CancelAllFuturesStopOrders(context.Background(), "XBTUSDM")
 	if err != nil {
@@ -1412,7 +1421,7 @@ func TestGetFuturesPositionList(t *testing.T) {
 func TestSetAutoDepositMargin(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.SetAutoDepositMargin(context.Background(), "ADAUSDTM", true)
@@ -1424,7 +1433,7 @@ func TestSetAutoDepositMargin(t *testing.T) {
 func TestAddMargin(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.AddMargin(context.Background(), "XBTUSDTM", "6200c9b83aecfb000152dasfdee", 1)
@@ -1448,7 +1457,7 @@ func TestGetFuturesRiskLimitLevel(t *testing.T) {
 func TestUpdateRiskLmitLevel(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.UpdateRiskLmitLevel(context.Background(), "ADASUDTM", 2)
@@ -1496,7 +1505,7 @@ func TestGetFuturesTransactionHistory(t *testing.T) {
 func TestCreateFuturesSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CreateFuturesSubAccountAPIKey(context.Background(), "", "passphrase", "", "remark", "subAccName")
@@ -1555,7 +1564,7 @@ func TestGetFuturesWithdrawalList(t *testing.T) {
 func TestCancelFuturesWithdrawal(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.CancelFuturesWithdrawal(context.Background(), "5cda659603aa67131f305f7e")
@@ -1567,7 +1576,7 @@ func TestCancelFuturesWithdrawal(t *testing.T) {
 func TestTransferFuturesFundsToMainAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	_, err := ku.TransferFuturesFundsToMainAccount(context.Background(), 1, "USDT", "MAIN")
@@ -1579,7 +1588,7 @@ func TestTransferFuturesFundsToMainAccount(t *testing.T) {
 func TestTransferFundsToFuturesAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.TransferFundsToFuturesAccount(context.Background(), 1, "USDT", "MAIN")
@@ -1603,7 +1612,7 @@ func TestGetFuturesTransferOutList(t *testing.T) {
 func TestCancelFuturesTransferOut(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
 	err := ku.CancelFuturesTransferOut(context.Background(), "5cd53be30c19fc3754b60928")
@@ -1615,6 +1624,14 @@ func TestCancelFuturesTransferOut(t *testing.T) {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ku.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ku.FetchTradablePairs(context.Background(), asset.Margin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1651,11 +1668,21 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	tradablePairs, err := ku.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := ku.FetchTicker(context.Background(), tradablePairs[len(tradablePairs)-1], asset.Spot); err != nil {
+	if _, err = ku.FetchTicker(context.Background(), enabledPairs[0], asset.Spot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = ku.FetchTicker(context.Background(), enabledPairs[0], asset.Margin); err != nil {
+		t.Error(err)
+	}
+	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = ku.FetchTicker(context.Background(), enabledPairs[0], asset.Futures); err != nil {
 		t.Error(err)
 	}
 }
@@ -1758,13 +1785,36 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
-		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC), currency.NewPair(currency.MHC, currency.ETH), currency.NewPair(currency.MHC, currency.BTC), currency.NewPair(currency.OXEN, currency.BTC)},
+		Pairs:     enabledPairs[:3],
 		AssetType: asset.Futures,
 		Side:      order.Sell,
 	}
-	_, err := ku.GetOrderHistory(context.Background(), &getOrdersRequest)
+	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+	getOrdersRequest.Pairs = []currency.Pair{}
+	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+	enabledPairs, err = ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.Limit,
+		Pairs:     enabledPairs[:3],
+		AssetType: asset.Spot,
+		Side:      order.Sell,
+	}
+	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1785,6 +1835,23 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.Limit,
+		Pairs:     enabledPairs,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	}
+	if _, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("Kucoin GetActiveOrders() error", err)
+	}
+	getOrdersRequest.Pairs = []currency.Pair{}
+	if _, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
+		t.Error("Kucoin GetActiveOrders() error", err)
+	}
+	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
 		Pairs:     enabledPairs,
 		AssetType: asset.Futures,
@@ -1821,8 +1888,11 @@ func TestValidateCredentials(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	if ku.ValidateCredentials(context.Background(), asset.Spot) != ku.ValidateCredentials(context.Background(), asset.Futures) {
-		t.Errorf("%s ValidateCredentials() error", ku.Name)
+	assetTypes := ku.CurrencyPairs.GetAssetTypes(true)
+	for _, at := range assetTypes {
+		if err := ku.ValidateCredentials(context.Background(), at); err != nil {
+			t.Errorf("%s ValidateCredentials() error %v", ku.Name, err)
+		}
 	}
 }
 
@@ -2210,12 +2280,15 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures); err != nil {
 		t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
 	}
+	if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
+		t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
+	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("Kucoin GetOrderInfo() skipping test: api keys not set")
+		t.Skip(credentialsNotSet)
 	}
 	enabled, err := ku.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -2235,7 +2308,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	if _, err := ku.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil && errors.Is(err, errNoDepositAddress) {
+	if _, err := ku.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil && !errors.Is(err, errNoDepositAddress) {
 		t.Error("Kucoin GetDepositAddress() error", err)
 	}
 }
@@ -2375,7 +2448,7 @@ func TestModifySubAccountSpotAPIs(t *testing.T) {
 	}
 }
 
-func TestDeleteSubAccountSpoAPI(t *testing.T) {
+func TestDeleteSubAccountSpotAPI(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)

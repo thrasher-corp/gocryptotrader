@@ -494,16 +494,16 @@ func (ku *Kucoin) SingleOrderRepayment(ctx context.Context, ccy, tradeID string,
 }
 
 // PostLendOrder used to create lend order
-func (ku *Kucoin) PostLendOrder(ctx context.Context, ccy string, dailyIntRate, size float64, term int64) (string, error) {
+func (ku *Kucoin) PostLendOrder(ctx context.Context, ccy string, dailyInterestRate, size float64, term int64) (string, error) {
 	if ccy == "" {
 		return "", currency.ErrCurrencyPairEmpty
 	}
 	params := make(map[string]interface{})
 	params["currency"] = ccy
-	if dailyIntRate == 0 {
+	if dailyInterestRate == 0 {
 		return "", errors.New("dailyIntRate can not be zero")
 	}
-	params["dailyIntRate"] = strconv.FormatFloat(dailyIntRate, 'f', -1, 64)
+	params["dailyIntRate"] = strconv.FormatFloat(dailyInterestRate, 'f', -1, 64)
 	if size == 0 {
 		return "", errors.New("size can not be zero")
 	}
@@ -528,16 +528,16 @@ func (ku *Kucoin) CancelLendOrder(ctx context.Context, orderID string) error {
 }
 
 // SetAutoLend used to set up the automatic lending for a specified currency
-func (ku *Kucoin) SetAutoLend(ctx context.Context, ccy string, dailyIntRate, retainSize float64, term int64, isEnable bool) error {
+func (ku *Kucoin) SetAutoLend(ctx context.Context, ccy string, dailyInterestRate, retainSize float64, term int64, isEnable bool) error {
 	if ccy == "" {
 		return currency.ErrCurrencyCodeEmpty
 	}
 	params := make(map[string]interface{})
 	params["currency"] = ccy
-	if dailyIntRate == 0 {
+	if dailyInterestRate == 0 {
 		return errors.New("dailyIntRate can not be zero")
 	}
-	params["dailyIntRate"] = strconv.FormatFloat(dailyIntRate, 'f', -1, 64)
+	params["dailyIntRate"] = strconv.FormatFloat(dailyInterestRate, 'f', -1, 64)
 	if retainSize == 0 {
 		return errors.New("retainSize can not be zero")
 	}
@@ -865,7 +865,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 		OrderID string `json:"orderId"`
 		Error
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinPostOrder, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, params, &resp)
 }
 
 // PostMarginOrder used to place two types of margin orders: limit and market
@@ -1161,7 +1161,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		OrderID string `json:"orderId"`
 		Error
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinStopOrder, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinStopOrder, params, &resp)
 }
 
 // CancelStopOrder used to cancel single stop order previously placed
@@ -1871,37 +1871,6 @@ func (ku *Kucoin) intervalToString(interval kline.Interval) (string, error) {
 		return "1week", nil
 	default:
 		return "", kline.ErrUnsupportedInterval
-	}
-}
-
-func (ku *Kucoin) stringToInterval(interval string) (kline.Interval, error) {
-	switch interval {
-	case "1min":
-		return kline.OneMin, nil
-	case "3min":
-		return kline.ThreeMin, nil
-	case "5min":
-		return kline.FiveMin, nil
-	case "15min":
-		return kline.FifteenMin, nil
-	case "30min":
-		return kline.ThirtyMin, nil
-	case "1hour":
-		return kline.OneHour, nil
-	case "4hour":
-		return kline.FourHour, nil
-	case "6hour":
-		return kline.SixHour, nil
-	case "8hour":
-		return kline.EightHour, nil
-	case "12hour":
-		return kline.TwelveHour, nil
-	case "1day":
-		return kline.OneDay, nil
-	case "1week":
-		return kline.OneWeek, nil
-	default:
-		return 0, kline.ErrUnsupportedInterval
 	}
 }
 
