@@ -127,7 +127,7 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyH
 	// NOTE unreachable code but will be utilised at a later date
 	// resp := struct {
 	// 	Data   []CryptocurrencyHistoricalListings `json:"data"`
-	// 	Status Status                             `json:"status"`
+	// 	ServerStatus Status                       `json:"status"`
 	// }{}
 
 	//nolint:gocritic // unused code, used as example
@@ -143,8 +143,8 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyH
 	// }
 
 	//nolint:gocritic // unused code, used as example
-	// if resp.Status.ErrorCode != 0 {
-	// 	return resp.Data, errors.New(resp.Status.ErrorMessage)
+	// if resp.ServerStatus.ErrorCode != 0 {
+	// 	return resp.Data, errors.New(resp.ServerStatus.ErrorMessage)
 	// }
 
 	//nolint:gocritic // unused code, used as example

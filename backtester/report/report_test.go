@@ -86,7 +86,7 @@ func TestGenerateReport(t *testing.T) {
 						Position:       "aboveBar",
 						Colour:         "green",
 						PurchasePrice:  50,
-						VolumeColour:   "rgba(252, 3, 3, 0.8)",
+						VolumeColour:   "rgba(252, 3, 3, 0.8)", //nolint:dupword // False positive
 					},
 					{
 						UnixMilli:      time.Date(2020, 12, 12, 2, 0, 0, 0, time.UTC).UnixMilli(),
@@ -120,7 +120,7 @@ func TestGenerateReport(t *testing.T) {
 						Position:       "aboveBar",
 						Colour:         "green",
 						PurchasePrice:  50,
-						VolumeColour:   "rgba(252, 3, 3, 0.8)",
+						VolumeColour:   "rgba(252, 3, 3, 0.8)", //nolint:dupword // False positive
 					},
 					{
 						UnixMilli:    time.Date(2020, 12, 12, 4, 0, 0, 0, time.UTC).UnixMilli(),
@@ -172,7 +172,7 @@ func TestGenerateReport(t *testing.T) {
 						Position:       "aboveBar",
 						Colour:         "green",
 						PurchasePrice:  50,
-						VolumeColour:   "rgba(252, 3, 3, 0.8)",
+						VolumeColour:   "rgba(252, 3, 3, 0.8)", //nolint:dupword // False positive
 					},
 					{
 						UnixMilli:      time.Date(2020, 12, 12, 2, 0, 0, 0, time.UTC).UnixMilli(),
@@ -206,7 +206,7 @@ func TestGenerateReport(t *testing.T) {
 						Position:       "aboveBar",
 						Colour:         "green",
 						PurchasePrice:  50,
-						VolumeColour:   "rgba(252, 3, 3, 0.8)",
+						VolumeColour:   "rgba(252, 3, 3, 0.8)", //nolint:dupword // False positive
 					},
 					{
 						UnixMilli:    time.Date(2020, 12, 12, 4, 0, 0, 0, time.UTC).UnixMilli(),

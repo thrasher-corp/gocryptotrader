@@ -241,7 +241,7 @@ type IndexComposite struct {
 	Weight      float64   `json:"weight"`
 }
 
-// Insurance Insurance Fund Data
+// Insurance stores insurance fund data
 type Insurance struct {
 	Currency      string    `json:"currency"`
 	Timestamp     time.Time `json:"timestamp"`
