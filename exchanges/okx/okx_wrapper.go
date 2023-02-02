@@ -76,7 +76,7 @@ func (ok *Okx) SetDefaults() {
 		},
 	}
 
-	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Option, asset.Margin)
+	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -130,25 +130,27 @@ func (ok *Okx) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-					kline.OneMonth.Word():   true,
-					kline.ThreeMonth.Word(): true,
-					kline.SixMonth.Word():   true,
-					kline.OneYear.Word():    true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.TwoDay,
+					kline.ThreeDay,
+					kline.FiveDay,
+					kline.OneWeek,
+					kline.OneMonth,
+					kline.ThreeMonth,
+					kline.SixMonth,
+					kline.OneYear,
+				),
 				ResultLimit: 300,
 			},
 		},
@@ -195,14 +197,15 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            okxAPIWebsocketPublicURL,
-		RunningURL:            wsRunningEndpoint,
-		Connector:             ok.WsConnect,
-		Subscriber:            ok.Subscribe,
-		Unsubscriber:          ok.Unsubscribe,
-		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             okxAPIWebsocketPublicURL,
+		RunningURL:             wsRunningEndpoint,
+		Connector:              ok.WsConnect,
+		Subscriber:             ok.Subscribe,
+		Unsubscriber:           ok.Unsubscribe,
+		GenerateSubscriptions:  ok.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &ok.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
@@ -289,7 +292,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeSwap,
 		})
-	case asset.Option:
+	case asset.Options:
 		var underlyings []string
 		underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
 		if err != nil {
@@ -366,7 +369,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	case asset.Spot, asset.Margin:
 		baseVolume = mdata.Vol24H.Float64()
 		quoteVolume = mdata.VolCcy24H.Float64()
-	case asset.PerpetualSwap, asset.Futures, asset.Option:
+	case asset.PerpetualSwap, asset.Futures, asset.Options:
 		baseVolume = mdata.VolCcy24H.Float64()
 		quoteVolume = mdata.Vol24H.Float64()
 	default:
@@ -527,10 +530,10 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		free := balances[i].AvailBal
 		locked := balances[i].FrozenBalance
 		currencyBalance[i] = account.Balance{
-			CurrencyName: currency.NewCode(balances[i].Currency),
-			Total:        balances[i].Balance,
-			Hold:         locked,
-			Free:         free,
+			Currency: currency.NewCode(balances[i].Currency),
+			Total:    balances[i].Balance,
+			Hold:     locked,
+			Free:     free,
 		}
 	}
 	acc.Currencies = currencyBalance
@@ -667,7 +670,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	return resp, nil
 }
 
-// GetHistoricTrades retrives historic trade data within the timeframe provided
+// GetHistoricTrades retrieves historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampStart.Before(time.Now().Add(-kline.ThreeMonth.Duration())) {
 		return nil, errOnlyThreeMonthsSupported
@@ -1361,75 +1364,68 @@ func (ok *Okx) ValidateCredentials(ctx context.Context, assetType asset.Item) er
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := ok.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	if kline.TotalCandlesPerInterval(start, end, interval) > 100 {
-		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-	format, err := ok.GetPairFormat(a, false)
+func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := ok.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	if !pair.IsPopulated() {
-		return kline.Item{}, errIncompleteCurrencyPair
-	}
-	instrumentID := format.Format(pair)
-	candles, err := ok.GetCandlesticksHistory(ctx, instrumentID, interval, start, end, 100)
+
+	candles, err := ok.GetCandlesticksHistory(ctx,
+		req.RequestFormatted.Base.String()+
+			currency.DashDelimiter+
+			req.RequestFormatted.Quote.String(),
+		req.ExchangeInterval,
+		start.Add(-time.Nanosecond), // Start time not inclusive of candle.
+		end,
+		300)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	response := kline.Item{
-		Exchange: ok.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
+
+	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		response.Candles = append(response.Candles, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   candles[x].OpenTime,
 			Open:   candles[x].OpenPrice,
 			High:   candles[x].HighestPrice,
 			Low:    candles[x].LowestPrice,
 			Close:  candles[x].ClosePrice,
 			Volume: candles[x].Volume,
-		})
+		}
 	}
-	response.SortCandlesByTimestamp(false)
-	return response, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	format, err := ok.GetPairFormat(a, false)
+func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := ok.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	err = ok.ValidateKline(pair, a, interval)
-	if err != nil {
-		return kline.Item{}, err
+
+	count := kline.TotalCandlesPerInterval(req.Start, req.End, req.ExchangeInterval)
+	if count > 1440 {
+		return nil,
+			fmt.Errorf("candles count: %d max lookback: %d, %w",
+				count, 1440, kline.ErrRequestExceedsMaxLookback)
 	}
-	instrumentID := format.Format(pair)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	ret := kline.Item{
-		Exchange: ok.Name,
-		Pair:     pair,
-		Interval: interval,
-	}
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, 100)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	for y := range dates.Ranges {
-		candles, err := ok.GetCandlesticksHistory(ctx, instrumentID, interval, dates.Ranges[y].Start.Time, dates.Ranges[y].End.Time, 100)
+
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for y := range req.RangeHolder.Ranges {
+		var candles []CandleStick
+		candles, err = ok.GetCandlesticksHistory(ctx,
+			req.RequestFormatted.Base.String()+
+				currency.DashDelimiter+
+				req.RequestFormatted.Quote.String(),
+			req.ExchangeInterval,
+			req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
+			req.RangeHolder.Ranges[y].End.Time,
+			300)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		for x := range candles {
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   candles[x].OpenTime,
 				Open:   candles[x].OpenPrice,
 				High:   candles[x].HighestPrice,
@@ -1439,10 +1435,7 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 			})
 		}
 	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

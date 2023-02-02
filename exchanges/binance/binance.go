@@ -346,7 +346,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 //
 // KlinesRequestParams supports 5 parameters
 // symbol: the symbol to get the kline data for
-// limit: optinal
+// limit: optional
 // interval: the interval time for the data
 // startTime: startTime filter for kline data
 // endTime: endTime filter for the kline data
@@ -1189,10 +1189,9 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 				assets = append(assets, asset.Spot)
 			case "MARGIN":
 				assets = append(assets, asset.Margin)
-			case "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005": // unused permissions
 			default:
-				return nil, fmt.Errorf("unhandled asset type for exchange limits loading %s",
-					spot.Symbols[x].Permissions[y])
+				// "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005" etc are unused permissions
+				// for spot exchange limits
 			}
 		}
 

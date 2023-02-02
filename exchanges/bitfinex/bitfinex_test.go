@@ -1413,41 +1413,29 @@ func TestWSFundingTrade(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now().Add(-time.Hour * 20)
-	_, err = b.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	_, err = b.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
-	if err == nil {
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, startTime, endTime)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now().Add(-time.Hour * 20)
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneMin*1337)
-	if err == nil {
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneHour, startTime, endTime)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1578,6 +1566,21 @@ func TestFixCasing(t *testing.T) {
 	}
 	if ret != "fUSD" {
 		t.Errorf("unexpected result: %v", ret)
+	}
+
+	_, err = b.fixCasing(currency.NewPair(currency.EMPTYCODE, currency.BTC), asset.MarginFunding)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	_, err = b.fixCasing(currency.NewPair(currency.BTC, currency.EMPTYCODE), asset.MarginFunding)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	_, err = b.fixCasing(currency.EMPTYPAIR, asset.MarginFunding)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 }
 

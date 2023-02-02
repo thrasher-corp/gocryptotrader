@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -19,7 +20,7 @@ func fSIL(str string, limit int) string {
 }
 
 // CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents
-func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing, error) {
+func CalculateBiggestEventDrawdown(closePrices []data.Event) (Swing, error) {
 	if len(closePrices) == 0 {
 		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
 	}
@@ -249,7 +250,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	}
 	arithmeticCalmar, err = gctmath.DecimalCalmarRatio(maxDrawdown.Highest.Value, maxDrawdown.Lowest.Value, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
-		return nil, nil, err
+		log.Warnf(common.Statistics, "%s funding arithmetic calmar ratio %v", logMessage, err)
 	}
 
 	arithmeticStats = &Ratios{}
@@ -284,7 +285,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	}
 	geomCalmar, err = gctmath.DecimalCalmarRatio(maxDrawdown.Highest.Value, maxDrawdown.Lowest.Value, geometricReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
-		return nil, nil, err
+		log.Warnf(common.Statistics, "%s funding geometric calmar ratio %v", logMessage, err)
 	}
 	geometricStats = &Ratios{}
 	if !arithmeticSharpe.IsZero() {

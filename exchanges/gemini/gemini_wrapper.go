@@ -160,14 +160,15 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            geminiWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
-		Subscriber:            g.Subscribe,
-		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
-		Features:              &g.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             geminiWebsocketEndpoint,
+		RunningURL:             wsRunningURL,
+		Connector:              g.WsConnect,
+		Subscriber:             g.Subscribe,
+		Unsubscriber:           g.Unsubscribe,
+		GenerateSubscriptions:  g.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -324,10 +325,10 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	currencies := make([]account.Balance, len(accountBalance))
 	for i := range accountBalance {
 		currencies[i] = account.Balance{
-			CurrencyName: currency.NewCode(accountBalance[i].Currency),
-			Total:        accountBalance[i].Amount,
-			Hold:         accountBalance[i].Amount - accountBalance[i].Available,
-			Free:         accountBalance[i].Available,
+			Currency: currency.NewCode(accountBalance[i].Currency),
+			Total:    accountBalance[i].Amount,
+			Hold:     accountBalance[i].Amount - accountBalance[i].Available,
+			Free:     accountBalance[i].Available,
 		}
 	}
 
@@ -813,11 +814,11 @@ func (g *Gemini) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (g *Gemini) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (g *Gemini) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (g *Gemini) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (g *Gemini) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }

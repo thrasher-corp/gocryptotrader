@@ -104,7 +104,7 @@ func TestGetMarketDepths(t *testing.T) {
 	}
 	a, _ := l.GetMarketDepths(context.Background(), testCurrencyPair, "4", "0")
 	if len(a.Data.Asks) != 4 {
-		t.Errorf("asks length requested doesnt match the output")
+		t.Errorf("asks length requested doesn't match the output")
 	}
 }
 
@@ -157,7 +157,7 @@ func TestGetUserInfo(t *testing.T) {
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.CreateOrder(context.Background(), cp.Lower().String(), "what", 1231, 12314)
@@ -181,7 +181,7 @@ func TestCreateOrder(t *testing.T) {
 func TestRemoveOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	_, err := l.RemoveOrder(context.Background(),
@@ -280,7 +280,7 @@ func TestGetWithdrawConfig(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err := l.Withdraw(context.Background(), "", "", "", "", "", "")
 	if err != nil {
@@ -365,7 +365,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	var a order.Cancel
@@ -463,14 +463,13 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = l.GetHistoricCandles(context.Background(),
-		pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+
+	_, err = l.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = l.GetHistoricCandles(context.Background(),
-		pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneHour)
+	_, err = l.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,15 +477,14 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-
 	startTime := time.Now().Add(-time.Minute * 2)
 	end := time.Now()
 	pair, err := currency.NewPairFromString("eth_btc")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = l.GetHistoricCandlesExtended(context.Background(),
-		pair, asset.Spot, startTime, end, kline.OneMin)
+
+	_, err = l.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, end)
 	if err != nil {
 		t.Fatal(err)
 	}

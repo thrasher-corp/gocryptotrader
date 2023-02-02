@@ -453,9 +453,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{getRecentTradesResponse}),
 			})
 
-			var getHistoricCandlesResponse kline.Item
+			var getHistoricCandlesResponse *kline.Item
 			startTime, endTime := time.Now().AddDate(0, 0, -1), time.Now()
-			getHistoricCandlesResponse, err = e.GetHistoricCandles(context.TODO(), p, assetTypes[i], startTime, endTime, kline.OneDay)
+			getHistoricCandlesResponse, err = e.GetHistoricCandles(context.TODO(), p, assetTypes[i], kline.OneDay, startTime, endTime)
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -468,8 +468,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 			})
 
-			var getHisotirCandlesExtendedResponse kline.Item
-			getHisotirCandlesExtendedResponse, err = e.GetHistoricCandlesExtended(context.TODO(), p, assetTypes[i], startTime, endTime, kline.OneDay)
+			var getHistoricCandlesExtendedResponse *kline.Item
+			getHistoricCandlesExtendedResponse, err = e.GetHistoricCandlesExtended(context.TODO(), p, assetTypes[i], kline.OneDay, startTime, endTime)
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -478,7 +478,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				Function:   "GetHistoricCandlesExtended",
 				Error:      msg,
-				Response:   getHisotirCandlesExtendedResponse,
+				Response:   getHistoricCandlesExtendedResponse,
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 			})
 
@@ -1139,10 +1139,7 @@ func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 	if p.Base.IsEmpty() {
 		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as base is not populated")
 	}
-	if p.Quote.IsEmpty() {
-		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as quote is not populated")
-	}
-
+	// NOTE: Quote can be empty for margin funding
 	return currency.Pair{
 		Base:      p.Base.Upper(),
 		Quote:     p.Quote.Lower(),

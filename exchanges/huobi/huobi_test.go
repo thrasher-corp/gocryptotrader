@@ -264,8 +264,7 @@ func TestFQueryTopPositionsRatio(t *testing.T) {
 
 func TestFLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := h.FLiquidationOrders(context.Background(), "BTC", "filled", 0, 0, 7)
-	if err != nil {
+	if _, err := h.FLiquidationOrders(context.Background(), currency.BTC, "filled", 0, 0, "", 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -684,7 +683,7 @@ func TestUpdateTickerSpot(t *testing.T) {
 	t.Parallel()
 	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
 	if err == nil {
-		t.Error("exepcted invalid pair")
+		t.Error("expected invalid pair")
 	}
 	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
@@ -696,7 +695,7 @@ func TestUpdateTickerCMF(t *testing.T) {
 	t.Parallel()
 	_, err := h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("INV", "ALID", "_"), asset.CoinMarginedFutures)
 	if err == nil {
-		t.Error("exepcted invalid contract code")
+		t.Error("expected invalid contract code")
 	}
 	_, err = h.UpdateTicker(context.Background(), currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
 	if err != nil {
@@ -1002,8 +1001,8 @@ func TestGetLiquidationOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetLiquidationOrders(context.Background(), cp, "closed", 0, 0, 7)
-	if err != nil {
+
+	if _, err = h.GetLiquidationOrders(context.Background(), cp, "closed", 0, 0, "", 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -1559,58 +1558,44 @@ func TestGetSpotKline(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetSpotKline(context.Background(),
-		&KlinesRequestParams{
-			Symbol: cp,
-			Period: "1min",
-			Size:   0,
-		})
+	_, err = h.GetSpotKline(context.Background(), KlinesRequestParams{
+		Symbol: cp,
+		Period: "1min",
+	})
 	if err != nil {
 		t.Errorf("Huobi TestGetSpotKline: %s", err)
 	}
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	startTime := time.Now().Add(-time.Hour * 1)
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime.AddDate(0, 0, -7), time.Now(), kline.OneDay)
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Minute * 2)
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
-	if err != nil {
+	startTime := time.Now().Add(-time.Hour * 1)
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 
@@ -2568,7 +2553,7 @@ func TestStringToOrderStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }
@@ -2586,7 +2571,7 @@ func TestStringToOrderSide(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderSide(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }
@@ -2604,7 +2589,7 @@ func TestStringToOrderType(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderType(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }

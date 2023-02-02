@@ -34,8 +34,8 @@ var (
 	errInvalidCategory           = errors.New("invalid category")
 	errInvalidCoin               = errors.New("coin can't be empty")
 
-	errStopOrderOrOrderLinkIDMissing = errors.New("atleast one should be present among stopOrderID and orderLinkID")
-	errOrderOrOrderLinkIDMissing     = errors.New("atleast one should be present among orderID and orderLinkID")
+	errStopOrderOrOrderLinkIDMissing = errors.New("at least one should be present among stopOrderID and orderLinkID")
+	errOrderOrOrderLinkIDMissing     = errors.New("at least one should be present among orderID and orderLinkID")
 
 	errSymbolMissing        = errors.New("symbol missing")
 	errUnsupportedOrderType = errors.New("unsupported order type")

@@ -652,7 +652,7 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 	if err != nil {
 		return nil, err
 	}
-	te, err := time.Parse(time.RFC3339, result.EndTime)
+	tEnd, err := time.Parse(time.RFC3339, result.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -709,7 +709,7 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 		Base:                        result.Base,
 		Quote:                       result.Quote,
 		StartDate:                   ts,
-		EndDate:                     te,
+		EndDate:                     tEnd,
 		Interval:                    int64(result.Interval),
 		RequestSizeLimit:            int64(result.RequestSize),
 		DataType:                    int64(result.DataType),

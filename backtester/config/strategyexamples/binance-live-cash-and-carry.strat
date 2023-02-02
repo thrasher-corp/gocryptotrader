@@ -1,0 +1,118 @@
+{
+ "nickname": "ExampleBinanceLiveCashAndCarry",
+ "goal": "To demonstrate a cash and carry strategy using a live data source",
+ "strategy-settings": {
+  "name": "binance-cash-carry",
+  "use-simultaneous-signal-processing": true,
+  "disable-usd-tracking": false
+ },
+ "funding-settings": {
+  "use-exchange-level-funding": true,
+  "exchange-level-funding": [
+   {
+    "exchange-name": "binance",
+    "asset": "spot",
+    "currency": "USDT",
+    "initial-funds": "100000",
+    "transfer-fee": "0"
+   }
+  ]
+ },
+ "currency-settings": [
+  {
+   "exchange-name": "binance",
+   "asset": "usdtmarginedfutures",
+   "base": "BTC",
+   "quote": "USDT",
+   "buy-side": {
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
+   },
+   "sell-side": {
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
+   },
+   "min-slippage-percent": "0",
+   "max-slippage-percent": "0",
+   "maker-fee-override": "0.0002",
+   "taker-fee-override": "0.0007",
+   "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": true,
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
+  },
+  {
+   "exchange-name": "binance",
+   "asset": "spot",
+   "base": "BTC",
+   "quote": "USDT",
+   "buy-side": {
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
+   },
+   "sell-side": {
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
+   },
+   "min-slippage-percent": "0",
+   "max-slippage-percent": "0",
+   "maker-fee-override": "0.0002",
+   "taker-fee-override": "0.0007",
+   "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": true,
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
+  }
+ ],
+ "data-settings": {
+  "interval": 15000000000,
+  "data-type": "candle",
+  "verbose-exchange-requests": false,
+  "live-data": {
+   "new-event-timeout": 60000000000,
+   "data-check-timer": 1000000000,
+   "real-orders": false,
+   "close-positions-on-stop": true,
+   "data-request-retry-tolerance": 3,
+   "data-request-retry-wait-time": 500000000,
+   "exchange-credentials": [
+    {
+     "exchange": "binance",
+     "credentials": {
+      "Key": "",
+      "Secret": "",
+      "ClientID": "",
+      "PEMKey": "",
+      "SubAccount": "",
+      "OneTimePassword": ""
+     }
+    }
+   ]
+  }
+ },
+ "portfolio-settings": {
+  "leverage": {
+   "can-use-leverage": false,
+   "maximum-orders-with-leverage-ratio": "0",
+   "maximum-leverage-rate": "0",
+   "maximum-collateral-leverage-rate": "0"
+  },
+  "buy-side": {
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
+  },
+  "sell-side": {
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
+  }
+ },
+ "statistic-settings": {
+  "risk-free-rate": "0.03"
+ }
+}

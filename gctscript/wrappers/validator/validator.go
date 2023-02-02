@@ -201,7 +201,7 @@ func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType 
 				AssetType: assetType,
 				Currencies: []account.Balance{
 					{
-						CurrencyName: currency.Code{
+						Currency: currency.Code{
 							Item: &currency.Item{
 								ID:         0,
 								FullName:   "Bitcoin",
@@ -247,9 +247,9 @@ func (w Wrapper) WithdrawalFiatFunds(ctx context.Context, _ string, r *withdraw.
 }
 
 // OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
-func (w Wrapper) OHLCV(ctx context.Context, exch string, p currency.Pair, a asset.Item, start, end time.Time, i kline.Interval) (kline.Item, error) {
+func (w Wrapper) OHLCV(ctx context.Context, exch string, p currency.Pair, a asset.Item, start, end time.Time, i kline.Interval) (*kline.Item, error) {
 	if exch == exchError.String() {
-		return kline.Item{}, errTestFailed
+		return nil, errTestFailed
 	}
 	var candles []kline.Candle
 
@@ -275,7 +275,7 @@ func (w Wrapper) OHLCV(ctx context.Context, exch string, p currency.Pair, a asse
 		candles = append(candles, candle)
 	}
 
-	return kline.Item{
+	return &kline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,

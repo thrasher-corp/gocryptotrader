@@ -110,21 +110,21 @@ func (z *ZB) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.ThreeDay,
+					kline.OneWeek,
+				),
 				ResultLimit: 1000,
 			},
 		},
@@ -171,13 +171,14 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            zbWebsocketAPI,
-		RunningURL:            wsRunningURL,
-		Connector:             z.WsConnect,
-		GenerateSubscriptions: z.GenerateDefaultSubscriptions,
-		Subscriber:            z.Subscribe,
-		Features:              &z.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             zbWebsocketAPI,
+		RunningURL:             wsRunningURL,
+		Connector:              z.WsConnect,
+		GenerateSubscriptions:  z.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Subscriber:             z.Subscribe,
+		Features:               &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -386,10 +387,10 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		}
 
 		balances[i] = account.Balance{
-			CurrencyName: currency.NewCode(coins[i].EnName),
-			Total:        hold + avail,
-			Hold:         hold,
-			Free:         avail,
+			Currency: currency.NewCode(coins[i].EnName),
+			Total:    hold + avail,
+			Hold:     hold,
+			Free:     avail,
 		}
 	}
 
@@ -501,9 +502,9 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 		}
 		return o.DeriveSubmitResponse(strconv.FormatInt(response.Data.EntrustID, 10))
 	}
-	var oT = SpotNewOrderRequestParamsTypeSell
+	var orderType = SpotNewOrderRequestParamsTypeSell
 	if o.Side == order.Buy {
-		oT = SpotNewOrderRequestParamsTypeBuy
+		orderType = SpotNewOrderRequestParamsTypeBuy
 	}
 
 	fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
@@ -515,7 +516,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 		Amount: o.Amount,
 		Price:  o.Price,
 		Symbol: fPair.Lower().String(),
-		Type:   oT,
+		Type:   orderType,
 	}
 	var response int64
 	response, err = z.SpotNewOrder(ctx, params)
@@ -883,34 +884,28 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
+func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := z.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	p, err = z.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
-	klineParams := KlinesRequestParams{
-		Type:   z.FormatExchangeKlineInterval(interval),
-		Symbol: p.String(),
+	candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
+		Type:   z.FormatExchangeKlineInterval(req.ExchangeInterval),
+		Symbol: req.RequestFormatted.String(),
 		Since:  start.UnixMilli(),
 		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
-	}
-	var candles KLineResponse
-	candles, err = z.GetSpotKline(ctx, klineParams)
+	})
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
+	timeSeries := make([]kline.Candle, 0, len(candles.Data))
 	for x := range candles.Data {
 		if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
 			continue
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries = append(timeSeries, kline.Candle{
 			Time:   candles.Data[x].KlineTime,
 			Open:   candles.Data[x].Open,
 			High:   candles.Data[x].High,
@@ -919,47 +914,41 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.It
 			Volume: candles.Data[x].Volume,
 		})
 	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
+func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := z.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	p, err = z.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return kline.Item{}, err
+	count := kline.TotalCandlesPerInterval(req.Start, req.End, req.ExchangeInterval)
+	if count > 1000 {
+		return nil,
+			fmt.Errorf("candles count: %d max lookback: %d, %w",
+				count, 1000, kline.ErrRequestExceedsMaxLookback)
 	}
 
-	startTime := start
-allKlines:
-	for {
-		klineParams := KlinesRequestParams{
-			Type:   z.FormatExchangeKlineInterval(interval),
-			Symbol: p.String(),
-			Since:  startTime.UnixMilli(),
-			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
-		}
-
-		candles, err := z.GetSpotKline(ctx, klineParams)
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for i := range req.RangeHolder.Ranges {
+		var candles KLineResponse
+		candles, err = z.GetSpotKline(ctx, KlinesRequestParams{
+			Type:   z.FormatExchangeKlineInterval(req.ExchangeInterval),
+			Symbol: req.RequestFormatted.String(),
+			Since:  req.RangeHolder.Ranges[i].Start.Time.UnixMilli(),
+			Size:   int64(req.RangeHolder.Limit),
+		})
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for x := range candles.Data {
-			if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
+			if candles.Data[x].KlineTime.Before(req.Start) || candles.Data[x].KlineTime.After(req.End) {
 				continue
 			}
-			if startTime.Equal(candles.Data[x].KlineTime) {
-				// no new data has been sent
-				break allKlines
-			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   candles.Data[x].KlineTime,
 				Open:   candles.Data[x].Open,
 				High:   candles.Data[x].High,
@@ -967,33 +956,9 @@ allKlines:
 				Close:  candles.Data[x].Close,
 				Volume: candles.Data[x].Volume,
 			})
-			if x == len(candles.Data)-1 {
-				startTime = candles.Data[x].KlineTime
-			}
-		}
-		if len(candles.Data) != int(z.Features.Enabled.Kline.ResultLimit) {
-			break allKlines
 		}
 	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
-}
-
-func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := common.StartEndTimeCheck(start, end); err != nil {
-		return kline.Item{}, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", start, end, err)
-	}
-	if err := z.ValidateKline(p, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	return kline.Item{
-		Exchange: z.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

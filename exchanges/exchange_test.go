@@ -85,7 +85,7 @@ func TestSet(t *testing.T) {
 		t.Error("set method or createmap failed")
 	}
 	if val != "http://google.com/" {
-		t.Errorf("vals didnt match. expecting: %s, got: %s\n", "http://google.com/", val)
+		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
 	}
 	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3")
 	if err != nil {
@@ -122,7 +122,7 @@ func TestGetURL(t *testing.T) {
 		t.Error(err)
 	}
 	if getChangedVal != "http://OVERWRITTENBRO.com.au/" {
-		t.Error("couldnt get changed val")
+		t.Error("couldn't get changed val")
 	}
 	_, err = b.API.Endpoints.GetURL(URL(100))
 	if err == nil {
@@ -1198,6 +1198,7 @@ func TestSetupDefaults(t *testing.T) {
 		API: config.APIConfig{
 			AuthenticatedSupport: true,
 		},
+		ConnectionMonitorDelay: time.Second * 5,
 	}
 
 	err = b.SetupDefaults(&cfg)
@@ -1947,9 +1948,7 @@ func TestBase_ValidateKline(t *testing.T) {
 		Features: Features{
 			Enabled: FeaturesEnabled{
 				Kline: kline.ExchangeCapabilitiesEnabled{
-					Intervals: map[string]bool{
-						kline.OneMin.Word(): true,
-					},
+					Intervals: kline.DeployExchangeIntervals(kline.OneMin),
 				},
 			},
 		},
@@ -2642,5 +2641,247 @@ func TestSetRequester(t *testing.T) {
 
 	if b.Requester == nil {
 		t.Fatal("requester not set correctly")
+	}
+}
+
+func TestGetCollateralCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, _, err := b.GetCurrencyForRealisedPNL(asset.Empty, currency.EMPTYPAIR)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestHasAssetTypeAccountSegregation(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "RAWR",
+		Features: Features{
+			Supports: FeaturesSupported{
+				REST: true,
+				RESTCapabilities: protocol.Features{
+					HasAssetTypeAccountSegregation: true,
+				},
+			},
+		},
+	}
+
+	has := b.HasAssetTypeAccountSegregation()
+	if !has {
+		t.Errorf("expected '%v' received '%v'", true, false)
+	}
+}
+
+func TestGetKlineRequest(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "klineTest"}
+	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err = b.GetKlineRequest(pair, asset.Empty, 0, time.Time{}, time.Time{})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{})
+	if !errors.Is(err, kline.ErrInvalidInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
+	}
+
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, time.Time{}, time.Time{})
+	if !errors.Is(err, kline.ErrCannotConstructInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
+	}
+
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneMin)
+	b.Features.Enabled.Kline.ResultLimit = 1439
+	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 1)
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, start, end)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
+	}
+
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneHour)
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end)
+	if !errors.Is(err, kline.ErrValidatingParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	}
+
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		Enabled:      []currency.Pair{pair},
+		Available:    []currency.Pair{pair},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end)
+	if !errors.Is(err, errAssetRequestFormatIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
+	}
+
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		Enabled:       []currency.Pair{pair},
+		Available:     []currency.Pair{pair},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	r, err := b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r.Exchange != "klineTest" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Exchange, "klineTest")
+	}
+
+	if !r.Pair.Equal(pair) {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Pair, pair)
+	}
+
+	if r.Asset != asset.Spot {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Asset, asset.Spot)
+	}
+
+	if r.ExchangeInterval != kline.OneHour {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ExchangeInterval, kline.OneHour)
+	}
+
+	if r.ClientRequired != kline.OneHour {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ClientRequired, kline.OneHour)
+	}
+
+	if r.Start != start {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Start, start)
+	}
+
+	if r.End != end {
+		t.Fatalf("received: '%v' but expected: '%v'", r.End, end)
+	}
+
+	if r.RequestFormatted.String() != "BTCUSDT" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
+	}
+}
+
+func TestGetKlineExtendedRequest(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "klineTest"}
+	_, err := b.GetKlineExtendedRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err = b.GetKlineExtendedRequest(pair, asset.Empty, 0, time.Time{}, time.Time{})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, 0, time.Time{}, time.Time{})
+	if !errors.Is(err, kline.ErrInvalidInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
+	}
+
+	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, time.Time{}, time.Time{})
+	if !errors.Is(err, kline.ErrCannotConstructInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
+	}
+
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneMin)
+	b.Features.Enabled.Kline.ResultLimit = 100
+	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 1)
+
+	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
+	if !errors.Is(err, kline.ErrValidatingParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	}
+
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		Enabled:      []currency.Pair{pair},
+		Available:    []currency.Pair{pair},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
+	if !errors.Is(err, errAssetRequestFormatIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
+	}
+
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		Enabled:       []currency.Pair{pair},
+		Available:     []currency.Pair{pair},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// The one hour interval is not supported by the exchange. This scenario
+	// demonstrates the conversion from the supported 1 minute candles into
+	// one hour candles
+	r, err := b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r.Exchange != "klineTest" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Exchange, "klineTest")
+	}
+
+	if !r.Pair.Equal(pair) {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Pair, pair)
+	}
+
+	if r.Asset != asset.Spot {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Asset, asset.Spot)
+	}
+
+	if r.ExchangeInterval != kline.OneMin {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ExchangeInterval, kline.OneMin)
+	}
+
+	if r.ClientRequired != kline.OneHour {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ClientRequired, kline.OneHour)
+	}
+
+	if r.Request.Start != start {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Request.Start, start)
+	}
+
+	if r.Request.End != end {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Request.End, end)
+	}
+
+	if r.RequestFormatted.String() != "BTCUSDT" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
+	}
+
+	if len(r.RangeHolder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
+		t.Fatalf("received: '%v' but expected: '%v'", len(r.RangeHolder.Ranges), 15)
 	}
 }

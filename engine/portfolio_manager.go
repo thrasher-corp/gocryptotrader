@@ -162,7 +162,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 		next:
 			for z := range accounts[x].Accounts[y].Currencies {
 				for i := range currencies {
-					if !accounts[x].Accounts[y].Currencies[z].CurrencyName.Equal(currencies[i].CurrencyName) {
+					if !accounts[x].Accounts[y].Currencies[z].Currency.Equal(currencies[i].Currency) {
 						continue
 					}
 					currencies[i].Hold += accounts[x].Accounts[y].Currencies[z].Hold
@@ -173,7 +173,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 					continue next
 				}
 				currencies = append(currencies, account.Balance{
-					CurrencyName:           accounts[x].Accounts[y].Currencies[z].CurrencyName,
+					Currency:               accounts[x].Accounts[y].Currencies[z].Currency,
 					Total:                  accounts[x].Accounts[y].Currencies[z].Total,
 					Hold:                   accounts[x].Accounts[y].Currencies[z].Hold,
 					Free:                   accounts[x].Accounts[y].Currencies[z].Free,
@@ -184,20 +184,20 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 		}
 
 		for j := range currencies {
-			if !m.base.ExchangeAddressExists(accounts[x].Exchange, currencies[j].CurrencyName) {
+			if !m.base.ExchangeAddressExists(accounts[x].Exchange, currencies[j].Currency) {
 				if currencies[j].Total <= 0 {
 					continue
 				}
 
 				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
 					accounts[x].Exchange,
-					currencies[j].CurrencyName,
+					currencies[j].Currency,
 					currencies[j].Total,
 					portfolio.ExchangeAddress)
 
 				m.base.Addresses = append(m.base.Addresses, portfolio.Address{
 					Address:     accounts[x].Exchange,
-					CoinType:    currencies[j].CurrencyName,
+					CoinType:    currencies[j].Currency,
 					Balance:     currencies[j].Total,
 					Description: portfolio.ExchangeAddress,
 				})
@@ -207,14 +207,14 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 			if currencies[j].Total <= 0 {
 				log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
 					accounts[x].Exchange,
-					currencies[j].CurrencyName)
-				m.base.RemoveExchangeAddress(accounts[x].Exchange, currencies[j].CurrencyName)
+					currencies[j].Currency)
+				m.base.RemoveExchangeAddress(accounts[x].Exchange, currencies[j].Currency)
 				continue
 			}
 
 			balance, ok := m.base.GetAddressBalance(accounts[x].Exchange,
 				portfolio.ExchangeAddress,
-				currencies[j].CurrencyName)
+				currencies[j].Currency)
 			if !ok {
 				continue
 			}
@@ -222,10 +222,10 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 			if balance != currencies[j].Total {
 				log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
 					accounts[x].Exchange,
-					currencies[j].CurrencyName,
+					currencies[j].Currency,
 					currencies[j].Total)
 				m.base.UpdateExchangeAddressBalance(accounts[x].Exchange,
-					currencies[j].CurrencyName,
+					currencies[j].Currency,
 					currencies[j].Total)
 			}
 		}

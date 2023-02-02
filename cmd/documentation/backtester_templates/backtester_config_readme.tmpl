@@ -1,42 +1,43 @@
 {{define "backtester config" -}}
 {{template "backtester-header" .}}
 ## {{.CapitalName}} package overview
+This readme contains details for both the GoCryptoTrader Backtester config structure along with the strategy config structure
 
-## Backtester Config overview
+## GoCryptoTrader Backtester Config overview
 Below are the details for the GoCryptoTrader Backtester _application_ config. Strategy config overview is below this section
 
 | Key                     | Description                                                                                                                                              | Example                          |
 |-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------|
-| PrintLogo               | Whether to print the GoCryptoTrader Backtester logo on startup. Recommended because it looks good                                                        | `true`                           |
-| Verbose                 | Whether to receive verbose output. If running a GRPC server, it outputs to the server, not to the client                                                 | `false`                          |
-| LogSubheaders           | Whether log output contains a descriptor of what area the log is coming from, for example `STRATEGY`. Helpful for debugging                              | `true`                           |
-| SingleRun               | Whether or not to run the GoCryptoTrader Backtester to read the `SingleRunStrategyConfig` strategy and exit afterwards. If false, will run a GRPC server | `false`                          |
-| SingleRunStrategyConfig | The path to the strategy to run when `SingleRun` is `true`                                                                                               | `path\to\strategy\example.strat` |
-| Report                  | Contains details on the output report after a successful backtesting run                                                                                 | See Report table below           |
-| GRPC                    | Contains GRPC server details                                                                                                                             | See GRPC table below             |
-| UseCMDColours           | If enabled, will output pretty colours of your choosing when running the application                                                                     | `true`                           |
-| Colours                 | Contains details on what the colour definitions are                                                                                                      | See Colours table below          |
+| print-logo              | Whether to print the GoCryptoTrader Backtester logo on startup. Recommended because it looks good                                                        | `true`                           |
+| verbose                 | Whether to receive verbose output. If running a GRPC server, it outputs to the server, not to the client                                                 | `false`                          |
+| log-subheaders          | Whether log output contains a descriptor of what area the log is coming from, for example `STRATEGY`. Helpful for debugging                              | `true`                           |
+| stop-all-tasks-on-close | When closing the application, the Backtester will attempt to stop all active tasks                                                                       | `true`                           |
+| plugin-path             | When using custom strategy plugins, you can enter the path here to automatically load the plugin                                                         | `true`                           |
+| report                  | Contains details on the output report after a successful backtesting run                                                                                 | See Report table below           |
+| grpc                    | Contains GRPC server details                                                                                                                             | See GRPC table below             |
+| use-cmd-colours         | If enabled, will output pretty colours of your choosing when running the application                                                                     | `true`                           |
+| cmd-colours             | Contains details on what the colour definitions are                                                                                                      | See Colours table below          |
 
 ### Backtester Config Report overview
 
 | Key            | Description                                                          | Example                         |
 |----------------|----------------------------------------------------------------------|---------------------------------|
-| GenerateReport | Whether or not to output a report after a successful backtesting run | `true`                          |
-| TemplatePath   | The path for the template to use when generating a report            | `/backtester/report/tpl.gohtml` |
-| OutputPath     | The path where report output is saved                                | `/backtester/results`           |
-| DarkMode       | Whether or not the report defaults to using dark mode                | `true`                          |
+| output-report  | Whether or not to output a report after a successful backtesting run | `true`                          |
+| template-path  | The path for the template to use when generating a report            | `/backtester/report/tpl.gohtml` |
+| output-path    | The path where report output is saved                                | `/backtester/results`           |
+| dark-mode      | Whether or not the report defaults to using dark mode                | `true`                          |
 
 ### Backtester Config GRPC overview
 
 | Key                    | Description                                                                                                                                 | Example                        |
 |------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------|
-| Username               | Your username to negotiate a successful connection with the server                                                                          | `rpcuser`                      |
-| Password               | Your password to negotiate a successful connection with the server                                                                          | `helloImTheDefaultPassword`    |
-| Enabled                | Whether the server is enabled. Setting this to `false` and `SingleRun` to `false` would be inadvisable                                      | `true`                         |
-| ListenAddress          | The listen address for the GRPC server                                                                                                      | `localhost:42069`              |
-| GRPCProxyEnabled       | If enabled, creates a proxy server to interact with the GRPC server via HTTP commands                                                       | `true`                         |
-| GRPCProxyListenAddress | The address for the proxy to listen on                                                                                                      | `localhost:9053`               |
-| TLSDir                 | The directory for holding your TLS certifications to make connections to the server. Will be generated by default on startup if not present | `/backtester/config/location/` |
+| username               | Your username to negotiate a successful connection with the server                                                                          | `rpcuser`                      |
+| password               | Your password to negotiate a successful connection with the server                                                                          | `helloImTheDefaultPassword`    |
+| enabled                | Whether the server is enabled. Setting this to `false` and `SingleRun` to `false` would be inadvisable                                      | `true`                         |
+| listenAddress          | The listen address for the GRPC server                                                                                                      | `localhost:9054`               |
+| grpcProxyEnabled       | If enabled, creates a proxy server to interact with the GRPC server via HTTP commands                                                       | `true`                         |
+| grpcProxyListenAddress | The address for the proxy to listen on                                                                                                      | `localhost:9053`               |
+| tls-dir                | The directory for holding your TLS certifications to make connections to the server. Will be generated by default on startup if not present | `/backtester/config/location/` |
 
 
 ### Backtester Config Colours overview
@@ -79,123 +80,111 @@ See below for a set of tables and fields, expected values and what they can do
 
 #### Config
 
-| Key               | Description                                                                                                                                                                                                                                   |
-|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Nickname          | A nickname for the specific config. When running multiple variants of the same strategy, use the nickname to help differentiate between runs                                                                                                  |
-| Goal              | A description of what you would hope the outcome to be. When verifying output, you can review and confirm whether the strategy met that goal                                                                                                  |
-| CurrencySettings  | Currency settings is an array of settings for each individual currency you wish to run the strategy against                                                                                                                                   |
-| StrategySettings  | Select which strategy to run, what custom settings to load and whether the strategy can assess multiple currencies at once to make more in-depth decisions                                                                                    |
-| FundingSettings   | Defines whether individual funding settings can be used. Defines the funding exchange, asset, currencies at an individual level                                                                                                               |
-| PortfolioSettings | Contains a list of global rules for the portfolio manager. CurrencySettings contain their own rules on things like how big a position is allowable, the portfolio manager rules are the same, but override any individual currency's settings |
-| StatisticSettings | Contains settings that impact statistics calculation. Such as the risk-free rate for the sharpe ratio                                                                                                                                         |
-
+| Key                | Description                                                                                                                                                                                                                                    |
+|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| nickname           | A nickname for the specific config. When running multiple variants of the same strategy, use the nickname to help differentiate between runs                                                                                                   |
+| goal               | A description of what you would hope the outcome to be. When verifying output, you can review and confirm whether the strategy met that goal                                                                                                   |
+| strategy-settings  | Select which strategy to run, what custom settings to load and whether the strategy can assess multiple currencies at once to make more in-depth decisions                                                                                     |
+| funding-settings   | Defines whether individual funding settings can be used. Defines the funding exchange, asset, currencies at an individual level                                                                                                                |
+| currency-settings  | Currency settings is an array of settings for each individual currency you wish to run the strategy against                                                                                                                                    |
+| data-settings      | Holds data retrieval settings. Determines how the GoCryptoTraderBacktester will fetch data and in what format                                                                                                                                  |
+| portfolio-settings | Contains a list of global rules for the portfolio manager. CurrencySettings contain their own rules on things like how big a position is allowable, the portfolio manager rules are the same, but override any individual currency's settings  |
+| statistic-settings | Contains settings that impact statistics calculation. Such as the risk-free rate for the sharpe ratio                                                                                                                                          |
 
 #### Strategy Settings
 
-| Key                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Example                                                                   |
-|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| Name                       | The strategy to use                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `rsi`                                                                     |
-| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC                                                                                                                                                                                                                                                                                                    | `true`                                                                    |
-| CustomSettings             | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12                                                                                                                                                                                                                                                                                                                                                                                                 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
-| DisableUSDTracking         | If `false`, will track all currencies used in your strategy against USD equivalent candles. For example, if you are running a strategy for BTC/XRP, then the GoCryptoTrader Backtester will also retreive candles data for BTC/USD and XRP/USD to then track strategy performance against a single currency. This also tracks against USDT and other USD tracked stablecoins, so one exchange supporting USDT and another BUSD will still allow unified strategy performance analysis. If disabled, will not track against USD, this can be especially helpful when running strategies under live, database and CSV based data | `false`                                                                   |
-
+| Key                                | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Example                                                                   |
+|------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| name                               | The strategy to use                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `rsi`                                                                     |
+| use-simultaneous-signal-processing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC                                                                                                                                                                                                                                                                                                    | `true`                                                                    |
+| disable-usd-tracking               | If `false`, will track all currencies used in your strategy against USD equivalent candles. For example, if you are running a strategy for BTC/XRP, then the GoCryptoTrader Backtester will also retrieve candles data for BTC/USD and XRP/USD to then track strategy performance against a single currency. This also tracks against USDT and other USD tracked stablecoins, so one exchange supporting USDT and another BUSD will still allow unified strategy performance analysis. If disabled, will not track against USD, this can be especially helpful when running strategies under live, database and CSV based data | `false`                                                                   |
+| custom-settings                    | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12                                                                                                                                                                                                                                                                                                                                                                                                 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
 
 #### Funding Config Settings
 
-| Key                     | Description                                                                                                                                                                                                                           | Example |
-|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
-| UseExchangeLevelFunding | Allows shared funding at an exchange asset level. You can set funding for `USDT` and all pairs that feature `USDT` will have access to those funds when making orders. See [this](/backtester/funding/README.md) for more information | `false` |
-| ExchangeLevelFunding    | An array of exchange level funding settings.  See below, or [this](/backtester/funding/README.md) for more information                                                                                                                | `[]`    |
-
+| Key                        | Description                                                                                                                                                                                                                           | Example |
+|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| use-exchange-level-funding | Allows shared funding at an exchange asset level. You can set funding for `USDT` and all pairs that feature `USDT` will have access to those funds when making orders. See [this](/backtester/funding/README.md) for more information | `false` |
+| exchange-level-funding     | An array of exchange level funding settings.  See below, or [this](/backtester/funding/README.md) for more information                                                                                                                | `[]`    |
 
 ##### Funding Item Config Settings
 
-| Key          | Description                                                                                                                                                                                                                        | Example   |
-|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
-| ExchangeName | The exchange to set funds. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges                                                                                     | `Binance` |
-| Asset        | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports | `spot`    |
-| Currency     | The currency to set funds                                                                                                                                                                                                          | `BTC`     |
-| InitialFunds | The initial funding for the currency                                                                                                                                                                                               | `1337`    |
-| TransferFee  | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so                                                                                                                            | `0.005`   |
-
+| Key           | Description                                                                                                                                                                                                                        | Example   |
+|---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| exchange-name | The exchange to set funds. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges                                                                                     | `Binance` |
+| asset         | The asset type to set funds. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports | `spot`    |
+| currency      | The currency to set funds                                                                                                                                                                                                          | `BTC`     |
+| initial-funds | The initial funding for the currency                                                                                                                                                                                               | `1337`    |
+| transfer-fee  | If your strategy utilises transferring of funds via the Funding Manager, this is deducted upon doing so                                                                                                                            | `0.005`   |
 
 #### Currency Settings
 
-| Key                     | Description                                                                                                                                                                                                                                                            | Example                         |
-|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
-| ExchangeName            | The exchange to load. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges                                                                                                                              | `Binance`                       |
-| Asset                   | The asset type. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports                                                  | `spot`                          |
-| Base                    | The base of a currency                                                                                                                                                                                                                                                 | `BTC`                           |
-| Quote                   | The quote of a currency                                                                                                                                                                                                                                                | `USDT`                          |
-| InitialFunds            | A legacy field, will be temporarily migrated to `InitialQuoteFunds` if present in your strat config                                                                                                                                                                    | ``                              |
-| BuySide                 | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount                                                                                                                                                 | -                               |
-| SellSide                | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount                                                                                                                                                 | -                               |
-| MinimumSlippagePercent  | Is the lower bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 90, then the most a price can be affected is 10%                                                                                   | `90`                            |
-| MaximumSlippagePercent  | Is the upper bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 99, then the least a price can be affected is 1%. Set both upper and lower to 100 to have no randomness applied to purchase events | `100`                           |
-| MakerFee                | The fee to use when sizing and purchasing currency. If `nil`, will lookup an exchange's fee details                                                                                                                                                                    | `0.001`                         |
-| TakerFee                | Unused fee for when an order is placed in the orderbook, rather than taken from the orderbook. If `nil`, will lookup an exchange's fee details                                                                                                                         | `0.002`                         |
-| MaximumHoldingsRatio    | When multiple currency settings are used, you may set a maximum holdings ratio to prevent having too large a stake in a single currency                                                                                                                                | `0.5`                           |
-| CanUseExchangeLimits    | Will lookup exchange rules around purchase sizing eg minimum order increments of 0.0005. Note: Will retrieve up-to-date rules which may not have existed for the data you are using. Best to use this when considering to use this strategy live                       | `false`                         |
-| SkipCandleVolumeFitting | When placing orders, by default the BackTester will shrink an order's size to fit the candle data's volume so as to not rewrite history. Set this to `true` to ignore this and to set order size at what the portfolio manager prescribes                              | `false`                         |
-| SpotSettings            | An optional field which contains initial funding data for SPOT currency pairs                                                                                                                                                                                          | See SpotSettings table below    |
-| FuturesSettings         | An optional field which contains leverage data for FUTURES currency pairs                                                                                                                                                                                              | See FuturesSettings table below |
+| Key                          | Description                                                                                                                                                                                                                                                            | Example                         |
+|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
+| exchange-name                | The exchange to load. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges                                                                                                                              | `Binance`                       |
+| asset                        | The asset type. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports                                                  | `spot`                          |
+| base                         | The base of a currency                                                                                                                                                                                                                                                 | `BTC`                           |
+| quote                        | The quote of a currency                                                                                                                                                                                                                                                | `USDT`                          |
+| spot-details                 | An optional field which contains initial funding data for SPOT currency pairs                                                                                                                                                                                          | See SpotSettings table below    |
+| future-detailss              | An optional field which contains leverage data for FUTURES currency pairs                                                                                                                                                                                              | See FuturesSettings table below |
+| buy-side                     | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount                                                                                                                                                 |--                               |
+| sell-side                    | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount                                                                                                                                                 |--                               |
+| min-slippage-percent         | Is the lower bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 90, then the most a price can be affected is 10%                                                                                   | `90`                            |
+| max-slippage-percent         | Is the upper bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 99, then the least a price can be affected is 1%. Set both upper and lower to 100 to have no randomness applied to purchase events | `100`                           |
+| maker-fee-override           | The fee to use when sizing and purchasing currency. If `nil`, will lookup an exchange's fee details                                                                                                                                                                    | `0.001`                         |
+| taker-fee-override           | Unused fee for when an order is placed in the orderbook, rather than taken from the orderbook. If `nil`, will lookup an exchange's fee details                                                                                                                         | `0.002`                         |
+| maximum-holdings-ratio       | When multiple currency settings are used, you may set a maximum holdings ratio to prevent having too large a stake in a single currency                                                                                                                                | `0.5`                           |
+| skip-candle-volume-fitting   | When placing orders, by default the BackTester will shrink an order's size to fit the candle data's volume so as to not rewrite history. Set this to `true` to ignore this and to set order size at what the portfolio manager prescribes                              | `false`                         |
+| use-exchange-order-limits    | Will lookup exchange rules around purchase sizing eg minimum order increments of 0.0005. Note: Will retrieve up-to-date rules which may not have existed for the data you are using. Best to use this when considering to use this strategy live                       | `false`                         |
+| use-exchange-pnl-calculation | Instead of simulating the exchange's own way of calculating PNL, use a default method which calculates the value of an asset                                                                                                                                           | `false`                         |
 
 ##### SpotSettings
 
-| Key               | Description                                                                                                                                                | Example |
-|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
-| InitialBaseFunds  | The funds that the GoCryptoTraderBacktester has for the base currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false`  | `2`     |
-| InitialQuoteFunds | The funds that the GoCryptoTraderBacktester has for the quote currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `10000` |
+| Key                 | Description                                                                                                                                                | Example |
+|---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| initial-base-funds  | The funds that the GoCryptoTraderBacktester has for the base currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false`  | `2`     |
+| initial-quote-funds | The funds that the GoCryptoTraderBacktester has for the quote currency. This is only required if the strategy setting `UseExchangeLevelFunding` is `false` | `10000` |
 
 ##### FuturesSettings
 
 | Key      | Description                                                                              | Example |
 |----------|------------------------------------------------------------------------------------------|---------|
-| Leverage | This struct defines the leverage rules that this specific currency setting must abide by | `1`     |
+| leverage | This struct defines the leverage rules that this specific currency setting must abide by | `1`     |
 
-#### PortfolioSettings
-
-| Key      | Description                                                                                                            |
-|----------|------------------------------------------------------------------------------------------------------------------------|
-| Leverage | This struct defines the leverage rules that this specific currency setting must abide by                               |
-| BuySide  | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount |
-| SellSide | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount |
-
-#### StatisticsSettings
-
-| Key          | Description                                                             | Example |
-|--------------|-------------------------------------------------------------------------|---------|
-| RiskFreeRate | The risk free rate used in the calculation of sharpe and sortino ratios | `0.03`  |
+### DataSettings
+| Key                       | Description                                                                                            | Example       |
+|---------------------------|--------------------------------------------------------------------------------------------------------|---------------|
+| interval                  | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
+| data-type                 | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `trade`       |
+| verbose-exchange-requests | When retrieving candle data from an exchange, print verbose request/response details                   | `false`       |
+| api-data                  | Holds API data settings. See table `APIData`                                                           |               |
+| database-data             | Holds database data settings. See table `DatabaseData`                                                 |               |
+| live-data                 | Holds API data settings. See table `LiveData`                                                          |               |
+| csv-data                  | Holds CSV data settings. See table `CSVData`                                                           |               |
 
 #### APIData
 
-| Key              | Description                                                                                                                                                                                                | Example                     |
-|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|
-| DataType         | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles                                                                                                     | `trade`                     |
-| Interval         | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15`                                                                                                     | `15000000000`               |
-| StartDate        | The start date to retrieve data                                                                                                                                                                            | `2021-01-23T11:00:00+11:00` |
-| EndDate          | The end date to retrieve data                                                                                                                                                                              | `2021-01-24T11:00:00+11:00` |
-| InclusiveEndDate | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false`                     |
+| Key                | Description                                                                                                                                                                                                | Example                     |
+|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|
+| start-date         | The start date to retrieve data                                                                                                                                                                            | `2021-01-23T11:00:00+11:00` |
+| end-date           | The end date to retrieve data                                                                                                                                                                              | `2021-01-24T11:00:00+11:00` |
+| inclusive-end-date | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false`                     |
 
 #### CSVData
 
-| Key      | Description                                                                                            | Example                  |
-|----------|--------------------------------------------------------------------------------------------------------|--------------------------|
-| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `candle`                 |
-| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000`            |
-| FullPath | The file to load                                                                                       | `/data/exchangelist.csv` |
+| Key       | Description      | Example                  |
+|-----------|------------------|--------------------------|
+| full-path | The file to load | `/data/exchangelist.csv` |
 
 #### DatabaseData
 
-| Key              | Description                                                                                                                                                                                                | Example                     |
-|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|
-| DataType         | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles                                                                                                     | `trade`                     |
-| Interval         | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15`                                                                                                     | `15000000000`               |
-| StartDate        | The start date to retrieve data                                                                                                                                                                            | `2021-01-23T11:00:00+11:00` |
-| EndDate          | The end date to retrieve data                                                                                                                                                                              | `2021-01-24T11:00:00+11:00` |
-| Config           | This is the same struct used as your GoCryptoTrader database config. See below tables for breakdown                                                                                                        | `see below`                 |
-| Path             | If using SQLite, the path to the directory, not the file. Leaving blank will use GoCryptoTrader's default database path                                                                                    | ``                          |
-| InclusiveEndDate | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false`                     |
+| Key                | Description                                                                                                                                                                                                | Example                     |
+|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|
+| start-date         | The start date to retrieve data                                                                                                                                                                            | `2021-01-23T11:00:00+11:00` |
+| end-date           | The end date to retrieve data                                                                                                                                                                              | `2021-01-24T11:00:00+11:00` |
+| config             | This is the same struct used as your GoCryptoTrader database config. See below tables for breakdown                                                                                                        | `see below`                 |
+| path               | If using SQLite, the path to the directory, not the file. Leaving blank will use GoCryptoTrader's default database path                                                                                    | ``                          |
+| inclusive-end-date | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false`                     |
 
 ##### database
 
@@ -219,32 +208,65 @@ See below for a set of tables and fields, expected values and what they can do
 
 #### LiveData
 
-| Key                   | Description                                                                                            | Example       |
-|-----------------------|--------------------------------------------------------------------------------------------------------|---------------|
-| DataType              | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `candle`      |
-| Interval              | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
-| APIKeyOverride        | Will set the GoCryptoTrader exchange to use the following API Key                                      | `1234`        |
-| APISecretOverride     | Will set the GoCryptoTrader exchange to use the following API Secret                                   | `5678`        |
-| APIClientIDOverride   | Will set the GoCryptoTrader exchange to use the following API Client ID                                | `9012`        |
-| API2FAOverride        | Will set the GoCryptoTrader exchange to use the following 2FA seed                                     | `hello-moto`  |
-| APISubaccountOverride | Will set the GoCryptoTrader exchange to use the following subaccount on supported exchanges            | `subzero`     |
-| RealOrders            | Whether to place real orders. You really should never consider using this. Ever ever                   | `true`        |
+| Key                          | Description                                                                                                                                     | Example       |
+|------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| new-event-timeout            | The time allowed to wait for new data before exiting the strategy. Ensures new data is always coming in                                         | `60000000000` |
+| data-check-timer             | The interval in which to check exchange API's for new data                                                                                      | `1000000000`  |
+| real-orders                  | Whether to place real orders with real money. Its likely you should never want to set this to true                                              | `false`       |
+| close-positions-on-stop      | As live trading doesn't stop until you tell it to, you can trigger a close of your position(s) when you stop the strategy                       | `true`        |
+| data-request-retry-tolerance | Rather than immediately closing a strategy on failure to retrieve candle data, having a retry tolerance allows multiple attempts to return data | `3`           |
+| data-request-retry-wait-time | How long to wait in between request retries                                                                                                     | `500000000`   |
+| exchange-credentials         | A list of exchange credentials. See table named `ExchangeCredentials`                                                                           |               |
+
+##### ExchangeCredentials Settings
+
+| Key         | Description                                               | Example   |
+|-------------|-----------------------------------------------------------|-----------|
+| exchange    | The exchange to apply credentials to                      | `binance` |
+| credentials | The API credentials to use. See table named `Credentials` |           |
+
+##### Credentials Settings
+
+| Key             | Description                                                                                 | Example      |
+|-----------------|---------------------------------------------------------------------------------------------|--------------|
+| Key             | Will set the GoCryptoTrader exchange to use the following API Key                           | `1234`       |
+| Secret          | Will set the GoCryptoTrader exchange to use the following API Secret                        | `5678`       |
+| ClientID        | Will set the GoCryptoTrader exchange to use the following API Client ID                     | `9012`       |
+| PEMKey          | Private key for certain API requests. If you don't know it, you probably don't need it      | `hello-moto` |
+| SubAccount      | Will set the GoCryptoTrader exchange to use the following subaccount on supported exchanges | `subzero`    |
+| OneTimePassword | Will set the GoCryptoTrader exchange to use the following 2FA seed                          | `subzero`    |
+
+#### PortfolioSettings
+
+| Key       | Description                                                                                                            |
+|-----------|------------------------------------------------------------------------------------------------------------------------|
+| leverage  | This struct defines the leverage rules that this specific currency setting must abide by                               |
+| buy-side  | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount |
+| sell-side | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount |
 
 ##### Leverage Settings
 
-| Key                            | Description                                                                              | Example |
-|--------------------------------|------------------------------------------------------------------------------------------|---------|
-| CanUseLeverage                 | Allows the use of leverage                                                               | `false` |
-| MaximumOrdersWithLeverageRatio | If the ratio of leveraged orders for a currency exceeds this, the order cannot be placed | `0.5`   |
-| MaximumLeverageRate            | Orders cannot be placed with leverage over this amount                                   | `100`   |
+| Key                                | Description                   | Example |
+|------------------------------------|-------------------------------|---------|
+| can-use-leverage                   | Allows the use of leverage    | `false` |
+| maximum-orders-with-leverage-ratio | currently unused              | `0.5`   |
+| maximum-leverage-rate              | currently unused              | `100`   |
+| maximum-collateral-leverage-rate   | currently unused              | `100`   |
 
 ##### Buy/Sell Settings
 
-| Key          | Description                                                                                                      | Example |
-|--------------|------------------------------------------------------------------------------------------------------------------|---------|
-| MinimumSize  | If the order's quantity is below this, the order cannot be placed                                                | `0.1`   |
-| MaximumSize  | If the order's quantity is over this amount, it cannot be placed and will be reduced to the maximum amount       | `10`    |
-| MaximumTotal | If the order's price * amount exceeds this number, the order cannot be placed and will be reduced to this figure | `1337`  |
+| Key           | Description                                                                                                      | Example |
+|---------------|------------------------------------------------------------------------------------------------------------------|---------|
+| minimum-size  | If the order's quantity is below this, the order cannot be placed                                                | `0.1`   |
+| maximum-size  | If the order's quantity is over this amount, it cannot be placed and will be reduced to the maximum amount       | `10`    |
+| maximum-total | If the order's price * amount exceeds this number, the order cannot be placed and will be reduced to this figure | `1337`  |
+
+
+#### StatisticsSettings
+
+| Key            | Description                                                             | Example |
+|----------------|-------------------------------------------------------------------------|---------|
+| risk-free-rate | The risk free rate used in the calculation of sharpe and sortino ratios | `0.03`  |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}

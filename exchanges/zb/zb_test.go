@@ -877,7 +877,6 @@ func TestGetSpotKline(t *testing.T) {
 		arg.Since = startTime.UnixMilli()
 		arg.Type = "1day"
 	}
-
 	_, err := z.GetSpotKline(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB GetSpotKline: %s", err)
@@ -890,22 +889,18 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	startTime := time.Now().Add(-time.Hour * 1)
+	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now()
 	if mockTests {
 		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
 
+	// Current endpoint is dead.
 	_, err = z.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
-	}
-	_, err = z.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 
@@ -914,14 +909,22 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 1)
-	endTime := time.Now()
+	startTime := time.Now().Add(-time.Hour * 24 * 365)
+	endTime := startTime.Add(time.Hour * 1001)
+	_, err = z.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot, kline.OneHour, startTime, endTime)
+	if !errors.Is(err, kline.ErrRequestExceedsMaxLookback) {
+		t.Fatal(err)
+	}
+
+	startTime = time.Now().Add(-time.Hour * 24 * 365)
+	endTime = time.Now()
 	if mockTests {
-		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
+		startTime = time.UnixMilli(1674489600000)
+		endTime = startTime.Add(kline.OneDay.Duration())
 	}
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -975,43 +978,6 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
-	}
-}
-
-func TestValidateCandlesRequest(t *testing.T) {
-	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Time{}, time.Time{}, kline.Interval(-1))
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Error(err)
-	}
-	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Error(err)
-	}
-	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Error(err)
-	}
-	var p currency.Pair
-	p, err = currency.NewPairFromString(testCurrency)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var item kline.Item
-	item, err = z.validateCandlesRequest(p, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
-	if err != nil {
-		t.Error(err)
-	}
-	if !item.Pair.Equal(p) {
-		t.Errorf("unexpected result, expected %v, received %v", p, item.Pair)
-	}
-	if item.Asset != asset.Spot {
-		t.Errorf("unexpected result, expected %v, received %v", asset.Spot, item.Asset)
-	}
-	if item.Interval != kline.OneHour {
-		t.Errorf("unexpected result, expected %v, received %v", kline.OneHour, item.Interval)
-	}
-	if item.Exchange != z.Name {
-		t.Errorf("unexpected result, expected %v, received %v", z.Name, item.Exchange)
 	}
 }
 

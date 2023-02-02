@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -42,12 +43,13 @@ type Config struct {
 // DataSettings is a container for each type of data retrieval setting.
 // Only ONE can be populated per config
 type DataSettings struct {
-	Interval     kline.Interval `json:"interval"`
-	DataType     string         `json:"data-type"`
-	APIData      *APIData       `json:"api-data,omitempty"`
-	DatabaseData *DatabaseData  `json:"database-data,omitempty"`
-	LiveData     *LiveData      `json:"live-data,omitempty"`
-	CSVData      *CSVData       `json:"csv-data,omitempty"`
+	Interval                kline.Interval `json:"interval"`
+	DataType                string         `json:"data-type"`
+	VerboseExchangeRequests bool           `json:"verbose-exchange-requests"`
+	APIData                 *APIData       `json:"api-data,omitempty"`
+	DatabaseData            *DatabaseData  `json:"database-data,omitempty"`
+	LiveData                *LiveData      `json:"live-data,omitempty"`
+	CSVData                 *CSVData       `json:"csv-data,omitempty"`
 }
 
 // FundingSettings contains funding details for individual currencies
@@ -188,10 +190,17 @@ type DatabaseData struct {
 
 // LiveData defines all fields to configure live data
 type LiveData struct {
-	APIKeyOverride        string `json:"api-key-override"`
-	APISecretOverride     string `json:"api-secret-override"`
-	APIClientIDOverride   string `json:"api-client-id-override"`
-	API2FAOverride        string `json:"api-2fa-override"`
-	APISubAccountOverride string `json:"api-sub-account-override"`
-	RealOrders            bool   `json:"real-orders"`
+	NewEventTimeout           time.Duration `json:"new-event-timeout"`
+	DataCheckTimer            time.Duration `json:"data-check-timer"`
+	RealOrders                bool          `json:"real-orders"`
+	ClosePositionsOnStop      bool          `json:"close-positions-on-stop"`
+	DataRequestRetryTolerance int64         `json:"data-request-retry-tolerance"`
+	DataRequestRetryWaitTime  time.Duration `json:"data-request-retry-wait-time"`
+	ExchangeCredentials       []Credentials `json:"exchange-credentials"`
+}
+
+// Credentials holds each exchanges credentials
+type Credentials struct {
+	Exchange string              `json:"exchange"`
+	Keys     account.Credentials `json:"credentials"`
 }

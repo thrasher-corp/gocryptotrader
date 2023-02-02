@@ -155,14 +155,15 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinutWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             c.WsConnect,
-		Subscriber:            c.Subscribe,
-		Unsubscriber:          c.Unsubscribe,
-		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             coinutWebsocketURL,
+		RunningURL:             wsRunningURL,
+		Connector:              c.WsConnect,
+		Subscriber:             c.Subscribe,
+		Unsubscriber:           c.Unsubscribe,
+		GenerateSubscriptions:  c.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -324,60 +325,60 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 	var balances = []account.Balance{
 		{
-			CurrencyName: currency.BCH,
-			Total:        bal.BCH,
+			Currency: currency.BCH,
+			Total:    bal.BCH,
 		},
 		{
-			CurrencyName: currency.BTC,
-			Total:        bal.BTC,
+			Currency: currency.BTC,
+			Total:    bal.BTC,
 		},
 		{
-			CurrencyName: currency.BTG,
-			Total:        bal.BTG,
+			Currency: currency.BTG,
+			Total:    bal.BTG,
 		},
 		{
-			CurrencyName: currency.CAD,
-			Total:        bal.CAD,
+			Currency: currency.CAD,
+			Total:    bal.CAD,
 		},
 		{
-			CurrencyName: currency.ETC,
-			Total:        bal.ETC,
+			Currency: currency.ETC,
+			Total:    bal.ETC,
 		},
 		{
-			CurrencyName: currency.ETH,
-			Total:        bal.ETH,
+			Currency: currency.ETH,
+			Total:    bal.ETH,
 		},
 		{
-			CurrencyName: currency.LCH,
-			Total:        bal.LCH,
+			Currency: currency.LCH,
+			Total:    bal.LCH,
 		},
 		{
-			CurrencyName: currency.LTC,
-			Total:        bal.LTC,
+			Currency: currency.LTC,
+			Total:    bal.LTC,
 		},
 		{
-			CurrencyName: currency.MYR,
-			Total:        bal.MYR,
+			Currency: currency.MYR,
+			Total:    bal.MYR,
 		},
 		{
-			CurrencyName: currency.SGD,
-			Total:        bal.SGD,
+			Currency: currency.SGD,
+			Total:    bal.SGD,
 		},
 		{
-			CurrencyName: currency.USD,
-			Total:        bal.USD,
+			Currency: currency.USD,
+			Total:    bal.USD,
 		},
 		{
-			CurrencyName: currency.USDT,
-			Total:        bal.USDT,
+			Currency: currency.USDT,
+			Total:    bal.USDT,
 		},
 		{
-			CurrencyName: currency.XMR,
-			Total:        bal.XMR,
+			Currency: currency.XMR,
+			Total:    bal.XMR,
 		},
 		{
-			CurrencyName: currency.ZEC,
-			Total:        bal.ZEC,
+			Currency: currency.ZEC,
+			Total:    bal.ZEC,
 		},
 	}
 	info.Exchange = c.Name
@@ -1136,11 +1137,11 @@ func (c *COINUT) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (c *COINUT) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (c *COINUT) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (c *COINUT) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (c *COINUT) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }

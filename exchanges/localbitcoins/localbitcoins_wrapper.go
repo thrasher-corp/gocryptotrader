@@ -295,10 +295,10 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.I
 		AssetType: assetType,
 		Currencies: []account.Balance{
 			{
-				CurrencyName: currency.BTC,
-				Total:        accountBalance.Total.Balance,
-				Hold:         accountBalance.Total.Balance - accountBalance.Total.Sendable,
-				Free:         accountBalance.Total.Sendable,
+				Currency: currency.BTC,
+				Total:    accountBalance.Total.Balance,
+				Hold:     accountBalance.Total.Balance - accountBalance.Total.Sendable,
+				Free:     accountBalance.Total.Sendable,
 			}},
 	})
 
@@ -699,11 +699,11 @@ func (l *LocalBitcoins) ValidateCredentials(ctx context.Context, assetType asset
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *LocalBitcoins) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (l *LocalBitcoins) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (l *LocalBitcoins) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (l *LocalBitcoins) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }

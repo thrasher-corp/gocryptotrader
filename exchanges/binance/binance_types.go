@@ -140,7 +140,7 @@ type OrderBook struct {
 type DepthUpdateParams []struct {
 	PriceLevel float64
 	Quantity   float64
-	ingnore    []interface{}
+	ignore     []interface{}
 }
 
 // WebsocketDepthStream is the difference for the update depth stream
@@ -894,7 +894,7 @@ type update struct {
 	lastUpdateID      int64
 }
 
-// job defines a synchonisation job that tells a go routine to fetch an
+// job defines a synchronisation job that tells a go routine to fetch an
 // orderbook via the REST protocol
 type job struct {
 	Pair currency.Pair

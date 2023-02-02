@@ -113,7 +113,7 @@ func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
 	_, err := c.GetHistoricCandles(context.Background(),
-		testPair, asset.Spot, start, end, kline.OneHour)
+		testPair, asset.Spot, kline.OneHour, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
 	end := time.Unix(1577836799, 0)
 
 	_, err := c.GetHistoricCandlesExtended(context.Background(),
-		testPair, asset.Spot, start, end, kline.OneDay)
+		testPair, asset.Spot, kline.OneDay, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1034,7 +1034,7 @@ func TestStatusToStandardStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := statusToStandardStatus(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }
@@ -1050,67 +1050,6 @@ func TestParseTime(t *testing.T) {
 		r.Month().String() != "January" ||
 		r.Day() != 6 {
 		t.Error("unexpected result")
-	}
-}
-
-func TestCheckInterval(t *testing.T) {
-	interval := time.Minute
-	i, err := checkInterval(interval)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != 60 {
-		t.Fatal("incorrect return")
-	}
-	interval = time.Minute * 5
-	i, err = checkInterval(interval)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != 300 {
-		t.Fatal("incorrect return")
-	}
-
-	interval = time.Minute * 15
-	i, err = checkInterval(interval)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != 900 {
-		t.Fatal("incorrect return")
-	}
-
-	interval = time.Hour
-	i, err = checkInterval(interval)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != 3600 {
-		t.Fatal("incorrect return")
-	}
-
-	interval = time.Hour * 6
-	i, err = checkInterval(interval)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != 21600 {
-		t.Fatal("incorrect return")
-	}
-
-	interval = time.Hour * 24
-	i, err = checkInterval(interval)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != 86400 {
-		t.Fatal("incorrect return")
-	}
-
-	interval = time.Hour * 1337
-	_, err = checkInterval(interval)
-	if err == nil {
-		t.Fatal("error cannot be nil")
 	}
 }
 

@@ -157,18 +157,18 @@ func (k *Kraken) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.OneDay.Word():     true,
-					kline.FifteenDay.Word(): true,
-					kline.OneWeek.Word():    true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.FourHour,
+					kline.OneDay,
+					kline.OneWeek,
+					kline.FifteenDay,
+				),
+				ResultLimit: 720,
 			},
 		},
 	}
@@ -219,15 +219,16 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            krakenWSURL,
-		RunningURL:            wsRunningURL,
-		Connector:             k.WsConnect,
-		Subscriber:            k.Subscribe,
-		Unsubscriber:          k.Unsubscribe,
-		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
-		Features:              &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
+		ExchangeConfig:         exch,
+		DefaultURL:             krakenWSURL,
+		RunningURL:             wsRunningURL,
+		Connector:              k.WsConnect,
+		Subscriber:             k.Subscribe,
+		Unsubscriber:           k.Unsubscribe,
+		GenerateSubscriptions:  k.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &k.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig:  buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
@@ -604,8 +605,8 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 				continue
 			}
 			balances = append(balances, account.Balance{
-				CurrencyName: currency.NewCode(translatedCurrency),
-				Total:        bal[key],
+				Currency: currency.NewCode(translatedCurrency),
+				Total:    bal[key],
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -620,8 +621,8 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(code).Upper(),
-					Total:        bal.Accounts[name].Balances[code],
+					Currency: currency.NewCode(code).Upper(),
+					Total:    bal.Accounts[name].Balances[code],
 				})
 			}
 			info.Accounts = append(info.Accounts, account.SubAccount{
@@ -692,6 +693,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			side = order.Sell
 		}
 		resp[i] = trade.Data{
+			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 			Exchange:     k.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
@@ -699,7 +701,6 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Volume,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
-			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 		}
 	}
 
@@ -1470,29 +1471,34 @@ func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := k.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	ret := kline.Item{
-		Exchange: k.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-	candles, err := k.GetOHLC(ctx, pair, k.FormatExchangeKlineInterval(interval))
+func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := k.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
+
+	if a != asset.Spot {
+		// TODO: Implement futures
+		return nil, common.ErrNotYetImplemented
+	}
+
+	candles, err := k.GetOHLC(ctx,
+		req.Pair,
+		k.FormatExchangeKlineInterval(req.ExchangeInterval))
+	if err != nil {
+		return nil, err
+	}
+
+	timeSeries := make([]kline.Candle, 0, len(candles))
 	for x := range candles {
 		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time * 1000)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
-		if timeValue.Before(start) || timeValue.After(end) {
+		if timeValue.Before(req.Start) || timeValue.After(req.End) {
 			continue
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries = append(timeSeries, kline.Candle{
 			Time:   timeValue,
 			Open:   candles[x].Open,
 			High:   candles[x].High,
@@ -1501,44 +1507,12 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			Volume: candles[x].Volume,
 		})
 	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := k.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	ret := kline.Item{
-		Exchange: k.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-	candles, err := k.GetOHLC(ctx, pair, k.FormatExchangeKlineInterval(interval))
-	if err != nil {
-		return kline.Item{}, err
-	}
-	for i := range candles {
-		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[i].Time * 1000)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		if timeValue.Before(start) || timeValue.After(end) {
-			continue
-		}
-		ret.Candles = append(ret.Candles, kline.Candle{
-			Time:   timeValue,
-			Open:   candles[i].Open,
-			High:   candles[i].High,
-			Low:    candles[i].Low,
-			Close:  candles[i].Close,
-			Volume: candles[i].Volume,
-		})
-	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+func (k *Kraken) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 func compatibleOrderSide(side string) (order.Side, error) {

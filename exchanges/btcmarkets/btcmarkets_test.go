@@ -244,7 +244,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err = b.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  b.Name,
@@ -263,7 +263,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err := b.NewOrder(context.Background(), 100, 1, 0, 0, BTCAUD, limit, bidSide, "", "", "", true)
 	if err != nil {
@@ -289,7 +289,7 @@ func TestGetOrders(t *testing.T) {
 func TestCancelOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	temp := []string{BTCAUD, LTCAUD}
 	_, err := b.CancelAllOpenOrdersByPairs(context.Background(), temp)
@@ -321,7 +321,7 @@ func TestFetchOrder(t *testing.T) {
 func TestRemoveOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err := b.RemoveOrder(context.Background(), "")
 	if err != nil {
@@ -469,7 +469,7 @@ func TestGetReport(t *testing.T) {
 func TestRequestWithdaw(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err := b.RequestWithdraw(context.Background(), "BTC", 1, "sdjflajdslfjld", "", "", "", "")
 	if err == nil {
@@ -480,7 +480,7 @@ func TestRequestWithdaw(t *testing.T) {
 func TestBatchPlaceCancelOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	var temp []PlaceBatch
 	o := PlaceBatch{
@@ -511,7 +511,7 @@ func TestGetBatchTrades(t *testing.T) {
 func TestCancelBatch(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	temp := []string{"4477045999", "4477381751", "4477381751"}
 	_, err := b.CancelBatch(context.Background(), temp)
@@ -800,41 +800,33 @@ func TestWsOrders(t *testing.T) {
 }
 
 func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
-	p, err := currency.NewPairFromString(BTCAUD)
+	t.Parallel()
+	pair, err := currency.NewPairFromString(BTCAUD)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetHistoricCandles(context.Background(),
-		p,
-		asset.Spot,
-		time.Now().Add(-time.Hour*24).UTC(),
-		time.Now().UTC(),
-		kline.OneHour)
+
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetHistoricCandles(context.Background(),
-		p,
-		asset.Spot,
-		time.Now().Add(-time.Hour*24).UTC(),
-		time.Now().UTC(),
-		kline.FifteenMin)
+
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
 	if err != nil {
-		if err.Error() != "interval not supported" {
-			t.Fatal(err)
-		}
+		t.Fatal(err)
 	}
 }
 
 func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
-	start := time.Now().AddDate(0, 0, -2)
+	t.Parallel()
+	start := time.Now().AddDate(0, 0, -1)
 	end := time.Now()
-	p, err := currency.NewPairFromString(BTCAUD)
+	pair, err := currency.NewPairFromString(BTCAUD)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		p, asset.Spot, start, end, kline.OneDay)
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneHour, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1063,7 +1055,7 @@ func TestReplaceOrder(t *testing.T) {
 	}
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 
 	_, err = b.ReplaceOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
@@ -1080,7 +1072,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 	}
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	mo, err := b.ModifyOrder(context.Background(), &order.Modify{
 		Pair:          currency.NewPair(currency.BTC, currency.AUD),
@@ -1118,5 +1110,45 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 	if lim == (order.MinMaxLevel{}) {
 		t.Fatal("expected value return")
+	}
+}
+
+func TestConvertToKlineCandle(t *testing.T) {
+	t.Parallel()
+
+	_, err := convertToKlineCandle(nil)
+	if !errors.Is(err, errFailedToConvertToCandle) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errFailedToConvertToCandle)
+	}
+
+	data := [6]string{time.RFC3339[:len(time.RFC3339)-5], "1.0", "2", "3", "4", "5"}
+
+	candle, err := convertToKlineCandle(&data)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if candle.Time.IsZero() {
+		t.Fatal("time unset")
+	}
+
+	if candle.Open != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Open, 1)
+	}
+
+	if candle.High != 2 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.High, 2)
+	}
+
+	if candle.Low != 3 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Low, 3)
+	}
+
+	if candle.Close != 4 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Close, 4)
+	}
+
+	if candle.Volume != 5 {
+		t.Fatalf("received: '%v' but expected: '%v'", candle.Volume, 5)
 	}
 }

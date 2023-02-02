@@ -19,9 +19,10 @@ const (
 	orderSubmissionValidSides = Buy | Sell | Bid | Ask | Long | Short
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
-	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
-	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
-	notPlaced                 = InsufficientBalance | MarketUnavailable | Rejected
+
+	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
+	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
+	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
 
 var (
@@ -39,7 +40,12 @@ var (
 	errOrderDetailIsNil         = errors.New("order detail is nil")
 )
 
-// Validate checks the supplied data and returns whether or not it's valid
+// IsValidOrderSubmissionSide validates that the order side is a valid submission direction
+func IsValidOrderSubmissionSide(s Side) bool {
+	return s != UnknownSide && orderSubmissionValidSides&s == s
+}
+
+// Validate checks the supplied data and returns whether it's valid
 func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
@@ -61,8 +67,8 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
 	}
 
-	if s.Side == UnknownSide || orderSubmissionValidSides&s.Side != s.Side {
-		return ErrSideIsInvalid
+	if !IsValidOrderSubmissionSide(s.Side) {
+		return fmt.Errorf("%w %v", ErrSideIsInvalid, s.Side)
 	}
 
 	if s.Type != Market && s.Type != Limit {

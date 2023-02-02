@@ -438,13 +438,15 @@ func TestGetHistoricCandles(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
-	_, er := bi.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*5))
-	if !strings.Contains(er.Error(), "interval not supported") {
-		t.Errorf("Binanceus GetHistoricCandles() expected %s, but found %v", "interval not supported", er)
+
+	_, err := bi.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*5), startTime, endTime)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
-	_, er = bi.GetHistoricCandles(context.Background(), pair, asset.Spot, time.Time{}, time.Time{}, kline.FourHour)
-	if er != nil {
-		t.Error("Binanceus GetHistoricCandles() error", er)
+
+	_, err = bi.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
+	if err != nil {
+		t.Error("Binanceus GetHistoricCandles() error", err)
 	}
 }
 
@@ -453,15 +455,18 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
-	_, er := bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, startTime, endTime, kline.FourHour)
-	if er != nil && !strings.Contains(er.Error(), "interval not supported") {
-		t.Errorf("Binanceus GetHistoricCandlesExtended() expected %s, but found %v", "interval not supported", er)
+
+	_, err := bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
+	if err != nil {
+		t.Fatal(err)
 	}
+
 	startTime = time.Now().Add(-time.Hour * 30)
 	endTime = time.Now()
-	_, er = bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, startTime, endTime, kline.FourHour)
-	if er != nil {
-		t.Error("Binanceus GetHistoricCandlesExtended() error", er)
+
+	_, err = bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FourHour, startTime, endTime)
+	if err != nil {
+		t.Error("Binanceus GetHistoricCandlesExtended() error", err)
 	}
 }
 
@@ -1803,7 +1808,7 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Binanceus Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Binanceus expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }

@@ -40,7 +40,7 @@ const (
 	fSystemStatus              = "/api/v1/contract_api_state"
 	fTopAccountsSentiment      = "/api/v1/contract_elite_account_ratio"
 	fTopPositionsSentiment     = "/api/v1/contract_elite_position_ratio"
-	fLiquidationOrders         = "/api/v1/contract_liquidation_orders"
+	fLiquidationOrders         = "/api/v3/contract_liquidation_orders"
 	fIndexKline                = "/index/market/history/index"
 	fBasisData                 = "/index/market/history/basis"
 
@@ -403,24 +403,27 @@ func (h *HUOBI) FQueryTopPositionsRatio(ctx context.Context, symbol, period stri
 }
 
 // FLiquidationOrders gets liquidation orders for futures contracts
-func (h *HUOBI) FLiquidationOrders(ctx context.Context, symbol, tradeType string, pageIndex, pageSize, createDate int64) (FLiquidationOrdersInfo, error) {
-	var resp FLiquidationOrdersInfo
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	if createDate != 7 && createDate != 90 {
-		return resp, fmt.Errorf("invalid createDate. 7 and 90 are the only supported values")
-	}
-	params.Set("create_date", strconv.FormatInt(createDate, 10))
+func (h *HUOBI) FLiquidationOrders(ctx context.Context, symbol currency.Code, tradeType string, startTime, endTime int64, direction string, fromID int64) (LiquidationOrdersData, error) {
+	var resp LiquidationOrdersData
 	tType, ok := validTradeTypes[tradeType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trade type")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
 	params.Set("trade_type", strconv.FormatInt(tType, 10))
-	if pageIndex != 0 {
-		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
+
+	if startTime != 0 {
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
 	}
-	if pageSize != 0 {
-		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
+	if endTime != 0 {
+		params.Set("end_time", strconv.FormatInt(startTime, 10))
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if fromID != 0 {
+		params.Set("from_id", strconv.FormatInt(fromID, 10))
 	}
 	path := common.EncodeURLValues(fLiquidationOrders, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
@@ -657,7 +660,7 @@ func (h *HUOBI) FTransfer(ctx context.Context, subUID, symbol, transferType stri
 	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fTransfer, nil, req, &resp)
@@ -671,7 +674,7 @@ func (h *HUOBI) FGetTransferRecords(ctx context.Context, symbol, transferType st
 		req["symbol"] = symbol
 	}
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	if createDate < 0 || createDate > 90 {

@@ -19,7 +19,7 @@ var errNoUSDData = errors.New("could not retrieve USD database candle data")
 
 // LoadData retrieves data from an existing database using GoCryptoTrader's database handling implementation
 func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName string, dataType int64, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
-	resp := &kline.DataFromKline{}
+	resp := kline.NewDataFromKline()
 	switch dataType {
 	case common.DataCandle:
 		klineItem, err := getCandleDatabaseData(
@@ -73,7 +73,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 	return resp, nil
 }
 
-func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (gctkline.Item, error) {
+func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (*gctkline.Item, error) {
 	return gctkline.LoadFromDatabase(
 		exchangeName,
 		fPair,

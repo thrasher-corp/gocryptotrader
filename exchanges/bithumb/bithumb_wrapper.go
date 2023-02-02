@@ -114,17 +114,18 @@ func (b *Bithumb) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.TenMin.Word():     true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.TenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+				),
+				ResultLimit: 1500,
 			},
 		},
 	}
@@ -173,13 +174,14 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsEndpoint,
-		RunningURL:            ePoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             wsEndpoint,
+		RunningURL:             ePoint,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		GenerateSubscriptions:  b.GenerateSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -380,10 +382,10 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		}
 
 		exchangeBalances = append(exchangeBalances, account.Balance{
-			CurrencyName: currency.NewCode(key),
-			Total:        totalAmount,
-			Hold:         hold,
-			Free:         avail,
+			Currency: currency.NewCode(key),
+			Total:    totalAmount,
+			Hold:     hold,
+			Free:     avail,
 		})
 	}
 
@@ -781,67 +783,57 @@ func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	candle, err := b.GetCandleStick(ctx, formattedPair.String(),
-		b.FormatExchangeKlineInterval(interval))
+	candle, err := b.GetCandleStick(ctx,
+		req.RequestFormatted.String(),
+		b.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Interval: interval,
-	}
-
+	timeSeries := make([]kline.Candle, 0, len(candle.Data))
 	for x := range candle.Data {
 		if len(candle.Data[x]) < 6 {
-			return kline.Item{}, errors.New("invalid candle length")
+			return nil, errors.New("invalid candle length")
 		}
 		var tempCandle kline.Candle
 		if tempCandle.Time, err = convert.TimeFromUnixTimestampFloat(candle.Data[x][0]); err != nil {
-			return kline.Item{}, fmt.Errorf("unable to convert timestamp: %w", err)
+			return nil, fmt.Errorf("unable to convert timestamp: %w", err)
 		}
-		if tempCandle.Time.Before(start) {
+		if tempCandle.Time.Before(req.Start) {
 			continue
 		}
-		if tempCandle.Time.After(end) {
+		if tempCandle.Time.After(req.End) {
 			break
 		}
 		if tempCandle.Open, err = convert.FloatFromString(candle.Data[x][1]); err != nil {
-			return kline.Item{}, fmt.Errorf("kline open conversion failed: %w", err)
+			return nil, fmt.Errorf("kline open conversion failed: %w", err)
 		}
 		if tempCandle.High, err = convert.FloatFromString(candle.Data[x][2]); err != nil {
-			return kline.Item{}, fmt.Errorf("kline high conversion failed: %w", err)
+			return nil, fmt.Errorf("kline high conversion failed: %w", err)
 		}
 		if tempCandle.Low, err = convert.FloatFromString(candle.Data[x][3]); err != nil {
-			return kline.Item{}, fmt.Errorf("kline low conversion failed: %w", err)
+			return nil, fmt.Errorf("kline low conversion failed: %w", err)
 		}
 		if tempCandle.Close, err = convert.FloatFromString(candle.Data[x][4]); err != nil {
-			return kline.Item{}, fmt.Errorf("kline close conversion failed: %w", err)
+			return nil, fmt.Errorf("kline close conversion failed: %w", err)
 		}
 		if tempCandle.Volume, err = convert.FloatFromString(candle.Data[x][5]); err != nil {
-			return kline.Item{}, fmt.Errorf("kline volume conversion failed: %w", err)
+			return nil, fmt.Errorf("kline volume conversion failed: %w", err)
 		}
-		ret.Candles = append(ret.Candles, tempCandle)
+		timeSeries = append(timeSeries, tempCandle)
 	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bithumb) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return b.GetHistoricCandles(ctx, pair, a, start, end, interval)
+func (b *Bithumb) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

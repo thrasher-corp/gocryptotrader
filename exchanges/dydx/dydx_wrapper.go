@@ -85,20 +85,21 @@ func (dy *DYDX) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.OneDay.Word():     true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.FourHour,
+					kline.OneDay,
+				),
 				ResultLimit: 5000,
 			},
 		},
 	}
-	dy.Requester, err = request.New(dy.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	dy.Requester, err = request.New(dy.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(SetupRateLimiter()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -370,10 +371,10 @@ func (dy *DYDX) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			return account.Holdings{}, err
 		}
 		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
-			CurrencyName: currency.USDC,
-			Total:        acc.Accounts[x].QuoteBalance,
-			Hold:         acc.Accounts[x].PendingWithdrawals,
-			Free:         acc.Accounts[x].FreeCollateral,
+			Currency: currency.USDC,
+			Total:    acc.Accounts[x].QuoteBalance,
+			Hold:     acc.Accounts[x].PendingWithdrawals,
+			Free:     acc.Accounts[x].FreeCollateral,
 		})
 		resp.Accounts = append(resp.Accounts, subAcc)
 	}
@@ -880,49 +881,42 @@ func (dy *DYDX) ValidateCredentials(ctx context.Context, assetType asset.Item) e
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := dy.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	pair, err := dy.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	if kline.TotalCandlesPerInterval(start, end, interval) > 100 {
-		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-	format, err := dy.GetPairFormat(a, false)
-	if err != nil {
-		return kline.Item{}, err
-	}
+func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	if !pair.IsPopulated() {
-		return kline.Item{}, currency.ErrCurrencyPairEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
-	candles, err := dy.GetCandlesForMarket(ctx, format.Format(pair), interval, "", "", 0)
+	req, err := dy.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	response := kline.Item{
-		Exchange: dy.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
+	candles, err := dy.GetCandlesForMarket(ctx, req.RequestFormatted.String(), interval, "", "", 0)
+	if err != nil {
+		return nil, err
 	}
+	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		response.Candles = append(response.Candles, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   candles[x].UpdatedAt,
 			Open:   candles[x].Open,
 			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].BaseTokenVolume,
-		})
+		}
 	}
-	response.SortCandlesByTimestamp(false)
-	return response, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (dy *DYDX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (dy *DYDX) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	serverTime, err := dy.GetAPIServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return serverTime.Epoch, nil
 }

@@ -2410,49 +2410,44 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err = b.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.OneDay)
+
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USDT")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.OneDay)
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
 	if err != nil {
 		t.Error(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Error("unexpected result")
 	}
 }
 

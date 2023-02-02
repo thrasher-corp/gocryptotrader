@@ -363,67 +363,36 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 	translatedAsset := assetTranslator.LookupCurrency(symbolValue)
 	values.Set("pair", translatedAsset)
 
-	var result interface{}
-
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTrades, values.Encode())
 
-	err = k.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
+	var data RecentTradesResponse
+	err = k.SendHTTPRequest(ctx, exchange.RestSpot, path, &data)
 	if err != nil {
 		return nil, err
 	}
 
-	data, ok := result.(map[string]interface{})
-	if !ok {
-		return nil, errors.New("unable to parse trade data")
-	}
-	var dataError interface{}
-	dataError, ok = data["error"]
-	if ok {
-		var errorList []interface{}
-		errorList, ok = dataError.([]interface{})
-		if ok {
-			var errs common.Errors
-			for i := range errorList {
-				var errString string
-				errString, ok = errorList[i].(string)
-				if !ok {
-					continue
-				}
-				errs = append(errs, errors.New(errString))
+	if len(data.Error) > 0 {
+		var errs common.Errors
+		for x := range data.Error {
+			errString, ok := data.Error[x].(string)
+			if !ok {
+				continue
 			}
-			if len(errs) > 0 {
-				return nil, errs
-			}
+			errs = append(errs, errors.New(errString))
+		}
+		if len(errs) > 0 {
+			return nil, errs
 		}
 	}
 
-	var resultField interface{}
-	resultField, ok = data["result"]
-	if !ok {
-		return nil, errors.New("unable to find field 'result'")
-	}
-	var tradeInfo map[string]interface{}
-	tradeInfo, ok = resultField.(map[string]interface{})
-	if !ok {
-		return nil, errors.New("unable to parse field 'result'")
-	}
-
-	var trades []interface{}
-	var tradesForSymbol interface{}
-	tradesForSymbol, ok = tradeInfo[translatedAsset]
+	trades, ok := data.Result[translatedAsset].([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("no data returned for symbol %v", symbol)
 	}
 
-	trades, ok = tradesForSymbol.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("no trades returned for symbol %v", symbol)
-	}
-
+	var individualTrade []interface{}
 	recentTrades := make([]RecentTrades, len(trades))
 	for x := range trades {
-		r := RecentTrades{}
-		var individualTrade []interface{}
 		individualTrade, ok = trades[x].([]interface{})
 		if !ok {
 			return nil, errors.New("unable to parse individual trade data")
@@ -431,6 +400,7 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		if len(individualTrade) != 7 {
 			return nil, errors.New("unrecognised trade data received")
 		}
+		var r RecentTrades
 		r.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
 		if err != nil {
 			return nil, err
@@ -1208,7 +1178,7 @@ func (k *Kraken) WithdrawStatus(ctx context.Context, c currency.Code, method str
 	return response.Result, GetError(response.Error)
 }
 
-// WithdrawCancel sends a withdrawal cancelation request
+// WithdrawCancel sends a withdrawal cancellation request
 func (k *Kraken) WithdrawCancel(ctx context.Context, c currency.Code, refID string) (bool, error) {
 	var response struct {
 		Error  []string `json:"error"`

@@ -166,23 +166,23 @@ func (b *Binance) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.EightHour.Word():  true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-					kline.OneMonth.Word():   true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.EightHour,
+					kline.TwelveHour,
+					kline.OneDay,
+					kline.ThreeDay,
+					kline.OneWeek,
+					kline.OneMonth,
+				),
 				ResultLimit: 1000,
 			},
 		},
@@ -231,14 +231,15 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             binanceDefaultWebsocketURL,
+		RunningURL:             ePoint,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.GenerateSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -634,6 +635,8 @@ func (b *Binance) FetchTicker(ctx context.Context, p currency.Pair, assetType as
 func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
+		// TODO: Disconnect update orderbook functionality from fetch orderbook
+		// functionality across all wrappers as this mutes potential errors.
 		return b.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
@@ -659,6 +662,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = b.GetFuturesOrderbook(ctx, p, 1000)
+	default:
+		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
 		return book, err
@@ -706,10 +711,10 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			locked := raw.Balances[i].Locked.InexactFloat64()
 
 			currencyBalance = append(currencyBalance, account.Balance{
-				CurrencyName: currency.NewCode(raw.Balances[i].Asset),
-				Total:        free + locked,
-				Hold:         locked,
-				Free:         free,
+				Currency: currency.NewCode(raw.Balances[i].Asset),
+				Total:    free + locked,
+				Hold:     locked,
+				Free:     free,
 			})
 		}
 
@@ -723,10 +728,10 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		var currencyDetails []account.Balance
 		for i := range accData.Assets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData.Assets[i].Asset),
-				Total:        accData.Assets[i].WalletBalance,
-				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
-				Free:         accData.Assets[i].AvailableBalance,
+				Currency: currency.NewCode(accData.Assets[i].Asset),
+				Total:    accData.Assets[i].WalletBalance,
+				Hold:     accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
+				Free:     accData.Assets[i].AvailableBalance,
 			})
 		}
 
@@ -742,10 +747,10 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			currencyDetails := accountCurrencyDetails[accData[i].AccountAlias]
 			accountCurrencyDetails[accData[i].AccountAlias] = append(
 				currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(accData[i].Asset),
-					Total:        accData[i].Balance,
-					Hold:         accData[i].Balance - accData[i].AvailableBalance,
-					Free:         accData[i].AvailableBalance,
+					Currency: currency.NewCode(accData[i].Asset),
+					Total:    accData[i].Balance,
+					Hold:     accData[i].Balance - accData[i].AvailableBalance,
+					Free:     accData[i].AvailableBalance,
 				},
 			)
 		}
@@ -761,7 +766,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		var currencyDetails []account.Balance
 		for i := range accData.UserAssets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName:           currency.NewCode(accData.UserAssets[i].Asset),
+				Currency:               currency.NewCode(accData.UserAssets[i].Asset),
 				Total:                  accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
 				Hold:                   accData.UserAssets[i].Locked,
 				Free:                   accData.UserAssets[i].Free,
@@ -1680,83 +1685,70 @@ func (b *Binance) FormatExchangeKlineInterval(interval kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
-		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
-	}
-	req := KlinesRequestParams{
-		Interval:  b.FormatExchangeKlineInterval(interval),
-		Symbol:    pair,
-		StartTime: start,
-		EndTime:   end,
-		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
-	}
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
+func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
 	}
 
-	candles, err := b.GetSpotKline(ctx, &req)
-	if err != nil {
-		return kline.Item{}, err
+	if a != asset.Spot {
+		// TODO: Add support for other asset types.
+		return nil, common.ErrNotYetImplemented
 	}
+
+	candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
+		Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
+		Symbol:    req.Pair,
+		StartTime: req.Start,
+		EndTime:   req.End,
+		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		ret.Candles = append(ret.Candles, kline.Candle{
+		timeSeries[x] = kline.Candle{
 			Time:   candles[x].OpenTime,
 			Open:   candles[x].Open,
 			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
-		})
+		}
 	}
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
-// GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+// GetHistoricCandlesExtended returns candles between a time period for a set
+// time interval
+func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	var candles []CandleStick
-	for x := range dates.Ranges {
-		req := KlinesRequestParams{
-			Interval:  b.FormatExchangeKlineInterval(interval),
-			Symbol:    pair,
-			StartTime: dates.Ranges[x].Start.Time,
-			EndTime:   dates.Ranges[x].End.Time,
-			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
-		}
 
-		candles, err = b.GetSpotKline(ctx, &req)
+	if a != asset.Spot {
+		// TODO: Add support for other asset types.
+		return nil, common.ErrNotYetImplemented
+	}
+
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.RangeHolder.Ranges {
+		var candles []CandleStick
+		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
+			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
+			Symbol:    req.Pair,
+			StartTime: req.RangeHolder.Ranges[x].Start.Time,
+			EndTime:   req.RangeHolder.Ranges[x].End.Time,
+			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+		})
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 
 		for i := range candles {
-			for j := range ret.Candles {
-				if ret.Candles[j].Time.Equal(candles[i].OpenTime) {
-					continue
-				}
-			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			timeSeries = append(timeSeries, kline.Candle{
 				Time:   candles[i].OpenTime,
 				Open:   candles[i].Open,
 				High:   candles[i].High,
@@ -1766,16 +1758,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			})
 		}
 	}
-
-	dates.SetHasDataFromCandles(ret.Candles)
-	summary := dates.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
-	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 func compatibleOrderVars(side, status, orderType string) OrderVars {

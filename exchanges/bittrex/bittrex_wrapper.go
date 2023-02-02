@@ -110,12 +110,13 @@ func (b *Bittrex) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():  true,
-					kline.FiveMin.Word(): true,
-					kline.OneHour.Word(): true,
-					kline.OneDay.Word():  true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.FiveMin,
+					kline.OneHour,
+					kline.OneDay,
+				),
+				ResultLimit: 1000,
 			},
 		},
 	}
@@ -165,14 +166,15 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 
 	// Websocket details setup below
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
-		RunningURL:            wsRunningEndpoint,
-		Connector:             b.WsConnect,                                // Connector function outlined above.
-		Subscriber:            b.Subscribe,                                // Subscriber function outlined above.
-		Unsubscriber:          b.Unsubscribe,                              // Unsubscriber function outlined above.
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
-		Features:              &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+		ExchangeConfig:         exch,
+		DefaultURL:             bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
+		RunningURL:             wsRunningEndpoint,
+		Connector:              b.WsConnect,                    // Connector function outlined above.
+		Subscriber:             b.Subscribe,                    // Subscriber function outlined above.
+		Unsubscriber:           b.Unsubscribe,                  // Unsubscriber function outlined above.
+		GenerateSubscriptions:  b.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -410,10 +412,10 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	currencies := make([]account.Balance, len(balanceData))
 	for i := range balanceData {
 		currencies[i] = account.Balance{
-			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
-			Total:        balanceData[i].Total,
-			Hold:         balanceData[i].Total - balanceData[i].Available,
-			Free:         balanceData[i].Available,
+			Currency: currency.NewCode(balanceData[i].CurrencySymbol),
+			Total:    balanceData[i].Total,
+			Hold:     balanceData[i].Total - balanceData[i].Available,
+			Free:     balanceData[i].Available,
 		}
 	}
 
@@ -951,50 +953,40 @@ func (b *Bittrex) FormatExchangeKlineInterval(in kline.Interval) string {
 // - 1 day interval: candles for 366 days
 // This implementation rounds returns candles up to the next interval or to the end
 // time (whichever comes first)
-func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := b.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-	candleInterval := b.FormatExchangeKlineInterval(interval)
-	if candleInterval == "notfound" {
-		return kline.Item{}, errors.New("invalid interval")
-	}
-
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
+	candleInterval := b.FormatExchangeKlineInterval(req.ExchangeInterval)
+	if candleInterval == "notfound" {
+		return nil, errors.New("invalid interval")
 	}
 
-	year, month, day := start.Date()
+	year, month, day := req.Start.Date()
 	curYear, curMonth, curDay := time.Now().Date()
 
 	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 
-	switch interval {
+	switch req.ExchangeInterval {
 	case kline.OneMin, kline.FiveMin:
-		if time.Since(start) > 24*time.Hour {
+		if time.Since(req.Start) > 24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth && day >= curDay {
 			getRecent = true
 		}
 	case kline.OneHour:
-		if time.Since(start) > 31*24*time.Hour {
+		if time.Since(req.Start) > 31*24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth {
 			getRecent = true
 		}
 	case kline.OneDay:
-		if time.Since(start) > 366*24*time.Hour {
+		if time.Since(req.Start) > 366*24*time.Hour {
 			getHistoric = true
 		}
 		if year >= curYear {
@@ -1006,36 +998,37 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if getHistoric {
 		var historicData []CandleData
 		historicData, err = b.GetHistoricalCandles(ctx,
-			formattedPair.String(),
-			b.FormatExchangeKlineInterval(interval),
+			req.RequestFormatted.String(),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			"TRADE",
 			year,
 			int(month),
 			day)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		ohlcData = append(ohlcData, historicData...)
 	}
 	if getRecent {
 		var recentData []CandleData
 		recentData, err = b.GetRecentCandles(ctx,
-			formattedPair.String(),
-			b.FormatExchangeKlineInterval(interval),
+			req.RequestFormatted.String(),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			"TRADE")
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
 		ohlcData = append(ohlcData, recentData...)
 	}
 
+	timeSeries := make([]kline.Candle, 0, len(ohlcData))
 	for x := range ohlcData {
-		timestamp := ohlcData[x].StartsAt
-		if timestamp.Before(start) || timestamp.After(end) {
+		if ohlcData[x].StartsAt.Before(req.Start) ||
+			ohlcData[x].StartsAt.After(req.End) {
 			continue
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
-			Time:   timestamp,
+		timeSeries = append(timeSeries, kline.Candle{
+			Time:   ohlcData[x].StartsAt,
 			Open:   ohlcData[x].Open,
 			High:   ohlcData[x].High,
 			Low:    ohlcData[x].Low,
@@ -1043,12 +1036,10 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Volume: ohlcData[x].Volume,
 		})
 	}
-	ret.SortCandlesByTimestamp(false)
-	ret.RemoveDuplicates()
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bittrex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (b *Bittrex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }

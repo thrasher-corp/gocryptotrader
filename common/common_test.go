@@ -670,14 +670,14 @@ func TestParseStartEndDate(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
 	}
 
-	err = StartEndTimeCheck(ft, et)
-	if !errors.Is(err, ErrStartAfterTimeNow) {
-		t.Errorf("received %v, expected %v", err, ErrStartAfterTimeNow)
-	}
-
 	err = StartEndTimeCheck(et, pt)
 	if !errors.Is(err, ErrStartAfterEnd) {
 		t.Errorf("received %v, expected %v", err, ErrStartAfterEnd)
+	}
+
+	err = StartEndTimeCheck(ft, ft.Add(time.Hour))
+	if !errors.Is(err, ErrStartAfterTimeNow) {
+		t.Errorf("received %v, expected %v", err, ErrStartAfterTimeNow)
 	}
 
 	err = StartEndTimeCheck(pt, et)
@@ -708,7 +708,7 @@ func TestMatchesEmailPattern(t *testing.T) {
 	if success {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}
-	success = MatchesEmailPattern("someon esemail@gmail")
+	success = MatchesEmailPattern("someone esemail@gmail")
 	if success {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}

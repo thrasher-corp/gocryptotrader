@@ -114,19 +114,20 @@ func (g *Gateio) SetDefaults() {
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-				},
+				Intervals: kline.DeployExchangeIntervals(
+					kline.OneMin,
+					kline.ThreeMin,
+					kline.FiveMin,
+					kline.FifteenMin,
+					kline.ThirtyMin,
+					kline.OneHour,
+					kline.TwoHour,
+					kline.FourHour,
+					kline.SixHour,
+					kline.TwelveHour,
+					kline.OneDay,
+				),
+				ResultLimit: 1001,
 			},
 		},
 	}
@@ -171,13 +172,14 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
-		Subscriber:            g.Subscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
-		Features:              &g.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             gateioWebsocketEndpoint,
+		RunningURL:             wsRunningURL,
+		Connector:              g.WsConnect,
+		Subscriber:             g.Subscribe,
+		GenerateSubscriptions:  g.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -357,10 +359,10 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		var currData []account.Balance
 		for k := range resp.Result {
 			currData = append(currData, account.Balance{
-				CurrencyName: currency.NewCode(k),
-				Total:        resp.Result[k].Available + resp.Result[k].Freeze,
-				Hold:         resp.Result[k].Freeze,
-				Free:         resp.Result[k].Available,
+				Currency: currency.NewCode(k),
+				Total:    resp.Result[k].Available + resp.Result[k].Freeze,
+				Hold:     resp.Result[k].Freeze,
+				Free:     resp.Result[k].Available,
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -383,8 +385,8 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 				}
 
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(x),
-					Hold:         lockedF,
+					Currency: currency.NewCode(x),
+					Hold:     lockedF,
 				})
 			}
 		default:
@@ -402,7 +404,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 				var updated bool
 				for i := range balances {
-					if !balances[i].CurrencyName.Equal(currency.NewCode(x)) {
+					if !balances[i].Currency.Equal(currency.NewCode(x)) {
 						continue
 					}
 					balances[i].Total = balances[i].Hold + availAmount
@@ -413,8 +415,8 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 				}
 				if !updated {
 					balances = append(balances, account.Balance{
-						CurrencyName: currency.NewCode(x),
-						Total:        availAmount,
+						Currency: currency.NewCode(x),
+						Total:    availAmount,
 					})
 				}
 			}
@@ -899,39 +901,26 @@ func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := g.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
-	hours := time.Since(start).Hours()
-	formattedPair, err := g.FormatExchangeCurrency(pair, a)
+func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := g.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	params := KlinesRequestParams{
-		Symbol:   formattedPair.String(),
-		GroupSec: g.FormatExchangeKlineInterval(interval),
-		HourSize: int(hours),
-	}
-
-	klineData, err := g.GetSpotKline(ctx, params)
+	timeSeries, err := g.GetSpotKline(ctx, KlinesRequestParams{
+		Symbol:   req.RequestFormatted.String(),
+		GroupSec: g.FormatExchangeKlineInterval(req.ExchangeInterval),
+		HourSize: int(time.Since(req.Start).Hours()),
+	})
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
-	klineData.Interval = interval
-	klineData.Pair = pair
-	klineData.Asset = a
-
-	klineData.SortCandlesByTimestamp(false)
-	klineData.RemoveOutsideRange(start, end)
-	return klineData, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return g.GetHistoricCandles(ctx, pair, a, start, end, interval)
+func (g *Gateio) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

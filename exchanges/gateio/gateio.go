@@ -206,7 +206,7 @@ func (g *Gateio) GetOrderbook(ctx context.Context, symbol string) (*Orderbook, e
 }
 
 // GetSpotKline returns kline data for the most recent time period
-func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (kline.Item, error) {
+func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]kline.Candle, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s?group_sec=%s&range_hour=%d",
 		gateioAPIVersion,
 		gateioKline,
@@ -220,58 +220,55 @@ func (g *Gateio) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (kli
 	}{}
 
 	if err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &resp); err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 	if resp.Result != "true" || len(resp.Data) == 0 {
-		return kline.Item{}, errors.New("rawKlines unexpected data returned")
+		return nil, errors.New("rawKlines unexpected data returned")
 	}
 
-	result := kline.Item{
-		Exchange: g.Name,
-	}
-
+	timeSeries := make([]kline.Candle, len(resp.Data))
 	for x := range resp.Data {
 		if len(resp.Data[x]) < 6 {
-			return kline.Item{}, fmt.Errorf("unexpected kline data length")
+			return nil, fmt.Errorf("unexpected kline data length")
 		}
 		otString, err := strconv.ParseFloat(resp.Data[x][0], 64)
 		if err != nil {
-			return kline.Item{}, err
+			return nil, err
 		}
-		ot, err := convert.TimeFromUnixTimestampFloat(otString)
+		orderType, err := convert.TimeFromUnixTimestampFloat(otString)
 		if err != nil {
-			return kline.Item{}, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
+			return nil, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
 		}
 		_vol, err := convert.FloatFromString(resp.Data[x][1])
 		if err != nil {
-			return kline.Item{}, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
+			return nil, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
 		}
 		_close, err := convert.FloatFromString(resp.Data[x][2])
 		if err != nil {
-			return kline.Item{}, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
+			return nil, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
 		}
 		_high, err := convert.FloatFromString(resp.Data[x][3])
 		if err != nil {
-			return kline.Item{}, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
+			return nil, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
 		}
 		_low, err := convert.FloatFromString(resp.Data[x][4])
 		if err != nil {
-			return kline.Item{}, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
+			return nil, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
 		}
 		_open, err := convert.FloatFromString(resp.Data[x][5])
 		if err != nil {
-			return kline.Item{}, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
+			return nil, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
 		}
-		result.Candles = append(result.Candles, kline.Candle{
-			Time:   ot,
+		timeSeries[x] = kline.Candle{
+			Time:   orderType,
 			Volume: _vol,
 			Close:  _close,
 			High:   _high,
 			Low:    _low,
 			Open:   _open,
-		})
+		}
 	}
-	return result, nil
+	return timeSeries, nil
 }
 
 // GetBalances obtains the users account balance

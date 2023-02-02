@@ -104,10 +104,10 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	balances := make([]account.Balance, len(acc.Currencies))
 	for i := range acc.Currencies {
 		balances[i] = account.Balance{
-			CurrencyName: currency.NewCode(acc.Currencies[i].Name),
-			Total:        float64(acc.Currencies[i].Balance),
-			Hold:         float64(acc.Currencies[i].Hold),
-			Free:         float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
+			Currency: currency.NewCode(acc.Currencies[i].Name),
+			Total:    float64(acc.Currencies[i].Balance),
+			Hold:     float64(acc.Currencies[i].Hold),
+			Free:     float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
 		}
 	}
 
@@ -326,14 +326,14 @@ func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair curr
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (a *Alphapoint) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (string, error) {
-	addreses, err := a.GetDepositAddresses(ctx)
+	addresses, err := a.GetDepositAddresses(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	for x := range addreses {
-		if addreses[x].Name == cryptocurrency.String() {
-			return addreses[x].DepositAddress, nil
+	for x := range addresses {
+		if addresses[x].Name == cryptocurrency.String() {
+			return addresses[x].DepositAddress, nil
 		}
 	}
 	return "", errors.New("associated currency address not found")

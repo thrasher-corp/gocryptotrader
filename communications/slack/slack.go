@@ -263,15 +263,15 @@ func (s *Slack) WebsocketReader() {
 }
 
 func (s *Slack) handlePresenceChange(resp []byte) error {
-	var pres PresenceChange
-	err := json.Unmarshal(resp, &pres)
+	var p PresenceChange
+	err := json.Unmarshal(resp, &p)
 	if err != nil {
 		return err
 	}
 	if s.Verbose {
 		log.Debugf(log.CommunicationMgr, "Slack: Presence change. User %s [%s] changed status to %s\n",
-			s.GetUsernameByID(pres.User),
-			pres.User, pres.Presence)
+			s.GetUsernameByID(p.User),
+			p.User, p.Presence)
 	}
 	return nil
 }

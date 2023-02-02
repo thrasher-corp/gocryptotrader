@@ -126,7 +126,7 @@ func TestGetHistoricalFunding(t *testing.T) {
 func TestGetCandlesForMarket(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.GetCandlesForMarket(context.Background(), "CRV-USD", kline.FiveMin, "", "", 10); err != nil {
-		t.Error()
+		t.Error(err)
 	}
 }
 
@@ -217,15 +217,13 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	pair := currency.NewPair(currency.BTC, currency.USD)
-	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
-	_, err := dy.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*5))
+	_, err := dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Minute*5), time.Now().Add(-time.Minute*20), time.Now())
 	if err != nil && !strings.Contains(err.Error(), "interval not supported") {
 		t.Errorf("%s GetHistoricCandles() expected %s, but found %v", "interval not supported", dy.Name, err)
 	}
-	_, err = dy.GetHistoricCandles(context.Background(), pair, asset.Spot, time.Time{}, time.Time{}, kline.Interval(time.Hour*4))
+	_, err = dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
-		t.Errorf("%s GetHistoricCandles() error %s", err, dy.Name)
+		t.Error(err)
 	}
 }
 
@@ -290,7 +288,6 @@ func TestWsConnect(t *testing.T) {
 	if err := dy.WsConnect(); err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second * 20)
 }
 
 func setupWS() {
@@ -960,5 +957,13 @@ func TestGetFeeByType(t *testing.T) {
 		IsMaker:       true,
 	}); err != nil {
 		t.Errorf("GetFeeByType() error %v", err)
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := dy.GetServerTime(context.Background(), asset.Empty)
+	if err != nil {
+		t.Error(err)
 	}
 }

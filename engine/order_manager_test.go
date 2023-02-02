@@ -112,12 +112,12 @@ func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 }
 
 func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	ans, err := action.DeriveModifyResponse()
+	modResp, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
 	}
-	ans.OrderID = "modified_order_id"
-	return ans, nil
+	modResp.OrderID = "modified_order_id"
+	return modResp, nil
 }
 
 func (f omfExchange) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
@@ -1482,7 +1482,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	}
 
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1558,7 +1558,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackingDisabled)
 	}
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1639,7 +1639,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 	position.Orders[0].AssetType = asset.Futures
 	position.Asset = asset.Futures
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrNotYetImplemented)
 	}
 }

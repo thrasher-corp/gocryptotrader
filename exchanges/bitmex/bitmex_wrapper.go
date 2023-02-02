@@ -183,14 +183,15 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            bitmexWSURL,
-		RunningURL:            wsEndpoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             bitmexWSURL,
+		RunningURL:             wsEndpoint,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
@@ -513,8 +514,8 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 		accountBalances[accountID] = append(
 			accountBalances[accountID], account.Balance{
-				CurrencyName: currency.NewCode(wallet.Currency),
-				Total:        wallet.Amount,
+				Currency: currency.NewCode(wallet.Currency),
+				Total:    wallet.Amount,
 			},
 		)
 	}
@@ -932,13 +933,13 @@ func (b *Bitmex) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitmex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (b *Bitmex) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitmex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (b *Bitmex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // getOrderType derives an order type from bitmex int representation

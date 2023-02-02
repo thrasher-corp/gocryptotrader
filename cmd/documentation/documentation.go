@@ -172,8 +172,23 @@ func main() {
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
 			{
+				Login:         "cornelk",
+				URL:           "https://github.com/cornelk",
+				Contributions: 2,
+			},
+			{
 				Login:         "herenow",
 				URL:           "https://github.com/herenow",
+				Contributions: 2,
+			},
+			{
+				Login:         "if1live",
+				URL:           "https://github.com/if1live",
+				Contributions: 2,
+			},
+			{
+				Login:         "lozdog245",
+				URL:           "https://github.com/lozdog245",
 				Contributions: 2,
 			},
 			{
@@ -190,6 +205,31 @@ func main() {
 				Login:         "tk42",
 				URL:           "https://github.com/tk42",
 				Contributions: 2,
+			},
+			{
+				Login:         "blombard",
+				URL:           "https://github.com/blombard",
+				Contributions: 1,
+			},
+			{
+				Login:         "cavapoo2",
+				URL:           "https://github.com/cavapoo2",
+				Contributions: 1,
+			},
+			{
+				Login:         "CodeLingoTeam",
+				URL:           "https://github.com/CodeLingoTeam",
+				Contributions: 1,
+			},
+			{
+				Login:         "CodeLingoBot",
+				URL:           "https://github.com/CodeLingoBot",
+				Contributions: 1,
+			},
+			{
+				Login:         "Daanikus",
+				URL:           "https://github.com/Daanikus",
+				Contributions: 1,
 			},
 			{
 				Login:         "daniel-cohen",
@@ -214,36 +254,6 @@ func main() {
 				Contributions: 1,
 			},
 			{
-				Login:         "mattkanwisher",
-				URL:           "https://github.com/mattkanwisher",
-				Contributions: 1,
-			},
-			{
-				Login:         "mKurrels",
-				URL:           "https://github.com/mKurrels",
-				Contributions: 1,
-			},
-			{
-				Login:         "m1kola",
-				URL:           "https://github.com/m1kola",
-				Contributions: 1,
-			},
-			{
-				Login:         "cavapoo2",
-				URL:           "https://github.com/cavapoo2",
-				Contributions: 1,
-			},
-			{
-				Login:         "zeldrinn",
-				URL:           "https://github.com/zeldrinn",
-				Contributions: 1,
-			},
-			{
-				Login:         "starit",
-				URL:           "https://github.com/starit",
-				Contributions: 1,
-			},
-			{
 				Login:         "Jimexist",
 				URL:           "https://github.com/Jimexist",
 				Contributions: 1,
@@ -254,43 +264,34 @@ func main() {
 				Contributions: 1,
 			},
 			{
+				Login:         "m1kola",
+				URL:           "https://github.com/m1kola",
+				Contributions: 1,
+			},
+			{
+				Login:         "mattkanwisher",
+				URL:           "https://github.com/mattkanwisher",
+				Contributions: 1,
+			},
+			{
 				Login:         "merkeld",
 				URL:           "https://github.com/merkeld",
 				Contributions: 1,
 			},
 			{
-				Login:         "CodeLingoTeam",
-				URL:           "https://github.com/CodeLingoTeam",
+				Login:         "mKurrels",
+				URL:           "https://github.com/mKurrels",
 				Contributions: 1,
 			},
 			{
-				Login:         "Daanikus",
-				URL:           "https://github.com/Daanikus",
-				Contributions: 1,
-			}, {
-				Login:         "CodeLingoBot",
-				URL:           "https://github.com/CodeLingoBot",
+				Login:         "starit",
+				URL:           "https://github.com/starit",
 				Contributions: 1,
 			},
 			{
-				Login:         "blombard",
-				URL:           "https://github.com/blombard",
+				Login:         "zeldrinn",
+				URL:           "https://github.com/zeldrinn",
 				Contributions: 1,
-			},
-			{
-				Login:         "soxipy",
-				URL:           "https://github.com/soxipy",
-				Contributions: 2,
-			},
-			{
-				Login:         "lozdog245",
-				URL:           "https://github.com/lozdog245",
-				Contributions: 2,
-			},
-			{
-				Login:         "if1live",
-				URL:           "https://github.com/if1live",
-				Contributions: 2,
 			},
 		}...)
 

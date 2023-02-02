@@ -32,7 +32,7 @@ type Okx struct {
 	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
 
 	// WsRequestSemaphore channel is used to block write operation on the websocket connection to reduce contention; a kind of bounded parallelism.
-	// it is made to hold upto 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
+	// it is made to hold up to 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
 	// and when the operation is completed the thread releases (consumes) one value from the channel so that the other waiting operation can enter.
 	// ok.WsRequestSemaphore <- 1
 	// defer func() { <-ok.WsRequestSemaphore }()
@@ -836,7 +836,7 @@ func (ok *Okx) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	if arg.PriceLimit <= 0 {
 		return nil, errInvalidPriceLimit
 	}
-	if ok.GetIntervalEnum(arg.TimeInterval) == "" {
+	if ok.GetIntervalEnum(arg.TimeInterval, true) == "" {
 		return nil, errMissingIntervalValue
 	}
 	return ok.PlaceAlgoOrder(ctx, arg)
@@ -2648,7 +2648,7 @@ func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
 		after, before, gridAlgoOrders, limit)
 }
 
-// GetGridAlgoOrderHistory retrieves list of grid algo orders with the complete data including the stoped orders.
+// GetGridAlgoOrderHistory retrieves list of grid algo orders with the complete data including the stopped orders.
 func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
 	after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
@@ -2984,7 +2984,7 @@ func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instID string) ([]
 	case instID != "":
 		params.Set("instId", instID)
 	default:
-		return nil, errors.New("missing required variable instType (instrument type) or insId( Instrument ID )")
+		return nil, errors.New("missing required variable instType (instrument type) or instId( Instrument ID )")
 	}
 	var response []TickerResponse
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues(marketTickers, params), nil, &response, false)
@@ -2996,7 +2996,7 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	} else {
-		return nil, errors.New("missing required variable instType(instruction type) or insId( Instrument ID )")
+		return nil, errors.New("missing required variable instType(instruction type) or instId( Instrument ID )")
 	}
 	var response []TickerResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues(marketTicker, params), nil, &response, false)
@@ -3026,10 +3026,14 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
 func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
-	if assetType == asset.PerpetualSwap {
+	switch assetType {
+	case asset.PerpetualSwap:
 		return okxInstTypeSwap
+	case asset.Options:
+		return okxInstTypeOption
+	default:
+		return assetType.String()
 	}
-	return assetType.String()
 }
 
 // GetUnderlying returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
@@ -3071,7 +3075,7 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 }
 
 // GetIntervalEnum allowed interval params by Okx Exchange
-func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
+func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 	switch interval {
 	case kline.OneMin:
 		return "1m"
@@ -3089,31 +3093,41 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 		return "2H"
 	case kline.FourHour:
 		return "4H"
-	case kline.SixHour:
-		return "6H"
-	case kline.EightHour:
-		return "8H"
-	case kline.TwelveHour:
-		return "12H"
-	case kline.OneDay:
-		return "1D"
-	case kline.TwoDay:
-		return "2D"
-	case kline.ThreeDay:
-		return "3D"
-	case kline.OneWeek:
-		return "1W"
-	case kline.OneMonth:
-		return "1M"
-	case kline.ThreeMonth:
-		return "3M"
-	case kline.SixMonth:
-		return "6M"
-	case kline.OneYear:
-		return "1Y"
-	default:
-		return ""
 	}
+
+	duration := ""
+	switch interval {
+	case kline.SixHour: // NOTE: Cases here and below can either be local Hong Kong time or UTC time.
+		duration = "6H"
+	case kline.TwelveHour:
+		duration = "12H"
+	case kline.OneDay:
+		duration = "1D"
+	case kline.TwoDay:
+		duration = "2D"
+	case kline.ThreeDay:
+		duration = "3D"
+	case kline.FiveDay:
+		duration = "5D"
+	case kline.OneWeek:
+		duration = "1W"
+	case kline.OneMonth:
+		duration = "1M"
+	case kline.ThreeMonth:
+		duration = "3M"
+	case kline.SixMonth:
+		duration = "6M"
+	case kline.OneYear:
+		duration = "1Y"
+	default:
+		return duration
+	}
+
+	if appendUTC {
+		duration += "utc"
+	}
+
+	return duration
 }
 
 // GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
@@ -3145,10 +3159,10 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	}
 	params.Set("instId", instrumentID)
 	var resp [][7]string
-	if limit <= 100 {
+	if limit <= 300 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else if limit > 100 {
-		return nil, fmt.Errorf("%w limit can not exceed 100", errLimitExceedsMaximumResultPerRequest)
+	} else if limit > 300 {
+		return nil, fmt.Errorf("%w can not exceed 300", errLimitExceedsMaximumResultPerRequest)
 	}
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
@@ -3156,11 +3170,11 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	bar := ok.GetIntervalEnum(interval)
+	bar := ok.GetIntervalEnum(interval, true)
 	if bar != "" {
 		params.Set("bar", bar)
 	}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(marketCandles, params), nil, &resp, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -3360,7 +3374,6 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	if underlying == "" {
 		return nil, errMissingRequiredUnderlying
 	}
-	params.Set("Underlying", underlying)
 	params.Set("uly", underlying)
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
@@ -3715,7 +3728,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 		return nil, errInvalidInstrumentType
 	}
 	params.Set("instType", strings.ToUpper(instrumentType))
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3769,7 +3782,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3809,7 +3822,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3853,7 +3866,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3897,7 +3910,7 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3941,7 +3954,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -3980,7 +3993,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -4064,7 +4077,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -4124,7 +4137,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	interval := ok.GetIntervalEnum(period)
+	interval := ok.GetIntervalEnum(period, false)
 	if interval != "" {
 		params.Set("period", interval)
 	}
@@ -4274,14 +4287,6 @@ func GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 	switch strings.ToUpper(instrumentType) {
 	case okxInstTypeSwap, okxInstTypeContract:
 		return asset.PerpetualSwap, nil
-	case okxInstTypeSpot:
-		return asset.Spot, nil
-	case okxInstTypeFutures:
-		return asset.Futures, nil
-	case okxInstTypeOption:
-		return asset.Option, nil
-	case okxInstTypeMargin:
-		return asset.Margin, nil
 	case okxInstTypeANY:
 		return asset.Empty, nil
 	default:
@@ -4294,11 +4299,11 @@ func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, 
 	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
 		return asset.PerpetualSwap, nil
 	}
-	filter := strings.Split(instrumentID, currency.DashDelimiter)
+	count := strings.Count(instrumentID, currency.DashDelimiter)
 	switch {
-	case len(filter) >= 4:
-		return asset.Option, nil
-	case len(filter) == 3:
+	case count >= 3:
+		return asset.Options, nil
+	case count == 2:
 		return asset.Futures, nil
 	default:
 		pair, err := currency.NewPairFromString(instrumentID)

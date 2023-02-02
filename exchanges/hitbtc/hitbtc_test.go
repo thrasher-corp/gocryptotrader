@@ -74,14 +74,14 @@ func TestStart(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	_, err := h.GetOrderbook(context.Background(), "BTCUSD", 50)
 	if err != nil {
-		t.Error("Test faild - HitBTC GetOrderbook() error", err)
+		t.Error("Test failed - HitBTC GetOrderbook() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
 	_, err := h.GetTrades(context.Background(), "BTCUSD", "", "", 0, 0, 0, 0)
 	if err != nil {
-		t.Error("Test faild - HitBTC GetTradeHistory() error", err)
+		t.Error("Test failed - HitBTC GetTradeHistory() error", err)
 	}
 }
 
@@ -89,54 +89,44 @@ func TestGetChartCandles(t *testing.T) {
 	_, err := h.GetCandles(context.Background(),
 		"BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
-		t.Error("Test faild - HitBTC GetChartData() error", err)
+		t.Error("Test failed - HitBTC GetChartData() error", err)
 	}
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	startTime := time.Now().Add(-time.Hour * 24)
-	end := time.Now()
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.OneMin)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Parallel()
 
-	_, err = h.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
+	pair, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 6)
+	end := time.Now()
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, end)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC-USD")
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.OneHour)
+
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneHour, startTime, end)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	_, err = h.GetHistoricCandlesExtended(context.Background(),
-		currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 
 func TestGetCurrencies(t *testing.T) {
 	_, err := h.GetCurrencies(context.Background())
 	if err != nil {
-		t.Error("Test faild - HitBTC GetCurrencies() error", err)
+		t.Error("Test failed - HitBTC GetCurrencies() error", err)
 	}
 }
 

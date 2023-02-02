@@ -23,15 +23,15 @@ Candle retrieval is handled by two methods
 
 GetHistoricCandles which makes a single request to the exchange and follows all exchange limitations
 ```go
-func (b *base) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (b *base) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 ```
 
 GetHistoricCandlesExtended that will make multiple requests to an exchange if the requested periods are outside exchange limits
 ```go
-func (b *base) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (b *base) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 ```
 
@@ -83,7 +83,6 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Gemini         |             |
 | HitBTC         | Y           |     
 | Huobi          | Y           |      
-| FTX            | Y           | 
 | itBIT          |             |          
 | Kraken         | Y           |                 
 | lBank          | Y           |          

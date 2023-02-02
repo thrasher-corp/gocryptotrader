@@ -61,7 +61,7 @@ A breakdown of each type is under the Add Jobs command list below
 | Job Status | Description | Representative value |
 | ---------- | ----------- | -------------------- |
 | active | A job that is ready to processed | 0 |
-| failed | The job has failed to retrieve/covert/validate the data you have specified. See the associated data history job results to understand why | 1 |
+| failed | The job has failed to retrieve/convert/validate the data you have specified. See the associated data history job results to understand why | 1 |
 | complete | The job has successfully retrieved/converted/validated all data you have specified | 2 |
 | removed | The job has been deleted. No data is removed, but the job can no longer be processed | 3 |
 | missing data | The job is complete, however there is some missing data. See the associated data history job results to understand why | 4 |
@@ -173,7 +173,7 @@ The following is a screenshot of the relationship between relevant data history 
 | created | The date the job was created | `2020-01-01T13:33:37Z` |
 | conversion_interval | When converting data as a job, this determines the resulting interval | `86400000000000` |
 | overwrite_data | If data already exists, the setting allows you to overwrite it | `true` |
-| secondary_exchange_id | For a `secondaryvalidatecandles` job, the exchange id of the exchange to compare data to | `ftx` |
+| secondary_exchange_id | For a `secondaryvalidatecandles` job, the exchange id of the exchange to compare data to | `bybit` |
 | decimal_place_comparison | When validating API candles, this will round the data to the supplied decimal point to check for equality | `3` |
 | replace_on_issue | When there is an issue validating candles for a `validatecandles` job, the API data will overwrite the existing candle data | `false` |
 

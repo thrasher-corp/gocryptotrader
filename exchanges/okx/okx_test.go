@@ -127,13 +127,6 @@ func TestGetCandlesticks(t *testing.T) {
 		t.Error("Okx GetCandlesticks() error", err)
 	}
 }
-func TestGetHistoricCandlesExtended(t *testing.T) {
-	t.Parallel()
-	currencyPair := currency.NewPair(currency.BTC, currency.USDT)
-	if _, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, asset.Spot, time.Now().Add(-time.Hour), time.Now(), kline.OneMin); err != nil {
-		t.Errorf("%s GetHistoricCandlesExtended() error: %v", ok.Name, err)
-	}
-}
 
 func TestGetCandlesticksHistory(t *testing.T) {
 	t.Parallel()
@@ -377,7 +370,7 @@ func TestGetSupportCoins(t *testing.T) {
 
 func TestGetTakerVolume(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetTakerVolume(context.Background(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.FiveMin); err != nil {
+	if _, err := ok.GetTakerVolume(context.Background(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Error("Okx GetTakerVolume() error", err)
 	}
 }
@@ -390,7 +383,7 @@ func TestGetMarginLendingRatio(t *testing.T) {
 
 func TestGetLongShortRatio(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetLongShortRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.FiveMin); err != nil {
+	if _, err := ok.GetLongShortRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Error("Okx GetLongShortRatio() error", err)
 	}
 }
@@ -1967,7 +1960,7 @@ func TestSystemStatusResponse(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.FetchTradablePairs(context.Background(), asset.Option); err != nil {
+	if _, err := ok.FetchTradablePairs(context.Background(), asset.Options); err != nil {
 		t.Error("Okx FetchTradablePairs() error", err)
 	}
 }
@@ -2309,15 +2302,25 @@ func TestValidateCredentials(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
-	_, err := ok.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*5))
-	if err != nil && !strings.Contains(err.Error(), "interval not supported") {
-		t.Errorf("Okx GetHistoricCandles() expected %s, but found %v", "interval not supported", err)
-	}
-	_, err = ok.GetHistoricCandles(context.Background(), pair, asset.Spot, time.Time{}, time.Time{}, kline.Interval(time.Hour*4))
+	startTime := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2021, 9, 15, 0, 0, 0, 0, time.UTC)
+	_, err := ok.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
-		t.Error("Okx GetHistoricCandles() error", err)
+		t.Fatal(err)
+	}
+
+	_, err = ok.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*4), startTime, endTime)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Errorf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	currencyPair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := ok.GetHistoricCandlesExtended(context.Background(), currencyPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
+	if err != nil {
+		t.Errorf("%s GetHistoricCandlesExtended() error: %v", ok.Name, err)
 	}
 }
 
@@ -2845,10 +2848,10 @@ func TestPublicStructureBlockTradesSubscription(t *testing.T) {
 }
 func TestBlockTickerSubscription(t *testing.T) {
 	t.Parallel()
-	if err := ok.BlockTickerSubscription("subscribe", asset.Option, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	if err := ok.BlockTickerSubscription("subscribe", asset.Options, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s BlockTickerSubscription() error: %v", ok.Name, err)
 	}
-	if err := ok.BlockTickerSubscription("unsubscribe", asset.Option, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
+	if err := ok.BlockTickerSubscription("unsubscribe", asset.Options, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s BlockTickerSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -2980,7 +2983,7 @@ func TestWsPositionChannel(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if err := ok.WsPositionChannel("subscribe", asset.Option, currency.NewPair(currency.USD, currency.BTC)); err != nil {
+	if err := ok.WsPositionChannel("subscribe", asset.Options, currency.NewPair(currency.USD, currency.BTC)); err != nil {
 		t.Errorf("%s WsPositionChannel() error : %v", ok.Name, err)
 	}
 }
@@ -3168,5 +3171,52 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 	if _, err := ok.GetAvailableTransferChains(context.Background(), currency.BTC); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGuessAssetTypeFromInstrumentID(t *testing.T) {
+	t.Parallel()
+	a, err := ok.GuessAssetTypeFromInstrumentID("BTC-USD-220930-28000-P")
+	if err != nil {
+		t.Error(err)
+	} else if a != asset.Options {
+		t.Error("unexpected result")
+	}
+	if a, err = ok.GuessAssetTypeFromInstrumentID("BTC-USD-221007"); err != nil {
+		t.Error(err)
+	} else if a != asset.Futures {
+		t.Error("unexpected result")
+	}
+	if a, err = ok.GuessAssetTypeFromInstrumentID("BTC-USD-SWAP"); err != nil {
+		t.Error(err)
+	} else if a != asset.PerpetualSwap {
+		t.Error("unexpected result")
+	}
+}
+
+func TestGetIntervalEnum(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		Description string
+		Interval    kline.Interval
+		Expected    string
+		AppendUTC   bool
+	}{
+		{Description: "4hr with UTC", Interval: kline.FourHour, Expected: "4H", AppendUTC: true},
+		{Description: "6H without UTC", Interval: kline.SixHour, Expected: "6H"},
+		{Description: "6H with UTC", Interval: kline.SixHour, Expected: "6Hutc", AppendUTC: true},
+		{Description: "Unsupported interval with UTC", Expected: "", AppendUTC: true},
+	}
+
+	for x := range tests {
+		tt := tests[x]
+		t.Run(tt.Description, func(t *testing.T) {
+			t.Parallel()
+
+			if r := ok.GetIntervalEnum(tt.Interval, tt.AppendUTC); r != tt.Expected {
+				t.Errorf("%s: received: %s but expected: %s", tt.Description, r, tt.Expected)
+			}
+		})
 	}
 }

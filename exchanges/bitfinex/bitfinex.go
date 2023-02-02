@@ -813,7 +813,7 @@ func (b *Bitfinex) GetTrades(ctx context.Context, currencyPair string, limit, ti
 	return history, nil
 }
 
-// GetOrderbook retieves the orderbook bid and ask price points for a currency
+// GetOrderbook retrieves the orderbook bid and ask price points for a currency
 // pair - By default the response will return 25 bid and 25 ask price points.
 // symbol - Example "tBTCUSD"
 // precision - P0,P1,P2,P3,R0
@@ -971,8 +971,7 @@ func (b *Bitfinex) GetLends(ctx context.Context, symbol string, values url.Value
 }
 
 // GetCandles returns candle chart data
-// timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D',
-// '7D', '14D', '1M'
+// timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D', '1W', '14D', '1M'
 // section values: last or hist
 func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, start, end int64, limit uint32, historic bool) ([]Candle, error) {
 	var fundingPeriod string
@@ -1079,7 +1078,7 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 	return []Candle{c}, nil
 }
 
-// GetConfigurations fetchs currency and symbol site configuration data.
+// GetConfigurations fetches currency and symbol site configuration data.
 func (b *Bitfinex) GetConfigurations() error {
 	return common.ErrNotYetImplemented
 }
@@ -1809,7 +1808,7 @@ func (b *Bitfinex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	})
 }
 
-// SendAuthenticatedHTTPRequest sends an autheticated http request and json
+// SendAuthenticatedHTTPRequest sends an authenticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
 	creds, err := b.GetCredentials(ctx)
@@ -1863,7 +1862,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	})
 }
 
-// SendAuthenticatedHTTPRequestV2 sends an autheticated http request and json
+// SendAuthenticatedHTTPRequestV2 sends an authenticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
 	creds, err := b.GetCredentials(ctx)

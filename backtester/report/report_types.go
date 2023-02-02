@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// lightweight charts can ony render 1100 candles
+// lightweight charts can only render 1100 candles
 const maxChartLimit = 1100
 
 var (
@@ -24,8 +24,7 @@ var (
 // Handler contains all functions required to generate statistical reporting for backtesting results
 type Handler interface {
 	GenerateReport() error
-	AddKlineItem(*kline.Item)
-	UpdateItem(*kline.Item)
+	SetKlineData(*kline.Item) error
 	UseDarkMode(bool)
 }
 

@@ -35,7 +35,7 @@ const (
 	huobiSwapSystemStatus                = "/swap-api/v1/swap_api_state"
 	huobiSwapSentimentAccountData        = "/swap-api/v1/swap_elite_account_ratio"
 	huobiSwapSentimentPosition           = "/swap-api/v1/swap_elite_position_ratio"
-	huobiSwapLiquidationOrders           = "/swap-api/v1/swap_liquidation_orders"
+	huobiSwapLiquidationOrders           = "/swap-api/v3/swap_liquidation_orders"
 	huobiSwapHistoricalFundingRate       = "/swap-api/v1/swap_historical_funding_rate"
 	huobiPremiumIndexKlineData           = "/index/market/history/swap_premium_index_kline"
 	huobiPredictedFundingRateData        = "/index/market/history/swap_estimated_rate_kline"
@@ -318,28 +318,31 @@ func (h *HUOBI) GetTraderSentimentIndexPosition(ctx context.Context, code curren
 }
 
 // GetLiquidationOrders gets liquidation orders for a given perp
-func (h *HUOBI) GetLiquidationOrders(ctx context.Context, code currency.Pair, tradeType string, pageIndex, pageSize, createDate int64) (LiquidationOrdersData, error) {
+func (h *HUOBI) GetLiquidationOrders(ctx context.Context, contract currency.Pair, tradeType string, startTime, endTime int64, direction string, fromID int64) (LiquidationOrdersData, error) {
 	var resp LiquidationOrdersData
-	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
+	formattedContract, err := h.FormatSymbol(contract, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
-	}
-	if createDate != 7 && createDate != 90 {
-		return resp, fmt.Errorf("invalid createDate. 7 and 90 are the only supported values")
 	}
 	tType, ok := validTradeTypes[tradeType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trade type")
 	}
 	params := url.Values{}
-	params.Set("contract_code", codeValue)
-	params.Set("create_date", strconv.FormatInt(createDate, 10))
+	params.Set("contract", formattedContract)
 	params.Set("trade_type", strconv.FormatInt(tType, 10))
-	if pageIndex != 0 {
-		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
+
+	if startTime != 0 {
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
 	}
-	if pageSize != 0 {
-		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
+	if endTime != 0 {
+		params.Set("end_time", strconv.FormatInt(startTime, 10))
+	}
+	if direction != "" {
+		params.Set("direct", direction)
+	}
+	if fromID != 0 {
+		params.Set("from_id", strconv.FormatInt(fromID, 10))
 	}
 	path := common.EncodeURLValues(huobiSwapLiquidationOrders, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
@@ -581,7 +584,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 	}
 	req["contract_code"] = codeValue
 	if !common.StringDataCompareInsensitive(validOrderTypes, orderType) {
-		return resp, fmt.Errorf("inavlid ordertype provided")
+		return resp, fmt.Errorf("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOrderLimitInfo, nil, req, &resp)
@@ -635,7 +638,7 @@ func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, sub
 	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp)
@@ -651,7 +654,7 @@ func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, 
 	}
 	req["contract_code"] = codeValue
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	if createDate > 90 {
@@ -682,7 +685,7 @@ func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientO
 	req["direction"] = direction
 	req["offset"] = offset
 	if !common.StringDataCompareInsensitive(validOrderTypes, orderPriceType) {
-		return resp, fmt.Errorf("inavlid ordertype provided")
+		return resp, fmt.Errorf("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderPriceType
 	req["price"] = price
