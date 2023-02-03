@@ -189,7 +189,7 @@ func (b *Bitmex) SendTrollboxMessage(ctx context.Context, params ChatSendParams)
 		&messages)
 }
 
-// GetTrollboxChannels the channels from the the bitmex trollbox
+// GetTrollboxChannels the channels from the bitmex trollbox
 func (b *Bitmex) GetTrollboxChannels(ctx context.Context) ([]ChatChannel, error) {
 	var channels []ChatChannel
 
@@ -198,7 +198,7 @@ func (b *Bitmex) GetTrollboxChannels(ctx context.Context) ([]ChatChannel, error)
 		&channels)
 }
 
-// GetTrollboxConnectedUsers the channels from the the bitmex trollbox
+// GetTrollboxConnectedUsers the channels from the bitmex trollbox
 func (b *Bitmex) GetTrollboxConnectedUsers(ctx context.Context) (ConnectedUsers, error) {
 	var users ConnectedUsers
 

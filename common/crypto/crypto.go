@@ -1,11 +1,10 @@
 package crypto
 
-//nolint:gosec // md5/sha1 hash functions used by some exchanges
 import (
 	"crypto/hmac"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // Used for exchanges
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // Used for exchanges
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"

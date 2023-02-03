@@ -483,7 +483,7 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount f
 	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
 }
 
-// GetCryptoDepositAddress returns a depositing address by crypto
+// GetCryptoDepositAddress returns a depositing address by crypto.
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
 	path := crypto.Lower().String() + "_address"

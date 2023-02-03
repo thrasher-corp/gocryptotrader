@@ -826,10 +826,7 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		if err != nil {
 			return nil, err
 		}
-		for a := range allPairs {
-			req.Pairs = append(req.Pairs,
-				allPairs[a])
-		}
+		req.Pairs = append(req.Pairs, allPairs...)
 	}
 
 	var resp []order.Detail
