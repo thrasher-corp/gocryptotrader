@@ -108,7 +108,6 @@ func (r *RateLimiter) Limit(ctx context.Context, f request.EndpointLimit) error 
 			finalDelay,
 			context.DeadlineExceeded)
 	}
-
 	time.Sleep(finalDelay)
 	return nil
 }

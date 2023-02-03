@@ -780,12 +780,11 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(eitherCredentialsMissingOrCanNotManipulateRealOrders)
-	}
-
+	// if !areTestAPIKeysSet() || !canManipulateRealOrders {
+	// 	t.Skip(eitherCredentialsMissingOrCanNotManipulateRealOrders)
+	// }
 	var oSpot = &order.Submit{
-		Exchange: "Bybit",
+		Exchange: dy.Name,
 		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.LTC,

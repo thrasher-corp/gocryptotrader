@@ -564,6 +564,7 @@ func (dy *DYDX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		Size:       s.Amount,
 		Price:      s.Price,
 		ReduceOnly: s.ReduceOnly,
+		Expiration: time.Now().Add(time.Hour * 24 * 3).UTC().Format("2006-01-02T15:04:05.999Z"),
 	})
 	if err != nil {
 		return nil, err

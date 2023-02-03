@@ -468,7 +468,6 @@ func (dy *DYDX) GetAccount(ctx context.Context, etheriumAddress string) (*Accoun
 
 // GetAccountLeaderboardPNLs represents an account's personal leaderboard pnls.
 func (dy *DYDX) GetAccountLeaderboardPNLs(ctx context.Context, period string, startingBeforeOrAt time.Time) (*AccountLeaderboardPNL, error) {
-	period = strings.ToUpper(period)
 	if period == "" {
 		return nil, errInvalidPeriod
 	}
@@ -477,7 +476,7 @@ func (dy *DYDX) GetAccountLeaderboardPNLs(ctx context.Context, period string, st
 		param.Set("startingBeforeOrAt", startingBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *AccountLeaderboardPNL
-	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(fmt.Sprintf(accountLeaderBoardPNL, period), param), nil, &resp)
+	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(fmt.Sprintf(accountLeaderBoardPNL, strings.ToUpper(period)), param), nil, &resp)
 }
 
 // GetAccountHistoricalLeaderboardPNLs retrives  an account's historical leaderboard pnls.
@@ -630,9 +629,6 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalP
 	if err != nil {
 		return nil, err
 	}
-	if err != nil {
-		return nil, errors.New("sign error")
-	}
 	// Here SubAccount represents the starkx private account
 	signature, err := starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
 		NetworkId:   1,
@@ -688,7 +684,7 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParam
 	}
 	signature, err := starkex.OrderSign(creds.SubAccount, orderSignParam)
 	if err != nil {
-		return nil, errors.New("sign error")
+		return nil, err
 	}
 	arg.Signature = signature
 	var resp *Order
@@ -811,9 +807,7 @@ func (dy *DYDX) GetFills(ctx context.Context, market, orderID string, limit int6
 	if !createdBeforeOrAt.IsZero() {
 		params.Set("createdBeforeOrAt", createdBeforeOrAt.UTC().Format(timeFormat))
 	}
-	resp := &struct {
-		Fills []OrderFill `json:"fills"`
-	}{}
+	resp := &OrderFills{}
 	return resp.Fills, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(fills, params), nil, &resp)
 }
 

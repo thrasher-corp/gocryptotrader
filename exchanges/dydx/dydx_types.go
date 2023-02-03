@@ -612,6 +612,11 @@ type Order struct {
 	Signature        string      `json:"signature"`
 }
 
+// OrderFills  represents list of order fills.
+type OrderFills struct {
+	Fills []OrderFill `json:"fills"`
+}
+
 // OrderFill represents order fill.
 type OrderFill struct {
 	ID        string    `json:"id"`
