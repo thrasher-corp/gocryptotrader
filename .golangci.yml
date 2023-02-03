@@ -48,7 +48,7 @@ linters:
 #   - funlen
     - gci
 #   - ginkgolinter
-#   - gocheckcompilerdirectives // TODO: released in 1.51
+    - gocheckcompilerdirectives
 #   - gochecknoglobals
 #   - gochecknoinits
 #   - gocognit
@@ -80,7 +80,7 @@ linters:
     - makezero
 #   - maligned // deprecated by its owner, replaced by govet 'fieldalignment'
     - misspell
-#   - musttag // TODO: released in v1.51
+#   - musttag
     - nakedret
 #   - nestif
     - nilerr
