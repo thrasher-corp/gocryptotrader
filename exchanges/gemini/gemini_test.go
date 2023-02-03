@@ -868,7 +868,6 @@ func TestWSTrade(t *testing.T) {
 }
 
 func TestWsCandles(t *testing.T) {
-	//nolint:dupword // False positive
 	pressXToJSON := []byte(`{
   "type": "candles_15m_updates",
   "symbol": "BTCUSD",

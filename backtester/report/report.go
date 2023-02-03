@@ -171,7 +171,7 @@ func (d *Data) enhanceCandles() error {
 			}
 			if j != 0 {
 				if d.OriginalCandles[intVal].Candles[j].Close < d.OriginalCandles[intVal].Candles[j-1].Close {
-					enhancedCandle.VolumeColour = "rgba(232, 3, 3, 0.5)" //nolint:dupword // False positive
+					enhancedCandle.VolumeColour = "rgba(232, 3, 3, 0.5)"
 				}
 			}
 			if !requiresIteration {
