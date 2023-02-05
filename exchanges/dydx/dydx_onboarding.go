@@ -3,64 +3,32 @@ package dydx
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	solsha3 "github.com/miguelmota/go-solidity-sha3"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/umbracle/ethgo/jsonrpc"
+	"golang.org/x/crypto/sha3"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	mytypes "github.com/ethereum/go-ethereum/core/types"
 )
 
-// GenerateOnboardingSignature generates an onboarding signature to be used as DYDX-SIGNATURE using the ethereumAddress
-func (dy *DYDX) GenerateOnboardingSignature(signerAddress string) (string, error) {
-	message := map[string]interface{}{}
-	message["action"] = offChainOnboardingAction
-	message["onlySignOn"] = dydxOnlySignOnDomainMainnet
-	eip712Message := dy.getEIP712Message(message)
-	client, err := jsonrpc.NewClient(web3ProviderURL)
-	if err != nil {
-		return "", err
-	}
-	var out []byte
-	if err := client.Call(ethSignMethod, &out, signerAddress, eip712Message); err != nil {
-		return "", err
-	}
-	return createTypedSignature(string(out), 0)
-}
-
-// GenerateEtheriumKeyPrivateEndpointsSignature sends a request to Onboarging or or Etherium private endpoints.
-func (dy *DYDX) GenerateEtheriumKeyPrivateEndpointsSignature(signerAddress, method, requestPath, body, timestamp string) (string, error) {
-	message := map[string]interface{}{}
-	message["method"] = strings.ToUpper(method)
-	message["requestPath"] = requestPath
-	message["body"] = body
-	message["timestamp"] = timestamp
-	eip712Message := dy.getEIP712Message(message)
-	var err error
-	var out string
-	var client *jsonrpc.Client
-	client, err = jsonrpc.NewClient(web3ProviderURL)
-	if err != nil {
-		return "", err
-	}
-	if err := client.Call(ethSignMethod, &out, signerAddress, eip712Message); err != nil {
-		return "", err
-	}
-	return createTypedSignature(out, 0)
-}
-
 // Onboarding onboard a user so they can begin using dYdX V3 API. This will generate a user, account and derive a key, passphrase and secret from the signature.
-func (dy *DYDX) Onboarding(ctx context.Context, arg *OnboardingParam) (*OnboardingResponse, error) {
+func (dy *DYDX) Onboarding(ctx context.Context, arg *OnboardingParam, privateKey string) (*OnboardingResponse, error) {
 	var resp OnboardingResponse
 	if arg.StarkXCoordinate == "" {
 		return nil, errors.New("missing Stark Key X-Coordinate")
@@ -74,44 +42,44 @@ func (dy *DYDX) Onboarding(ctx context.Context, arg *OnboardingParam) (*Onboardi
 	if arg.Country == "" {
 		return nil, errors.New("country is required")
 	}
-	return &resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, arg.EthereumAddress, http.MethodPost, onboarding, true, &arg, &resp)
+	return &resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, arg.EthereumAddress, privateKey, http.MethodPost, onboarding, true, &arg, &resp)
 }
 
 // RecoverStarkKeyQuoteBalanceAndOpenPosition if you can't recover your starkKey or apiKey and need an additional way to get your starkKey and balance on our exchange, both of which are needed to call the L1 solidity function needed to recover your funds.
-func (dy *DYDX) RecoverStarkKeyQuoteBalanceAndOpenPosition(ctx context.Context, ethereumAddress string) (*RecoverAPIKeysResponse, error) {
+func (dy *DYDX) RecoverStarkKeyQuoteBalanceAndOpenPosition(ctx context.Context, ethereumAddress, privateKey string) (*RecoverAPIKeysResponse, error) {
 	var resp *RecoverAPIKeysResponse
-	return resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, http.MethodGet, recovery, false, nil, &resp)
+	return resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, privateKey, http.MethodGet, recovery, false, nil, &resp)
 }
 
 // GetRegistration gets the dYdX provided Ethereum signature required to send a registration transaction to the Starkware smart contract.
-func (dy *DYDX) GetRegistration(ctx context.Context, ethereumAddress string) (*SignatureResponse, error) {
+func (dy *DYDX) GetRegistration(ctx context.Context, ethereumAddress, privateKey string) (*SignatureResponse, error) {
 	var resp *SignatureResponse
-	return resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, http.MethodGet, registration, false, nil, &resp)
+	return resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, privateKey, http.MethodGet, registration, false, nil, &resp)
 }
 
 // RegisterAPIKey create new API key credentials for a user.
-func (dy *DYDX) RegisterAPIKey(ctx context.Context, ethereumAddress string) (*APIKeyCredentials, error) {
+func (dy *DYDX) RegisterAPIKey(ctx context.Context, ethereumAddress, privateKey string) (*APIKeyCredentials, error) {
 	resp := &struct {
 		APIKeys APIKeyCredentials `json:"apiKey"`
 	}{}
-	return &resp.APIKeys, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, http.MethodPost, apiKeys, false, nil, &resp)
+	return &resp.APIKeys, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, privateKey, http.MethodPost, apiKeys, false, nil, &resp)
 }
 
 // GetAPIKeys gets all api keys associated with an Ethereum address.
 // It returns an array of apiKey strings corresponding to the ethereumAddress in the request.
-func (dy *DYDX) GetAPIKeys(ctx context.Context, ethereumAddress string) ([]string, error) {
+func (dy *DYDX) GetAPIKeys(ctx context.Context, ethereumAddress, privateKey string) ([]string, error) {
 	if ethereumAddress == "" {
 		return nil, errMissingEthereumAddress
 	}
 	resp := &struct {
 		APIKeys []string `json:"apiKeys"`
 	}{}
-	return resp.APIKeys, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, http.MethodGet, apiKeys, false, nil, &resp)
+	return resp.APIKeys, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, privateKey, http.MethodGet, apiKeys, false, nil, &resp)
 }
 
 // DeleteAPIKeys delete an api key by key and Ethereum address.
 // It requires piblic API key and ethereum address the api key is associated with.
-func (dy *DYDX) DeleteAPIKeys(ctx context.Context, publicKey, ethereumAddress string) (string, error) {
+func (dy *DYDX) DeleteAPIKeys(ctx context.Context, publicKey, ethereumAddress, privateKey string) (string, error) {
 	if publicKey == "" {
 		return "", errMissingPublicKey
 	}
@@ -124,11 +92,14 @@ func (dy *DYDX) DeleteAPIKeys(ctx context.Context, publicKey, ethereumAddress st
 	resp := struct {
 		PublicAPIKey string `json:"apiKey"`
 	}{}
-	return resp.PublicAPIKey, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, http.MethodDelete, common.EncodeURLValues(apiKeys, params), false, nil, &resp)
+	return resp.PublicAPIKey, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, ethereumAddress, privateKey, http.MethodDelete, common.EncodeURLValues(apiKeys, params), false, nil, &resp)
 }
 
-// SendEthereumSignedRequest represents a
-func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange.URL, ethererumAddress, method, path string, onboarding bool, data, result interface{}) error {
+// SendEthereumSignedRequest sends an http request with onboarding and ethereum signed headers to the server.
+func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange.URL, ethereumAddress, privateKey, method, path string, onboarding bool, data, result interface{}) error {
+	if ethereumAddress == "" || privateKey == "" {
+		return errors.New("both ethereum Address and private key are required")
+	}
 	urlPath, err := dy.API.Endpoints.GetURL(endpoint)
 	if err != nil {
 		return err
@@ -144,6 +115,11 @@ func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange
 		}
 		dataString = string(value)
 	}
+	var creds *account.Credentials
+	creds, err = dy.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	newRequest := func() (*request.Item, error) {
 		var body io.Reader
 		var payload []byte
@@ -157,25 +133,29 @@ func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange
 		if err != nil {
 			return nil, err
 		}
-		timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
+		timestamp := time.Now().UTC().Format(timeFormat)
 		var signature string
 		if onboarding {
-			signature, err = dy.GenerateOnboardingSignature(ethererumAddress)
+			signature, err = dy.SignEIP712Onboarding(privateKey)
 			if err != nil {
+				println("Onboarding signature error: ", err.Error())
 				return nil, err
 			}
 		} else {
-			signature, err = dy.GenerateEtheriumKeyPrivateEndpointsSignature(ethererumAddress, method, "/"+dydxAPIVersion+path, dataString, timestamp)
+			signature, err = dy.SignEIP712EthereumKey(method, "/"+dydxAPIVersion+path, dataString, timestamp, privateKey)
 			if err != nil {
+				println("Ethereum Key signature error: ", err.Error())
 				return nil, err
 			}
 		}
 		headers := make(map[string]string)
 		headers["DYDX-SIGNATURE"] = signature
-		headers["DYDX-ETHEREUM-ADDRESS"] = ethererumAddress
+		headers["DYDX-ETHEREUM-ADDRESS"] = ethereumAddress
 		if !onboarding {
 			headers["DYDX-TIMESTAMP"] = timestamp
 		}
+		headers["DYDX-API-KEY"] = creds.Key
+		headers["DYDX-PASSPHRASE"] = creds.PEMKey
 		headers["Content-Type"] = "application/json"
 		println(urlPath + path)
 		return &request.Item{
@@ -193,91 +173,307 @@ func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange
 	return dy.SendPayload(ctx, request.Unset, newRequest)
 }
 
-func createTypedSignature(signature string, sigType int) (string, error) {
-	fixRawSig, err := fixRawSignature(signature)
+// SignEIP712Onboarding creates an EIP ethereum.
+func (dy *DYDX) SignEIP712Onboarding(privKey string) (string, error) {
+	eipMessage := fmt.Sprintf(`
+	{
+		"types": {
+			"EIP712Domain": [
+			{"name": "name", "type": "string"},
+			{"name": "version", "type": "string"},
+			{"name": "chainId", "type": "uint64"}
+			],
+			"Message": [
+			{"name": "action", "type": "string"},
+			{"name": "onlySignOn", "type": "string"}
+			]
+		},
+		"primaryType": "dYdX",
+		"domain": {
+			"name": "dydx",
+			"version": "1.0",
+			"chainId": 1
+		},
+		"message": {
+			"action": "DYDX-ONBOARDING",
+			"onlySignOn": "https://trade.dydx.exchange"
+		}
+	}`, "DYDX-ONBOARDING", dydxOnlySignOnDomainMainnet)
+	privateKeyECDSA, err := crypto.HexToECDSA(strings.Replace(privKey, "0x", "", -1))
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s0%s", fixRawSig, strconv.Itoa(sigType)), nil
+
+	// Sign the hash with the private key
+	r, s, err := ecdsa.Sign(rand.Reader, privateKeyECDSA, []byte(eipMessage))
+	if err != nil {
+		return "", err
+	}
+
+	rb := r.Bytes()
+	sb := s.Bytes()
+
+	// Pad the signatures to ensure each part is padded up to length 32
+	for len(rb) < 32 {
+		rb = append([]byte{0}, rb...)
+	}
+	for len(sb) < 32 {
+		sb = append([]byte{0}, sb...)
+	}
+	signature := append(rb, sb...)
+	sig := hex.EncodeToString(signature)
+	if len(sig) > 132 {
+		return sig[:132], nil
+	}
+	return sig, nil
 }
 
-func fixRawSignature(signature string) (string, error) {
-	stripped := strings.TrimPrefix(signature, "0x")
-	if len(stripped) != 130 {
-		panic(fmt.Sprintf("Invalid raw signature: %s", signature))
+// SignEIP712EthereumKey creates an EIP ethereum.
+func (dy *DYDX) SignEIP712EthereumKey(method, requestPath, body string, timestamp string, privKey string) (string, error) {
+	eipMessage := fmt.Sprintf(`
+	{
+		"types": {
+			"EIP712Domain": [
+			  {"name": "name", "type": "string"},
+			  {"name": "version", "type": "string"},
+			  {"name": "chainId", "type": "uint64"}
+			],
+			"Message": [
+			  {"name": "method", "type": "string"},
+			  {"name": "requestPath", "type": "string"},
+			  {"name": "body", "type": "string"},
+			  {"name": "timestamp", "type": "string"}
+			]
+		  },
+		  "primaryType": "dYdX",
+		  "domain": {
+			"name": "dydx",
+			"version": "1.0",
+			"chainId": 1
+		  },
+		  "message": {
+			"method": "%s",
+			"requestPath": "%s",
+			"body": "%s",
+			"timestamp": %s
+		  }
+	}`, method, requestPath, body, timestamp)
+
+	// Encode the EIP-712 message
+	encodedMessage := EncodeEIP712Message(eipMessage)
+
+	// Generate a hash of the encoded message
+	hash := getHashOfTheMessage(encodedMessage)
+
+	privateKeyECDSA, err := crypto.HexToECDSA(strings.Replace(privKey, "0x", "", -1))
+	if err != nil {
+		return "", err
 	}
-	rs := stripped[:128]
-	v := stripped[128:130]
-	if v == "00" {
-		return "0x" + rs + "1b", nil
+
+	// Sign the hash with the private key
+	r, s, err := ecdsa.Sign(rand.Reader, privateKeyECDSA, hash)
+	if err != nil {
+		return "", err
 	}
-	if v == "01" {
-		return "0x" + rs + "1c", nil
-	}
-	if v == "1b" || v == "1c" {
-		return "0x" + stripped, nil
-	}
-	return "", fmt.Errorf("invalid v value: %s", v)
+
+	// Marshal the r and s value into a byte array
+	bytes := append(r.Bytes(), s.Bytes()...)
+	sig := hex.EncodeToString(bytes)
+	return sig[:44], nil
 }
 
-func (dy *DYDX) getEIP712Message(message map[string]interface{}) map[string]interface{} {
-	eip712Message := map[string]interface{}{
+// Encode the EIP-712 message
+func EncodeEIP712Message(msg string) []byte {
+	hashedMessage := big.NewInt(0).SetBytes(getHashOfTheMessage([]byte(msg)))
+	bz := append(make([]byte, 32), hashedMessage.Bytes()...)
+	return bz
+}
+
+// Generate a hash of the message
+func getHashOfTheMessage(m []byte) []byte {
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(m)
+	return hash.Sum(nil)
+}
+
+// EIP712Domain - type for EIP712 domain
+type EIP712Domain struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	ChainID uint64 `json:"chainId"`
+}
+
+// Message - type for message
+type Message struct {
+	Action     string `json:"action"`
+	OnlySignOn string `json:"onlySignOn"`
+}
+
+// generate onboarding EIP712
+func generateEIP712(key *ecdsa.PrivateKey) (string, error) {
+
+	// set domain struct
+	domain := EIP712Domain{
+		Name:    "dydx",
+		Version: "1.0",
+		ChainID: 1,
+	}
+
+	// set message struct
+	message := Message{
+		Action:     "DYDX-ONBOARDING",
+		OnlySignOn: "https://trade.dydx.exchange",
+	}
+
+	// get types
+	types := []interface{}{
+		map[string]string{"name": "name", "type": "string"},
+		map[string]string{"name": "version", "type": "string"},
+		map[string]string{"name": "chainId", "type": "uint64"},
+		map[string]string{"name": "action", "type": "string"},
+		map[string]string{"name": "onlySignOn", "type": "string"},
+	}
+
+	// get domain fields
+	domainFields := []interface{}{
+		domain.Name, domain.Version, domain.ChainID,
+	}
+
+	// get message fields
+	messageFields := []interface{}{
+		message.Action, message.OnlySignOn,
+	}
+
+	// generate payload
+	data := map[string]interface{}{
+		"primaryType": "dYdX",
 		"types": map[string]interface{}{
-			"EIP712Domain": []map[string]string{
-				{
-					"name": "name",
-					"type": "string",
-				},
-				{
-					"name": "version",
-					"type": "string",
-				},
-				{
-					"name": "chainId",
-					"type": "uint256",
-				},
-			},
-			eip712StructName: eip712OnboardingActionsStruct,
+			"EIP712Domain": types[0:3],
+			"Message":      types[3:],
 		},
-		"domain": map[string]interface{}{
-			"name":    domain,
-			"version": version,
-			"chainId": 1,
+		"domain":  domainFields,
+		"message": messageFields,
+	}
+
+	// get signer
+	signer := mytypes.MakeSigner(key)
+
+	// generate signature
+	payload, err := signer.Hash(data)
+	if err != nil {
+		return "", err
+	}
+
+	// generate signature from payload
+	signature, err := crypto.Sign(payload, key)
+	if err != nil {
+		return "", err
+	}
+
+	sigBytes, err := hex.DecodeString(hexutil.Encode(signature))
+	if err != nil {
+		return "", err
+	}
+
+	length := len(sigBytes)
+	// make sure signature length is 132 characters
+	if length != 132 {
+		return "", fmt.Errorf("signature length is unexpected: %v != 132", length)
+	}
+
+	// format signature
+	signatureHex := strings.ToLower(hexutil.Encode(sigBytes))
+	return signatureHex, nil
+}
+
+func main() {
+	// Generate a new random account
+	key, _ := crypto.GenerateKey()
+
+	// generate onboarding EIP712
+	signature, err := generateEIP712(key)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("Signature:", signature)
+}
+
+/*package main
+
+import (
+	"crypto/ecdsa"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/crypto"
+)
+
+func main() {
+	var data interface{}
+
+	// Parse the json data string into an interface
+	err := json.Unmarshal([]byte(`{
+		"types": {
+			"EIP712Domain": [
+			{"name": "name", "type": "string"},
+			{"name": "version", "type": "string"},
+			{"name": "chainId", "type": "uint64"}
+			],
+			"Message": [
+			{"name": "action", "type": "string"},
+			{"name": "onlySignOn", "type": "string"}
+			]
 		},
-		"primaryType": eip712StructName,
-		"message":     message,
+		"primaryType": "dYdX",
+		"domain": {
+			"name": "dydx",
+			"version": "1.0",
+			"chainId": 1
+		},
+		"message": {
+			"action": "DYDX-ONBOARDING",
+			"onlySignOn": "https://trade.dydx.exchange"
+		}
+	}`), &data)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return eip712Message
-}
 
-func (dy *DYDX) getHash(action string) string {
-	eip712StructStr := eip712OnboardingActionStructString
-	data := [][]string{
-		{"bytes32", "bytes32"},
-		{hashString(eip712StructStr), hashString(action)},
+	// Generate a new EIP712 private key
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatal(err)
 	}
-	data[0] = append(data[0], "bytes32")
-	data[1] = append(data[1], hashString(onlySignOnDomainMainnet))
-	structHash := solsha3.SoliditySHA3(data[0], data[1])
-	return dy.getEip712Hash(hexutil.Encode(structHash))
+
+	// Create an auth with the EIP712 private key
+	auth := bind.NewKeyedTransactor(privateKey)
+
+	// Sign the data using the eip712hash function
+	hash := crypto.Keccak256Hash(data)
+	sig, err := crypto.Sign(hash[:], privateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Recover the public key from the signature
+	publicKey, err := crypto.SigToPub(hash[:], sig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Get the address of the public key
+	address := crypto.PubkeyToAddress(*publicKey)
+
+	// Print the EIP712 private key
+	fmt.Println("EIP712 private key:", fmt.Sprintf("0x%x", privateKey.D.Bytes()))
+	fmt.Println("Public key:", fmt.Sprintf("0x%x", publicKey.X.Bytes()))
+	fmt.Println("Signature:", fmt.Sprintf("0x%x", sig))
+	fmt.Println("Address:", address.Hex())
 }
 
-func (dy *DYDX) getEip712Hash(structHash string) string {
-	fact := solsha3.SoliditySHA3(
-		[]string{"bytes2", "bytes32", "bytes32"},
-		[]interface{}{"0x1901", getDomainHash(), structHash},
-	)
-	return fmt.Sprintf("0x%x", fact)
-}
 
-func getDomainHash() string {
-	fact := solsha3.SoliditySHA3(
-		[]string{"bytes32", "bytes32", "bytes32", "uint256"},
-		[]interface{}{hashString(eip712DomainStringNoContract), hashString(domain), hashString(version), 1},
-	)
-	return fmt.Sprintf("0x%x", fact)
-}
-
-func hashString(input string) string {
-	return hexutil.Encode(solsha3.SoliditySHA3([]string{"string"}, input))
-}
+*/

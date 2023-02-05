@@ -22,10 +22,13 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
-	etheriumAddress         = ""
+	apiKey     = ""
+	apiSecret  = ""
+	passphrase = ""
+
+	ethereumAddress = ""
+	privateKey      = ""
+
 	starkKeyXCoordinate     = ""
 	starkKeyYCoordinate     = ""
 	starkPrivateKey         = ""
@@ -57,7 +60,7 @@ func TestMain(m *testing.M) {
 
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.ClientID = etheriumAddress
+	exchCfg.API.Credentials.ClientID = ethereumAddress
 	exchCfg.API.Credentials.PEMKey = passphrase
 	exchCfg.API.Credentials.Subaccount = starkPrivateKey
 
@@ -330,7 +333,7 @@ func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), etheriumAddress)
+	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), ethereumAddress, privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -341,7 +344,7 @@ func TestGetRegistration(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.GetRegistration(context.Background(), etheriumAddress)
+	_, err := dy.GetRegistration(context.Background(), ethereumAddress, privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -352,7 +355,7 @@ func TestRegisterAPIKey(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.RegisterAPIKey(context.Background(), etheriumAddress)
+	_, err := dy.RegisterAPIKey(context.Background(), ethereumAddress, privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -363,7 +366,7 @@ func TestGetAPIKeys(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.GetAPIKeys(context.Background(), etheriumAddress)
+	_, err := dy.GetAPIKeys(context.Background(), ethereumAddress, privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -374,7 +377,7 @@ func TestDeleteAPIKeys(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", etheriumAddress)
+	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", ethereumAddress, privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -386,11 +389,11 @@ func TestOnboarding(t *testing.T) {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	_, err := dy.Onboarding(context.Background(), &OnboardingParam{
-		StarkXCoordinate: starkPrivateKey,
+		StarkXCoordinate: starkKeyXCoordinate,
 		StarkYCoordinate: starkKeyYCoordinate,
-		EthereumAddress:  etheriumAddress,
+		EthereumAddress:  ethereumAddress,
 		Country:          "RU",
-	})
+	}, privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -436,7 +439,7 @@ func TestGetUserActiveLinks(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.GetUserActiveLinks(context.Background(), "PRIMARY", etheriumAddress, "")
+	_, err := dy.GetUserActiveLinks(context.Background(), "PRIMARY", ethereumAddress, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -480,7 +483,7 @@ func TestGetAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	if _, err := dy.GetAccount(context.Background(), etheriumAddress); err != nil {
+	if _, err := dy.GetAccount(context.Background(), ethereumAddress); err != nil {
 		t.Error(err)
 	}
 }
@@ -786,7 +789,7 @@ func TestSubmitOrder(t *testing.T) {
 	var oSpot = &order.Submit{
 		Exchange: dy.Name,
 		Pair: currency.Pair{
-			Delimiter: "-",
+			Delimiter: privateKey,
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
@@ -966,3 +969,164 @@ func TestGetServerTime(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+/* time format.
+
+DYDX-Signature: {
+  types: [
+    {name: 'method', type: 'string'},
+    {name: 'requestPath', type: 'string'},
+    {name: 'body', type: 'string'},
+    {name: 'timestamp', type: 'uint64'}
+  ],
+  domain: {
+    name: 'DYDX Authentication',
+    version: '1'
+  },
+  primaryType: 'Auth',
+  message: {
+    method: _method_,
+    requestPath: _requestPath_,
+    body: _body_,
+    timestamp: _timestamp_
+  }
+}*/
+
+// package main
+
+// import (
+// 	"fmt"
+// 	"math/big"
+// 	"crypto/ecdsa"
+// 	"encoding/hex"
+// 	"github.com/ethereum/go-ethereum/crypto"
+// 	"github.com/ethereum/go-ethereum/common"
+// 	"github.com/ethereum/go-ethereum/core/types"
+// 	"github.com/ethereum/go-ethereum/common/hexutil"
+// )
+
+// func BuildEIP712RequestSignature(httpMethod string, reqPath string, body string, timestamp int64) string {
+// 	// Define the 'EIP712Domain'
+// 	domainSeparator := common.Hash{}
+// 	domainSeparator.SetBytes(crypto.Keccak256([]byte("EIP712Domain(string name,string version,uint256 chainId)")))
+
+// 	domainType := []string{"string", "string", "uint256"}
+
+// 	domainData := make(map[string]interface{})
+// 	domainData["name"] = "My Dapp"
+// 	domainData["version"] = "1"
+// 	domainData["chainId"] = big.NewInt(1)
+
+// 	// Define the 'Request' type
+// 	requestType := []string{"string", "string", "string", "uint256"}
+// 	data := []string{httpMethod, reqPath, body, "timestamp"}
+
+// 	requestData := make(map[string]interface{})
+// 	for i, v := range data {
+// 		requestData[requestType[i]] = v
+// 	}
+
+// 	// Create the signed message
+// 	msgParams := types.EIP712Domain{
+// 		Name:       "EIP712Domain",
+// 		Version:    "1",
+// 		ChainID:    big.NewInt(1),
+// 		VerifyingContract: common.Address{},
+// 	}
+
+// 	msg := types.EIP712Struct{
+// 		Name: "Request",
+// 		Types: map[string]types.EIP712StructValue{
+// 			"EIP712Domain": {
+// 				Name: "EIP712Domain",
+// 				Type: domainType,
+// 			},
+// 			"Request": {
+// 				Name: "Request",
+// 				Type: requestType,
+// 			},
+// 		},
+// 		PrimaryType: "Request",
+// 		Message:     requestData,
+// 	}
+// 	eip712Encoded, _ := msg.MarshalJSON()
+// 	messageHash := crypto.Keccak256Hash(append(domainSeparator.Bytes(), eip712Encoded...))
+
+// 	// Sign the message with private key
+// 	privateKey, _ := crypto.HexToECDSA("")
+// 	signature, _ := crypto.Sign(messageHash.Bytes(), privateKey)
+// 	return hexutil.Encode(append(signature, byte(27+27)))
+// }
+
+// func main() {
+// 	httpMethod := "GET"
+// 	reqPath := "/v3/accounts/"
+// 	body := "{\"foo\":\"bar\"}"
+// 	ts := int64(1573269975)
+
+// 	sig := BuildEIP712RequestSignature(httpMethod, reqPath, body, ts)
+// 	fmt.Println(sig)
+// }
+
+/*
+
+
+import (
+	"crypto/ecdsa"
+	"encoding/hex"
+	"fmt"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/crypto"
+)
+
+func SignEIP712(method, requestPath, body string, timestamp uint256, privKey *ecdsa.PrivateKey) (string, error) {
+	// Encode message fields as EIP712 compliant struct
+	msg := crypto.Keccak256([]byte(fmt.Sprintf(`
+			{
+				  "types": {
+				    "EIP712Domain": [
+				      {"name": "name", "type": "string"},
+				      {"name": "version", "type": "string"},
+				      {"name": "timestamp", "type": "uint256"}
+				    ],
+				    "Message": [
+				      {"name": "method", "type": "string"},
+				      {"name": "requestPath", "type": "string"},
+				      {"name": "body", "type": "string"},
+				      {"name": "timestamp", "type": "uint256"}
+				    ]
+				  },
+				  "primaryType": "Message",
+				  "domain": {
+				    "name": "dydx",
+				    "version": "0",
+				    "timestamp": %d
+				  },
+				  "message": {
+            "method": "%s",
+            "requestPath": "%s",
+            "body": "%s",
+            "timestamp": %d
+				  }
+				}
+	`, timestamp, method, requestPath, body, timestamp)))
+
+	// Sign message
+	sig, err := crypto.Sign(msg, privKey)
+	if err != nil {
+		return "", err
+	}
+
+	// Convert signature to EIP-712-compliant format
+	v := sig[64] + 27
+	rBytes := sig[0:32]
+	sBytes := sig[32:64]
+	r := math.U256(new(big.Int).SetBytes(rBytes))
+	s := math.U256(new(big.Int).SetBytes(sBytes))
+	return fmt.Sprintf("0x%s%s%s", hex.EncodeToString(rBytes), hex.EncodeToString(sBytes), hex.EncodeToString([]byte{v})), nil
+}
+
+
+*/
