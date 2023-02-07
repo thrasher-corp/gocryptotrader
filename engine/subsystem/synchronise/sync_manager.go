@@ -104,7 +104,7 @@ func (m *Manager) checkAllExchangeAssets() (time.Duration, error) {
 			wsAssetSupported := exchs[x].IsAssetWebsocketSupported(assetTypes[y])
 			assetUsingREST := (usingREST || !wsAssetSupported) && !(usingWebsocket && wsAssetSupported)
 			for i := range enabledPairs {
-				m.checkSyncItems(exchs[x], enabledPairs[i], assetTypes[y], assetUsingREST, &wait)
+				wait = m.checkSyncItems(exchs[x], enabledPairs[i], assetTypes[y], assetUsingREST, wait)
 			}
 		}
 	}
@@ -156,30 +156,32 @@ func (m *Manager) getSmallestTimeout() time.Duration {
 
 // checkSyncItems checks agent against it's current last update time on all
 // individual synchronization items.
-func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update *time.Duration) {
+func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update time.Duration) (smallest time.Duration) {
 	agent := m.getAgent(exch.GetName(), pair, a, usingREST)
 	if m.SynchronizeOrderbook {
-		m.checkSyncItem(exch, &agent.Orderbook, agent, subsystem.Orderbook, update)
+		update = m.checkSyncItem(exch, &agent.Orderbook, agent, subsystem.Orderbook, update)
 	}
 	if m.SynchronizeTicker {
-		m.checkSyncItem(exch, &agent.Ticker, agent, subsystem.Ticker, update)
+		update = m.checkSyncItem(exch, &agent.Ticker, agent, subsystem.Ticker, update)
 	}
 	if m.SynchronizeTrades {
-		m.checkSyncItem(exch, &agent.Trade, agent, subsystem.Trade, update)
+		update = m.checkSyncItem(exch, &agent.Trade, agent, subsystem.Trade, update)
 	}
+	return update
 }
 
 // checkSyncItem checks the individual sync item
-func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *Agent, sync subsystem.SynchronizationType, update *time.Duration) {
+func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *Agent, sync subsystem.SynchronizationType, update time.Duration) (smallest time.Duration) {
 	until, needsUpdate := indv.NeedsUpdate(m.TimeoutREST, m.TimeoutWebsocket)
 	if needsUpdate {
 		// This needs to set processing in this controller routine so that it
 		// can be ignored on next check.
 		indv.SetProcessing(agent.Exchange, sync.String(), agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
 		m.sendJob(exch, agent.Pair, agent.AssetType, sync)
-	} else if until > 0 && until < *update {
-		*update = until
+	} else if until > 0 && until < update {
+		update = until
 	}
+	return update
 }
 
 // sendJob sets agent base as processing for that ticker item then sends the

@@ -420,14 +420,12 @@ func TestCheckSyncItems(t *testing.T) {
 	}
 
 	wait := m.getSmallestTimeout()
-	m.checkSyncItems(&TestExchange{}, testPair, asset.Spot, true, &wait)
-
+	wait = m.checkSyncItems(&TestExchange{}, testPair, asset.Spot, true, wait)
 	if wait != time.Second {
 		t.Fatalf("received %v, but expected: %v", wait, time.Second)
 	}
 
-	m.checkSyncItems(&TestExchange{}, testPair, asset.Spot, true, &wait)
-
+	wait = m.checkSyncItems(&TestExchange{}, testPair, asset.Spot, true, wait)
 	if wait < time.Second {
 		t.Fatalf("received %v, but expected less than: %v", wait, time.Second)
 	}
