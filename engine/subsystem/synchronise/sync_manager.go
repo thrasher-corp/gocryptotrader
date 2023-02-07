@@ -61,12 +61,29 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		c.SynchronizeTrades, c.NumWorkers, c.Verbose, c.TimeoutREST,
 		c.TimeoutWebsocket)
 
+	var tickerBatchTracking map[string]map[asset.Item]time.Time
+	var tickerJobsChannel chan RESTJob
+	if c.SynchronizeTicker {
+		tickerBatchTracking = make(map[string]map[asset.Item]time.Time)
+		tickerJobsChannel = make(chan RESTJob, defaultChannelBuffer)
+	}
+
+	var orderbookJobsChannel chan RESTJob
+	if c.SynchronizeOrderbook {
+		orderbookJobsChannel = make(chan RESTJob, defaultChannelBuffer)
+	}
+
+	var tradesJobsChannel chan RESTJob
+	if c.SynchronizeTrades {
+		tradesJobsChannel = make(chan RESTJob, defaultChannelBuffer)
+	}
+
 	manager := &Manager{
 		ManagerConfig:            *c,
-		tickerBatchLastRequested: make(map[string]map[asset.Item]time.Time),
-		orderbookJobs:            make(chan RESTJob, defaultChannelBuffer),
-		tickerJobs:               make(chan RESTJob, defaultChannelBuffer),
-		tradeJobs:                make(chan RESTJob, defaultChannelBuffer),
+		tickerBatchLastRequested: tickerBatchTracking,
+		orderbookJobs:            orderbookJobsChannel,
+		tickerJobs:               tickerJobsChannel,
+		tradeJobs:                tradesJobsChannel,
 	}
 	manager.initSyncWG.Add(1)
 	return manager, nil
@@ -326,8 +343,7 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 			// 1) Nullifies all future price updates when `FetchTicker`
 			// functionality is used and once updated `UpdateTicker` will never
 			// be called again.
-			// 2) Suppress error when `FetchTicker` is called and obfuscate
-			// config storage issues.
+			// 2) Suppress error when `FetchTicker` is called.
 			// 3) Ultimately misuse resources.
 			result, err = ticker.GetTicker(exchName, j.Pair, j.Asset)
 		} else {
