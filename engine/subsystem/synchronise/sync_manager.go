@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -298,9 +297,7 @@ func (m *Manager) orderbookWorker(ctx context.Context) {
 			return
 		}
 		exchName := j.exch.GetName()
-		var err error
-		var result *orderbook.Base
-		result, err = j.exch.UpdateOrderbook(ctx, j.Pair, j.Asset)
+		result, err := j.exch.UpdateOrderbook(ctx, j.Pair, j.Asset)
 		m.PrintOrderbookSummary(result, subsystem.Rest, err)
 		if err == nil && m.WebsocketRPCEnabled {
 			m.relayWebsocketEvent(result, "orderbook_update", j.Asset.String(), exchName)
