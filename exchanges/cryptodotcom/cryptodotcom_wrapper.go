@@ -944,13 +944,7 @@ func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pa
 			Volume: candles.Data[x].Volume,
 		}
 	}
-	return &kline.Item{
-		Exchange: cr.Name,
-		Pair:     req.RequestFormatted,
-		Asset:    a,
-		Interval: interval,
-		Candles:  candleElements,
-	}, nil
+	return req.ProcessResponse(candleElements)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

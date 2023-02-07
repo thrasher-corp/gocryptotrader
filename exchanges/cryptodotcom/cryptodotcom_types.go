@@ -17,6 +17,8 @@ var (
 	errInvalidAmount                 = errors.New("amount has to be greater than zero")
 	errNoArgumentPassed              = errors.New("no argument passed")
 	errInvalidResponseFromServer     = errors.New("invalid response from server")
+	errInvalidQuantity               = errors.New("quantity must be non-zero positive decimal value for order")
+	errTriggerPriceRequired          = errors.New("trigger price is required")
 )
 
 // InstrumentsResponse represents instruments response.
@@ -319,12 +321,12 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
 		}
 		if arg.Quantity <= 0 {
-			return nil, fmt.Errorf("quantity must be non-zero positive decimal value")
+			return nil, errInvalidQuantity
 		}
 		switch arg.OrderType {
 		case order.StopLimit, order.TakeProfitLimit:
 			if arg.TriggerPrice <= 0 {
-				return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
+				return nil, fmt.Errorf("%w for Order Type: %v", errTriggerPriceRequired, arg.OrderType)
 			}
 		}
 	case order.Market:
@@ -334,21 +336,21 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 			}
 		} else {
 			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+				return nil, fmt.Errorf("%w order type: %v and order side: %v", errInvalidQuantity, arg.OrderType, arg.Side)
 			}
 		}
 	case order.StopLoss, order.TakeProfit:
 		if arg.Side == order.Sell {
 			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v and order side: %v", arg.OrderType, arg.Side)
+				return nil, fmt.Errorf("%w order type: %v and order side: %v", errInvalidQuantity, arg.OrderType, arg.Side)
 			}
 		} else {
 			if arg.Notional <= 0 {
-				return nil, fmt.Errorf("quantity must be non-zero positive decimal value for order type: %v", arg.OrderType)
+				return nil, fmt.Errorf("notional must be non-zero positive decimal value for order type: %v", arg.OrderType)
 			}
 		}
 		if arg.TriggerPrice <= 0 {
-			return nil, fmt.Errorf("trigger price is required for Order Type: %v", arg.OrderType)
+			return nil, fmt.Errorf("%w for Order Type: %s", errTriggerPriceRequired, arg.OrderType)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported order type: %v", arg.OrderType)

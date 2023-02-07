@@ -6,10 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -663,19 +661,18 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 	}
 	newRequest := func() (*request.Item, error) {
 		timestamp := time.Now()
-		var body io.Reader
-		var hmac, payload []byte
 		var id string
-		var idInt int64
 		id, err = common.GenerateRandomString(6, common.NumberCharacters)
 		if err != nil {
 			return nil, err
 		}
+		var idInt int64
 		idInt, err = strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		signaturePayload := path + strconv.FormatInt(idInt, 10) + creds.Key + cr.getParamString(arg) + strconv.FormatInt(timestamp.UnixMilli(), 10)
+		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(signaturePayload),
 			[]byte(creds.Secret))
@@ -692,11 +689,12 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 			Params:    arg,
 			Signature: crypto.HexEncodeToString(hmac),
 		}
+		var payload []byte
 		payload, err = json.Marshal(req)
 		if err != nil {
 			return nil, err
 		}
-		body = bytes.NewBuffer(payload)
+		body := bytes.NewBuffer(payload)
 		return &request.Item{
 			Method:        http.MethodPost,
 			Path:          endpoint + cryptodotcomAPIVersion + path,
@@ -730,44 +728,20 @@ func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
 		if params[keys[x]] == nil {
 			paramString += keys[x] + "null"
 		}
-		switch reflect.ValueOf(params[keys[x]]).Kind() {
-		case reflect.Bool:
-			param, ok := params[keys[x]].(bool)
-			if !ok {
-				param = false
-			}
-			paramString += keys[x] + strconv.FormatBool(param)
-		case reflect.Int64:
-			param, ok := params[keys[x]].(int64)
-			if !ok {
-				param = 0
-			}
-			paramString += keys[x] + strconv.FormatInt(param, 10)
-		case reflect.Float32:
-			param, ok := params[keys[x]].(float64)
-			if !ok {
-				param = 0.0
-			}
-			paramString += keys[x] + strconv.FormatFloat(param, 'f', -1, 64)
-		case reflect.Map:
-			param, ok := params[keys[x]].(map[string]interface{})
-			if !ok {
-				param = make(map[string]interface{})
-			}
-			paramString += keys[x] + cr.getParamString((param))
-		case reflect.String:
-			param, ok := params[keys[x]].(string)
-			if !ok {
-				param = ""
-			}
-			paramString += keys[x] + param
-		case reflect.Slice:
-			listOfMaps, ok := params[keys[x]].([]map[string]interface{})
-			if !ok {
-				return ""
-			}
-			for y := range listOfMaps {
-				paramString += cr.getParamString(listOfMaps[y])
+		switch value := params[keys[x]].(type) {
+		case bool:
+			paramString += keys[x] + strconv.FormatBool(value)
+		case int64:
+			paramString += keys[x] + strconv.FormatInt(value, 10)
+		case float64:
+			paramString += keys[x] + strconv.FormatFloat(value, 'f', -1, 64)
+		case map[string]interface{}:
+			paramString += keys[x] + cr.getParamString(value)
+		case string:
+			paramString += keys[x] + value
+		case []map[string]interface{}:
+			for y := range value {
+				paramString += cr.getParamString(value[y])
 			}
 		}
 	}

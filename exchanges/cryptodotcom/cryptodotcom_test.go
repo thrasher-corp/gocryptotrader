@@ -2,6 +2,7 @@ package cryptodotcom
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -252,7 +253,6 @@ func TestGetPersonalOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Error(err)
 	_, err = cr.WsRetrivePersonalOpenOrders("", 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -414,7 +414,7 @@ func TestGetOTCQuoteHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInfoNotProvided)
 	}
-	_, err := cr.GetOTCQuoteHistory(context.Background(), currency.NewPair(currency.EMPTYCODE, currency.EMPTYCODE), time.Time{}, time.Time{}, 0, 10)
+	_, err := cr.GetOTCQuoteHistory(context.Background(), currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -773,5 +773,35 @@ func TestWsSetCancelOnDisconnect(t *testing.T) {
 	_, err := cr.WsSetCancelOnDisconnect("ACCOUNT")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCreateParamMap(t *testing.T) {
+	t.Parallel()
+	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0}
+	_, err := arg.getCreateParamMap()
+	if err != nil {
+		t.Error(err)
+	}
+	arg.OrderType = order.Market
+	_, err = arg.getCreateParamMap()
+	if err != nil {
+		t.Error(err)
+	}
+	arg.OrderType = order.TakeProfit
+	arg.Notional = 12
+	_, err = arg.getCreateParamMap()
+	if err != nil && !errors.Is(err, errTriggerPriceRequired) {
+		t.Errorf("expecting %v, but found %v", errTriggerPriceRequired, err)
+	}
+	arg.OrderType = order.UnknownType
+	_, err = arg.getCreateParamMap()
+	if err != nil && !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Errorf("expecting %v but found %v", order.ErrTypeIsInvalid, err)
+	}
+	arg.OrderType = order.StopLimit
+	_, err = arg.getCreateParamMap()
+	if err != nil && !errors.Is(err, errTriggerPriceRequired) {
+		t.Errorf("expecting %v, but found %v", order.ErrTypeIsInvalid, err)
 	}
 }
