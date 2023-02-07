@@ -117,7 +117,6 @@ const (
 	kucoinInnerTransfer                  = "/v2/accounts/inner-transfer"
 
 	// deposit
-	kucoinCreateDepositAddress     = "/v1/deposit-addresses"
 	kucoinGetDepositAddressesV2    = "/v2/deposit-addresses"
 	kucoinGetDepositAddressV1      = "/v1/deposit-addresses"
 	kucoinGetDepositList           = "/v1/deposits"
@@ -151,16 +150,20 @@ func (ku *Kucoin) GetTicker(ctx context.Context, pair string) (*Ticker, error) {
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var resp *Ticker
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetTicker, params), &resp)
+	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetTicker, params), &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp, nil
 }
 
-// GetAllTickers gets all trading pair ticker information including 24h volume
-func (ku *Kucoin) GetAllTickers(ctx context.Context) ([]TickerInfo, error) {
-	resp := struct {
-		Time    kucoinTimeMilliSec `json:"time"`
-		Tickers []TickerInfo       `json:"ticker"`
-	}{}
-	return resp.Tickers, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetAllTickers, &resp)
+// GetTickers gets all trading pair ticker information including 24h volume
+func (ku *Kucoin) GetTickers(ctx context.Context) (*TickersResponse, error) {
+	var resp *TickersResponse
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetAllTickers, &resp)
 }
 
 // Get24hrStats get the statistics of the specified pair in the last 24 hours
@@ -665,8 +668,8 @@ func (ku *Kucoin) GetSingleIsolatedMarginAccountInfo(ctx context.Context, symbol
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinGetSingleIsolatedMarginAccountInfo+symbol, nil, &resp)
 }
 
-// InitiateIsolateMarginBorrowing initiates isolated margin borrowing
-func (ku *Kucoin) InitiateIsolateMarginBorrowing(ctx context.Context, symbol, ccy, borrowStrategy, period string, size, maxRate int64) (*IsolatedMarginBorrowing, error) {
+// InitiateIsolatedMarginBorrowing initiates isolated margin borrowing
+func (ku *Kucoin) InitiateIsolatedMarginBorrowing(ctx context.Context, symbol, ccy, borrowStrategy, period string, size, maxRate int64) (*IsolatedMarginBorrowing, error) {
 	if symbol == "" {
 		return nil, errors.New("symbol can not be empty")
 	}
@@ -824,6 +827,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 	if selfTradePrevention != "" {
 		params["stp"] = selfTradePrevention
 	}
+	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case "limit", "":
 		if price <= 0 {
@@ -856,7 +860,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 			return "", errors.New("at least one required among size and funds")
 		}
 	default:
-		return "", errors.New("invalid orderType")
+		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
 	}
 	if orderType != "" {
 		params["type"] = orderType
@@ -893,6 +897,7 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, 
 		params["marginMode"] = marginModel
 	}
 	params["autoBorrow"] = autoBorrow
+	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case "limit", "":
 		if price <= 0 {
@@ -925,7 +930,7 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, 
 			return nil, errors.New("at least one required among size and funds")
 		}
 	default:
-		return nil, errors.New("invalid orderType")
+		return nil, fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
 	}
 	if orderType != "" {
 		params["type"] = orderType
@@ -999,8 +1004,8 @@ func (ku *Kucoin) CancelAllOpenOrders(ctx context.Context, symbol, tradeType str
 	return resp.CancelledOrderIDs, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, cancelAllOrdersEPL, http.MethodDelete, common.EncodeURLValues(kucoinOrders, params), nil, &resp)
 }
 
-// GetOrders gets the user order list
-func (ku *Kucoin) GetOrders(ctx context.Context, status, symbol, side, orderType, tradeType string, startAt, endAt time.Time) (*OrdersListResponse, error) {
+// ListOrders gets the user order list
+func (ku *Kucoin) ListOrders(ctx context.Context, status, symbol, side, orderType, tradeType string, startAt, endAt time.Time) (*OrdersListResponse, error) {
 	params := url.Values{}
 	if status != "" {
 		params.Set("status", status)
@@ -1120,6 +1125,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	if tradeType != "" {
 		params["tradeType"] = tradeType
 	}
+	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case "limit", "":
 		if price <= 0 {
@@ -1176,8 +1182,8 @@ func (ku *Kucoin) CancelStopOrder(ctx context.Context, orderID string) ([]string
 	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, kucoinStopOrderByID+orderID, nil, &resp)
 }
 
-// CancelAllStopOrder used to cancel all order based upon the parameters passed
-func (ku *Kucoin) CancelAllStopOrder(ctx context.Context, symbol, tradeType, orderIDs string) ([]string, error) {
+// CancelStopOrders used to cancel all order based upon the parameters passed
+func (ku *Kucoin) CancelStopOrders(ctx context.Context, symbol, tradeType, orderIDs string) ([]string, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1207,8 +1213,8 @@ func (ku *Kucoin) GetStopOrder(ctx context.Context, orderID string) (*StopOrder,
 	return &resp.StopOrder, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinStopOrderByID+orderID, nil, &resp)
 }
 
-// GetAllStopOrder get all current untriggered stop orders
-func (ku *Kucoin) GetAllStopOrder(ctx context.Context, symbol, side, orderType, tradeType, orderIDs string, startAt, endAt time.Time, currentPage, pageSize int64) (*StopOrderListResponse, error) {
+// ListStopOrders get all current untriggered stop orders
+func (ku *Kucoin) ListStopOrders(ctx context.Context, symbol, side, orderType, tradeType, orderIDs string, startAt, endAt time.Time, currentPage, pageSize int64) (*StopOrderListResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1293,7 +1299,7 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 // GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-account.
 func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, apiKeys string) (*SubAccountResponse, error) {
 	params := url.Values{}
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-32}$").MatchString(subAccountName) {
+	if subAccountRegExp.MatchString(subAccountName) {
 		return nil, errInvalidSubAccountName
 	}
 	params.Set("subName", subAccountName)
@@ -1306,10 +1312,10 @@ func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, 
 
 // CreateSpotAPIsForSubAccount can be used to create Spot APIs for sub-accounts.
 func (ku *Kucoin) CreateSpotAPIsForSubAccount(ctx context.Context, arg *SpotAPISubAccountParams) (*SpotAPISubAccount, error) {
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-32}$").MatchString(arg.SubAccountName) {
+	if subAccountRegExp.MatchString(arg.SubAccountName) {
 		return nil, errInvalidSubAccountName
 	}
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-24}$").MatchString(arg.Passphrase) {
+	if subAccountPassphraseRegExp.MatchString(arg.Passphrase) {
 		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassPhraseInstance)
 	}
 	if arg.Remark == "" {
@@ -1321,10 +1327,10 @@ func (ku *Kucoin) CreateSpotAPIsForSubAccount(ctx context.Context, arg *SpotAPIS
 
 // ModifySubAccountSpotAPIs modifies sub-account Spot APIs.
 func (ku *Kucoin) ModifySubAccountSpotAPIs(ctx context.Context, arg *SpotAPISubAccountParams) (*SpotAPISubAccount, error) {
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-32}$").MatchString(arg.SubAccountName) {
+	if subAccountRegExp.MatchString(arg.SubAccountName) {
 		return nil, errInvalidSubAccountName
 	}
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-24}$").MatchString(arg.Passphrase) {
+	if subAccountPassphraseRegExp.MatchString(arg.Passphrase) {
 		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassPhraseInstance)
 	}
 	if arg.Remark == "" {
@@ -1336,10 +1342,10 @@ func (ku *Kucoin) ModifySubAccountSpotAPIs(ctx context.Context, arg *SpotAPISubA
 
 // DeleteSubAccountSpotAPI delete sub-account Spot APIs.
 func (ku *Kucoin) DeleteSubAccountSpotAPI(ctx context.Context, apiKey, passphrase, subAccountName string) (*DeleteSubAccountResponse, error) {
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-32}$").MatchString(subAccountName) {
+	if subAccountRegExp.MatchString(subAccountName) {
 		return nil, errInvalidSubAccountName
 	}
-	if regexp.MustCompile("^[a-zA-Z0-9]{7-24}$").MatchString(passphrase) {
+	if subAccountPassphraseRegExp.MatchString(passphrase) {
 		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassPhraseInstance)
 	}
 	if apiKey == "" {
@@ -1547,7 +1553,7 @@ func (ku *Kucoin) CreateDepositAddress(ctx context.Context, ccy, chain string) (
 		params["chain"] = chain
 	}
 	var resp *DepositAddress
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinCreateDepositAddress, params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinGetDepositAddressV1, params, &resp)
 }
 
 // GetDepositAddressesV2 get all deposit addresses for the currency you intend to deposit
@@ -1591,7 +1597,7 @@ func (ku *Kucoin) GetDepositList(ctx context.Context, ccy, status string, startA
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *DepositResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveDepositListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositList, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retrieveDepositListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositList, params), nil, &resp)
 }
 
 // GetHistoricalDepositList get historical deposit list items
@@ -1738,11 +1744,8 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl r
 	if value.Kind() != reflect.Pointer {
 		return errInvalidResultInterface
 	}
-	var resp UnmarshalTo
-	_, okay := result.(UnmarshalTo)
-	if okay {
-		resp, _ = result.(UnmarshalTo)
-	} else {
+	resp, okay := result.(UnmarshalTo)
+	if !okay {
 		resp = &Response{Data: result}
 	}
 	endpointPath, err := ku.API.Endpoints.GetURL(ePath)
@@ -1778,19 +1781,15 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	if err != nil {
 		return err
 	}
-	var resp UnmarshalTo
-	_, okay := result.(UnmarshalTo)
-	if okay {
-		resp, _ = result.(UnmarshalTo)
-	} else {
+	resp, okay := result.(UnmarshalTo)
+	if !okay {
 		resp = &Response{Data: result}
 	}
 	endpointPath, err := ku.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-	val := reflect.ValueOf(result)
-	if val.IsNil() || val.Kind() != reflect.Pointer {
+	if value.IsNil() || value.Kind() != reflect.Pointer {
 		return fmt.Errorf("%w receiver has to be non-nil pointer", errInvalidResponseReceiver)
 	}
 	err = ku.SendPayload(ctx, epl, func() (*request.Item, error) {

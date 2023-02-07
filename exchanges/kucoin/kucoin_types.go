@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -27,109 +27,10 @@ var (
 	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
 	errNoValidResponseFromServer = errors.New("no valud response from server")
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
-)
 
-var offlineTradeFee = map[currency.Code]float64{
-	currency.BTC:   0.0005,
-	currency.ETH:   0.005,
-	currency.BNB:   0.01,
-	currency.USDT:  25,
-	currency.SOL:   0.01,
-	currency.ADA:   1.000,
-	currency.XRP:   0.5,
-	currency.DOT:   0.1,
-	currency.USDC:  20,
-	currency.DOGE:  20,
-	currency.AVAX:  0.01,
-	currency.SHIB:  600000,
-	currency.LUNA:  0.15,
-	currency.LTC:   0.001,
-	currency.CRO:   50,
-	currency.UNI:   1.2,
-	currency.BUSD:  1,
-	currency.LINK:  1,
-	currency.MATIC: 10,
-	currency.ALGO:  0.1,
-	currency.BCH:   0.01,
-	currency.VET:   30,
-	currency.XLM:   0.02,
-	currency.ICP:   0.0005,
-	currency.AXS:   0.6,
-	currency.EGLD:  0.005,
-	currency.TRX:   1.5,
-	currency.FTT:   0.35,
-	currency.UST:   4,
-	currency.MANA:  10,
-	currency.THETA: 0.2,
-	currency.ETC:   0.01,
-	currency.FIL:   0.01,
-	currency.ATOM:  0.01,
-	currency.DAI:   6,
-	currency.APE:   1.5,
-	currency.HBAR:  3,
-	currency.NEAR:  0.01,
-	currency.FTM:   30,
-	currency.XTZ:   0.2,
-	currency.XCN:   100,
-	currency.HNT:   0.05,
-	currency.XMR:   0.001,
-	currency.GRT:   60,
-	currency.EOS:   0.2,
-	currency.FLOW:  0.05,
-	currency.KLAY:  0.5,
-	currency.SAND:  10,
-	currency.CAKE:  0.05,
-	currency.AAVE:  0.2,
-	currency.LRC:   20,
-	currency.XEC:   5000,
-	currency.KSM:   0.01,
-	currency.ONE:   100,
-	currency.MKR:   0.0075,
-	currency.KDA:   0.5,
-	currency.BSV:   0.01,
-	currency.BTT:   300000,
-	currency.NEO:   0,
-	currency.RUNE:  0.05,
-	currency.USDD:  1,
-	currency.QNT:   0.04,
-	currency.CHZ:   4,
-	currency.STX:   1.5,
-	currency.ZEC:   0.005,
-	currency.WAVES: 0.002,
-	currency.AR:    0.02,
-	currency.AMP:   2100,
-	currency.DASH:  0.002,
-	currency.KCS:   0.75,
-	currency.CELO:  0.1,
-	currency.COMP:  0.15,
-	currency.TFUEL: 5,
-	currency.CRV:   8.5,
-	currency.XEM:   4,
-	currency.BAT:   25,
-	currency.HT:    0.1,
-	currency.IMX:   10,
-	currency.QTUM:  0.01,
-	currency.DCR:   0.01,
-	currency.ICX:   1,
-	currency.OMG:   3,
-	currency.TUSD:  15,
-	currency.RVN:   2,
-	currency.ROSE:  0.1,
-	currency.ZEN:   0.002,
-	currency.ZIL:   10,
-	currency.SUSHI: 5,
-	currency.AUDIO: 24,
-	currency.LPT:   0.85,
-	currency.XDC:   2,
-	currency.SCRT:  0.25,
-	currency.UMA:   3.5,
-	currency.VLX:   10,
-	currency.ANKR:  275,
-	currency.GMT:   0.5,
-	currency.PERP:  7.5,
-	currency.TEL:   5500,
-	currency.SNX:   6,
-}
+	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
+	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
+)
 
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
@@ -203,14 +104,14 @@ type SymbolInfo struct {
 
 // Ticker stores ticker data
 type Ticker struct {
-	Sequence    string  `json:"sequence"`
-	BestAsk     float64 `json:"bestAsk,string"`
-	Size        float64 `json:"size,string"`
-	Price       float64 `json:"price,string"`
-	BestBidSize float64 `json:"bestBidSize,string"`
-	BestBid     float64 `json:"bestBid,string"`
-	BestAskSize float64 `json:"bestAskSize,string"`
-	Time        uint64  `json:"time"`
+	Sequence    string             `json:"sequence"`
+	BestAsk     float64            `json:"bestAsk,string"`
+	Size        float64            `json:"size,string"`
+	Price       float64            `json:"price,string"`
+	BestBidSize float64            `json:"bestBidSize,string"`
+	BestBid     float64            `json:"bestBid,string"`
+	BestAskSize float64            `json:"bestAskSize,string"`
+	Time        kucoinTimeMilliSec `json:"time"`
 }
 
 type tickerInfoBase struct {
@@ -281,7 +182,7 @@ type Kline struct {
 type currencyBase struct {
 	Currency        string `json:"currency"` // a unique currency code that will never change
 	Name            string `json:"name"`     // will change after renaming
-	Fullname        string `json:"fullName"`
+	FullName        string `json:"fullName"`
 	Precision       int64  `json:"precision"`
 	Confirms        int64  `json:"confirms"`
 	ContractAddress string `json:"contractAddress"`
@@ -333,12 +234,12 @@ type MarginConfiguration struct {
 
 // MarginAccount stores margin account data
 type MarginAccount struct {
-	CurrencyList  float64 `json:"availableBalance,string"`
-	Currency      string  `json:"currency"`
-	HoldBalance   float64 `json:"holdBalance,string"`
-	Liability     float64 `json:"liability,string"`
-	MaxBorrowSize float64 `json:"maxBorrowSize,string"`
-	TotalBalance  float64 `json:"totalBalance,string"`
+	AvailableBalance float64 `json:"availableBalance,string"`
+	Currency         string  `json:"currency"`
+	HoldBalance      float64 `json:"holdBalance,string"`
+	Liability        float64 `json:"liability,string"`
+	MaxBorrowSize    float64 `json:"maxBorrowSize,string"`
+	TotalBalance     float64 `json:"totalBalance,string"`
 }
 
 // MarginAccounts stores margin accounts data
@@ -349,10 +250,11 @@ type MarginAccounts struct {
 
 // MarginRiskLimit stores margin risk limit
 type MarginRiskLimit struct {
-	Currency        string  `json:"currency"`
-	BorrowMaxAmount float64 `json:"borrowMaxAmount,string"`
-	BuyMaxAmount    float64 `json:"buyMaxAmount,string"`
-	Precision       int64   `json:"precision"`
+	Currency            string  `json:"currency"`
+	MaximumBorrowAmount float64 `json:"borrowMaxAmount,string"`
+	MaxumumBuyAmount    float64 `json:"buyMaxAmount,string"`
+	MaximumHoldAmount   float64 `json:"holdMaxAmount,string"`
+	Precision           int64   `json:"precision"`
 }
 
 // PostBorrowOrderResp stores borrow order response
@@ -556,8 +458,8 @@ type OutstandingRepaymentRecordsResponse struct {
 // OutstandingRepaymentRecord represents an outstanding repayment records of isolated margin positions
 type OutstandingRepaymentRecord struct {
 	baseRepaymentRecord
-	LiabilityBalance float64 `json:"liabilityBalance,string"`
-	MaturityTime     int64   `json:"maturityTime"`
+	LiabilityBalance float64            `json:"liabilityBalance,string"`
+	MaturityTime     kucoinTimeMilliSec `json:"maturityTime"`
 }
 
 // ServiceStatus represents a service status message.
@@ -593,11 +495,11 @@ type OrderRequest struct {
 	ClientOID   string  `json:"clientOid"`
 	Symbol      string  `json:"symbol"`
 	Side        string  `json:"side"`
-	Type        string  `json:"type,omitempty"`      // optional
-	Remark      string  `json:"remark,omitempty"`    // optional
-	Stop        string  `json:"stop,omitempty"`      // optional
-	StopPrice   string  `json:"stopPrice,omitempty"` // optional
-	STP         string  `json:"stp,omitempty"`       // optional
+	Type        string  `json:"type,omitempty"`             // optional
+	Remark      string  `json:"remark,omitempty"`           // optional
+	Stop        string  `json:"stop,omitempty"`             // optional
+	StopPrice   float64 `json:"stopPrice,string,omitempty"` // optional
+	STP         string  `json:"stp,omitempty"`              // optional
 	Price       float64 `json:"price,string,omitempty"`
 	Size        float64 `json:"size,string,omitempty"`
 	TimeInForce string  `json:"timeInForce,omitempty"` // optional
@@ -1443,4 +1345,40 @@ type DeleteSubAccountResponse struct {
 type ConnectionMessage struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
+}
+
+// TickersResponse represents list of tickers and update timestamp information.
+type TickersResponse struct {
+	Time    kucoinTimeMilliSec `json:"time"`
+	Tickers []TickerInfo       `json:"ticker"`
+}
+
+// FundingInterestRateResponse represents a funding interest rate list response information.
+type FundingInterestRateResponse struct {
+	List    []FuturesInterestRate `json:"dataList"`
+	HasMore bool                  `json:"hasMore"`
+}
+
+// FuturesIndexResponse represents a response data for futures indexes.
+type FuturesIndexResponse struct {
+	List    []FuturesIndex `json:"dataList"`
+	HasMore bool           `json:"hasMore"`
+}
+
+// FuturesInterestRateResponse represents a futures interest rate list response.
+type FuturesInterestRateResponse struct {
+	List    []FuturesInterestRate `json:"dataList"`
+	HasMore bool                  `json:"hasMore"`
+}
+
+// FuturesTransactionHistoryResponse represents a futures transaction history response.
+type FuturesTransactionHistoryResponse struct {
+	List    []FuturesTransactionHistory `json:"dataList"`
+	HasMore bool                        `json:"hasMore"`
+}
+
+// FuturesFundingHistoryResponse represents funding history response for futures account.
+type FuturesFundingHistoryResponse struct {
+	DataList []FuturesFundingHistory `json:"dataList"`
+	HasMore  bool                    `json:"hasMore"`
 }

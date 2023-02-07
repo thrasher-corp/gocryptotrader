@@ -2,7 +2,7 @@ package kucoin
 
 import (
 	"encoding/json"
-	"reflect"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -88,15 +88,17 @@ func (k *kucoinAmbiguousFloat) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	val := reflect.ValueOf(newVal)
-	if val.Kind() == reflect.Float64 {
-		*k = kucoinAmbiguousFloat(val.Float())
-	} else if val.Kind() == reflect.String {
-		value, err := strconv.ParseFloat(newVal.(string), 64)
+	switch payload := newVal.(type) {
+	case float64:
+		*k = kucoinAmbiguousFloat(payload)
+	case string:
+		value, err := strconv.ParseFloat(payload, 64)
 		if err != nil {
 			return err
 		}
 		*k = kucoinAmbiguousFloat(value)
+	default:
+		return fmt.Errorf("unhandled type %T", newVal)
 	}
 	return nil
 }

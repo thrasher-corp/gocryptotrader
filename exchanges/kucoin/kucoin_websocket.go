@@ -134,10 +134,9 @@ func (ku *Kucoin) WsConnect() error {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
-		instances, err = ku.GetAuthenticatedInstanceServers(context.Background())
+		instances, _ = ku.GetAuthenticatedInstanceServers(context.Background())
 	}
-	if instances == nil || err != nil {
-		println("Going for the public")
+	if instances == nil {
 		instances, err = ku.GetInstanceServers(context.Background())
 		if err != nil {
 			return err
@@ -883,15 +882,15 @@ func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription
 
 // getChannelsAssetType returns the asset type to which the subscription channel belongs to
 // or returns an error otherwise.
-func (ku *Kucoin) getChannelsAssetType(channelName string) asset.Item {
+func (ku *Kucoin) getChannelsAssetType(channelName string) (asset.Item, error) {
 	switch channelName {
 	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
-		return asset.Futures
+		return asset.Futures, nil
 	case marketTickerChannel, marketAllTickersChannel, marketTickerSnapshotChannel, marketTickerSnapshotForCurrencyChannel, marketOrderbookLevel2Channels, marketOrderbookLevel2to5Channel, marketOrderbokLevel2To50Channel, marketCandlesChannel, marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel, marginFundingbookChangeChannel, privateChannel, accountBalanceChannel, marginPositionChannel, marginLoanChannel,
 		spotMarketAdvancedChannel:
-		return asset.Spot
+		return asset.Spot, nil
 	default:
-		return asset.Empty
+		return asset.Empty, errors.New("channel not supported")
 	}
 }
 
@@ -953,16 +952,14 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		case marginLoanChannel:
 			currencyExist := map[currency.Code]bool{}
 			for b := range spotPairs {
-				okay := currencyExist[spotPairs[b].Base]
-				if !okay {
+				if !currencyExist[spotPairs[b].Base] {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
 						Channel:  channels[x],
 						Currency: currency.Pair{Base: spotPairs[b].Base},
 					})
 					currencyExist[spotPairs[b].Base] = true
 				}
-				okay = currencyExist[spotPairs[b].Quote]
-				if !okay {
+				if !currencyExist[spotPairs[b].Quote] {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
 						Channel:  channels[x],
 						Currency: currency.Pair{Base: spotPairs[b].Quote},
@@ -1014,7 +1011,12 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 	payloads := make([]WsSubscriptionInput, len(subscriptions))
 	for x := range subscriptions {
 		var err error
-		subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, ku.getChannelsAssetType(subscriptions[x].Channel))
+		var a asset.Item
+		a, err = ku.getChannelsAssetType(subscriptions[x].Channel)
+		if err != nil {
+			return nil, err
+		}
+		subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, a)
 		if err != nil {
 			return nil, err
 		}

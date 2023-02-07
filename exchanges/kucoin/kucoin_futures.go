@@ -102,7 +102,7 @@ func (ku *Kucoin) GetFuturesOrderbook(ctx context.Context, symbol string) (*Orde
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var o futuresOrderbookResponse
-	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresRetriveFullOrderbookLevel2EPL, common.EncodeURLValues(kucoinFuturesFullOrderbook, params), &o)
+	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresRetrieveFullOrderbookLevel2EPL, common.EncodeURLValues(kucoinFuturesFullOrderbook, params), &o)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (ku *Kucoin) GetFuturesTradeHistory(ctx context.Context, symbol string) ([]
 }
 
 // GetFuturesInterestRate get interest rate
-func (ku *Kucoin) GetFuturesInterestRate(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) ([]FuturesInterestRate, error) {
+func (ku *Kucoin) GetFuturesInterestRate(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) (*FundingInterestRateResponse, error) {
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
 	}
@@ -172,15 +172,12 @@ func (ku *Kucoin) GetFuturesInterestRate(ctx context.Context, symbol string, sta
 	if maxCount != 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
-	resp := struct {
-		List    []FuturesInterestRate `json:"dataList"`
-		HasMore bool                  `json:"hasMore"`
-	}{}
-	return resp.List, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesInterestRate, params), &resp)
+	var resp *FundingInterestRateResponse
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesInterestRate, params), &resp)
 }
 
 // GetFuturesIndexList retrieves futures index information for a symbol
-func (ku *Kucoin) GetFuturesIndexList(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) ([]FuturesIndex, error) {
+func (ku *Kucoin) GetFuturesIndexList(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) (*FuturesIndexResponse, error) {
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
 	}
@@ -200,11 +197,8 @@ func (ku *Kucoin) GetFuturesIndexList(ctx context.Context, symbol string, startA
 	if maxCount != 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
-	resp := struct {
-		List    []FuturesIndex `json:"dataList"`
-		HasMore bool           `json:"hasMore"`
-	}{}
-	return resp.List, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesIndex, params), &resp)
+	var resp *FuturesIndexResponse
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesIndex, params), &resp)
 }
 
 // GetFuturesCurrentMarkPrice get current mark price
@@ -217,7 +211,7 @@ func (ku *Kucoin) GetFuturesCurrentMarkPrice(ctx context.Context, symbol string)
 }
 
 // GetFuturesPremiumIndex get premium index
-func (ku *Kucoin) GetFuturesPremiumIndex(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) ([]FuturesInterestRate, error) {
+func (ku *Kucoin) GetFuturesPremiumIndex(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, offset, maxCount int64) (*FuturesInterestRateResponse, error) {
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
 	}
@@ -237,11 +231,8 @@ func (ku *Kucoin) GetFuturesPremiumIndex(ctx context.Context, symbol string, sta
 	if maxCount != 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
-	resp := struct {
-		List    []FuturesInterestRate `json:"dataList"`
-		HasMore bool                  `json:"hasMore"`
-	}{}
-	return resp.List, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesPremiumIndex, params), &resp)
+	var resp *FuturesInterestRateResponse
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesPremiumIndex, params), &resp)
 }
 
 // GetFuturesCurrentFundingRate get current funding rate
@@ -293,8 +284,7 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity, symbol strin
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
-	var resp [][]float64
-
+	var resp [][6]float64
 	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesKline, params), &resp)
 	if err != nil {
 		return nil, err
@@ -446,7 +436,7 @@ func (ku *Kucoin) GetFuturesOrders(ctx context.Context, status, symbol, side, or
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *FutureOrdersResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetriveOrderListEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesOrder, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetrieveOrderListEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesOrder, params), nil, &resp)
 }
 
 // GetUntriggeredFuturesStopOrders gets the untriggered stop orders list
@@ -516,7 +506,7 @@ func (ku *Kucoin) GetFuturesFills(ctx context.Context, orderID, symbol, side, or
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *FutureFillsResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetriveFillsEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesFills, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetrieveFillsEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesFills, params), nil, &resp)
 }
 
 // GetFuturesRecentFills gets list of 1000 recent fills in the last 24 hrs
@@ -550,7 +540,7 @@ func (ku *Kucoin) GetFuturesPosition(ctx context.Context, symbol string) (*Futur
 // GetFuturesPositionList gets the list of position with details
 func (ku *Kucoin) GetFuturesPositionList(ctx context.Context) ([]FuturesPosition, error) {
 	var resp []FuturesPosition
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetrivePositionListEPL, http.MethodGet, kucoinFuturesPositionList, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetrievePositionListEPL, http.MethodGet, kucoinFuturesPositionList, nil, &resp)
 }
 
 // SetAutoDepositMargin enable/disable of auto-deposit margin
@@ -603,7 +593,7 @@ func (ku *Kucoin) UpdateRiskLmitLevel(ctx context.Context, symbol string, level 
 }
 
 // GetFuturesFundingHistory gets information about funding history
-func (ku *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, offset, maxCount int64, reverse, forward bool, startAt, endAt time.Time) ([]FuturesFundingHistory, error) {
+func (ku *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, offset, maxCount int64, reverse, forward bool, startAt, endAt time.Time) (*FuturesFundingHistoryResponse, error) {
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
 	}
@@ -623,11 +613,8 @@ func (ku *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, o
 	if maxCount != 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
-	resp := struct {
-		DataList []FuturesFundingHistory `json:"dataList"`
-		HasMore  bool                    `json:"hasMore"`
-	}{}
-	return resp.DataList, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetriveFundingHistoryEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesFundingHistory, params), nil, &resp)
+	var resp *FuturesFundingHistoryResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetrieveFundingHistoryEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesFundingHistory, params), nil, &resp)
 }
 
 // GetFuturesAccountOverview gets future account overview
@@ -637,11 +624,11 @@ func (ku *Kucoin) GetFuturesAccountOverview(ctx context.Context, currency string
 		params.Set("currency", currency)
 	}
 	resp := FuturesAccount{}
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetriveAccountOverviewEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesAccountOverview, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetrieveAccountOverviewEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesAccountOverview, params), nil, &resp)
 }
 
 // GetFuturesTransactionHistory gets future transaction history
-func (ku *Kucoin) GetFuturesTransactionHistory(ctx context.Context, currency, txType string, offset, maxCount int64, forward bool, startAt, endAt time.Time) ([]FuturesTransactionHistory, error) {
+func (ku *Kucoin) GetFuturesTransactionHistory(ctx context.Context, currency, txType string, offset, maxCount int64, forward bool, startAt, endAt time.Time) (*FuturesTransactionHistoryResponse, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -662,11 +649,8 @@ func (ku *Kucoin) GetFuturesTransactionHistory(ctx context.Context, currency, tx
 	if maxCount != 0 {
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
-	resp := struct {
-		List    []FuturesTransactionHistory `json:"dataList"`
-		HasMore bool                        `json:"hasMore"`
-	}{}
-	return resp.List, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetriveTransactionHistoryEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesTransactionHistory, params), nil, &resp)
+	var resp *FuturesTransactionHistoryResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresRetrieveTransactionHistoryEPL, http.MethodGet, common.EncodeURLValues(kucoinFuturesTransactionHistory, params), nil, &resp)
 }
 
 // CreateFuturesSubAccountAPIKey is used to create Futures APIs for sub-accounts

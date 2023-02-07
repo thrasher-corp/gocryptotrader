@@ -88,7 +88,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetTicker(context.Background(), "OXEN-USDT")
+	_, err := ku.GetTicker(context.Background(), "BTC-USDT")
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
@@ -96,7 +96,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetAllTickers(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetAllTickers(context.Background())
+	_, err := ku.GetTickers(context.Background())
 	if err != nil {
 		t.Error("GetAllTickers() error", err)
 	}
@@ -288,7 +288,6 @@ func TestGetRepaidRecord(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	ku.Verbose = true
 	_, err := ku.GetRepaidRecord(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetRepaidRecord() error", err)
@@ -513,7 +512,7 @@ func TestInitiateIsolateMarginBorrowing(t *testing.T) {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
-	_, err := ku.InitiateIsolateMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
+	_, err := ku.InitiateIsolatedMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
 	if err != nil {
 		t.Error("InitiateIsolateMarginBorrowing() error", err)
 	}
@@ -702,7 +701,7 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
+	_, err := ku.ListOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetOrders() error", err)
 	}
@@ -776,7 +775,7 @@ func TestPostStopOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-	_, err := ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "10000", "11000", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
+	_, err := ku.PostStopOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "entry", "CO", "TRADE", "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	if err != nil {
 		t.Error("PostStopOrder() error", err)
 	}
@@ -800,7 +799,7 @@ func TestCancelAllStopOrder(t *testing.T) {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 
-	_, err := ku.CancelAllStopOrder(context.Background(), "", "", "")
+	_, err := ku.CancelStopOrders(context.Background(), "", "", "")
 	if err != nil {
 		t.Error("CancelAllStopOrder() error", err)
 	}
@@ -824,7 +823,7 @@ func TestGetAllStopOrder(t *testing.T) {
 		t.Skip(credentialsNotSet)
 	}
 
-	_, err := ku.GetAllStopOrder(context.Background(), "", "", "", "", "", time.Time{}, time.Time{}, 0, 0)
+	_, err := ku.ListStopOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error("GetAllStopOrder() error", err)
 	}
@@ -1471,7 +1470,6 @@ func TestGetFuturesFundingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	ku.Verbose = true
 	_, err := ku.GetFuturesFundingHistory(context.Background(), "XBTUSDM", 0, 0, true, true, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesFundingHistory() error", err)
@@ -1724,8 +1722,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 5)
-	endTime := time.Now().Add(-time.Hour * 2)
+	startTime := time.Now().Add(-time.Hour * 4)
+	endTime := time.Now().Add(-time.Hour * 1)
 	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
@@ -2132,7 +2130,6 @@ var (
 
 func TestPublicFuturesExecutionData(t *testing.T) {
 	t.Parallel()
-	ku.Verbose = true
 	if err := ku.wsHandleData([]byte(publicFuturesExecutionDataJSON)); err != nil {
 		t.Error(err)
 	}
@@ -2488,5 +2485,16 @@ func setupWS() {
 	err := ku.WsConnect()
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func TestGetFundingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	_, err := ku.GetFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -259,6 +259,9 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		}
 		pairs := make(currency.Pairs, len(myPairs))
 		for x := range myPairs {
+			if !myPairs[x].EnableTrading {
+				continue
+			}
 			pairs[x], err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
 			if err != nil {
 				return nil, err
@@ -279,6 +282,7 @@ func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 		if err != nil {
 			return err
 		}
+		pairs = pairs.RemovePairsByFilter(currency.EMPTYCODE)
 		err = ku.UpdatePairs(pairs, assets[a], false, forceUpdate)
 		if err != nil {
 			return err
@@ -329,25 +333,26 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		}
 		return nil
 	case asset.Spot, asset.Margin:
-		ticks, err := ku.GetAllTickers(ctx)
+		ticks, err := ku.GetTickers(ctx)
 		if err != nil {
 			return err
 		}
-		for t := range ticks {
-			pair, err := currency.NewPairFromString(ticks[t].Symbol)
+		for t := range ticks.Tickers {
+			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
 			if err != nil {
 				return err
 			}
 			tick := &ticker.Price{
-				Last:         ticks[t].Last,
-				High:         ticks[t].High,
-				Low:          ticks[t].Low,
-				Volume:       ticks[t].Volume,
-				Ask:          ticks[t].Buy,
-				Bid:          ticks[t].Sell,
+				Last:         ticks.Tickers[t].Last,
+				High:         ticks.Tickers[t].High,
+				Low:          ticks.Tickers[t].Low,
+				Volume:       ticks.Tickers[t].Volume,
+				Ask:          ticks.Tickers[t].Buy,
+				Bid:          ticks.Tickers[t].Sell,
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
+				LastUpdated:  ticks.Time.Time(),
 			}
 			err = ticker.ProcessTicker(tick)
 			if err != nil {
@@ -406,8 +411,7 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 	case asset.Futures:
 		ordBook, err = ku.GetFuturesOrderbook(ctx, pair.String())
 	case asset.Spot, asset.Margin:
-		_, err = ku.GetCredentials(ctx)
-		if err != nil {
+		if ku.IsRESTAuthenticationSupported() {
 			ordBook, err = ku.GetPartOrderbook100(ctx, pair.String())
 		} else {
 			ordBook, err = ku.GetOrderbook(ctx, pair.String())
@@ -954,7 +958,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		}
 		for x := range futuresOrders.Items {
 			if !futuresOrders.Items[x].IsActive {
-				return nil, err
+				continue
 			}
 			dPair, err := currency.NewPairFromString(futuresOrders.Items[x].Symbol)
 			if err != nil {
@@ -1000,7 +1004,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		if len(getOrdersRequest.Pairs) == 1 {
 			pair = format.Format(getOrdersRequest.Pairs[0])
 		}
-		spotOrders, err := ku.GetOrders(ctx, "active", pair, getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+		spotOrders, err := ku.ListOrders(ctx, "active", pair, getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1127,14 +1131,13 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		var responseOrders *OrdersListResponse
 		var newOrders *OrdersListResponse
 		if len(getOrdersRequest.Pairs) == 0 {
-			responseOrders, err = ku.GetOrders(ctx, "", "", getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+			responseOrders, err = ku.ListOrders(ctx, "", "", getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			for x := range getOrdersRequest.Pairs {
-				getOrdersRequest.Pairs[x].Delimiter = currency.DashDelimiter
-				newOrders, err = ku.GetOrders(ctx, "", getOrdersRequest.Pairs[x].String(), getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+				newOrders, err = ku.ListOrders(ctx, "", getOrdersRequest.Pairs[x].String(), getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 				if err != nil {
 					return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())
 				}
@@ -1156,7 +1159,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 			if err != nil {
 				return nil, err
 			}
-			pair.Delimiter = currency.DashDelimiter
 			var oType order.Type
 			oType, err = order.StringToOrderType(responseOrders.Items[i].Type)
 			if err != nil {
@@ -1184,7 +1186,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
 	}
-	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
 	return getOrdersRequest.Filter(ku.Name, orders), nil
 }
 
@@ -1239,31 +1240,21 @@ func (ku *Kucoin) ValidateCredentials(ctx context.Context, assetType asset.Item)
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	err := ku.ValidateKline(pair, a, interval)
+	req, err := ku.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
-	pair, err = ku.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return nil, err
-	}
-	ret := &kline.Item{
-		Exchange: ku.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
+	var timeseries []kline.Candle
 	switch a {
 	case asset.Futures:
 		var candles []FuturesKline
-		pair.Delimiter = ""
-		candles, err := ku.GetFuturesKline(ctx, "30", pair.String(), start, end)
+		candles, err := ku.GetFuturesKline(ctx, "30", req.RequestFormatted.String(), start, end)
 		if err != nil {
 			return nil, err
 		}
 		for x := range candles {
-			ret.Candles = append(
-				ret.Candles, kline.Candle{
+			timeseries = append(
+				timeseries, kline.Candle{
 					Time:   candles[x].StartTime,
 					Open:   candles[x].Open,
 					High:   candles[x].High,
@@ -1272,21 +1263,19 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 					Volume: candles[x].Volume,
 				})
 		}
-		ret.SortCandlesByTimestamp(false)
 	case asset.Spot:
 		intervalString, err := ku.intervalToString(interval)
 		if err != nil {
 			return nil, err
 		}
 		var candles []Kline
-		pair.Delimiter = currency.DashDelimiter
-		candles, err = ku.GetKlines(ctx, pair.String(), intervalString, start, end)
+		candles, err = ku.GetKlines(ctx, req.RequestFormatted.String(), intervalString, start, end)
 		if err != nil {
-			return ret, err
+			return nil, err
 		}
 		for x := range candles {
-			ret.Candles = append(
-				ret.Candles, kline.Candle{
+			timeseries = append(
+				timeseries, kline.Candle{
 					Time:   candles[x].StartTime,
 					Open:   candles[x].Open,
 					High:   candles[x].High,
@@ -1295,38 +1284,28 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 					Volume: candles[x].Volume,
 				})
 		}
-		ret.SortCandlesByTimestamp(false)
 	}
-	return ret, nil
+	return req.ProcessResponse(timeseries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	if err := ku.ValidateKline(pair, a, interval); err != nil {
-		return nil, err
-	}
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, ku.Features.Enabled.Kline.ResultLimit)
+	req, err := ku.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
-	ret := &kline.Item{
-		Exchange: ku.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-	for x := range dates.Ranges {
+	var timeSeries []kline.Candle
+	for x := range req.RangeHolder.Ranges {
 		switch a {
 		case asset.Futures:
 			var candles []FuturesKline
-			pair.Delimiter = ""
-			candles, err = ku.GetFuturesKline(ctx, "720", pair.String(), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			candles, err = ku.GetFuturesKline(ctx, "720", req.RequestFormatted.String(), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
 			for x := range candles {
-				ret.Candles = append(
-					ret.Candles, kline.Candle{
+				timeSeries = append(
+					timeSeries, kline.Candle{
 						Time:   candles[x].StartTime,
 						Open:   candles[x].Open,
 						High:   candles[x].High,
@@ -1335,22 +1314,20 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 						Volume: candles[x].Volume,
 					})
 			}
-			ret.SortCandlesByTimestamp(false)
 		case asset.Spot:
 			var intervalString string
 			intervalString, err = ku.intervalToString(interval)
 			if err != nil {
-				return ret, err
+				return nil, err
 			}
 			var candles []Kline
-			pair.Delimiter = currency.DashDelimiter
-			candles, err = ku.GetKlines(ctx, pair.String(), intervalString, dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			candles, err = ku.GetKlines(ctx, req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
-				return ret, err
+				return nil, err
 			}
 			for x := range candles {
-				ret.Candles = append(
-					ret.Candles, kline.Candle{
+				timeSeries = append(
+					timeSeries, kline.Candle{
 						Time:   candles[x].StartTime,
 						Open:   candles[x].Open,
 						High:   candles[x].High,
@@ -1359,20 +1336,17 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 						Volume: candles[x].Volume,
 					})
 			}
-			ret.SortCandlesByTimestamp(false)
 		}
 	}
-	err = dates.SetHasDataFromCandles(ret.Candles)
+	err = req.RangeHolder.SetHasDataFromCandles(timeSeries)
 	if err != nil {
 		return nil, err
 	}
-	summary := dates.DataSummary(false)
+	summary := req.RangeHolder.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", ku.Name, summary)
 	}
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.
