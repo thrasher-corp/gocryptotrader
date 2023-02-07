@@ -206,13 +206,20 @@ func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *A
 func (m *Manager) sendJob(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, item subsystem.SynchronizationType) {
 	switch item {
 	case subsystem.Orderbook:
-		m.orderbookJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
+		select {
+		case m.orderbookJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}:
+		default:
+			log.Error(log.SyncMgr, "Jobs channel is at max capacity for orderbooks, data integrity cannot be trusted.")
+		}
 	case subsystem.Ticker:
-		m.tickerJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
+		select {
+		case m.tickerJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}:
+		default:
+			log.Error(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
+		}
 	case subsystem.Trade:
-		m.tradeJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
-	default:
-		log.Error(log.SyncMgr, "Jobs channel is at max capacity, data integrity cannot be trusted.")
+		// TODO: add support for trade synchronisation
+		// m.tradeJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
 	}
 }
 
