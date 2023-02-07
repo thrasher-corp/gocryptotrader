@@ -25,7 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronize"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronise"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -167,13 +167,13 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			DisableError: subsystem.ErrNotStarted,
 		},
 		{
-			Subsystem: synchronize.ManagerName,
+			Subsystem: synchronise.ManagerName,
 			Engine: &Engine{Config: &config.Config{
 				Currency: currency.Config{
 					CurrencyPairFormat: &currency.PairFormat{},
 				},
 			}},
-			EnableError:  synchronize.ErrNoItemsEnabled,
+			EnableError:  synchronise.ErrNoItemsEnabled,
 			DisableError: subsystem.ErrNil,
 		},
 		{

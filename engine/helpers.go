@@ -25,7 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronize"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronise"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -54,7 +54,7 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 		PortfolioManagerName:          bot.portfolioManager.IsRunning(),
 		NTPManagerName:                bot.ntpManager.IsRunning(),
 		DatabaseConnectionManagerName: bot.DatabaseManager.IsRunning(),
-		synchronize.ManagerName:       bot.Settings.EnableExchangeSyncManager,
+		synchronise.ManagerName:       bot.Settings.EnableExchangeSyncManager,
 		grpcName:                      bot.Settings.EnableGRPC,
 		grpcProxyName:                 bot.Settings.EnableGRPCProxy,
 		vm.Name:                       bot.gctScriptManager.IsRunning(),
@@ -184,10 +184,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.DatabaseManager.Start(&bot.ServicesWG)
 		}
 		return bot.DatabaseManager.Stop()
-	case synchronize.ManagerName:
+	case synchronise.ManagerName:
 		if enable {
 			if bot.currencyPairSyncer == nil {
-				bot.currencyPairSyncer, err = synchronize.NewManager(&synchronize.ManagerConfig{
+				bot.currencyPairSyncer, err = synchronise.NewManager(&synchronise.ManagerConfig{
 					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
 					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
 					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,

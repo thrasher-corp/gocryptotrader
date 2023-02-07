@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronize"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronise"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -35,7 +35,7 @@ type Engine struct {
 	apiServer               *apiServerManager
 	CommunicationsManager   *CommunicationManager
 	connectionManager       *connectionManager
-	currencyPairSyncer      *synchronize.Manager
+	currencyPairSyncer      *synchronise.Manager
 	DatabaseManager         *DatabaseConnectionManager
 	DepositAddressManager   *DepositAddressManager
 	eventManager            *eventManager
@@ -544,7 +544,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		bot.currencyPairSyncer, err = synchronize.NewManager(&synchronize.ManagerConfig{
+		bot.currencyPairSyncer, err = synchronise.NewManager(&synchronise.ManagerConfig{
 			SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
 			SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
 			SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
