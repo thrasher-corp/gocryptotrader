@@ -187,8 +187,6 @@ func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *A
 // sendJob sets agent base as processing for that ticker item then sends the
 // REST sync job to the jobs channel for processing.
 func (m *Manager) sendJob(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, item subsystem.SynchronizationType) {
-	// NOTE: This is blocking, if there are no receivers and the buffer size is
-	// full then this will hang the controller.
 	switch item {
 	case subsystem.Orderbook:
 		m.orderbookJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
@@ -196,6 +194,8 @@ func (m *Manager) sendJob(exch exchange.IBotExchange, pair currency.Pair, a asse
 		m.tickerJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
 	case subsystem.Trade:
 		m.tradeJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
+	default:
+		log.Error(log.SyncMgr, "Jobs channel is at max capacity, data integrity cannot be trusted.")
 	}
 }
 
