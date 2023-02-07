@@ -556,7 +556,7 @@ func (bot *Engine) Start() error {
 			FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
 			PairFormatDisplay:       *bot.Config.Currency.CurrencyPairFormat,
 			ExchangeManager:         bot.ExchangeManager,
-			RemoteConfig:            &bot.Config.RemoteControl,
+			WebsocketRPCEnabled:     bot.Config.RemoteControl.WebsocketRPC.Enabled,
 			APIServerManager:        bot.apiServer,
 		})
 		if err != nil {

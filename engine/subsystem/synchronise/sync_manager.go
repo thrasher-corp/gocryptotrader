@@ -33,11 +33,6 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		return nil, subsystem.ErrNilExchangeManager
 	}
 
-	// TODO: Remove this remote config only one bool is used.
-	if c.RemoteConfig == nil {
-		return nil, fmt.Errorf("remote control: %w", subsystem.ErrNilConfig)
-	}
-
 	if c.NumWorkers <= 0 {
 		c.NumWorkers = DefaultWorkers
 	}
@@ -281,7 +276,7 @@ func (m *Manager) orderbookWorker(ctx context.Context) {
 		var result *orderbook.Base
 		result, err = j.exch.UpdateOrderbook(ctx, j.Pair, j.Asset)
 		m.PrintOrderbookSummary(result, subsystem.Rest, err)
-		if err == nil && m.RemoteConfig.WebsocketRPC.Enabled {
+		if err == nil && m.WebsocketRPCEnabled {
 			m.relayWebsocketEvent(result, "orderbook_update", j.Asset.String(), exchName)
 		}
 		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, j.Item, err)
@@ -337,7 +332,7 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 			result, err = j.exch.UpdateTicker(ctx, j.Pair, j.Asset)
 		}
 		m.PrintTickerSummary(result, subsystem.Rest, err)
-		if err == nil && m.RemoteConfig.WebsocketRPC.Enabled {
+		if err == nil && m.WebsocketRPCEnabled {
 			m.relayWebsocketEvent(result, "ticker_update", j.Asset.String(), exchName)
 		}
 		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, j.Item, err)

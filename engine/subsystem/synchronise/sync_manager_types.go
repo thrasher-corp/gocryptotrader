@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -74,7 +73,7 @@ type ManagerConfig struct {
 	PairFormatDisplay       currency.PairFormat
 	Verbose                 bool
 	ExchangeManager         subsystem.ExchangeManager
-	RemoteConfig            *config.RemoteControlConfig
+	WebsocketRPCEnabled     bool
 	APIServerManager        subsystem.APIServer
 }
 

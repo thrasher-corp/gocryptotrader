@@ -199,7 +199,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					Verbose:                 bot.Settings.Verbose,
 					PairFormatDisplay:       *bot.Config.Currency.CurrencyPairFormat,
 					ExchangeManager:         bot.ExchangeManager,
-					RemoteConfig:            &bot.Config.RemoteControl,
+					WebsocketRPCEnabled:     bot.Config.RemoteControl.WebsocketRPC.Enabled,
 					APIServerManager:        bot.apiServer,
 				})
 				if err != nil {

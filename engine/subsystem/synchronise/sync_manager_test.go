@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -96,12 +95,6 @@ func TestNewManager(t *testing.T) {
 
 	cfg.ExchangeManager = &TestExchangeManager{}
 	_, err = NewManager(cfg)
-	if !errors.Is(err, subsystem.ErrNilConfig) {
-		t.Fatalf("error '%v', expected '%v'", err, subsystem.ErrNilConfig)
-	}
-
-	cfg.RemoteConfig = &config.RemoteControlConfig{}
-	_, err = NewManager(cfg)
 	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
 		t.Fatalf("error '%v', expected '%v'", err, currency.ErrCurrencyCodeEmpty)
 	}
@@ -147,7 +140,7 @@ func TestManagerStart(t *testing.T) {
 		FiatDisplayCurrency: currency.USD,
 		PairFormatDisplay:   currency.EMPTYFORMAT,
 		ExchangeManager:     &TestExchangeManager{},
-		RemoteConfig:        &config.RemoteControlConfig{},
+		WebsocketRPCEnabled: true,
 	}
 
 	var m *Manager
@@ -185,7 +178,7 @@ func TestSyncManagerStop(t *testing.T) {
 		FiatDisplayCurrency: currency.USD,
 		PairFormatDisplay:   currency.EMPTYFORMAT,
 		ExchangeManager:     &TestExchangeManager{},
-		RemoteConfig:        &config.RemoteControlConfig{},
+		WebsocketRPCEnabled: true,
 	}
 
 	m, err = NewManager(cfg)
@@ -334,7 +327,7 @@ func TestCheckAllExchangeAssets(t *testing.T) {
 		FiatDisplayCurrency: currency.USD,
 		PairFormatDisplay:   currency.EMPTYFORMAT,
 		ExchangeManager:     &TestExchangeManager{Error: true},
-		RemoteConfig:        &config.RemoteControlConfig{},
+		WebsocketRPCEnabled: true,
 		TimeoutREST:         time.Second,
 		TimeoutWebsocket:    time.Second * 2,
 	}
@@ -381,7 +374,7 @@ func TestGetSmallestTimeout(t *testing.T) {
 		FiatDisplayCurrency: currency.USD,
 		PairFormatDisplay:   currency.EMPTYFORMAT,
 		ExchangeManager:     &TestExchangeManager{Error: true},
-		RemoteConfig:        &config.RemoteControlConfig{},
+		WebsocketRPCEnabled: true,
 		TimeoutREST:         time.Second,
 		TimeoutWebsocket:    time.Second * 2,
 	}
@@ -416,7 +409,7 @@ func TestCheckSyncItems(t *testing.T) {
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
 		ExchangeManager:      &TestExchangeManager{Error: true},
-		RemoteConfig:         &config.RemoteControlConfig{},
+		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
 	}
@@ -468,7 +461,7 @@ func TestPrintTickerSummary(t *testing.T) {
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
 		ExchangeManager:      &TestExchangeManager{Error: true},
-		RemoteConfig:         &config.RemoteControlConfig{},
+		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
 	}
@@ -502,7 +495,7 @@ func TestPrintOrderbookSummary(t *testing.T) {
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
 		ExchangeManager:      &TestExchangeManager{Error: true},
-		RemoteConfig:         &config.RemoteControlConfig{},
+		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
 	}
@@ -535,7 +528,7 @@ func TestRelayWebsocketEvent(t *testing.T) {
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
 		ExchangeManager:      &TestExchangeManager{Error: true},
-		RemoteConfig:         &config.RemoteControlConfig{},
+		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
 	}
