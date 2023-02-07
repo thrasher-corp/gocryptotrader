@@ -69,7 +69,6 @@ func (d *Deribit) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:        true,
 				TickerFetching:        true,
 				KlineFetching:         true,
 				TradeFetching:         true,
@@ -103,6 +102,7 @@ func (d *Deribit) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
+					kline.HundredMilliSec,
 					kline.OneMin,
 					kline.ThreeMin,
 					kline.FiveMin,
@@ -1032,23 +1032,15 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if err != nil {
 		return nil, err
 	}
-	err = d.ValidateKline(pair, a, interval)
-	if err != nil {
-		return nil, err
-	}
-	fmtPair, err := d.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return nil, err
-	}
 	intervalString, err := d.GetResolutionFromInterval(interval)
 	if err != nil {
 		return nil, err
 	}
 	var tradingViewData *TVChartData
 	if d.Websocket.IsConnected() {
-		tradingViewData, err = d.WSRetrivesTradingViewChartData(fmtPair.String(), intervalString, start, end)
+		tradingViewData, err = d.WSRetrivesTradingViewChartData(req.RequestFormatted.String(), intervalString, start, end)
 	} else {
-		tradingViewData, err = d.GetTradingViewChartData(ctx, fmtPair.String(), intervalString, start, end)
+		tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, start, end)
 	}
 	if err != nil {
 		return nil, err
@@ -1059,7 +1051,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		len(tradingViewData.Low) != checkLen ||
 		len(tradingViewData.Close) != checkLen ||
 		len(tradingViewData.Volume) != checkLen {
-		return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, fmtPair)
+		return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
 	}
 	listCandles := make([]kline.Candle, len(tradingViewData.Ticks))
 	for x := range tradingViewData.Ticks {
@@ -1081,30 +1073,17 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	if err != nil {
 		return nil, err
 	}
-	err = d.ValidateKline(pair, a, interval)
-	if err != nil {
-		return nil, err
-	}
-	fmtPair, err := d.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return nil, err
-	}
-	req.Pair = fmtPair
-	dates, err := kline.CalculateCandleDateRanges(start, end, interval, d.Features.Enabled.Kline.ResultLimit)
-	if err != nil {
-		return nil, err
-	}
 	var tradingViewData *TVChartData
-	timeSeries := []kline.Candle{}
-	for x := range dates.Ranges {
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.RangeHolder.Ranges {
 		intervalString, err := d.GetResolutionFromInterval(interval)
 		if err != nil {
 			return nil, err
 		}
 		if d.Websocket.IsConnected() {
-			tradingViewData, err = d.WSRetrivesTradingViewChartData(fmtPair.String(), intervalString, dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			tradingViewData, err = d.WSRetrivesTradingViewChartData(req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 		} else {
-			tradingViewData, err = d.GetTradingViewChartData(ctx, fmtPair.String(), intervalString, dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 		}
 		if err != nil {
 			return nil, err
@@ -1115,7 +1094,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			len(tradingViewData.Low) != checkLen ||
 			len(tradingViewData.Close) != checkLen ||
 			len(tradingViewData.Volume) != checkLen {
-			return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, pair)
+			return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
 		}
 		for x := range tradingViewData.Ticks {
 			timeSeries = append(timeSeries, kline.Candle{
