@@ -141,7 +141,9 @@ func (ok *Okx) SetDefaults() {
 					kline.SixHour,
 					kline.TwelveHour,
 					kline.OneDay,
+					kline.TwoDay,
 					kline.ThreeDay,
+					kline.FiveDay,
 					kline.OneWeek,
 					kline.OneMonth,
 					kline.ThreeMonth,
@@ -194,14 +196,15 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            okxAPIWebsocketPublicURL,
-		RunningURL:            wsRunningEndpoint,
-		Connector:             ok.WsConnect,
-		Subscriber:            ok.Subscribe,
-		Unsubscriber:          ok.Unsubscribe,
-		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             okxAPIWebsocketPublicURL,
+		RunningURL:             wsRunningEndpoint,
+		Connector:              ok.WsConnect,
+		Subscriber:             ok.Subscribe,
+		Unsubscriber:           ok.Unsubscribe,
+		GenerateSubscriptions:  ok.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &ok.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
@@ -668,7 +671,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	return resp, nil
 }
 
-// GetHistoricTrades retrives historic trade data within the timeframe provided
+// GetHistoricTrades retrieves historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampStart.Before(time.Now().Add(-kline.ThreeMonth.Duration())) {
 		return nil, errOnlyThreeMonthsSupported
@@ -1401,22 +1404,23 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 		return nil, err
 	}
 
-	if count := kline.TotalCandlesPerInterval(start, end, req.ExchangeInterval); count > 1440 {
+	count := kline.TotalCandlesPerInterval(req.Start, req.End, req.ExchangeInterval)
+	if count > 1440 {
 		return nil,
 			fmt.Errorf("candles count: %d max lookback: %d, %w",
 				count, 1440, kline.ErrRequestExceedsMaxLookback)
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for y := range req.Ranges {
+	for y := range req.RangeHolder.Ranges {
 		var candles []CandleStick
 		candles, err = ok.GetCandlesticksHistory(ctx,
 			req.RequestFormatted.Base.String()+
 				currency.DashDelimiter+
 				req.RequestFormatted.Quote.String(),
 			req.ExchangeInterval,
-			req.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
-			req.Ranges[y].End.Time,
+			req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
+			req.RangeHolder.Ranges[y].End.Time,
 			300)
 		if err != nil {
 			return nil, err

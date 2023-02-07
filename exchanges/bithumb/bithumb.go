@@ -224,7 +224,7 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 		return fullBalance, err
 	}
 
-	// Added due to increasing of the usuable currencies on exchange, usually
+	// Added due to increasing of the usable currencies on exchange, usually
 	// without notificatation, so we dont need to update structs later on
 	for tag, datum := range response.Data {
 		splitTag := strings.Split(tag, "_")

@@ -575,7 +575,7 @@ func TestIsRelatablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test relationl crypto pairs with with similar names
+	// Test relationl crypto pairs with similar names
 	result = IsRelatablePairs(xbtltc, btcltc, false)
 	if !result {
 		t.Fatal("Unexpected result")
@@ -979,7 +979,7 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 
 	_, err = GetExchangeLowestPriceByCurrencyPair(btcaud, asset.Spot)
 	if err == nil {
-		t.Error("Unexpected reuslt")
+		t.Error("Unexpected result")
 	}
 }
 

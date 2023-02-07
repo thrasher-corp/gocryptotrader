@@ -1097,7 +1097,7 @@ type LendingRate struct {
 	Rate     float64 `json:"rate,string"`
 }
 
-// LendingHistory holds lending hostory responses
+// LendingHistory holds lending history responses
 type LendingHistory struct {
 	Currency  string           `json:"ccy"`
 	Amount    float64          `json:"amt,string"`
@@ -1490,7 +1490,7 @@ type InterestAccruedData struct {
 	Currency     string           `json:"ccy"`
 	InstrumentID string           `json:"instId"`
 	Interest     string           `json:"interest"`
-	InterestRate string           `json:"interestRate"` // intereset rate in an hour.
+	InterestRate string           `json:"interestRate"` // Interest rate in an hour.
 	Liability    string           `json:"liab"`
 	MarginMode   string           `json:"mgnMode"` //  	Margin mode "cross" "isolated"
 	Timestamp    okxUnixMilliTime `json:"ts"`
@@ -1860,7 +1860,7 @@ type SubaccountInfo struct {
 	SubaccountLabel string           `json:"label"`
 	MobileNumber    string           `json:"mobile"`      // Mobile number that linked with the sub-account.
 	GoogleAuth      bool             `json:"gAuth"`       // If the sub-account switches on the Google Authenticator for login authentication.
-	CanTransferOut  bool             `json:"canTransOut"` // If can tranfer out, false: can not tranfer out, true: can transfer.
+	CanTransferOut  bool             `json:"canTransOut"` // If can transfer out, false: can not transfer out, true: can transfer.
 	Timestamp       okxUnixMilliTime `json:"ts"`
 }
 
@@ -2414,7 +2414,7 @@ func (a *WsOrderActionResponse) populateFromIncomingData(incoming *wsIncomingDat
 	return nil
 }
 
-// SubscriptionOperationInput represents the account channel input datas
+// SubscriptionOperationInput represents the account channel input data
 type SubscriptionOperationInput struct {
 	Operation string             `json:"op"`
 	Arguments []SubscriptionInfo `json:"args"`
@@ -2642,12 +2642,12 @@ type WsQuoteData struct {
 
 // WsStructureBlocTrade represents websocket push data for "struc-block-trades" subscription
 type WsStructureBlocTrade struct {
-	Argument SubscriptionInfo      `json:"arg"`
-	Data     []WsBlocTradeResponse `json:"data"`
+	Argument SubscriptionInfo       `json:"arg"`
+	Data     []WsBlockTradeResponse `json:"data"`
 }
 
-// WsBlocTradeResponse represents a structure bloc order information
-type WsBlocTradeResponse struct {
+// WsBlockTradeResponse represents a structure block order information
+type WsBlockTradeResponse struct {
 	CreationTime          okxUnixMilliTime `json:"cTime"`
 	RfqID                 string           `json:"rfqId"`
 	ClientSuppliedRfqID   string           `json:"clRfqId"`
@@ -2892,7 +2892,7 @@ type WsSystemStatusResponse struct {
 	Data     []SystemStatusResponse `json:"data"`
 }
 
-// WsPublicTradesResponse represents websocket push data of structured bloc trades as a result of subscription to "public-struc-block-trades"
+// WsPublicTradesResponse represents websocket push data of structured block trades as a result of subscription to "public-struc-block-trades"
 type WsPublicTradesResponse struct {
 	Argument SubscriptionInfo       `json:"arg"`
 	Data     []PublicTradesResponse `json:"data"`

@@ -1023,7 +1023,7 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 }
 
 // SetGlobalPairsManager sets defined asset and pairs management system with
-// with global formatting
+// global formatting
 func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
 	if request == nil {
 		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided",
@@ -1448,7 +1448,7 @@ func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*o
 }
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
-// standing in a singular currency. See FTX's implementation
+// standing in a singular currency
 func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
@@ -1459,7 +1459,7 @@ func (b *Base) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) 
 }
 
 // GetCurrencyForRealisedPNL returns where to put realised PNL
-// example 1: FTX PNL is paid out in USD to your spot wallet
+// example 1: Bybit universal margin PNL is paid out in USD to your spot wallet
 // example 2: Binance coin margined futures pays returns using the same currency eg BTC
 func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
@@ -1579,11 +1579,11 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 	if err != nil {
 		return nil, err
 	}
-
+	r.IsExtended = true
 	dates, err := r.GetRanges(b.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
 		return nil, err
 	}
 
-	return &kline.ExtendedRequest{Request: r, IntervalRangeHolder: dates}, nil
+	return &kline.ExtendedRequest{Request: r, RangeHolder: dates}, nil
 }

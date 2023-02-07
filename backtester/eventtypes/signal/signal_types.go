@@ -57,7 +57,7 @@ type Signal struct {
 	// if there is corresponding collateral in the selected currency
 	// this enabled cash and carry strategies for example
 	FillDependentEvent Event
-	// CollateralCurrency is an optional paramater
+	// CollateralCurrency is an optional parameter
 	// when using futures to limit the collateral available
 	// to a singular currency
 	// eg with $5000 usd and 1 BTC, specifying BTC ensures

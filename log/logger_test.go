@@ -347,8 +347,8 @@ func TestStageNewLogEvent(t *testing.T) {
 	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", false, false)
 
 	<-w.Finished
-	if contents := w.Read(); contents != "header space  space out\n" {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "header space  space out\n")
+	if contents := w.Read(); contents != "header space  space out\n" { //nolint:dupword // False positive
+		t.Errorf("received: '%v' but expected: '%v'", contents, "header space  space out\n") //nolint:dupword // False positive
 	}
 }
 
@@ -382,11 +382,11 @@ func TestInfo(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
-	Infoln(sl, "hello", "hello")
+	Infoln(sl, "hello", "goodbye")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, "hello hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
+	if !strings.Contains(contents, "hello goodbye") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, "hello goodbye")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTINFO", "")
@@ -439,11 +439,11 @@ func TestDebug(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
-	Debugln(sl, "hello", "hello")
+	Debugln(sl, ":sun_with_face:", ":angrysun:")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, "hello hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
+	if !strings.Contains(contents, ":sun_with_face: :angrysun:") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, ":sun_with_face: :angrysun:")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTDEBUG", "")
@@ -496,11 +496,11 @@ func TestWarn(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
-	Warnln(sl, "hello", "hello")
+	Warnln(sl, "hello", "world")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, "hello hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
+	if !strings.Contains(contents, "hello world") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, "hello world")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTWARN", "")
@@ -558,11 +558,11 @@ func TestError(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
-	Errorln(sl, "hello", "hello")
+	Errorln(sl, "hello", "goodbye")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, "hello hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "hello hello")
+	if !strings.Contains(contents, "hello goodbye") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, "hello goodbye")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTERROR", "")

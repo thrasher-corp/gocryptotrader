@@ -271,12 +271,12 @@ func (z *ZB) GetSpotKline(ctx context.Context, arg KlinesRequestParams) (KLineRe
 			return res, errors.New("unexpected kline data length")
 		}
 
-		ot, err := convert.TimeFromUnixTimestampFloat(resp.Data[x][0])
+		timestamp, err := convert.TimeFromUnixTimestampFloat(resp.Data[x][0])
 		if err != nil {
 			return res, err
 		}
 		res.Data = append(res.Data, &KLineResponseData{
-			KlineTime: ot,
+			KlineTime: timestamp,
 			Open:      resp.Data[x][1],
 			High:      resp.Data[x][2],
 			Low:       resp.Data[x][3],

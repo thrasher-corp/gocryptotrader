@@ -333,7 +333,7 @@ func (k *Item) GetRelativeStrengthIndexOnClose(period int64) ([]float64, error) 
 	return ohlc.GetRelativeStrengthIndex(ohlc.Close, period)
 }
 
-// GetRelativeStrengthIndex returns the relative strength index from the the
+// GetRelativeStrengthIndex returns the relative strength index from the
 // given price set and period.
 func (o *OHLC) GetRelativeStrengthIndex(option []float64, period int64) ([]float64, error) {
 	if o == nil {
@@ -344,7 +344,7 @@ func (o *OHLC) GetRelativeStrengthIndex(option []float64, period int64) ([]float
 	}
 	if len(option) <= 2 {
 		// TODO: Check why 2 data points causes panic.
-		return nil, fmt.Errorf("get relative strength index %w, requires atleast 3 data points", errNotEnoughData)
+		return nil, fmt.Errorf("get relative strength index %w, requires at least 3 data points", errNotEnoughData)
 	}
 	if int(period) > len(option) {
 		return nil, fmt.Errorf("get exponential moving average %w exceeds data length, please reduce",

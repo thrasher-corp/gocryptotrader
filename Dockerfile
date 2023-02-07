@@ -1,4 +1,4 @@
-FROM golang:1.19 as build
+FROM golang:1.20 as build
 WORKDIR /go/src/github.com/thrasher-corp/gocryptotrader
 COPY . .
 RUN GO111MODULE=on go mod vendor

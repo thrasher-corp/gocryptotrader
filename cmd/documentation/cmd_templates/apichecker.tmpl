@@ -39,7 +39,7 @@ go build && apichecker.exe
 + Upon addition of a new exchange, to update Trello checklist and to add the exchange to updates.json the following would need to be done:
 
 ###### HTML Scraping method:
-HTMLScrapingData is a struct which contains the necessary information to scrape data from the given path website. Not all the elements of HTMLScrapingData are necessary, its all dependant on site where information is being extracted from. Regexp is used to capture necessary bits of data using r.FindString() where r is the declared regular expression. If update dates data is available, DateFormat is used to convert the dates to a more standard format which can then be used for further comparisons of which update is most recent.
+HTMLScrapingData is a struct which contains the necessary information to scrape data from the given path website. Not all the elements of HTMLScrapingData are necessary, its all dependent on site where information is being extracted from. Regexp is used to capture necessary bits of data using r.FindString() where r is the declared regular expression. If update dates data is available, DateFormat is used to convert the dates to a more standard format which can then be used for further comparisons of which update is most recent.
 ```go
 func TestAdd(t *testing.T) {
 	t.Parallel()

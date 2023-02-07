@@ -370,7 +370,7 @@ func TestGetSupportCoins(t *testing.T) {
 
 func TestGetTakerVolume(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetTakerVolume(context.Background(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.FiveMin); err != nil {
+	if _, err := ok.GetTakerVolume(context.Background(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Error("Okx GetTakerVolume() error", err)
 	}
 }
@@ -383,7 +383,7 @@ func TestGetMarginLendingRatio(t *testing.T) {
 
 func TestGetLongShortRatio(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetLongShortRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.FiveMin); err != nil {
+	if _, err := ok.GetLongShortRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Error("Okx GetLongShortRatio() error", err)
 	}
 }
@@ -3191,5 +3191,32 @@ func TestGuessAssetTypeFromInstrumentID(t *testing.T) {
 		t.Error(err)
 	} else if a != asset.PerpetualSwap {
 		t.Error("unexpected result")
+	}
+}
+
+func TestGetIntervalEnum(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		Description string
+		Interval    kline.Interval
+		Expected    string
+		AppendUTC   bool
+	}{
+		{Description: "4hr with UTC", Interval: kline.FourHour, Expected: "4H", AppendUTC: true},
+		{Description: "6H without UTC", Interval: kline.SixHour, Expected: "6H"},
+		{Description: "6H with UTC", Interval: kline.SixHour, Expected: "6Hutc", AppendUTC: true},
+		{Description: "Unsupported interval with UTC", Expected: "", AppendUTC: true},
+	}
+
+	for x := range tests {
+		tt := tests[x]
+		t.Run(tt.Description, func(t *testing.T) {
+			t.Parallel()
+
+			if r := ok.GetIntervalEnum(tt.Interval, tt.AppendUTC); r != tt.Expected {
+				t.Errorf("%s: received: %s but expected: %s", tt.Description, r, tt.Expected)
+			}
+		})
 	}
 }

@@ -1308,8 +1308,8 @@ func TestGetOrders(t *testing.T) {
 		StartDate: time.Now().UTC().Add(time.Second).Format(common.SimpleTimeFormatWithTimezone),
 		EndDate:   time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
 	})
-	if !errors.Is(err, common.ErrStartAfterTimeNow) {
-		t.Errorf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Errorf("received %v, expected %v", err, common.ErrStartAfterEnd)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1804,8 +1804,8 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 		StartDate: time.Now().UTC().Add(time.Minute).Format(common.SimpleTimeFormatWithTimezone),
 		EndDate:   time.Now().UTC().Format(common.SimpleTimeFormatWithTimezone),
 	})
-	if !errors.Is(err, common.ErrStartAfterTimeNow) {
-		t.Fatalf("received %v, expected %v", err, common.ErrStartAfterTimeNow)
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Fatalf("received %v, expected %v", err, common.ErrStartAfterEnd)
 	}
 
 	err = m.UpsertJob(dhj, false)
@@ -2211,7 +2211,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2874,8 +2874,9 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
+
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2967,7 +2968,7 @@ func TestGetFundingRates(t *testing.T) {
 func TestGetManagedPosition(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3104,8 +3105,9 @@ func TestGetManagedPosition(t *testing.T) {
 
 func TestGetAllManagedPositions(t *testing.T) {
 	t.Parallel()
+
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3212,7 +3214,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 func TestGetOrderbookMovement(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3319,7 +3321,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 func TestGetOrderbookAmountByNominal(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3419,7 +3421,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 func TestGetOrderbookAmountByImpact(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName("ftx")
+	exch, err := em.NewExchangeByName("binance")
 	if err != nil {
 		t.Fatal(err)
 	}

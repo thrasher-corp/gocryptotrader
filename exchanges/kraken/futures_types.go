@@ -401,7 +401,7 @@ type FuturesNotificationData struct {
 		Priority         string `json:"priority"`
 		Note             string `json:"note"`
 		EffectiveTime    string `json:"effectiveTime"`
-	} `json:"notifcations"`
+	} `json:"notifications"`
 	ServerTime string `json:"serverTime"`
 }
 

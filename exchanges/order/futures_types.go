@@ -87,7 +87,7 @@ type CollateralByPosition struct {
 // CollateralByCurrency individual collateral contribution
 // along with what the potentially scaled collateral
 // currency it is represented as
-// eg in FTX ScaledCurrency is USD
+// eg in Bybit ScaledCurrency is USDC
 type CollateralByCurrency struct {
 	Currency                    currency.Code
 	SkipContribution            bool
@@ -222,7 +222,7 @@ type TotalCollateralCalculator struct {
 
 // CollateralCalculator is used to determine
 // the size of collateral holdings for an exchange
-// eg on FTX, the collateral is scaled depending on what
+// eg on Bybit, the collateral is scaled depending on what
 // currency it is
 type CollateralCalculator struct {
 	CalculateOffline   bool
@@ -277,7 +277,7 @@ type PNLResult struct {
 	Direction             Side
 	Fee                   decimal.Decimal
 	IsLiquidated          bool
-	// Is event is supposed to show that something has happened and it isnt just tracking in time
+	// Is event is supposed to show that something has happened and it isn't just tracking in time
 	IsOrder bool
 }
 

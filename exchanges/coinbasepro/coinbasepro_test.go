@@ -1034,7 +1034,7 @@ func TestStatusToStandardStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := statusToStandardStatus(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }

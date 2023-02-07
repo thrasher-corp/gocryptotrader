@@ -173,14 +173,15 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            hitbtcWebsocketAddress,
-		RunningURL:            wsRunningURL,
-		Connector:             h.WsConnect,
-		Subscriber:            h.Subscribe,
-		Unsubscriber:          h.Unsubscribe,
-		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
-		Features:              &h.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             hitbtcWebsocketAddress,
+		RunningURL:             wsRunningURL,
+		Connector:              h.WsConnect,
+		Subscriber:             h.Subscribe,
+		Unsubscriber:           h.Unsubscribe,
+		GenerateSubscriptions:  h.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -901,14 +902,14 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for y := range req.Ranges {
+	for y := range req.RangeHolder.Ranges {
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
 			req.RequestFormatted.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 			h.FormatExchangeKlineInterval(req.ExchangeInterval),
-			req.Ranges[y].Start.Time,
-			req.Ranges[y].End.Time)
+			req.RangeHolder.Ranges[y].Start.Time,
+			req.RangeHolder.Ranges[y].End.Time)
 		if err != nil {
 			return nil, err
 		}

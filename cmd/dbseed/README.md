@@ -98,7 +98,6 @@ exchange
 An example of this is:
 ```
 binance,
-ftx,
 btc markets,
 ```
 

@@ -76,8 +76,8 @@ func TestValidateData(t *testing.T) {
 	}
 
 	err = validateData(trade4)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	if trade4[0].TID != "1" || trade4[1].TID != "2" || trade4[2].TID != "3" {
@@ -96,7 +96,6 @@ func TestCreateKline(t *testing.T) {
 
 	tradeTotal := 24000
 	var trades []order.TradeHistory
-	rand.Seed(time.Now().Unix())
 	execution := time.Now()
 	for i := 0; i < tradeTotal; i++ {
 		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing
@@ -213,6 +212,10 @@ func TestDurationToWord(t *testing.T) {
 		{
 			"ThreeDay",
 			ThreeDay,
+		},
+		{
+			"FiveDay",
+			FiveDay,
 		},
 		{
 			"FifteenDay",
@@ -338,6 +341,11 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 			121,
 		},
 		{
+			"FiveDay",
+			FiveDay,
+			73,
+		},
+		{
 			"FifteenDay",
 			FifteenDay,
 			24,
@@ -403,8 +411,8 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	}
 
 	v, err := CalculateCandleDateRanges(pt, et, OneWeek, 300)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	if !v.Ranges[0].Start.Time.Equal(time.Unix(1546214400, 0)) {
@@ -412,8 +420,8 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	}
 
 	v, err = CalculateCandleDateRanges(pt, et, OneWeek, 100)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if len(v.Ranges) != 1 {
 		t.Fatalf("expected %v received %v", 1, len(v.Ranges))
@@ -422,8 +430,8 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 		t.Errorf("expected %v received %v", 52, len(v.Ranges[0].Intervals))
 	}
 	v, err = CalculateCandleDateRanges(et, ft, OneWeek, 5)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if len(v.Ranges) != 2108 {
 		t.Errorf("expected %v received %v", 2108, len(v.Ranges))
@@ -629,7 +637,7 @@ func TestLoadFromDatabase(t *testing.T) {
 				t.Fatal(err)
 			}
 			if ret.Exchange != testExchanges[0].Name {
-				t.Fatalf("uncorrect data returned: %v", ret.Exchange)
+				t.Fatalf("incorrect data returned: %v", ret.Exchange)
 			}
 
 			err = testhelpers.CloseDatabase(dbConn)
@@ -727,28 +735,44 @@ func TestLoadCSV(t *testing.T) {
 
 func TestVerifyResultsHaveData(t *testing.T) {
 	t.Parallel()
-	tt2 := time.Now().Round(OneDay.Duration())
-	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
-	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
-	if err != nil {
-		t.Error(err)
+	tt1 := time.Now().Round(OneDay.Duration())
+	tt2 := tt1.Add(OneDay.Duration())
+	tt3 := tt2.Add(OneDay.Duration()) // end date no longer inclusive
+	dateRanges, err := CalculateCandleDateRanges(tt1, tt3, OneDay, 0)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if dateRanges.HasDataAtDate(tt1) {
 		t.Error("unexpected true value")
 	}
-	dateRanges.SetHasDataFromCandles([]Candle{
+	err = dateRanges.SetHasDataFromCandles([]Candle{
 		{
 			Time: tt1,
+			Low:  1337,
 		},
-	})
-	if !dateRanges.HasDataAtDate(tt1) {
-		t.Error("expected true")
-	}
-	dateRanges.SetHasDataFromCandles([]Candle{
 		{
 			Time: tt2,
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if !dateRanges.HasDataAtDate(tt1) {
+		t.Error("expected true")
+	}
+	err = dateRanges.SetHasDataFromCandles([]Candle{
+		{
+			Time: tt1,
+		},
+		{
+			Time: tt2,
+			Low:  1337,
+		},
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if dateRanges.HasDataAtDate(tt1) {
 		t.Error("expected false")
 	}
@@ -760,16 +784,16 @@ func TestDataSummary(t *testing.T) {
 	tt2 := time.Now().Round(OneDay.Duration())
 	tt3 := time.Now().Add(time.Hour * 24).Round(OneDay.Duration())
 	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	result := dateRanges.DataSummary(false)
 	if len(result) != 1 {
 		t.Errorf("expected %v received %v", 1, len(result))
 	}
 	dateRanges, err = CalculateCandleDateRanges(tt1, tt3, OneDay, 0)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	dateRanges.Ranges[0].Intervals[0].HasData = true
 	result = dateRanges.DataSummary(true)
@@ -784,30 +808,36 @@ func TestDataSummary(t *testing.T) {
 
 func TestHasDataAtDate(t *testing.T) {
 	t.Parallel()
-	tt2 := time.Now().Round(OneDay.Duration())
-	tt1 := time.Now().Add(-time.Hour * 24 * 30).Round(OneDay.Duration())
-	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
-	if err != nil {
-		t.Error(err)
+	tt1 := time.Now().Round(OneDay.Duration())
+	tt2 := tt1.Add(OneDay.Duration())
+	tt3 := tt2.Add(OneDay.Duration()) // end date no longer inclusive
+	dateRanges, err := CalculateCandleDateRanges(tt1, tt3, OneDay, 0)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if dateRanges.HasDataAtDate(tt1) {
+	if dateRanges.HasDataAtDate(tt2) {
 		t.Error("unexpected true value")
 	}
 
-	dateRanges.SetHasDataFromCandles([]Candle{
+	err = dateRanges.SetHasDataFromCandles([]Candle{
 		{
-			Time: tt1,
+			Time:  tt1,
+			Close: 1337,
 		},
 		{
-			Time: tt2,
+			Time:  tt2,
+			Close: 1337,
 		},
 	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 
-	if !dateRanges.HasDataAtDate(tt1.Round(OneDay.Duration())) {
+	if !dateRanges.HasDataAtDate(tt2) {
 		t.Error("unexpected false value")
 	}
 
-	if dateRanges.HasDataAtDate(tt2.Add(time.Hour * 24 * 26)) {
+	if dateRanges.HasDataAtDate(tt2.Add(time.Hour * 24)) {
 		t.Error("should not have data")
 	}
 }
@@ -1210,5 +1240,49 @@ func TestDeployExchangeIntervals(t *testing.T) {
 
 	if request != OneDay {
 		t.Errorf("received '%v' expected '%v'", request, OneDay)
+	}
+}
+
+func TestSetHasDataFromCandles(t *testing.T) {
+	t.Parallel()
+	ohc := getOneHour()
+	localEnd := ohc[len(ohc)-1].Time.Add(OneHour.Duration())
+	i, err := CalculateCandleDateRanges(ohc[0].Time, localEnd, OneHour, 100000)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = i.SetHasDataFromCandles(ohc)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !i.Start.Equal(ohc[0].Time) {
+		t.Errorf("received '%v' expected '%v'", i.Start.Time, ohc[0].Time)
+	}
+	if !i.End.Equal(localEnd) {
+		t.Errorf("received '%v' expected '%v'", i.End.Time, ohc[len(ohc)-1].Time)
+	}
+
+	k := Item{
+		Interval: OneHour,
+		Candles:  ohc[2:],
+	}
+	err = k.addPadding(i.Start.Time, i.End.Time, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	err = i.SetHasDataFromCandles(k.Candles)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !i.Start.Equal(k.Candles[0].Time) {
+		t.Errorf("received '%v' expected '%v'", i.Start.Time, k.Candles[0].Time)
+	}
+	if i.HasDataAtDate(k.Candles[0].Time) {
+		t.Errorf("received '%v' expected '%v'", false, true)
+	}
+	if !i.HasDataAtDate(k.Candles[len(k.Candles)-1].Time) {
+		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 }

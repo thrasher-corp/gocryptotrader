@@ -189,12 +189,17 @@ func (by *Bybit) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (by *Bybit) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+
 	if !exch.Enabled {
 		by.SetEnabled(false)
 		return nil
 	}
 
-	err := by.SetupDefaults(exch)
+	err = by.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -206,15 +211,16 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 	err = by.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
-			RunningURL:            wsRunningEndpoint,
-			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
-			Connector:             by.WsConnect,
-			Subscriber:            by.Subscribe,
-			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
-			Features:              &by.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:         exch,
+			DefaultURL:             bybitWSBaseURL + wsSpotPublicTopicV2,
+			RunningURL:             wsRunningEndpoint,
+			RunningURLAuth:         bybitWSBaseURL + wsSpotPrivate,
+			Connector:              by.WsConnect,
+			Subscriber:             by.Subscribe,
+			Unsubscriber:           by.Unsubscribe,
+			GenerateSubscriptions:  by.GenerateDefaultSubscriptions,
+			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+			Features:               &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
@@ -1943,7 +1949,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		switch req.Asset {
 		case asset.Spot:
 			var candles []KlineItem
@@ -1951,8 +1957,8 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted.String(),
 				by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				req.Ranges[x].Start.Time,
-				req.Ranges[x].End.Time)
+				req.RangeHolder.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1973,7 +1979,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				req.Ranges[x].Start.Time)
+				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1994,7 +2000,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				int64(by.Features.Enabled.Kline.ResultLimit),
-				req.Ranges[x].Start.Time)
+				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -2014,7 +2020,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetUSDCKlines(ctx,
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-				req.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].Start.Time,
 				int64(by.Features.Enabled.Kline.ResultLimit))
 			if err != nil {
 				return nil, err
