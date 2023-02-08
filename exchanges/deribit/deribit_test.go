@@ -794,6 +794,7 @@ func TestGetPublicPortfolioMargins(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
+	time.Sleep(time.Second)
 	if _, err = d.GetPublicPortfolioMargins(context.Background(), currencyBTC, map[string]float64{
 		"BTC-PERPETUAL": info.ContractSize * 2,
 	}); err != nil {

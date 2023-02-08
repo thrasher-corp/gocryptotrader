@@ -94,7 +94,7 @@ func TestNew(t *testing.T) {
 		{Input: "USDTMarginedFutures", Expected: USDTMarginedFutures},
 		{Input: "USDCMarginedFutures", Expected: USDCMarginedFutures},
 		{Input: "Options", Expected: Options},
-		{Input: "Option", Error: ErrNotSupported},
+		{Input: "Option", Expected: Options},
 		{Input: "Future", Error: ErrNotSupported},
 		{Input: "future_combo", Expected: FutureCombo},
 		{Input: "option_combo", Expected: OptionCombo},
