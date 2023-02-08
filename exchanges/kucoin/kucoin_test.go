@@ -921,6 +921,11 @@ func TestGetAggregatedSubAccountBalance(t *testing.T) {
 	}
 }
 
+var (
+	data       = `[{"subUserId":"5caefba7d9575a0688f83c45","subName":"kucoin1","mainAccounts":[{"currency":"BTC","balance":"6","available":"6","holds":"0","baseCurrency":"BTC","baseCurrencyPrice":"1","baseAmount":"1.1"}],"tradeAccounts":[{"currency":"BTC","balance":"1000","available":"1000","holds":"0","baseCurrency":"BTC","baseCurrencyPrice":"1","baseAmount":"1.1"}],"marginAccounts":[{"currency":"BTC","balance":"1.1","available":"1.1","holds":"0","baseCurrency":"BTC","baseCurrencyPrice":"1","baseAmount":"1.1"}]}]`
+	emptyArray = `[]`
+)
+
 func TestGetPaginatedSubAccountInformation(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -2416,6 +2421,7 @@ func TestGetSubAccountSpotAPIList(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
+	ku.Verbose = true
 	if _, err := ku.GetSubAccountSpotAPIList(context.Background(), "sam", ""); err != nil {
 		t.Error(err)
 	}

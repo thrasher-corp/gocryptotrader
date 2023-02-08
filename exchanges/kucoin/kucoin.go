@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -31,6 +32,8 @@ type Kucoin struct {
 	exchange.Base
 	obm *orderbookManager
 }
+
+var locker sync.Mutex
 
 const (
 	kucoinAPIURL        = "https://api.kucoin.com/api"
@@ -1306,8 +1309,8 @@ func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, 
 	if apiKeys != "" {
 		params.Set("apiKey", apiKeys)
 	}
-	var resp *SubAccountResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
+	var resp SubAccountResponse
+	return &resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
 }
 
 // CreateSpotAPIsForSubAccount can be used to create Spot APIs for sub-accounts.
@@ -1442,7 +1445,7 @@ func (ku *Kucoin) GetAggregatedSubAccountBalance(ctx context.Context) ([]SubAcco
 }
 
 // GetPaginatedSubAccountInformation this endpoint can be used to get paginated sub-account information. Pagination is required.
-func (ku *Kucoin) GetPaginatedSubAccountInformation(ctx context.Context, currentPage, pageSize int64) (*SubAccountsResponse, error) {
+func (ku *Kucoin) GetPaginatedSubAccountInformation(ctx context.Context, currentPage, pageSize int64) ([]SubAccountInfo, error) {
 	params := url.Values{}
 	if currentPage != 0 {
 		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
@@ -1450,7 +1453,7 @@ func (ku *Kucoin) GetPaginatedSubAccountInformation(ctx context.Context, current
 	if pageSize != 0 {
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
-	var resp *SubAccountsResponse
+	var resp []SubAccountInfo
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetAggregatedSubAccountBalance, params), nil, &resp)
 }
 

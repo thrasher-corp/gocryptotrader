@@ -1180,12 +1180,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 			orders[i].InferCostsAndTimes()
 		}
 	}
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	order.FilterOrdersByType(&orders, getOrdersRequest.Type)
-	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
-	}
 	return getOrdersRequest.Filter(ku.Name, orders), nil
 }
 

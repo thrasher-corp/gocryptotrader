@@ -216,7 +216,6 @@ func (ku *Kucoin) wsReadData() {
 }
 
 func (ku *Kucoin) wsHandleData(respData []byte) error {
-	println(string(respData))
 	resp := WsPushData{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -1155,6 +1154,8 @@ type job struct {
 }
 
 func (ku *Kucoin) setupOrderbookManager() {
+	locker.Lock()
+	defer locker.Unlock()
 	if ku.obm == nil {
 		ku.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
