@@ -785,8 +785,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 								"depth":    "20",
 								"interval": "100ms",
 							},
-						})
-					subscriptions = append(subscriptions,
+						},
 						stream.ChannelSubscription{
 							Channel:  orderbookChannel,
 							Currency: pairs[z],
