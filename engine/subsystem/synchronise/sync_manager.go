@@ -447,18 +447,18 @@ func (m *Manager) WaitForInitialSync() error {
 
 // NeedsUpdate determines if the underlying agent sync base is ready for an
 // update via REST.
-func (b *Base) NeedsUpdate(timeOutRest, timeOutWS time.Duration) (time.Duration, bool) {
+func (b *Base) NeedsUpdate(timeoutRest, timeoutWS time.Duration) (time.Duration, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.IsProcessing {
 		return 0, false
 	}
 	if b.IsUsingWebsocket {
-		added := b.LastUpdated.Add(timeOutWS)
-		return time.Until(added), !b.LastUpdated.IsZero() && time.Since(b.LastUpdated) >= timeOutWS
+		added := b.LastUpdated.Add(timeoutWS)
+		return time.Until(added), !b.LastUpdated.IsZero() && time.Since(b.LastUpdated) >= timeoutWS
 	}
-	added := b.LastUpdated.Add(timeOutRest)
-	return time.Until(added), b.LastUpdated.IsZero() || time.Since(b.LastUpdated) >= timeOutRest
+	added := b.LastUpdated.Add(timeoutRest)
+	return time.Until(added), b.LastUpdated.IsZero() || time.Since(b.LastUpdated) >= timeoutRest
 }
 
 // SetProcessing sets processing for the specific sync agent
@@ -485,14 +485,13 @@ func (b *Base) SetProcessing(exch, service string, pair currency.Pair, a asset.I
 
 // Update updates the underlying sync bases' data and last updated fields.
 // If protocol is switched from REST to WEBSOCKET it will display that switch.
-func (b *Base) Update(service subsystem.SynchronizationType, exch string, protocol subsystem.ProtocolType, pair currency.Pair, a asset.Item, incomingErr error) (hadData bool) {
+func (b *Base) Update(service subsystem.SynchronizationType, exch string, protocol subsystem.ProtocolType, pair currency.Pair, a asset.Item, incomingErr error) (isInitialUpdate bool) {
 	b.mu.Lock()
-	origHadData := b.HaveData
+	initialUpdate := b.LastUpdated.IsZero()
 	b.LastUpdated = time.Now()
 	if incomingErr != nil {
 		b.NumErrors++
 	}
-	b.HaveData = true
 	b.IsProcessing = false
 
 	var switched bool
@@ -512,7 +511,7 @@ func (b *Base) Update(service subsystem.SynchronizationType, exch string, protoc
 			strings.ToUpper(a.String()),
 			service)
 	}
-	return origHadData
+	return initialUpdate
 }
 
 // relayWebsocketEvent relays websocket event.

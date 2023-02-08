@@ -43,7 +43,6 @@ type Base struct {
 	IsUsingREST      bool
 	IsProcessing     bool
 	LastUpdated      time.Time
-	HaveData         bool
 	NumErrors        int
 	mu               sync.Mutex
 }
