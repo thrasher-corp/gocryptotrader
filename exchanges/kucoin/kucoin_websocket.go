@@ -82,9 +82,9 @@ const (
 )
 
 var defaultSubscriptionChannels = []string{
-	// marketTickerChannel,
-	// marginFundingbookChangeChannel,
-	// marketCandlesChannel,
+	marketTickerChannel,
+	marginFundingbookChangeChannel,
+	marketCandlesChannel,
 	marketOrderbookLevel2Channels,
 	marketOrderbookLevel2to5Channel,
 
@@ -1163,6 +1163,7 @@ func (ku *Kucoin) setupOrderbookManager() {
 		}
 	} else {
 		// Change state on reconnect for initial sync.
+		ku.obm.Mutex.Lock()
 		for _, m1 := range ku.obm.state {
 			for _, m2 := range m1 {
 				for _, idk := range m2 {
@@ -1172,6 +1173,7 @@ func (ku *Kucoin) setupOrderbookManager() {
 				}
 			}
 		}
+		ku.obm.Mutex.Unlock()
 	}
 
 	for i := 0; i < maxWSOrderbookWorkers; i++ {
