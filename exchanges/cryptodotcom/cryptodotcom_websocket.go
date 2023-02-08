@@ -29,28 +29,6 @@ const (
 	publicRespondHeartbeat = "public/respond-heartbeat"
 )
 
-var websocketSubscriptionEndpointsURL = []string{
-	publicAuth,
-	publicInstruments,
-
-	privateSetCancelOnDisconnect,
-	privateGetCancelOnDisconnect,
-
-	privateWithdrawal,
-	privateGetWithdrawalHistory,
-	privateGetAccountSummary,
-
-	privateCreateOrder,
-	privateCancelOrder,
-	privateCreateOrderList,
-	privateCancelOrderList,
-	privateCancelAllOrders,
-	privateGetOrderHistory,
-	privateGetOpenOrders,
-	privateGetOrderDetail,
-	privateGetTrades,
-}
-
 // websocket subscriptions channels list
 
 const (
@@ -122,7 +100,7 @@ func (cr *Cryptodotcom) wsFunnelConnectionData(ws stream.Connection, authenticat
 		if resp.Raw == nil {
 			return
 		}
-		responseStream <- SubscriptionRawData{stream.Response{Raw: resp.Raw}, authenticated}
+		responseStream <- SubscriptionRawData{Data: resp.Raw, Authenticated: authenticated}
 	}
 }
 
@@ -134,7 +112,7 @@ func (cr *Cryptodotcom) WsReadData() {
 		case <-cr.Websocket.ShutdownC:
 			select {
 			case resp := <-responseStream:
-				err := cr.WsHandleData(resp.Data.Raw, resp.Authenticated)
+				err := cr.WsHandleData(resp.Data, resp.Authenticated)
 				if err != nil {
 					select {
 					case cr.Websocket.DataHandler <- err:
@@ -146,7 +124,7 @@ func (cr *Cryptodotcom) WsReadData() {
 			}
 			return
 		case resp := <-responseStream:
-			err := cr.WsHandleData(resp.Data.Raw, resp.Authenticated)
+			err := cr.WsHandleData(resp.Data, resp.Authenticated)
 			if err != nil {
 				cr.Websocket.DataHandler <- err
 			}
@@ -377,7 +355,7 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 }
 
 func (cr *Cryptodotcom) processCandlestick(resp *WsResult) error {
-	var data []CandlestickItem
+	var data []WsCandlestickItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
 		return err
@@ -592,7 +570,7 @@ func (cr *Cryptodotcom) processUserOrderbook(resp *WsResult) error {
 		if err != nil {
 			return err
 		}
-		oType, err := order.StringToOrderType(data[x].Type)
+		oType, err := stringToOrderType(data[x].Type)
 		if err != nil {
 			return err
 		}

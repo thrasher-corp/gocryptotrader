@@ -189,11 +189,12 @@ func TestCreateOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
 	}
-	_, err := cr.CreateOrder(context.Background(), &CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
+	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
+	_, err := cr.CreateOrder(context.Background(), arg)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = cr.WsPlaceOrder(&CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0})
+	_, err = cr.WsPlaceOrder(arg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -281,14 +282,14 @@ func TestCreateOrderList(t *testing.T) {
 	}
 	_, err := cr.CreateOrderList(context.Background(), "LIST", []CreateOrderParam{
 		{
-			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
+			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: orderTypeToString(order.Limit), PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
 		}})
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = cr.WsCreateOrderList("LIST", []CreateOrderParam{
 		{
-			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
+			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: orderTypeToString(order.Limit), PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
 		}})
 	if err != nil {
 		t.Error(err)
@@ -720,7 +721,6 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
 	_, err := cr.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Amount:   10,
 		Currency: currency.BTC,
@@ -778,30 +778,37 @@ func TestWsSetCancelOnDisconnect(t *testing.T) {
 
 func TestGetCreateParamMap(t *testing.T) {
 	t.Parallel()
-	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0}
+	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
 	_, err := arg.getCreateParamMap()
 	if err != nil {
 		t.Error(err)
 	}
-	arg.OrderType = order.Market
+	arg.OrderType = orderTypeToString(order.Market)
 	_, err = arg.getCreateParamMap()
 	if err != nil {
 		t.Error(err)
 	}
-	arg.OrderType = order.TakeProfit
+	arg.OrderType = orderTypeToString(order.TakeProfit)
 	arg.Notional = 12
 	_, err = arg.getCreateParamMap()
-	if err != nil && !errors.Is(err, errTriggerPriceRequired) {
-		t.Errorf("expecting %v, but found %v", errTriggerPriceRequired, err)
+	if !errors.Is(err, errTriggerPriceRequired) {
+		t.Errorf("found %v, but expecting %v", errTriggerPriceRequired, err)
 	}
-	arg.OrderType = order.UnknownType
+	arg.OrderType = orderTypeToString(order.UnknownType)
 	_, err = arg.getCreateParamMap()
-	if err != nil && !errors.Is(err, order.ErrTypeIsInvalid) {
-		t.Errorf("expecting %v but found %v", order.ErrTypeIsInvalid, err)
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Errorf("found %v, but expecting %v", order.ErrTypeIsInvalid, err)
 	}
-	arg.OrderType = order.StopLimit
+	arg.OrderType = orderTypeToString(order.StopLimit)
 	_, err = arg.getCreateParamMap()
-	if err != nil && !errors.Is(err, errTriggerPriceRequired) {
-		t.Errorf("expecting %v, but found %v", order.ErrTypeIsInvalid, err)
+	if !errors.Is(err, errTriggerPriceRequired) {
+		t.Errorf("found %v, but expecting %v", order.ErrTypeIsInvalid, err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	if err := cr.WsConnect(); err != nil {
+		t.Error(err)
 	}
 }

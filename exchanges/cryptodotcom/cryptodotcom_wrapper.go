@@ -67,12 +67,42 @@ func (cr *Cryptodotcom) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerBatching:      true,
+				TickerFetching:      true,
+				TradeFetching:       true,
+				KlineFetching:       true,
+				OrderbookFetching:   true,
+				CryptoWithdrawal:    true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrder:         true,
+				CancelOrders:        true,
+				SubmitOrder:         true,
+				SubmitOrders:        true,
+				UserTradeHistory:    true,
+				TradeFee:            true,
+				CryptoWithdrawalFee: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerBatching:         true,
+				TickerFetching:         true,
+				KlineFetching:          true,
+				OrderbookFetching:      true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				CryptoWithdrawal:       true,
+				TradeFetching:          true,
+				AccountBalance:         true,
+				SubmitOrder:            true,
+				SubmitOrders:           true,
+				CancelOrder:            true,
+				CancelOrders:           true,
+				GetOrder:               true,
+				GetOrders:              true,
+				Subscribe:              true,
+				Unsubscribe:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -140,14 +170,15 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	}
 	err = cr.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            cryptodotcomWebsocketUserAPI,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             cr.WsConnect,
-			Subscriber:            cr.Subscribe,
-			Unsubscriber:          cr.Unsubscribe,
-			GenerateSubscriptions: cr.GenerateDefaultSubscriptions,
-			Features:              &cr.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:         exch,
+			DefaultURL:             cryptodotcomWebsocketUserAPI,
+			RunningURL:             wsRunningEndpoint,
+			Connector:              cr.WsConnect,
+			Subscriber:             cr.Subscribe,
+			Unsubscriber:           cr.Unsubscribe,
+			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+			GenerateSubscriptions:  cr.GenerateDefaultSubscriptions,
+			Features:               &cr.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
@@ -215,11 +246,10 @@ func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (c
 	}
 	pairs := make(currency.Pairs, len(instruments))
 	for x := range instruments {
-		cp, err := currency.NewPairFromString(instruments[x].InstrumentName)
+		pairs[x], err = currency.NewPairFromString(instruments[x].InstrumentName)
 		if err != nil {
 			return nil, err
 		}
-		pairs[x] = cp
 	}
 	return pairs, nil
 }
@@ -236,6 +266,9 @@ func (cr *Cryptodotcom) UpdateTradablePairs(ctx context.Context, forceUpdate boo
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	if !cr.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", assetType, cr.Name)
+	}
 	tick, err := cr.GetTicker(ctx, p.String())
 	if err != nil {
 		return nil, err
@@ -265,6 +298,9 @@ func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, asset
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	if !cr.SupportsAsset(assetType) {
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	tick, err := cr.GetTicker(ctx, "")
 	if err != nil {
 		return err
@@ -296,6 +332,9 @@ func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item)
 
 // FetchTicker returns the ticker for a currency pair
 func (cr *Cryptodotcom) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	if !cr.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	tickerNew, err := ticker.GetTicker(cr.Name, p, assetType)
 	if err != nil {
 		return cr.UpdateTicker(ctx, p, assetType)
@@ -305,6 +344,9 @@ func (cr *Cryptodotcom) FetchTicker(ctx context.Context, p currency.Pair, assetT
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (cr *Cryptodotcom) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if !cr.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	ob, err := orderbook.Get(cr.Name, pair, assetType)
 	if err != nil {
 		return cr.UpdateOrderbook(ctx, pair, assetType)
@@ -314,6 +356,9 @@ func (cr *Cryptodotcom) FetchOrderbook(ctx context.Context, pair currency.Pair, 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if !cr.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	orderbookNew, err := cr.GetOrderbook(context.Background(), pair.String(), 0)
 	if err != nil {
 		return nil, err
@@ -323,6 +368,9 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 		Pair:            pair,
 		Asset:           assetType,
 		VerifyOrderbook: cr.CanVerifyOrderbook,
+	}
+	if len(book.Bids) == 0 {
+		return nil, fmt.Errorf("%w, missing orderbook data", orderbook.ErrOrderbookInvalid)
 	}
 	book.Bids = make([]orderbook.Item, len(orderbookNew.Data[0].Bids))
 	for x := range orderbookNew.Data[0].Bids {
@@ -368,11 +416,16 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (cr *Cryptodotcom) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
-	info.Exchange = cr.Name
 	if !cr.SupportsAsset(assetType) {
 		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-	accs, err := cr.GetAccountSummary(ctx, currency.EMPTYCODE)
+	var accs *Accounts
+	var err error
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		accs, err = cr.WsRetriveAccountSummary(currency.EMPTYCODE)
+	} else {
+		accs, err = cr.GetAccountSummary(ctx, currency.EMPTYCODE)
+	}
 	if err != nil {
 		return info, err
 	}
@@ -397,6 +450,7 @@ func (cr *Cryptodotcom) UpdateAccountInfo(ctx context.Context, assetType asset.I
 	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
+	info.Exchange = cr.Name
 	return info, nil
 }
 
@@ -416,7 +470,13 @@ func (cr *Cryptodotcom) FetchAccountInfo(ctx context.Context, assetType asset.It
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (cr *Cryptodotcom) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	withdrawals, err := cr.GetWithdrawalHistory(ctx)
+	var err error
+	var withdrawals *WithdrawalResponse
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		withdrawals, err = cr.WsRetriveWithdrawalHistory()
+	} else {
+		withdrawals, err = cr.GetWithdrawalHistory(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +513,7 @@ func (cr *Cryptodotcom) GetFundingHistory(ctx context.Context) ([]exchange.FundH
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (cr *Cryptodotcom) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (cr *Cryptodotcom) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := cr.GetWithdrawalHistory(ctx)
 	if err != nil {
 		return nil, err
@@ -476,6 +536,9 @@ func (cr *Cryptodotcom) GetWithdrawalsHistory(ctx context.Context, c currency.Co
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	if !cr.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+	}
 	format, err := cr.GetPairFormat(assetType, false)
 	if err != nil {
 		return nil, err
@@ -517,8 +580,8 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (cr *Cryptodotcom) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if assetType == asset.Index {
-		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+	if !cr.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w, asset type %v not supported", asset.ErrNotSupported, assetType)
 	}
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
@@ -605,17 +668,32 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		// For MARKET (BUY), STOP_LOSS (BUY), TAKE_PROFIT (BUY) orders only: Amount to spend
 		notional = s.Amount
 	}
-	ordersResp, err := cr.CreateOrder(ctx, &CreateOrderParam{
-		InstrumentName: format.Format(s.Pair),
-		Side:           s.Side,
-		OrderType:      s.Type,
-		Price:          s.Price,
-		Quantity:       s.Amount,
-		ClientOrderID:  s.ClientOrderID,
-		Notional:       notional,
-		PostOnly:       s.PostOnly,
-		TriggerPrice:   s.TriggerPrice,
-	})
+	var ordersResp *CreateOrderResponse
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		ordersResp, err = cr.WsPlaceOrder(&CreateOrderParam{
+			InstrumentName: format.Format(s.Pair),
+			Side:           s.Side,
+			OrderType:      orderTypeToString(s.Type),
+			Price:          s.Price,
+			Quantity:       s.Amount,
+			ClientOrderID:  s.ClientOrderID,
+			Notional:       notional,
+			PostOnly:       s.PostOnly,
+			TriggerPrice:   s.TriggerPrice,
+		})
+	} else {
+		ordersResp, err = cr.CreateOrder(ctx, &CreateOrderParam{
+			InstrumentName: format.Format(s.Pair),
+			Side:           s.Side,
+			OrderType:      orderTypeToString(s.Type),
+			Price:          s.Price,
+			Quantity:       s.Amount,
+			ClientOrderID:  s.ClientOrderID,
+			Notional:       notional,
+			PostOnly:       s.PostOnly,
+			TriggerPrice:   s.TriggerPrice,
+		})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -644,6 +722,9 @@ func (cr *Cryptodotcom) CancelOrder(ctx context.Context, ord *order.Cancel) erro
 	if !ord.Pair.IsPopulated() {
 		return currency.ErrCurrencyPairEmpty
 	}
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return cr.WsCancelExistingOrder(format.Format(ord.Pair), ord.OrderID)
+	}
 	return cr.CancelExistingOrder(ctx, format.Format(ord.Pair), ord.OrderID)
 }
 
@@ -663,7 +744,12 @@ func (cr *Cryptodotcom) CancelBatchOrders(ctx context.Context, orders []order.Ca
 			OrderID:        orders[x].OrderID,
 		})
 	}
-	cancelResp, err := cr.CancelOrderList(ctx, cancelOrderParams)
+	var cancelResp *CancelOrdersResponse
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		cancelResp, err = cr.WsCancelOrderList(cancelOrderParams)
+	} else {
+		cancelResp, err = cr.CancelOrderList(ctx, cancelOrderParams)
+	}
 	if err != nil {
 		return cancelBatchResponse, err
 	}
@@ -690,6 +776,9 @@ func (cr *Cryptodotcom) CancelAllOrders(ctx context.Context, orderCancellation *
 	if err != nil {
 		return cancelAllResponse, err
 	}
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return order.CancelAllResponse{}, cr.WsCancelAllPersonalOrders(orderCancellation.Pair.Format(format).String())
+	}
 	return order.CancelAllResponse{}, cr.CancelAllPersonalOrders(ctx, orderCancellation.Pair.Format(format).String())
 }
 
@@ -702,7 +791,13 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 	if !pair.IsPopulated() {
 		return respData, currency.ErrCurrencyPairEmpty
 	}
-	orderDetail, err := cr.GetOrderDetail(ctx, orderID)
+	var orderDetail *OrderDetail
+	var err error
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		orderDetail, err = cr.WsRetriveOrderDetail(orderID)
+	} else {
+		orderDetail, err = cr.GetOrderDetail(ctx, orderID)
+	}
 	if err != nil {
 		return respData, err
 	}
@@ -710,7 +805,7 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 	if err != nil {
 		return respData, err
 	}
-	orderType, err := order.StringToOrderType(orderDetail.OrderInfo.Type)
+	orderType, err := stringToOrderType(orderDetail.OrderInfo.Type)
 	if err != nil {
 		return respData, err
 	}
@@ -762,7 +857,12 @@ func (cr *Cryptodotcom) WithdrawCryptocurrencyFunds(ctx context.Context, withdra
 	if err != nil {
 		return nil, err
 	}
-	withdrawalResp, err := cr.WithdrawFunds(ctx, withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
+	var withdrawalResp *WithdrawalItem
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		withdrawalResp, err = cr.WsCreateWithdrawal(withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
+	} else {
+		withdrawalResp, err = cr.WithdrawFunds(ctx, withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -790,7 +890,13 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-	orders, err := cr.GetPersonalOpenOrders(ctx, "", 0, 0)
+	var orders *PersonalOrdersResponse
+	var err error
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		orders, err = cr.WsRetrivePersonalOpenOrders("", 0, 0)
+	} else {
+		orders, err = cr.GetPersonalOpenOrders(ctx, "", 0, 0)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -815,7 +921,7 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				continue
 			}
 		}
-		orderType, err := order.StringToOrderType(orders.OrderList[x].Type)
+		orderType, err := stringToOrderType(orders.OrderList[x].Type)
 		if err != nil {
 			return nil, err
 		}
@@ -858,7 +964,12 @@ func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 	if err != nil {
 		return nil, err
 	}
-	orders, err := cr.GetPersonalOrderHistory(ctx, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+	var orders *PersonalOrdersResponse
+	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		orders, err = cr.WsRetrivePersonalOrderHistory("", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+	} else {
+		orders, err = cr.GetPersonalOrderHistory(ctx, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +990,7 @@ func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 				continue
 			}
 		}
-		orderType, err := order.StringToOrderType(orders.OrderList[x].Type)
+		orderType, err := stringToOrderType(orders.OrderList[x].Type)
 		if err != nil {
 			return nil, err
 		}

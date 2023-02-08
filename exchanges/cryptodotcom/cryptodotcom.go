@@ -757,7 +757,7 @@ func (cr *Cryptodotcom) sortParams(params map[string]interface{}) []string {
 	return keys
 }
 
-func (cr *Cryptodotcom) orderTypeToString(orderType order.Type) string {
+func orderTypeToString(orderType order.Type) string {
 	switch orderType {
 	case order.StopLimit:
 		return "STOP_LIMIT"
@@ -765,6 +765,18 @@ func (cr *Cryptodotcom) orderTypeToString(orderType order.Type) string {
 		return "TAKE_PROFIT"
 	default:
 		return orderType.String()
+	}
+}
+
+func stringToOrderType(orderType string) (order.Type, error) {
+	orderType = strings.ToUpper(orderType)
+	switch orderType {
+	case "STOP_LIMIT":
+		return order.StopLimit, nil
+	case "TAKE_PROFIT":
+		return order.TakeProfit, nil
+	default:
+		return order.StringToOrderType(orderType)
 	}
 }
 

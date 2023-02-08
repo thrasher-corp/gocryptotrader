@@ -7,7 +7,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var (
@@ -75,7 +74,11 @@ type CandlestickItem struct {
 	Low     float64              `json:"l,string"`
 	Close   float64              `json:"c,string"`
 	Volume  float64              `json:"v,string"`
+}
 
+// WsCandlestickItem represents candlestick (k-line data history) item pushed through the websocket connection.
+type WsCandlestickItem struct {
+	CandlestickItem
 	// Added for websocket push data
 	UpdateTime cryptoDotComMilliSec `json:"ut"` // this represents Update Time for websocket push data.
 }
@@ -292,7 +295,7 @@ type PersonalOrdersResponse struct {
 type CreateOrderParam struct {
 	InstrumentName string     `json:"instrument_name"`
 	Side           order.Side `json:"side"`
-	OrderType      order.Type `json:"type"`
+	OrderType      string     `json:"type"`
 	Price          float64    `json:"price"`
 	Quantity       float64    `json:"quantity"`
 	Notional       float64    `json:"notional"`
@@ -312,10 +315,14 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	if arg.Side != order.Sell && arg.Side != order.Buy {
 		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, arg.Side)
 	}
-	if arg.OrderType == order.UnknownType || arg.OrderType == order.AnyType {
+	oType, err := stringToOrderType(arg.OrderType)
+	if err != nil {
+		return nil, err
+	}
+	if oType == order.UnknownType || oType == order.AnyType {
 		return nil, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
-	switch arg.OrderType {
+	switch oType {
 	case order.Limit, order.StopLimit, order.TakeProfitLimit:
 		if arg.Price <= 0 { // Unit price
 			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
@@ -323,7 +330,7 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 		if arg.Quantity <= 0 {
 			return nil, errInvalidQuantity
 		}
-		switch arg.OrderType {
+		switch oType {
 		case order.StopLimit, order.TakeProfitLimit:
 			if arg.TriggerPrice <= 0 {
 				return nil, fmt.Errorf("%w for Order Type: %v", errTriggerPriceRequired, arg.OrderType)
@@ -358,7 +365,7 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	params := make(map[string]interface{})
 	params["instrument_name"] = arg.InstrumentName
 	params["side"] = arg.Side.String()
-	params["type"] = arg.OrderType.String()
+	params["type"] = arg.OrderType
 	params["price"] = arg.Price
 	if arg.Quantity > 0 {
 		params["quantity"] = arg.Quantity
@@ -600,7 +607,7 @@ type SubscriptionResponse struct {
 
 // SubscriptionRawData represents a subscription response raw data.
 type SubscriptionRawData struct {
-	Data          stream.Response
+	Data          []byte
 	Authenticated bool
 }
 
