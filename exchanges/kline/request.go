@@ -13,9 +13,10 @@ import (
 
 var (
 	// ErrUnsetName is an error for when the exchange name is not set
-	ErrUnsetName                 = errors.New("unset exchange name")
-	errNilRequest                = errors.New("nil kline request")
-	errNoTimeSeriesDataToConvert = errors.New("no time series data to convert")
+	ErrUnsetName  = errors.New("unset exchange name")
+	errNilRequest = errors.New("nil kline request")
+	// ErrNoTimeSeriesDataToConvert is an error for when no candlestick data is available for specific instrument
+	ErrNoTimeSeriesDataToConvert = errors.New("no time series data to convert")
 
 	// PartialCandle is string flag for when the most recent candle is partially
 	// formed.
@@ -136,7 +137,7 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	}
 
 	if len(timeSeries) == 0 {
-		return nil, errNoTimeSeriesDataToConvert
+		return nil, ErrNoTimeSeriesDataToConvert
 	}
 
 	holder := &Item{
@@ -196,7 +197,7 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	}
 
 	if len(timeSeries) == 0 {
-		return nil, errNoTimeSeriesDataToConvert
+		return nil, ErrNoTimeSeriesDataToConvert
 	}
 
 	holder, err := r.Request.ProcessResponse(timeSeries)

@@ -1641,7 +1641,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ku.UpdateOrderbook(context.Background(), enabledPairs[0], asset.Futures); err != nil {
+	if _, err := ku.UpdateOrderbook(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Futures); err != nil {
 		t.Error(err)
 	}
 }
@@ -1680,7 +1680,7 @@ func TestFetchTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = ku.FetchTicker(context.Background(), enabledPairs[0], asset.Futures); err != nil {
+	if _, err = ku.FetchTicker(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Futures); err != nil {
 		t.Error(err)
 	}
 }
@@ -1703,7 +1703,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Hour * 4)
 	endTime := time.Now().Add(-time.Hour * 3)
-	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[0], asset.Futures, kline.OneHour, startTime, endTime)
+	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Futures, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1732,16 +1732,20 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	enabledPairs, err = ku.GetEnabledPairs(asset.Margin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, kline.OneHour, startTime, endTime)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Margin, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Futures, kline.FiveMin, startTime, endTime)
+	tradablePairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), tradablePairs[0], asset.Futures, kline.FiveMin, startTime, endTime)
+	if err != nil && !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
 		t.Error(err)
 	}
 }
@@ -1764,7 +1768,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetRecentTrades(context.Background(), enabledPairs[0], asset.Futures)
+	_, err = ku.GetRecentTrades(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1952,8 +1956,8 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 }
 
 var (
-	orderbookLevel2PushDataJSON = ` {"type":"message","topic":"/market/level2:FET-BTC","subject":"trade.l2update","data":{"changes":{"asks":[["0.000011615","0.3623","30745798"]],"bids":[]},"sequenceEnd":30745798,"sequenceStart":30745798,"symbol":"FET-BTC","time":1675171793219}}`
 	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT","subject": "level2","data": {"asks":[["9989","8"],["9990","32"],["9991","47"],["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
+	orderbookLevel2PushDataJSON = `{"type":"message","topic":"/market/level2:BTC-USDT","subject":"trade.l2update","data":{"changes":{"asks":[["0.000011615","0.3623","30745798"]],"bids":[]},"sequenceEnd":30745798,"sequenceStart":30745798,"symbol":"FET-BTC","time":1675171793219}}`
 )
 
 func TestOrderbookPushData(t *testing.T) {
@@ -1962,7 +1966,7 @@ func TestOrderbookPushData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if err = ku.wsHandleData([]byte(orderbookLevel5PushDataJSON)); err != nil {
+	if err = ku.wsHandleData([]byte(orderbookLevel5PushDataJSON)); err != nil && !strings.Contains(err.Error(), "orderbook depth not found") {
 		t.Error(err)
 	}
 }

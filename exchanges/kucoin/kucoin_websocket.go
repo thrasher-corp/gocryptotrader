@@ -82,9 +82,9 @@ const (
 )
 
 var defaultSubscriptionChannels = []string{
-	marketTickerChannel,
-	marginFundingbookChangeChannel,
-	marketCandlesChannel,
+	// marketTickerChannel,
+	// marginFundingbookChangeChannel,
+	// marketCandlesChannel,
 	marketOrderbookLevel2Channels,
 	marketOrderbookLevel2to5Channel,
 
@@ -216,6 +216,7 @@ func (ku *Kucoin) wsReadData() {
 }
 
 func (ku *Kucoin) wsHandleData(respData []byte) error {
+	println(string(respData))
 	resp := WsPushData{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -924,7 +925,9 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[x],
 			})
-		case marketTickerSnapshotChannel, marketOrderbookLevel2Channels, marketOrderbookLevel2to5Channel:
+		case marketTickerSnapshotChannel,
+			marketOrderbookLevel2Channels,
+			marketOrderbookLevel2to5Channel:
 			for b := range spotPairs {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  channels[x],

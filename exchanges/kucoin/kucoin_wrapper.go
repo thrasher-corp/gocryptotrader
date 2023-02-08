@@ -1314,7 +1314,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 						Volume: candles[x].Volume,
 					})
 			}
-		case asset.Spot:
+		case asset.Spot, asset.Margin:
 			var intervalString string
 			intervalString, err = ku.intervalToString(interval)
 			if err != nil {
@@ -1337,10 +1337,6 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					})
 			}
 		}
-	}
-	err = req.RangeHolder.SetHasDataFromCandles(timeSeries)
-	if err != nil {
-		return nil, err
 	}
 	summary := req.RangeHolder.DataSummary(false)
 	if len(summary) > 0 {
