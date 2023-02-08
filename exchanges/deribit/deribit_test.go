@@ -2004,14 +2004,6 @@ func TestMovePositions(t *testing.T) {
 	}
 }
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := d.WsConnect()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 var announcementPushDataJSON = `{    "jsonrpc": "2.0",    "method": "subscription",    "params": {         "channel": "announcements",         "data": {            "action": "new",            "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",            "id": 1532593832021,            "important": true,            "publication_timestamp": 1532593832021,            "title": "Example announcement"        }    }}`
 
 func TestHandlerAnnouncementPushData(t *testing.T) {

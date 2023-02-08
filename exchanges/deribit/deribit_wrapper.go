@@ -267,17 +267,17 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
 	}
 	if p.IsEmpty() {
-		return nil, fmt.Errorf("pair provided is empty")
+		return nil, currency.ErrCurrencyPairEmpty
 	}
-	fmtPair, err := d.FormatExchangeCurrency(p, assetType)
+	p, err := d.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	var tickerData *TickerData
 	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		tickerData, err = d.WSRetrivePublicTicker(fmtPair.String())
+		tickerData, err = d.WSRetrivePublicTicker(p.String())
 	} else {
-		tickerData, err = d.GetPublicTicker(ctx, fmtPair.String())
+		tickerData, err = d.GetPublicTicker(ctx, p.String())
 	}
 	if err != nil {
 		return nil, err
@@ -296,7 +296,6 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		Volume:       tickerData.Stats.Volume,
 	}
 	err = ticker.ProcessTicker(&resp)
-
 	if err != nil {
 		return nil, err
 	}
@@ -889,62 +888,60 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		return nil, err
 	}
 	var resp []order.Detail
-	switch getOrdersRequest.AssetType {
-	case asset.Futures, asset.Options, asset.FutureCombo, asset.OptionCombo:
-		for x := range getOrdersRequest.Pairs {
-			fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
-			if err != nil {
-				return nil, err
-			}
-			var ordersData []OrderData
-			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				ordersData, err = d.WSRetriveOpenOrdersByInstrument(fmtPair.String(), getOrdersRequest.Type.Lower())
-			} else {
-				ordersData, err = d.GetOpenOrdersByInstrument(ctx, fmtPair.String(), getOrdersRequest.Type.Lower())
-			}
-			if err != nil {
-				return nil, err
-			}
-			for y := range ordersData {
-				orderSide := order.Sell
-				if ordersData[y].Direction == sideBUY {
-					orderSide = order.Buy
-				}
-				if getOrdersRequest.Side != orderSide && getOrdersRequest.Side != order.AnySide {
-					continue
-				}
-				orderType, err := order.StringToOrderType(ordersData[y].OrderType)
-				if err != nil {
-					return nil, err
-				}
-				if getOrdersRequest.Type != orderType && getOrdersRequest.Type != order.AnyType {
-					continue
-				}
-				var orderStatus order.Status
-				ordersData[y].OrderState = strings.ToLower(ordersData[y].OrderState)
-				if ordersData[y].OrderState != "open" {
-					continue
-				}
-				resp = append(resp, order.Detail{
-					AssetType:       getOrdersRequest.AssetType,
-					Exchange:        d.Name,
-					PostOnly:        ordersData[y].PostOnly,
-					Price:           ordersData[y].Price,
-					Amount:          ordersData[y].Amount,
-					ExecutedAmount:  ordersData[y].FilledAmount,
-					Fee:             ordersData[y].Commission,
-					RemainingAmount: ordersData[y].Amount - ordersData[y].FilledAmount,
-					OrderID:         ordersData[y].OrderID,
-					Pair:            getOrdersRequest.Pairs[x],
-					LastUpdated:     time.UnixMilli(ordersData[y].LastUpdateTimestamp),
-					Side:            orderSide,
-					Type:            orderType,
-					Status:          orderStatus,
-				})
-			}
-		}
-	default:
+	if !d.SupportsAsset(getOrdersRequest.AssetType) {
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, getOrdersRequest.AssetType)
+	}
+	for x := range getOrdersRequest.Pairs {
+		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
+		if err != nil {
+			return nil, err
+		}
+		var ordersData []OrderData
+		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			ordersData, err = d.WSRetriveOpenOrdersByInstrument(fmtPair.String(), getOrdersRequest.Type.Lower())
+		} else {
+			ordersData, err = d.GetOpenOrdersByInstrument(ctx, fmtPair.String(), getOrdersRequest.Type.Lower())
+		}
+		if err != nil {
+			return nil, err
+		}
+		for y := range ordersData {
+			orderSide := order.Sell
+			if ordersData[y].Direction == sideBUY {
+				orderSide = order.Buy
+			}
+			if getOrdersRequest.Side != orderSide && getOrdersRequest.Side != order.AnySide {
+				continue
+			}
+			orderType, err := order.StringToOrderType(ordersData[y].OrderType)
+			if err != nil {
+				return nil, err
+			}
+			if getOrdersRequest.Type != orderType && getOrdersRequest.Type != order.AnyType {
+				continue
+			}
+			var orderStatus order.Status
+			ordersData[y].OrderState = strings.ToLower(ordersData[y].OrderState)
+			if ordersData[y].OrderState != "open" {
+				continue
+			}
+			resp = append(resp, order.Detail{
+				AssetType:       getOrdersRequest.AssetType,
+				Exchange:        d.Name,
+				PostOnly:        ordersData[y].PostOnly,
+				Price:           ordersData[y].Price,
+				Amount:          ordersData[y].Amount,
+				ExecutedAmount:  ordersData[y].FilledAmount,
+				Fee:             ordersData[y].Commission,
+				RemainingAmount: ordersData[y].Amount - ordersData[y].FilledAmount,
+				OrderID:         ordersData[y].OrderID,
+				Pair:            getOrdersRequest.Pairs[x],
+				LastUpdated:     time.UnixMilli(ordersData[y].LastUpdateTimestamp),
+				Side:            orderSide,
+				Type:            orderType,
+				Status:          orderStatus,
+			})
+		}
 	}
 	return resp, nil
 }

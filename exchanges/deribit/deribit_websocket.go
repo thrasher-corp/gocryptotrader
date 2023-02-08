@@ -781,9 +781,17 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 							Channel:  orderbookChannel,
 							Currency: pairs[z],
 							Params: map[string]interface{}{
-								"group":    "none",
-								"depth":    "1",
+								"group":    "250",
+								"depth":    "20",
 								"interval": "100ms",
+							},
+						})
+					subscriptions = append(subscriptions,
+						stream.ChannelSubscription{
+							Channel:  orderbookChannel,
+							Currency: pairs[z],
+							Params: map[string]interface{}{
+								"interval": "raw",
 							},
 						})
 				case tickerChannel:
