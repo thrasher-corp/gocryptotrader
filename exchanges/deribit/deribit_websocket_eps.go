@@ -769,7 +769,7 @@ func (d *Deribit) WSRetrieveAnnouncements(startTime time.Time, count int64) ([]A
 // WSRetrievePublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
 func (d *Deribit) WSRetrievePublicPortfolioMargins(symbol string, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
 	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, symbol)
 	}
 	input := &struct {
 		Currency           string             `json:"currency"`

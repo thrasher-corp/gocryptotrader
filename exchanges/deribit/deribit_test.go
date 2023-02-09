@@ -632,7 +632,7 @@ func TestGetAccountSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveAccountSummary(currencyBTC, false); err != nil {
+	if _, err := d.WSRetrieveAccountSummary(currencyBTC, false); err != nil {
 		t.Error(err)
 	}
 }
