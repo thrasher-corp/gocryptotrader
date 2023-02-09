@@ -625,7 +625,7 @@ type APIKeyData struct {
 	Name         string `json:"name"`
 }
 
-// SubAccountData stores stores subaccount data
+// SubAccountData stores subaccount data
 type SubAccountData struct {
 	Email                string                           `json:"email"`
 	ID                   int64                            `json:"id"`
@@ -766,8 +766,6 @@ type wsSubscriptionResponse struct {
 	ID             int64    `json:"id"`
 	Method         string   `json:"method"`
 	Result         []string `json:"result"`
-	UseIn          int64    `json:"usIn"`
-	UseOut         int64    `json:"usOut"`
 }
 
 // RequestForQuote RFQs for instruments in given currency.

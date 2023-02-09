@@ -789,13 +789,11 @@ func TestGetAnnouncements(t *testing.T) {
 }
 
 func TestGetPublicPortfolioMargins(t *testing.T) {
-	// t.Parallel()
 	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
 	if err != nil {
 		t.Skip(err)
 	}
 	time.Sleep(time.Second)
-	// d.Verbose = true
 	if _, err = d.GetPublicPortfolioMargins(context.Background(), currencyBTC, map[string]float64{
 		"BTC-PERPETUAL": info.ContractSize * 2,
 	}); err != nil {
@@ -2336,7 +2334,7 @@ func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	time.Sleep(time.Second)
+	time.Sleep(4 * time.Second)
 	if _, err = d.WSRetrievePublicPortfolioMargins(currencyBTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2}); err != nil {
 		t.Error(err)
 	}
