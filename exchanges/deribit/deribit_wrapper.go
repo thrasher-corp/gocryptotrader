@@ -221,7 +221,7 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		var instrumentsData []InstrumentData
 		var err error
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			instrumentsData, err = d.WSRetriveInstrumentsData(x, d.GetAssetKind(assetType), false)
+			instrumentsData, err = d.WSRetrieveInstrumentsData(x, d.GetAssetKind(assetType), false)
 		} else {
 			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
 		}
@@ -275,7 +275,7 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	}
 	var tickerData *TickerData
 	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		tickerData, err = d.WSRetrivePublicTicker(p.String())
+		tickerData, err = d.WSRetrievePublicTicker(p.String())
 	} else {
 		tickerData, err = d.GetPublicTicker(ctx, p.String())
 	}
@@ -334,7 +334,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	}
 	var obData *Orderbook
 	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		obData, err = d.WSRetriveOrderbookData(fmtPair.String(), 50)
+		obData, err = d.WSRetrieveOrderbookData(fmtPair.String(), 50)
 	} else {
 		obData, err = d.GetOrderbookData(ctx, fmtPair.String(), 50)
 	}
@@ -380,7 +380,7 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.
 	for x := range currencies {
 		var data *AccountSummaryData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			data, err = d.WSRetriveAccountSummary(currencies[x].Currency, false)
+			data, err = d.WSRetrieveAccountSummary(currencies[x].Currency, false)
 		} else {
 			data, err = d.GetAccountSummary(ctx, currencies[x].Currency, false)
 		}
@@ -416,7 +416,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	var currencies []CurrencyData
 	var err error
 	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		currencies, err = d.WSRetriveCurrencies()
+		currencies, err = d.WSRetrieveCurrencies()
 	} else {
 		currencies, err = d.GetCurrencies(ctx)
 	}
@@ -427,7 +427,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	for x := range currencies {
 		var deposits *DepositsData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			deposits, err = d.WSRetriveDeposits(currencies[x].Currency, 100, 0)
+			deposits, err = d.WSRetrieveDeposits(currencies[x].Currency, 100, 0)
 		} else {
 			deposits, err = d.GetDeposits(ctx, currencies[x].Currency, 100, 0)
 		}
@@ -448,7 +448,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 		}
 		var withdrawalData *WithdrawalsData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = d.WSRetriveWithdrawals(currencies[x].Currency, 100, 0)
+			withdrawalData, err = d.WSRetrieveWithdrawals(currencies[x].Currency, 100, 0)
 		} else {
 			withdrawalData, err = d.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
@@ -476,7 +476,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 	var currencies []CurrencyData
 	var err error
 	if d.Websocket.IsConnected() {
-		currencies, err = d.WSRetriveCurrencies()
+		currencies, err = d.WSRetrieveCurrencies()
 	} else {
 		currencies, err = d.GetCurrencies(ctx)
 	}
@@ -490,7 +490,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 		}
 		var withdrawalData *WithdrawalsData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = d.WSRetriveWithdrawals(currencies[x].Currency, 100, 0)
+			withdrawalData, err = d.WSRetrieveWithdrawals(currencies[x].Currency, 100, 0)
 		} else {
 			withdrawalData, err = d.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
@@ -524,7 +524,7 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	resp := []trade.Data{}
 	var trades *PublicTradesData
 	if d.Websocket.IsConnected() {
-		trades, err = d.WSRetriveLastTradesByInstrument(
+		trades, err = d.WSRetrieveLastTradesByInstrument(
 			format.Format(p), "", "", "", 0, false)
 	} else {
 		trades, err = d.GetLastTradesByInstrument(
@@ -792,7 +792,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	var orderInfo *OrderData
 	var err error
 	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		orderInfo, err = d.WSRetrivesOrderState(orderID)
+		orderInfo, err = d.WSRetrievesOrderState(orderID)
 	} else {
 		orderInfo, err = d.GetOrderState(ctx, orderID)
 	}
@@ -840,7 +840,7 @@ func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency
 	var addressData *DepositAddressData
 	var err error
 	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		addressData, err = d.WSRetriveCurrentDepositAddress(cryptocurrency.String())
+		addressData, err = d.WSRetrieveCurrentDepositAddress(cryptocurrency.String())
 	} else {
 		addressData, err = d.GetCurrentDepositAddress(ctx, cryptocurrency.String())
 	}
@@ -898,7 +898,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		}
 		var ordersData []OrderData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			ordersData, err = d.WSRetriveOpenOrdersByInstrument(fmtPair.String(), getOrdersRequest.Type.Lower())
+			ordersData, err = d.WSRetrieveOpenOrdersByInstrument(fmtPair.String(), getOrdersRequest.Type.Lower())
 		} else {
 			ordersData, err = d.GetOpenOrdersByInstrument(ctx, fmtPair.String(), getOrdersRequest.Type.Lower())
 		}
@@ -960,7 +960,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		}
 		var ordersData []OrderData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			ordersData, err = d.WSRetriveOrderHistoryByInstrument(fmtPair.String(), 100, 0, true, true)
+			ordersData, err = d.WSRetrieveOrderHistoryByInstrument(fmtPair.String(), 100, 0, true, true)
 		} else {
 			ordersData, err = d.GetOrderHistoryByInstrument(ctx, fmtPair.String(), 100, 0, true, true)
 		}
@@ -1035,7 +1035,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	}
 	var tradingViewData *TVChartData
 	if d.Websocket.IsConnected() {
-		tradingViewData, err = d.WSRetrivesTradingViewChartData(req.RequestFormatted.String(), intervalString, start, end)
+		tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, start, end)
 	} else {
 		tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, start, end)
 	}
@@ -1078,7 +1078,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			return nil, err
 		}
 		if d.Websocket.IsConnected() {
-			tradingViewData, err = d.WSRetrivesTradingViewChartData(req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 		} else {
 			tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 		}

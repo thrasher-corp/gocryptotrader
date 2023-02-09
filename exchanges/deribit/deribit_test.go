@@ -241,7 +241,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveMarkPriceHistory(pairs[0].String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+	if _, err := d.WSRetrieveMarkPriceHistory(pairs[0].String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -258,7 +258,7 @@ func TestGetBookSummaryByCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveBookBySummary(currencySOL, ""); err != nil {
+	if _, err = d.WSRetrieveBookBySummary(currencySOL, ""); err != nil {
 		t.Error(err)
 	}
 }
@@ -269,7 +269,7 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveBookSummaryByInstrument(btcPerpInstrument); err != nil {
+	if _, err = d.WSRetrieveBookSummaryByInstrument(btcPerpInstrument); err != nil {
 		t.Error(err)
 	}
 }
@@ -280,7 +280,7 @@ func TestGetContractSize(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveContractSize(btcPerpInstrument); err != nil {
+	if _, err = d.WSRetrieveContractSize(btcPerpInstrument); err != nil {
 		t.Error(err)
 	}
 }
@@ -291,7 +291,7 @@ func TestGetCurrencies(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveCurrencies(); err != nil {
+	if _, err := d.WSRetrieveCurrencies(); err != nil {
 		t.Error(err)
 	}
 }
@@ -302,7 +302,7 @@ func TestGetDeliveryPrices(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveDeliveryPrices("btc_usd", 0, 5); err != nil {
+	if _, err = d.WSRetrieveDeliveryPrices("btc_usd", 0, 5); err != nil {
 		t.Error(err)
 	}
 }
@@ -313,7 +313,7 @@ func TestGetFundingChartData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveFundingChartData(btcPerpInstrument, "8h"); err != nil {
+	if _, err = d.WSRetrieveFundingChartData(btcPerpInstrument, "8h"); err != nil {
 		t.Error(err)
 	}
 }
@@ -328,11 +328,11 @@ func TestGetFundingRateValue(t *testing.T) {
 	if err != nil && !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
-	_, err = d.WSRetriveFundingRateValue(btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.WSRetrieveFundingRateValue(btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
 	if err != nil && !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
-	if _, err = d.WSRetriveFundingRateValue(btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now()); err != nil {
+	if _, err = d.WSRetrieveFundingRateValue(btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -343,7 +343,7 @@ func TestGetHistoricalVolatility(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveHistoricalVolatility(currencySOL); err != nil {
+	if _, err = d.WSRetrieveHistoricalVolatility(currencySOL); err != nil {
 		t.Error(err)
 	}
 }
@@ -354,7 +354,7 @@ func TestGetCurrencyIndexPrice(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveCurrencyIndexPrice(currencyBTC); err != nil {
+	if _, err = d.WSRetrieveCurrencyIndexPrice(currencyBTC); err != nil {
 		t.Error(err)
 	}
 }
@@ -365,7 +365,7 @@ func TestGetIndexPrice(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveIndexPrice("ada_usd"); err != nil {
+	if _, err = d.WSRetrieveIndexPrice("ada_usd"); err != nil {
 		t.Error(err)
 	}
 }
@@ -376,7 +376,7 @@ func TestGetIndexPriceNames(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveIndexPriceNames(); err != nil {
+	if _, err = d.WSRetrieveIndexPriceNames(); err != nil {
 		t.Error(err)
 	}
 }
@@ -387,7 +387,7 @@ func TestGetInstrumentData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveInstrumentData(btcPerpInstrument); err != nil {
+	if _, err = d.WSRetrieveInstrumentData(btcPerpInstrument); err != nil {
 		t.Error(err)
 	}
 }
@@ -398,7 +398,7 @@ func TestGetInstrumentsData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveInstrumentsData(currencyBTC, "", false); err != nil {
+	if _, err = d.WSRetrieveInstrumentsData(currencyBTC, "", false); err != nil {
 		t.Error(err)
 	}
 }
@@ -413,11 +413,11 @@ func TestGetLastSettlementsByCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveLastSettlementsByCurrency(currencyBTC, "", "", 0, time.Now().Add(-time.Hour))
+	_, err = d.WSRetrieveLastSettlementsByCurrency(currencyBTC, "", "", 0, time.Now().Add(-time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveLastSettlementsByCurrency(currencyBTC, "delivery", "5", 0, time.Now().Add(-time.Hour)); err != nil {
+	if _, err = d.WSRetrieveLastSettlementsByCurrency(currencyBTC, "delivery", "5", 0, time.Now().Add(-time.Hour)); err != nil {
 		t.Error(err)
 	}
 }
@@ -432,11 +432,11 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveLastSettlementsByInstrument(btcPerpInstrument, "", "", 0, time.Time{})
+	_, err = d.WSRetrieveLastSettlementsByInstrument(btcPerpInstrument, "", "", 0, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveLastSettlementsByInstrument(btcPerpInstrument, "settlement", "5", 0, time.Now().Add(-2*time.Hour)); err != nil {
+	if _, err = d.WSRetrieveLastSettlementsByInstrument(btcPerpInstrument, "settlement", "5", 0, time.Now().Add(-2*time.Hour)); err != nil {
 		t.Error(err)
 	}
 }
@@ -451,11 +451,11 @@ func TestGetLastTradesByCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveLastTradesByCurrency(currencyBTC, "", "", "", "", 0, false)
+	_, err = d.WSRetrieveLastTradesByCurrency(currencyBTC, "", "", "", "", 0, false)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveLastTradesByCurrency(currencyBTC, "option", "36798", "36799", "asc", 0, true); err != nil {
+	if _, err = d.WSRetrieveLastTradesByCurrency(currencyBTC, "option", "36798", "36799", "asc", 0, true); err != nil {
 		t.Error(err)
 	}
 }
@@ -472,11 +472,11 @@ func TestGetLastTradesByCurrencyAndTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveLastTradesByCurrencyAndTime(currencyBTC, "", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
+	_, err = d.WSRetrieveLastTradesByCurrencyAndTime(currencyBTC, "", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveLastTradesByCurrencyAndTime(currencyBTC, "option", "asc", 25, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+	if _, err := d.WSRetrieveLastTradesByCurrencyAndTime(currencyBTC, "option", "asc", 25, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -491,11 +491,11 @@ func TestGetLastTradesByInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveLastTradesByInstrument(btcPerpInstrument, "", "", "", 0, false)
+	_, err = d.WSRetrieveLastTradesByInstrument(btcPerpInstrument, "", "", "", 0, false)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveLastTradesByInstrument(btcPerpInstrument, "30500", "31500", "desc", 0, true); err != nil {
+	if _, err = d.WSRetrieveLastTradesByInstrument(btcPerpInstrument, "30500", "31500", "desc", 0, true); err != nil {
 		t.Error(err)
 	}
 }
@@ -512,11 +512,11 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveLastTradesByInstrumentAndTime(btcPerpInstrument, "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
+	_, err = d.WSRetrieveLastTradesByInstrumentAndTime(btcPerpInstrument, "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveLastTradesByInstrumentAndTime(btcPerpInstrument, "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(btcPerpInstrument, "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -527,7 +527,7 @@ func TestGetOrderbookData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveOrderbookData(btcPerpInstrument, 0); err != nil {
+	if _, err = d.WSRetrieveOrderbookData(btcPerpInstrument, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -541,14 +541,14 @@ func TestGetOrderbookByInstrumentID(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	combos, err := d.WSRetriveComboIDS(currencyBTC, "")
+	combos, err := d.WSRetrieveComboIDS(currencyBTC, "")
 	if err != nil {
 		t.Skip(err)
 	}
 	if len(combos) == 0 {
 		t.Skip("no combo instance found for currency BTC")
 	}
-	comboD, err := d.WSRetriveComboDetails(combos[0])
+	comboD, err := d.WSRetrieveComboDetails(combos[0])
 	if err != nil {
 		t.Error(err)
 	}
@@ -556,7 +556,7 @@ func TestGetOrderbookByInstrumentID(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "not_found") {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveOrderbookByInstrumentID(comboD.InstrumentID, 50); err != nil && !strings.Contains(err.Error(), "not_found") {
+	if _, err := d.WSRetrieveOrderbookByInstrumentID(comboD.InstrumentID, 50); err != nil && !strings.Contains(err.Error(), "not_found") {
 		t.Error(err)
 	}
 }
@@ -574,7 +574,7 @@ func TestGetRequestForQuote(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveRequestForQuote(currencyBTC, d.GetAssetKind(asset.Futures)); err != nil {
+	if _, err := d.WSRetrieveRequestForQuote(currencyBTC, d.GetAssetKind(asset.Futures)); err != nil {
 		t.Error(err)
 	}
 }
@@ -585,7 +585,7 @@ func TestGetTradeVolumes(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveTradeVolumes(false); err != nil {
+	if _, err = d.WSRetrieveTradeVolumes(false); err != nil {
 		t.Error(err)
 	}
 }
@@ -596,7 +596,7 @@ func TestGetTradingViewChartData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrivesTradingViewChartData(btcPerpInstrument, "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
+	if _, err = d.WSRetrievesTradingViewChartData(btcPerpInstrument, "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -607,7 +607,7 @@ func TestGetVolatilityIndexData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveVolatilityIndexData(currencyBTC, "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
+	if _, err = d.WSRetrieveVolatilityIndexData(currencyBTC, "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -618,7 +618,7 @@ func TestGetPublicTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrivePublicTicker(btcPerpInstrument); err != nil {
+	if _, err = d.WSRetrievePublicTicker(btcPerpInstrument); err != nil {
 		t.Error(err)
 	}
 }
@@ -632,7 +632,7 @@ func TestGetAccountSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveAccountSummary(currencyBTC, false); err != nil {
+	if _, err = d.WSRetrieveAccountSummary(currencyBTC, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -660,7 +660,7 @@ func TestGetTransfers(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveTransfers(currencyBTC, 0, 0); err != nil {
+	if _, err = d.WSRetrieveTransfers(currencyBTC, 0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -702,7 +702,7 @@ func TestGetCurrentDepositAddress(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveCurrentDepositAddress(currencyETH); err != nil {
+	if _, err := d.WSRetrieveCurrentDepositAddress(currencyETH); err != nil {
 		t.Error(err)
 	}
 }
@@ -716,7 +716,7 @@ func TestGetDeposits(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveDeposits(currencyBTC, 25, 0); err != nil {
+	if _, err = d.WSRetrieveDeposits(currencyBTC, 25, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -730,7 +730,7 @@ func TestGetWithdrawals(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveWithdrawals(currencyBTC, 25, 0); err != nil {
+	if _, err := d.WSRetrieveWithdrawals(currencyBTC, 25, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -783,31 +783,22 @@ func TestGetAnnouncements(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveAnnouncements(time.Now(), 5); err != nil {
+	if _, err = d.WSRetrieveAnnouncements(time.Now(), 5); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetPublicPortfolioMargins(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
 	if err != nil {
 		t.Skip(err)
 	}
 	time.Sleep(time.Second)
+	// d.Verbose = true
 	if _, err = d.GetPublicPortfolioMargins(context.Background(), currencyBTC, map[string]float64{
 		"BTC-PERPETUAL": info.ContractSize * 2,
 	}); err != nil {
-		t.Error(err)
-	}
-}
-func TestWSRetrivePublicPortfolioMargins(t *testing.T) {
-	t.Parallel()
-	info, err := d.GetInstrumentData(context.Background(), btcPerpInstrument)
-	if err != nil {
-		t.Skip(err)
-	}
-	if _, err = d.WSRetrivePublicPortfolioMargins(currencyBTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2}); err != nil {
 		t.Error(err)
 	}
 }
@@ -821,7 +812,7 @@ func TestGetAccessLog(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveAccessLog(0, 0); err != nil {
+	if _, err = d.WSRetrieveAccessLog(0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -962,7 +953,7 @@ func TestGetAffiliateProgramInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveAffiliateProgramInfo(1); err != nil {
+	if _, err = d.WSRetrieveAffiliateProgramInfo(1); err != nil {
 		t.Error(err)
 	}
 }
@@ -976,7 +967,7 @@ func TestGetEmailLanguage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveEmailLanguage(); err != nil {
+	if _, err = d.WSRetrieveEmailLanguage(); err != nil {
 		t.Error(err)
 	}
 }
@@ -990,7 +981,7 @@ func TestGetNewAnnouncements(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveNewAnnouncements(); err != nil {
+	if _, err = d.WSRetrieveNewAnnouncements(); err != nil {
 		t.Error(err)
 	}
 }
@@ -1004,7 +995,7 @@ func TestGetPrivatePortfolioMargins(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrivePricatePortfolioMargins(currencyBTC, false, nil); err != nil {
+	if _, err = d.WSRetrievePricatePortfolioMargins(currencyBTC, false, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -1018,7 +1009,7 @@ func TestGetPosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrivePosition(btcPerpInstrument); err != nil {
+	if _, err = d.WSRetrievePosition(btcPerpInstrument); err != nil {
 		t.Error(err)
 	}
 }
@@ -1032,7 +1023,7 @@ func TestGetSubAccounts(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveSubAccounts(false); err != nil {
+	if _, err = d.WSRetrieveSubAccounts(false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1046,7 +1037,7 @@ func TestGetSubAccountDetails(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveSubAccountDetails(currencyBTC, false); err != nil {
+	if _, err = d.WSRetrieveSubAccountDetails(currencyBTC, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1064,11 +1055,11 @@ func TestGetPositions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetrivePositions(currencyBTC, "option")
+	_, err = d.WSRetrievePositions(currencyBTC, "option")
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrivePositions(currencyETH, ""); err != nil {
+	if _, err = d.WSRetrievePositions(currencyETH, ""); err != nil {
 		t.Error(err)
 	}
 }
@@ -1086,11 +1077,11 @@ func TestGetTransactionLog(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveTransactionLog(currencyBTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
+	_, err = d.WSRetrieveTransactionLog(currencyBTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveTransactionLog(currencyBTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 0, 0); err != nil {
+	if _, err = d.WSRetrieveTransactionLog(currencyBTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -1104,7 +1095,7 @@ func TestGetUserLocks(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserLocks(); err != nil {
+	if _, err = d.WSRetrieveUserLocks(); err != nil {
 		t.Error(err)
 	}
 }
@@ -1432,7 +1423,7 @@ func TestGetMargins(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveMargins(btcPerpInstrument, 5, 35000); err != nil {
+	if _, err = d.WSRetrieveMargins(btcPerpInstrument, 5, 35000); err != nil {
 		t.Error(err)
 	}
 }
@@ -1446,7 +1437,7 @@ func TestGetMMPConfig(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveMMPConfig(currencyETH); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if _, err = d.WSRetrieveMMPConfig(currencyETH); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
 		t.Error(err)
 	}
 }
@@ -1460,7 +1451,7 @@ func TestGetOpenOrdersByCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveOpenOrdersByCurrency(currencyBTC, "option", "all"); err != nil {
+	if _, err = d.WSRetrieveOpenOrdersByCurrency(currencyBTC, "option", "all"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1474,7 +1465,7 @@ func TestGetOpenOrdersByInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveOpenOrdersByInstrument(btcPerpInstrument, "all"); err != nil {
+	if _, err = d.WSRetrieveOpenOrdersByInstrument(btcPerpInstrument, "all"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1488,7 +1479,7 @@ func TestGetOrderHistoryByCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveOrderHistoryByCurrency(currencyBTC, "future", 0, 0, false, false); err != nil {
+	if _, err = d.WSRetrieveOrderHistoryByCurrency(currencyBTC, "future", 0, 0, false, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1502,7 +1493,7 @@ func TestGetOrderHistoryByInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveOrderHistoryByInstrument(btcPerpInstrument, 0, 0, false, false); err != nil {
+	if _, err = d.WSRetrieveOrderHistoryByInstrument(btcPerpInstrument, 0, 0, false, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1518,7 +1509,7 @@ func TestGetOrderMarginsByID(t *testing.T) {
 	} else if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveOrderMarginsByID([]string{"ETH-349280", "ETH-349279", "ETH-349278"}); err != nil && strings.Contains(err.Error(), "value must be a list") {
+	if _, err = d.WSRetrieveOrderMarginsByID([]string{"ETH-349280", "ETH-349279", "ETH-349278"}); err != nil && strings.Contains(err.Error(), "value must be a list") {
 		t.Skip(err)
 	} else if err != nil {
 		t.Error(err)
@@ -1534,7 +1525,7 @@ func TestGetOrderState(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrivesOrderState("brokenid123"); err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if _, err = d.WSRetrievesOrderState("brokenid123"); err != nil && !strings.Contains(err.Error(), "order_not_found") {
 		t.Error(err)
 	}
 }
@@ -1548,7 +1539,7 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveTriggerOrderHistory(currencyETH, "", "", 0); err != nil {
+	if _, err = d.WSRetrieveTriggerOrderHistory(currencyETH, "", "", 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -1562,7 +1553,7 @@ func TestGetUserTradesByCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserTradesByCurrency(currencyETH, "future", "", "", "asc", 0, false); err != nil {
+	if _, err = d.WSRetrieveUserTradesByCurrency(currencyETH, "future", "", "", "asc", 0, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1576,7 +1567,7 @@ func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserTradesByCurrencyAndTime(currencyETH, "future", "default", 5, false, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1)); err != nil {
+	if _, err = d.WSRetrieveUserTradesByCurrencyAndTime(currencyETH, "future", "default", 5, false, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1590,7 +1581,7 @@ func TestGetUserTradesByInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserTradesByInstrument(btcPerpInstrument, "asc", 5, 10, 4, true); err != nil {
+	if _, err = d.WSRetrieveUserTradesByInstrument(btcPerpInstrument, "asc", 5, 10, 4, true); err != nil {
 		t.Error(err)
 	}
 }
@@ -1604,7 +1595,7 @@ func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserTradesByInstrumentAndTime(btcPerpInstrument, "asc", 10, false, time.Now().Add(-time.Hour), time.Now()); err != nil {
+	if _, err = d.WSRetrieveUserTradesByInstrumentAndTime(btcPerpInstrument, "asc", 10, false, time.Now().Add(-time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -1618,7 +1609,7 @@ func TestGetUserTradesByOrder(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserTradesByOrder("wrongOrderID", "default"); err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if _, err = d.WSRetrieveUserTradesByOrder("wrongOrderID", "default"); err != nil && !strings.Contains(err.Error(), "order_not_found") {
 		t.Error(err)
 	}
 }
@@ -1674,7 +1665,7 @@ func TestGetSettlementHistoryByCurency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetriveSettlementHistoryByCurency(currencyBTC, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err = d.WSRetrieveSettlementHistoryByCurency(currencyBTC, "settlement", "", 10, time.Now().Add(-time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1689,7 +1680,7 @@ func TestGetSettlementHistoryByInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveSettlementHistoryByInstrument(btcPerpInstrument, "settlement", "", 10, time.Now().Add(-time.Hour)); err != nil {
+	if _, err = d.WSRetrieveSettlementHistoryByInstrument(btcPerpInstrument, "settlement", "", 10, time.Now().Add(-time.Hour)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1722,7 +1713,7 @@ func TestGetComboIDS(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	combos, err := d.WSRetriveComboIDS(currencyBTC, "")
+	combos, err := d.WSRetrieveComboIDS(currencyBTC, "")
 	if err != nil {
 		t.Skip(err)
 	}
@@ -1744,7 +1735,7 @@ func TestGetComboDetails(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetriveComboDetails(combos[0]); err != nil {
+	if _, err := d.WSRetrieveComboDetails(combos[0]); err != nil {
 		t.Error(err)
 	}
 }
@@ -1945,7 +1936,7 @@ func TestGetUserBlocTrade(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveUserBlockTrade("12345567"); err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
+	if _, err = d.WSRetrieveUserBlockTrade("12345567"); err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
 		t.Error(err)
 	}
 }
@@ -1966,7 +1957,7 @@ func TestGetLastBlockTradesbyCurrency(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetriveLastBlockTradesByCurrency("SOL", "", "", 5); err != nil {
+	if _, err = d.WSRetrieveLastBlockTradesByCurrency("SOL", "", "", 5); err != nil {
 		t.Error(err)
 	}
 }
@@ -2336,6 +2327,17 @@ func TestSubscribe(t *testing.T) {
 			Currency: tradablePairs[0],
 		}})
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
+	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	if err != nil {
+		t.Skip(err)
+	}
+	time.Sleep(time.Second)
+	if _, err = d.WSRetrievePublicPortfolioMargins(currencyBTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2}); err != nil {
 		t.Error(err)
 	}
 }

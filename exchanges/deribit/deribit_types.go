@@ -1248,7 +1248,7 @@ type WebsocketPosition struct {
 	AveragePrice       float64 `json:"average_price"`
 }
 
-// WsUserLock represents a notificiation data when account is locked/unlocked
+// WsUserLock represents a notification data when account is locked/unlocked
 type WsUserLock struct {
 	Locked   bool   `json:"locked"`
 	Currency string `json:"currency"`

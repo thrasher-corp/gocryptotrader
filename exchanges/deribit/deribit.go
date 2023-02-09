@@ -284,7 +284,7 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy string) ([]Hi
 	return resp, nil
 }
 
-// GetCurrencyIndexPrice retrives the current index price for the instruments, for the selected currency.
+// GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
 func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy string) (map[string]float64, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, strings.ToUpper(ccy))
@@ -531,7 +531,7 @@ func (d *Deribit) GetOrderbookData(ctx context.Context, instrument string, depth
 		common.EncodeURLValues(getOrderbook, params), &resp)
 }
 
-// GetOrderbookByInstrumentID retrives orderbook by instrument ID
+// GetOrderbookByInstrumentID retrieves orderbook by instrument ID
 func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID int64, depth float64) (*Orderbook, error) {
 	if instrumentID == 0 {
 		return nil, errInvalidInstrumentID
@@ -545,7 +545,7 @@ func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID i
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(getOrderbookByInstrumentID, params), &resp)
 }
 
-// GetRequestForQuote retrives RFQ information.
+// GetRequestForQuote retrieves RFQ information.
 func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy, kind string) ([]RequestForQuote, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
@@ -1132,7 +1132,7 @@ func (d *Deribit) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]Sub
 		getSubAccounts, params, &resp)
 }
 
-// GetSubAccountDetails retrives sub accounts detail information.
+// GetSubAccountDetails retrieves sub accounts detail information.
 func (d *Deribit) GetSubAccountDetails(ctx context.Context, ccy string, withOpenOrders bool) ([]SubAccountDetail, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, ccy)
