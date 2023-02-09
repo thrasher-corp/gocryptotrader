@@ -776,7 +776,11 @@ func stringToOrderType(orderType string) (order.Type, error) {
 	case "TAKE_PROFIT":
 		return order.TakeProfit, nil
 	default:
-		return order.StringToOrderType(orderType)
+		oType, err := order.StringToOrderType(orderType)
+		if err != nil {
+			return order.UnknownType, fmt.Errorf("%w, %v", order.ErrTypeIsInvalid, err)
+		}
+		return oType, nil
 	}
 }
 

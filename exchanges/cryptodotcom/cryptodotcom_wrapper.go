@@ -359,6 +359,10 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	if !cr.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
+	pair, err := cr.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
 	orderbookNew, err := cr.GetOrderbook(context.Background(), pair.String(), 0)
 	if err != nil {
 		return nil, err
@@ -369,7 +373,7 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 		Asset:           assetType,
 		VerifyOrderbook: cr.CanVerifyOrderbook,
 	}
-	if len(book.Bids) == 0 {
+	if len(orderbookNew.Data) == 0 {
 		return nil, fmt.Errorf("%w, missing orderbook data", orderbook.ErrOrderbookInvalid)
 	}
 	book.Bids = make([]orderbook.Item, len(orderbookNew.Data[0].Bids))

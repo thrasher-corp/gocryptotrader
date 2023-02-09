@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -350,7 +351,7 @@ func TestGetTransactions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInfoNotProvided)
 	}
-	_, err := cr.GetTransactions(context.Background(), "", "", time.Time{}, time.Time{}, 20)
+	_, err := cr.GetTransactions(context.Background(), "BTC-USDT", "", time.Time{}, time.Time{}, 20)
 	if err != nil {
 		t.Error(err)
 	}
@@ -427,7 +428,7 @@ func TestGetOTCTradeHistory(t *testing.T) {
 		t.Skip(credInfoNotProvided)
 	}
 	_, err := cr.GetOTCTradeHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, 0)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "OTC_USER_NO_PERMISSION") {
 		t.Error(err)
 	}
 }
@@ -480,6 +481,7 @@ func TestFetchOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cr.Verbose = true
 	_, err = cr.FetchOrderbook(context.Background(), enabledPairs[1], asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -492,7 +494,8 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = cr.UpdateOrderbook(context.Background(), enabledPairs[0], asset.Spot)
+	cr.Verbose = true
+	_, err = cr.UpdateOrderbook(context.Background(), enabledPairs[1], asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -520,7 +523,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	if _, err := cr.GetRecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.PerpetualSwap); err != nil {
+	if _, err := cr.GetRecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
 		t.Error("Cryptodotcom GetRecentTrades() error", err)
 	}
 }
@@ -792,17 +795,17 @@ func TestGetCreateParamMap(t *testing.T) {
 	arg.Notional = 12
 	_, err = arg.getCreateParamMap()
 	if !errors.Is(err, errTriggerPriceRequired) {
-		t.Errorf("found %v, but expecting %v", errTriggerPriceRequired, err)
+		t.Errorf("found %v, but expecting %v", err, errTriggerPriceRequired)
 	}
 	arg.OrderType = orderTypeToString(order.UnknownType)
 	_, err = arg.getCreateParamMap()
 	if !errors.Is(err, order.ErrTypeIsInvalid) {
-		t.Errorf("found %v, but expecting %v", order.ErrTypeIsInvalid, err)
+		t.Errorf("found %v, but expecting %v", err, order.ErrTypeIsInvalid)
 	}
 	arg.OrderType = orderTypeToString(order.StopLimit)
 	_, err = arg.getCreateParamMap()
 	if !errors.Is(err, errTriggerPriceRequired) {
-		t.Errorf("found %v, but expecting %v", order.ErrTypeIsInvalid, err)
+		t.Errorf("found %v, but expecting %v", err, order.ErrTypeIsInvalid)
 	}
 }
 
