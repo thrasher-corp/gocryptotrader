@@ -69,6 +69,7 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 	manager := &Manager{
 		ManagerConfig:            *c,
 		tickerBatchLastRequested: tickerBatchTracking,
+		// TODO: Link up defaultChannelBuffer to config.
 	}
 	manager.initSyncWG.Add(1)
 	return manager, nil
