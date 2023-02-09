@@ -641,36 +641,36 @@ func (g *Gateio) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+	p, err := g.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        g.Name,
 		Asset:           a,
 		VerifyOrderbook: g.CanVerifyOrderbook,
+		Pair:            p.Upper(),
 	}
-	fPair, err := g.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return book, err
-	}
-	book.Pair = fPair.Upper()
 	var orderbookNew *Orderbook
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		orderbookNew, err = g.GetOrderbook(ctx, fPair.String(), "", 0, true)
+		orderbookNew, err = g.GetOrderbook(ctx, book.Pair.String(), "", 0, true)
 	case asset.Futures:
 		var settle string
-		settle, err = g.getSettlementFromCurrency(fPair)
+		settle, err = g.getSettlementFromCurrency(book.Pair)
 		if err != nil {
 			return nil, err
 		}
-		orderbookNew, err = g.GetFuturesOrderbook(ctx, settle, fPair.Upper().String(), "", 0, true)
+		orderbookNew, err = g.GetFuturesOrderbook(ctx, settle, book.Pair.Upper().String(), "", 0, true)
 	case asset.DeliveryFutures:
 		var settle string
-		settle, err = g.getSettlementFromCurrency(fPair)
+		settle, err = g.getSettlementFromCurrency(book.Pair)
 		if err != nil {
 			return nil, err
 		}
-		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", fPair.Upper(), 0, true)
+		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", book.Pair, 0, true)
 	case asset.Options:
-		orderbookNew, err = g.GetOptionsOrderbook(ctx, fPair, "", 0, true)
+		orderbookNew, err = g.GetOptionsOrderbook(ctx, book.Pair, "", 0, true)
 	}
 	if err != nil {
 		return book, err
@@ -693,7 +693,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return book, err
 	}
-	return orderbook.Get(g.Name, fPair, a)
+	return orderbook.Get(g.Name, book.Pair, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

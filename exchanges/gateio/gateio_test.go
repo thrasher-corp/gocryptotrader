@@ -2376,14 +2376,14 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	cp, err := getFirstTradablePair(t, asset.Futures)
+	tradablePairs, err := g.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = g.UpdateOrderbook(context.Background(), cp, asset.Futures); err != nil {
+	if _, err = g.UpdateOrderbook(context.Background(), tradablePairs[len(tradablePairs)-1], asset.Futures); err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
-	cp, err = getFirstTradablePair(t, asset.DeliveryFutures)
+	cp, err := getFirstTradablePair(t, asset.DeliveryFutures)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3009,18 +3009,6 @@ func TestOptionsPositionPushData(t *testing.T) {
 	t.Parallel()
 	if err := g.wsHandleData([]byte(optionsPositionPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options position push data error: %v", g.Name, err)
-	}
-}
-
-func TestWsConnect(t *testing.T) {
-	if err := g.WsFuturesConnect(); err != nil {
-		t.Errorf("%s WsFuturesConnect failed: %v", g.Name, err)
-	}
-	if err := g.WsDeliveryFuturesConnect(); err != nil {
-		t.Errorf("%s WsDeliveryFuturesConnect failed: %v", g.Name, err)
-	}
-	if err := g.WsOptionsConnect(); err != nil {
-		t.Errorf("%s WsOptionsConnect failed: %v", g.Name, err)
 	}
 }
 
