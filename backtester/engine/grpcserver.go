@@ -209,6 +209,23 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	if err != nil {
 		return nil, err
 	}
+	if request.StartTimeOverride != nil && !request.StartTimeOverride.AsTime().IsZero() {
+		if cfg.DataSettings.DatabaseData != nil {
+			cfg.DataSettings.DatabaseData.StartDate = request.StartTimeOverride.AsTime()
+		} else if cfg.DataSettings.APIData != nil {
+			cfg.DataSettings.APIData.StartDate = request.StartTimeOverride.AsTime()
+		}
+	}
+	if request.EndTimeOverride != nil && !request.EndTimeOverride.AsTime().IsZero() {
+		if cfg.DataSettings.DatabaseData != nil {
+			cfg.DataSettings.DatabaseData.EndDate = request.EndTimeOverride.AsTime()
+		} else if cfg.DataSettings.APIData != nil {
+			cfg.DataSettings.APIData.EndDate = request.EndTimeOverride.AsTime()
+		}
+	}
+	if int64(request.IntervalOverride) > gctkline.FifteenSecond.Duration().Nanoseconds() {
+		cfg.DataSettings.Interval = gctkline.Interval(request.IntervalOverride)
+	}
 
 	err = cfg.Validate()
 	if err != nil {
