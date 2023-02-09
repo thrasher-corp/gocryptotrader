@@ -114,8 +114,6 @@ type SynchronizationType int
 const (
 	// Orderbook defines an orderbook update
 	Orderbook SynchronizationType = iota + 1
-	// Trade defines a trade update
-	Trade
 	// Ticker defines a ticker update
 	Ticker
 )

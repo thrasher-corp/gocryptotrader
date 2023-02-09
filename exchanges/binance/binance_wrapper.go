@@ -443,6 +443,10 @@ func (b *Binance) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !b.SupportsAsset(a) {
+		return fmt.Errorf("%w for [%v]", asset.ErrNotSupported, a)
+	}
+
 	enabledPairs, err := b.GetEnabledPairs(a)
 	if err != nil {
 		return err

@@ -24,7 +24,7 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}
 
-	if !c.SynchronizeOrderbook && !c.SynchronizeTicker && !c.SynchronizeTrades {
+	if !c.SynchronizeOrderbook && !c.SynchronizeTicker {
 		return nil, ErrNoItemsEnabled
 	}
 
@@ -52,12 +52,13 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		return nil, fmt.Errorf("%s %w", c.FiatDisplayCurrency, currency.ErrFiatDisplayCurrencyIsNotFiat)
 	}
 
-	log.Debugf(log.SyncMgr,
-		"Exchange currency pair syncer config: continuous: %v ticker: %v"+
-			" orderbook: %v trades: %v workers: %v verbose: %v timeout REST: %v"+
-			" timeout Websocket: %v",
-		c.SynchronizeContinuously, c.SynchronizeTicker, c.SynchronizeOrderbook,
-		c.SynchronizeTrades, c.NumWorkers, c.Verbose, c.TimeoutREST,
+	log.Debugf(log.SyncMgr, "Exchange currency pair syncer config: continuous: %v ticker: %v orderbook: %v workers: %v verbose: %v timeout REST: %v timeout Websocket: %v",
+		c.SynchronizeContinuously,
+		c.SynchronizeTicker,
+		c.SynchronizeOrderbook,
+		c.NumWorkers,
+		c.Verbose,
+		c.TimeoutREST,
 		c.TimeoutWebsocket)
 
 	var tickerBatchTracking map[string]map[asset.Item]time.Time
@@ -72,17 +73,11 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		orderbookJobsChannel = make(chan RESTJob, defaultChannelBuffer)
 	}
 
-	var tradesJobsChannel chan RESTJob
-	if c.SynchronizeTrades {
-		tradesJobsChannel = make(chan RESTJob, defaultChannelBuffer)
-	}
-
 	manager := &Manager{
 		ManagerConfig:            *c,
 		tickerBatchLastRequested: tickerBatchTracking,
 		orderbookJobs:            orderbookJobsChannel,
 		tickerJobs:               tickerJobsChannel,
-		tradeJobs:                tradesJobsChannel,
 	}
 	manager.initSyncWG.Add(1)
 	return manager, nil
@@ -181,10 +176,6 @@ func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair,
 		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Ticker, usingREST)
 		update = m.checkSyncItem(exch, agent, update)
 	}
-	if m.SynchronizeTrades {
-		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Trade, usingREST)
-		update = m.checkSyncItem(exch, agent, update)
-	}
 	return update
 }
 
@@ -219,13 +210,6 @@ func (m *Manager) sendJob(exch exchange.IBotExchange, agent *Agent) {
 		default:
 			log.Error(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
 		}
-	case subsystem.Trade:
-		// TODO: add support for trade synchronisation
-		// select {
-		// case m.tradeJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset, Item: agent.SynchronisationType}:
-		// default:
-		// 	log.Error(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
-		// }
 	}
 	agent.mu.Unlock()
 }
@@ -370,24 +354,6 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 		if err == nil && m.WebsocketRPCEnabled {
 			m.relayWebsocketEvent(result, "ticker_update", j.Asset.String(), exchName)
 		}
-		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, j.Item, err)
-		if err != nil {
-			log.Error(log.SyncMgr, err)
-		}
-	}
-}
-
-// tradeWorker waits for a trade job then executes a REST request. NOTE: This
-// is a POC routine which just blocks because there is currently no support for
-// this just yet.
-// TODO: Implement trade synchronization.
-func (m *Manager) tradeWorker(_ context.Context) {
-	for j := range m.tradeJobs {
-		if atomic.LoadInt32(&m.started) == 0 {
-			return
-		}
-		exchName := j.exch.GetName()
-		var err error
 		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, j.Item, err)
 		if err != nil {
 			log.Error(log.SyncMgr, err)

@@ -35,7 +35,6 @@ func (m *Manager) Start() error {
 
 	m.orderbookJobs = make(chan RESTJob, defaultChannelBuffer)
 	m.tickerJobs = make(chan RESTJob, defaultChannelBuffer)
-	m.tradeJobs = make(chan RESTJob, defaultChannelBuffer)
 
 	// Set job channel lanes for differing update speeds per exchange. POC;
 	// dangly routines will just block.
@@ -45,7 +44,7 @@ func (m *Manager) Start() error {
 	for i := 0; i < m.NumWorkers; i++ {
 		go m.orderbookWorker(context.TODO())
 		go m.tickerWorker(context.TODO())
-		go m.tradeWorker(context.TODO())
+		// TODO: Implement trade synchronization.
 	}
 
 	err := m.controller()
@@ -87,7 +86,6 @@ func (m *Manager) Stop() error {
 	}
 	close(m.orderbookJobs)
 	close(m.tickerJobs)
-	close(m.tradeJobs)
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil
 }
@@ -121,10 +119,6 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 		}
 	case subsystem.Ticker:
 		if !m.SynchronizeTicker {
-			return nil
-		}
-	case subsystem.Trade:
-		if !m.SynchronizeTrades {
 			return nil
 		}
 	default:

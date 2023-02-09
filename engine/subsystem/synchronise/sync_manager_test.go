@@ -136,11 +136,11 @@ func TestIsRunning(t *testing.T) {
 func TestManagerStart(t *testing.T) {
 	t.Parallel()
 	cfg := &ManagerConfig{
-		SynchronizeTrades:   true,
-		FiatDisplayCurrency: currency.USD,
-		PairFormatDisplay:   currency.EMPTYFORMAT,
-		ExchangeManager:     &TestExchangeManager{},
-		WebsocketRPCEnabled: true,
+		SynchronizeOrderbook: true,
+		FiatDisplayCurrency:  currency.USD,
+		PairFormatDisplay:    currency.EMPTYFORMAT,
+		ExchangeManager:      &TestExchangeManager{},
+		WebsocketRPCEnabled:  true,
 	}
 
 	var m *Manager
@@ -174,11 +174,11 @@ func TestSyncManagerStop(t *testing.T) {
 	}
 
 	cfg := &ManagerConfig{
-		SynchronizeTrades:   true,
-		FiatDisplayCurrency: currency.USD,
-		PairFormatDisplay:   currency.EMPTYFORMAT,
-		ExchangeManager:     &TestExchangeManager{},
-		WebsocketRPCEnabled: true,
+		SynchronizeOrderbook: true,
+		FiatDisplayCurrency:  currency.USD,
+		PairFormatDisplay:    currency.EMPTYFORMAT,
+		ExchangeManager:      &TestExchangeManager{},
+		WebsocketRPCEnabled:  true,
 	}
 
 	m, err = NewManager(cfg)
@@ -261,13 +261,6 @@ func TestSyncManagerUpdate(t *testing.T) {
 	}
 
 	m.SynchronizeTicker = true
-	// trades not enabled
-	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, subsystem.Trade, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
-
-	m.SynchronizeTrades = true
 	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, 1336, nil)
 	if !errors.Is(err, errUnknownSyncType) {
 		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncType)
@@ -280,7 +273,6 @@ func TestSyncManagerUpdate(t *testing.T) {
 	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot] = make(map[subsystem.SynchronizationType]*Agent)
 	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot][subsystem.Orderbook] = &Agent{Asset: 1}
 	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot][subsystem.Ticker] = &Agent{Asset: 1}
-	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot][subsystem.Trade] = &Agent{Asset: 1}
 
 	m.initSyncWG.Add(3)
 	// orderbook match
@@ -291,12 +283,6 @@ func TestSyncManagerUpdate(t *testing.T) {
 
 	// ticker match
 	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, subsystem.Ticker, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
-
-	// trades match
-	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, subsystem.Trade, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
@@ -314,25 +300,19 @@ func TestSyncManagerUpdate(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
-
-	// trades match
-	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, subsystem.Trade, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
 }
 
 func TestCheckAllExchangeAssets(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeTrades:   true,
-		FiatDisplayCurrency: currency.USD,
-		PairFormatDisplay:   currency.EMPTYFORMAT,
-		ExchangeManager:     &TestExchangeManager{Error: true},
-		WebsocketRPCEnabled: true,
-		TimeoutREST:         time.Second,
-		TimeoutWebsocket:    time.Second * 2,
+		SynchronizeOrderbook: true,
+		FiatDisplayCurrency:  currency.USD,
+		PairFormatDisplay:    currency.EMPTYFORMAT,
+		ExchangeManager:      &TestExchangeManager{Error: true},
+		WebsocketRPCEnabled:  true,
+		TimeoutREST:          time.Second,
+		TimeoutWebsocket:     time.Second * 2,
 	}
 
 	m, err := NewManager(cfg)
@@ -373,13 +353,13 @@ func TestGetSmallestTimeout(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeTrades:   true,
-		FiatDisplayCurrency: currency.USD,
-		PairFormatDisplay:   currency.EMPTYFORMAT,
-		ExchangeManager:     &TestExchangeManager{Error: true},
-		WebsocketRPCEnabled: true,
-		TimeoutREST:         time.Second,
-		TimeoutWebsocket:    time.Second * 2,
+		SynchronizeOrderbook: true,
+		FiatDisplayCurrency:  currency.USD,
+		PairFormatDisplay:    currency.EMPTYFORMAT,
+		ExchangeManager:      &TestExchangeManager{Error: true},
+		WebsocketRPCEnabled:  true,
+		TimeoutREST:          time.Second,
+		TimeoutWebsocket:     time.Second * 2,
 	}
 
 	m, err := NewManager(cfg)
@@ -406,7 +386,6 @@ func TestCheckSyncItems(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeTrades:    true,
 		SynchronizeOrderbook: true,
 		SynchronizeTicker:    true,
 		FiatDisplayCurrency:  currency.USD,
@@ -456,7 +435,6 @@ func TestPrintTickerSummary(t *testing.T) {
 	m.PrintTickerSummary(&ticker.Price{}, subsystem.Rest, nil)
 
 	cfg := &ManagerConfig{
-		SynchronizeTrades:    true,
 		SynchronizeOrderbook: true,
 		SynchronizeTicker:    true,
 		FiatDisplayCurrency:  currency.USD,
@@ -490,7 +468,6 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	m.PrintOrderbookSummary(nil, subsystem.Rest, nil)
 
 	cfg := &ManagerConfig{
-		SynchronizeTrades:    true,
 		SynchronizeOrderbook: true,
 		SynchronizeTicker:    true,
 		FiatDisplayCurrency:  currency.USD,
@@ -523,7 +500,6 @@ func TestRelayWebsocketEvent(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeTrades:    true,
 		SynchronizeOrderbook: true,
 		SynchronizeTicker:    true,
 		FiatDisplayCurrency:  currency.USD,

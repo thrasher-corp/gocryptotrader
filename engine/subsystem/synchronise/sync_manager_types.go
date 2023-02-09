@@ -56,7 +56,6 @@ type Agent struct {
 type ManagerConfig struct {
 	SynchronizeTicker       bool
 	SynchronizeOrderbook    bool
-	SynchronizeTrades       bool
 	SynchronizeContinuously bool
 	TimeoutREST             time.Duration
 	TimeoutWebsocket        time.Duration
@@ -89,7 +88,6 @@ type Manager struct {
 
 	orderbookJobs chan RESTJob
 	tickerJobs    chan RESTJob
-	tradeJobs     chan RESTJob
 }
 
 // RESTJob defines a potential REST synchronization job

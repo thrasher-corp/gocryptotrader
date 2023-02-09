@@ -190,7 +190,6 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 				bot.currencyPairSyncer, err = synchronise.NewManager(&synchronise.ManagerConfig{
 					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
 					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
-					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
 					SynchronizeContinuously: bot.Settings.SyncContinuously,
 					TimeoutREST:             bot.Settings.SyncTimeoutREST,
 					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -170,19 +171,43 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
-	err := b.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
+	t.Parallel()
+
+	err := b.UpdateTickers(context.Background(), asset.DownsideProfitContract)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)
 	}
 
-	err = b.UpdateTickers(context.Background(), asset.CoinMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
+	assets := b.GetAssetTypes(true)
+	for x := range assets {
+		var avail currency.Pairs
+		avail, err = b.GetAvailablePairs(assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err = b.UpdateTickers(context.Background(), asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
+		err = b.CurrencyPairs.StorePairs(assets[x], avail, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = b.UpdateTickers(context.Background(), assets[x])
+		if !errors.Is(err, nil) {
+			t.Fatalf("received: '%v' but expected '%v'", err, nil)
+		}
+
+		var enabled currency.Pairs
+		enabled, err = b.GetEnabledPairs(assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for y := range enabled {
+			_, err = ticker.GetTicker(b.Name, enabled[y], assets[x])
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }
 
