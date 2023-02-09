@@ -953,7 +953,7 @@ func (w *ChannelSubscription) Equal(s *ChannelSubscription) bool {
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-// subscriptions is a private member and cannot be manipulated
+// and is a private member that cannot be manipulated
 func (w *Websocket) GetSubscriptions() []ChannelSubscription {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()

@@ -173,7 +173,7 @@ func TestSetDefaultEndpoints(t *testing.T) {
 		EdgeCase1: "",
 	})
 	if err != nil {
-		t.Errorf("expecting a warning due due to invalid url val but got an error: %v", err)
+		t.Errorf("expecting a warning due to invalid url value but got an error: %v", err)
 	}
 }
 
