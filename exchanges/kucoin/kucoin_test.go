@@ -921,11 +921,6 @@ func TestGetAggregatedSubAccountBalance(t *testing.T) {
 	}
 }
 
-var (
-	data       = `[{"subUserId":"5caefba7d9575a0688f83c45","subName":"kucoin1","mainAccounts":[{"currency":"BTC","balance":"6","available":"6","holds":"0","baseCurrency":"BTC","baseCurrencyPrice":"1","baseAmount":"1.1"}],"tradeAccounts":[{"currency":"BTC","balance":"1000","available":"1000","holds":"0","baseCurrency":"BTC","baseCurrencyPrice":"1","baseAmount":"1.1"}],"marginAccounts":[{"currency":"BTC","balance":"1.1","available":"1.1","holds":"0","baseCurrency":"BTC","baseCurrencyPrice":"1","baseAmount":"1.1"}]}]`
-	emptyArray = `[]`
-)
-
 func TestGetPaginatedSubAccountInformation(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -1250,7 +1245,7 @@ func TestGetFuturesServiceStatus(t *testing.T) {
 
 func TestGetFuturesKline(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetFuturesKline(context.Background(), "30", "XBTUSDTM", time.Time{}, time.Time{})
+	_, err := ku.GetFuturesKline(context.Background(), int64(kline.ThirtyMin.Duration().Minutes()), "XBTUSDTM", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesKline() error", err)
 	}

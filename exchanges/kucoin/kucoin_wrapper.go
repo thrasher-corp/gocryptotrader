@@ -594,7 +594,6 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		return nil, err
 	}
 	var resp []trade.Data
-	const limit = 1000
 	switch assetType {
 	case asset.Futures:
 		tradeData, err := ku.GetFuturesTradeHistory(ctx, p.String())
@@ -1242,7 +1241,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	switch a {
 	case asset.Futures:
 		var candles []FuturesKline
-		candles, err := ku.GetFuturesKline(ctx, "30", req.RequestFormatted.String(), start, end)
+		candles, err := ku.GetFuturesKline(ctx, int64(interval.Duration().Minutes()), req.RequestFormatted.String(), start, end)
 		if err != nil {
 			return nil, err
 		}
@@ -1293,7 +1292,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		switch a {
 		case asset.Futures:
 			var candles []FuturesKline
-			candles, err = ku.GetFuturesKline(ctx, "720", req.RequestFormatted.String(), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			candles, err = ku.GetFuturesKline(ctx, int64(interval.Duration().Minutes()), req.RequestFormatted.String(), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1331,10 +1330,6 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					})
 			}
 		}
-	}
-	summary := req.RangeHolder.DataSummary(false)
-	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", ku.Name, summary)
 	}
 	return req.ProcessResponse(timeSeries)
 }

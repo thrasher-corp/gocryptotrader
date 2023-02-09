@@ -31,12 +31,6 @@ const (
 	publicBullets  = "/v1/bullet-public"
 	privateBullets = "/v1/bullet-private"
 
-	// channels
-
-	channelPing = "ping"
-	channelPong = "pong"
-	typeWelcome = "welcome"
-
 	// spot channels
 	marketTickerChannel                    = "/market/ticker:%s" // /market/ticker:{symbol},{symbol}...
 	marketAllTickersChannel                = "/market/ticker:all"
