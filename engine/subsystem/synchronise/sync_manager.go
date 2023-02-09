@@ -62,22 +62,13 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		c.TimeoutWebsocket)
 
 	var tickerBatchTracking map[string]map[asset.Item]time.Time
-	var tickerJobsChannel chan RESTJob
 	if c.SynchronizeTicker {
 		tickerBatchTracking = make(map[string]map[asset.Item]time.Time)
-		tickerJobsChannel = make(chan RESTJob, defaultChannelBuffer)
-	}
-
-	var orderbookJobsChannel chan RESTJob
-	if c.SynchronizeOrderbook {
-		orderbookJobsChannel = make(chan RESTJob, defaultChannelBuffer)
 	}
 
 	manager := &Manager{
 		ManagerConfig:            *c,
 		tickerBatchLastRequested: tickerBatchTracking,
-		orderbookJobs:            orderbookJobsChannel,
-		tickerJobs:               tickerJobsChannel,
 	}
 	manager.initSyncWG.Add(1)
 	return manager, nil
