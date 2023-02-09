@@ -2542,10 +2542,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		if len(tradeCandles.Candles) == 0 {
 			continue
 		}
-
-		for i := range tradeCandles.Candles {
-			response.Candles = append(response.Candles, tradeCandles.Candles[i])
-		}
+		response.Candles = append(response.Candles, tradeCandles.Candles...)
 
 		for i := range response.Candles {
 			log.Infof(log.GRPCSys,

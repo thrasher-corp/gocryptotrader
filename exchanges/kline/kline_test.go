@@ -96,7 +96,6 @@ func TestCreateKline(t *testing.T) {
 
 	tradeTotal := 24000
 	var trades []order.TradeHistory
-	rand.Seed(time.Now().Unix())
 	execution := time.Now()
 	for i := 0; i < tradeTotal; i++ {
 		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing

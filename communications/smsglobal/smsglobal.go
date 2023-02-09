@@ -33,7 +33,7 @@ type SMSGlobal struct {
 }
 
 // Setup takes in a SMSGlobal configuration, sets username, password and
-// and recipient list
+// recipient list
 func (s *SMSGlobal) Setup(cfg *base.CommunicationsConfig) {
 	s.Name = cfg.SMSGlobalConfig.Name
 	s.Enabled = cfg.SMSGlobalConfig.Enabled
