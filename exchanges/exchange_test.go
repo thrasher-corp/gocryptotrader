@@ -27,20 +27,27 @@ const (
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	t.Parallel()
 
-	b := Base{
-		Name: "RAWR",
-		Features: Features{
-			Supports: FeaturesSupported{
-				REST: true,
-				RESTCapabilities: protocol.Features{
-					TickerBatching: true,
-				},
-			},
-		},
+	b := Base{}
+	if b.SupportsRESTTickerBatchUpdates(asset.Spot) {
+		t.Fatalf("receieved: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Spot), false)
 	}
+
+	b = Base{Features: Features{Supports: FeaturesSupported{RESTCapabilities: protocol.Features{
+		TickerBatching: true}}}}
 
 	if !b.SupportsRESTTickerBatchUpdates(asset.Spot) {
 		t.Fatal("TestSupportsRESTTickerBatchUpdates returned false")
+	}
+
+	b = Base{Features: Features{Supports: FeaturesSupported{RESTCapabilities: protocol.Features{
+		TickerBatchingByAsset: map[asset.Item]bool{asset.Futures: true}}}}}
+
+	if !b.SupportsRESTTickerBatchUpdates(asset.Futures) {
+		t.Fatalf("receieved: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Futures), true)
+	}
+
+	if b.SupportsRESTTickerBatchUpdates(asset.Spot) {
+		t.Fatalf("receieved: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Spot), false)
 	}
 }
 
