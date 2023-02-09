@@ -354,26 +354,51 @@ func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !b.SupportsAsset(a) {
+		return fmt.Errorf("%w for [%v]", asset.ErrNotSupported, a)
+	}
+
 	tick, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
 		return err
 	}
 
-	pairs, err := b.GetEnabledPairs(a)
+	enabled, err := b.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
 
+instruments:
 	for j := range tick {
-		symbol := tick[j].Symbol
-		if tick[j].Typ != futuresID &&
-			tick[j].Typ != perpetualContractID &&
-			strings.Contains(tick[j].Symbol, "_") {
-			symbol = strings.ReplaceAll(symbol, "_", "")
-		}
-
 		var pair currency.Pair
-		pair, err = pairs.DeriveFrom(symbol, "")
+		switch a {
+		case asset.Futures:
+			if tick[j].Typ != futuresID {
+				continue instruments
+			}
+			pair, err = enabled.DeriveFrom(tick[j].Symbol, "")
+		case asset.Index:
+			switch tick[j].Typ {
+			case bitMEXBasketIndexID,
+				bitMEXPriceIndexID,
+				bitMEXLendingPremiumIndexID,
+				bitMEXVolatilityIndexID:
+			default:
+				continue instruments
+			}
+			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
+			pair, err = enabled.DeriveFrom(tick[j].Symbol, "")
+		case asset.PerpetualContract:
+			if tick[j].Typ != perpetualContractID {
+				continue instruments
+			}
+			pair, err = enabled.DeriveFrom(tick[j].Symbol, "")
+		case asset.Spot:
+			if tick[j].Typ != spotID {
+				continue instruments
+			}
+			pair, err = enabled.DeriveFrom(tick[j].Symbol, currency.UnderscoreDelimiter)
+		}
 		if err != nil {
 			continue
 		}
