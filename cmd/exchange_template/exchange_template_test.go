@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
@@ -44,23 +45,38 @@ func TestCheckExchangeName(t *testing.T) {
 	}
 }
 
-func TestNewExchange(t *testing.T) {
-	testExchangeName := "testexch"
+func TestNewExchangeAndSaveConfig(t *testing.T) {
+	const testExchangeName = "testexch"
 	testExchangeDir := filepath.Join(targetPath, testExchangeName)
+	cfg := config.GetConfig()
 
-	_, err := makeExchange(
+	t.Cleanup(func() {
+		if err := os.RemoveAll(testExchangeDir); err != nil {
+			t.Errorf("RemoveAll failed: %s, manual deletion of test directory required", err)
+		}
+	})
+
+	exchCfg, err := makeExchange(
 		testExchangeDir,
-		config.GetConfig(),
+		cfg,
 		&exchange{
 			Name: testExchangeName,
 			REST: true,
 			WS:   true,
-		})
+		},
+	)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if err := os.RemoveAll(testExchangeDir); err != nil {
-		t.Errorf("unable to remove dir: %s, manual removal required", err)
+	cfgData, err := os.ReadFile(exchangeConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = saveConfig(testExchangeDir, cfg, exchCfg); err != nil {
+		t.Error(err)
+	}
+	if err = os.WriteFile(exchangeConfigPath, cfgData, file.DefaultPermissionOctal); err != nil {
+		t.Error(err)
 	}
 }

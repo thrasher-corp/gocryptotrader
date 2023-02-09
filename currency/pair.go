@@ -8,7 +8,7 @@ import (
 
 var errCannotCreatePair = errors.New("cannot create currency pair")
 
-// NewPairDelimiter splits the desired currency string at delimeter, the returns
+// NewPairDelimiter splits the desired currency string at delimiter, the returns
 // a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
 	if !strings.Contains(currencyPair, delimiter) {
@@ -82,7 +82,7 @@ func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 }
 
 // NewPairFromString converts currency string into a new CurrencyPair
-// with or without delimeter
+// with or without delimiter
 func NewPairFromString(currencyPair string) (Pair, error) {
 	for x := range delimiters {
 		if strings.Contains(currencyPair, delimiters[x]) {

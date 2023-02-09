@@ -61,7 +61,7 @@ func TestGetVolume(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetVolume(context.Background())
 	if err != nil {
-		t.Error("Test faild - Poloniex GetVolume() error")
+		t.Error("Test failed - Poloniex GetVolume() error")
 	}
 }
 
@@ -69,7 +69,7 @@ func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetOrderbook(context.Background(), "BTC_XMR", 50)
 	if err != nil {
-		t.Error("Test faild - Poloniex GetOrderbook() error", err)
+		t.Error("Test failed - Poloniex GetOrderbook() error", err)
 	}
 }
 
@@ -77,7 +77,7 @@ func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetTradeHistory(context.Background(), "BTC_XMR", 0, 0)
 	if err != nil {
-		t.Error("Test faild - Poloniex GetTradeHistory() error", err)
+		t.Error("Test failed - Poloniex GetTradeHistory() error", err)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestGetChartData(t *testing.T) {
 		"BTC_XMR",
 		time.Unix(1405699200, 0), time.Unix(1405699400, 0), "300")
 	if err != nil {
-		t.Error("Test faild - Poloniex GetChartData() error", err)
+		t.Error("Test failed - Poloniex GetChartData() error", err)
 	}
 }
 
@@ -95,7 +95,7 @@ func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetCurrencies(context.Background())
 	if err != nil {
-		t.Error("Test faild - Poloniex GetCurrencies() error", err)
+		t.Error("Test failed - Poloniex GetCurrencies() error", err)
 	}
 }
 
@@ -103,7 +103,7 @@ func TestGetLoanOrders(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetLoanOrders(context.Background(), "BTC")
 	if err != nil {
-		t.Error("Test faild - Poloniex GetLoanOrders() error", err)
+		t.Error("Test failed - Poloniex GetLoanOrders() error", err)
 	}
 }
 

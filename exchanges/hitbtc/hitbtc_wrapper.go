@@ -173,14 +173,15 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            hitbtcWebsocketAddress,
-		RunningURL:            wsRunningURL,
-		Connector:             h.WsConnect,
-		Subscriber:            h.Subscribe,
-		Unsubscriber:          h.Unsubscribe,
-		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
-		Features:              &h.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             hitbtcWebsocketAddress,
+		RunningURL:             wsRunningURL,
+		Connector:              h.WsConnect,
+		Subscriber:             h.Subscribe,
+		Unsubscriber:           h.Unsubscribe,
+		GenerateSubscriptions:  h.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,

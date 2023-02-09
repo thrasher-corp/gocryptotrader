@@ -595,7 +595,7 @@ func TestFundingLiquidate(t *testing.T) {
 	f := FundManager{}
 	err := f.Liquidate(nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("recevied '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	f.items = append(f.items, &Item{
 		exchange:  "test",
@@ -612,7 +612,7 @@ func TestFundingLiquidate(t *testing.T) {
 		},
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("recevied '%v' expected '%v'", err, nil)
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if !f.items[0].available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
@@ -624,7 +624,7 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 	f := FundManager{}
 	err := f.Liquidate(nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("recevied '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	f.items = append(f.items, &Item{
 		exchange:  "test",
@@ -641,7 +641,7 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 	}
 	err = f.Liquidate(ev)
 	if !errors.Is(err, nil) {
-		t.Errorf("recevied '%v' expected '%v'", err, nil)
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if !f.items[0].available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
@@ -710,16 +710,16 @@ func TestRealisePNL(t *testing.T) {
 	var expectedError error
 	err := f.RealisePNL("test", asset.Futures, currency.BTC, decimal.NewFromInt(1))
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if !f.items[0].available.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("recevied '%v' expected '%v'", f.items[0].available, decimal.NewFromInt(1337))
+		t.Errorf("received '%v' expected '%v'", f.items[0].available, decimal.NewFromInt(1337))
 	}
 
 	expectedError = ErrFundsNotFound
 	err = f.RealisePNL("test2", asset.Futures, currency.BTC, decimal.NewFromInt(1))
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
 
@@ -742,18 +742,18 @@ func TestCreateCollateral(t *testing.T) {
 	var expectedError error
 	_, err := CreateCollateral(collat, contract)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	expectedError = gctcommon.ErrNilPointer
 	_, err = CreateCollateral(nil, contract)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	_, err = CreateCollateral(collat, nil)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
 
@@ -763,7 +763,7 @@ func TestUpdateCollateral(t *testing.T) {
 	expectedError := common.ErrNilEvent
 	err := f.UpdateCollateralForEvent(nil, false)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	ev := &signal.Signal{
@@ -791,7 +791,7 @@ func TestUpdateCollateral(t *testing.T) {
 	expectedError = nil
 	err = f.UpdateCollateralForEvent(ev, false)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	expectedError = gctcommon.ErrNotYetImplemented
@@ -804,7 +804,7 @@ func TestUpdateCollateral(t *testing.T) {
 	})
 	err = f.UpdateCollateralForEvent(ev, false)
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
 

@@ -467,7 +467,7 @@ func (a *Alphapoint) CancelExistingOrder(ctx context.Context, orderID int64, oms
 	return response.CancelOrderID, nil
 }
 
-// CancelAllExistingOrders cancels all open orders by symbol
+// CancelAllExistingOrders cancels all open orders by symbol.
 // symbol - Instrument code (ex: “BTCUSD”)
 func (a *Alphapoint) CancelAllExistingOrders(ctx context.Context, omsid string) error {
 	req := make(map[string]interface{})

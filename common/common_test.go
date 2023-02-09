@@ -708,7 +708,7 @@ func TestMatchesEmailPattern(t *testing.T) {
 	if success {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}
-	success = MatchesEmailPattern("someon esemail@gmail")
+	success = MatchesEmailPattern("someone esemail@gmail")
 	if success {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}

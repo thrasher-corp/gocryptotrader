@@ -232,24 +232,25 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 }
 
 func saveConfig(exchangeDirectory string, configTestFile *config.Config, newExchConfig *config.Exchange) error {
-	cmd := exec.Command("go", "fmt")
-	cmd.Dir = exchangeDirectory
-	out, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("unable to go fmt. output: %s err: %s", out, err)
-	}
-
-	configTestFile.Exchanges = append(configTestFile.Exchanges, *newExchConfig)
-	err = configTestFile.SaveConfigToFile(exchangeConfigPath)
-	if err != nil {
+	if err := runCommand(exchangeDirectory, "fmt"); err != nil {
 		return err
 	}
 
-	cmd = exec.Command("go", "test")
-	cmd.Dir = exchangeDirectory
-	out, err = cmd.Output()
+	configTestFile.Exchanges = append(configTestFile.Exchanges, *newExchConfig)
+	if err := configTestFile.SaveConfigToFile(exchangeConfigPath); err != nil {
+		return err
+	}
+
+	return runCommand(exchangeDirectory, "test")
+}
+
+func runCommand(dir, param string) error {
+	cmd := exec.Command("go", param)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("unable to go test. output: %s err: %s", out, err)
+		return fmt.Errorf("unable to go %s stdout: %s stderr: %s",
+			param, out, err)
 	}
 	return nil
 }

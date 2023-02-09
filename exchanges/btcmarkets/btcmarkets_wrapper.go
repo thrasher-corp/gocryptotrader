@@ -176,14 +176,15 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            btcMarketsWSURL,
-		RunningURL:            wsURL,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.generateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             btcMarketsWSURL,
+		RunningURL:             wsURL,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.generateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:          true,
 			UpdateIDProgression: true,
@@ -825,10 +826,7 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		if err != nil {
 			return nil, err
 		}
-		for a := range allPairs {
-			req.Pairs = append(req.Pairs,
-				allPairs[a])
-		}
+		req.Pairs = append(req.Pairs, allPairs...)
 	}
 
 	var resp []order.Detail

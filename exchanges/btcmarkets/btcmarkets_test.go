@@ -244,7 +244,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err = b.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  b.Name,
@@ -263,7 +263,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err := b.NewOrder(context.Background(), 100, 1, 0, 0, BTCAUD, limit, bidSide, "", "", "", true)
 	if err != nil {
@@ -289,7 +289,7 @@ func TestGetOrders(t *testing.T) {
 func TestCancelOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	temp := []string{BTCAUD, LTCAUD}
 	_, err := b.CancelAllOpenOrdersByPairs(context.Background(), temp)
@@ -321,7 +321,7 @@ func TestFetchOrder(t *testing.T) {
 func TestRemoveOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err := b.RemoveOrder(context.Background(), "")
 	if err != nil {
@@ -469,7 +469,7 @@ func TestGetReport(t *testing.T) {
 func TestRequestWithdaw(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	_, err := b.RequestWithdraw(context.Background(), "BTC", 1, "sdjflajdslfjld", "", "", "", "")
 	if err == nil {
@@ -480,7 +480,7 @@ func TestRequestWithdaw(t *testing.T) {
 func TestBatchPlaceCancelOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	var temp []PlaceBatch
 	o := PlaceBatch{
@@ -511,7 +511,7 @@ func TestGetBatchTrades(t *testing.T) {
 func TestCancelBatch(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	temp := []string{"4477045999", "4477381751", "4477381751"}
 	_, err := b.CancelBatch(context.Background(), temp)
@@ -1055,7 +1055,7 @@ func TestReplaceOrder(t *testing.T) {
 	}
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 
 	_, err = b.ReplaceOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
@@ -1072,7 +1072,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 	}
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys or manipulaterealorders isn't set correctly")
 	}
 	mo, err := b.ModifyOrder(context.Background(), &order.Modify{
 		Pair:          currency.NewPair(currency.BTC, currency.AUD),

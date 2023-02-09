@@ -569,8 +569,7 @@ func (bot *Engine) GetSpecificTicker(ctx context.Context, p currency.Pair, excha
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
-// information and turns into into a map string of
-// exchange.AccountCurrencyInfo
+// information and turns it into a map string of exchange.AccountCurrencyInfo
 func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[currency.Code]account.Balance {
 	result := make(map[currency.Code]account.Balance)
 	for x := range accounts {

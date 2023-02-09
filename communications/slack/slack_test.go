@@ -197,16 +197,16 @@ func TestWebsocketConnect(t *testing.T) {
 func TestHandlePresenceChange(t *testing.T) {
 	t.Parallel()
 	var s Slack
-	var pres PresenceChange
-	pres.User = "1337"
-	pres.Presence = "Present"
+	var presChange PresenceChange
+	presChange.User = "1337"
+	presChange.Presence = "Present"
 
 	err := s.handlePresenceChange([]byte(`{"malformedjson}`))
 	if err == nil {
 		t.Error("slack handlePresenceChange(), unmarshalled malformed json")
 	}
 
-	data, err := json.Marshal(pres)
+	data, err := json.Marshal(presChange)
 	if err != nil {
 		t.Fatal(err)
 	}

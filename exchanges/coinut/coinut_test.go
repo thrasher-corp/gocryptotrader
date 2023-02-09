@@ -1137,7 +1137,7 @@ func TestStringToStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case, testCases[i].Quantity)
 		if result != testCases[i].Result {
-			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }

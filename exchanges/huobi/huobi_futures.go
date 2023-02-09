@@ -660,7 +660,7 @@ func (h *HUOBI) FTransfer(ctx context.Context, subUID, symbol, transferType stri
 	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fTransfer, nil, req, &resp)
@@ -674,7 +674,7 @@ func (h *HUOBI) FGetTransferRecords(ctx context.Context, symbol, transferType st
 		req["symbol"] = symbol
 	}
 	if !common.StringDataCompareInsensitive(validTransferType, transferType) {
-		return resp, fmt.Errorf("inavlid transferType received")
+		return resp, fmt.Errorf("invalid transferType received")
 	}
 	req["type"] = transferType
 	if createDate < 0 || createDate > 90 {
@@ -905,7 +905,7 @@ func (h *HUOBI) FGetOpenOrders(ctx context.Context, symbol currency.Code, pageIn
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fQueryOpenOrders, nil, req, &resp)
 }
 
-// FGetOrderHistory gets order order history for futures
+// FGetOrderHistory gets order history for futures
 func (h *HUOBI) FGetOrderHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType, reqType, orderType string, status []order.Status, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
 	var resp FOrderHistoryData
 	req := make(map[string]interface{})

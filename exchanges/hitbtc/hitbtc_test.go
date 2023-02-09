@@ -74,14 +74,14 @@ func TestStart(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	_, err := h.GetOrderbook(context.Background(), "BTCUSD", 50)
 	if err != nil {
-		t.Error("Test faild - HitBTC GetOrderbook() error", err)
+		t.Error("Test failed - HitBTC GetOrderbook() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
 	_, err := h.GetTrades(context.Background(), "BTCUSD", "", "", 0, 0, 0, 0)
 	if err != nil {
-		t.Error("Test faild - HitBTC GetTradeHistory() error", err)
+		t.Error("Test failed - HitBTC GetTradeHistory() error", err)
 	}
 }
 
@@ -89,7 +89,7 @@ func TestGetChartCandles(t *testing.T) {
 	_, err := h.GetCandles(context.Background(),
 		"BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
-		t.Error("Test faild - HitBTC GetChartData() error", err)
+		t.Error("Test failed - HitBTC GetChartData() error", err)
 	}
 }
 
@@ -126,7 +126,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestGetCurrencies(t *testing.T) {
 	_, err := h.GetCurrencies(context.Background())
 	if err != nil {
-		t.Error("Test faild - HitBTC GetCurrencies() error", err)
+		t.Error("Test failed - HitBTC GetCurrencies() error", err)
 	}
 }
 

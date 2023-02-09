@@ -58,15 +58,15 @@ func TestGetLatestRates(t *testing.T) {
 	}
 
 	if result.Base != "EUR" {
-		t.Fatalf("unexepcted result. Base currency should be EUR")
+		t.Fatalf("unexpected result. Base currency should be EUR")
 	}
 
 	if result.Rates["EUR"] != 1 {
-		t.Fatalf("unexepcted result. EUR value should be 1")
+		t.Fatalf("unexpected result. EUR value should be 1")
 	}
 
 	if len(result.Rates) <= 1 {
-		t.Fatalf("unexepcted result. Rates map should be 1")
+		t.Fatalf("unexpected result. Rates map should be 1")
 	}
 
 	if e.APIKeyLvl <= apiKeyFree {
@@ -82,11 +82,11 @@ func TestGetLatestRates(t *testing.T) {
 	}
 
 	if result.Base != "EUR" {
-		t.Fatalf("unexepcted result. Base currency should be EUR")
+		t.Fatalf("unexpected result. Base currency should be EUR")
 	}
 
 	if len(result.Rates) != 1 {
-		t.Fatalf("unexepcted result. Rates len should be 1")
+		t.Fatalf("unexpected result. Rates len should be 1")
 	}
 }
 

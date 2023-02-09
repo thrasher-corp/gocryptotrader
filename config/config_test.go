@@ -812,7 +812,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatal("there should be atleast one pair located in this list")
+		t.Fatal("there should be at least one pair located in this list")
 	}
 
 	if !c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled[0].Equal(p1) {
@@ -840,7 +840,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatal("should be populated with atleast one currency pair")
+		t.Fatal("should be populated with at least one currency pair")
 	}
 
 	// Test that an invalid enabled pair is removed from the list
@@ -861,7 +861,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
 
-	// Test no conflict and atleast one on enabled asset type
+	// Test no conflict and at least one on enabled asset type
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
 	}
@@ -869,7 +869,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD)}
 
-	// Test with conflict and atleast one on enabled asset type
+	// Test with conflict and at least one on enabled asset type
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
 	}
@@ -877,7 +877,7 @@ func TestCheckPairConsistency(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
 
-	// Test no conflict and atleast one on disabled asset type
+	// Test no conflict and at least one on disabled asset type
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
 	}
@@ -888,7 +888,7 @@ func TestCheckPairConsistency(t *testing.T) {
 		p2,
 	}
 
-	// Test with conflict and atleast one on disabled asset type
+	// Test with conflict and at least one on disabled asset type
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
 	}
@@ -1386,7 +1386,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected values")
 	}
 
-	// Test feature and endpoint migrations migrations
+	// Test feature and endpoint migrations
 	cfg.Exchanges[0].Features = nil
 	cfg.Exchanges[0].SupportsAutoPairUpdates = convert.BoolPtr(true)
 	cfg.Exchanges[0].Websocket = convert.BoolPtr(true)

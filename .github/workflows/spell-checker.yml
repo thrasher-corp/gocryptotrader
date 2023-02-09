@@ -1,0 +1,13 @@
+name: codespell
+on: [push, pull_request]
+jobs:
+  codespell:
+    name: Spell checker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: codespell-project/actions-codespell@master
+        with:
+          exclude_file: contrib/spellcheck/exclude_lines.txt
+          skip: ./.git,./web,./currency/code_types.go,*.json,*.sum,*.html
+          ignore_words_file: contrib/spellcheck/ignore_words.txt

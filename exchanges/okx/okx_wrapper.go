@@ -197,14 +197,15 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            okxAPIWebsocketPublicURL,
-		RunningURL:            wsRunningEndpoint,
-		Connector:             ok.WsConnect,
-		Subscriber:            ok.Subscribe,
-		Unsubscriber:          ok.Unsubscribe,
-		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             okxAPIWebsocketPublicURL,
+		RunningURL:             wsRunningEndpoint,
+		Connector:              ok.WsConnect,
+		Subscriber:             ok.Subscribe,
+		Unsubscriber:           ok.Unsubscribe,
+		GenerateSubscriptions:  ok.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &ok.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
@@ -669,7 +670,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	return resp, nil
 }
 
-// GetHistoricTrades retrives historic trade data within the timeframe provided
+// GetHistoricTrades retrieves historic trade data within the timeframe provided
 func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampStart.Before(time.Now().Add(-kline.ThreeMonth.Duration())) {
 		return nil, errOnlyThreeMonthsSupported

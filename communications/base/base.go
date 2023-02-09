@@ -62,7 +62,7 @@ type CommunicationsConfig struct {
 	TelegramConfig  TelegramConfig  `json:"telegram"`
 }
 
-// IsAnyEnabled returns whether or any any comms relayers
+// IsAnyEnabled returns whether any comms relayers
 // are enabled
 func (c *CommunicationsConfig) IsAnyEnabled() bool {
 	if c.SMSGlobalConfig.Enabled ||
