@@ -11,8 +11,8 @@ import (
 
 var errInvalidParams = errors.New("cannot add or update, invalid params")
 
-// item holds various fields for storing currency pair stats
-type item struct {
+// Item holds various fields for storing currency pair stats
+type Item struct {
 	Exchange  string
 	Pair      currency.Pair
 	AssetType asset.Item
@@ -23,13 +23,13 @@ type item struct {
 // items holds a match lookup and alignment
 var items = struct {
 	// The bucket field is a slice containing all ticker items that have been updated.
-	bucket []item
+	bucket []Item
 	// The match field is a map that allows for fast lookup of ticker items by address.
-	match map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*item
+	match map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Item
 	// The mu field is a mutex used to synchronize access to the bucket and match fields.
 	mu sync.Mutex
 }{
-	match: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*item),
+	match: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Item),
 }
 
 // Add adds or updates the item stats
@@ -57,19 +57,19 @@ func update(exchName string, p currency.Pair, a asset.Item, price, volume float6
 	defer items.mu.Unlock()
 	m1, ok := items.match[exchName]
 	if !ok {
-		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*item)
+		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Item)
 		items.match[exchName] = m1
 	}
 
 	m2, ok := m1[a]
 	if !ok {
-		m2 = make(map[*currency.Item]map[*currency.Item]*item)
+		m2 = make(map[*currency.Item]map[*currency.Item]*Item)
 		m1[a] = m2
 	}
 
 	m3, ok := m2[p.Base.Item]
 	if !ok {
-		m3 = make(map[*currency.Item]*item)
+		m3 = make(map[*currency.Item]*Item)
 		m2[p.Base.Item] = m3
 	}
 
@@ -80,7 +80,7 @@ func update(exchName string, p currency.Pair, a asset.Item, price, volume float6
 		return
 	}
 	// If not found append item to the bucket list
-	items.bucket = append(items.bucket, item{exchName, p, a, price, volume})
+	items.bucket = append(items.bucket, Item{exchName, p, a, price, volume})
 	// Take last address entered and use for lookup table item for faster
 	// matching.
 	m3[p.Quote.Item] = &items.bucket[len(items.bucket)-1]
@@ -89,11 +89,11 @@ func update(exchName string, p currency.Pair, a asset.Item, price, volume float6
 // SortExchangesByVolume sorts item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
-func SortExchangesByVolume(p currency.Pair, a asset.Item, reverse bool) []item {
+func SortExchangesByVolume(p currency.Pair, a asset.Item, reverse bool) []Item {
 	// NOTE: Opted to not pre-alloc here because its only going to be the number
 	// of enabled exchanges and the underlying bucket can be in excess of
 	// thousands.
-	var result []item
+	var result []Item
 	items.mu.Lock()
 	for x := range items.bucket {
 		if items.bucket[x].Pair.EqualIncludeReciprocal(p) &&
@@ -114,11 +114,11 @@ func SortExchangesByVolume(p currency.Pair, a asset.Item, reverse bool) []item {
 // SortExchangesByPrice sorts item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
-func SortExchangesByPrice(p currency.Pair, a asset.Item, reverse bool) []item {
+func SortExchangesByPrice(p currency.Pair, a asset.Item, reverse bool) []Item {
 	// NOTE: Opted to not pre-alloc here because its only going to be the number
 	// of enabled exchanges and the underlying bucket can be in excess of
 	// thousands.
-	var result []item
+	var result []Item
 	items.mu.Lock()
 	for x := range items.bucket {
 		if items.bucket[x].Pair.EqualIncludeReciprocal(p) &&

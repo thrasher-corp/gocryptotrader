@@ -326,7 +326,6 @@ func (p Pairs) DeriveFrom(symbol, delimiter string) (Pair, error) {
 
 pairs:
 	for x := range p {
-
 		if p[x].Len() != symbolLength {
 			continue
 		}

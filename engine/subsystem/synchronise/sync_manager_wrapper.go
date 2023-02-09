@@ -104,7 +104,7 @@ func (m *Manager) Stop() error {
 }
 
 // Update notifies the syncManager to change the last updated time for an exchange asset pair
-func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolType, p currency.Pair, a asset.Item, syncType subsystem.SynchronizationType, incomingErr error) error {
+func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolType, p currency.Pair, a asset.Item, syncType subsystem.SynchronisationType, incomingErr error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}

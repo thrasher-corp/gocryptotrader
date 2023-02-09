@@ -35,10 +35,10 @@ var (
 	ErrNil = errors.New("subsystem not setup")
 	// ErrNilWaitGroup is when a wait group pointer is nil
 	ErrNilWaitGroup = errors.New("nil wait group received")
-	// ErrNilExchangeManager defines an error when the exchange mananger is nil
+	// ErrNilExchangeManager defines an error when the exchange manager is nil
 	ErrNilExchangeManager = errors.New("cannot start with nil exchange manager")
 	// ErrNilDatabaseConnectionManager defines an error when the database
-	// connection mananger is nil.
+	// connection manager is nil.
 	ErrNilDatabaseConnectionManager = errors.New("cannot start with nil database connection manager")
 	// ErrNilConfig defines an error when the configuration is nil
 	ErrNilConfig = errors.New("received nil config")
@@ -85,7 +85,7 @@ type CurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(tick *ticker.Price, protocol ProtocolType, err error)
 	PrintOrderbookSummary(ob *orderbook.Base, protocol ProtocolType, err error)
-	Update(exchangeName string, protocol ProtocolType, pair currency.Pair, a asset.Item, syncType SynchronizationType, incomingErr error) error
+	Update(exchangeName string, protocol ProtocolType, pair currency.Pair, a asset.Item, syncType SynchronisationType, incomingErr error) error
 }
 
 // DatabaseConnectionManager defines a limited scoped databaseConnectionManager
@@ -107,19 +107,19 @@ type WebsocketEvent struct {
 	Data      interface{}
 }
 
-// SynchronizationType defines an int to differentiate between orderbook, trade
+// SynchronisationType defines an int to differentiate between orderbook, trade
 // and ticker updates.
-type SynchronizationType int
+type SynchronisationType int
 
 const (
 	// Orderbook defines an orderbook update
-	Orderbook SynchronizationType = iota + 1
+	Orderbook SynchronisationType = iota + 1
 	// Ticker defines a ticker update
 	Ticker
 )
 
 // ProtocolType defines a string to differentiate between WEBSOCKET and REST
-// updates for synchronization.
+// updates for synchronisation.
 type ProtocolType string
 
 const (

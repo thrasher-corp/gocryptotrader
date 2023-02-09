@@ -82,10 +82,10 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-func getItemsByExchange(name string) []item {
+func getItemsByExchange(name string) []Item {
 	items.mu.Lock()
 	defer items.mu.Unlock()
-	result := make([]item, 0, len(items.bucket))
+	result := make([]Item, 0, len(items.bucket))
 	for x := range items.bucket {
 		if items.bucket[x].Exchange == name {
 			result = append(result, items.bucket[x])

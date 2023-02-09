@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	// ErrNoItemsEnabled is for when there is not atleast one sync item enabled
+	// ErrNoItemsEnabled is for when there is not at least one sync item enabled
 	// e.g. an orderbook or ticker item.
 	ErrNoItemsEnabled = errors.New("no sync items enabled")
 
@@ -43,7 +43,7 @@ type Agent struct {
 	Exchange            string
 	Asset               asset.Item
 	Pair                currency.Pair
-	SynchronisationType subsystem.SynchronizationType
+	SynchronisationType subsystem.SynchronisationType
 	IsUsingWebsocket    bool
 	IsUsingREST         bool
 	IsProcessing        bool
@@ -52,7 +52,7 @@ type Agent struct {
 	mu                  sync.Mutex
 }
 
-// ManagerConfig stores the currency pair synchronization manager config
+// ManagerConfig stores the currency pair synchronisation manager config
 type ManagerConfig struct {
 	SynchronizeTicker       bool
 	SynchronizeOrderbook    bool
@@ -68,7 +68,7 @@ type ManagerConfig struct {
 	APIServerManager        subsystem.APIServer
 }
 
-// Manager defines the main total currency pair synchronization subsystem that
+// Manager defines the main total currency pair synchronisation subsystem that
 // fetches and maintains up to date market data.
 type Manager struct {
 	initSyncCompleted int32
@@ -77,7 +77,7 @@ type Manager struct {
 	mu                sync.Mutex
 	initSyncWG        sync.WaitGroup
 
-	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent
+	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronisationType]*Agent
 	tickerBatchLastRequested map[string]map[asset.Item]time.Time
 	batchMtx                 sync.Mutex
 
@@ -90,10 +90,10 @@ type Manager struct {
 	tickerJobs    chan RESTJob
 }
 
-// RESTJob defines a potential REST synchronization job
+// RESTJob defines a potential REST synchronisation job
 type RESTJob struct {
 	exch  exchange.IBotExchange
 	Pair  currency.Pair
 	Asset asset.Item
-	Item  subsystem.SynchronizationType
+	Item  subsystem.SynchronisationType
 }

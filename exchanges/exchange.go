@@ -157,7 +157,7 @@ func (b *Base) SetFeatureDefaults() {
 	}
 }
 
-// SupportsRESTTickerBatchUpdates returns whether or not the exhange supports
+// SupportsRESTTickerBatchUpdates returns whether or not the exchange supports
 // REST batch ticker fetching by asset.
 func (b *Base) SupportsRESTTickerBatchUpdates(a asset.Item) bool {
 	return b.Features.Supports.RESTCapabilities.TickerBatching ||

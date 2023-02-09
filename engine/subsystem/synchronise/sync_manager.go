@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// NewManager returns a new sychronization manager
+// NewManager returns a new synchronisation manager
 func NewManager(c *ManagerConfig) (*Manager, error) {
 	if c == nil {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
@@ -76,7 +76,7 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 }
 
 // checkAllExchangeAssets checks all exchanges, assets, and enabled pairs
-// against the list of configured synchronization agents. If a currency pair is
+// against the list of configured Synchronisation agents. If a currency pair is
 // disabled during operation, it is ignored. If a currency pair is not found in
 // the list of loaded agents, it is added. The function returns duration until
 // the next update is required.
@@ -115,7 +115,7 @@ func (m *Manager) checkAllExchangeAssets() (time.Duration, error) {
 }
 
 // controller checks all enabled assets on all enabled exchanges for correct
-// synchronization. If an assets needs updating via REST it will push the work
+// Synchronisation. If an assets needs updating via REST it will push the work
 // to worker routines.
 func (m *Manager) controller() error {
 	// Pre-load all items for initial sync. The controller routine will take
@@ -149,7 +149,7 @@ func (m *Manager) controller() error {
 }
 
 // getSmallestTimeout returns the smallest configured timeout for all supported
-// synchronization protocols for controller sync.
+// Synchronisation protocols for controller sync.
 func (m *Manager) getSmallestTimeout() time.Duration {
 	if m.TimeoutREST < m.TimeoutWebsocket {
 		return m.TimeoutREST
@@ -158,7 +158,7 @@ func (m *Manager) getSmallestTimeout() time.Duration {
 }
 
 // checkSyncItems checks agent against it's current last update time on all
-// individual synchronization items.
+// individual Synchronisation items.
 func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update time.Duration) (smallest time.Duration) {
 	if m.SynchronizeOrderbook {
 		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Orderbook, usingREST)
@@ -207,35 +207,35 @@ func (m *Manager) sendJob(exch exchange.IBotExchange, agent *Agent) {
 }
 
 // getAgent returns an agent and will generate a new agent if not found.
-func (m *Manager) getAgent(exch string, pair currency.Pair, a asset.Item, syncType subsystem.SynchronizationType, usingREST bool) *Agent {
+func (m *Manager) getAgent(exch string, pair currency.Pair, a asset.Item, syncType subsystem.SynchronisationType, usingREST bool) *Agent {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.currencyPairs == nil {
-		m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+		m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronisationType]*Agent)
 	}
 
 	m1, ok := m.currencyPairs[exch]
 	if !ok {
-		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronisationType]*Agent)
 		m.currencyPairs[exch] = m1
 	}
 
 	m2, ok := m1[pair.Base.Item]
 	if !ok {
-		m2 = make(map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+		m2 = make(map[*currency.Item]map[asset.Item]map[subsystem.SynchronisationType]*Agent)
 		m1[pair.Base.Item] = m2
 	}
 
 	m3, ok := m2[pair.Quote.Item]
 	if !ok {
-		m3 = make(map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+		m3 = make(map[asset.Item]map[subsystem.SynchronisationType]*Agent)
 		m2[pair.Quote.Item] = m3
 	}
 
 	m4, ok := m3[a]
 	if !ok {
-		m4 = make(map[subsystem.SynchronizationType]*Agent)
+		m4 = make(map[subsystem.SynchronisationType]*Agent)
 		m3[a] = m4
 	}
 
@@ -262,7 +262,7 @@ func (m *Manager) getAgent(exch string, pair currency.Pair, a asset.Item, syncTy
 // loadAgent loads an agent for each individual synchronisation item. If verbose
 // it will display the added item. If state is in initial sync it will increment
 // counter and add to the waitgroup.
-func (m *Manager) loadAgent(agent *Agent, syncItem subsystem.SynchronizationType) {
+func (m *Manager) loadAgent(agent *Agent, syncItem subsystem.SynchronisationType) {
 	if m.Verbose {
 		log.Debugf(log.SyncMgr,
 			"%s: Added %s sync item %s [%s]: using websocket: %v using REST: %v",
@@ -435,8 +435,9 @@ func (m *Manager) relayWebsocketEvent(result interface{}, event, assetType, exch
 	}
 }
 
-// NeedsUpdate determines if the underlying agent sync base is ready for an
-// update via REST.
+// NextUpdate returns the next update time, if the underlying agent sync base is
+// ready for an update via REST it will return 0. -1 indicates there is no update
+// needed.
 func (a *Agent) NextUpdate(timeoutRest, timeoutWS time.Duration) time.Duration {
 	a.mu.Lock()
 	defer a.mu.Unlock()

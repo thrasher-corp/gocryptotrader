@@ -1,7 +1,7 @@
 package subsystem
 
 // String implements stringer interface
-func (s SynchronizationType) String() string {
+func (s SynchronisationType) String() string {
 	switch s {
 	case Orderbook:
 		return "ORDERBOOK"

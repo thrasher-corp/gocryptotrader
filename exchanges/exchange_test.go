@@ -29,7 +29,7 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 
 	b := Base{}
 	if b.SupportsRESTTickerBatchUpdates(asset.Spot) {
-		t.Fatalf("receieved: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Spot), false)
+		t.Fatalf("received: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Spot), false)
 	}
 
 	b = Base{Features: Features{Supports: FeaturesSupported{RESTCapabilities: protocol.Features{
@@ -43,11 +43,11 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 		TickerBatchingByAsset: map[asset.Item]bool{asset.Futures: true}}}}}
 
 	if !b.SupportsRESTTickerBatchUpdates(asset.Futures) {
-		t.Fatalf("receieved: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Futures), true)
+		t.Fatalf("received: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Futures), true)
 	}
 
 	if b.SupportsRESTTickerBatchUpdates(asset.Spot) {
-		t.Fatalf("receieved: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Spot), false)
+		t.Fatalf("received: '%v' but expected '%v'", b.SupportsRESTTickerBatchUpdates(asset.Spot), false)
 	}
 }
 
