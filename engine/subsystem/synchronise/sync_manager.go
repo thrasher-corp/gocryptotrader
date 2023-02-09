@@ -424,6 +424,25 @@ func (m *Manager) WaitForInitialSync() error {
 	return nil
 }
 
+// relayWebsocketEvent relays websocket event.
+func (m *Manager) relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
+	if m.APIServerManager == nil || !m.APIServerManager.IsWebsocketServerRunning() {
+		return
+	}
+	err := m.APIServerManager.BroadcastWebsocketMessage(subsystem.WebsocketEvent{
+		Data:      result,
+		Event:     event,
+		AssetType: assetType,
+		Exchange:  exchangeName,
+	})
+	if !errors.Is(err, subsystem.ErrWebsocketServiceNotRunning) {
+		// TODO: Fix globals in apiserver.go file and possibly deprecate this
+		// link.
+		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s",
+			event, err)
+	}
+}
+
 // NeedsUpdate determines if the underlying agent sync base is ready for an
 // update via REST.
 func (a *Agent) NextUpdate(timeoutRest, timeoutWS time.Duration) time.Duration {
@@ -482,8 +501,6 @@ func (a *Agent) SetProcessingViaREST(wsTimeout time.Duration) {
 		wsTimeout)
 }
 
-// var updates int64
-
 // Update updates the underlying agent fields. If protocol is switched from REST
 // to WEBSOCKET it will display that switch.
 func (a *Agent) Update(protocol subsystem.ProtocolType, incomingErr error) (isInitialUpdate bool) {
@@ -507,23 +524,4 @@ func (a *Agent) Update(protocol subsystem.ProtocolType, incomingErr error) (isIn
 			a.SynchronisationType)
 	}
 	return initialUpdate
-}
-
-// relayWebsocketEvent relays websocket event.
-func (m *Manager) relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
-	if m.APIServerManager == nil || !m.APIServerManager.IsWebsocketServerRunning() {
-		return
-	}
-	err := m.APIServerManager.BroadcastWebsocketMessage(subsystem.WebsocketEvent{
-		Data:      result,
-		Event:     event,
-		AssetType: assetType,
-		Exchange:  exchangeName,
-	})
-	if !errors.Is(err, subsystem.ErrWebsocketServiceNotRunning) {
-		// TODO: Fix globals in apiserver.go file and possibly deprecate this
-		// link.
-		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s",
-			event, err)
-	}
 }

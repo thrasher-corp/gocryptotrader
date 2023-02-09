@@ -33,8 +33,13 @@ func (m *Manager) Start() error {
 	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 
-	m.orderbookJobs = make(chan RESTJob, defaultChannelBuffer)
-	m.tickerJobs = make(chan RESTJob, defaultChannelBuffer)
+	if m.SynchronizeTicker {
+		m.tickerJobs = make(chan RESTJob, defaultChannelBuffer)
+	}
+
+	if m.SynchronizeOrderbook {
+		m.orderbookJobs = make(chan RESTJob, defaultChannelBuffer)
+	}
 
 	// Set job channel lanes for differing update speeds per exchange. POC;
 	// dangly routines will just block.
@@ -42,8 +47,12 @@ func (m *Manager) Start() error {
 	// like to add priority lanes for requests (order management) which will
 	// need to be heavily coupled with the rate limit systems.
 	for i := 0; i < m.NumWorkers; i++ {
-		go m.orderbookWorker(context.TODO())
-		go m.tickerWorker(context.TODO())
+		if m.SynchronizeTicker {
+			go m.tickerWorker(context.TODO())
+		}
+		if m.SynchronizeOrderbook {
+			go m.orderbookWorker(context.TODO())
+		}
 		// TODO: Implement trade synchronization.
 	}
 
@@ -84,8 +93,12 @@ func (m *Manager) Stop() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNotStarted)
 	}
-	close(m.orderbookJobs)
-	close(m.tickerJobs)
+	if m.SynchronizeTicker {
+		close(m.tickerJobs)
+	}
+	if m.SynchronizeOrderbook {
+		close(m.orderbookJobs)
+	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil
 }
