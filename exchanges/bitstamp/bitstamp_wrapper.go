@@ -314,6 +314,10 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitstamp) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !b.SupportsAsset(a) {
+		return fmt.Errorf("%w for [%v]", asset.ErrNotSupported, a)
+	}
+
 	ticks, err := b.GetTickers(ctx)
 	if err != nil {
 		return err
