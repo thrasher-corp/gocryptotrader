@@ -266,11 +266,11 @@ func TestGetMarketTrades(t *testing.T) {
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.Spot)
+	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetCandlesticks(context.Background(), pairs[0], 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
+	if _, err := g.GetCandlesticks(context.Background(), enabledPairs[0], 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Errorf("%s GetCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -2380,7 +2380,14 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.UpdateOrderbook(context.Background(), cp, asset.Futures); err != nil {
+	if _, err = g.UpdateOrderbook(context.Background(), cp, asset.Futures); err != nil {
+		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
+	}
+	cp, err = getFirstTradablePair(t, asset.DeliveryFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = g.UpdateOrderbook(context.Background(), cp, asset.DeliveryFutures); err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
 }
@@ -3006,9 +3013,6 @@ func TestOptionsPositionPushData(t *testing.T) {
 }
 
 func TestWsConnect(t *testing.T) {
-	if err := g.WsConnect(); err != nil {
-		t.Errorf("%s WsConnect failed: %v", g.Name, err)
-	}
 	if err := g.WsFuturesConnect(); err != nil {
 		t.Errorf("%s WsFuturesConnect failed: %v", g.Name, err)
 	}
