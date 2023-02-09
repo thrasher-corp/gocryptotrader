@@ -33,6 +33,6 @@ func TestConstructRuntimeError(t *testing.T) {
 	t.Parallel()
 	err := constructRuntimeError(0, "", "", nil)
 	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("receieved: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
 	}
 }

@@ -206,14 +206,15 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            publicBitfinexWebsocketEndpoint,
-		RunningURL:            wsEndpoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             publicBitfinexWebsocketEndpoint,
+		RunningURL:             wsEndpoint,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
@@ -1026,7 +1027,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			orderDetail.Status = order.UnknownStatus
 		}
 
-		// API docs discrepency. Example contains prefixed "exchange "
+		// API docs discrepancy. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
 		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {

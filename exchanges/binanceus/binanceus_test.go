@@ -1808,7 +1808,7 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
-			t.Errorf("Binanceus Exepcted: %v, received: %v", testCases[i].Result, result)
+			t.Errorf("Binanceus expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }

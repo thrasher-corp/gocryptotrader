@@ -170,14 +170,15 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            bitstampWSURL,
-		RunningURL:            wsURL,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.generateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             bitstampWSURL,
+		RunningURL:             wsURL,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.generateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

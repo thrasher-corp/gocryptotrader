@@ -79,7 +79,7 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 	return time.Unix(i, 0), nil
 }
 
-// BoolPtr takes in boolen condition and returns pointer version of it
+// BoolPtr takes in boolean condition and returns pointer version of it
 func BoolPtr(condition bool) *bool {
 	b := condition
 	return &b

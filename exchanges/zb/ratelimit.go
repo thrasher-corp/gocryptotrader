@@ -16,7 +16,7 @@ const (
 	zbKlineDataInterval = time.Second * 2
 	zbKlineDataLimit    = 1
 
-	// Used to match endpints to rate limits
+	// Used to match endpoints to rate limits
 	klineFunc request.EndpointLimit = iota
 )
 

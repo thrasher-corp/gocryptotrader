@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"sort"
 	"strconv"
 	"strings"
@@ -131,7 +130,6 @@ func (c *COINUT) SetDefaults() {
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-	rand.Seed(time.Now().UnixNano())
 }
 
 // Setup sets the current exchange configuration
@@ -155,14 +153,15 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinutWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             c.WsConnect,
-		Subscriber:            c.Subscribe,
-		Unsubscriber:          c.Unsubscribe,
-		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             coinutWebsocketURL,
+		RunningURL:             wsRunningURL,
+		Connector:              c.WsConnect,
+		Subscriber:             c.Subscribe,
+		Unsubscriber:           c.Unsubscribe,
+		GenerateSubscriptions:  c.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,

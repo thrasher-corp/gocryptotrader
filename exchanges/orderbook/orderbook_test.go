@@ -387,7 +387,7 @@ func TestProcessOrderbook(t *testing.T) {
 	base.Asset = asset.Spot
 	err = base.Process()
 	if err != nil {
-		t.Error("unexpcted result: ", err)
+		t.Error("unexpected result: ", err)
 	}
 	result, err := Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
@@ -556,7 +556,6 @@ func TestProcessOrderbook(t *testing.T) {
 
 func deployUnorderedSlice() Items {
 	var items []Item
-	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < 1000; i++ {
 		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
 	}
@@ -593,7 +592,6 @@ func TestSorting(t *testing.T) {
 }
 
 func deploySliceOrdered() Items {
-	rand.Seed(time.Now().UnixNano())
 	var items []Item
 	for i := 0; i < 1000; i++ {
 		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) //nolint:gosec // Not needed in tests

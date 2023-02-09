@@ -70,8 +70,8 @@ type RetryPolicy func(resp *http.Response, err error) (bool, error)
 type RequesterOption func(*Requester)
 
 // Generate defines a closure for functionality outside of the requester to
-// to generate new *http.Request on every attempt. This minimizes the chance of
-// being outside of receive window if application rate limiting reduces outbound
+// generate a new *http.Request on every attempt. This minimizes the chance of
+// being outside of the receive window if application rate limiting reduces outbound
 // requests.
 type Generate func() (*Item, error)
 

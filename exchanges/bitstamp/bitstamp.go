@@ -201,7 +201,7 @@ func (b *Bitstamp) GetTradingPairs(ctx context.Context) ([]TradingPair, error) {
 }
 
 // GetTransactions returns transaction information
-// value paramater ["time"] = "minute", "hour", "day" will collate your
+// value parameter ["time"] = "minute", "hour", "day" will collate your
 // response into time intervals.
 func (b *Bitstamp) GetTransactions(ctx context.Context, currencyPair, timePeriod string) ([]Transactions, error) {
 	var transactions []Transactions
@@ -483,7 +483,7 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount f
 	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
 }
 
-// GetCryptoDepositAddress returns a depositing address by crypto
+// GetCryptoDepositAddress returns a depositing address by crypto.
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
 	path := crypto.Lower().String() + "_address"

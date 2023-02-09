@@ -1958,7 +1958,7 @@ func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(operation string, asse
 	return ok.wsChannelSubscription(operation, okxChannelEstimatedPrice, assetType, pair, true, true, false)
 }
 
-// MarkPriceSubscription to subscribe or unsubscribe to to "mark-price" to retrieve the mark price. Data will be pushed every 200 ms when the mark price changes, and will be pushed every 10 seconds when the mark price does not change.
+// MarkPriceSubscription to subscribe or unsubscribe to the "mark-price" to retrieve the mark price. Data will be pushed every 200 ms when the mark price changes, and will be pushed every 10 seconds when the mark price does not change.
 func (ok *Okx) MarkPriceSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
 	return ok.wsChannelSubscription(operation, okxChannelMarkPrice, assetType, pair, false, true, false)
 }

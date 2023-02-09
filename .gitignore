@@ -2,7 +2,10 @@ config.json
 config.dat
 node_modules
 lib
+
+# VS Code
 .vscode
+tmp/
 
 testdata/dump
 testdata/preengine_config.json

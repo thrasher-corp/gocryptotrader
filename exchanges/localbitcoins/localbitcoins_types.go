@@ -83,7 +83,7 @@ type AdData struct {
 	AdCount int `json:"ad_count"`
 }
 
-// AdEdit references an outgoing paramater type for EditAd() method
+// AdEdit references an outgoing parameter type for EditAd() method
 type AdEdit struct {
 	// Required Arguments
 	PriceEquation              string `json:"price_equation"`
@@ -123,7 +123,7 @@ type AdEdit struct {
 	Floating bool `json:"floating"`
 }
 
-// AdCreate references an outgoing paramater type for CreateAd() method
+// AdCreate references an outgoing parameter type for CreateAd() method
 type AdCreate struct {
 	// Required Arguments
 	PriceEquation              string `json:"price_equation"`

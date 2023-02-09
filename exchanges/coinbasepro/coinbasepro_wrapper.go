@@ -172,14 +172,15 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinbaseproWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             c.WsConnect,
-		Subscriber:            c.Subscribe,
-		Unsubscriber:          c.Unsubscribe,
-		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             coinbaseproWebsocketURL,
+		RunningURL:             wsRunningURL,
+		Connector:              c.WsConnect,
+		Subscriber:             c.Subscribe,
+		Unsubscriber:           c.Unsubscribe,
+		GenerateSubscriptions:  c.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer: true,
 		},

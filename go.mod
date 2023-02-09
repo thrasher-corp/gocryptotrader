@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/d5/tengo/v2 v2.13.0
-	github.com/gofrs/uuid v4.3.1+incompatible
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
@@ -20,13 +20,13 @@ require (
 	github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
-	github.com/urfave/cli/v2 v2.24.1
+	github.com/urfave/cli/v2 v2.24.3
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/net v0.5.0
-	golang.org/x/time v0.1.0
+	golang.org/x/time v0.3.0
 	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
-	google.golang.org/grpc v1.52.0
+	google.golang.org/grpc v1.52.3
 	google.golang.org/protobuf v1.28.1
 )
 

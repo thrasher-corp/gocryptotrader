@@ -85,7 +85,7 @@ func TestSet(t *testing.T) {
 		t.Error("set method or createmap failed")
 	}
 	if val != "http://google.com/" {
-		t.Errorf("vals didnt match. expecting: %s, got: %s\n", "http://google.com/", val)
+		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
 	}
 	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3")
 	if err != nil {
@@ -122,7 +122,7 @@ func TestGetURL(t *testing.T) {
 		t.Error(err)
 	}
 	if getChangedVal != "http://OVERWRITTENBRO.com.au/" {
-		t.Error("couldnt get changed val")
+		t.Error("couldn't get changed val")
 	}
 	_, err = b.API.Endpoints.GetURL(URL(100))
 	if err == nil {
@@ -173,7 +173,7 @@ func TestSetDefaultEndpoints(t *testing.T) {
 		EdgeCase1: "",
 	})
 	if err != nil {
-		t.Errorf("expecting a warning due due to invalid url val but got an error: %v", err)
+		t.Errorf("expecting a warning due to invalid url value but got an error: %v", err)
 	}
 }
 
@@ -1198,6 +1198,7 @@ func TestSetupDefaults(t *testing.T) {
 		API: config.APIConfig{
 			AuthenticatedSupport: true,
 		},
+		ConnectionMonitorDelay: time.Second * 5,
 	}
 
 	err = b.SetupDefaults(&cfg)
