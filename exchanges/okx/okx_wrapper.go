@@ -412,9 +412,8 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 		return err
 	}
 	for y := range ticks {
-		symbol := strings.Replace(ticks[y].InstrumentID, "-", "", 1)
 		var pair currency.Pair
-		pair, err = pairs.DeriveFrom(symbol)
+		pair, err = pairs.DeriveFrom(ticks[y].InstrumentID, currency.DashDelimiter)
 		if err != nil {
 			continue
 		}

@@ -373,7 +373,7 @@ func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		var pair currency.Pair
-		pair, err = pairs.DeriveFrom(symbol)
+		pair, err = pairs.DeriveFrom(symbol, "")
 		if err != nil {
 			continue
 		}

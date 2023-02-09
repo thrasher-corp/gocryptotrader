@@ -444,7 +444,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for x := range tickers.Data {
 		var pair currency.Pair
-		pair, err = enabled.DeriveFrom(tickers.Data[x].Symbol)
+		pair, err = enabled.DeriveFrom(tickers.Data[x].Symbol, "")
 		if err != nil {
 			continue
 		}

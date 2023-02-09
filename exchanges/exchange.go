@@ -745,7 +745,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			enabledPairs[target] = enabledPairs[x].Format(pFmt)
 		} else {
 			var match currency.Pair
-			match, err = incoming.DeriveFrom(pairNoFmt)
+			match, err = incoming.DeriveFrom(pairNoFmt, "")
 			if err != nil {
 				continue
 			}

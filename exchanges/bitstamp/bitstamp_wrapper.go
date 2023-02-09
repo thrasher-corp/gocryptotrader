@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -327,7 +326,7 @@ func (b *Bitstamp) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for x := range ticks {
 		var pair currency.Pair
-		pair, err = pairs.DeriveFrom(strings.Replace(ticks[x].Pair, currency.ForwardSlashDelimiter, "", 1))
+		pair, err = pairs.DeriveFrom(ticks[x].Pair, currency.ForwardSlashDelimiter)
 		if err != nil {
 			continue
 		}

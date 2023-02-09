@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -719,6 +720,29 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	end := time.Unix(1577836799, 0)
 	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTickers(context.Background(), asset.DownsideProfitContract)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	err = b.UpdateTickers(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	enabled, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ticker.GetTicker(b.Name, enabled[0], asset.Spot)
+	if err != nil {
 		t.Fatal(err)
 	}
 }

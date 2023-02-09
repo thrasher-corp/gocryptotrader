@@ -285,6 +285,9 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !b.SupportsAsset(a) {
+		return fmt.Errorf("%w for [%v]", asset.ErrNotSupported, a)
+	}
 	ticks, err := b.GetTickers(ctx)
 	if err != nil {
 		return err
@@ -302,7 +305,7 @@ func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for x := range ticks {
 		var pair currency.Pair
-		pair, err = pairs.DeriveFrom(ticks[x].Symbol)
+		pair, err = pairs.DeriveFrom(ticks[x].Symbol, currency.DashDelimiter)
 		if err != nil {
 			continue
 		}

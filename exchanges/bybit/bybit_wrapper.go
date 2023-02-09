@@ -2067,5 +2067,5 @@ func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.P
 	if err != nil {
 		return currency.Pair{}, err
 	}
-	return pairs.DeriveFrom(symbol)
+	return pairs.DeriveFrom(symbol, "")
 }

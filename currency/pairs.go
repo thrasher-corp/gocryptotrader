@@ -11,13 +11,14 @@ import (
 )
 
 var (
-	errSymbolEmpty = errors.New("symbol is empty")
-	errPairsEmpty  = errors.New("pairs are empty")
-	errNoDelimiter = errors.New("no delimiter was supplied")
-
 	// ErrPairDuplication defines an error when there is multiple of the same
 	// currency pairs found.
 	ErrPairDuplication = errors.New("currency pair duplication")
+
+	errSymbolEmpty         = errors.New("symbol is empty")
+	errPairsEmpty          = errors.New("pairs are empty")
+	errNoDelimiter         = errors.New("no delimiter was supplied")
+	errDelimiterNotRemoved = errors.New("delimiter was not removed")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -302,19 +303,31 @@ func (p Pairs) GetRandomPair() (Pair, error) {
 	return p[rand.Intn(len(p))], nil //nolint:gosec // basic number generation required, no need for crypo/rand
 }
 
-// DeriveFrom matches symbol string to the available pairs list when no
-// delimiter is supplied.
-func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
+// DeriveFrom matches symbol string to the pairs type. Delimiter is an
+// optional string which is expected to be included in the incoming symbol
+// string which will be removed for an appropriate match.
+func (p Pairs) DeriveFrom(symbol, delimiter string) (Pair, error) {
 	if len(p) == 0 {
 		return EMPTYPAIR, errPairsEmpty
 	}
 	if symbol == "" {
 		return EMPTYPAIR, errSymbolEmpty
 	}
+
 	symbol = strings.ToLower(symbol)
+	symbolLength := len(symbol)
+	if delimiter != "" {
+		symbol = strings.Replace(symbol, delimiter, "", 1)
+		if symbolLength == len(symbol) {
+			return EMPTYPAIR, fmt.Errorf("%v %w for %v", delimiter, errDelimiterNotRemoved, symbol)
+		}
+		symbolLength = len(symbol)
+	}
+
 pairs:
 	for x := range p {
-		if p[x].Len() != len(symbol) {
+
+		if p[x].Len() != symbolLength {
 			continue
 		}
 		base := p[x].Base.Lower().String()
