@@ -426,13 +426,15 @@ func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !h.SupportsRESTTickerBatchUpdates(a) {
+		return fmt.Errorf("asset [%v] does not support REST ticker batch updates %w",
+			a,
+			common.ErrFunctionNotSupported)
+	}
+
 	enabled, err := h.GetEnabledPairs(a)
 	if err != nil {
 		return err
-	}
-
-	if a != asset.Spot {
-		return common.ErrFunctionNotSupported
 	}
 
 	tickers, err := h.GetTickers(ctx)

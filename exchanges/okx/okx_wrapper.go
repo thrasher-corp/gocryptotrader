@@ -400,15 +400,13 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 		return err
 	}
 
-	// outbound is the request asset that is overwritten if the asset it margin
 	requestAssset := assetType
-	if assetType == asset.Margin {
-		// Reflects the same values as spot tickers, needs to match with spot
-		// that is returned.
+	if requestAssset == asset.Margin {
+		// margin uses spot endpoints
 		requestAssset = asset.Spot
 	}
-
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(requestAssset)
+
 	ticks, err := ok.GetTickers(ctx, strings.ToUpper(instrumentType), "", "")
 	if err != nil {
 		return err
