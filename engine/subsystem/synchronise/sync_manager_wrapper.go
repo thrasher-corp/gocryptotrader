@@ -93,7 +93,7 @@ func (m *Manager) Stop() error {
 }
 
 // Update notifies the syncManager to change the last updated time for an exchange asset pair
-func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolType, p currency.Pair, a asset.Item, item subsystem.SynchronizationType, incomingErr error) error {
+func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolType, p currency.Pair, a asset.Item, syncType subsystem.SynchronizationType, incomingErr error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNil)
 	}
@@ -114,7 +114,7 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 	}
 
 	// NOTE: Switch for a pre-lock check against config field bools.
-	switch item {
+	switch syncType {
 	case subsystem.Orderbook:
 		if !m.SynchronizeOrderbook {
 			return nil
@@ -128,25 +128,14 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 			return nil
 		}
 	default:
-		return fmt.Errorf("%v %w", item, errUnknownSyncType)
+		return fmt.Errorf("%v %w", syncType, errUnknownSyncType)
 	}
 
-	agent := m.getAgent(exchangeName, p, a, updateProtocol == subsystem.Rest)
-
-	switch item {
-	case subsystem.Ticker:
-		if agent.Ticker.Update(item, exchangeName, updateProtocol, p, a, incomingErr) {
-			return nil
-		}
-	case subsystem.Orderbook:
-		if agent.Orderbook.Update(item, exchangeName, updateProtocol, p, a, incomingErr) {
-			return nil
-		}
-	case subsystem.Trade:
-		if agent.Trade.Update(item, exchangeName, updateProtocol, p, a, incomingErr) {
-			return nil
-		}
+	agent := m.getAgent(exchangeName, p, a, syncType, updateProtocol == subsystem.Rest)
+	if !agent.Update(updateProtocol, incomingErr) {
+		return nil
 	}
+
 	if atomic.LoadInt32(&m.initSyncCompleted) == 1 {
 		return nil
 	}
@@ -154,7 +143,7 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 	m.removedCounter++
 	log.Debugf(log.SyncMgr, "%s %s sync complete for %s %s via %s [%d/%d].",
 		exchangeName,
-		item,
+		syncType,
 		m.formatCurrency(p),
 		strings.ToUpper(a.String()),
 		updateProtocol,

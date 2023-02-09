@@ -173,27 +173,29 @@ func (m *Manager) getSmallestTimeout() time.Duration {
 // checkSyncItems checks agent against it's current last update time on all
 // individual synchronization items.
 func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update time.Duration) (smallest time.Duration) {
-	agent := m.getAgent(exch.GetName(), pair, a, usingREST)
 	if m.SynchronizeOrderbook {
-		update = m.checkSyncItem(exch, &agent.Orderbook, agent, subsystem.Orderbook, update)
+		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Orderbook, usingREST)
+		update = m.checkSyncItem(exch, agent, update)
 	}
 	if m.SynchronizeTicker {
-		update = m.checkSyncItem(exch, &agent.Ticker, agent, subsystem.Ticker, update)
+		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Ticker, usingREST)
+		update = m.checkSyncItem(exch, agent, update)
 	}
 	if m.SynchronizeTrades {
-		update = m.checkSyncItem(exch, &agent.Trade, agent, subsystem.Trade, update)
+		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Trade, usingREST)
+		update = m.checkSyncItem(exch, agent, update)
 	}
 	return update
 }
 
 // checkSyncItem checks the individual sync item
-func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *Agent, sync subsystem.SynchronizationType, update time.Duration) (smallest time.Duration) {
-	until, needsUpdate := indv.NeedsUpdate(m.TimeoutREST, m.TimeoutWebsocket)
-	if needsUpdate {
+func (m *Manager) checkSyncItem(exch exchange.IBotExchange, agent *Agent, update time.Duration) (smallest time.Duration) {
+	until := agent.NextUpdate(m.TimeoutREST, m.TimeoutWebsocket)
+	if until == 0 {
 		// This needs to set processing in this controller routine so that it
 		// can be ignored on next check.
-		indv.SetProcessing(agent.Exchange, sync.String(), agent.Pair, agent.AssetType, m.TimeoutWebsocket, true)
-		m.sendJob(exch, agent.Pair, agent.AssetType, sync)
+		agent.SetProcessingViaREST(m.TimeoutWebsocket)
+		m.sendJob(exch, agent)
 	} else if until > 0 && until < update {
 		update = until
 	}
@@ -202,92 +204,103 @@ func (m *Manager) checkSyncItem(exch exchange.IBotExchange, indv *Base, agent *A
 
 // sendJob sets agent base as processing for that ticker item then sends the
 // REST sync job to the jobs channel for processing.
-func (m *Manager) sendJob(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, item subsystem.SynchronizationType) {
-	switch item {
+func (m *Manager) sendJob(exch exchange.IBotExchange, agent *Agent) {
+	agent.mu.Lock()
+	switch agent.SynchronisationType {
 	case subsystem.Orderbook:
 		select {
-		case m.orderbookJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}:
+		case m.orderbookJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset, Item: agent.SynchronisationType}:
 		default:
 			log.Error(log.SyncMgr, "Jobs channel is at max capacity for orderbooks, data integrity cannot be trusted.")
 		}
 	case subsystem.Ticker:
 		select {
-		case m.tickerJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}:
+		case m.tickerJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset, Item: agent.SynchronisationType}:
 		default:
 			log.Error(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
 		}
 	case subsystem.Trade:
 		// TODO: add support for trade synchronisation
-		// m.tradeJobs <- RESTJob{exch: exch, Pair: pair, Asset: a, Item: item}
+		// select {
+		// case m.tradeJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset, Item: agent.SynchronisationType}:
+		// default:
+		// 	log.Error(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
+		// }
 	}
+	agent.mu.Unlock()
 }
 
 // getAgent returns an agent and will generate a new agent if not found.
-func (m *Manager) getAgent(exch string, pair currency.Pair, a asset.Item, usingREST bool) *Agent {
+func (m *Manager) getAgent(exch string, pair currency.Pair, a asset.Item, syncType subsystem.SynchronizationType, usingREST bool) *Agent {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.currencyPairs == nil {
-		m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Agent)
+		m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
 	}
 
 	m1, ok := m.currencyPairs[exch]
 	if !ok {
-		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Agent)
+		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
 		m.currencyPairs[exch] = m1
 	}
 
 	m2, ok := m1[pair.Base.Item]
 	if !ok {
-		m2 = make(map[*currency.Item]map[asset.Item]*Agent)
+		m2 = make(map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
 		m1[pair.Base.Item] = m2
 	}
 
 	m3, ok := m2[pair.Quote.Item]
 	if !ok {
-		m3 = make(map[asset.Item]*Agent)
+		m3 = make(map[asset.Item]map[subsystem.SynchronizationType]*Agent)
 		m2[pair.Quote.Item] = m3
 	}
 
-	agent := m3[a]
+	m4, ok := m3[a]
+	if !ok {
+		m4 = make(map[subsystem.SynchronizationType]*Agent)
+		m3[a] = m4
+	}
+
+	agent := m4[syncType]
 	if agent != nil {
 		return agent
 	}
 
-	agent = &Agent{Exchange: exch, Pair: pair, AssetType: a}
-	if m.SynchronizeTicker {
-		agent.Ticker = m.deployBase(subsystem.Ticker, agent, usingREST)
-	}
-	if m.SynchronizeOrderbook {
-		agent.Orderbook = m.deployBase(subsystem.Orderbook, agent, usingREST)
-	}
-	if m.SynchronizeTrades {
-		agent.Trade = m.deployBase(subsystem.Trade, agent, usingREST)
+	agent = &Agent{
+		Exchange:            exch,
+		Pair:                pair,
+		Asset:               a,
+		SynchronisationType: syncType,
+		IsUsingREST:         usingREST,
+		IsUsingWebsocket:    !usingREST,
 	}
 
-	m3[a] = agent
+	m.loadAgent(agent, syncType)
+
+	m4[syncType] = agent
 	return agent
 }
 
-// deployBase deploys a instance of a base struct for each individual
-// synchronization item. If verbose it will display the added item. If state
-// is in initial sync it will increment counter and add to the waitgroup.
-func (m *Manager) deployBase(service subsystem.SynchronizationType, agent *Agent, usingREST bool) Base {
+// loadAgent loads an agent for each individual synchronisation item. If verbose
+// it will display the added item. If state is in initial sync it will increment
+// counter and add to the waitgroup.
+func (m *Manager) loadAgent(agent *Agent, syncItem subsystem.SynchronizationType) {
 	if m.Verbose {
 		log.Debugf(log.SyncMgr,
 			"%s: Added %s sync item %s [%s]: using websocket: %v using REST: %v",
 			agent.Exchange,
-			service,
+			syncItem,
 			m.formatCurrency(agent.Pair),
-			agent.AssetType,
-			!usingREST,
-			usingREST)
+			strings.ToUpper(agent.Asset.String()),
+			agent.IsUsingREST,
+			agent.IsUsingWebsocket)
 	}
 	if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
 		m.initSyncWG.Add(1)
 		m.createdCounter++
 	}
-	return Base{IsUsingREST: usingREST, IsUsingWebsocket: !usingREST}
 }
 
 // orderbookWorker waits for an orderbook job then executes a REST request.
@@ -447,69 +460,85 @@ func (m *Manager) WaitForInitialSync() error {
 
 // NeedsUpdate determines if the underlying agent sync base is ready for an
 // update via REST.
-func (b *Base) NeedsUpdate(timeoutRest, timeoutWS time.Duration) (time.Duration, bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.IsProcessing {
-		return 0, false
+func (a *Agent) NextUpdate(timeoutRest, timeoutWS time.Duration) time.Duration {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.IsProcessing {
+		// Update not needed
+		return -1
 	}
-	if b.IsUsingWebsocket {
-		added := b.LastUpdated.Add(timeoutWS)
-		return time.Until(added), !b.LastUpdated.IsZero() && time.Since(b.LastUpdated) >= timeoutWS
-	}
-	added := b.LastUpdated.Add(timeoutRest)
-	return time.Until(added), b.LastUpdated.IsZero() || time.Since(b.LastUpdated) >= timeoutRest
-}
 
-// SetProcessing sets processing for the specific sync agent
-func (b *Base) SetProcessing(exch, service string, pair currency.Pair, a asset.Item, wsTimeout time.Duration, processing bool) {
-	var switched bool
-	b.mu.Lock()
-	b.IsProcessing = processing
-	if b.IsUsingWebsocket {
-		b.IsUsingWebsocket = true
-		b.IsUsingREST = true
-		switched = true
-	}
-	b.mu.Unlock()
-
-	if switched {
-		log.Warnf(log.SyncMgr, "%s %s %s: No %s update after %s, switching from WEBSOCKET to REST",
-			exch,
-			pair,
-			strings.ToUpper(a.String()),
-			service,
-			wsTimeout)
-	}
-}
-
-// Update updates the underlying sync bases' data and last updated fields.
-// If protocol is switched from REST to WEBSOCKET it will display that switch.
-func (b *Base) Update(service subsystem.SynchronizationType, exch string, protocol subsystem.ProtocolType, pair currency.Pair, a asset.Item, incomingErr error) (isInitialUpdate bool) {
-	b.mu.Lock()
-	initialUpdate := b.LastUpdated.IsZero()
-	b.LastUpdated = time.Now()
-	if incomingErr != nil {
-		b.NumErrors++
-	}
-	b.IsProcessing = false
-
-	var switched bool
-	if protocol == subsystem.Websocket {
-		if b.IsUsingREST {
-			switched = true
-			b.IsUsingREST = false
-			b.IsUsingWebsocket = true
+	if a.IsUsingWebsocket {
+		if a.LastUpdated.IsZero() {
+			// Update not needed, stream connection established waiting for
+			// initial update.
+			return -1
 		}
-	}
-	b.mu.Unlock()
 
-	if switched {
+		timeout := time.Until(a.LastUpdated.Add(timeoutWS))
+		if timeout <= 0 {
+			// Update immediately
+			return 0
+		}
+		return timeout
+	}
+
+	if a.LastUpdated.IsZero() {
+		// Update immediately, via REST request
+		return 0
+	}
+
+	timeout := time.Until(a.LastUpdated.Add(timeoutRest))
+	if timeout <= 0 {
+		// Update immediately
+		return 0
+	}
+	return timeout
+}
+
+// SetProcessingViaREST sets processing for the specific sync agent when it is
+// specifically fetching via REST.
+func (a *Agent) SetProcessingViaREST(wsTimeout time.Duration) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.IsProcessing = true
+	if !a.IsUsingWebsocket {
+		return
+	}
+	a.IsUsingWebsocket = false
+	a.IsUsingREST = true
+	log.Warnf(log.SyncMgr, "%s %s %s: No %s update after %s, switching from WEBSOCKET to REST",
+		a.Exchange,
+		a.Pair,
+		strings.ToUpper(a.Asset.String()),
+		a.SynchronisationType,
+		wsTimeout)
+}
+
+// var updates int64
+
+// Update updates the underlying agent fields. If protocol is switched from REST
+// to WEBSOCKET it will display that switch.
+func (a *Agent) Update(protocol subsystem.ProtocolType, incomingErr error) (isInitialUpdate bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if incomingErr != nil {
+		a.NumErrors++
+	}
+
+	a.IsProcessing = false
+	initialUpdate := a.LastUpdated.IsZero()
+	a.LastUpdated = time.Now()
+
+	if protocol == subsystem.Websocket && a.IsUsingREST {
+		a.IsUsingREST = false
+		a.IsUsingWebsocket = true
 		log.Warnf(log.SyncMgr, "%s %s %s: %s update received, switching from REST to WEBSOCKET",
-			exch,
-			pair,
-			strings.ToUpper(a.String()),
-			service)
+			a.Exchange,
+			a.Pair,
+			strings.ToUpper(a.Asset.String()),
+			a.SynchronisationType)
 	}
 	return initialUpdate
 }

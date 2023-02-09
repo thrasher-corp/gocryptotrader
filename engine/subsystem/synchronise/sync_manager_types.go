@@ -37,30 +37,23 @@ var (
 	errProtocolUnset     = errors.New("protocol unset")
 )
 
-// Base stores independent sync information e.g a specific orderbook.
-type Base struct {
-	IsUsingWebsocket bool
-	IsUsingREST      bool
-	IsProcessing     bool
-	LastUpdated      time.Time
-	NumErrors        int
-	mu               sync.Mutex
-}
-
 // Agent stores the sync agent information on exchange, asset type and pair
 // and holds the individual item bases.
 type Agent struct {
-	Exchange  string
-	AssetType asset.Item
-	Pair      currency.Pair
-	Ticker    Base
-	Orderbook Base
-	Trade     Base
+	Exchange            string
+	Asset               asset.Item
+	Pair                currency.Pair
+	SynchronisationType subsystem.SynchronizationType
+	IsUsingWebsocket    bool
+	IsUsingREST         bool
+	IsProcessing        bool
+	LastUpdated         time.Time
+	NumErrors           int
+	mu                  sync.Mutex
 }
 
 // ManagerConfig stores the currency pair synchronization manager config
 type ManagerConfig struct {
-	// TODO: Bitmask booleans to reduce switch cases.
 	SynchronizeTicker       bool
 	SynchronizeOrderbook    bool
 	SynchronizeTrades       bool
@@ -85,7 +78,7 @@ type Manager struct {
 	mu                sync.Mutex
 	initSyncWG        sync.WaitGroup
 
-	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Agent
+	currencyPairs            map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent
 	tickerBatchLastRequested map[string]map[asset.Item]time.Time
 	batchMtx                 sync.Mutex
 

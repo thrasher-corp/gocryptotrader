@@ -273,11 +273,14 @@ func TestSyncManagerUpdate(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncType)
 	}
 
-	m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Agent)
-	m.currencyPairs[testName] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Agent)
-	m.currencyPairs[testName][currency.BTC.Item] = make(map[*currency.Item]map[asset.Item]*Agent)
-	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item] = make(map[asset.Item]*Agent)
-	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot] = &Agent{AssetType: 1}
+	m.currencyPairs = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+	m.currencyPairs[testName] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+	m.currencyPairs[testName][currency.BTC.Item] = make(map[*currency.Item]map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item] = make(map[asset.Item]map[subsystem.SynchronizationType]*Agent)
+	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot] = make(map[subsystem.SynchronizationType]*Agent)
+	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot][subsystem.Orderbook] = &Agent{Asset: 1}
+	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot][subsystem.Ticker] = &Agent{Asset: 1}
+	m.currencyPairs[testName][currency.BTC.Item][currency.USD.Item][asset.Spot][subsystem.Trade] = &Agent{Asset: 1}
 
 	m.initSyncWG.Add(3)
 	// orderbook match
