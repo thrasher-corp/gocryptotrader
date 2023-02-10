@@ -462,7 +462,6 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		for y := range tick {
 			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, "")
 			if err != nil {
-				// fmt.Println("NAH BRO", tick[y].Symbol, a, err)
 				continue
 			}
 
