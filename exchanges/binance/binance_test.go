@@ -172,7 +172,6 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-
 	err := b.UpdateTickers(context.Background(), asset.DownsideProfitContract)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected '%v'", err, asset.ErrNotSupported)
@@ -1251,7 +1250,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		serverTime := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
+		serverTime := time.UnixMilli(1675995619527)
 		if !info.Servertime.Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
 		}
@@ -2660,6 +2659,9 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 }
 
 func TestWsOrderExecutionReport(t *testing.T) {
+	delPair := currency.NewPair(currency.BTC, currency.USDT)
+	delPair.Delimiter = currency.DashDelimiter
+
 	// cannot run in parallel due to inspecting the DataHandler result
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
 	// this is a buy BTC order, normally commission is charged in BTC, vice versa.
@@ -2683,7 +2685,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		AssetType:            asset.Spot,
 		Date:                 time.UnixMilli(1616627567900),
 		LastUpdated:          time.UnixMilli(1616627567900),
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 delPair,
 	}
 	// empty the channel. otherwise mock_test will fail
 	for len(b.Websocket.DataHandler) > 0 {
@@ -2863,5 +2865,13 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 	}
 	if len(limits) == 0 {
 		t.Error("expected a response")
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTradablePairs(context.Background(), false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }

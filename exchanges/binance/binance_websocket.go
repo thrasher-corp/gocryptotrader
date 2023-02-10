@@ -51,6 +51,9 @@ func (b *Binance) WsConnect() error {
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		// TODO: Different asset types are handled on multiple websocket
+		// connections. Margin, USD-Margined futures and coin-margined futures
+		// need to be implemented.
 		listenKey, err = b.GetWsAuthStreamKey(context.TODO())
 		if err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -224,10 +227,17 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
 				}
 				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
-				pair, assetType, err := b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+
+				available, err := b.GetAvailablePairs(asset.Spot)
 				if err != nil {
 					return err
 				}
+
+				pair, err := available.DeriveFrom(data.Data.Symbol, "")
+				if err != nil {
+					return err
+				}
+
 				var feeAsset currency.Code
 				if data.Data.CommissionAsset != "" {
 					feeAsset = currency.NewCode(data.Data.CommissionAsset)
@@ -277,7 +287,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Type:                 orderType,
 					Side:                 orderSide,
 					Status:               orderStatus,
-					AssetType:            assetType,
+					AssetType:            asset.Spot,
 					Date:                 data.Data.OrderCreationTime,
 					LastUpdated:          data.Data.TransactionTime,
 					Pair:                 pair,

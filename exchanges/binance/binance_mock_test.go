@@ -8,6 +8,7 @@ package binance
 import (
 	"log"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -60,5 +61,13 @@ func TestMain(m *testing.M) {
 	}
 	request.MaxRequestJobs = 100
 	log.Printf(sharedtestvalues.MockTesting, b.Name)
+
+	var testWg sync.WaitGroup
+	err = b.Start(&testWg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	testWg.Wait()
+
 	os.Exit(m.Run())
 }

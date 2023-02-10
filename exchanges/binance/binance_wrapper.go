@@ -462,6 +462,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		for y := range tick {
 			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, "")
 			if err != nil {
+				// fmt.Println("NAH BRO", tick[y].Symbol, a, err)
 				continue
 			}
 
@@ -490,6 +491,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		for y := range tick {
+			tick[y].Symbol = strings.Replace(tick[y].Symbol, currency.UnderscoreDelimiter, "", 1)
 			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, "")
 			if err != nil {
 				continue
@@ -517,7 +519,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		for y := range tick {
-			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, "")
+			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, currency.UnderscoreDelimiter)
 			if err != nil {
 				continue
 			}

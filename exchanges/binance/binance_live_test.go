@@ -8,6 +8,7 @@ package binance
 import (
 	"log"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -40,5 +41,13 @@ func TestMain(m *testing.M) {
 	request.MaxRequestJobs = 100
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
+
+	var testWg sync.WaitGroup
+	err = b.Start(&testWg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	testWg.Wait()
+
 	os.Exit(m.Run())
 }
