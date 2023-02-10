@@ -818,7 +818,7 @@
         "clientId": {
           "type": "string"
         },
-        "PEMKey": {
+        "pemKey": {
           "type": "string"
         },
         "subAccount": {

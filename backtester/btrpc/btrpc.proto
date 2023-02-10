@@ -145,7 +145,7 @@ message ExchangeCredentials {
   string key = 1;
   string secret = 2;
   string client_id = 3;
-  string PEM_key = 4;
+  string pem_key = 4;
   string sub_account = 5;
   string one_time_password = 6;
 }

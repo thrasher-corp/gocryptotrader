@@ -555,7 +555,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
 					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
 					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,
-					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PEMKey,
+					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PemKey,
 					SubAccount:      request.Config.DataSettings.LiveData.Credentials[i].Keys.SubAccount,
 					OneTimePassword: request.Config.DataSettings.LiveData.Credentials[i].Keys.OneTimePassword,
 				},
