@@ -209,6 +209,15 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	if err != nil {
 		return nil, err
 	}
+
+	io64 := int64(request.IntervalOverride)
+	if io64 > 0 {
+		if io64 < gctkline.FifteenSecond.Duration().Nanoseconds() {
+			return nil, fmt.Errorf("%w %v", gctkline.ErrInvalidInterval, request.IntervalOverride)
+		}
+		cfg.DataSettings.Interval = gctkline.Interval(request.IntervalOverride)
+	}
+
 	if request.StartTimeOverride != nil && !request.StartTimeOverride.AsTime().IsZero() {
 		if cfg.DataSettings.DatabaseData != nil {
 			cfg.DataSettings.DatabaseData.StartDate = request.StartTimeOverride.AsTime()
@@ -223,10 +232,6 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 			cfg.DataSettings.APIData.EndDate = request.EndTimeOverride.AsTime()
 		}
 	}
-	if int64(request.IntervalOverride) > gctkline.FifteenSecond.Duration().Nanoseconds() {
-		cfg.DataSettings.Interval = gctkline.Interval(request.IntervalOverride)
-	}
-
 	err = cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -550,7 +555,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
 					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
 					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,
-					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PemKey,
+					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PEMKey,
 					SubAccount:      request.Config.DataSettings.LiveData.Credentials[i].Keys.SubAccount,
 					OneTimePassword: request.Config.DataSettings.LiveData.Credentials[i].Keys.OneTimePassword,
 				},

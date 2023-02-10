@@ -42,17 +42,17 @@ var executeStrategyFromFileCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "starttimeoverride",
 			Aliases: []string{"s"},
-			Usage:   "override the strat file's start time",
+			Usage:   "override the start file's start time",
 		},
 		&cli.StringFlag{
 			Name:    "endtimeoverride",
 			Aliases: []string{"e"},
-			Usage:   "override the strat file's end time",
+			Usage:   "override the start file's end time",
 		},
 		&cli.Uint64Flag{
 			Name:    "intervaloverride",
 			Aliases: []string{"i"},
-			Usage:   "override the strat file's candle interval",
+			Usage:   "override the start file's candle interval, in seconds. eg 60 = 1 minute",
 		},
 	},
 }
@@ -112,7 +112,8 @@ func executeStrategyFromFile(c *cli.Context) error {
 		}
 	}
 	if !s.IsZero() && !e.IsZero() {
-		if err = common.StartEndTimeCheck(s, e); err != nil {
+		err = common.StartEndTimeCheck(s, e)
+		if err != nil {
 			return err
 		}
 	}
@@ -129,6 +130,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 			}
 		}
 	}
+	overrideDuration := time.Duration(intervalOverride) * time.Second
 
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
@@ -139,7 +141,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 			DoNotStore:          dns,
 			StartTimeOverride:   timestamppb.New(s),
 			EndTimeOverride:     timestamppb.New(e),
-			IntervalOverride:    intervalOverride,
+			IntervalOverride:    uint64(overrideDuration),
 		},
 	)
 
