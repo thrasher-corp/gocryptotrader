@@ -20,21 +20,24 @@ const (
 	nonMatchingEPL request.EndpointLimit = iota
 	matchingEPL
 	portfolioMarginEPL
+	privatePortfolioMarginEPL
 )
 
 // RateLimiter holds the rate limiter to endpoints
 type RateLimiter struct {
-	NonMatchingEngine *rate.Limiter
-	MatchingEngine    *rate.Limiter
-	PortfolioMargin   *rate.Limiter
+	NonMatchingEngine      *rate.Limiter
+	MatchingEngine         *rate.Limiter
+	PortfolioMargin        *rate.Limiter
+	PrivatePortfolioMargin *rate.Limiter
 }
 
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimiter {
 	return &RateLimiter{
-		NonMatchingEngine: request.NewRateLimit(time.Second, nonMatchingBurst),
-		MatchingEngine:    request.NewRateLimit(time.Second, minMatchingBurst),
-		PortfolioMargin:   request.NewRateLimit(time.Second, portfoliMarginRate),
+		NonMatchingEngine:      request.NewRateLimit(time.Second, nonMatchingBurst),
+		MatchingEngine:         request.NewRateLimit(time.Second, minMatchingBurst),
+		PortfolioMargin:        request.NewRateLimit(5*time.Second, portfoliMarginRate),
+		PrivatePortfolioMargin: request.NewRateLimit(5*time.Second, portfoliMarginRate),
 	}
 }
 
@@ -47,6 +50,8 @@ func (r *RateLimiter) Limit(ctx context.Context, f request.EndpointLimit) error 
 		limiter, tokens = r.NonMatchingEngine, nonMatchingRate
 	case portfolioMarginEPL:
 		limiter, tokens = r.PortfolioMargin, portfoliMarginRate
+	case privatePortfolioMarginEPL:
+		limiter, tokens = r.PrivatePortfolioMargin, portfoliMarginRate
 	default:
 		limiter, tokens = r.MatchingEngine, minMatchingRate
 	}

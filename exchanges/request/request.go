@@ -388,3 +388,9 @@ func isVerbose(ctx context.Context, verbose bool) bool {
 	isCtxVerbose, _ := ctx.Value(contextVerboseFlag).(bool)
 	return isCtxVerbose
 }
+
+// AddJobs adds a job to requesters jobs if positive
+// the parameter jb can be positive for adding jobs, and negative to reduce
+func (r *Requester) AddJobs(jb int32) {
+	atomic.AddInt32(&r.jobs, jb)
+}

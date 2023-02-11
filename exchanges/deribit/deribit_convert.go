@@ -2,8 +2,44 @@ package deribit
 
 import (
 	"encoding/json"
+	"errors"
+	"strconv"
 	"time"
 )
+
+type deribitMilliSecTime int64
+
+// UnmarshalJSON deserializes a byte data into timestamp information
+func (a *deribitMilliSecTime) UnmarshalJSON(data []byte) error {
+	var value interface{}
+	err := json.Unmarshal(data, &value)
+	if err != nil {
+		return err
+	}
+	var millisecTimestamp int64
+	switch val := value.(type) {
+	case int64:
+		millisecTimestamp = val
+	case int:
+		millisecTimestamp = int64(val)
+	case float64:
+		millisecTimestamp = int64(val)
+	case string:
+		millisecTimestamp, err = strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.New("unsupported timestamp information")
+	}
+	*a = deribitMilliSecTime(millisecTimestamp)
+	return nil
+}
+
+// Time returns a time.Time instance information from deribitMilliSecTime timestamp.
+func (a *deribitMilliSecTime) Time() time.Time {
+	return time.UnixMilli(int64(*a))
+}
 
 // UnmarshalJSON deserializes a JSON object to an orderbook struct.
 func (a *Orderbook) UnmarshalJSON(data []byte) error {

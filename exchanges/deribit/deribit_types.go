@@ -52,6 +52,9 @@ var (
 	errZeroTimestamp                       = errors.New("zero timestamps are not allowed")
 	errMissingBlockTradeID                 = errors.New("missing block trade id")
 	errMissingSubAccountID                 = errors.New("missing subaccount id")
+	errNoOrderDeleted                      = errors.New("no order deleted")
+
+	websocketRequestTimeout = time.Second * 30
 )
 
 // UnmarshalError is the struct which is used for unmarshalling errors
@@ -125,6 +128,15 @@ type FundingChartData struct {
 	} `json:"data"`
 }
 
+// FundingRateHistory represents a funding rate history item
+type FundingRateHistory struct {
+	Timestamp      deribitMilliSecTime `json:"timestamp"`
+	IndexPrice     float64             `json:"index_price"`      // Price in base currency
+	PrevIndexPrice float64             `json:"prev_index_price"` // Price in base currency
+	Interest8H     float64             `json:"interest_8h"`      // 8hour interest rate
+	Interest1H     float64             `json:"interest_1h"`      // 1hour interest rate
+}
+
 // HistoricalVolatilityData stores volatility data for requested symbols
 type HistoricalVolatilityData struct {
 	Timestamp float64
@@ -139,31 +151,31 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
-	BaseCurrency                string  `json:"base_currency"`
-	BlockTradeCommission        float64 `json:"block_trade_commission"`
-	ContractSize                float64 `json:"contract_size"`
-	CreationTimestamp           int64   `json:"creation_timestamp"`
-	ExpirationTimestamp         int64   `json:"expiration_timestamp"`
-	InstrumentName              string  `json:"instrument_name"`
-	IsActive                    bool    `json:"is_active"`
-	Kind                        string  `json:"kind"`
-	Leverage                    float64 `json:"leverage"`
-	MaxLeverage                 float64 `json:"max_leverage"`
-	MakerCommission             float64 `json:"maker_commission"`
-	MinimumTradeAmount          float64 `json:"min_trade_amount"`
-	OptionType                  string  `json:"option_type"`
-	QuoteCurrency               string  `json:"quote_currency"`
-	TickSize                    float64 `json:"tick_size"`
-	TakerCommission             float64 `json:"taker_commission"`
-	Strike                      float64 `json:"strike"`
-	SettlementPeriod            string  `json:"settlement_period"`
-	SettlementCurrency          string  `json:"settlement_currency"`
-	RequestForQuote             bool    `json:"rfq"`
-	PriceIndex                  string  `json:"price_index"`
-	InstrumentID                int64   `json:"instrument_id"`
-	CounterCurrency             string  `json:"counter_currency"`
-	MaximumLiquidationCommision float64 `json:"max_liquidation_commission"`
-	FutureType                  string  `json:"future_type"`
+	BaseCurrency                 string  `json:"base_currency"`
+	BlockTradeCommission         float64 `json:"block_trade_commission"`
+	ContractSize                 float64 `json:"contract_size"`
+	CreationTimestamp            int64   `json:"creation_timestamp"`
+	ExpirationTimestamp          int64   `json:"expiration_timestamp"`
+	InstrumentName               string  `json:"instrument_name"`
+	IsActive                     bool    `json:"is_active"`
+	Kind                         string  `json:"kind"`
+	Leverage                     float64 `json:"leverage"`
+	MaxLeverage                  float64 `json:"max_leverage"`
+	MakerCommission              float64 `json:"maker_commission"`
+	MinimumTradeAmount           float64 `json:"min_trade_amount"`
+	OptionType                   string  `json:"option_type"`
+	QuoteCurrency                string  `json:"quote_currency"`
+	TickSize                     float64 `json:"tick_size"`
+	TakerCommission              float64 `json:"taker_commission"`
+	Strike                       float64 `json:"strike"`
+	SettlementPeriod             string  `json:"settlement_period"`
+	SettlementCurrency           string  `json:"settlement_currency"`
+	RequestForQuote              bool    `json:"rfq"`
+	PriceIndex                   string  `json:"price_index"`
+	InstrumentID                 int64   `json:"instrument_id"`
+	CounterCurrency              string  `json:"counter_currency"`
+	MaximumLiquidationCommission float64 `json:"max_liquidation_commission"`
+	FutureType                   string  `json:"future_type"`
 }
 
 // SettlementsData stores data for settlement futures

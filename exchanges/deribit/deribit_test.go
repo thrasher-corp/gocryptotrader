@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -91,14 +91,6 @@ func areTestAPIKeysSet() bool {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := d.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = d.FetchTradablePairs(context.Background(), asset.OptionCombo)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = d.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
@@ -226,7 +218,7 @@ func TestSubmitOrder(t *testing.T) {
 			Pair:      cp,
 		},
 	)
-	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -314,6 +306,18 @@ func TestGetFundingChartData(t *testing.T) {
 		t.Error(err)
 	}
 	if _, err = d.WSRetrieveFundingChartData(btcPerpInstrument, "8h"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingRateHistory(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetFundingRateHistory(context.Background(), btcPerpInstrument, time.Now().Add(-time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetrieveFundingRateHistory(btcPerpInstrument, time.Now().Add(-time.Hour), time.Now())
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -553,10 +557,10 @@ func TestGetOrderbookByInstrumentID(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = d.GetOrderbookByInstrumentID(context.Background(), comboD.InstrumentID, 50)
-	if err != nil && !strings.Contains(err.Error(), "not_found") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetrieveOrderbookByInstrumentID(comboD.InstrumentID, 50); err != nil && !strings.Contains(err.Error(), "not_found") {
+	if _, err := d.WSRetrieveOrderbookByInstrumentID(comboD.InstrumentID, 50); err != nil {
 		t.Error(err)
 	}
 }
@@ -671,10 +675,10 @@ func TestCancelWithdrawal(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	_, err := d.CancelWithdrawal(context.Background(), currencyBTC, 123844)
-	if err != nil && !strings.Contains(err.Error(), "withdrawal with given id and currency not found") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSCancelWithdrawal(currencyBTC, 123844); err != nil && !strings.Contains(err.Error(), "withdrawal with given id and currency not found") {
+	if _, err = d.WSCancelWithdrawal(currencyBTC, 123844); err != nil {
 		t.Error(err)
 	}
 }
@@ -685,10 +689,10 @@ func TestCreateDepositAddress(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	_, err := d.CreateDepositAddress(context.Background(), currencySOL)
-	if err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSCreateDepositAddress(currencySOL); err != nil && !strings.Contains(err.Error(), "max_addr_count_exceeded") {
+	if _, err = d.WSCreateDepositAddress(currencySOL); err != nil {
 		t.Error(err)
 	}
 }
@@ -741,10 +745,10 @@ func TestSubmitTransferToSubAccount(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	_, err := d.SubmitTransferToSubAccount(context.Background(), currencyBTC, 0.01, 13434)
-	if err != nil && !strings.Contains(err.Error(), "transfer_not_allowed") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSubmitTransferToSubAccount(currencyBTC, 0.01, 13434); err != nil && !strings.Contains(err.Error(), "transfer_not_allowed") {
+	if _, err = d.WSSubmitTransferToSubAccount(currencyBTC, 0.01, 13434); err != nil {
 		t.Error(err)
 	}
 }
@@ -755,7 +759,7 @@ func TestSubmitTransferToUser(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	_, err := d.SubmitTransferToUser(context.Background(), currencyBTC, "", "13434", 0.001)
-	if err != nil && !strings.Contains(err.Error(), "transfer_not_allowed") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = d.WSSubmitTransferToUser(currencyBTC, "", "0x4aa0753d798d668056920094d65321a8e8913e26", 0.001); err != nil {
@@ -783,7 +787,7 @@ func TestGetAnnouncements(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveAnnouncements(time.Now(), 5); err != nil {
+	if _, err := d.WSRetrieveAnnouncements(time.Now(), 5); err != nil {
 		t.Error(err)
 	}
 }
@@ -793,10 +797,13 @@ func TestGetPublicPortfolioMargins(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	time.Sleep(time.Second)
 	if _, err = d.GetPublicPortfolioMargins(context.Background(), currencyBTC, map[string]float64{
 		"BTC-PERPETUAL": info.ContractSize * 2,
 	}); err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second * 4)
+	if _, err = d.WSRetrievePublicPortfolioMargins(currencyBTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2}); err != nil {
 		t.Error(err)
 	}
 }
@@ -849,10 +856,10 @@ func TestChangeSubAccountName(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	err := d.ChangeSubAccountName(context.Background(), 1, "new_sub")
-	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSChangeSubAccountName(1, "new_sub"); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSChangeSubAccountName(1, "new_sub"); err != nil {
 		t.Error(err)
 	}
 }
@@ -906,10 +913,10 @@ func TestDisableTFAForSubAccount(t *testing.T) {
 	}
 	// Use with caution will reduce the security of the account
 	err := d.DisableTFAForSubAccount(context.Background(), 1)
-	if err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSDisableTFAForSubAccount(1); err != nil && !strings.Contains(err.Error(), "Method not found") { // this functionality is removed by now.
+	if err = d.WSDisableTFAForSubAccount(1); err != nil {
 		t.Error(err)
 	}
 }
@@ -920,10 +927,10 @@ func TestEnableAffiliateProgram(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	err := d.EnableAffiliateProgram(context.Background())
-	if err != nil && !strings.Contains(err.Error(), "not_allowed_to_enable_affiliate_program") {
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSEnableAffiliateProgram(); err != nil && !strings.Contains(err.Error(), "not_allowed_to_enable_affiliate_program") {
+	if err = d.WSEnableAffiliateProgram(); err != nil {
 		t.Error(err)
 	}
 }
@@ -993,7 +1000,14 @@ func TestGetPrivatePortfolioMargins(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrievePricatePortfolioMargins(currencyBTC, false, nil); err != nil {
+}
+
+func TestWsRetrivePricatePortfolioMargins(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(authenticationSkipMessage)
+	}
+	if _, err := d.WSRetrievePrivatePortfolioMargins(currencyBTC, false, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -1132,10 +1146,10 @@ func TestRemoveSubAccount(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	err := d.RemoveSubAccount(context.Background(), 1)
-	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSRemoveSubAccount(1); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSRemoveSubAccount(1); err != nil {
 		t.Error(err)
 	}
 }
@@ -1171,10 +1185,10 @@ func TestSetEmailForSubAccount(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	err := d.SetEmailForSubAccount(context.Background(), 1, "wrongemail@wrongemail.com")
-	if err != nil && !strings.Contains(err.Error(), "could not link email (wrongemail@wrongemail.com) to subaccount 1") {
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSSetEmailForSubAccount(1, "wrongemail@wrongemail.com"); err != nil && !strings.Contains(err.Error(), "could not link email (wrongemail@wrongemail.com) to subaccount 1") {
+	if err = d.WSSetEmailForSubAccount(1, "wrongemail@wrongemail.com"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1193,31 +1207,16 @@ func TestSetEmailLanguage(t *testing.T) {
 	}
 }
 
-func TestSetPasswordForSubAccount(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(endpointAuthorizationToManipulate)
-	}
-	// Caution! This may reduce the security of the subaccount
-	err := d.SetPasswordForSubAccount(context.Background(), 1, "randompassword123")
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err = d.WSSetPasswordForSubAccount(1, "randompassword123"); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestToggleNotificationsFromSubAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
 	err := d.ToggleNotificationsFromSubAccount(context.Background(), 1, false)
-	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSToggleNotificationsFromSubAccount(1, false); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSToggleNotificationsFromSubAccount(1, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1227,18 +1226,11 @@ func TestTogglePortfolioMargining(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	subaccount, err := d.GetSubAccountDetails(context.Background(), currencyBTC, false)
+	_, err := d.TogglePortfolioMargining(context.Background(), 1234, false, false)
 	if err != nil {
-		t.Skip(err)
-	}
-	if len(subaccount) == 0 {
-		t.Skip("no subaccount record found")
-	}
-	_, err = d.TogglePortfolioMargining(context.Background(), subaccount[0].UID, false, false)
-	if err != nil && !strings.Contains(err.Error(), "account is already on SM") {
 		t.Error(err)
 	}
-	if _, err = d.WSTogglePortfolioMargining(subaccount[0].UID, false, false); err != nil && !strings.Contains(err.Error(), "account is already on SM") {
+	if _, err = d.WSTogglePortfolioMargining(1234, false, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1249,10 +1241,10 @@ func TestToggleSubAccountLogin(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	err := d.ToggleSubAccountLogin(context.Background(), 1, false)
-	if err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSToggleSubAccountLogin(1, false); err != nil && !strings.Contains(err.Error(), "unauthorized") {
+	if err = d.WSToggleSubAccountLogin(1, false); err != nil {
 		t.Error(err)
 	}
 }
@@ -1274,7 +1266,7 @@ func TestSubmitBuy(t *testing.T) {
 		MaxShow: 0, TriggerPrice: 0,
 		PostOnly: false, RejectPostOnly: false,
 		ReduceOnly: false, MMP: false})
-	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = d.WSSubmitBuy(&OrderBuyAndSellParams{
@@ -1284,7 +1276,7 @@ func TestSubmitBuy(t *testing.T) {
 		Amount: 30, Price: 500000,
 		MaxShow: 0, TriggerPrice: 0,
 		PostOnly: false, RejectPostOnly: false,
-		ReduceOnly: false, MMP: false}); err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		ReduceOnly: false, MMP: false}); err != nil {
 		t.Error(err)
 	}
 }
@@ -1299,7 +1291,7 @@ func TestSubmitSell(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = d.SubmitSell(context.Background(), &OrderBuyAndSellParams{Instrument: btcPerpInstrument, OrderType: "limit", Label: "testOrder", TimeInForce: "", Trigger: "", Advanced: "", Amount: info.ContractSize * 3, Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false, RejectPostOnly: false, ReduceOnly: false, MMP: false})
-	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = d.WSSubmitSell(&OrderBuyAndSellParams{
@@ -1307,7 +1299,7 @@ func TestSubmitSell(t *testing.T) {
 		Label: "testOrder", TimeInForce: "",
 		Trigger: "", Advanced: "", Amount: info.ContractSize * 3,
 		Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false,
-		RejectPostOnly: false, ReduceOnly: false, MMP: false}); err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+		RejectPostOnly: false, ReduceOnly: false, MMP: false}); err != nil {
 		t.Error(err)
 	}
 }
@@ -1319,11 +1311,11 @@ func TestEditOrderByLabel(t *testing.T) {
 	}
 	_, err := d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
 		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false})
-	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = d.WSEditOrderByLabel(&OrderBuyAndSellParams{Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
-		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false}); err != nil && !strings.Contains(err.Error(), "order_not_found") {
+		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false}); err != nil {
 		t.Error(err)
 	}
 }
@@ -1334,10 +1326,10 @@ func TestSubmitCancel(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	_, err := d.SubmitCancel(context.Background(), "incorrectID")
-	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSubmitCancel("incorrectID"); err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if _, err = d.WSSubmitCancel("incorrectID"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1375,11 +1367,11 @@ func TestSubmitCancelAllByInstrument(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
-	_, err := d.SubmitCancelAllByInstrument(context.Background(), btcPerpInstrument, "all")
+	_, err := d.SubmitCancelAllByInstrument(context.Background(), btcPerpInstrument, "all", true, true)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSubmitCancelAllByInstrument(btcPerpInstrument, "all"); err != nil {
+	if _, err = d.WSSubmitCancelAllByInstrument(btcPerpInstrument, "all", true, true); err != nil {
 		t.Error(err)
 	}
 }
@@ -1404,10 +1396,10 @@ func TestSubmitClosePosition(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	_, err := d.SubmitClosePosition(context.Background(), btcPerpInstrument, "limit", 35000)
-	if err != nil && !strings.Contains(err.Error(), "already_closed") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSubmitClosePosition(btcPerpInstrument, "limit", 35000); err != nil && !strings.Contains(err.Error(), "already_closed") {
+	if _, err = d.WSSubmitClosePosition(btcPerpInstrument, "limit", 35000); err != nil {
 		t.Error(err)
 	}
 }
@@ -1432,10 +1424,10 @@ func TestGetMMPConfig(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	_, err := d.GetMMPConfig(context.Background(), currencyETH)
-	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveMMPConfig(currencyETH); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if _, err = d.WSRetrieveMMPConfig(currencyETH); err != nil {
 		t.Error(err)
 	}
 }
@@ -1502,14 +1494,10 @@ func TestGetOrderMarginsByID(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	_, err := d.GetOrderMarginsByID(context.Background(), []string{"ETH-349280", "ETH-349279", "ETH-349278"})
-	if err != nil && strings.Contains(err.Error(), "value must be a list") {
-		t.Skip(err)
-	} else if err != nil {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveOrderMarginsByID([]string{"ETH-349280", "ETH-349279", "ETH-349278"}); err != nil && strings.Contains(err.Error(), "value must be a list") {
-		t.Skip(err)
-	} else if err != nil {
+	if _, err := d.WSRetrieveOrderMarginsByID([]string{"ETH-349280", "ETH-349279", "ETH-349278"}); err != nil {
 		t.Error(err)
 	}
 }
@@ -1520,10 +1508,10 @@ func TestGetOrderState(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	_, err := d.GetOrderState(context.Background(), "brokenid123")
-	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrievesOrderState("brokenid123"); err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if _, err = d.WSRetrievesOrderState("brokenid123"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1604,10 +1592,10 @@ func TestGetUserTradesByOrder(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	_, err := d.GetUserTradesByOrder(context.Background(), "wrongOrderID", "default")
-	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveUserTradesByOrder("wrongOrderID", "default"); err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if _, err = d.WSRetrieveUserTradesByOrder("wrongOrderID", "default"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1618,10 +1606,10 @@ func TestResetMMP(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	err := d.ResetMMP(context.Background(), currencyBTC)
-	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSResetMMP(currencyBTC); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if err = d.WSResetMMP(currencyBTC); err != nil {
 		t.Error(err)
 	}
 }
@@ -1645,11 +1633,11 @@ func TestSetMMPConfig(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	err := d.SetMMPConfig(context.Background(), currencyBTC, 5, 5, 0, 0)
-	if err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	err := d.SetMMPConfig(context.Background(), currencyBTC, kline.FiveMin, 5, 0, 0)
+	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSSetMMPConfig(currencyBTC, 5, 5, 0, 0); err != nil && !strings.Contains(err.Error(), "MMP disabled") {
+	if err = d.WSSetMMPConfig(currencyBTC, kline.FiveMin, 5, 0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -1689,7 +1677,7 @@ func TestSubmitEdit(t *testing.T) {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
 	_, err := d.SubmitEdit(context.Background(), &OrderBuyAndSellParams{OrderID: "incorrectID", Advanced: "", TriggerPrice: 0.001, Price: 100000, Amount: 123})
-	if err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = d.WSSubmitEdit(&OrderBuyAndSellParams{
@@ -1698,7 +1686,7 @@ func TestSubmitEdit(t *testing.T) {
 		TriggerPrice: 0.001,
 		Price:        100000,
 		Amount:       123,
-	}); err != nil && !strings.Contains(err.Error(), "order_not_found") {
+	}); err != nil {
 		t.Error(err)
 	}
 }
@@ -1713,7 +1701,7 @@ func TestGetComboIDS(t *testing.T) {
 	}
 	combos, err := d.WSRetrieveComboIDS(currencyBTC, "")
 	if err != nil {
-		t.Skip(err)
+		t.Error(err)
 	}
 	if len(combos) == 0 {
 		t.Skip("no combo instance found for currency BTC")
@@ -1787,7 +1775,7 @@ func TestCreateCombo(t *testing.T) {
 			Amount:         1200,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "invalid direction") {
+	if err != nil {
 		t.Errorf("expecting error message 'invalid direction', but found %v", err)
 	}
 	_, err = d.CreateCombo(context.Background(), []ComboParam{
@@ -1802,7 +1790,7 @@ func TestCreateCombo(t *testing.T) {
 			Amount:         1200,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	if err != nil {
 		t.Error(err)
 	}
 	_, err = d.WSCreateCombo([]ComboParam{})
@@ -1834,7 +1822,7 @@ func TestCreateCombo(t *testing.T) {
 			Amount:         1200,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "invalid direction") {
+	if err != nil {
 		t.Errorf("expecting error message 'invalid direction', but found %v", err)
 	}
 	if _, err = d.WSCreateCombo([]ComboParam{
@@ -1848,7 +1836,7 @@ func TestCreateCombo(t *testing.T) {
 			Direction:      "buy",
 			Amount:         1200,
 		},
-	}); err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	}); err != nil {
 		t.Error(err)
 	}
 }
@@ -1870,18 +1858,33 @@ func TestVerifyBlockTrade(t *testing.T) {
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	if err != nil {
 		t.Error(err)
 	}
 	_, err = d.WSVerifyBlockTrade(time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
 		{
-			Price:          0.777 * 22000,
+			Price:          0.777 * 28000,
 			InstrumentName: btcPerpInstrument,
 			Direction:      "buy",
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInvalidateBlockTradeSignature(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(authenticationSkipMessage)
+	}
+	err := d.InvalidateBlockTradeSignature(context.Background(), "verified_signature_string")
+	if err != nil {
+		t.Error(err)
+	}
+	err = d.WsInvalidateBlockTradeSignature("verified_signature_string")
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -1910,7 +1913,7 @@ func TestExecuteBlockTrade(t *testing.T) {
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = d.WSExecuteBlockTrade(time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
@@ -1920,7 +1923,7 @@ func TestExecuteBlockTrade(t *testing.T) {
 			Direction:      "buy",
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
-	}); err != nil && !strings.Contains(err.Error(), "not_enough_funds") {
+	}); err != nil {
 		t.Error(err)
 	}
 }
@@ -1931,10 +1934,10 @@ func TestGetUserBlocTrade(t *testing.T) {
 		t.Skip(authenticationSkipMessage)
 	}
 	_, err := d.GetUserBlockTrade(context.Background(), "12345567")
-	if err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
+	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveUserBlockTrade("12345567"); err != nil && !strings.Contains(err.Error(), "block_trade_not_found") {
+	if _, err = d.WSRetrieveUserBlockTrade("12345567"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1977,7 +1980,7 @@ func TestMovePositions(t *testing.T) {
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "must be one of the subaccounts") {
+	if err != nil {
 		t.Error(err)
 	}
 	_, err = d.WSMovePositions(currencyBTC, 123, 345, []BlockTradeParam{
@@ -1988,7 +1991,7 @@ func TestMovePositions(t *testing.T) {
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "must be one of the subaccounts") {
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -2336,6 +2339,119 @@ func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
 	}
 	time.Sleep(4 * time.Second)
 	if _, err = d.WSRetrievePublicPortfolioMargins(currencyBTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip(endpointAuthorizationToManipulate)
+	}
+	currencyPair, err := currency.NewPairFromString("BTC-PERPETUAL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var orderCancellation = &order.Cancel{
+		OrderID:       "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		Pair:          currencyPair,
+		AssetType:     asset.Futures,
+	}
+	_, err = d.CancelAllOrders(context.Background(), orderCancellation)
+	if err != nil && !errors.Is(err, errNoOrderDeleted) {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(authenticationSkipMessage)
+	}
+	enabledPairs, err := d.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetOrderInfo(context.Background(), "1234", enabledPairs[0], asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(authenticationSkipMessage)
+	}
+	_, err := d.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    d.Name,
+		Amount:      1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: withdraw.CryptoRequest{
+			Address: "0x1nv4l1d",
+			Chain:   "tetheruse",
+		},
+	}
+	_, err := d.WithdrawCryptocurrencyFunds(context.Background(),
+		&withdrawCryptoRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(authenticationSkipMessage)
+	}
+	enabledPairs, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Futures,
+		Side:      order.AnySide,
+		Pairs:     []currency.Pair{enabledPairs[0]},
+	}
+	_, err = d.GetActiveOrders(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(authenticationSkipMessage)
+	}
+	enabledPairs, err := d.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Futures,
+		Side:      order.AnySide,
+		Pairs:     []currency.Pair{enabledPairs[0]},
+	}); err != nil {
 		t.Error(err)
 	}
 }

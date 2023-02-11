@@ -3,6 +3,7 @@ package deribit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -136,7 +137,6 @@ const (
 	removeSubAccount                  = "private/remove_subaccount"
 	resetAPIKey                       = "private/reset_api_key"
 	setAnnouncementAsRead             = "private/set_announcement_as_read"
-	setAPIKeyAsDefault                = "private/set_api_key_as_default"
 	setEmailForSubAccount             = "private/set_email_for_subaccount"
 	setEmailLanguage                  = "private/set_email_language"
 	setPasswordForSubAccount          = "private/set_password_for_subaccount"
@@ -233,6 +233,23 @@ func (d *Deribit) GetFundingChartData(ctx context.Context, instrument, length st
 	var resp *FundingChartData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getFundingChartData, params), &resp)
+}
+
+// GetFundingRateHistory retrieves hourly historical interest rate for requested PERPETUAL instrument.
+func (d *Deribit) GetFundingRateHistory(ctx context.Context, instrumentName string, startTime, endTime time.Time) ([]FundingRateHistory, error) {
+	if instrumentName == "" {
+		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	}
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("instrument_name", instrumentName)
+	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
+	var resp []FundingRateHistory
+	return resp, d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, common.EncodeURLValues(getFundingRateHistory, params), &resp)
 }
 
 // GetFundingRateValue gets funding rate value data.
@@ -770,7 +787,13 @@ func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, ccy string) (*De
 	params := url.Values{}
 	params.Set("currency", ccy)
 	var resp *DepositAddressData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getCurrentDepositAddress, params, &resp)
+	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getCurrentDepositAddress, params, &resp)
+	if err != nil {
+		return nil, err
+	} else if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp, nil
 }
 
 // GetDeposits gets the deposits of a given currency
@@ -1279,6 +1302,8 @@ func (d *Deribit) SetAnnouncementAsRead(ctx context.Context, id int64) error {
 	return nil
 }
 
+// func (d *Deribit) setAPIKeyAsDefault
+
 // SetEmailForSubAccount links an email given to the designated subaccount
 func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email string) error {
 	if sid <= 0 {
@@ -1333,42 +1358,6 @@ func (d *Deribit) SetEmailLanguage(ctx context.Context, language string) error {
 	return nil
 }
 
-// SetPasswordForSubAccount sets a password for subaccount usage
-func (d *Deribit) SetPasswordForSubAccount(ctx context.Context, sid int64, password string) error {
-	if sid <= 0 {
-		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
-	}
-	if password == "" {
-		return errInvalidSubaccountPassword
-	}
-	params := url.Values{}
-	params.Set("password", password)
-	params.Set("sid", strconv.FormatInt(sid, 10))
-	var resp interface{}
-	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		setPasswordForSubAccount, params, &resp)
-	if err != nil {
-		return err
-	}
-	_, ok := resp.(map[string]interface{})
-	if ok {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			return err
-		}
-		var respo TFAChallenge
-		err = json.Unmarshal(data, &respo)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	if resp != "ok" {
-		return fmt.Errorf("could not set the provided password to subaccount %v", sid)
-	}
-	return nil
-}
-
 // ToggleNotificationsFromSubAccount toggles the notifications from a subaccount specified
 func (d *Deribit) ToggleNotificationsFromSubAccount(ctx context.Context, sid int64, state bool) error {
 	if sid <= 0 {
@@ -1376,9 +1365,7 @@ func (d *Deribit) ToggleNotificationsFromSubAccount(ctx context.Context, sid int
 	}
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
-	if state {
-		params.Set("state", "true")
-	}
+	params.Set("state", strconv.FormatBool(state))
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		toggleNotificationsFromSubAccount, params, &resp)
@@ -1398,9 +1385,7 @@ func (d *Deribit) TogglePortfolioMargining(ctx context.Context, userID int64, en
 	}
 	params := url.Values{}
 	params.Set("user_id", strconv.FormatInt(userID, 10))
-	if enabled {
-		params.Set("enabled", "true")
-	}
+	params.Set("enabled", strconv.FormatBool(enabled))
 	if dryRun {
 		params.Set("dry_run", "true")
 	}
@@ -1409,22 +1394,20 @@ func (d *Deribit) TogglePortfolioMargining(ctx context.Context, userID int64, en
 }
 
 // ToggleSubAccountLogin toggles access for subaccount login
-func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, sid int64, state bool) error {
-	if sid <= 0 {
+func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, subAccountUserID int64, state bool) error {
+	if subAccountUserID <= 0 {
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	params := url.Values{}
-	params.Set("sid", strconv.FormatInt(sid, 10))
-	if state {
-		params.Set("state", "true")
-	}
+	params.Set("sid", strconv.FormatInt(subAccountUserID, 10))
+	params.Set("state", strconv.FormatBool(state))
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, toggleSubAccountLogin, params, &resp)
 	if err != nil {
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("toggling login access for subaccount %v to %v failed", sid, state)
+		return fmt.Errorf("toggling login access for subaccount %v to %v failed", subAccountUserID, state)
 	}
 	return nil
 }
@@ -1650,18 +1633,34 @@ func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy, kind, orde
 }
 
 // SubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument
-func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string) (int64, error) {
+func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (int64, error) {
 	if instrument == "" {
 		return 0, errInvalidInstrumentName
 	}
 	params := url.Values{}
+	println(instrument)
 	params.Set("instrument_name", instrument)
 	if orderType != "" {
-		params.Set("order_type", orderType)
+		params.Set("type", orderType)
 	}
-	var resp int64
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
+	if detailed {
+		params.Set("detailed", "true")
+	}
+	if includeCombos {
+		params.Set("include_combos", "true")
+	}
+	var resp interface{}
+	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
 		submitCancelAllByInstrument, params, &resp)
+	if err != nil {
+		return 0, err
+	}
+	switch result := resp.(type) {
+	case int64:
+		return result, nil
+	default:
+		return 0, errNoOrderDeleted
+	}
 }
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
@@ -1753,8 +1752,7 @@ func (d *Deribit) GetOpenOrdersByInstrument(ctx context.Context, instrument, ord
 		params.Set("type", orderType)
 	}
 	var resp []OrderData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		getOpenOrdersByInstrument, params, &resp)
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getOpenOrdersByInstrument, params, &resp)
 }
 
 // GetOrderHistoryByCurrency sends a request to fetch order history according to given params and currency
@@ -1814,11 +1812,11 @@ func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]Orde
 		return nil, fmt.Errorf("%w, order ids cannot be empty", errInvalidID)
 	}
 	params := url.Values{}
-	values, err := json.Marshal(ids)
+	val, err := json.Marshal(ids)
 	if err != nil {
 		return nil, err
 	}
-	params.Set("ids", string(values))
+	params.Set("ids[]", string(val))
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getOrderMarginByIDs, params, &resp)
@@ -2023,15 +2021,27 @@ func (d *Deribit) SendRequestForQuote(ctx context.Context, instrumentName string
 }
 
 // SetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency
-func (d *Deribit) SetMMPConfig(ctx context.Context, ccy string, interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
+func (d *Deribit) SetMMPConfig(ctx context.Context, ccy string, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
 	if ccy == "" {
 		return fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
 	}
 	params := url.Values{}
 	params.Set("currency", ccy)
+	intervalString, err := d.GetResolutionFromInterval(interval)
+	if err != nil {
+		return err
+	}
+	params.Set("interval", intervalString)
+	params.Set("frozen_time", strconv.FormatInt(frozenTime, 10))
+	if quantityLimit != 0 {
+		params.Set("quantity_limit", strconv.FormatFloat(quantityLimit, 'f', -1, 64))
+	}
+	if deltaLimit != 0 {
+		params.Set("delta_limit", strconv.FormatFloat(deltaLimit, 'f', -1, 64))
+	}
 	var resp string
-	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		resetMMP, params, &resp)
+	err = d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
+		setMMPConfig, params, &resp)
 	if err != nil {
 		return err
 	}
@@ -2090,7 +2100,7 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy, settle
 }
 
 // SendHTTPAuthRequest sends an authenticated request to deribit api
-func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, data url.Values, result interface{}) error {
+func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result interface{}) error {
 	respVal := reflect.ValueOf(result)
 	if respVal.Kind() != reflect.Pointer {
 		return errInvalidResponseReceiver
@@ -2099,7 +2109,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 	if err != nil {
 		return err
 	}
-	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, data) + "\n\n"
+	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, params) + "\n" + "\n"
 	n := d.Requester.GetNonce(true)
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	str2Sign := strTS + "\n" + n.String() + "\n" + reqDataStr
@@ -2122,11 +2132,11 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
 	}
+	println(endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params))
 	item := &request.Item{
 		Method:        method,
-		Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, data),
+		Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),
 		Headers:       headers,
-		Body:          nil,
 		Result:        &tempData,
 		AuthRequest:   true,
 		Verbose:       d.Verbose,
@@ -2307,6 +2317,24 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 	return resp.Signature, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, verifyBlockTrades, params, resp)
 }
 
+// InvalidateBlockTradeSignature user at any time (before the private/execute_block_trade is called) can invalidate its own signature effectively cancelling block trade
+func (d *Deribit) InvalidateBlockTradeSignature(ctx context.Context, signature string) error {
+	if signature == "" {
+		return errors.New("missing signature")
+	}
+	params := url.Values{}
+	params.Set("signature", signature)
+	var resp string
+	err := d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet, invalidateBlockTradesSignature, params, &resp)
+	if err != nil {
+		return err
+	}
+	if resp != "ok" {
+		return fmt.Errorf("server response: %s", resp)
+	}
+	return nil
+}
+
 // GetUserBlockTrade returns information about users block trade
 func (d *Deribit) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
 	if id == "" {
@@ -2395,9 +2423,11 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 		return asset.Options, nil
 	case "future":
 		return asset.Futures, nil
-	case "any":
-		return asset.Empty, nil
+	case "future_combo":
+		return asset.FutureCombo, nil
+	case "option_combo":
+		return asset.OptionCombo, nil
 	default:
-		return asset.New(assetType)
+		return asset.Empty, nil
 	}
 }

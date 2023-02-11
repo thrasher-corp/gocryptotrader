@@ -116,6 +116,7 @@ func (d *Deribit) SetDefaults() {
 					kline.TwelveHour,
 					kline.OneDay,
 				),
+				ResultLimit: 500,
 			},
 		},
 	}
@@ -754,33 +755,28 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 		return order.CancelAllResponse{}, err
 	}
 	var cancelData int64
-	switch orderCancellation.AssetType {
-	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
-		if err != nil {
-			return order.CancelAllResponse{}, err
-		}
-		var orderTypeStr string
-		switch orderCancellation.Type {
-		case order.Limit:
-			orderTypeStr = order.Limit.String()
-		case order.Market:
-			orderTypeStr = order.Market.String()
-		case order.AnyType:
-			orderTypeStr = "all"
-		default:
-			return order.CancelAllResponse{}, fmt.Errorf("%s: orderType %v is not valid", d.Name, orderCancellation.Type)
-		}
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			cancelData, err = d.WSSubmitCancelAllByInstrument(pairFmt.Format(orderCancellation.Pair), orderTypeStr)
-		} else {
-			cancelData, err = d.SubmitCancelAllByInstrument(ctx, pairFmt.Format(orderCancellation.Pair), orderTypeStr)
-		}
-		if err != nil {
-			return order.CancelAllResponse{}, err
-		}
+	pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	var orderTypeStr string
+	switch orderCancellation.Type {
+	case order.Limit:
+		orderTypeStr = order.Limit.String()
+	case order.Market:
+		orderTypeStr = order.Market.String()
+	case order.AnyType, order.UnknownType:
+		orderTypeStr = "all"
 	default:
-		return order.CancelAllResponse{}, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, orderCancellation.AssetType)
+		return order.CancelAllResponse{}, fmt.Errorf("%s: orderType %v is not valid", d.Name, orderCancellation.Type)
+	}
+	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		cancelData, err = d.WSSubmitCancelAllByInstrument(pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
+	} else {
+		cancelData, err = d.SubmitCancelAllByInstrument(ctx, pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
+	}
+	if err != nil {
+		return order.CancelAllResponse{}, err
 	}
 	return order.CancelAllResponse{Count: cancelData}, nil
 }
@@ -868,6 +864,9 @@ func (d *Deribit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	} else {
 		withdrawData, err = d.SubmitWithdraw(ctx, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, "", withdrawRequest.Amount)
 	}
+	if err != nil {
+		return nil, err
+	}
 	return &withdraw.ExchangeResponse{
 		ID:     strconv.FormatInt(withdrawData.ID, 10),
 		Status: withdrawData.State,
@@ -889,20 +888,31 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-	var resp []order.Detail
 	if !d.SupportsAsset(getOrdersRequest.AssetType) {
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}
+	if len(getOrdersRequest.Pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	var resp = make([]order.Detail, 0, len(getOrdersRequest.Pairs))
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {
+			println(fmtPair.String())
 			return nil, err
+		}
+		var oTypeString string
+		switch getOrdersRequest.Type {
+		case order.AnyType, order.UnknownType:
+			oTypeString = "all"
+		default:
+			oTypeString = getOrdersRequest.Type.Lower()
 		}
 		var ordersData []OrderData
 		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			ordersData, err = d.WSRetrieveOpenOrdersByInstrument(fmtPair.String(), getOrdersRequest.Type.Lower())
+			ordersData, err = d.WSRetrieveOpenOrdersByInstrument(fmtPair.String(), oTypeString)
 		} else {
-			ordersData, err = d.GetOpenOrdersByInstrument(ctx, fmtPair.String(), getOrdersRequest.Type.Lower())
+			ordersData, err = d.GetOpenOrdersByInstrument(ctx, fmtPair.String(), oTypeString)
 		}
 		if err != nil {
 			return nil, err
@@ -954,7 +964,10 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-	var resp []order.Detail
+	if len(getOrdersRequest.Pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	resp := make([]order.Detail, 0, len(getOrdersRequest.Pairs))
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {
