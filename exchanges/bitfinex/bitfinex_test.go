@@ -1745,7 +1745,7 @@ func TestReOrderbyID(t *testing.T) {
 func TestPopulateAcceptableMethods(t *testing.T) {
 	t.Parallel()
 	if acceptableMethods.loaded() {
-		// we may have have been loaded from another test, so reset
+		// we may have been loaded from another test, so reset
 		acceptableMethods.m.Lock()
 		acceptableMethods.a = make(map[string][]string)
 		acceptableMethods.m.Unlock()

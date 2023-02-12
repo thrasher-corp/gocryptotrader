@@ -118,7 +118,7 @@ func (a orderbookDatas) generateOrderbookItem() []orderbook.Item {
 	return books
 }
 
-// MarketTrades represents trade informations for specific market(instrument).
+// MarketTrades represents trade information for specific market(instrument).
 type MarketTrades struct {
 	Trades []MarketTrade `json:"trades"`
 }

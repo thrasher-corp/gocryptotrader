@@ -1386,7 +1386,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected values")
 	}
 
-	// Test feature and endpoint migrations migrations
+	// Test feature and endpoint migrations
 	cfg.Exchanges[0].Features = nil
 	cfg.Exchanges[0].SupportsAutoPairUpdates = convert.BoolPtr(true)
 	cfg.Exchanges[0].Websocket = convert.BoolPtr(true)

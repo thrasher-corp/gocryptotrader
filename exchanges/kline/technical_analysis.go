@@ -333,7 +333,7 @@ func (k *Item) GetRelativeStrengthIndexOnClose(period int64) ([]float64, error) 
 	return ohlc.GetRelativeStrengthIndex(ohlc.Close, period)
 }
 
-// GetRelativeStrengthIndex returns the relative strength index from the the
+// GetRelativeStrengthIndex returns the relative strength index from the
 // given price set and period.
 func (o *OHLC) GetRelativeStrengthIndex(option []float64, period int64) ([]float64, error) {
 	if o == nil {

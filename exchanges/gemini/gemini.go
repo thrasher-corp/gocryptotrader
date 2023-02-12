@@ -46,7 +46,7 @@ const (
 // Gemini is the overarching type across the Gemini package, create multiple
 // instances with differing APIkeys for segregation of roles for authenticated
 // requests & sessions by appending new sessions to the Session map using
-// AddSession, if sandbox test is needed append a new session with with the same
+// AddSession. If sandbox test is needed, append a new session with the same
 // API keys and change the IsSandbox variable to true.
 type Gemini struct {
 	exchange.Base

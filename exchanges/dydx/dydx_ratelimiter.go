@@ -88,7 +88,7 @@ func (r *RateLimiter) Limit(ctx context.Context, f request.EndpointLimit) error 
 		return r.CancelActiveOrdersLimiter.Wait(ctx)
 	case getActiveOrdersEPL:
 		return r.GetActiveOrderLimiter.Wait(ctx)
-	default: // incase non v3 endpoints are added.
+	default: // in case non v3 endpoints are added.
 		return r.DefaultRateLimiter.Wait(ctx)
 	}
 	var finalDelay time.Duration
