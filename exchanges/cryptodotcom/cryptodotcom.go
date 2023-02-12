@@ -29,15 +29,13 @@ type Cryptodotcom struct {
 
 const (
 	// cryptodotcom API endpoints.
-	cryptodotcomUATSandboxAPIURL = "https://uat-api.3ona.co"
-	cryptodotcomAPIURL           = "https://api.crypto.com"
+	cryptodotcomAPIURL = "https://api.crypto.com"
 
 	// cryptodotcom websocket endpoints.
 	cryptodotcomWebsocketUserAPI   = "wss://stream.crypto.com/v2/user"
 	cryptodotcomWebsocketMarketAPI = "wss://stream.crypto.com/v2/market"
 
-	cryptodotcomAPIVersion  = "/v2/"
-	cryptodotcomAPIVersion1 = "/v1/"
+	cryptodotcomAPIVersion = "/v2/"
 
 	// Public endpoints
 	publicAuth        = "public/auth"
@@ -51,24 +49,18 @@ const (
 	privateSetCancelOnDisconnect = "private/set-cancel-on-disconnect"
 	privateGetCancelOnDisconnect = "private/get-cancel-on-disconnect"
 
-	privateUserBalance              = "private/user-balance"
-	privateUserBalanceHistory       = "private/user-balance-history"
 	privateCreateSubAccountTransfer = "private/create-sub-account-transfer"
-	privateGetSubAccountBalances    = "private/get-sub-account-balances"
-	privateGetPositions             = "private/get-positions"
 
-	privateCreateOrder           = "private/create-order"
-	privateCancelOrder           = "private/cancel-order"
-	privateCreateOrderList       = "private/create-order-list"
-	privateCancelOrderList       = "private/cancel-order-list"
-	privateCancelAllOrders       = "private/cancel-all-orders"
-	privateClosePosition         = "private/close-position"
-	privateGetOrderHistory       = "private/get-order-history"
-	privateGetOpenOrders         = "private/get-open-orders"
-	privateGetOrderDetail        = "private/get-order-detail"
-	privateGetTrades             = "private/get-trades"
-	privateChangeAccountLeverage = "private/change-account-leverage"
-	privateGetTransactions       = "private/get-transactions"
+	privateCreateOrder     = "private/create-order"
+	privateCancelOrder     = "private/cancel-order"
+	privateCreateOrderList = "private/create-order-list"
+	privateCancelOrderList = "private/cancel-order-list"
+	privateCancelAllOrders = "private/cancel-all-orders"
+	privateGetOrderHistory = "private/get-order-history"
+	privateGetOpenOrders   = "private/get-open-orders"
+	privateGetOrderDetail  = "private/get-order-detail"
+	privateGetTrades       = "private/get-trades"
+	privateGetTransactions = "private/get-transactions"
 
 	// Wallet management API
 	privateWithdrawal = "private/create-withdrawal"

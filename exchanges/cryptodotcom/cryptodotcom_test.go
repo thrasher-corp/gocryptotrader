@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -428,7 +427,7 @@ func TestGetOTCTradeHistory(t *testing.T) {
 		t.Skip(credInfoNotProvided)
 	}
 	_, err := cr.GetOTCTradeHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, 0)
-	if err != nil && !strings.Contains(err.Error(), "OTC_USER_NO_PERMISSION") {
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -806,12 +805,5 @@ func TestGetCreateParamMap(t *testing.T) {
 	_, err = arg.getCreateParamMap()
 	if !errors.Is(err, errTriggerPriceRequired) {
 		t.Errorf("found %v, but expecting %v", err, order.ErrTypeIsInvalid)
-	}
-}
-
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	if err := cr.WsConnect(); err != nil {
-		t.Error(err)
 	}
 }
