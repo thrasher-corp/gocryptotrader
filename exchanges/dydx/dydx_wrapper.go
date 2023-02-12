@@ -692,7 +692,11 @@ func (dy *DYDX) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	response, err := dy.CreateWithdrawal(ctx, WithdrawalParam{
+	creds, err := dy.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := dy.CreateWithdrawal(ctx, creds.SubAccount, WithdrawalParam{
 		Asset:      withdrawRequest.Currency.String(),
 		Amount:     withdrawRequest.Amount,
 		Expiration: time.Now().Add(time.Hour * 24 * 20).UTC().Format(timeFormat),

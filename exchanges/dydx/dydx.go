@@ -572,7 +572,7 @@ func (dy *DYDX) CreateTransfer(ctx context.Context, param *TransferParam) (*Tran
 // CreateWithdrawal create a withdrawal from an account.
 // An additional L1 transaction has to be sent to the Starkware contract to retrieve funds after a slow withdrawal. This cannot be done until the zero-knowledge proof for the block has been constructed and verified on-chain.
 // For the L1 transaction, the Ethereum address that the starkKey is registered to must call either the withdraw or withdrawTo smart-contract functions. The contract ABI is not tied to a particular client but can be accessed via a client. All withdrawable funds are withdrawn at once.
-func (dy *DYDX) CreateWithdrawal(ctx context.Context, arg WithdrawalParam) (*TransferResponse, error) {
+func (dy *DYDX) CreateWithdrawal(ctx context.Context, privateKey string, arg WithdrawalParam) (*TransferResponse, error) {
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}

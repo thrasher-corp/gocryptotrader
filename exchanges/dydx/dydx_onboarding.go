@@ -22,9 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"golang.org/x/crypto/sha3"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	mytypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 // Onboarding onboard a user so they can begin using dYdX V3 API. This will generate a user, account and derive a key, passphrase and secret from the signature.
@@ -136,15 +133,21 @@ func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange
 		timestamp := time.Now().UTC().Format(timeFormat)
 		var signature string
 		if onboarding {
-			signature, err = dy.SignEIP712Onboarding(privateKey)
+			privateKeyECDSA, err := crypto.HexToECDSA(strings.Replace(privateKey, "0x", "", -1))
 			if err != nil {
-				println("Onboarding signature error: ", err.Error())
+				return nil, err
+			}
+			signature, err = generateOnboardingEIP712(privateKeyECDSA)
+			if err != nil {
 				return nil, err
 			}
 		} else {
-			signature, err = dy.SignEIP712EthereumKey(method, "/"+dydxAPIVersion+path, dataString, timestamp, privateKey)
+			privateKeyECDSA, err := crypto.HexToECDSA(strings.Replace(privateKey, "0x", "", -1))
 			if err != nil {
-				println("Ethereum Key signature error: ", err.Error())
+				return nil, err
+			}
+			signature, err = generateAPIKeyEIP712(privateKeyECDSA, method, "/"+dydxAPIVersion+path, dataString, timestamp)
+			if err != nil {
 				return nil, err
 			}
 		}
@@ -173,63 +176,8 @@ func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange
 	return dy.SendPayload(ctx, request.Unset, newRequest)
 }
 
-// SignEIP712Onboarding creates an EIP ethereum.
-func (dy *DYDX) SignEIP712Onboarding(privKey string) (string, error) {
-	eipMessage := fmt.Sprintf(`
-	{
-		"types": {
-			"EIP712Domain": [
-			{"name": "name", "type": "string"},
-			{"name": "version", "type": "string"},
-			{"name": "chainId", "type": "uint64"}
-			],
-			"Message": [
-			{"name": "action", "type": "string"},
-			{"name": "onlySignOn", "type": "string"}
-			]
-		},
-		"primaryType": "dYdX",
-		"domain": {
-			"name": "dydx",
-			"version": "1.0",
-			"chainId": 1
-		},
-		"message": {
-			"action": "DYDX-ONBOARDING",
-			"onlySignOn": "https://trade.dydx.exchange"
-		}
-	}`, "DYDX-ONBOARDING", dydxOnlySignOnDomainMainnet)
-	privateKeyECDSA, err := crypto.HexToECDSA(strings.Replace(privKey, "0x", "", -1))
-	if err != nil {
-		return "", err
-	}
-
-	// Sign the hash with the private key
-	r, s, err := ecdsa.Sign(rand.Reader, privateKeyECDSA, []byte(eipMessage))
-	if err != nil {
-		return "", err
-	}
-
-	rb := r.Bytes()
-	sb := s.Bytes()
-
-	// Pad the signatures to ensure each part is padded up to length 32
-	for len(rb) < 32 {
-		rb = append([]byte{0}, rb...)
-	}
-	for len(sb) < 32 {
-		sb = append([]byte{0}, sb...)
-	}
-	signature := append(rb, sb...)
-	sig := hex.EncodeToString(signature)
-	if len(sig) > 132 {
-		return sig[:132], nil
-	}
-	return sig, nil
-}
-
 // SignEIP712EthereumKey creates an EIP ethereum.
-func (dy *DYDX) SignEIP712EthereumKey(method, requestPath, body string, timestamp string, privKey string) (string, error) {
+func (dy *DYDX) SignEIP712EthereumKey(method, requestPath, body, timestamp, privKey string) (string, error) {
 	eipMessage := fmt.Sprintf(`
 	{
 		"types": {
@@ -282,7 +230,7 @@ func (dy *DYDX) SignEIP712EthereumKey(method, requestPath, body string, timestam
 	return sig[:44], nil
 }
 
-// Encode the EIP-712 message
+// EncodeEIP712Message the EIP-712 message to a byte array
 func EncodeEIP712Message(msg string) []byte {
 	hashedMessage := big.NewInt(0).SetBytes(getHashOfTheMessage([]byte(msg)))
 	bz := append(make([]byte, 32), hashedMessage.Bytes()...)
@@ -310,21 +258,13 @@ type Message struct {
 }
 
 // generate onboarding EIP712
-func generateEIP712(key *ecdsa.PrivateKey) (string, error) {
-
+func generateOnboardingEIP712(privateKey *ecdsa.PrivateKey) (string, error) {
 	// set domain struct
 	domain := EIP712Domain{
 		Name:    "dydx",
 		Version: "1.0",
 		ChainID: 1,
 	}
-
-	// set message struct
-	message := Message{
-		Action:     "DYDX-ONBOARDING",
-		OnlySignOn: "https://trade.dydx.exchange",
-	}
-
 	// get types
 	types := []interface{}{
 		map[string]string{"name": "name", "type": "string"},
@@ -333,7 +273,6 @@ func generateEIP712(key *ecdsa.PrivateKey) (string, error) {
 		map[string]string{"name": "action", "type": "string"},
 		map[string]string{"name": "onlySignOn", "type": "string"},
 	}
-
 	// get domain fields
 	domainFields := []interface{}{
 		domain.Name, domain.Version, domain.ChainID,
@@ -341,9 +280,62 @@ func generateEIP712(key *ecdsa.PrivateKey) (string, error) {
 
 	// get message fields
 	messageFields := []interface{}{
-		message.Action, message.OnlySignOn,
+		"DYDX-ONBOARDING", "https://trade.dydx.exchange",
 	}
+	// generate payload
+	data := map[string]interface{}{
+		"primaryType": "dYdX",
+		"types": map[string]interface{}{
+			"EIP712Domain": types[0:3],
+			"Message":      types[3:],
+		},
+		"domain":  domainFields,
+		"message": messageFields,
+	}
+	eipMessage, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	// Encode the EIP-712 message
+	encodedMessage := EncodeEIP712Message(string(eipMessage))
+	// Generate a hash of the encoded message
+	hash := getHashOfTheMessage(encodedMessage)
+	// Sign the hash with the private key
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash)
+	if err != nil {
+		return "", err
+	}
+	// Marshal the r and s value into a byte array
+	bytes := append(r.Bytes(), s.Bytes()...)
+	sig := hex.EncodeToString(bytes)
+	println(len(sig))
+	return sig, nil
+}
 
+// generateAPIKeyEIP712 generated an EIP712 API key signature using private key
+func generateAPIKeyEIP712(privateKey *ecdsa.PrivateKey, method, requestPath, body, timestamp string) (string, error) {
+	// set domain struct
+	domain := EIP712Domain{
+		Name:    "dydx",
+		Version: "1.0",
+		ChainID: 1,
+	}
+	// get types
+	types := []interface{}{
+		map[string]string{"name": "name", "type": "string"},
+		map[string]string{"name": "version", "type": "string"},
+		map[string]string{"name": "chainId", "type": "uint64"},
+		map[string]string{"name": "method", "type": "string"},
+		map[string]string{"name": "requestPath", "type": "string"},
+		map[string]string{"name": "body", "type": "string"},
+		map[string]string{"name": "timestamp", "type": "string"},
+	}
+	// get domain fields
+	domainFields := []interface{}{
+		domain.Name, domain.Version, domain.ChainID,
+	}
+	// get message fields
+	messageFields := []interface{}{method, requestPath, body, timestamp}
 	// generate payload
 	data := map[string]interface{}{
 		"primaryType": "dYdX",
@@ -355,125 +347,21 @@ func generateEIP712(key *ecdsa.PrivateKey) (string, error) {
 		"message": messageFields,
 	}
 
-	// get signer
-	signer := mytypes.MakeSigner(key)
-
-	// generate signature
-	payload, err := signer.Hash(data)
+	eipMessage, err := json.Marshal(data)
 	if err != nil {
 		return "", err
 	}
-
-	// generate signature from payload
-	signature, err := crypto.Sign(payload, key)
+	// Encode the EIP-712 message
+	encodedMessage := EncodeEIP712Message(string(eipMessage))
+	// Generate a hash of the encoded message
+	hash := getHashOfTheMessage(encodedMessage)
+	// Sign the hash with the private key
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash)
 	if err != nil {
 		return "", err
 	}
-
-	sigBytes, err := hex.DecodeString(hexutil.Encode(signature))
-	if err != nil {
-		return "", err
-	}
-
-	length := len(sigBytes)
-	// make sure signature length is 132 characters
-	if length != 132 {
-		return "", fmt.Errorf("signature length is unexpected: %v != 132", length)
-	}
-
-	// format signature
-	signatureHex := strings.ToLower(hexutil.Encode(sigBytes))
-	return signatureHex, nil
+	// Marshal the r and s value into a byte array
+	bytes := append(r.Bytes(), s.Bytes()...)
+	sig := hex.EncodeToString(bytes)
+	return sig[:44], nil
 }
-
-func main() {
-	// Generate a new random account
-	key, _ := crypto.GenerateKey()
-
-	// generate onboarding EIP712
-	signature, err := generateEIP712(key)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println("Signature:", signature)
-}
-
-/*package main
-
-import (
-	"crypto/ecdsa"
-	"encoding/json"
-	"fmt"
-	"log"
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/crypto"
-)
-
-func main() {
-	var data interface{}
-
-	// Parse the json data string into an interface
-	err := json.Unmarshal([]byte(`{
-		"types": {
-			"EIP712Domain": [
-			{"name": "name", "type": "string"},
-			{"name": "version", "type": "string"},
-			{"name": "chainId", "type": "uint64"}
-			],
-			"Message": [
-			{"name": "action", "type": "string"},
-			{"name": "onlySignOn", "type": "string"}
-			]
-		},
-		"primaryType": "dYdX",
-		"domain": {
-			"name": "dydx",
-			"version": "1.0",
-			"chainId": 1
-		},
-		"message": {
-			"action": "DYDX-ONBOARDING",
-			"onlySignOn": "https://trade.dydx.exchange"
-		}
-	}`), &data)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Generate a new EIP712 private key
-	privateKey, err := crypto.GenerateKey()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create an auth with the EIP712 private key
-	auth := bind.NewKeyedTransactor(privateKey)
-
-	// Sign the data using the eip712hash function
-	hash := crypto.Keccak256Hash(data)
-	sig, err := crypto.Sign(hash[:], privateKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Recover the public key from the signature
-	publicKey, err := crypto.SigToPub(hash[:], sig)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Get the address of the public key
-	address := crypto.PubkeyToAddress(*publicKey)
-
-	// Print the EIP712 private key
-	fmt.Println("EIP712 private key:", fmt.Sprintf("0x%x", privateKey.D.Bytes()))
-	fmt.Println("Public key:", fmt.Sprintf("0x%x", publicKey.X.Bytes()))
-	fmt.Println("Signature:", fmt.Sprintf("0x%x", sig))
-	fmt.Println("Address:", address.Hex())
-}
-
-
-*/
