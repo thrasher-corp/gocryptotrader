@@ -110,7 +110,7 @@ type FeeBuilder struct {
 	PurchasePrice float64
 	Amount        float64
 
-	// Order related informations
+	// Order related information
 	PostOnly  bool
 	OrderType order.Type
 }
