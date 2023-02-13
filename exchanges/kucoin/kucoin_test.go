@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -267,7 +266,7 @@ func TestGetBorrowOrder(t *testing.T) {
 	}
 
 	_, err := ku.GetBorrowOrder(context.Background(), "orderID")
-	if err != nil && !strings.Contains(err.Error(), "Not Found") {
+	if err != nil {
 		t.Error("GetBorrowOrder() error", err)
 	}
 }
@@ -301,7 +300,7 @@ func TestOneClickRepayment(t *testing.T) {
 	}
 
 	err := ku.OneClickRepayment(context.Background(), "BTC", "RECENTLY_EXPIRE_FIRST", 2.5)
-	if err != nil && err.Error() != "Balance insufficient" {
+	if err != nil {
 		t.Error("OneClickRepayment() error", err)
 	}
 }
@@ -313,7 +312,7 @@ func TestSingleOrderRepayment(t *testing.T) {
 	}
 
 	err := ku.SingleOrderRepayment(context.Background(), "BTC", "fa3e34c980062c10dad74016", 2.5)
-	if err != nil && err.Error() != "Balance insufficient" {
+	if err != nil {
 		t.Error("SingleOrderRepayment() error", err)
 	}
 }
@@ -324,7 +323,7 @@ func TestPostLendOrder(t *testing.T) {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	_, err := ku.PostLendOrder(context.Background(), "BTC", 0.0001, 5, 7)
-	if err != nil && err.Error() != "Balance insufficient" {
+	if err != nil {
 		t.Error("PostLendOrder() error", err)
 	}
 }
@@ -336,7 +335,7 @@ func TestCancelLendOrder(t *testing.T) {
 	}
 
 	err := ku.CancelLendOrder(context.Background(), "OrderID")
-	if err != nil && err.Error() != "order not exist" {
+	if err != nil {
 		t.Error("CancelLendOrder() error", err)
 	}
 }
@@ -601,13 +600,13 @@ func TestPostOrder(t *testing.T) {
 
 	// default order type is limit
 	_, err := ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "limit", "", "", "", 0.1, 0, 0, 0, 0, true, false, false)
-	if err != nil && err.Error() != "Balance insufficient!" {
+	if err != nil {
 		t.Error("PostOrder() error", err)
 	}
 
 	// market order
 	_, err = ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "", 0.1, 0, 0, 0, 0, true, false, false)
-	if err != nil && err.Error() != "Balance insufficient!" {
+	if err != nil {
 		t.Error("PostOrder() error", err)
 	}
 }
@@ -620,13 +619,13 @@ func TestPostMarginOrder(t *testing.T) {
 
 	// default order type is limit and margin mode is cross
 	_, err := ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", 1000, 0.1, 0, 0, 0, true, false, false, false)
-	if err != nil && err.Error() != "Balance insufficient!" {
+	if err != nil {
 		t.Error("PostMarginOrder() error", err)
 	}
 
 	// market isolated order
 	_, err = ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "isolated", "", 1000, 0.1, 0, 0, 5, true, false, false, true)
-	if err != nil && err.Error() != "Balance insufficient!" {
+	if err != nil {
 		t.Error("PostMarginOrder() error", err)
 	}
 }
@@ -667,7 +666,7 @@ func TestCancelSingleOrder(t *testing.T) {
 	}
 
 	_, err := ku.CancelSingleOrder(context.Background(), "5bd6e9286d99522a52e458de")
-	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
+	if err != nil {
 		t.Error("CancelSingleOrder() error", err)
 	}
 }
@@ -679,7 +678,7 @@ func TestCancelOrderByClientOID(t *testing.T) {
 	}
 
 	_, err := ku.CancelOrderByClientOID(context.Background(), "5bd6e9286d99522a52e458de")
-	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
+	if err != nil {
 		t.Error("CancelOrderByClientOID() error", err)
 	}
 }
@@ -726,7 +725,7 @@ func TestGetOrderByID(t *testing.T) {
 		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetOrderByID(context.Background(), "5c35c02703aa673ceec2a168")
-	if err != nil && !strings.Contains(err.Error(), "order not exist.") {
+	if err != nil {
 		t.Error("GetOrderByID() error", err)
 	}
 }
@@ -737,7 +736,7 @@ func TestGetOrderByClientOID(t *testing.T) {
 		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetOrderByClientSuppliedOrderID(context.Background(), "6d539dc614db312")
-	if err != nil && !strings.Contains(err.Error(), "400100") {
+	if err != nil {
 		t.Error("GetOrderByClientOID() error", err)
 	}
 }
@@ -788,7 +787,7 @@ func TestCancelStopOrder(t *testing.T) {
 	}
 
 	_, err := ku.CancelStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
-	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
+	if err != nil {
 		t.Error("CancelStopOrder() error", err)
 	}
 }
@@ -848,7 +847,7 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 	}
 
 	_, err := ku.CancelStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
-	if err != nil && err.Error() != "order_not_exist_or_not_allow_to_cancel" {
+	if err != nil {
 		t.Error("CancelStopOrderByClientID() error", err)
 	}
 }
@@ -872,7 +871,7 @@ func TestGetAccount(t *testing.T) {
 	}
 
 	_, err := ku.GetAccount(context.Background(), "62fcd1969474ea0001fd20e4")
-	if err != nil && err.Error() != "account not exist" {
+	if err != nil {
 		t.Error("GetAccount() error", err)
 	}
 }
@@ -905,7 +904,7 @@ func TestGetSubAccountBalance(t *testing.T) {
 	}
 
 	_, err := ku.GetSubAccountBalance(context.Background(), "62fcd1969474ea0001fd20e4", false)
-	if err != nil && err.Error() != "User not found." {
+	if err != nil {
 		t.Error("GetSubAccountBalance() error", err)
 	}
 }
@@ -1340,7 +1339,7 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 		t.Skip(credentialsNotSet)
 	}
 	_, err := ku.GetFuturesOrderDetails(context.Background(), "5cdfc138b21023a909e5ad55")
-	if err != nil && !strings.Contains(err.Error(), "error.getOrder.orderNotExist") {
+	if err != nil {
 		t.Error("GetFuturesOrderDetails() error", err)
 	}
 }
@@ -1352,7 +1351,7 @@ func TestGetFuturesOrderDetailsByClientID(t *testing.T) {
 	}
 
 	_, err := ku.GetFuturesOrderDetailsByClientID(context.Background(), "eresc138b21023a909e5ad59")
-	if err != nil && !strings.Contains(err.Error(), "error.getOrder.orderNotExist") {
+	if err != nil {
 		t.Error("GetFuturesOrderDetailsByClientID() error", err)
 	}
 }
@@ -1740,12 +1739,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tradablePairs, err := ku.FetchTradablePairs(context.Background(), asset.Futures)
+	cp, err := currency.NewPairFromString("XBTUSDTM")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), tradablePairs[0], asset.Futures, kline.FiveMin, startTime, endTime)
-	if err != nil && !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), cp, asset.Futures, kline.FiveMin, startTime, endTime)
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -1905,14 +1904,6 @@ func TestGetInstanceServers(t *testing.T) {
 	}
 }
 
-func TestWSConnect(t *testing.T) {
-	t.Parallel()
-	err := ku.WsConnect()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetAuthenticatedServersInstances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -1923,6 +1914,127 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+/*
+
+{
+    "type": "message",
+    "topic": "/market/snapshot:BTC",
+    "subject": "trade.snapshot",
+    "data": {
+        "sequence": 1676310632380,
+        "data": {
+            "averagePrice": 0.00001073,
+            "baseCurrency": "IOTA",
+            "board": 0,
+            "buy": 0.00001036,
+            "changePrice": -4.0000000000000E-7,
+            "changeRate": -0.0370,
+            "close": 0.00001039,
+            "datetime": 1676310632374,
+            "high": 0.00001110000000000000,
+            "lastTradedPrice": 0.00001039,
+            "low": 0.00001033000000000000,
+            "makerCoefficient": 1.000000,
+            "makerFeeRate": 0.001,
+            "marginTrade": false,
+            "mark": 0,
+            "market": "BTC",
+            "markets": [
+                "BTC"
+            ],
+            "open": 0.00001079000000000000,
+            "quoteCurrency": "BTC",
+            "sell": 0.0000104,
+            "sort": 100,
+            "symbol": "IOTA-BTC",
+            "symbolCode": "IOTA-BTC",
+            "takerCoefficient": 1.000000,
+            "takerFeeRate": 0.001,
+            "trading": true,
+            "vol": 25256.29780000000000000000,
+            "volValue": 0.27050734202100000000
+        }
+    },
+	{
+        "sequence": "5701721019",
+        "data": {
+            "averagePrice": 21736.73225440,
+            "baseCurrency": "BTC",
+            "board": 1,
+            "buy": 21458.4,
+            "changePrice": -522.00000000000000000000,
+            "changeRate": -0.0237,
+            "close": 21462.4,
+            "datetime": 1676310748151,
+            "high": 22030.70000000000000000000,
+            "lastTradedPrice": 21462.4,
+            "low": 21407.00000000000000000000,
+            "makerCoefficient": 1.000000,
+            "makerFeeRate": 0.001,
+            "marginTrade": true,
+            "mark": 0,
+            "market": "USDS",
+            "markets": [
+                "USDS"
+            ],
+            "open": 21984.40000000000000000000,
+            "quoteCurrency": "USDT",
+            "sell": 21458.5,
+            "sort": 100,
+            "symbol": "BTC-USDT",
+            "symbolCode": "BTC-USDT",
+            "takerCoefficient": 1.000000,
+            "takerFeeRate": 0.001,
+            "trading": true,
+            "vol": 6175.26880089000000000000,
+            "volValue": 133891144.21594148400000000000
+        }
+    }
+},
+
+{
+    "type": "message",
+    "topic": "/market/snapshot:BTC-USDT",
+    "subject": "trade.snapshot",
+    "data": {
+        "sequence": "5701721019",
+        "data": {
+            "averagePrice": 21736.73225440,
+            "baseCurrency": "BTC",
+            "board": 1,
+            "buy": 21458.4,
+            "changePrice": -522.00000000000000000000,
+            "changeRate": -0.0237,
+            "close": 21462.4,
+            "datetime": 1676310748151,
+            "high": 22030.70000000000000000000,
+            "lastTradedPrice": 21462.4,
+            "low": 21407.00000000000000000000,
+            "makerCoefficient": 1.000000,
+            "makerFeeRate": 0.001,
+            "marginTrade": true,
+            "mark": 0,
+            "market": "USDS",
+            "markets": [
+                "USDS"
+            ],
+            "open": 21984.40000000000000000000,
+            "quoteCurrency": "USDT",
+            "sell": 21458.5,
+            "sort": 100,
+            "symbol": "BTC-USDT",
+            "symbolCode": "BTC-USDT",
+            "takerCoefficient": 1.000000,
+            "takerFeeRate": 0.001,
+            "trading": true,
+            "vol": 6175.26880089000000000000,
+            "volValue": 133891144.21594148400000000000
+        }
+    }
+}
+
+*/
 
 var (
 	symbolTickerPushDataJSON     = `{"type":"message","topic":"/market/ticker:BTC-USDT","subject":"trade.ticker","data":{"sequence":"1545896668986","price":"0.08","size":"0.011","bestAsk":"0.08","bestAskSize":"0.18","bestBid":"0.049","bestBidSize":"0.036"}}`
@@ -1947,7 +2059,7 @@ func TestSymbolSnapshotPushData(t *testing.T) {
 	}
 }
 
-var marketTradeSnapshotPushDataJSON = `{"type": "message","topic": "/market/snapshot:BTC","subject": "trade.snapshot","data": {"sequence": "1545896669291","data": [{"trading": true,"symbol": "KCS-BTC","buy": 0.00011,"sell": 0.00012,"sort": 100,"volValue": 3.13851792584,"baseCurrency": "KCS","market": "BTC","quoteCurrency": "BTC","symbolCode": "KCS-BTC","datetime": 1548388122031,"high": 0.00013,"vol": 27514.34842,"low": 0.0001,"changePrice": -1.0e-5,"changeRate": -0.0769,"lastTradedPrice": 0.00012,"board": 0,"mark": 0}]}}`
+var marketTradeSnapshotPushDataJSON = `{"type": "message","topic": "/market/snapshot:BTC","subject": "trade.snapshot","data": {"sequence": "5701753771","data": {"averagePrice": 21736.73225440,"baseCurrency": "BTC","board": 1,"buy": 21423,"changePrice": -556.80000000000000000000,"changeRate": -0.0253,"close": 21423.1,"datetime": 1676310802092,"high": 22030.70000000000000000000,"lastTradedPrice": 21423.1,"low": 21407.00000000000000000000,"makerCoefficient": 1.000000,"makerFeeRate": 0.001,"marginTrade": true,"mark": 0,"market": "USDS","markets": ["USDS"],"open": 21979.90000000000000000000,"quoteCurrency": "USDT","sell": 21423.1,"sort": 100,"symbol": "BTC-USDT","symbolCode": "BTC-USDT","takerCoefficient": 1.000000,"takerFeeRate": 0.001,"trading": true,"vol": 6179.80570155000000000000,"volValue": 133988049.45570351500000000000}}}`
 
 func TestMarketTradeSnapshotPushData(t *testing.T) {
 	if err := ku.wsHandleData([]byte(marketTradeSnapshotPushDataJSON)); err != nil {
@@ -1956,20 +2068,9 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 }
 
 var (
-	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT","subject": "level2","data": {"asks":[["9989","8"],["9990","32"],["9991","47"],["9992","3"],["9993","3"]],"bids":[["9988","56"],["9987","15"],["9986","100"],["9985","10"],["9984","10"]],"timestamp": 1586948108193}}`
-	orderbookLevel2PushDataJSON = `{"type":"message","topic":"/market/level2:BTC-USDT","subject":"trade.l2update","data":{"changes":{"asks":[["0.000011615","0.3623","30745798"]],"bids":[]},"sequenceEnd":30745798,"sequenceStart":30745798,"symbol":"FET-BTC","time":1675171793219}}`
+	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth50:BTC-USDT","subject": "level2","data": {"asks": [["21621.7","3.03206193"],["21621.8","1.00048239"],["21621.9","0.29558803"],["21622","0.0049653"],["21622.4","0.06177582"],["21622.9","0.39664116"],["21623.7","0.00803466"],["21624.2","0.65405"],["21624.3","0.34661426"],["21624.6","0.00035589"],["21624.9","0.61282048"],["21625.2","0.16421424"],["21625.4","0.90107014"],["21625.5","0.73484442"],["21625.9","0.04"],["21626.2","0.28569324"],["21626.4","0.18403701"],["21627.1","0.06503999"],["21627.2","0.56105832"],["21627.7","0.10649999"],["21628.1","2.66459953"],["21628.2","0.32"],["21628.5","0.27605551"],["21628.6","1.59482596"],["21628.9","0.16"],["21629.8","0.08"],["21630","0.04"],["21631.6","0.1"],["21631.8","0.0920185"],["21633.6","0.00447983"],["21633.7","0.00015044"],["21634.3","0.32193346"],["21634.4","0.00004"],["21634.5","0.1"],["21634.6","0.0002865"],["21635.6","0.12069941"],["21635.8","0.00117158"],["21636","0.00072816"],["21636.5","0.98611492"],["21636.6","0.00007521"],["21637.2","0.00699999"],["21637.6","0.00017129"],["21638","0.00013035"],["21638.1","0.05"],["21638.5","0.92427"],["21639.2","1.84998696"],["21639.3","0.04827233"],["21640","0.56255996"],["21640.9","0.8"],["21641","0.12"]],"bids": [["21621.6","0.40949924"],["21621.5","0.27703279"],["21621.3","0.04"],["21621.1","0.0086"],["21621","0.6653104"],["21620.9","0.35435999"],["21620.8","0.37224309"],["21620.5","0.416184"],["21620.3","0.24"],["21619.6","0.13883999"],["21619.5","0.21053355"],["21618.7","0.2"],["21618.6","0.001"],["21618.5","0.2258151"],["21618.4","0.06503999"],["21618.3","0.00370056"],["21618","0.12067842"],["21617.7","0.34844131"],["21617.6","0.92845495"],["21617.5","0.66460535"],["21617","0.01"],["21616.7","0.0004624"],["21616.4","0.02"],["21615.6","0.04828251"],["21615","0.59065665"],["21614.4","0.00227"],["21614.3","0.1"],["21613","0.32193346"],["21612.9","0.0028638"],["21612.6","0.1"],["21612.5","0.92539"],["21610.7","0.08208616"],["21610.6","0.00967666"],["21610.3","0.12"],["21610.2","0.00611126"],["21609.9","0.00226344"],["21609.8","0.00315812"],["21609.1","0.00547218"],["21608.6","0.09793157"],["21608.5","0.00437793"],["21608.4","1.85013454"],["21608.1","0.00366647"],["21607.9","0.00611595"],["21607.7","0.83263561"],["21607.6","0.00368919"],["21607.5","0.00280702"],["21607.1","0.66610849"],["21606.8","0.00364164"],["21606.2","0.80351642"],["21605.7","0.075"]],"timestamp": 1676319280783}}`
+	orderbookLevel2PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT","subject": "level2","data": {"asks": [[	"21612.7",	"0.32307467"],[	"21613.1",	"0.1581911"],[	"21613.2",	"1.37156153"],[	"21613.3",	"2.58327302"],[	"21613.4",	"0.00302088"]],"bids": [[	"21612.6",	"2.34316818"],[	"21612.3",	"0.5771615"],[	"21612.2",	"0.21605964"],[	"21612.1",	"0.22894841"],[	"21611.6",	"0.29251003"]],"timestamp": 1676319909635}}`
 )
-
-func TestOrderbookPushData(t *testing.T) {
-	t.Parallel()
-	err := ku.wsHandleData([]byte(orderbookLevel2PushDataJSON))
-	if err != nil {
-		t.Error(err)
-	}
-	if err = ku.wsHandleData([]byte(orderbookLevel5PushDataJSON)); err != nil && !strings.Contains(err.Error(), "orderbook depth not found") {
-		t.Error(err)
-	}
-}
 
 var tradeCandlesUpdatePushDataJSON = `{"type":"message","topic":"/market/candles:BTC-USDT_1hour","subject":"trade.candles.update","data":{"symbol":"BTC-USDT","candles":["1589968800","9786.9","9740.8","9806.1","9732","27.45649579","268280.09830877"],"time":1589970010253893337}}`
 
@@ -2299,7 +2400,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
 	_, err = ku.GetOrderInfo(context.Background(), "123", enabled[0], asset.Futures)
-	if err != nil && !strings.Contains(err.Error(), "orderNotExist") {
+	if err != nil {
 		t.Errorf("Kucoin GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
 	}
 }

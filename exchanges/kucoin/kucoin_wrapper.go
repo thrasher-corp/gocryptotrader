@@ -121,6 +121,7 @@ func (ku *Kucoin) SetDefaults() {
 					kline.FifteenMin,
 					kline.ThirtyMin,
 					kline.OneHour,
+					kline.TwoHour,
 					kline.FourHour,
 					kline.SixHour,
 					kline.EightHour,
@@ -128,7 +129,7 @@ func (ku *Kucoin) SetDefaults() {
 					kline.OneDay,
 					kline.OneWeek,
 				),
-				ResultLimit: 1000,
+				ResultLimit: 200,
 			},
 		},
 	}
@@ -1003,7 +1004,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		if len(getOrdersRequest.Pairs) == 1 {
 			pair = format.Format(getOrdersRequest.Pairs[0])
 		}
-		spotOrders, err := ku.ListOrders(ctx, "active", pair, getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+		spotOrders, err := ku.ListOrders(ctx, "active", pair, getOrdersRequest.Side.Lower(), ku.orderTypeToString(getOrdersRequest.Type), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
 			return nil, err
 		}

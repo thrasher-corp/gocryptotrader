@@ -860,7 +860,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 		case funds > 0:
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		default:
-			return "", errors.New("at least one required among size and funds")
+			return "", errSizeOrFundIsRequired
 		}
 	default:
 		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
@@ -930,7 +930,7 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, 
 		case funds > 0:
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		default:
-			return nil, errors.New("at least one required among size and funds")
+			return nil, errSizeOrFundIsRequired
 		}
 	default:
 		return nil, fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
@@ -1158,10 +1158,10 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		case funds > 0:
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		default:
-			return "", errors.New("at least one required among size and funds")
+			return "", errSizeOrFundIsRequired
 		}
 	default:
-		return "", errors.New("invalid orderType")
+		return "", fmt.Errorf("%w, order type: %s", order.ErrTypeIsInvalid, orderType)
 	}
 	if orderType != "" {
 		params["type"] = orderType
@@ -1859,6 +1859,8 @@ func (ku *Kucoin) intervalToString(interval kline.Interval) (string, error) {
 		return "30min", nil
 	case kline.OneHour:
 		return "1hour", nil
+	case kline.TwoHour:
+		return "2hour", nil
 	case kline.FourHour:
 		return "4hour", nil
 	case kline.SixHour:
@@ -1913,5 +1915,14 @@ func (ku *Kucoin) accountToTradeTypeString(a asset.Item, marginMode string) stri
 		return "MARGIN_TRADE"
 	default:
 		return ""
+	}
+}
+
+func (ku *Kucoin) orderTypeToString(orderType order.Type) string {
+	switch orderType {
+	case order.AnyType, order.UnknownType:
+		return ""
+	default:
+		return orderType.Lower()
 	}
 }

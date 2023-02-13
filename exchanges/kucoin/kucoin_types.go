@@ -16,17 +16,19 @@ var (
 		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
 	}
 
-	errInvalidResponseReceiver   = errors.New("invalid response receiver")
-	errInvalidPrice              = errors.New("invalid price")
-	errInvalidSize               = errors.New("invalid size")
-	errMalformedData             = errors.New("malformed data")
-	errNoDepositAddress          = errors.New("no deposit address found")
-	errMultipleDepositAddress    = errors.New("multiple deposit addresses")
-	errInvalidResultInterface    = errors.New("result interface has to be pointer")
-	errInvalidSubAccountName     = errors.New("invalid sub-account name")
-	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
-	errNoValidResponseFromServer = errors.New("no valud response from server")
-	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
+	errInvalidResponseReceiver        = errors.New("invalid response receiver")
+	errInvalidPrice                   = errors.New("invalid price")
+	errInvalidSize                    = errors.New("invalid size")
+	errMalformedData                  = errors.New("malformed data")
+	errNoDepositAddress               = errors.New("no deposit address found")
+	errMultipleDepositAddress         = errors.New("multiple deposit addresses")
+	errInvalidResultInterface         = errors.New("result interface has to be pointer")
+	errInvalidSubAccountName          = errors.New("invalid sub-account name")
+	errInvalidPassPhraseInstance      = errors.New("invalid passphrase string")
+	errNoValidResponseFromServer      = errors.New("no valud response from server")
+	errMissingOrderbookSequence       = errors.New("missing orderbook sequence")
+	errSizeOrFundIsRequired           = errors.New("at least one required among size and funds")
+	errUnsupportedTimestamInforamtion = errors.New("unsupported timestamp information")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -65,20 +67,12 @@ func (k kucoinTimeMilliSec) Time() time.Time {
 	return time.UnixMilli(int64(k))
 }
 
-// kucoinTimeMilliSecStr provides an internal conversion helper
-type kucoinTimeMilliSecStr time.Time
-
-// Time returns a time.Time object
-func (k kucoinTimeMilliSecStr) Time() time.Time {
-	return time.Time(k)
-}
-
 // kucoinTimeNanoSec provides an internal conversion helper
-type kucoinTimeNanoSec time.Time
+type kucoinTimeNanoSec int64
 
 // Time returns a time.Time object
-func (k kucoinTimeNanoSec) Time() time.Time {
-	return time.Time(k)
+func (k *kucoinTimeNanoSec) Time() time.Time {
+	return time.Unix(0, int64(*k))
 }
 
 // SymbolInfo stores symbol information
@@ -141,7 +135,7 @@ type TickerInfo struct {
 // Stats24hrs stores 24 hrs statistics
 type Stats24hrs struct {
 	tickerInfoBase
-	Time uint64 `json:"time"`
+	Time kucoinTimeMilliSec `json:"time"`
 }
 
 // Orderbook stores the orderbook data
@@ -270,12 +264,12 @@ type BorrowOrder struct {
 	Size      float64 `json:"size,string"`
 	Filled    float64 `json:"filled"`
 	MatchList []struct {
-		Currency     string                `json:"currency"`
-		DailyIntRate float64               `json:"dailyIntRate,string"`
-		Size         float64               `json:"size,string"`
-		Term         int64                 `json:"term"`
-		Timestamp    kucoinTimeMilliSecStr `json:"timestamp"`
-		TradeID      string                `json:"tradeId"`
+		Currency     string             `json:"currency"`
+		DailyIntRate float64            `json:"dailyIntRate,string"`
+		Size         float64            `json:"size,string"`
+		Term         int64              `json:"term"`
+		Timestamp    kucoinTimeMilliSec `json:"timestamp"`
+		TradeID      string             `json:"tradeId"`
 	} `json:"matchList"`
 	Status string `json:"status"`
 }
@@ -301,10 +295,10 @@ type OutstandingRecordResponse struct {
 // OutstandingRecord stores outstanding record
 type OutstandingRecord struct {
 	baseRecord
-	AccruedInterest float64               `json:"accruedInterest,string"`
-	Liability       float64               `json:"liability,string"`
-	MaturityTime    kucoinTimeMilliSecStr `json:"maturityTime"`
-	CreatedAt       kucoinTimeMilliSecStr `json:"createdAt"`
+	AccruedInterest float64            `json:"accruedInterest,string"`
+	Liability       float64            `json:"liability,string"`
+	MaturityTime    kucoinTimeMilliSec `json:"maturityTime"`
+	CreatedAt       kucoinTimeMilliSec `json:"createdAt"`
 }
 
 // RepaidRecordsResponse stores list of repaid record details.
@@ -319,19 +313,19 @@ type RepaidRecordsResponse struct {
 // RepaidRecord stores repaid record
 type RepaidRecord struct {
 	baseRecord
-	Interest  float64               `json:"interest,string"`
-	RepayTime kucoinTimeMilliSecStr `json:"repayTime"`
+	Interest  float64            `json:"interest,string"`
+	RepayTime kucoinTimeMilliSec `json:"repayTime"`
 }
 
 // LendOrder stores lend order
 type LendOrder struct {
-	OrderID      string                `json:"orderId"`
-	Currency     string                `json:"currency"`
-	Size         float64               `json:"size,string"`
-	FilledSize   float64               `json:"filledSize,string"`
-	DailyIntRate float64               `json:"dailyIntRate,string"`
-	Term         int64                 `json:"term"`
-	CreatedAt    kucoinTimeMilliSecStr `json:"createdAt"`
+	OrderID      string             `json:"orderId"`
+	Currency     string             `json:"currency"`
+	Size         float64            `json:"size,string"`
+	FilledSize   float64            `json:"filledSize,string"`
+	DailyIntRate float64            `json:"dailyIntRate,string"`
+	Term         int64              `json:"term"`
+	CreatedAt    kucoinTimeMilliSec `json:"createdAt"`
 }
 
 // LendOrderHistory stores lend order history
@@ -342,14 +336,14 @@ type LendOrderHistory struct {
 
 // UnsettleLendOrder stores unsettle lend order
 type UnsettleLendOrder struct {
-	TradeID         string                `json:"tradeId"`
-	Currency        string                `json:"currency"`
-	Size            float64               `json:"size,string"`
-	AccruedInterest float64               `json:"accruedInterest,string"`
-	Repaid          float64               `json:"repaid,string"`
-	DailyIntRate    float64               `json:"dailyIntRate,string"`
-	Term            int64                 `json:"term"`
-	MaturityTime    kucoinTimeMilliSecStr `json:"maturityTime"`
+	TradeID         string             `json:"tradeId"`
+	Currency        string             `json:"currency"`
+	Size            float64            `json:"size,string"`
+	AccruedInterest float64            `json:"accruedInterest,string"`
+	Repaid          float64            `json:"repaid,string"`
+	DailyIntRate    float64            `json:"dailyIntRate,string"`
+	Term            int64              `json:"term"`
+	MaturityTime    kucoinTimeMilliSec `json:"maturityTime"`
 }
 
 // SettleLendOrder stores  settled lend order
@@ -826,25 +820,41 @@ type WsTicker struct {
 
 // WsSpotTicker represents a spot ticker push data.
 type WsSpotTicker struct {
-	Trading         bool    `json:"trading"`
-	Symbol          string  `json:"symbol"`
-	Buy             float64 `json:"buy"`
-	Sell            float64 `json:"sell"`
-	Sort            int64   `json:"sort"`
-	VolValue        float64 `json:"volValue"`
-	BaseCurrency    string  `json:"baseCurrency"`
-	Market          string  `json:"market"`
-	QuoteCurrency   string  `json:"quoteCurrency"`
-	SymbolCode      string  `json:"symbolCode"`
-	Datetime        int64   `json:"datetime"`
-	High            float64 `json:"high"`
-	Vol             float64 `json:"vol"`
-	Low             float64 `json:"low"`
-	ChangePrice     float64 `json:"changePrice"`
-	ChangeRate      float64 `json:"changeRate"`
-	LastTradedPrice float64 `json:"lastTradedPrice"`
-	Board           float64 `json:"board"`
-	Mark            float64 `json:"mark"`
+	Sequence kucoinInteger      `json:"sequence"`
+	Data     WsSpotTickerDetail `json:"data"`
+}
+
+// WsSpotTickerDetail represents the detail of a spot ticker data.
+// This represents all websocket ticker information pushed as a result of susbcription to /market/snapshot:{symbol}, and /market/snapshot:{currency,market}
+type WsSpotTickerDetail struct {
+	AveragePrice     float64            `json:"averagePrice"`
+	BaseCurrency     string             `json:"baseCurrency"`
+	Board            int                `json:"board"`
+	Buy              float64            `json:"buy"`
+	ChangePrice      float64            `json:"changePrice"`
+	ChangeRate       float64            `json:"changeRate"`
+	Close            float64            `json:"close"`
+	Datetime         kucoinTimeMilliSec `json:"datetime"`
+	High             float64            `json:"high"`
+	LastTradedPrice  float64            `json:"lastTradedPrice"`
+	Low              float64            `json:"low"`
+	MakerCoefficient float64            `json:"makerCoefficient"`
+	MakerFeeRate     float64            `json:"makerFeeRate"`
+	MarginTrade      bool               `json:"marginTrade"`
+	Mark             float64            `json:"mark"`
+	Market           string             `json:"market"`
+	Markets          []string           `json:"markets"`
+	Open             float64            `json:"open"`
+	QuoteCurrency    string             `json:"quoteCurrency"`
+	Sell             float64            `json:"sell"`
+	Sort             int                `json:"sort"`
+	Symbol           string             `json:"symbol"`
+	SymbolCode       string             `json:"symbolCode"`
+	TakerCoefficient float64            `json:"takerCoefficient"`
+	TakerFeeRate     float64            `json:"takerFeeRate"`
+	Trading          bool               `json:"trading"`
+	Vol              float64            `json:"vol"`
+	VolValue         float64            `json:"volValue"`
 }
 
 // WsOrderbook represents orderbook information.
@@ -864,14 +874,14 @@ type WsLevel2Orderbook struct {
 	Asks   [][2]string        `json:"asks"`
 	Bids   [][2]string        `json:"bids"`
 	Symbol string             `json:"symbol"`
-	TimeMS kucoinTimeMilliSec `json:"time"`
+	TimeMS kucoinTimeMilliSec `json:"timestamp"`
 }
 
 // WsCandlestickData represents candlestick information push data for a symbol.
 type WsCandlestickData struct {
-	Symbol  string    `json:"symbol"`
-	Candles [7]string `json:"candles"`
-	Time    int64     `json:"time"`
+	Symbol  string            `json:"symbol"`
+	Candles [7]string         `json:"candles"`
+	Time    kucoinTimeNanoSec `json:"time"`
 }
 
 // WsCandlestick represents candlestick information push data for a symbol.
@@ -892,7 +902,7 @@ type WsCandlestick struct {
 func (a *WsCandlestickData) getCandlestickData() (*WsCandlestick, error) {
 	cand := &WsCandlestick{
 		Symbol: a.Symbol,
-		Time:   time.UnixMilli(a.Time),
+		Time:   a.Time.Time(),
 	}
 	timeStamp, err := strconv.ParseInt(a.Candles[0], 10, 64)
 	if err != nil {
@@ -928,24 +938,24 @@ func (a *WsCandlestickData) getCandlestickData() (*WsCandlestick, error) {
 
 // WsTrade represents a trade push data.
 type WsTrade struct {
-	Sequence     string  `json:"sequence"`
-	Type         string  `json:"type"`
-	Symbol       string  `json:"symbol"`
-	Side         string  `json:"side"`
-	Price        float64 `json:"price,string"`
-	Size         float64 `json:"size,string"`
-	TradeID      string  `json:"tradeId"`
-	TakerOrderID string  `json:"takerOrderId"`
-	MakerOrderID string  `json:"makerOrderId"`
-	Time         int64   `json:"time,string"`
+	Sequence     string            `json:"sequence"`
+	Type         string            `json:"type"`
+	Symbol       string            `json:"symbol"`
+	Side         string            `json:"side"`
+	Price        float64           `json:"price,string"`
+	Size         float64           `json:"size,string"`
+	TradeID      string            `json:"tradeId"`
+	TakerOrderID string            `json:"takerOrderId"`
+	MakerOrderID string            `json:"makerOrderId"`
+	Time         kucoinTimeNanoSec `json:"time"`
 }
 
 // WsPriceIndicator represents index price or mark price indicator push data.
 type WsPriceIndicator struct {
-	Symbol      string  `json:"symbol"`
-	Granularity float64 `json:"granularity"`
-	Timestamp   int64   `json:"timestamp"`
-	Value       float64 `json:"value"`
+	Symbol      string             `json:"symbol"`
+	Granularity float64            `json:"granularity"`
+	Timestamp   kucoinTimeMilliSec `json:"timestamp"`
+	Value       float64            `json:"value"`
 }
 
 // WsMarginFundingBook represents order book changes on margin.
@@ -998,7 +1008,7 @@ type WsAccountBalance struct {
 		TradeID string `json:"tradeId"`
 		OrderID string `json:"orderId"`
 	} `json:"relationContext"`
-	Time kucoinTimeMilliSecStr `json:"time"`
+	Time kucoinTimeMilliSec `json:"time"`
 }
 
 // WsDebtRatioChange represents a push data
@@ -1094,33 +1104,33 @@ type WsFuturesExecutionData struct {
 
 // WsOrderbookLevel5 represents an orderbook push data with depth level 5.
 type WsOrderbookLevel5 struct {
-	Asks      []orderbook.Item `json:"asks"`
-	Bids      []orderbook.Item `json:"bids"`
-	Timestamp time.Time        `json:"ts"`
+	Asks      []orderbook.Item  `json:"asks"`
+	Bids      []orderbook.Item  `json:"bids"`
+	Timestamp kucoinTimeNanoSec `json:"ts"`
 }
 
 // WsFundingRate represents the funding rate push data information through the websocket channel.
 type WsFundingRate struct {
-	Symbol      string  `json:"symbol"`
-	Granularity int     `json:"granularity"`
-	FundingRate float64 `json:"fundingRate"`
-	Timestamp   int64   `json:"timestamp"`
+	Symbol      string             `json:"symbol"`
+	Granularity int                `json:"granularity"`
+	FundingRate float64            `json:"fundingRate"`
+	Timestamp   kucoinTimeMilliSec `json:"timestamp"`
 }
 
 // WsFuturesMarkPriceAndIndexPrice represents mark price and index price information.
 type WsFuturesMarkPriceAndIndexPrice struct {
-	Symbol      string  `json:"symbol"`
-	Granularity int     `json:"granularity"`
-	IndexPrice  float64 `json:"indexPrice"`
-	MarkPrice   float64 `json:"markPrice"`
-	Timestamp   int64   `json:"timestamp"`
+	Symbol      string             `json:"symbol"`
+	Granularity int                `json:"granularity"`
+	IndexPrice  float64            `json:"indexPrice"`
+	MarkPrice   float64            `json:"markPrice"`
+	Timestamp   kucoinTimeMilliSec `json:"timestamp"`
 }
 
 // WsFuturesFundingBegin represents the Start Funding Fee Settlement.
 type WsFuturesFundingBegin struct {
 	Subject     string             `json:"subject"`
 	Symbol      string             `json:"symbol"`
-	FundingTime int64              `json:"fundingTime"`
+	FundingTime kucoinTimeMilliSec `json:"fundingTime"`
 	FundingRate float64            `json:"fundingRate"`
 	Timestamp   kucoinTimeMilliSec `json:"timestamp"`
 }
