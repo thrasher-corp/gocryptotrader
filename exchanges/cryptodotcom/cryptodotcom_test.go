@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -480,7 +481,6 @@ func TestFetchOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cr.Verbose = true
 	_, err = cr.FetchOrderbook(context.Background(), enabledPairs[1], asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -493,7 +493,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cr.Verbose = true
 	_, err = cr.UpdateOrderbook(context.Background(), enabledPairs[1], asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -780,8 +779,23 @@ func TestWsSetCancelOnDisconnect(t *testing.T) {
 
 func TestGetCreateParamMap(t *testing.T) {
 	t.Parallel()
-	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
+	arg := &CreateOrderParam{InstrumentName: "", OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
 	_, err := arg.getCreateParamMap()
+	if !errors.Is(err, errSymbolIsRequired) {
+		t.Errorf("found %v, but expected %v", err, errSymbolIsRequired)
+	}
+	var newone *CreateOrderParam
+	_, err = newone.getCreateParamMap()
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("found %v, but expecting %v", err, common.ErrNilPointer)
+	}
+	arg.InstrumentName = "BTC_USDT"
+	_, err = arg.getCreateParamMap()
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Error(err)
+	}
+	arg.Side = order.Buy
+	_, err = arg.getCreateParamMap()
 	if err != nil {
 		t.Error(err)
 	}

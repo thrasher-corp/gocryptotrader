@@ -772,6 +772,9 @@ func stringToOrderType(orderType string) (order.Type, error) {
 		if err != nil {
 			return order.UnknownType, fmt.Errorf("%w, %v", order.ErrTypeIsInvalid, err)
 		}
+		if oType == order.UnknownType || oType == order.AnyType {
+			return order.UnknownType, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, orderType)
+		}
 		return oType, nil
 	}
 }

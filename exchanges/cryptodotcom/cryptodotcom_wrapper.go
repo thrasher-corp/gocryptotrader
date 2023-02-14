@@ -673,30 +673,11 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		notional = s.Amount
 	}
 	var ordersResp *CreateOrderResponse
+	arg := &CreateOrderParam{InstrumentName: format.Format(s.Pair), Side: s.Side, OrderType: orderTypeToString(s.Type), Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice}
 	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		ordersResp, err = cr.WsPlaceOrder(&CreateOrderParam{
-			InstrumentName: format.Format(s.Pair),
-			Side:           s.Side,
-			OrderType:      orderTypeToString(s.Type),
-			Price:          s.Price,
-			Quantity:       s.Amount,
-			ClientOrderID:  s.ClientOrderID,
-			Notional:       notional,
-			PostOnly:       s.PostOnly,
-			TriggerPrice:   s.TriggerPrice,
-		})
+		ordersResp, err = cr.WsPlaceOrder(arg)
 	} else {
-		ordersResp, err = cr.CreateOrder(ctx, &CreateOrderParam{
-			InstrumentName: format.Format(s.Pair),
-			Side:           s.Side,
-			OrderType:      orderTypeToString(s.Type),
-			Price:          s.Price,
-			Quantity:       s.Amount,
-			ClientOrderID:  s.ClientOrderID,
-			Notional:       notional,
-			PostOnly:       s.PostOnly,
-			TriggerPrice:   s.TriggerPrice,
-		})
+		ordersResp, err = cr.CreateOrder(ctx, arg)
 	}
 	if err != nil {
 		return nil, err

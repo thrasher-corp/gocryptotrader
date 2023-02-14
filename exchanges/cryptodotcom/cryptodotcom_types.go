@@ -307,7 +307,7 @@ type CreateOrderParam struct {
 
 func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error) {
 	if arg == nil {
-		return nil, fmt.Errorf("%w nil argument", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w, CreateOrderParam can not be nil", common.ErrNilPointer)
 	}
 	if arg.InstrumentName == "" {
 		return nil, errSymbolIsRequired
@@ -318,9 +318,6 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	oType, err := stringToOrderType(arg.OrderType)
 	if err != nil {
 		return nil, err
-	}
-	if oType == order.UnknownType || oType == order.AnyType {
-		return nil, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	switch oType {
 	case order.Limit, order.StopLimit, order.TakeProfitLimit:
