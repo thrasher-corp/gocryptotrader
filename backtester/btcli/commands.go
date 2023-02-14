@@ -42,17 +42,17 @@ var executeStrategyFromFileCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "starttimeoverride",
 			Aliases: []string{"s"},
-			Usage:   "override the start file's start time",
+			Usage:   fmt.Sprintf("override the strategy file's start time using your local time. eg '%v'", time.Now().Truncate(time.Hour).AddDate(0, -1, 0).Format(common.SimpleTimeFormat)),
 		},
 		&cli.StringFlag{
 			Name:    "endtimeoverride",
 			Aliases: []string{"e"},
-			Usage:   "override the start file's end time",
+			Usage:   fmt.Sprintf("override the strategy file's end time using your local time. eg '%v'", time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat)),
 		},
 		&cli.Uint64Flag{
 			Name:    "intervaloverride",
 			Aliases: []string{"i"},
-			Usage:   "override the start file's candle interval, in seconds. eg 60 = 1 minute",
+			Usage:   "override the strategy file's candle interval, in seconds. eg 60 = 1 minute",
 		},
 	},
 }
@@ -121,13 +121,10 @@ func executeStrategyFromFile(c *cli.Context) error {
 	var intervalOverride uint64
 	if c.IsSet("intervaloverride") {
 		intervalOverride = c.Uint64("intervaloverride")
-	} else {
-		intervalCheck := c.Args().Get(5)
-		if intervalCheck != "" {
-			intervalOverride, err = strconv.ParseUint(c.Args().Get(5), 10, 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(5) != "" {
+		intervalOverride, err = strconv.ParseUint(c.Args().Get(5), 10, 64)
+		if err != nil {
+			return err
 		}
 	}
 	overrideDuration := time.Duration(intervalOverride) * time.Second

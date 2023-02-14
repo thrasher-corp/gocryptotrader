@@ -21,6 +21,7 @@ import (
 )
 
 var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+var dbConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-database-candles.strat")
 
 func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()
@@ -60,6 +61,14 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath:  dcaConfigPath,
+		StartTimeOverride: timestamppb.New(time.Now()),
+		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Minute)),
+	})
+	if !errors.Is(err, gctcommon.ErrStartAfterEnd) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrStartAfterEnd)
+	}
+	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:  dbConfigPath,
 		StartTimeOverride: timestamppb.New(time.Now()),
 		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Minute)),
 	})
@@ -349,7 +358,21 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		Path:             "test",
 		InclusiveEndDate: false,
 	}
-	cfg.DataSettings.LiveData = &btrpc.LiveData{}
+	cfg.DataSettings.LiveData = &btrpc.LiveData{
+		Credentials: []*btrpc.Credentials{
+			{
+				Exchange: "test",
+				Keys: &btrpc.ExchangeCredentials{
+					Key:             "1",
+					Secret:          "2",
+					ClientId:        "3",
+					PemKey:          "4",
+					SubAccount:      "5",
+					OneTimePassword: "6",
+				},
+			},
+		},
+	}
 	cfg.DataSettings.CsvData = &btrpc.CSVData{
 		Path: "test",
 	}
