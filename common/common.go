@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -438,46 +437,50 @@ func InArray(val, array interface{}) (exists bool, index int) {
 // standard error e.g. err := errors.New("random error")
 // err = AppendError(err, errors.New("another random error"))
 func AppendError(original, incoming error) error {
+	errSliceP, ok := original.(*multiError)
+	if ok {
+		errSliceP.offset = 0
+	}
 	if incoming == nil {
-		if _, file, no, ok := runtime.Caller(1); ok {
-			log.Errorf(log.Global, "AppendError() failed: incoming error is nil %s#%d\n", file, no)
-		}
-		if errSlice, ok := original.(*multiError); ok {
-			errSlice.offset = 0
-		}
 		return original // Skip append - continue as normal.
 	}
-	errSliceP, ok := original.(*multiError)
 	if !ok {
 		// This assumes that a standard error is passed in and we can want to
 		// track it and add additional errors.
 		errSliceP = &multiError{}
 		if original != nil {
-			errSliceP.Errors = append(errSliceP.Errors, original)
+			errSliceP.loadedErrors = append(errSliceP.loadedErrors, original)
 		}
 	}
 	if incomingSlice, ok := incoming.(*multiError); ok {
 		// Join slices if needed.
-		errSliceP.Errors = append(errSliceP.Errors, incomingSlice.Errors...)
+		errSliceP.loadedErrors = append(errSliceP.loadedErrors, incomingSlice.loadedErrors...)
 	} else {
-		errSliceP.Errors = append(errSliceP.Errors, incoming)
+		errSliceP.loadedErrors = append(errSliceP.loadedErrors, incoming)
 	}
-	errSliceP.offset = 0 // Needed to test incremental changes.
 	return errSliceP
 }
 
 // multiError holds all the errors as a slice, this is unexported so it forces
 // ibuilt error handling.
 type multiError struct {
-	Errors []error
-	offset int
+	loadedErrors []error
+	offset       int
 }
 
-// Error displays all errors comma separated.
+// Error displays all errors comma separated, if unwrapped has been called and
+// has not been reset will display the individual error
 func (e *multiError) Error() string {
-	allErrors := make([]string, len(e.Errors))
-	for x := range e.Errors {
-		allErrors[x] = e.Errors[x].Error()
+	if e.offset > 0 {
+		last := e.offset - 1
+		if last >= len(e.loadedErrors) {
+			return ""
+		}
+		return e.loadedErrors[last].Error()
+	}
+	allErrors := make([]string, len(e.loadedErrors))
+	for x := range e.loadedErrors {
+		allErrors[x] = e.loadedErrors[x].Error()
 	}
 	return strings.Join(allErrors, ", ")
 }
@@ -486,7 +489,7 @@ func (e *multiError) Error() string {
 // error for correct matching.
 func (e *multiError) Unwrap() error {
 	e.offset++
-	if e.offset == len(e.Errors) {
+	if e.offset == len(e.loadedErrors) {
 		e.offset = 0
 		return nil // Force errors.Is package to return false.
 	}
@@ -497,7 +500,7 @@ func (e *multiError) Unwrap() error {
 // we can keep fmt.Errorf() trimmings. This is called in errors package at
 // interface assertion err.(interface{ Is(error) bool }).
 func (e *multiError) Is(incoming error) bool {
-	if errors.Is(e.Errors[e.offset], incoming) {
+	if errors.Is(e.loadedErrors[e.offset], incoming) {
 		e.offset = 0
 		return true
 	}
