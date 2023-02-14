@@ -217,15 +217,16 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		}
 		cfg.DataSettings.Interval = gctkline.Interval(request.IntervalOverride)
 	}
-
-	if request.StartTimeOverride.AsTime().Unix() != 0 {
+	sto := request.StartTimeOverride.AsTime()
+	if sto.Unix() != 0 && !sto.IsZero() {
 		if cfg.DataSettings.DatabaseData != nil {
 			cfg.DataSettings.DatabaseData.StartDate = request.StartTimeOverride.AsTime()
 		} else if cfg.DataSettings.APIData != nil {
 			cfg.DataSettings.APIData.StartDate = request.StartTimeOverride.AsTime()
 		}
 	}
-	if request.EndTimeOverride.AsTime().Unix() != 0 {
+	eto := request.EndTimeOverride.AsTime()
+	if eto.Unix() != 0 && !eto.IsZero() {
 		if cfg.DataSettings.DatabaseData != nil {
 			cfg.DataSettings.DatabaseData.EndDate = request.EndTimeOverride.AsTime()
 		} else if cfg.DataSettings.APIData != nil {
