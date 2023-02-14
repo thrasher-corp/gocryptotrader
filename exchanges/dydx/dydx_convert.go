@@ -17,6 +17,6 @@ func (a *APIServerTime) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Epoch = time.UnixMilli(int64(chil.Epoch * 1000))
+	a.Epoch = time.Unix(int64(chil.Epoch), 0)
 	return nil
 }

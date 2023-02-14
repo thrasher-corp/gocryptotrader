@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -27,7 +28,7 @@ const (
 	apiSecret  = ""
 	passphrase = ""
 
-	ethereumAddress = ""
+	ethereumAddress = "0x4cd67530b9526f43681C0666075D30c717e51E72"
 	privateKey      = ""
 
 	starkKeyXCoordinate     = ""
@@ -390,8 +391,11 @@ func TestOnboarding(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	dy.Verbose = true
-	_, err := dy.Onboarding(context.Background(), &OnboardingParam{
+	_, err := dy.Onboarding(context.Background(), nil, privateKey)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Error(err)
+	}
+	_, err = dy.Onboarding(context.Background(), &OnboardingParam{
 		StarkXCoordinate: starkKeyXCoordinate,
 		StarkYCoordinate: starkKeyYCoordinate,
 		EthereumAddress:  ethereumAddress,
@@ -606,7 +610,11 @@ func TestCancelOrderByID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	if _, err := dy.CancelOrderByID(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "No order exists with id: 1234") {
+	_, err := dy.CancelOrderByID(context.Background(), "1234")
+	if err != nil && !strings.Contains(err.Error(), "No order exists with id: 1234") {
+		t.Error(err)
+	}
+	if _, err = dy.CancelOrderByID(context.Background(), ""); !errors.Is(err, order.ErrOrderIDNotSet) {
 		t.Error(err)
 	}
 }
@@ -658,7 +666,11 @@ func TestGetOrderByID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	if _, err := dy.GetOrderByID(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "No order found with id: 1234") {
+	_, err := dy.GetOrderByID(context.Background(), "1234")
+	if err != nil && !strings.Contains(err.Error(), "No order found with id: 1234") {
+		t.Error(err)
+	}
+	if _, err = dy.GetOrderByID(context.Background(), "1234"); !errors.Is(err, order.ErrOrderIDNotSet) {
 		t.Error(err)
 	}
 }
@@ -668,7 +680,11 @@ func TestGetOrderByClientID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	if _, err := dy.GetOrderByClientID(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "No order found with clientId: 1234") {
+	_, err := dy.GetOrderByClientID(context.Background(), "1234")
+	if err != nil && !strings.Contains(err.Error(), "No order found with clientId: 1234") {
+		t.Error(err)
+	}
+	if _, err = dy.GetOrderByClientID(context.Background(), ""); !errors.Is(err, order.ErrOrderIDNotSet) {
 		t.Error(err)
 	}
 }

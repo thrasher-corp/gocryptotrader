@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -73,11 +72,25 @@ func (dy *DYDX) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
+				TickerBatching:    true,
 				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				AccountInfo:       true,
+				GetOrder:          true,
+				CancelOrders:      true,
+				CancelOrder:       true,
+				SubmitOrder:       true,
+				UserTradeHistory:  true,
+				CryptoDeposit:     true,
+				CryptoWithdrawal:  true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				KlineFetching:          true,
+				AuthenticatedEndpoints: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -141,14 +154,15 @@ func (dy *DYDX) Setup(exch *config.Exchange) error {
 
 	err = dy.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            dydxWSAPIURL,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             dy.WsConnect,
-			Subscriber:            dy.Subscribe,
-			Unsubscriber:          dy.Unsubscribe,
-			GenerateSubscriptions: dy.GenerateDefaultSubscriptions,
-			Features:              &dy.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:         exch,
+			DefaultURL:             dydxWSAPIURL,
+			RunningURL:             wsRunningEndpoint,
+			Connector:              dy.WsConnect,
+			Subscriber:             dy.Subscribe,
+			Unsubscriber:           dy.Unsubscribe,
+			GenerateSubscriptions:  dy.GenerateDefaultSubscriptions,
+			Features:               &dy.Features.Supports.WebsocketCapabilities,
+			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		})
 	if err != nil {
 		return err
@@ -242,7 +256,8 @@ func (dy *DYDX) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 		return nil, fmt.Errorf("missing ticker data for instrument %s", fPair.String())
 	}
 	for key, tick := range stats {
-		if !fPair.IsEmpty() && !strings.EqualFold(fPair.String(), key) {
+		// if the filter currency pair is not empty and different from ticker's currency pair, we will skip that ticker data.
+		if !fPair.IsEmpty() && fPair.String() != key {
 			continue
 		}
 		cp, err := currency.NewPairFromString(tick.Market)
@@ -263,9 +278,7 @@ func (dy *DYDX) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 		if err != nil {
 			return nil, err
 		}
-		if !fPair.IsEmpty() && cp.Equal(fPair) {
-			return ticker.GetTicker(dy.Name, p, assetType)
-		}
+		return ticker.GetTicker(dy.Name, p, assetType)
 	}
 	return ticker.GetTicker(dy.Name, p, assetType)
 }
@@ -279,13 +292,13 @@ func (dy *DYDX) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	if !dy.SupportsAsset(assetType) {
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	stats, err := dy.GetMarketStats(ctx, "", 30)
+	stats, err := dy.GetMarketStats(ctx, "", 0)
 	if err != nil {
 		return err
 	}
 
 	for x := range stats {
-		pair, err := currency.NewPairFromString(stats[x].Market)
+		pair, err := pairs.DeriveFrom(stats[x].Market)
 		if err != nil {
 			return err
 		}
@@ -361,9 +374,6 @@ func (dy *DYDX) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	if err != nil {
 		return account.Holdings{}, err
 	}
-
-	// TODO: incomplete implementation.
-
 	var resp account.Holdings
 	for x := range acc.Accounts {
 		var subAcc = account.SubAccount{ID: acc.Accounts[x].AccountNumber, AssetType: asset.Spot}
@@ -587,18 +597,19 @@ func (dy *DYDX) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return errors.New("Order ID is required")
 	}
 	_, err := dy.CancelOrderByID(ctx, ord.OrderID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (dy *DYDX) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
 	var resp order.CancelBatchResponse
 	resp.Status = map[string]string{}
+	zeroValue := order.Cancel{}
 	var err error
 	for x := range orders {
+		if orders[x] == zeroValue {
+			return resp, fmt.Errorf("%w, invalid cancel order", common.ErrZeroValue)
+		}
 		if !dy.SupportsAsset(orders[x].AssetType) {
 			return resp, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, orders[x].AssetType)
 		}
@@ -887,9 +898,6 @@ func (dy *DYDX) ValidateCredentials(ctx context.Context, assetType asset.Item) e
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	if !pair.IsPopulated() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
 	req, err := dy.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err

@@ -68,6 +68,8 @@ var (
 	ErrStartAfterTimeNow = errors.New("start date is after current time")
 	// ErrNilPointer defines an error for a nil pointer
 	ErrNilPointer = errors.New("nil pointer")
+	// ErrZeroValue defined an error for struct which has zero value
+	ErrZeroValue = errors.New("zero value struct")
 	// ErrCannotCalculateOffline is returned when a request wishes to calculate
 	// something offline, but has an online requirement
 	ErrCannotCalculateOffline = errors.New("cannot calculate offline")

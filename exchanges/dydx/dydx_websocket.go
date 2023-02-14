@@ -25,9 +25,7 @@ import (
 )
 
 const (
-
 	// channels
-
 	accountsChannel  = "v3_accounts"
 	orderbookChannel = "v3_orderbook"
 	tradesChannel    = "v3_trades"
@@ -100,7 +98,7 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 			dy.Websocket.DataHandler <- resp.FundingPayments
 		case "channel_data":
 			var resp AccountChannelData
-			err := json.Unmarshal(respRaw, &resp)
+			err = json.Unmarshal(respRaw, &resp)
 			if err != nil {
 				return err
 			}
@@ -115,7 +113,7 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 		return nil
 	case orderbookChannel:
 		var market MarketOrderbook
-		err := json.Unmarshal(respRaw, &market)
+		err = json.Unmarshal(respRaw, &market)
 		if err != nil {
 			return err
 		}
@@ -131,11 +129,7 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 			Pair:        pair,
 			LastUpdated: time.Now(),
 		}
-		err = dy.Websocket.Orderbook.LoadSnapshot(&newOrderbook)
-		if err != nil {
-			return err
-		}
-		return nil
+		return dy.Websocket.Orderbook.LoadSnapshot(&newOrderbook)
 	case tradesChannel:
 		var myTrades MarketTrades
 		err := json.Unmarshal(resp.Contents, &myTrades)
@@ -171,14 +165,14 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 		}
 		tickers := make([]ticker.Price, len(market.Markets))
 		count := 0
-		for x := range market.Markets {
-			pair, err := currency.NewPairFromString(x)
+		for key, value := range market.Markets {
+			pair, err := currency.NewPairFromString(key)
 			if err != nil {
 				return err
 			}
 			tickers[count] = ticker.Price{
 				ExchangeName: dy.Name,
-				Ask:          market.Markets[x].IndexPrice,
+				Ask:          value.IndexPrice,
 				Pair:         pair,
 				AssetType:    asset.Spot,
 			}
@@ -202,6 +196,7 @@ func (dy *DYDX) processAccount(acct *Account) {
 
 // processOrders processes incoming orders with push data.
 func (dy *DYDX) processOrders(orders []Order) error {
+	orderDetails := make([]order.Detail, len(orders))
 	for x := range orders {
 		orderType, err := order.StringToOrderType(orders[x].Type)
 		if err != nil {
@@ -219,7 +214,7 @@ func (dy *DYDX) processOrders(orders []Order) error {
 		if err != nil {
 			return err
 		}
-		dy.Websocket.DataHandler <- &order.Detail{
+		orderDetails[x] = order.Detail{
 			Price:           orders[x].Price,
 			Amount:          orders[x].Size,
 			ExecutedAmount:  orders[x].Size - orders[x].RemainingSize,
@@ -235,6 +230,7 @@ func (dy *DYDX) processOrders(orders []Order) error {
 			RemainingAmount: orders[x].RemainingSize,
 		}
 	}
+	dy.Websocket.DataHandler <- orderDetails
 	return nil
 }
 

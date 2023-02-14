@@ -43,6 +43,34 @@ const (
 const (
 	offChainOnboardingAction    = "dYdX Onboarding"
 	offChainKeyDerivationAction = "dYdX STARK Key"
+
+	ethereumSigningTemplate = `{
+		"types": {
+			"EIP712Domain": [
+			  {"name": "name", "type": "string"},
+			  {"name": "version", "type": "string"},
+			  {"name": "chainId", "type": "uint64"}
+			],
+			"Message": [
+			  {"name": "method", "type": "string"},
+			  {"name": "requestPath", "type": "string"},
+			  {"name": "body", "type": "string"},
+			  {"name": "timestamp", "type": "string"}
+			]
+		  },
+		  "primaryType": "dYdX",
+		  "domain": {
+			"name": "dydx",
+			"version": "1.0",
+			"chainId": 1
+		  },
+		  "message": {
+			"method": "%s",
+			"requestPath": "%s",
+			"body": "%s",
+			"timestamp": %s
+		  }
+	}`
 )
 
 // APIKeyCredentials represents authentication credentials {API Credentials} information.
@@ -139,9 +167,9 @@ type WithdrawalLiquidityResponse struct {
 
 // LiquidityProvider represents a liquidation provider item data
 type LiquidityProvider struct {
-	AvailableFunds string      `json:"availableFunds"`
-	StarkKey       string      `json:"starkKey"`
-	Quote          interface{} `json:"quote"`
+	AvailableFunds float64 `json:"availableFunds,string"`
+	StarkKey       string  `json:"starkKey"`
+	Quote          string  `json:"quote"`
 }
 
 // TickerDatas represents market's statistics data.
@@ -198,13 +226,13 @@ type MarketCandle struct {
 
 // ConfigurationVariableResponse represents any configuration variables for the exchange.
 type ConfigurationVariableResponse struct {
-	CollateralAssetID             string `json:"collateralAssetId"`
-	CollateralTokenAddress        string `json:"collateralTokenAddress"`
-	DefaultMakerFee               string `json:"defaultMakerFee"`
-	DefaultTakerFee               string `json:"defaultTakerFee"`
-	ExchangeAddress               string `json:"exchangeAddress"`
-	MaxExpectedBatchLengthMinutes string `json:"maxExpectedBatchLengthMinutes"`
-	MaxFastWithdrawalAmount       string `json:"maxFastWithdrawalAmount"`
+	CollateralAssetID             string  `json:"collateralAssetId"`
+	CollateralTokenAddress        string  `json:"collateralTokenAddress"`
+	DefaultMakerFee               float64 `json:"defaultMakerFee,string"`
+	DefaultTakerFee               float64 `json:"defaultTakerFee,string"`
+	ExchangeAddress               string  `json:"exchangeAddress"`
+	MaxExpectedBatchLengthMinutes int64   `json:"maxExpectedBatchLengthMinutes,string"`
+	MaxFastWithdrawalAmount       float64 `json:"maxFastWithdrawalAmount,string"`
 	CancelOrderRateLimiting       struct {
 		MaxPointsMulti  int64 `json:"maxPointsMulti"`
 		MaxPointsSingle int64 `json:"maxPointsSingle"`
@@ -239,16 +267,16 @@ type LeaderboardPNLs struct {
 	MinimumDYDXTokens int64   `json:"minimumDYDXTokens"`
 	SeasonNumber      int64   `json:"seasonNumber"`
 	TopPnls           []struct {
-		Username              string      `json:"username"`
-		EthereumAddress       string      `json:"ethereumAddress"`
-		PublicID              string      `json:"publicId"`
-		AbsolutePnl           string      `json:"absolutePnl"`
-		PercentPnl            string      `json:"percentPnl"`
-		AbsoluteRank          int64       `json:"absoluteRank"`
-		PercentRank           int64       `json:"percentRank"`
-		SeasonExpectedOutcome string      `json:"seasonExpectedOutcome"`
-		HedgieWon             interface{} `json:"hedgieWon"`
-		PrizeWon              interface{} `json:"prizeWon"`
+		Username              string `json:"username"`
+		EthereumAddress       string `json:"ethereumAddress"`
+		PublicID              string `json:"publicId"`
+		AbsolutePnl           string `json:"absolutePnl"`
+		PercentPnl            string `json:"percentPnl"`
+		AbsoluteRank          int64  `json:"absoluteRank"`
+		PercentRank           int64  `json:"percentRank"`
+		SeasonExpectedOutcome string `json:"seasonExpectedOutcome"`
+		HedgieWon             int64  `json:"hedgieWon"`
+		PrizeWon              int64  `json:"prizeWon"`
 	} `json:"topPnls"`
 	NumParticipants int       `json:"numParticipants"`
 	UpdatedAt       time.Time `json:"updatedAt"`
@@ -806,18 +834,15 @@ type PrivateProfile struct {
 
 // FastWithdrawalParam represents a parameter for asset withdrawal
 type FastWithdrawalParam struct {
-	ClientID     string  `json:"clientId,omitempty"`
-	ToAddress    string  `json:"toAddress"`
-	CreditAsset  string  `json:"creditAsset"`
-	CreditAmount float64 `json:"creditAmount,string"`
-
-	DebitAmount float64 `json:"debitAmount,string"`
-
+	ClientID          string  `json:"clientId,omitempty"`
+	ToAddress         string  `json:"toAddress"`
+	CreditAsset       string  `json:"creditAsset"`
+	CreditAmount      float64 `json:"creditAmount,string"`
+	DebitAmount       float64 `json:"debitAmount,string"`
 	SlippageTolerance float64 `json:"slippageTolerance,string"`
-
-	LPPositionID float64 `json:"lpPositionId,string,omitempty"`
-	Expiration   string  `json:"expiration"`
-	Signature    string  `json:"signature"`
+	LPPositionID      float64 `json:"lpPositionId,string,omitempty"`
+	Expiration        string  `json:"expiration"`
+	Signature         string  `json:"signature"`
 }
 
 // FastWithdrawalRequestParam represents a parameter for fast withdrawal

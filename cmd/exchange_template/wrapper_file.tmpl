@@ -163,6 +163,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 			Subscriber:      {{.Variable}}.Subscribe,
 			Unsubscriber:    {{.Variable}}.Unsubscribe,
 			Features:        &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		})
 	if err != nil {
 		return err

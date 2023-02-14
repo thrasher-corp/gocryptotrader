@@ -39,12 +39,12 @@ const (
 
 	// Public endpoints
 	markets                        = "markets"
-	marketOrderbook                = "orderbook/%s" // orderbook/:market
-	marketTrades                   = "trades/%s"    // trades/:market
+	marketOrderbook                = "orderbook/" // orderbook/:market
+	marketTrades                   = "trades/"    // trades/:market
 	fastWithdrawals                = "fast-withdrawals"
-	marketStats                    = "stats/%s"              // stats/:market
-	marketHistoricalFunds          = "historical-funding/%s" // historical-funding/:market
-	marketCandles                  = "candles/%s"            // candles/:market
+	marketStats                    = "stats/"              // stats/:market
+	marketHistoricalFunds          = "historical-funding/" // historical-funding/:market
+	marketCandles                  = "candles/"            // candles/:market
 	globalConfigurations           = "config"
 	usersExists                    = "users/exists"
 	usernameExists                 = "usernames"
@@ -55,7 +55,7 @@ const (
 	historicalHedgies              = "hedgies/history"
 	currentHedgies                 = "hedgies/current"
 	insuranceFundBalance           = "insurance-fund/balance"
-	publicProifle                  = "profile/%s" // profile/:publicId
+	publicProifle                  = "profile/" // profile/:publicId
 
 	// Authenticated endpoints
 	onboarding                      = "onboarding"
@@ -66,16 +66,16 @@ const (
 	userActiveLinks                 = "users/links"
 	userPendingLinkRequests         = "users/links/requests"
 	accounts                        = "accounts"
-	accountIDs                      = "accounts/%s"                             // accounts/:id
-	accountLeaderBoardPNL           = "accounts/leaderboard-pnl/%s"             // accounts/leaderboard-pnl/:period
-	accountHistoricalLeaderboardPNL = "accounts/historical-leaderboard-pnls/%s" // accounts/historical-leaderboard-pnls/:period
+	accountIDs                      = "accounts/"                             // accounts/:id
+	accountLeaderBoardPNL           = "accounts/leaderboard-pnl/"             // accounts/leaderboard-pnl/:period
+	accountHistoricalLeaderboardPNL = "accounts/historical-leaderboard-pnls/" // accounts/historical-leaderboard-pnls/:period
 	positions                       = "positions"
 	transfers                       = "transfers"
 	withdrawals                     = "withdrawals"
 	orders                          = "orders"
-	orderByID                       = "orders/%s"        // orders/:id
-	activeOrders                    = "active-orders"    // active-orders
-	orderClientID                   = "orders/client/%s" // orders/client/:id
+	orderByID                       = "orders/"        // orders/:id
+	activeOrders                    = "active-orders"  // active-orders
+	orderClientID                   = "orders/client/" // orders/client/:id
 	fills                           = "fills"
 	funding                         = "funding"
 	historicalPNL                   = "historical-pnl"
@@ -103,6 +103,7 @@ var (
 	errInvalidExpirationTimeString = errors.New("invalid expiration time string")
 	errMissingEthereumAddress      = errors.New("ethereum address is required")
 	errMissingPublicKey            = errors.New("missing public key")
+	errEmptyUsername               = errors.New("empty username is not allowed")
 )
 
 // GetMarkets retrieves one or all markets as well as metadata about each retrieved market.
@@ -121,7 +122,7 @@ func (dy *DYDX) GetOrderbooks(ctx context.Context, instrument string) (*MarketOr
 		return nil, errMissingMarketInstrument
 	}
 	var resp *MarketOrderbook
-	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, fmt.Sprintf(marketOrderbook, instrument), &resp)
+	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, marketOrderbook+instrument, &resp)
 }
 
 // GetTrades retrieves Trades by specified parameters. Passing in all query parameters to the HTTP endpoint would look like.
@@ -137,7 +138,7 @@ func (dy *DYDX) GetTrades(ctx context.Context, instrument string, startingBefore
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *MarketTrades
-	return resp.Trades, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(fmt.Sprintf(marketTrades, instrument), params), &resp)
+	return resp.Trades, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(marketTrades+instrument, params), &resp)
 }
 
 // GetFastWithdrawalLiquidity returns a map of all LP provider accounts that have available funds for fast withdrawals.
@@ -174,7 +175,7 @@ func (dy *DYDX) GetMarketStats(ctx context.Context, instrument string, days int6
 		params.Set("days", strconv.FormatInt(days, 10))
 	}
 	var resp *TickerDatas
-	return resp.Markets, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, fmt.Sprintf(marketStats, instrument), &resp)
+	return resp.Markets, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, marketStats+instrument, &resp)
 }
 
 // GetHistoricalFunding retrieves the historical funding rates for a market.
@@ -187,7 +188,7 @@ func (dy *DYDX) GetHistoricalFunding(ctx context.Context, instrument string, eff
 		params.Set("effectiveBeforeOrAt", effectiveBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *HistoricFundingResponse
-	return resp.HistoricalFundings, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(fmt.Sprintf(marketHistoricalFunds, instrument), params), &resp)
+	return resp.HistoricalFundings, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(marketHistoricalFunds+instrument, params), &resp)
 }
 
 // GetResolutionFromInterval returns the resolution(string representation of interval) from interval instance if supported by the exchange.
@@ -233,7 +234,7 @@ func (dy *DYDX) GetCandlesForMarket(ctx context.Context, instrument string, inte
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *MarketCandlesResponse
-	return resp.Candles, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(fmt.Sprintf(marketCandles, instrument), params), &resp)
+	return resp.Candles, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, common.EncodeURLValues(marketCandles+instrument, params), &resp)
 }
 
 // GetGlobalConfigurationVariables retrieves any global configuration variables for the exchange as a whole.
@@ -243,15 +244,18 @@ func (dy *DYDX) GetGlobalConfigurationVariables(ctx context.Context) (*Configura
 }
 
 // CheckIfUserExists checks if a user exists for a given Ethereum address.
-func (dy *DYDX) CheckIfUserExists(ctx context.Context, etheriumAddress string) (bool, error) {
+func (dy *DYDX) CheckIfUserExists(ctx context.Context, ethereumAddress string) (bool, error) {
 	resp := &struct {
 		Exists bool `json:"exists"`
 	}{}
-	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, usersExists+"?ethereumAddress="+etheriumAddress, resp)
+	return resp.Exists, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, usersExists+"?ethereumAddress="+ethereumAddress, resp)
 }
 
 // CheckIfUsernameExists check if a username has been taken by a user.
 func (dy *DYDX) CheckIfUsernameExists(ctx context.Context, username string) (bool, error) {
+	if username == "" {
+		return false, errEmptyUsername
+	}
 	resp := &struct {
 		Exists bool `json:"exists"`
 	}{}
@@ -293,6 +297,9 @@ func (dy *DYDX) GetPublicRetroactiveMiningReqards(ctx context.Context, ethereumA
 
 // VerifyEmailAddress verify an email address by providing the verification token sent to the email address.
 func (dy *DYDX) VerifyEmailAddress(ctx context.Context, token string) (interface{}, error) {
+	if token == "" {
+		return nil, errors.New("token nust not be empty")
+	}
 	var response interface{}
 	return response, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, verifyEmailAddress+"?token="+token, response)
 }
@@ -338,7 +345,7 @@ func (dy *DYDX) GetPublicProfile(ctx context.Context, publicID string) (*PublicP
 		return nil, errMissingPublicID
 	}
 	var resp *PublicProfile
-	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, fmt.Sprintf(publicProifle, publicID), &resp)
+	return resp, dy.SendHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, publicProifle+publicID, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -428,13 +435,13 @@ func (dy *DYDX) SendUserLinkRequest(ctx context.Context, params UserLinkParams) 
 }
 
 // GetUserPendingLinkRequest retrieves pending user links.
-func (dy *DYDX) GetUserPendingLinkRequest(ctx context.Context, userType, outgoinRequests, incomingRequests string) (*UserPendingLink, error) {
+func (dy *DYDX) GetUserPendingLinkRequest(ctx context.Context, userType, outgoingRequests, incomingRequests string) (*UserPendingLink, error) {
 	params := url.Values{}
 	if userType != "" {
 		params.Set("userType", userType)
 	}
-	if outgoinRequests != "" {
-		params.Set("outgoinRequests", outgoinRequests)
+	if outgoingRequests != "" {
+		params.Set("outgoingRequests", outgoingRequests)
 	}
 	if incomingRequests != "" {
 		params.Set("incomingRequests", incomingRequests)
@@ -457,13 +464,13 @@ func (dy *DYDX) CreateAccount(ctx context.Context, starkKey, starkYCoordinate st
 }
 
 // GetAccount retrieves an account for a user by id. Using the client, the id will be generated with client information and an Ethereum address.
-func (dy *DYDX) GetAccount(ctx context.Context, etheriumAddress string) (*AccountResponse, error) {
+func (dy *DYDX) GetAccount(ctx context.Context, ethereumAddress string) (*AccountResponse, error) {
 	params := url.Values{}
-	if etheriumAddress != "" {
-		params.Set("etheriumAddress", etheriumAddress)
+	if ethereumAddress != "" {
+		params.Set("ethereumAddress", ethereumAddress)
 	}
 	var resp *AccountResponse
-	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(accounts, params), nil, &resp)
+	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(accountIDs+ethereumAddress, params), nil, &resp)
 }
 
 // GetAccountLeaderboardPNLs represents an account's personal leaderboard pnls.
@@ -476,7 +483,7 @@ func (dy *DYDX) GetAccountLeaderboardPNLs(ctx context.Context, period string, st
 		param.Set("startingBeforeOrAt", startingBeforeOrAt.UTC().Format(timeFormat))
 	}
 	var resp *AccountLeaderboardPNL
-	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(fmt.Sprintf(accountLeaderBoardPNL, strings.ToUpper(period)), param), nil, &resp)
+	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(accountLeaderBoardPNL+strings.ToUpper(period), param), nil, &resp)
 }
 
 // GetAccountHistoricalLeaderboardPNLs retrieves  an account's historical leaderboard pnls.
@@ -490,7 +497,7 @@ func (dy *DYDX) GetAccountHistoricalLeaderboardPNLs(ctx context.Context, period 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AccountHistorical
-	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(fmt.Sprintf(accountHistoricalLeaderboardPNL, period), params), nil, &resp)
+	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(accountHistoricalLeaderboardPNL+period, params), nil, &resp)
 }
 
 // GetAccounts all accounts for a user.
@@ -555,9 +562,12 @@ func (dy *DYDX) CreateTransfer(ctx context.Context, param *TransferParam) (*Tran
 	}
 	var signature string
 	signature, err = starkex.TransferSign(creds.SubAccount, starkex.TransferSignParam{
-		NetworkId: 1,
-		ClientId:  param.ClientID,
-		// TODO: More information to generate signature.
+		NetworkId:         1,
+		ClientId:          param.ClientID,
+		ReceiverAddress:   param.ReceiverAccountID,
+		ReceiverPublicKey: param.ReceiverPublicKey,
+		Expiration:        param.Expiration,
+		DebitAmount:       strconv.FormatFloat(param.Amount, 'f', -1, 64),
 	})
 	if err != nil {
 		return nil, err
@@ -693,8 +703,11 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParam
 
 // CancelOrderByID cancel an order by its unique id.
 func (dy *DYDX) CancelOrderByID(ctx context.Context, orderID string) (*Order, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
 	var resp *Order
-	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, cancelSingleOrderEPL, http.MethodDelete, fmt.Sprintf(orderByID, orderID), nil, &resp)
+	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, cancelSingleOrderEPL, http.MethodDelete, orderByID+orderID, nil, &resp)
 }
 
 // CancelMultipleOrders either bulk cancel all orders or just all orders for a specific market.
@@ -777,19 +790,25 @@ func (dy *DYDX) GetOpenOrders(ctx context.Context, market, side, id string) ([]O
 
 // GetOrderByID represents an order by id from the active orderbook and order history.
 func (dy *DYDX) GetOrderByID(ctx context.Context, id string) (*Order, error) {
+	if id == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
 	resp := struct {
 		Order Order `json:"order"`
 	}{}
-	return &resp.Order, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, fmt.Sprintf(orderByID, id), nil, &resp)
+	return &resp.Order, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, orderByID+id, nil, &resp)
 }
 
 // GetOrderByClientID retrieves an order by clientId from the active orderbook and order history.
 // Only the latest 1 hour of orders can be fetched from this endpoint.
 func (dy *DYDX) GetOrderByClientID(ctx context.Context, clientID string) (*Order, error) {
+	if clientID == "" {
+		return nil, fmt.Errorf("%w, empty client-ID", order.ErrOrderIDNotSet)
+	}
 	resp := struct {
 		Order Order `json:"order"`
 	}{}
-	return &resp.Order, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, fmt.Sprintf(orderClientID, clientID), nil, &resp)
+	return &resp.Order, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, orderClientID+clientID, nil, &resp)
 }
 
 // GetFills represents fills for a user by specified parameters.
@@ -908,9 +927,7 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 		return err
 	}
 	var dataString string
-	if data == nil {
-		dataString = ""
-	} else {
+	if data != nil {
 		var value []byte
 		value, err = json.Marshal(data)
 		if err != nil {
@@ -923,22 +940,22 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 	if err != nil {
 		return err
 	}
-	newRequest := func() (*request.Item, error) {
-		var body io.Reader
-		var payload []byte
-		if data != nil {
-			payload, err = json.Marshal(data)
-			if err != nil {
-				return nil, err
-			}
-			body = bytes.NewBuffer(payload)
+	var body io.Reader
+	var payload []byte
+	if data != nil {
+		payload, err = json.Marshal(data)
+		if err != nil {
+			return err
 		}
+		body = bytes.NewBuffer(payload)
+	}
+	newRequest := func() (*request.Item, error) {
+		timestamp := time.Now().UTC().Format(timeFormat)
+		message := fmt.Sprintf(timestamp + strings.ToUpper(method) + "/" + dydxAPIVersion + path + dataString)
+		secret, err := base64.URLEncoding.DecodeString(creds.Secret)
 		if err != nil {
 			return nil, err
 		}
-		timestamp := time.Now().UTC().Format(timeFormat)
-		message := fmt.Sprintf("%s%s%s%s", timestamp, strings.ToUpper(method), "/"+dydxAPIVersion+path, dataString)
-		secret, _ := base64.URLEncoding.DecodeString(creds.Secret)
 		h := hmac.New(sha256.New, secret)
 		h.Write([]byte(message))
 		headers := make(map[string]string)
