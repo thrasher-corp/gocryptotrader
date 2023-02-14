@@ -691,6 +691,10 @@ func TestErrors(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", strangeError.Error(), "this is a strange error, test1, TRIMMINGS: test2")
 	}
 
+	strangeError = AppendError(strangeError, errors.New("even more error"))
+
+	strangeError = AppendError(strangeError, nil) // Skip this nasty thing.
+
 	// Test for individual display of errors
 	target := 0
 	for indv := errors.Unwrap(strangeError); indv != nil; indv = errors.Unwrap(indv) {
@@ -708,12 +712,16 @@ func TestErrors(t *testing.T) {
 			if indv.Error() != "TRIMMINGS: test2" {
 				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "TRIMMINGS: test2")
 			}
+		case 3:
+			if indv.Error() != "even more error" {
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "even more error")
+			}
 		default:
 			t.Fatal("unhandled case")
 		}
 		target++
 	}
-	if target != 2 {
+	if target != 4 {
 		t.Fatal("targets not achieved")
 	}
 }

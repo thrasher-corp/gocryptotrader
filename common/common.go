@@ -439,7 +439,7 @@ func InArray(val, array interface{}) (exists bool, index int) {
 func AppendError(original, incoming error) error {
 	errSliceP, ok := original.(*multiError)
 	if ok {
-		errSliceP.offset = 0
+		errSliceP.offset = nil
 	}
 	if incoming == nil {
 		return original // Skip append - continue as normal.
@@ -465,18 +465,14 @@ func AppendError(original, incoming error) error {
 // ibuilt error handling.
 type multiError struct {
 	loadedErrors []error
-	offset       int
+	offset       *int
 }
 
 // Error displays all errors comma separated, if unwrapped has been called and
 // has not been reset will display the individual error
 func (e *multiError) Error() string {
-	if e.offset > 0 {
-		last := e.offset - 1
-		if last >= len(e.loadedErrors) {
-			return ""
-		}
-		return e.loadedErrors[last].Error()
+	if e.offset != nil {
+		return e.loadedErrors[*e.offset].Error()
 	}
 	allErrors := make([]string, len(e.loadedErrors))
 	for x := range e.loadedErrors {
@@ -488,9 +484,13 @@ func (e *multiError) Error() string {
 // Unwrap increments the offset so errors.Is() can be called to its individual
 // error for correct matching.
 func (e *multiError) Unwrap() error {
-	e.offset++
-	if e.offset == len(e.loadedErrors) {
-		e.offset = 0
+	if e.offset == nil {
+		e.offset = new(int)
+	} else {
+		*e.offset++
+	}
+	if *e.offset == len(e.loadedErrors) {
+		e.offset = nil
 		return nil // Force errors.Is package to return false.
 	}
 	return e
@@ -500,8 +500,8 @@ func (e *multiError) Unwrap() error {
 // we can keep fmt.Errorf() trimmings. This is called in errors package at
 // interface assertion err.(interface{ Is(error) bool }).
 func (e *multiError) Is(incoming error) bool {
-	if errors.Is(e.loadedErrors[e.offset], incoming) {
-		e.offset = 0
+	if e.offset != nil && errors.Is(e.loadedErrors[*e.offset], incoming) {
+		e.offset = nil
 		return true
 	}
 	return false
