@@ -60,7 +60,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestStart(t *testing.T) {
-	t.Parallel()
 	err := g.Start(nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
@@ -201,7 +200,6 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestListAllCurrencies(t *testing.T) {
 	t.Parallel()
-	g.Verbose = true
 	if _, err := g.ListAllCurrencies(context.Background()); err != nil {
 		t.Errorf("%s ListAllCurrencies() error %v", g.Name, err)
 	}
@@ -2430,7 +2428,7 @@ func TestSubmitOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var orderSubmission = &order.Submit{
+	_, err = g.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  g.Name,
 		Pair:      enabledPairs[0],
 		Side:      order.Buy,
@@ -2438,8 +2436,35 @@ func TestSubmitOrder(t *testing.T) {
 		Price:     1,
 		Amount:    1,
 		AssetType: asset.CrossMargin,
+	})
+	if err != nil {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
-	_, err = g.SubmitOrder(context.Background(), orderSubmission)
+	_, err = g.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  g.Name,
+		Pair:      enabledPairs[0],
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		AssetType: asset.Spot,
+	})
+	if err != nil {
+		t.Errorf("Order failed to be placed: %v", err)
+	}
+	cp, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:  g.Name,
+		Pair:      cp,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		AssetType: asset.Futures,
+	})
 	if err != nil {
 		t.Errorf("Order failed to be placed: %v", err)
 	}
@@ -2507,13 +2532,43 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
 		Pairs:     enabledPairs[:2],
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		AssetType: asset.Spot,
+	})
+	if err != nil {
+		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &getOrdersRequest)
+	cp, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+		Pairs:     []currency.Pair{cp},
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		AssetType: asset.Futures,
+	})
+	if err != nil {
+		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
+	}
+	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+		Pairs:     enabledPairs[:2],
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		AssetType: asset.Margin,
+	})
+	if err != nil {
+		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
+	}
+	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+		Pairs:     enabledPairs[:2],
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		AssetType: asset.CrossMargin,
+	})
 	if err != nil {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}

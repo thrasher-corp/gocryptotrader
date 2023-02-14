@@ -199,7 +199,7 @@ func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []s
 				errs = append(errs, err)
 			} else {
 				if resp.Result != nil && resp.Result.Status != "success" {
-					errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, payloads[con][k].Channel))
+					errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, val[k].Channel))
 					continue
 				} else if resp.Error != nil && resp.Error.Code != 0 {
 					errs = append(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val[k].Event, val[k].Channel, resp.Error.Code, resp.Error.Message))

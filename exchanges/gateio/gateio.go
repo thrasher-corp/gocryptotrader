@@ -1049,12 +1049,12 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		}
 		var payload string
 		if data != nil {
-			var data []byte
-			data, err = json.Marshal(data)
+			var byteData []byte
+			byteData, err = json.Marshal(data)
 			if err != nil {
 				return nil, err
 			}
-			payload = string(data)
+			payload = string(byteData)
 		}
 		return &request.Item{
 			Method:        method,

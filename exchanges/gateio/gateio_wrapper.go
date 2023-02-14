@@ -961,7 +961,6 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	var fPair currency.Pair
 	err := s.Validate()
 	if err != nil {
 		return nil, err
@@ -979,10 +978,11 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	default:
 		return nil, errInvalidOrderSide
 	}
-	fPair, err = g.FormatExchangeCurrency(s.Pair, s.AssetType)
+	s.Pair, err = g.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
 	}
+	s.Pair = s.Pair.Upper()
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		if s.Type != order.Limit {
@@ -994,7 +994,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Account:      g.assetTypeToString(s.AssetType),
 			Amount:       s.Amount,
 			Price:        s.Price,
-			CurrencyPair: fPair,
+			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
 		})
 		if err != nil {
@@ -1016,14 +1016,14 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Status = status
 		response.Fee = sOrder.FeeDeducted
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
-		response.Pair = fPair
+		response.Pair = s.Pair
 		response.Date = sOrder.CreateTime.Time()
 		response.ClientOrderID = sOrder.Text
 		response.Date = sOrder.CreateTimeMs.Time()
 		response.LastUpdated = sOrder.UpdateTimeMs.Time()
 		return response, nil
 	case asset.Futures:
-		if !fPair.Quote.Upper().MatchAny(currency.USD, currency.USDT, currency.BTC) {
+		if !s.Pair.Quote.Upper().MatchAny(currency.USD, currency.USDT, currency.BTC) {
 			return nil, errUnsupportedSettleValue
 		}
 		if orderTypeFormat == "bid" && s.Price < 0 {
@@ -1032,10 +1032,10 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			s.Price = -s.Price
 		}
 		fOrder, err := g.PlaceFuturesOrder(ctx, &OrderCreateParams{
-			Contract:    fPair,
+			Contract:    s.Pair,
 			Size:        s.Amount,
 			Price:       s.Price,
-			Settle:      fPair.Quote.String(),
+			Settle:      s.Pair.Quote.String(),
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: "gtc",
 			Text:        s.ClientOrderID,
@@ -1052,14 +1052,14 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		response.Status = status
-		response.Pair = fPair
+		response.Pair = s.Pair
 		response.Date = fOrder.CreateTime.Time()
 		response.ClientOrderID = fOrder.Text
 		response.ReduceOnly = fOrder.IsReduceOnly
 		response.Amount = fOrder.RemainingAmount
 		return response, nil
 	case asset.DeliveryFutures:
-		settle, err := g.getSettlementFromCurrency(fPair)
+		settle, err := g.getSettlementFromCurrency(s.Pair)
 		if err != nil {
 			return nil, err
 		}
@@ -1069,7 +1069,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			s.Price = -s.Price
 		}
 		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
-			Contract:    fPair,
+			Contract:    s.Pair,
 			Size:        s.Amount,
 			Price:       s.Price,
 			Settle:      settle,
@@ -1089,7 +1089,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		response.Status = status
-		response.Pair = fPair
+		response.Pair = s.Pair
 		response.Date = newOrder.CreateTime.Time()
 		response.ClientOrderID = newOrder.Text
 		response.Amount = newOrder.Size
@@ -1097,7 +1097,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return response, nil
 	case asset.Options:
 		optionOrder, err := g.PlaceOptionOrder(ctx, OptionOrderParam{
-			Contract:   fPair.String(),
+			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
 			Price:      s.Price,
 			ReduceOnly: s.ReduceOnly,
@@ -1115,7 +1115,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		response.Status = status
-		response.Pair = fPair
+		response.Pair = s.Pair
 		response.Date = optionOrder.CreateTime.Time()
 		response.ClientOrderID = optionOrder.Text
 		return response, nil
@@ -1562,6 +1562,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Exchange:        g.Name,
 					AssetType:       req.AssetType,
 					ClientOrderID:   spotOrders[x].Orders[y].Text,
+					FeeAsset:        currency.NewCode(spotOrders[x].Orders[y].FeeCurrency),
 				})
 			}
 		}

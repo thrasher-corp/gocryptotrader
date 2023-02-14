@@ -103,7 +103,7 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.Channel
 			futuresBalancesChannel,
 		)
 	}
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
+	pairs, err := g.GetAvailablePairs(asset.DeliveryFutures)
 	if err != nil {
 		return nil, err
 	}
