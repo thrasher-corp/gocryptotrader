@@ -688,7 +688,7 @@ func TestErrors(t *testing.T) {
 
 	// Test again because unwrap was called multiple times.
 	if strangeError.Error() != "this is a strange error, test1, TRIMMINGS: test2" {
-		t.Fatalf("received: '%v' bu expected: '%v'", strangeError.Error(), "this is a strange error, test1, TRIMMINGS: test2")
+		t.Fatalf("received: '%v' but expected: '%v'", strangeError.Error(), "this is a strange error, test1, TRIMMINGS: test2")
 	}
 
 	// Test for individual display of errors
@@ -697,16 +697,16 @@ func TestErrors(t *testing.T) {
 		switch target {
 		case 0:
 			if indv.Error() != "this is a strange error" {
-				t.Fatalf("received: '%v' bu expected: '%v'", indv.Error(), "this is a strange error")
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "this is a strange error")
 			}
 		case 1:
 			if indv.Error() != "test1" {
-				t.Fatalf("received: '%v' bu expected: '%v'", indv.Error(), "test1")
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "test1")
 			}
 
 		case 2:
 			if indv.Error() != "TRIMMINGS: test2" {
-				t.Fatalf("received: '%v' bu expected: '%v'", indv.Error(), "TRIMMINGS: test2")
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "TRIMMINGS: test2")
 			}
 		default:
 			t.Fatal("unhandled case")
