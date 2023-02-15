@@ -215,6 +215,7 @@ var (
 	errMultipleOrders                      = errors.New("multiple orders passed")
 	errMissingWithdrawalID                 = errors.New("missing withdrawal ID")
 	errInvalidSubAccountUserID             = errors.New("sub-account user id is required")
+	errCannotParseSettlementCurrency       = errors.New("cannot derive settlement currency")
 	errMissingAPIKey                       = errors.New("missing API key information")
 )
 
@@ -871,7 +872,7 @@ func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 	resp := struct {
 		ServerTime int64 `json:"server_time"`
 	}{}
-	err := g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, spotServerTime, nil, nil, &resp)
+	err := g.SendHTTPRequest(ctx, exchange.RestSpot, spotDefaultEPL, spotServerTime, &resp)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -3892,17 +3893,16 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (string, error) 
 	}
 	return ccies[0] + currency.UnderscoreDelimiter + ccies[1], nil
 }
-
 func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair) (settlement string, err error) {
 	currencyPair = currencyPair.Upper()
 	switch {
-	case strings.Contains(currencyPair.Quote.String(), currency.USDT.String()):
-		return currency.USDT.Lower().String(), nil
-	case strings.Contains(currencyPair.Quote.String(), currency.BTC.String()):
-		return currency.BTC.Lower().String(), nil
-	case strings.Contains(currencyPair.Quote.String(), currency.USD.String()):
-		return currency.USD.Lower().String(), nil
+	case strings.HasPrefix(currencyPair.Quote.String(), currency.USDT.String()):
+		return currency.USDT.Item.Lower, nil
+	case strings.HasPrefix(currencyPair.Quote.String(), currency.BTC.String()):
+		return currency.BTC.Item.Lower, nil
+	case strings.HasPrefix(currencyPair.Quote.String(), currency.USD.String()):
+		return currency.USD.Item.Lower, nil
 	default:
-		return "", errors.New("can't derive settlement")
+		return "", fmt.Errorf("%w %v", errCannotParseSettlementCurrency, currencyPair)
 	}
 }

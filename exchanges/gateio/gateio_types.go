@@ -31,7 +31,7 @@ const (
 	sideLend   = "lend"
 	sideBorrow = "borrow"
 
-	forceUpdate = false
+	forceUpdate = true
 )
 
 // WithdrawalFees the large list of predefined withdrawal fees
