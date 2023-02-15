@@ -210,6 +210,29 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 
+	io64 := int64(request.IntervalOverride)
+	if io64 > 0 {
+		if io64 < gctkline.FifteenSecond.Duration().Nanoseconds() {
+			return nil, fmt.Errorf("%w, interval must be >= 15 seconds, received '%v'", gctkline.ErrInvalidInterval, time.Duration(request.IntervalOverride))
+		}
+		cfg.DataSettings.Interval = gctkline.Interval(request.IntervalOverride)
+	}
+	sto := request.StartTimeOverride.AsTime()
+	if sto.Unix() != 0 && !sto.IsZero() {
+		if cfg.DataSettings.DatabaseData != nil {
+			cfg.DataSettings.DatabaseData.StartDate = request.StartTimeOverride.AsTime()
+		} else if cfg.DataSettings.APIData != nil {
+			cfg.DataSettings.APIData.StartDate = request.StartTimeOverride.AsTime()
+		}
+	}
+	eto := request.EndTimeOverride.AsTime()
+	if eto.Unix() != 0 && !eto.IsZero() {
+		if cfg.DataSettings.DatabaseData != nil {
+			cfg.DataSettings.DatabaseData.EndDate = request.EndTimeOverride.AsTime()
+		} else if cfg.DataSettings.APIData != nil {
+			cfg.DataSettings.APIData.EndDate = request.EndTimeOverride.AsTime()
+		}
+	}
 	err = cfg.Validate()
 	if err != nil {
 		return nil, err
