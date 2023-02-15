@@ -655,7 +655,7 @@ func TestCompareJobsToData(t *testing.T) {
 	}
 }
 
-func TestRunJob(t *testing.T) {
+func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition caused by the DataHistoryJob and it's a big change to fix.
 	t.Parallel()
 	tt := time.Now().Truncate(kline.OneHour.Duration())
 	testCases := []*DataHistoryJob{
