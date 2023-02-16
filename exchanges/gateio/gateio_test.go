@@ -242,11 +242,7 @@ func TestGetMarketTrades(t *testing.T) {
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
-	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err := g.GetCandlesticks(context.Background(), enabledPairs[0], 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
+	if _, err := g.GetCandlesticks(context.Background(), spotTradablePair, 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
 		t.Errorf("%s GetCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -2487,7 +2483,10 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetHistoricCandles(context.Background(), currency.NewPair(currency.OMG, currency.TRY), asset.Spot, kline.OneDay, time.Now().Add(-time.Hour), time.Now()); err != nil {
+	if _, err := g.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, time.Now().Add(-time.Hour), time.Now()); err != nil {
+		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
+	}
+	if _, err := g.GetHistoricCandles(context.Background(), spotTradablePair, asset.Margin, kline.OneDay, time.Now().Add(-time.Hour), time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
 }
@@ -2543,7 +2542,7 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	t.Parallel()
 	if uly, err := g.GetUnderlyingFromCurrencyPair(currency.Pair{Delimiter: currency.UnderscoreDelimiter, Base: currency.BTC, Quote: currency.NewCode("USDT_LLK")}); err != nil {
 		t.Error(err)
-	} else if uly != "BTC_USDT" {
+	} else if !uly.Equal(currency.NewPair(currency.BTC, currency.USDT)) {
 		t.Error("unexpected underlying")
 	}
 }

@@ -771,12 +771,12 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			optionsUnderlyingTradesChannel,
 			optionsUnderlyingPriceChannel,
 			optionsUnderlyingCandlesticksChannel:
-			var uly string
+			var uly currency.Pair
 			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
 			if err != nil {
 				return nil, err
 			}
-			params = append(params, uly)
+			params = append(params, uly.String())
 		case optionsBalancesChannel:
 			// options.balance channel does not require underlying or contract
 		default:

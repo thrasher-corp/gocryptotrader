@@ -293,13 +293,13 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			AssetType:    a,
 		}
 	case asset.Options:
-		var underlying string
+		var underlying currency.Pair
 		var tickers []OptionsTicker
 		underlying, err = g.GetUnderlyingFromCurrencyPair(fPair)
 		if err != nil {
 			return nil, err
 		}
-		tickers, err = g.GetOptionsTickers(ctx, underlying)
+		tickers, err = g.GetOptionsTickers(ctx, underlying.String())
 		if err != nil {
 			return nil, err
 		}
@@ -600,7 +600,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			if err != nil {
 				return err
 			}
-			tickers, err := g.GetOptionsTickers(ctx, underlying)
+			tickers, err := g.GetOptionsTickers(ctx, underlying.String())
 			if err != nil {
 				return err
 			}
@@ -1662,7 +1662,6 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	if err != nil {
 		return nil, err
 	}
-	format.Uppercase = true
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		for x := range req.Pairs {
@@ -1778,14 +1777,22 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			}
 		}
 	case asset.Futures, asset.DeliveryFutures:
-		if req.RequestFormatted.Quote.MatchAny(currency.USD, currency.USDT, currency.BTC) {
+		underlyingCurrency, err := g.GetUnderlyingFromCurrencyPair(req.RequestFormatted)
+		if err != nil {
+			return nil, err
+		}
+		if !underlyingCurrency.Quote.MatchAny(currency.USD, currency.USDT, currency.BTC) {
 			return nil, errUnsupportedSettleValue
+		}
+		settlement, err := g.getSettlementFromCurrency(req.RequestFormatted)
+		if err != nil {
+			return nil, err
 		}
 		var candles []FuturesCandlestick
 		if a == asset.Futures {
-			candles, err = g.GetFuturesCandlesticks(ctx, req.RequestFormatted.Quote.Lower().String(), req.RequestFormatted.String(), start, end, 0, interval)
+			candles, err = g.GetFuturesCandlesticks(ctx, settlement, req.RequestFormatted.String(), start, end, 0, interval)
 		} else {
-			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, req.RequestFormatted.Quote.Lower().String(), req.RequestFormatted.Upper(), start, end, 0, interval)
+			candles, err = g.GetDeliveryFuturesCandlesticks(ctx, settlement, req.RequestFormatted.Upper(), start, end, 0, interval)
 		}
 		if err != nil {
 			return nil, err
