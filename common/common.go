@@ -461,8 +461,8 @@ func AppendError(original, incoming error) error {
 	return errSliceP
 }
 
-// multiError holds all the errors as a slice, this is unexported so it forces
-// ibuilt error handling.
+// multiError holds all the errors as a slice, this is unexported, so it forces
+// inbuilt error handling.
 type multiError struct {
 	loadedErrors []error
 	offset       *int
