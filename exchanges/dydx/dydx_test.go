@@ -28,7 +28,7 @@ const (
 	apiSecret  = ""
 	passphrase = ""
 
-	ethereumAddress = "0x4cd67530b9526f43681C0666075D30c717e51E72"
+	ethereumAddress = ""
 	privateKey      = ""
 
 	starkKeyXCoordinate     = ""
@@ -64,8 +64,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.ClientID = ethereumAddress
 	exchCfg.API.Credentials.PEMKey = passphrase
-
-	exchCfg.API.Credentials.Subaccount = privateKey
+	exchCfg.API.Credentials.Subaccount = starkPrivateKey
 
 	err = dy.Setup(exchCfg)
 	if err != nil {
@@ -549,7 +548,7 @@ func TestTransferResponse(t *testing.T) {
 
 func TestCreateTransfers(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	if _, err := dy.CreateTransfer(context.Background(), &TransferParam{
@@ -567,7 +566,7 @@ func TestCreateTransfers(t *testing.T) {
 
 func TestCreateFastWithdrawal(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	input := FastWithdrawalParam{
@@ -585,7 +584,7 @@ func TestCreateFastWithdrawal(t *testing.T) {
 
 func TestCreateNewOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	if _, err := dy.CreateNewOrder(context.Background(), &CreateOrderRequestParams{
@@ -607,7 +606,7 @@ func TestCreateNewOrder(t *testing.T) {
 
 func TestCancelOrderByID(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	_, err := dy.CancelOrderByID(context.Background(), "1234")
@@ -621,7 +620,7 @@ func TestCancelOrderByID(t *testing.T) {
 
 func TestCancelMultipleOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	if _, err := dy.CancelMultipleOrders(context.Background(), ""); err != nil {
@@ -631,7 +630,7 @@ func TestCancelMultipleOrder(t *testing.T) {
 
 func TestCancelActiveOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
@@ -648,7 +647,6 @@ func TestGetOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	dy.Verbose = true
 	enabledPairs, err := dy.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
