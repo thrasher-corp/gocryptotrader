@@ -433,6 +433,13 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	return
 }
 
+// multiError holds all the errors as a slice, this is unexported, so it forces
+// inbuilt error handling.
+type multiError struct {
+	loadedErrors []error
+	offset       *int
+}
+
 // AppendError appends error in a more idiomatic way. This can start out as a
 // standard error e.g. err := errors.New("random error")
 // err = AppendError(err, errors.New("another random error"))
@@ -459,13 +466,6 @@ func AppendError(original, incoming error) error {
 		errSliceP.loadedErrors = append(errSliceP.loadedErrors, incoming)
 	}
 	return errSliceP
-}
-
-// multiError holds all the errors as a slice, this is unexported, so it forces
-// inbuilt error handling.
-type multiError struct {
-	loadedErrors []error
-	offset       *int
 }
 
 // Error displays all errors comma separated, if unwrapped has been called and
