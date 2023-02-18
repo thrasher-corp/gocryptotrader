@@ -593,21 +593,21 @@ type TransferResponse struct {
 
 // CreateOrderRequestParams represents parameters for creating a new order.
 type CreateOrderRequestParams struct {
-	Market          string  `json:"market"`
-	Side            string  `json:"side"`
-	Type            string  `json:"type"`
-	PostOnly        bool    `json:"postOnly"`
-	Size            float64 `json:"size,string"`
-	Price           float64 `json:"price,string"`
-	LimitFee        float64 `json:"limitFee"`
-	Expiration      string  `json:"expiration,omitempty"`
-	TimeInForce     string  `json:"timeInForce,omitempty"`
-	Cancelled       bool    `json:"cancelId,string"`
-	TriggerPrice    float64 `json:"triggerPrice,omitempty,string"`
-	TrailingPercent float64 `json:"trailingPercent,omitempty,string"`
-	ReduceOnly      bool    `json:"reduceOnly,omitempty"`
-	ClientID        string  `json:"clientId"`
-	Signature       string  `json:"signature"`
+	Market          string      `json:"market"`
+	Side            string      `json:"side"`
+	Type            string      `json:"type"`
+	PostOnly        bool        `json:"postOnly"`
+	Size            float64     `json:"size,string"`
+	Price           float64     `json:"price,string"`
+	LimitFee        float64     `json:"limitFee"`
+	Expiration      dydxTimeUTC `json:"expiration,omitempty"`
+	TimeInForce     string      `json:"timeInForce,omitempty"`
+	Cancelled       bool        `json:"cancelId,string"`
+	TriggerPrice    float64     `json:"triggerPrice,omitempty,string"`
+	TrailingPercent float64     `json:"trailingPercent,omitempty,string"`
+	ReduceOnly      bool        `json:"reduceOnly,omitempty"`
+	ClientID        string      `json:"clientId"`
+	Signature       string      `json:"signature"`
 }
 
 // OrderResponse represents an order response data.
@@ -690,7 +690,7 @@ type HistoricPNL struct {
 
 // TradingRewards represents trading rewards detail.
 type TradingRewards struct {
-	Epoch      int       `json:"epoch"`
+	Epoch      int64     `json:"epoch"`
 	EpochStart time.Time `json:"epochStart"`
 	EpochEnd   time.Time `json:"epochEnd"`
 	Fees       struct {
@@ -834,15 +834,16 @@ type PrivateProfile struct {
 
 // FastWithdrawalParam represents a parameter for asset withdrawal
 type FastWithdrawalParam struct {
-	ClientID          string  `json:"clientId,omitempty"`
-	ToAddress         string  `json:"toAddress"`
-	CreditAsset       string  `json:"creditAsset"`
-	CreditAmount      float64 `json:"creditAmount,string"`
-	DebitAmount       float64 `json:"debitAmount,string"`
-	SlippageTolerance float64 `json:"slippageTolerance,string"`
-	LPPositionID      float64 `json:"lpPositionId,string,omitempty"`
-	Expiration        string  `json:"expiration"`
-	Signature         string  `json:"signature"`
+	ToAddress         string      `json:"toAddress"`
+	CreditAsset       string      `json:"creditAsset"`
+	CreditAmount      float64     `json:"creditAmount,string"`
+	DebitAmount       float64     `json:"debitAmount,string"`
+	SlippageTolerance float64     `json:"slippageTolerance,omitempty,string"`
+	LPPositionID      int64       `json:"lpPositionId,omitempty,string"`
+	ClientID          string      `json:"clientId"`
+	Expiration        dydxTimeUTC `json:"expiration,omitempty"`
+	Hey               string      `json:"Hey,omitempty"`
+	Signature         string      `json:"signature"`
 }
 
 // FastWithdrawalRequestParam represents a parameter for fast withdrawal
@@ -854,22 +855,22 @@ type FastWithdrawalRequestParam struct {
 
 // TransferParam represents a parameter for transfer
 type TransferParam struct {
-	Amount             float64 `json:"amount,string"`
-	ClientID           string  `json:"clientId"`
-	Expiration         string  `json:"expiration,omitempty"`
-	ReceiverAccountID  string  `json:"receiverAccountId"`
-	Signature          string  `json:"signature,omitempty"`
-	ReceiverPublicKey  string  `json:"receiverPublicKey"`
-	ReceiverPositionID string  `json:"receiverPositionID"`
+	Amount             float64     `json:"amount,string"`
+	ClientID           string      `json:"clientId"`
+	Expiration         dydxTimeUTC `json:"expiration,omitempty"`
+	ReceiverAccountID  string      `json:"receiverAccountId"`
+	Signature          string      `json:"signature,omitempty"`
+	ReceiverPublicKey  string      `json:"receiverPublicKey"`
+	ReceiverPositionID string      `json:"receiverPositionID"`
 }
 
 // WithdrawalParam argument struct representing withdrawal request input.
 type WithdrawalParam struct {
-	Amount            float64 `json:"amount,string"`
-	Asset             string  `json:"asset"`
-	Expiration        string  `json:"expiration"`
-	ClientGeneratedID string  `json:"clientId"`
-	Signature         string  `json:"signature"`
+	Amount            float64     `json:"amount,string"`
+	Asset             string      `json:"asset"`
+	Expiration        dydxTimeUTC `json:"expiration"`
+	ClientGeneratedID string      `json:"clientId"`
+	Signature         string      `json:"signature"`
 }
 
 // AccountSubscriptionResponse represents a subscriptions to v3_accounts subscription.

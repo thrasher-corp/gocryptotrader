@@ -89,21 +89,21 @@ const (
 )
 
 var (
-	errMissingMarketInstrument     = errors.New("missing market instrument")
-	errInvalidPeriod               = errors.New("invalid period specified")
-	errSortByIsRequired            = errors.New("parameter \"sortBy\" is required")
-	errMissingPublicID             = errors.New("missing user public id")
-	errInvalidSendRequestAction    = errors.New("invalid send request action")
-	errInvalidStarkCredentials     = errors.New("invalid stark key credentials")
-	errInvalidTransferType         = errors.New("invalid transfer type")
-	errInvalidAmount               = errors.New("amount must be greater than zero")
-	errInvalidMarket               = errors.New("missing market name")
-	errInvalidSide                 = errors.New("invalid order side")
-	errInvalidPrice                = errors.New("invalid order price")
-	errInvalidExpirationTimeString = errors.New("invalid expiration time string")
-	errMissingEthereumAddress      = errors.New("ethereum address is required")
-	errMissingPublicKey            = errors.New("missing public key")
-	errEmptyUsername               = errors.New("empty username is not allowed")
+	errMissingMarketInstrument  = errors.New("missing market instrument")
+	errInvalidPeriod            = errors.New("invalid period specified")
+	errSortByIsRequired         = errors.New("parameter \"sortBy\" is required")
+	errMissingPublicID          = errors.New("missing user public id")
+	errInvalidSendRequestAction = errors.New("invalid send request action")
+	errInvalidStarkCredentials  = errors.New("invalid stark key credentials")
+	errInvalidTransferType      = errors.New("invalid transfer type")
+	errInvalidAmount            = errors.New("amount must be greater than zero")
+	errInvalidMarket            = errors.New("missing market name")
+	errInvalidSide              = errors.New("invalid order side")
+	errInvalidPrice             = errors.New("invalid order price")
+	errInvalidExpirationTime    = errors.New("expiration must be a valid ISO string that is not less than 7 days in the future")
+	errMissingEthereumAddress   = errors.New("ethereum address is required")
+	errMissingPublicKey         = errors.New("missing public key")
+	errEmptyUsername            = errors.New("empty username is not allowed")
 )
 
 // GetMarkets retrieves one or all markets as well as metadata about each retrieved market.
@@ -542,43 +542,6 @@ func (dy *DYDX) GetTransfers(ctx context.Context, transferType string, limit int
 	return resp, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodGet, common.EncodeURLValues(transfers, params), nil, &resp)
 }
 
-// CreateTransfer sends a StarkEx L2 transfer.
-func (dy *DYDX) CreateTransfer(ctx context.Context, param *TransferParam) (*TransferResponse, error) {
-	if param.Amount <= 0 {
-		return nil, errors.New("amount must be greater than zero")
-	}
-	if param.ReceiverAccountID == "" {
-		return nil, errors.New("invalid receiver account id")
-	}
-	if param.ReceiverPublicKey == "" {
-		return nil, errors.New("invalid stark receiver public key")
-	}
-	creds, err := dy.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if param.ClientID == "" {
-		param.ClientID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
-	}
-	var signature string
-	signature, err = starkex.TransferSign(creds.SubAccount, starkex.TransferSignParam{
-		NetworkId:         1,
-		ClientId:          param.ClientID,
-		ReceiverAddress:   param.ReceiverAccountID,
-		ReceiverPublicKey: param.ReceiverPublicKey,
-		Expiration:        param.Expiration,
-		DebitAmount:       strconv.FormatFloat(param.Amount, 'f', -1, 64),
-	})
-	if err != nil {
-		return nil, err
-	}
-	resp := &struct {
-		Transfer TransferResponse `json:"transfer"`
-	}{}
-	param.Signature = signature
-	return &resp.Transfer, dy.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, defaultV3EPL, http.MethodPost, transfers, param, &resp)
-}
-
 // CreateWithdrawal create a withdrawal from an account.
 // An additional L1 transaction has to be sent to the Starkware contract to retrieve funds after a slow withdrawal. This cannot be done until the zero-knowledge proof for the block has been constructed and verified on-chain.
 // For the L1 transaction, the Ethereum address that the starkKey is registered to must call either the withdraw or withdrawTo smart-contract functions. The contract ABI is not tied to a particular client but can be accessed via a client. All withdrawable funds are withdrawn at once.
@@ -589,8 +552,8 @@ func (dy *DYDX) CreateWithdrawal(ctx context.Context, privateKey string, arg Wit
 	if arg.Asset == "" {
 		return nil, fmt.Errorf("%w parameter: asset", currency.ErrCurrencyCodeEmpty)
 	}
-	if arg.Expiration == "" {
-		return nil, errInvalidExpirationTimeString
+	if arg.Expiration.Time().Before(time.Now().Add(time.Hour * 24 * 7)) {
+		return nil, errInvalidExpirationTime
 	}
 	creds, err := dy.GetCredentials(ctx)
 	if err != nil {
@@ -603,7 +566,7 @@ func (dy *DYDX) CreateWithdrawal(ctx context.Context, privateKey string, arg Wit
 	signature, err = starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
 		NetworkId:   1,
 		HumanAmount: strconv.FormatFloat(arg.Amount, 'f', -1, 64),
-		Expiration:  arg.Expiration,
+		Expiration:  arg.Expiration.timeString(),
 		ClientId:    arg.ClientGeneratedID,
 	})
 	if err != nil {
@@ -631,6 +594,9 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalP
 	if param.SlippageTolerance < 0 || param.SlippageTolerance > 1 {
 		return nil, fmt.Errorf("slippageTolerance has to be less than 1 and grater than 0 but passed %f", param.SlippageTolerance)
 	}
+	if param.Expiration.Time().Before(time.Now().Add(time.Hour * 7 * 24)) {
+		return nil, errInvalidExpirationTime
+	}
 	if param.ToAddress == "" {
 		// Address to be credited
 		return nil, fmt.Errorf("address to be credited must not be empty")
@@ -645,7 +611,7 @@ func (dy *DYDX) CreateFastWithdrawal(ctx context.Context, param *FastWithdrawalP
 		ClientId:    param.ClientID,
 		PositionId:  int64(param.LPPositionID),
 		HumanAmount: strconv.FormatFloat(param.CreditAmount, 'f', -1, 64),
-		Expiration:  param.Expiration,
+		Expiration:  param.Expiration.timeString(),
 	})
 	if err != nil {
 		return nil, err
@@ -690,7 +656,7 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParam
 		HumanPrice: strconv.FormatFloat(arg.Price, 'f', -1, 64),
 		LimitFee:   strconv.FormatFloat(arg.LimitFee, 'f', -1, 64),
 		ClientId:   arg.ClientID,
-		Expiration: arg.Expiration,
+		Expiration: arg.Expiration.timeString(),
 	}
 	signature, err := starkex.OrderSign(creds.SubAccount, orderSignParam)
 	if err != nil {

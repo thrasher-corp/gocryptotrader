@@ -536,7 +536,7 @@ func TestGetPosition(t *testing.T) {
 	}
 }
 
-func TestTransferResponse(t *testing.T) {
+func TestGetTransfers(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
@@ -546,38 +546,20 @@ func TestTransferResponse(t *testing.T) {
 	}
 }
 
-func TestCreateTransfers(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(missingAuthenticationCredentials)
-	}
-	if _, err := dy.CreateTransfer(context.Background(), &TransferParam{
-		Amount:             123,
-		ClientID:           "141324",
-		Expiration:         time.Now().Add(time.Hour * 24 * 4).UTC().Format(timeFormat),
-		ReceiverAccountID:  "ec84385a-ad03-55a8-86bf-a8213571f0ee",
-		Signature:          "",
-		ReceiverPublicKey:  "037f9c7a8511ea61adf3074f3b60d3911f37bb95cd31cbc712629d992d13e109",
-		ReceiverPositionID: "",
-	}); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestCreateFastWithdrawal(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	input := FastWithdrawalParam{
+	if _, err := dy.CreateFastWithdrawal(context.Background(), &FastWithdrawalParam{
 		CreditAsset:  currency.USDC.String(),
-		CreditAmount: 123,
-		DebitAmount:  100,
+		CreditAmount: 497.95,
+		DebitAmount:  505.10,
 		LPPositionID: 1,
-		Expiration:   time.Time{}.UTC().Format(timeFormat),
-		ClientID:     "",
-	}
-	if _, err := dy.CreateFastWithdrawal(context.Background(), &input); err != nil {
+		Expiration:   dydxTimeUTC(time.Now().Add(time.Hour * 8 * 24)),
+		ClientID:     "123456",
+		ToAddress:    ethereumAddress,
+	}); err != nil {
 		t.Error(err)
 	}
 }
@@ -595,7 +577,7 @@ func TestCreateNewOrder(t *testing.T) {
 		Size:         1,
 		Price:        123,
 		LimitFee:     0,
-		Expiration:   time.Now().Add(time.Hour * 24 * 3).UTC().Format("2006-01-02T15:04:05.999Z"),
+		Expiration:   dydxTimeUTC(time.Now().Add(time.Hour * 24 * 8)),
 		TimeInForce:  "GTT",
 		Cancelled:    true,
 		TriggerPrice: 0,
@@ -892,10 +874,9 @@ func TestCreateWithdrawal(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(eitherCredentialsMissingOrCanNotManipulateRealOrders)
 	}
-	dy.Verbose = true
 	_, err := dy.CreateWithdrawal(context.Background(), privateKey, WithdrawalParam{
 		Asset:      currency.USDC.String(),
-		Expiration: time.Now().Add(time.Hour * 24 * 10).UTC().Format(timeFormat),
+		Expiration: dydxTimeUTC(time.Now().Add(time.Hour * 24 * 10)),
 		Amount:     10,
 	})
 	if err != nil {

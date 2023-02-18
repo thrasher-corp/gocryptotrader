@@ -69,6 +69,9 @@ type Submit struct {
 	// RetrieveFeeDelay some exchanges take time to properly save order data
 	// and cannot retrieve fees data immediately
 	RetrieveFeeDelay time.Duration
+
+	// ExpirationTime some exchanges require time for the placed order to expire after
+	ExpirationTime time.Time
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange

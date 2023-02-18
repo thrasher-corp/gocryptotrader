@@ -566,6 +566,10 @@ func (dy *DYDX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 	if err != nil {
 		return nil, err
 	}
+	expirationTime := s.ExpirationTime
+	if expirationTime.IsZero() {
+		expirationTime = time.Now().Add(time.Hour * 24 * 8)
+	}
 	ord, err := dy.CreateNewOrder(ctx, &CreateOrderRequestParams{
 		Market:     formattedPair.String(),
 		Side:       s.Side.Lower(),
@@ -574,7 +578,7 @@ func (dy *DYDX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		Size:       s.Amount,
 		Price:      s.Price,
 		ReduceOnly: s.ReduceOnly,
-		Expiration: time.Now().Add(time.Hour * 24 * 3).UTC().Format("2006-01-02T15:04:05.999Z"),
+		Expiration: dydxTimeUTC(expirationTime),
 	})
 	if err != nil {
 		return nil, err
@@ -707,10 +711,14 @@ func (dy *DYDX) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if err != nil {
 		return nil, err
 	}
+	expirationTime := withdrawRequest.ExpirationTime
+	if expirationTime.IsZero() {
+		expirationTime = time.Now().Add(time.Hour * 24 * 8)
+	}
 	response, err := dy.CreateWithdrawal(ctx, creds.SubAccount, WithdrawalParam{
 		Asset:      withdrawRequest.Currency.String(),
 		Amount:     withdrawRequest.Amount,
-		Expiration: time.Now().Add(time.Hour * 24 * 20).UTC().Format(timeFormat),
+		Expiration: dydxTimeUTC(expirationTime),
 	})
 	if err != nil {
 		return nil, err
