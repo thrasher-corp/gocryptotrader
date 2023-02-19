@@ -874,7 +874,7 @@ func TestCreateWithdrawal(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(eitherCredentialsMissingOrCanNotManipulateRealOrders)
 	}
-	_, err := dy.CreateWithdrawal(context.Background(), privateKey, WithdrawalParam{
+	_, err := dy.CreateWithdrawal(context.Background(), privateKey, &WithdrawalParam{
 		Asset:      currency.USDC.String(),
 		Expiration: dydxTimeUTC(time.Now().Add(time.Hour * 24 * 10)),
 		Amount:     10,

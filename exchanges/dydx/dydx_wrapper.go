@@ -715,7 +715,7 @@ func (dy *DYDX) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if expirationTime.IsZero() {
 		expirationTime = time.Now().Add(time.Hour * 24 * 8)
 	}
-	response, err := dy.CreateWithdrawal(ctx, creds.SubAccount, WithdrawalParam{
+	response, err := dy.CreateWithdrawal(ctx, creds.SubAccount, &WithdrawalParam{
 		Asset:      withdrawRequest.Currency.String(),
 		Amount:     withdrawRequest.Amount,
 		Expiration: dydxTimeUTC(expirationTime),
