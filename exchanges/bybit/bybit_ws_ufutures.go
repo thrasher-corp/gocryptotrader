@@ -86,7 +86,7 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context) error {
 
 // SubscribeUSDT sends a websocket message to receive data from the channel
 func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
+	var errs error
 	for i := range channelsToSubscribe {
 		var sub WsFuturesReq
 		sub.Topic = subscribe
@@ -94,7 +94,7 @@ func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription)
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
 		err := by.Websocket.Conn.SendJSONMessage(sub)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		by.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
@@ -107,21 +107,20 @@ func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription)
 
 // UnsubscribeUSDT sends a websocket message to stop receiving data from the channel
 func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-
+	var errs error
 	for i := range channelsToUnsubscribe {
 		var unSub WsFuturesReq
 		unSub.Topic = unsubscribe
 
 		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.USDTMarginedFutures)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
 		err = by.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		by.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])

@@ -14,8 +14,6 @@ import (
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
 func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) error {
-	var errs gctcommon.Errors
-	var err error
 	first := c.Events[0]
 	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
 
@@ -54,7 +52,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
 	c.analysePNLGrowth()
-	err = c.calculateHighestCommittedFunds()
+	err := c.calculateHighestCommittedFunds()
 	if err != nil {
 		return err
 	}
@@ -87,9 +85,10 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	// ratio calculations as no movement has been made
 	benchmarkRates = benchmarkRates[1:]
 	returnsPerCandle = returnsPerCandle[1:]
+	var errs error
 	c.MaxDrawdown, err = CalculateBiggestEventDrawdown(allDataEvents)
 	if err != nil {
-		errs = append(errs, err)
+		errs = gctcommon.AppendError(errs, err)
 	}
 
 	interval := first.DataEvent.GetInterval()
@@ -109,7 +108,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 			decimal.NewFromInt(int64(len(c.Events))),
 		)
 		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
-			errs = append(errs, err)
+			errs = gctcommon.AppendError(errs, err)
 		}
 		c.CompoundAnnualGrowthRate = cagr
 	}
@@ -124,10 +123,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		c.UnrealisedPNL = last.PNL.GetUnrealisedPNL().PNL
 		c.RealisedPNL = last.PNL.GetRealisedPNL().PNL
 	}
-	if len(errs) > 0 {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() error {
