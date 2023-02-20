@@ -1352,7 +1352,7 @@
     }
    },
    "api": {
-    "authenticatedSupport": false,
+    "authenticatedSupport": true,
     "authenticatedWebsocketApiSupport": true,
     "credentials": {},
     "credentialsValidator": {

@@ -87,7 +87,7 @@ const (
 // GetInstruments provides information on all supported instruments
 func (cr *Cryptodotcom) GetInstruments(ctx context.Context) ([]Instrument, error) {
 	var resp *InstrumentList
-	return resp.Instruments, cr.SendHTTPRequest(ctx, exchange.RestSpot, publicInstruments, request.Unset, &resp)
+	return resp.Instruments, cr.SendHTTPRequest(ctx, exchange.RestSpot, publicInstruments, publicInstrumentsRate, &resp)
 }
 
 // GetOrderbook retches the public order book for a particular instrument and depth.
@@ -101,7 +101,7 @@ func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, instrumentName string,
 		params.Set("depth", strconv.FormatInt(depth, 10))
 	}
 	var resp *OrderbookDetail
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicOrderbook, params), request.Unset, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicOrderbook, params), publicOrderbookRate, &resp)
 }
 
 // GetCandlestickDetail retrieves candlesticks (k-line data history) over a given period for an instrument
@@ -115,7 +115,7 @@ func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, instrumentName
 		params.Set("timeframe", intervalString)
 	}
 	var resp *CandlestickDetail
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicCandlestick, params), request.Unset, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicCandlestick, params), publicCandlestickRate, &resp)
 }
 
 // GetTicker fetches the public tickers for an instrument.
@@ -125,7 +125,7 @@ func (cr *Cryptodotcom) GetTicker(ctx context.Context, instrumentName string) (*
 		params.Set("instrument_name", instrumentName)
 	}
 	var resp *TickersResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTicker, params), request.Unset, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTicker, params), publicTickerRate, &resp)
 }
 
 // GetTrades fetches the public trades for a particular instrument.
@@ -136,7 +136,7 @@ func (cr *Cryptodotcom) GetTrades(ctx context.Context, instrumentName string) (*
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)
 	var resp *TradesResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTrades, params), request.Unset, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTrades, params), publicTradesRate, &resp)
 }
 
 // Private endpoints
@@ -514,7 +514,7 @@ func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, currencyPair cur
 		params["page"] = page
 	}
 	var resp *QuoteHistoryResponse
-	return resp, cr.SendAuthHTTPRequest(context.Background(), exchange.RestSpot, request.Unset, privateGetOTCQuoteHistory, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(context.Background(), exchange.RestSpot, privateGetOTCTradeHistoryRate, privateGetOTCQuoteHistory, params, &resp)
 }
 
 // GetOTCTradeHistory retrieves otc trade history

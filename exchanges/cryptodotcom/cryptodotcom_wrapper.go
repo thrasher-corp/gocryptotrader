@@ -267,7 +267,11 @@ func (cr *Cryptodotcom) UpdateTradablePairs(ctx context.Context, forceUpdate boo
 // UpdateTicker updates and returns the ticker for a currency pair
 func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !cr.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", assetType, cr.Name)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
+	}
+	p, err := cr.FormatExchangeCurrency(p, asset.Spot)
+	if err != nil {
+		return nil, err
 	}
 	tick, err := cr.GetTicker(ctx, p.String())
 	if err != nil {
@@ -543,14 +547,14 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 	if !cr.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-	format, err := cr.GetPairFormat(assetType, false)
+	p, err := cr.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	if !p.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	trades, err := cr.GetTrades(ctx, format.Format(p))
+	trades, err := cr.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -795,6 +799,10 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 		return respData, err
 	}
 	side, err := order.StringToOrderSide(orderDetail.OrderInfo.Side)
+	if err != nil {
+		return respData, err
+	}
+	pair, err = cr.FormatExchangeCurrency(pair, asset.Spot)
 	if err != nil {
 		return respData, err
 	}

@@ -33,14 +33,14 @@ const (
 
 const (
 	// private subscription channels
-	userOrderCnl   = "user.order.%s" // user.order.{instrument_name}
-	userTradeCnl   = "user.trade.%s" // user.trade.{instrument_name}
+	userOrderCnl   = "user.order" // user.order.{instrument_name}
+	userTradeCnl   = "user.trade" // user.trade.{instrument_name}
 	userBalanceCnl = "user.balance"
 
 	// public subscription channels
-	instrumentOrderbookCnl = "book.%s"           // book.{instrument_name}
-	tickerCnl              = "ticker.%s"         // ticker.{instrument_name}
-	tradeCnl               = "trade.%s"          // trade.{instrument_name}
+	instrumentOrderbookCnl = "book"              // book.{instrument_name}
+	tickerCnl              = "ticker"            // ticker.{instrument_name}
+	tradeCnl               = "trade"             // trade.{instrument_name}
 	candlestickCnl         = "candlestick.%s.%s" // candlestick.{time_frame}.{instrument_name}
 )
 
@@ -209,7 +209,7 @@ func (cr *Cryptodotcom) Unsubscribe(subscriptions []stream.ChannelSubscription) 
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	subscriptions := []stream.ChannelSubscription{}
+	var subscriptions []stream.ChannelSubscription
 	channels := defaultSubscriptions
 	if cr.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(
@@ -293,13 +293,13 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 			instrumentOrderbookCnl,
 			tickerCnl,
 			tradeCnl:
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {fmt.Sprintf(subscription[x].Channel, subscription[x].Currency.String())}}
+			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Currency.String()}}
 		case candlestickCnl:
 			interval, okay := subscription[x].Params["interval"].(string)
 			if !okay {
 				return nil, kline.ErrUnsetInterval
 			}
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {fmt.Sprintf(subscription[x].Channel, interval, subscription[x].Currency.String())}}
+			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Currency.String()}}
 		case userBalanceCnl:
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
 		}
