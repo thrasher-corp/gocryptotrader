@@ -824,3 +824,12 @@ func TestGetCreateParamMap(t *testing.T) {
 		t.Errorf("found %v, but expecting %v", err, order.ErrTypeIsInvalid)
 	}
 }
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := cr.WsConnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 30)
+}

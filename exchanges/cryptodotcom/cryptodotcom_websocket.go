@@ -38,10 +38,10 @@ const (
 	userBalanceCnl = "user.balance"
 
 	// public subscription channels
-	instrumentOrderbookCnl = "book"              // book.{instrument_name}
-	tickerCnl              = "ticker"            // ticker.{instrument_name}
-	tradeCnl               = "trade"             // trade.{instrument_name}
-	candlestickCnl         = "candlestick.%s.%s" // candlestick.{time_frame}.{instrument_name}
+	instrumentOrderbookCnl = "book"        // book.{instrument_name}
+	tickerCnl              = "ticker"      // ticker.{instrument_name}
+	tradeCnl               = "trade"       // trade.{instrument_name}
+	candlestickCnl         = "candlestick" // candlestick.{time_frame}.{instrument_name}
 )
 
 var defaultSubscriptions = []string{
@@ -344,12 +344,8 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 		case "candlestick":
 			return cr.processCandlestick(&resp.Result)
 		default:
-			if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
-				return fmt.Errorf("can not pass push data message with signature %d with method %s", resp.ID, resp.Method)
-			}
+			return nil
 		}
-	} else if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
-		return fmt.Errorf("can not pass push data message with signature %d with method %s", resp.ID, resp.Method)
 	}
 	return nil
 }
