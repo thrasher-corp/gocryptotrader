@@ -34,6 +34,11 @@ const (
 
 var ku Kucoin
 
+var (
+	spotTradablePair    currency.Pair
+	futuresTradablePair currency.Pair
+)
+
 func TestMain(m *testing.M) {
 	ku.SetDefaults()
 	cfg := config.GetConfig()
@@ -53,6 +58,9 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.ClientID = passPhrase
+	if apiKey != "" && apiSecret != "" && passPhrase != "" {
+		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
 
 	ku.SetDefaults()
 	ku.Websocket = sharedtestvalues.NewTestWebsocket()
@@ -65,6 +73,8 @@ func TestMain(m *testing.M) {
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	setupWS()
+	ku.Run()
+	getFirstTradablePairOfAssets()
 	os.Exit(m.Run())
 }
 
@@ -264,7 +274,6 @@ func TestGetBorrowOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetBorrowOrder(context.Background(), "orderID")
 	if err != nil {
 		t.Error("GetBorrowOrder() error", err)
@@ -310,7 +319,6 @@ func TestSingleOrderRepayment(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	err := ku.SingleOrderRepayment(context.Background(), "BTC", "fa3e34c980062c10dad74016", 2.5)
 	if err != nil {
 		t.Error("SingleOrderRepayment() error", err)
@@ -333,7 +341,6 @@ func TestCancelLendOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	err := ku.CancelLendOrder(context.Background(), "OrderID")
 	if err != nil {
 		t.Error("CancelLendOrder() error", err)
@@ -345,7 +352,6 @@ func TestSetAutoLend(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	err := ku.SetAutoLend(context.Background(), "BTC", 0.0002, 0.005, 7, true)
 	if err != nil {
 		t.Error("SetAutoLend() error", err)
@@ -357,7 +363,6 @@ func TestGetActiveOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetActiveOrder(context.Background(), "")
 	if err != nil {
 		t.Error("GetActiveOrder() error", err)
@@ -374,12 +379,10 @@ func TestGetLendHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetLendHistory(context.Background(), "")
 	if err != nil {
 		t.Error("GetLendHistory() error", err)
 	}
-
 	_, err = ku.GetLendHistory(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetLendHistory() error", err)
@@ -408,7 +411,6 @@ func TestGetSettleLendOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetSettleLendOrder(context.Background(), "")
 	if err != nil {
 		t.Error("GetSettleLendOrder() error", err)
@@ -425,12 +427,10 @@ func TestGetAccountLendRecord(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetAccountLendRecord(context.Background(), "")
 	if err != nil {
 		t.Error("GetAccountLendRecord() error", err)
 	}
-
 	_, err = ku.GetAccountLendRecord(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetAccountLendRecord() error", err)
@@ -442,12 +442,10 @@ func TestGetLendingMarketData(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetLendingMarketData(context.Background(), "BTC", 0)
 	if err != nil {
 		t.Error("GetLendingMarketData() error", err)
 	}
-
 	_, err = ku.GetLendingMarketData(context.Background(), "BTC", 7)
 	if err != nil {
 		t.Error("GetLendingMarketData() error", err)
@@ -471,7 +469,6 @@ func TestGetIsolatedMarginPairConfig(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetIsolatedMarginPairConfig(context.Background())
 	if err != nil {
 		t.Error("GetIsolatedMarginPairConfig() error", err)
@@ -498,7 +495,6 @@ func TestGetSingleIsolatedMarginAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetSingleIsolatedMarginAccountInfo(context.Background(), "BTC-USDT")
 	if err != nil {
 		t.Error("GetSingleIsolatedMarginAccountInfo() error", err)
@@ -510,7 +506,6 @@ func TestInitiateIsolateMarginBorrowing(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	_, err := ku.InitiateIsolatedMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
 	if err != nil {
 		t.Error("InitiateIsolateMarginBorrowing() error", err)
@@ -522,12 +517,10 @@ func TestGetIsolatedOutstandingRepaymentRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetIsolatedOutstandingRepaymentRecords(context.Background(), "", "", 0, 0)
 	if err != nil {
 		t.Error("GetIsolatedOutstandingRepaymentRecords() error", err)
 	}
-
 	_, err = ku.GetIsolatedOutstandingRepaymentRecords(context.Background(), "BTC-USDT", "USDT", 0, 0)
 	if err != nil {
 		t.Error("GetIsolatedOutstandingRepaymentRecords() error", err)
@@ -539,12 +532,10 @@ func TestGetIsolatedMarginRepaymentRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetIsolatedMarginRepaymentRecords(context.Background(), "", "", 0, 0)
 	if err != nil {
 		t.Error("GetIsolatedMarginRepaymentRecords() error", err)
 	}
-
 	_, err = ku.GetIsolatedMarginRepaymentRecords(context.Background(), "BTC-USDT", "USDT", 0, 0)
 	if err != nil {
 		t.Error("GetIsolatedMarginRepaymentRecords() error", err)
@@ -556,7 +547,6 @@ func TestInitiateIsolatedMarginQuickRepayment(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	err := ku.InitiateIsolatedMarginQuickRepayment(context.Background(), "BTC-USDT", "USDT", "RECENTLY_EXPIRE_FIRST", 10)
 	if err != nil {
 		t.Error("InitiateIsolatedMarginQuickRepayment() error", err)
@@ -568,7 +558,6 @@ func TestInitiateIsolatedMarginSingleRepayment(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	err := ku.InitiateIsolatedMarginSingleRepayment(context.Background(), "BTC-USDT", "USDT", "628c570f7818320001d52b69", 10)
 	if err != nil {
 		t.Error("InitiateIsolatedMarginSingleRepayment() error", err)
@@ -577,7 +566,6 @@ func TestInitiateIsolatedMarginSingleRepayment(t *testing.T) {
 
 func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
-
 	_, err := ku.GetCurrentServerTime(context.Background())
 	if err != nil {
 		t.Error("GetCurrentServerTime() error", err)
@@ -616,7 +604,6 @@ func TestPostMarginOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	// default order type is limit and margin mode is cross
 	_, err := ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", 1000, 0.1, 0, 0, 0, true, false, false, false)
 	if err != nil {
@@ -688,7 +675,6 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	_, err := ku.CancelAllOpenOrders(context.Background(), "", "")
 	if err != nil {
 		t.Error("CancelAllOpenOrders() error", err)
@@ -706,7 +692,6 @@ func TestGetOrders(t *testing.T) {
 	}
 }
 
-// TODO: ambiguity in doc. and API response
 func TestGetRecentOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -718,7 +703,6 @@ func TestGetRecentOrders(t *testing.T) {
 	}
 }
 
-// TODO: not sure of response after looking at doc.
 func TestGetOrderByID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -750,7 +734,6 @@ func TestGetFills(t *testing.T) {
 	if err != nil {
 		t.Error("GetFills() error", err)
 	}
-
 	_, err = ku.GetFills(context.Background(), "5c35c02703aa673ceec2a168", "BTC-USDT", "buy", "limit", "TRADE", time.Now().Add(-time.Hour*12), time.Now())
 	if err != nil {
 		t.Error("GetFills() error", err)
@@ -762,7 +745,6 @@ func TestGetRecentFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetRecentFills(context.Background())
 	if err != nil {
 		t.Error("GetRecentFills() error", err)
@@ -785,7 +767,6 @@ func TestCancelStopOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	_, err := ku.CancelStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
 	if err != nil {
 		t.Error("CancelStopOrder() error", err)
@@ -797,7 +778,6 @@ func TestCancelAllStopOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
-
 	_, err := ku.CancelStopOrders(context.Background(), "", "", "")
 	if err != nil {
 		t.Error("CancelAllStopOrder() error", err)
@@ -809,7 +789,6 @@ func TestGetStopOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
 	if err != nil {
 		t.Error("GetStopOrder() error", err)
@@ -821,7 +800,6 @@ func TestGetAllStopOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.ListStopOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error("GetAllStopOrder() error", err)
@@ -833,7 +811,6 @@ func TestGetStopOrderByClientID(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.GetStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
 	if err != nil {
 		t.Error("GetStopOrderByClientID() error", err)
@@ -845,7 +822,6 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credentialsNotSet)
 	}
-
 	_, err := ku.CancelStopOrderByClientID(context.Background(), "", "5bd6e9286d99522a52e458de")
 	if err != nil {
 		t.Error("CancelStopOrderByClientID() error", err)
@@ -1469,7 +1445,7 @@ func TestGetFuturesFundingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetFuturesFundingHistory(context.Background(), "XBTUSDM", 0, 0, true, true, time.Time{}, time.Time{})
+	_, err := ku.GetFuturesFundingHistory(context.Background(), futuresTradablePair.String(), 0, 0, true, true, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetFuturesFundingHistory() error", err)
 	}
@@ -1653,11 +1629,7 @@ func TestUpdateTickers(t *testing.T) {
 }
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	newP, err := currency.NewPairFromString("MKR-USDT")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = ku.UpdateTicker(context.Background(), newP, asset.Spot)
+	_, err := ku.UpdateTicker(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1665,21 +1637,14 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
+	_, err := ku.FetchTicker(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
-		t.Error(err)
-	}
-	if _, err = ku.FetchTicker(context.Background(), enabledPairs[0], asset.Spot); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = ku.FetchTicker(context.Background(), enabledPairs[0], asset.Margin); err != nil {
+	if _, err = ku.FetchTicker(context.Background(), spotTradablePair, asset.Margin); err != nil {
 		t.Error(err)
 	}
-	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err = ku.FetchTicker(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Futures); err != nil {
+	if _, err = ku.FetchTicker(context.Background(), futuresTradablePair, asset.Futures); err != nil {
 		t.Error(err)
 	}
 }
@@ -1696,54 +1661,34 @@ func TestFetchOrderbook(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
 	startTime := time.Now().Add(-time.Hour * 4)
 	endTime := time.Now().Add(-time.Hour * 3)
-	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Futures, kline.OneHour, startTime, endTime)
+	_, err := ku.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	enabledPairs, err = ku.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = ku.GetHistoricCandles(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Spot, kline.OneHour, startTime, time.Now())
+	_, err = ku.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.OneHour, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
 	startTime := time.Now().Add(-time.Hour * 4)
 	endTime := time.Now().Add(-time.Hour * 1)
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, kline.OneHour, startTime, endTime)
+	_, err := ku.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Spot, kline.FiveMin, startTime, endTime)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.FiveMin, startTime, endTime)
 	if err != nil {
 		t.Error(err)
 	}
-	enabledPairs, err = ku.GetEnabledPairs(asset.Margin)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Margin, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), enabledPairs[0], asset.Margin, kline.OneHour, startTime, endTime)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cp, err := currency.NewPairFromString("XBTUSDTM")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), cp, asset.Futures, kline.FiveMin, startTime, endTime)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FiveMin, startTime, endTime)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1763,19 +1708,11 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = ku.GetRecentTrades(context.Background(), enabledPairs[len(enabledPairs)-1], asset.Futures)
+	_, err := ku.GetRecentTrades(context.Background(), futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	enabledPairs, err = ku.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = ku.GetRecentTrades(context.Background(), enabledPairs[0], asset.Spot)
+	_, err = ku.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1914,127 +1851,6 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 		t.Error(err)
 	}
 }
-
-/*
-
-{
-    "type": "message",
-    "topic": "/market/snapshot:BTC",
-    "subject": "trade.snapshot",
-    "data": {
-        "sequence": 1676310632380,
-        "data": {
-            "averagePrice": 0.00001073,
-            "baseCurrency": "IOTA",
-            "board": 0,
-            "buy": 0.00001036,
-            "changePrice": -4.0000000000000E-7,
-            "changeRate": -0.0370,
-            "close": 0.00001039,
-            "datetime": 1676310632374,
-            "high": 0.00001110000000000000,
-            "lastTradedPrice": 0.00001039,
-            "low": 0.00001033000000000000,
-            "makerCoefficient": 1.000000,
-            "makerFeeRate": 0.001,
-            "marginTrade": false,
-            "mark": 0,
-            "market": "BTC",
-            "markets": [
-                "BTC"
-            ],
-            "open": 0.00001079000000000000,
-            "quoteCurrency": "BTC",
-            "sell": 0.0000104,
-            "sort": 100,
-            "symbol": "IOTA-BTC",
-            "symbolCode": "IOTA-BTC",
-            "takerCoefficient": 1.000000,
-            "takerFeeRate": 0.001,
-            "trading": true,
-            "vol": 25256.29780000000000000000,
-            "volValue": 0.27050734202100000000
-        }
-    },
-	{
-        "sequence": "5701721019",
-        "data": {
-            "averagePrice": 21736.73225440,
-            "baseCurrency": "BTC",
-            "board": 1,
-            "buy": 21458.4,
-            "changePrice": -522.00000000000000000000,
-            "changeRate": -0.0237,
-            "close": 21462.4,
-            "datetime": 1676310748151,
-            "high": 22030.70000000000000000000,
-            "lastTradedPrice": 21462.4,
-            "low": 21407.00000000000000000000,
-            "makerCoefficient": 1.000000,
-            "makerFeeRate": 0.001,
-            "marginTrade": true,
-            "mark": 0,
-            "market": "USDS",
-            "markets": [
-                "USDS"
-            ],
-            "open": 21984.40000000000000000000,
-            "quoteCurrency": "USDT",
-            "sell": 21458.5,
-            "sort": 100,
-            "symbol": "BTC-USDT",
-            "symbolCode": "BTC-USDT",
-            "takerCoefficient": 1.000000,
-            "takerFeeRate": 0.001,
-            "trading": true,
-            "vol": 6175.26880089000000000000,
-            "volValue": 133891144.21594148400000000000
-        }
-    }
-},
-
-{
-    "type": "message",
-    "topic": "/market/snapshot:BTC-USDT",
-    "subject": "trade.snapshot",
-    "data": {
-        "sequence": "5701721019",
-        "data": {
-            "averagePrice": 21736.73225440,
-            "baseCurrency": "BTC",
-            "board": 1,
-            "buy": 21458.4,
-            "changePrice": -522.00000000000000000000,
-            "changeRate": -0.0237,
-            "close": 21462.4,
-            "datetime": 1676310748151,
-            "high": 22030.70000000000000000000,
-            "lastTradedPrice": 21462.4,
-            "low": 21407.00000000000000000000,
-            "makerCoefficient": 1.000000,
-            "makerFeeRate": 0.001,
-            "marginTrade": true,
-            "mark": 0,
-            "market": "USDS",
-            "markets": [
-                "USDS"
-            ],
-            "open": 21984.40000000000000000000,
-            "quoteCurrency": "USDT",
-            "sell": 21458.5,
-            "sort": 100,
-            "symbol": "BTC-USDT",
-            "symbolCode": "BTC-USDT",
-            "takerCoefficient": 1.000000,
-            "takerFeeRate": 0.001,
-            "trading": true,
-            "vol": 6175.26880089000000000000,
-            "volValue": 133891144.21594148400000000000
-        }
-    }
-}
-
-*/
 
 var (
 	symbolTickerPushDataJSON     = `{"type":"message","topic":"/market/ticker:BTC-USDT","subject":"trade.ticker","data":{"sequence":"1545896668986","price":"0.08","size":"0.011","bestAsk":"0.08","bestAskSize":"0.18","bestBid":"0.049","bestBidSize":"0.036"}}`
@@ -2392,14 +2208,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	enabled, err := ku.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Error("couldn't find enabled tradable pairs")
-	}
-	if len(enabled) == 0 {
-		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	}
-	_, err = ku.GetOrderInfo(context.Background(), "123", enabled[0], asset.Futures)
+	_, err := ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Errorf("Kucoin GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
 	}
@@ -2603,4 +2412,17 @@ func TestGetFundingHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func getFirstTradablePairOfAssets() {
+	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Spot)
+	}
+	spotTradablePair = enabledPairs[0]
+	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Futures)
+	}
+	futuresTradablePair = enabledPairs[0]
 }

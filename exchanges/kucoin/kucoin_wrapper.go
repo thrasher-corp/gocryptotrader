@@ -258,15 +258,16 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		if err != nil {
 			return nil, err
 		}
-		pairs := make(currency.Pairs, len(myPairs))
+		pairs := make(currency.Pairs, 0, len(myPairs))
 		for x := range myPairs {
 			if !myPairs[x].EnableTrading {
 				continue
 			}
-			pairs[x], err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
+			newPair, err := currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
 			if err != nil {
 				return nil, err
 			}
+			pairs = append(pairs, newPair)
 		}
 		return pairs, nil
 	default:
@@ -277,13 +278,12 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := ku.GetAssetTypes(false)
+	assets := ku.GetAssetTypes(true)
 	for a := range assets {
 		pairs, err := ku.FetchTradablePairs(ctx, assets[a])
 		if err != nil {
 			return err
 		}
-		pairs = pairs.RemovePairsByFilter(currency.EMPTYCODE)
 		err = ku.UpdatePairs(pairs, assets[a], false, forceUpdate)
 		if err != nil {
 			return err
@@ -677,7 +677,11 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	switch s.AssetType {
 	case asset.Futures:
-		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, s.Side.Lower(), s.Pair.Upper().String(), s.Type.Lower(), "", "", "", "", s.Amount, s.Price, s.TriggerPrice, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, s.Hidden, false)
+		sideString, err := ku.orderSideString(s.Side)
+		if err != nil {
+			return nil, err
+		}
+		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, sideString, s.Pair.Upper().String(), s.Type.Lower(), "", "", "", "", s.Amount, s.Price, s.TriggerPrice, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, s.Hidden, false)
 		if err != nil {
 			return nil, err
 		}
@@ -686,13 +690,21 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if s.ClientID != "" && s.ClientOrderID == "" {
 			s.ClientOrderID = s.ClientID
 		}
-		o, err := ku.PostOrder(ctx, s.ClientOrderID, s.Side.Lower(), s.Pair.String(), s.Type.Lower(), "", "", "", s.Amount, s.Price, 0, 0, 0, s.PostOnly, s.Hidden, false)
+		sideString, err := ku.orderSideString(s.Side)
+		if err != nil {
+			return nil, err
+		}
+		o, err := ku.PostOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", "", s.Amount, s.Price, 0, 0, 0, s.PostOnly, s.Hidden, false)
 		if err != nil {
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(o)
 	case asset.Margin:
-		o, err := ku.PostMarginOrder(ctx, s.ClientOrderID, s.Side.Lower(), s.Pair.String(), s.Type.Lower(), "", "", s.MarginMode, "", s.Price, s.Amount, s.TriggerPrice, s.Amount, 0, s.PostOnly, s.Hidden, false, s.AutoBorrow)
+		sideString, err := ku.orderSideString(s.Side)
+		if err != nil {
+			return nil, err
+		}
+		o, err := ku.PostMarginOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", s.MarginMode, "", s.Price, s.Amount, s.TriggerPrice, s.Amount, 0, s.PostOnly, s.Hidden, false, s.AutoBorrow)
 		if err != nil {
 			return nil, err
 		}
@@ -952,7 +964,11 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		if len(getOrdersRequest.Pairs) == 1 {
 			pair = format.Format(getOrdersRequest.Pairs[0])
 		}
-		futuresOrders, err := ku.GetFuturesOrders(ctx, "active", pair, getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+		sideString, err := ku.orderSideString(getOrdersRequest.Side)
+		if err != nil {
+			return nil, err
+		}
+		futuresOrders, err := ku.GetFuturesOrders(ctx, "active", pair, sideString, getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1004,7 +1020,11 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		if len(getOrdersRequest.Pairs) == 1 {
 			pair = format.Format(getOrdersRequest.Pairs[0])
 		}
-		spotOrders, err := ku.ListOrders(ctx, "active", pair, getOrdersRequest.Side.Lower(), ku.orderTypeToString(getOrdersRequest.Type), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+		sideString, err := ku.orderSideString(getOrdersRequest.Side)
+		if err != nil {
+			return nil, err
+		}
+		spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, ku.orderTypeToString(getOrdersRequest.Type), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1077,7 +1097,12 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		var futuresOrders *FutureOrdersResponse
 		var newOrders *FutureOrdersResponse
 		if len(getOrdersRequest.Pairs) == 0 {
-			futuresOrders, err = ku.GetFuturesOrders(ctx, "", "", getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+			var sideString string
+			sideString, err = ku.orderSideString(getOrdersRequest.Side)
+			if err != nil {
+				return nil, err
+			}
+			futuresOrders, err = ku.GetFuturesOrders(ctx, "", "", sideString, getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 			if err != nil {
 				return nil, err
 			}
@@ -1087,7 +1112,12 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 				if err != nil {
 					return nil, err
 				}
-				newOrders, err = ku.GetFuturesOrders(ctx, "", getOrdersRequest.Pairs[x].String(), getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+				var sideString string
+				sideString, err = ku.orderSideString(getOrdersRequest.Side)
+				if err != nil {
+					return nil, err
+				}
+				newOrders, err = ku.GetFuturesOrders(ctx, "", getOrdersRequest.Pairs[x].String(), sideString, getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 				if err != nil {
 					return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())
 				}
@@ -1131,13 +1161,23 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		var responseOrders *OrdersListResponse
 		var newOrders *OrdersListResponse
 		if len(getOrdersRequest.Pairs) == 0 {
-			responseOrders, err = ku.ListOrders(ctx, "", "", getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+			var sideString string
+			sideString, err = ku.orderSideString(getOrdersRequest.Side)
+			if err != nil {
+				return nil, err
+			}
+			responseOrders, err = ku.ListOrders(ctx, "", "", sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			for x := range getOrdersRequest.Pairs {
-				newOrders, err = ku.ListOrders(ctx, "", getOrdersRequest.Pairs[x].String(), getOrdersRequest.Side.Lower(), getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+				var sideString string
+				sideString, err = ku.orderSideString(getOrdersRequest.Side)
+				if err != nil {
+					return nil, err
+				}
+				newOrders, err = ku.ListOrders(ctx, "", getOrdersRequest.Pairs[x].String(), sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 				if err != nil {
 					return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())
 				}

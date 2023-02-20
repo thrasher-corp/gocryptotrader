@@ -969,8 +969,10 @@ func (ku *Kucoin) PostBulkOrder(ctx context.Context, symbol string, orderList []
 	params := make(map[string]interface{})
 	params["symbol"] = symbol
 	params["orderList"] = orderList
-	var resp []PostBulkOrderResp
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeBulkOrdersEPL, http.MethodPost, kucoinPostBulkOrder, params, &resp)
+	resp := &struct {
+		Data []PostBulkOrderResp `json:"data"`
+	}{}
+	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeBulkOrdersEPL, http.MethodPost, kucoinPostBulkOrder, params, &resp)
 }
 
 // CancelSingleOrder used to cancel single order previously placed
@@ -1924,5 +1926,14 @@ func (ku *Kucoin) orderTypeToString(orderType order.Type) string {
 		return ""
 	default:
 		return orderType.Lower()
+	}
+}
+
+func (ku *Kucoin) orderSideString(side order.Side) (string, error) {
+	switch side {
+	case order.Buy, order.Sell:
+		return strings.ToLower(side.String()), nil
+	default:
+		return "", errors.New("unsupported order side")
 	}
 }

@@ -179,6 +179,10 @@ func (a *kucoinInteger) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		*a = kucoinInteger(value)
+	case float64:
+		*a = kucoinInteger(int64(val))
+	case float32:
+		*a = kucoinInteger(int64(val))
 	default:
 		return errors.New("unsupported integer value")
 	}

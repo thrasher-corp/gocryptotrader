@@ -809,13 +809,14 @@ type WsPushData struct {
 
 // WsTicker represents a ticker push data from server.
 type WsTicker struct {
-	Sequence    string  `json:"sequence"`
-	BestAsk     float64 `json:"bestAsk,string"`
-	Size        float64 `json:"size,string"`
-	BestBidSize float64 `json:"bestBidSize,string"`
-	Price       float64 `json:"price,string"`
-	BestAskSize float64 `json:"bestAskSize,string"`
-	BestBid     float64 `json:"bestBid,string"`
+	Sequence    string             `json:"sequence"`
+	BestAsk     float64            `json:"bestAsk,string"`
+	Size        float64            `json:"size,string"`
+	BestBidSize float64            `json:"bestBidSize,string"`
+	Price       float64            `json:"price,string"`
+	BestAskSize float64            `json:"bestAskSize,string"`
+	BestBid     float64            `json:"bestBid,string"`
+	Timestamp   kucoinTimeMilliSec `json:"time"`
 }
 
 // WsSpotTicker represents a spot ticker push data.
@@ -1183,7 +1184,7 @@ type WsStopOrderLifecycleEvent struct {
 	TriggerSuccess bool               `json:"triggerSuccess"`
 	Error          string             `json:"error"`
 	CreatedAt      kucoinTimeMilliSec `json:"createdAt"`
-	Timestamp      kucoinTimeMilliSec `json:"ts"`
+	Timestamp      kucoinTimeNanoSec  `json:"ts"`
 }
 
 // WsFuturesOrderMarginEvent represents an order margin account balance event.

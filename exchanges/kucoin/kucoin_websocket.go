@@ -128,7 +128,7 @@ func (ku *Kucoin) WsConnect() error {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
-		instances, _ = ku.GetAuthenticatedInstanceServers(context.Background())
+		instances, err = ku.GetAuthenticatedInstanceServers(context.Background())
 		if err != nil {
 			ku.Websocket.DataHandler <- err
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -686,13 +686,14 @@ func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Spot,
 		Last:         response.Size,
-		LastUpdated:  time.Now(),
+		LastUpdated:  response.Timestamp.Time(),
 		ExchangeName: ku.Name,
 		Pair:         pair,
 		Ask:          response.BestAsk,
 		Bid:          response.BestBid,
 		AskSize:      response.BestAskSize,
 		BidSize:      response.BestBidSize,
+		Volume:       response.Size,
 	}
 	return nil
 }
@@ -904,9 +905,11 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			accountBalanceChannel,
 			marginPositionChannel,
 			marginLoanChannel,
+
 			// futures authenticated channels
 			futuresTradeOrdersBySymbolChannel,
 			futuresTradeOrderChannel,
+			futuresStopOrdersLifecycleEventChannel,
 			futuresAccountBalanceEventChannel,
 		)
 	}
