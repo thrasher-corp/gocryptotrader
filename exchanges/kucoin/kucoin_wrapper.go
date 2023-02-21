@@ -966,7 +966,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		}
 		sideString, err := ku.orderSideString(getOrdersRequest.Side)
 		if err != nil {
-			return nil, err
+			sideString = ""
 		}
 		futuresOrders, err := ku.GetFuturesOrders(ctx, "active", pair, sideString, getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
@@ -1022,7 +1022,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 		}
 		sideString, err := ku.orderSideString(getOrdersRequest.Side)
 		if err != nil {
-			return nil, err
+			sideString = ""
 		}
 		spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, ku.orderTypeToString(getOrdersRequest.Type), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
