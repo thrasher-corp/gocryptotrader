@@ -33,6 +33,7 @@ const (
 	ClientID        = "clientid"
 	OneTimePassword = "otp"
 	PEMKey          = "pemkey"
+	PrivateKey      = "privatekey"
 )
 
 var (
@@ -50,6 +51,7 @@ type Credentials struct {
 	SubAccount      string
 	OneTimePassword string
 	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
+	PrivateKey string
 }
 
 // GetMetaData returns the credentials for metadata context deployment
@@ -72,6 +74,9 @@ func (c *Credentials) GetMetaData() (flag, values string) {
 	}
 	if c.OneTimePassword != "" {
 		vals = append(vals, OneTimePassword+":"+c.OneTimePassword)
+	}
+	if c.PrivateKey != "" {
+		vals = append(vals, PrivateKey+":"+c.PrivateKey)
 	}
 	return string(ContextCredentialsFlag), strings.Join(vals, ",")
 }
@@ -107,7 +112,8 @@ func (c *Credentials) IsEmpty() bool {
 		c.OneTimePassword == "" &&
 		c.PEMKey == "" &&
 		c.Secret == "" &&
-		c.SubAccount == ""
+		c.SubAccount == "" &&
+		c.PrivateKey == ""
 }
 
 // Equal determines if the keys are the same.
@@ -118,6 +124,7 @@ func (c *Credentials) Equal(other *Credentials) bool {
 		other != nil &&
 		c.Key == other.Key &&
 		c.ClientID == other.ClientID &&
+		c.PrivateKey == other.PrivateKey &&
 		(c.SubAccount == other.SubAccount || c.SubAccount == "" && other.SubAccount == "main" || c.SubAccount == "main" && other.SubAccount == "")
 }
 
@@ -186,6 +193,8 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 			ctxCreds.PEMKey = keyVals[1]
 		case OneTimePassword:
 			ctxCreds.OneTimePassword = keyVals[1]
+		case PrivateKey:
+			ctxCreds.PrivateKey = keyVals[1]
 		}
 	}
 	if ctxCreds.IsEmpty() && subAccountHere != "" {

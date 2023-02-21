@@ -195,7 +195,7 @@ func (b *Base) ValidateAPICredentials(creds *account.Credentials) error {
 }
 
 // SetCredentials is a method that sets the current API keys for the exchange
-func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
+func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword, privateKey string) {
 	b.API.credMu.Lock()
 	defer b.API.credMu.Unlock()
 	if b.API.credentials == nil {
@@ -206,6 +206,7 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 	b.API.credentials.SubAccount = subaccount
 	b.API.credentials.PEMKey = pemKey
 	b.API.credentials.OneTimePassword = oneTimePassword
+	b.API.credentials.PrivateKey = privateKey
 
 	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
 		result, err := crypto.Base64Decode(apiSecret)
@@ -249,6 +250,9 @@ func (b *Base) SetAPICredentialDefaults() {
 
 	if b.Config.API.CredentialsValidator.RequiresPEM != b.API.CredentialsValidator.RequiresPEM {
 		b.Config.API.CredentialsValidator.RequiresPEM = b.API.CredentialsValidator.RequiresPEM
+	}
+	if b.Config.API.CredentialsValidator.RequiresPrivateKey != b.API.CredentialsValidator.RequiresPrivateKey {
+		b.Config.API.CredentialsValidator.RequiresPrivateKey = b.API.CredentialsValidator.RequiresPrivateKey
 	}
 }
 

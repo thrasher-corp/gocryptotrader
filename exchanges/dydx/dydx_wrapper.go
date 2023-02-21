@@ -56,8 +56,8 @@ func (dy *DYDX) SetDefaults() {
 	dy.Verbose = true
 	dy.API.CredentialsValidator.RequiresKey = true
 	dy.API.CredentialsValidator.RequiresSecret = true
-	dy.API.CredentialsValidator.RequiresClientID = true
 	dy.API.CredentialsValidator.RequiresPEM = true
+	dy.API.CredentialsValidator.RequiresPrivateKey = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
@@ -929,8 +929,8 @@ func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (dy *DYDX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (dy *DYDX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.

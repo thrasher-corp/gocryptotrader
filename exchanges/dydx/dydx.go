@@ -3,6 +3,7 @@ package dydx
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -16,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -555,15 +558,10 @@ func (dy *DYDX) CreateWithdrawal(ctx context.Context, privateKey string, arg *Wi
 	if arg.Expiration.Time().Before(time.Now().Add(time.Hour * 24 * 7)) {
 		return nil, errInvalidExpirationTime
 	}
-	creds, err := dy.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
 	if arg.ClientGeneratedID == "" {
 		arg.ClientGeneratedID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
 	}
-	var signature string
-	signature, err = starkex.WithdrawSign(creds.SubAccount, starkex.WithdrawSignParam{
+	signature, err := starkex.WithdrawSign(privateKey, starkex.WithdrawSignParam{
 		NetworkId:   1,
 		HumanAmount: strconv.FormatFloat(arg.Amount, 'f', -1, 64),
 		Expiration:  arg.Expiration.timeString(),
@@ -943,4 +941,31 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 		}, nil
 	}
 	return dy.SendPayload(ctx, epl, newRequest)
+}
+
+// GeneratePublicKeyAndAddress generates a public key and address given private key information.
+func GeneratePublicKeyAndAddress(privateKey string) (publicKeyString, addressString string, err error) {
+	if privateKey == "" {
+		return "", "", errors.New("private key is missing")
+	}
+	var privKeyBytes []byte
+	var privKey *ecdsa.PrivateKey
+	if privateKey[0:2] != "0x" {
+		privateKey = "0x" + privateKey
+	}
+	privKeyBytes, err = hexutil.Decode(privateKey)
+	if err != nil {
+		return "", "", err
+	}
+	privKey, err = crypto.ToECDSA(privKeyBytes)
+	if err != nil {
+		return "", "", err
+	}
+	publicKey := privKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", "", errors.New("cannot assert type *ecdsa.PublicKey")
+	}
+	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+	return hexutil.Encode(publicKeyBytes), crypto.PubkeyToAddress(*publicKeyECDSA).Hex(), nil
 }

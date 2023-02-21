@@ -27,13 +27,10 @@ const (
 	apiKey     = ""
 	apiSecret  = ""
 	passphrase = ""
+	privateKey = ""
 
-	ethereumAddress = ""
-	privateKey      = ""
+	address = ""
 
-	starkKeyXCoordinate     = ""
-	starkKeyYCoordinate     = ""
-	starkPrivateKey         = ""
 	canManipulateRealOrders = false
 
 	missingAuthenticationCredentials                     = "missing authentication credentials"
@@ -55,16 +52,15 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	if apiKey != "" && apiSecret != "" && passphrase != "" {
+	if apiKey != "" && apiSecret != "" && passphrase != "" && privateKey != "" {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
 	}
 
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.ClientID = ethereumAddress
 	exchCfg.API.Credentials.PEMKey = passphrase
-	exchCfg.API.Credentials.Subaccount = starkPrivateKey
+	exchCfg.API.Credentials.PrivateKey = privateKey
 
 	err = dy.Setup(exchCfg)
 	if err != nil {
@@ -335,7 +331,7 @@ func TestRecoverStarkKeyQuoteBalanceAndOpenPosition(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background(), ethereumAddress, privateKey)
+	_, err := dy.RecoverStarkKeyQuoteBalanceAndOpenPosition(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -346,7 +342,7 @@ func TestGetRegistration(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.GetRegistration(context.Background(), ethereumAddress, privateKey)
+	_, err := dy.GetRegistration(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -357,7 +353,7 @@ func TestRegisterAPIKey(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.RegisterAPIKey(context.Background(), ethereumAddress, privateKey)
+	_, err := dy.RegisterAPIKey(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -368,7 +364,7 @@ func TestGetAPIKeys(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.GetAPIKeys(context.Background(), ethereumAddress, privateKey)
+	_, err := dy.GetAPIKeys(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -379,7 +375,7 @@ func TestDeleteAPIKeys(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey", ethereumAddress, privateKey)
+	_, err := dy.DeleteAPIKeys(context.Background(), "publicKey")
 	if err != nil {
 		t.Error(err)
 	}
@@ -390,16 +386,16 @@ func TestOnboarding(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.Onboarding(context.Background(), nil, privateKey)
+	_, err := dy.Onboarding(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Error(err)
 	}
 	_, err = dy.Onboarding(context.Background(), &OnboardingParam{
-		StarkXCoordinate: starkKeyXCoordinate,
-		StarkYCoordinate: starkKeyYCoordinate,
-		EthereumAddress:  ethereumAddress,
+		StarkXCoordinate: "starkKeyXCoordinate",
+		StarkYCoordinate: "starkKeyYCoordinate",
+		EthereumAddress:  address,
 		Country:          "RU",
-	}, privateKey)
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -445,7 +441,7 @@ func TestGetUserActiveLinks(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.GetUserActiveLinks(context.Background(), "PRIMARY", ethereumAddress, "")
+	_, err := dy.GetUserActiveLinks(context.Background(), "PRIMARY", address, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -489,7 +485,7 @@ func TestGetAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	if _, err := dy.GetAccount(context.Background(), ethereumAddress); err != nil {
+	if _, err := dy.GetAccount(context.Background(), address); err != nil {
 		t.Error(err)
 	}
 }
@@ -558,7 +554,7 @@ func TestCreateFastWithdrawal(t *testing.T) {
 		LPPositionID: 1,
 		Expiration:   dydxTimeUTC(time.Now().Add(time.Hour * 8 * 24)),
 		ClientID:     "123456",
-		ToAddress:    ethereumAddress,
+		ToAddress:    address,
 	}); err != nil {
 		t.Error(err)
 	}
@@ -967,4 +963,13 @@ func TestGetServerTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGenerateAddress(t *testing.T) {
+	t.Parallel()
+	publicKey, address, err := GeneratePublicKeyAndAddress("8d8c82ea4fbfe9a86a45389ef5e82ae24981624baa7bd364c6f36c3a69e8a4e7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	println(publicKey, address)
 }

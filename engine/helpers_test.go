@@ -318,7 +318,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 
 	b := exch.GetBase()
 	b.API.AuthenticatedWebsocketSupport = true
-	b.SetCredentials("test", "test", "", "", "", "")
+	b.SetCredentials("test", "test", "", "", "", "", "")
 	if result := e.GetAuthAPISupportedExchanges(); len(result) != 1 {
 		t.Fatal("Unexpected result", result)
 	}

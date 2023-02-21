@@ -205,6 +205,7 @@ type CredentialsValidator struct {
 	RequiresSecret             bool
 	RequiresClientID           bool
 	RequiresBase64DecodeSecret bool
+	RequiresPrivateKey         bool
 }
 
 // Base stores the individual exchange information

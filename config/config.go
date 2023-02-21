@@ -171,6 +171,9 @@ func (c *Config) PurgeExchangeAPICredentials() {
 			c.Exchanges[x].API.Credentials.ClientID = DefaultAPIClientID
 		}
 
+		if c.Exchanges[x].API.CredentialsValidator.RequiresPrivateKey {
+			c.Exchanges[x].API.Credentials.PrivateKey = DefaultAPIPrivateKey
+		}
 		c.Exchanges[x].API.Credentials.PEMKey = ""
 		c.Exchanges[x].API.Credentials.OTPSecret = ""
 	}

@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitfinex setup error", err)
 	}
-	b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	b.SetCredentials(apiKey, apiSecret, "", "", "", "", "")
 	if !b.Enabled || b.API.AuthenticatedSupport ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 {
 		log.Fatal("Bitfinex Setup values not set correctly")
