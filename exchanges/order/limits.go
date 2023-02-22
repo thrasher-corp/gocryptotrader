@@ -58,8 +58,9 @@ var (
 // order size, order pricing, total notional values, total maximum orders etc
 // for execution on an exchange.
 type ExecutionLimits struct {
-	m   map[asset.Item]map[*currency.Item]map[*currency.Item]MinMaxLevel
-	mtx sync.RWMutex
+	isSupported bool
+	m           map[asset.Item]map[*currency.Item]map[*currency.Item]MinMaxLevel
+	mtx         sync.RWMutex
 }
 
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
@@ -93,6 +94,9 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 	}
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
+	if !e.isSupported {
+		e.isSupported = true
+	}
 	if e.m == nil {
 		e.m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]MinMaxLevel)
 	}
@@ -150,7 +154,9 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
-
+	//if !e.isSupported {
+	//	return MinMaxLevel{}, common.ErrFunctionNotSupported
+	//}
 	if e.m == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}

@@ -1,8 +1,18 @@
 package engine
 
 import (
+	"context"
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -322,4 +332,275 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+}
+
+func TestAllExchanges(t *testing.T) {
+	t.Parallel()
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("ZB load config error", err)
+	}
+	for i := range cfg.Exchanges {
+		if i > 0 {
+			continue
+		}
+		name := cfg.Exchanges[i].Name
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			em := SetupExchangeManager()
+			exch, err := em.NewExchangeByName(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exchCfg, err := cfg.GetExchangeConfig(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exch.SetDefaults()
+			exchCfg.API.AuthenticatedSupport = true
+			exchCfg.API.Credentials.Key = "key"
+			exchCfg.API.Credentials.Secret = "secret"
+			exchCfg.API.Credentials.ClientID = "clientid"
+			err = exch.Setup(exchCfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exch.UpdateTradablePairs(context.Background(), true)
+			b := exch.GetBase()
+			assets := b.CurrencyPairs.GetAssetTypes(false)
+			testMap := make([]assetPair, len(assets))
+			for j := range assets {
+				err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
+				if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+					t.Fatal(err)
+				}
+				pairs, err := b.CurrencyPairs.GetPairs(assets[j], false)
+				if err != nil {
+					t.Fatal(err)
+				}
+				p, err := pairs.GetRandomPair()
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = b.CurrencyPairs.EnablePair(assets[j], p)
+				if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
+					t.Fatal(err)
+				}
+				p, err = disruptFormatting(p)
+				if err != nil {
+					t.Fatal(err)
+				}
+				testMap[j] = assetPair{
+					Pair:  p,
+					Asset: assets[j],
+				}
+			}
+			what, err := testWrappers(t, exch, testMap)
+			if err != nil {
+				t.Error(err)
+			}
+			for zz := range what {
+				t.Log(what[zz])
+			}
+		})
+	}
+}
+
+type assetPair struct {
+	Pair  currency.Pair
+	Asset asset.Item
+}
+
+func testWrappers(t *testing.T, e exchange.IBotExchange, assetParams []assetPair) ([]string, error) {
+	iExchange := reflect.TypeOf(&e).Elem()
+	actualExchange := reflect.ValueOf(e)
+	errType := reflect.TypeOf(common.ErrNotYetImplemented)
+
+	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
+	cpParam := reflect.TypeOf((*currency.Pair)(nil)).Elem()
+	assetParam := reflect.TypeOf((*asset.Item)(nil)).Elem()
+	klineParam := reflect.TypeOf((*kline.Interval)(nil)).Elem()
+	timeParam := reflect.TypeOf((*time.Time)(nil)).Elem()
+	codeParam := reflect.TypeOf((*currency.Code)(nil)).Elem()
+
+	startDateroo := time.Now().Add(-time.Hour * 2).Truncate(time.Hour)
+	endDateroo := time.Now().Truncate(time.Hour)
+	var funcs []string
+methods:
+	for x := 0; x < iExchange.NumMethod(); x++ {
+		name := iExchange.Method(x).Name
+		method := actualExchange.MethodByName(name)
+		inputs := make([]reflect.Value, method.Type().NumIn())
+		assetPairIndex := 0
+		setStartTime := false
+
+		for y := 0; y < method.Type().NumIn(); y++ {
+			input := method.Type().In(y)
+			switch {
+			case input.Implements(contextParam):
+				// Need to deploy a context.Context value as nil value is not
+				// checked throughout codebase.
+				inputs[y] = reflect.ValueOf(context.Background())
+				continue
+			case input.AssignableTo(cpParam):
+				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair)
+			case input.AssignableTo(assetParam):
+				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Asset)
+				assetPairIndex++
+			case input.AssignableTo(klineParam):
+				inputs[y] = reflect.ValueOf(kline.OneHour)
+			case input.AssignableTo(codeParam):
+				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair.Base)
+			case input.AssignableTo(timeParam):
+				if setStartTime {
+					inputs[y] = reflect.ValueOf(endDateroo)
+				} else {
+					inputs[y] = reflect.ValueOf(startDateroo)
+					setStartTime = true
+				}
+			default:
+				resp := buildRequest(name, assetParams[assetPairIndex].Asset, assetParams[assetPairIndex].Pair, input)
+				if resp == nil {
+					// unsupported request
+					continue methods
+				} else {
+					inputs[y] = reflect.ValueOf(resp)
+				}
+			}
+		}
+
+		for i := 0; i <= assetPairIndex; i++ {
+			t.Run(name+"-"+assetParams[assetPairIndex].Asset.String()+"-"+assetParams[assetPairIndex].Pair.String(), func(t *testing.T) {
+				t.Parallel()
+				outputs := method.Call(inputs)
+				if method.Type().NumIn() == 0 {
+					// Some empty functions will reset the exchange struct to defaults,
+					// so turn off verbosity.
+					e.GetBase().Verbose = false
+				}
+
+				for y := range outputs {
+					incoming := outputs[y].Interface()
+					if reflect.TypeOf(incoming) == errType {
+						err, ok := incoming.(error)
+						if !ok {
+							t.Errorf("%s type assertion failure for %v", name, incoming)
+							continue
+						}
+						switch {
+						case errors.Is(err, common.ErrFunctionNotSupported),
+							errors.Is(err, request.ErrAuthRequestFailed):
+							funcs = append(funcs, name+" "+err.Error())
+						default:
+							if err != nil {
+								t.Error(err)
+							}
+						}
+						break
+					}
+				}
+			})
+		}
+
+	}
+
+	return funcs, nil
+}
+
+func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type) interface{} {
+	pairs := reflect.TypeOf((*currency.Pairs)(nil)).Elem()
+	wr := reflect.TypeOf((**withdraw.Request)(nil)).Elem()
+	os := reflect.TypeOf((**order.Submit)(nil)).Elem()
+	om := reflect.TypeOf((**order.Modify)(nil)).Elem()
+	oc := reflect.TypeOf((**order.Cancel)(nil)).Elem()
+	occ := reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
+	gor := reflect.TypeOf((**order.GetOrdersRequest)(nil)).Elem()
+
+	switch {
+	case input.AssignableTo(pairs):
+		return currency.Pairs{
+			p,
+		}
+	case input.AssignableTo(wr):
+		return &withdraw.Request{
+			Exchange:      name,
+			Currency:      p.Base,
+			Description:   "1337",
+			Amount:        1337,
+			Type:          withdraw.Crypto,
+			ClientOrderID: "1337",
+			Crypto: withdraw.CryptoRequest{
+				Address:    "1337",
+				AddressTag: "1337",
+				Chain:      "1337",
+			},
+		}
+	case input.AssignableTo(os):
+		return &order.Submit{
+			Exchange:      name,
+			Type:          order.Market,
+			Side:          order.Buy,
+			Pair:          p,
+			AssetType:     a,
+			Price:         1337,
+			Amount:        1337,
+			ClientID:      "1337",
+			ClientOrderID: "13371337",
+		}
+	case input.AssignableTo(om):
+		return &order.Modify{
+			Exchange:      name,
+			Type:          order.Market,
+			Side:          order.Buy,
+			Pair:          p,
+			AssetType:     a,
+			Price:         1337,
+			Amount:        1337,
+			ClientOrderID: "13371337",
+		}
+	case input.AssignableTo(oc):
+		return &order.Cancel{
+			Exchange:      name,
+			Type:          order.Market,
+			Side:          order.Buy,
+			Pair:          p,
+			AssetType:     a,
+			ClientOrderID: "13371337",
+		}
+	case input.AssignableTo(occ):
+		return []order.Cancel{
+			{
+				Exchange:      name,
+				Type:          order.Market,
+				Side:          order.Buy,
+				Pair:          p,
+				AssetType:     a,
+				ClientOrderID: "13371337",
+			},
+		}
+	case input.AssignableTo(gor):
+		return &order.GetOrdersRequest{
+			Type:      order.AnyType,
+			Side:      order.AnySide,
+			OrderID:   "1337",
+			AssetType: a,
+			Pairs:     currency.Pairs{p},
+		}
+	}
+	return nil
+}
+
+// disruptFormatting adds in an unused delimiter and strange casing features to
+// ensure format currency pair is used throughout the code base.
+func disruptFormatting(p currency.Pair) (currency.Pair, error) {
+	if p.Base.IsEmpty() {
+		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as base is not populated")
+	}
+	// NOTE: Quote can be empty for margin funding
+	return currency.Pair{
+		Base:      p.Base.Upper(),
+		Quote:     p.Quote.Lower(),
+		Delimiter: "-TEST-DELIM-",
+	}, nil
 }

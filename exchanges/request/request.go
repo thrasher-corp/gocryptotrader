@@ -23,7 +23,9 @@ const contextVerboseFlag verbosity = "verbose"
 var (
 	// ErrRequestSystemIsNil defines and error if the request system has not
 	// been set up yet.
-	ErrRequestSystemIsNil     = errors.New("request system is nil")
+	ErrRequestSystemIsNil = errors.New("request system is nil")
+	ErrAuthRequestFailed  = errors.New("authenticated request failed")
+
 	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
@@ -237,6 +239,13 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
+			if p.AuthRequest {
+				return fmt.Errorf("%w %s unsuccessful HTTP status code: %d raw response: %s",
+					ErrAuthRequestFailed,
+					r.name,
+					resp.StatusCode,
+					string(contents))
+			}
 			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
 				r.name,
 				resp.StatusCode,
