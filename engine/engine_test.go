@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -603,4 +604,49 @@ func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 		Quote:     p.Quote.Lower(),
 		Delimiter: "-TEST-DELIM-",
 	}, nil
+}
+
+func TestDataHandlerErrors(t *testing.T) {
+	t.Parallel()
+	// the goal of this test is to create a custom
+	// data handler per exchange that has a websocket
+	// then if any errors are returned, add to a t.Error
+	// allow the websocket to be running for 30 seconds
+	t.Parallel()
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("ZB load config error", err)
+	}
+	for i := range cfg.Exchanges {
+		if i > 0 {
+			continue
+		}
+		name := cfg.Exchanges[i].Name
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			em := SetupExchangeManager()
+			exch, err := em.NewExchangeByName(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exchCfg, err := cfg.GetExchangeConfig(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exch.SetDefaults()
+			exchCfg.Websocket = convert.BoolPtr(true)
+			exchCfg.Features.Enabled.Websocket = true
+			err = exch.Setup(exchCfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ws, err := exch.GetWebsocket()
+			ws.DataHandler = make(chan interface{}, 1)
+		})
+	}
+}
+
+func SomethingToReadTheDataHandlerAndCheckForErrors() error {
+
 }
