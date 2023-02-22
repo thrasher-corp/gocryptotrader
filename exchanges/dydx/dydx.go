@@ -402,6 +402,7 @@ func (dy *DYDX) Updateusers(ctx context.Context, params *UpdateUserParams) (*Use
 }
 
 // GetUserActiveLinks return active user links.
+// linkedAddress is the addresses of the SECONDARY users if userType = PRIMARY. null otherwise.
 func (dy *DYDX) GetUserActiveLinks(ctx context.Context, userType, primaryAddress, linkedAddress string) (*UserActiveLink, error) {
 	params := url.Values{}
 	if userType != "" {

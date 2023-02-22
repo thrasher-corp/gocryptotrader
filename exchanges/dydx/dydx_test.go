@@ -24,12 +24,10 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey     = ""
-	apiSecret  = ""
-	passphrase = ""
-	privateKey = ""
-
-	address = ""
+	apiKey     = "7e67e8ed-7fa8-687a-89aa-db2516aeb999"
+	apiSecret  = "SLmBML4N5fiHLKqYA9UQZgyRjGxWKI96CmaJDImZ"
+	passphrase = "6--EmNmMXYVXw1HqPEUu"
+	privateKey = "8d8c82ea4fbfe9a86a45389ef5e82ae24981624baa7bd364c6f36c3a69e8a4e7"
 
 	canManipulateRealOrders = false
 
@@ -393,7 +391,6 @@ func TestOnboarding(t *testing.T) {
 	_, err = dy.Onboarding(context.Background(), &OnboardingParam{
 		StarkXCoordinate: "starkKeyXCoordinate",
 		StarkYCoordinate: "starkKeyYCoordinate",
-		EthereumAddress:  address,
 		Country:          "RU",
 	})
 	if err != nil {
@@ -441,7 +438,7 @@ func TestGetUserActiveLinks(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	_, err := dy.GetUserActiveLinks(context.Background(), "PRIMARY", address, "")
+	_, err := dy.GetUserActiveLinks(context.Background(), "PRIMARY", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -485,7 +482,7 @@ func TestGetAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(missingAuthenticationCredentials)
 	}
-	if _, err := dy.GetAccount(context.Background(), address); err != nil {
+	if _, err := dy.GetAccount(context.Background(), "address"); err != nil {
 		t.Error(err)
 	}
 }
@@ -554,7 +551,7 @@ func TestCreateFastWithdrawal(t *testing.T) {
 		LPPositionID: 1,
 		Expiration:   dydxTimeUTC(time.Now().Add(time.Hour * 8 * 24)),
 		ClientID:     "123456",
-		ToAddress:    address,
+		ToAddress:    "address",
 	}); err != nil {
 		t.Error(err)
 	}
@@ -967,7 +964,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGenerateAddress(t *testing.T) {
 	t.Parallel()
-	publicKey, address, err := GeneratePublicKeyAndAddress("8d8c82ea4fbfe9a86a45389ef5e82ae24981624baa7bd364c6f36c3a69e8a4e7")
+	publicKey, address, err := GeneratePublicKeyAndAddress("privateKey")
 	if err != nil {
 		t.Fatal(err)
 	}

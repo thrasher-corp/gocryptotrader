@@ -42,6 +42,15 @@ func (dy *DYDX) Onboarding(ctx context.Context, arg *OnboardingParam) (*Onboardi
 	if arg.Country == "" {
 		return nil, errors.New("country is required")
 	}
+	creds, err := dy.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, ethereumAddress, err := GeneratePublicKeyAndAddress(creds.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	arg.EthereumAddress = ethereumAddress
 	return &resp, dy.SendEthereumSignedRequest(ctx, exchange.RestSpot, http.MethodPost, onboarding, true, &arg, &resp)
 }
 
@@ -273,6 +282,7 @@ func generateOnboardingEIP712(privateKey *ecdsa.PrivateKey) (string, error) {
 
 // generateAPIKeyEIP712 generated an EIP712 API key signature using private key
 func generateAPIKeyEIP712(privateKey *ecdsa.PrivateKey, method, requestPath, body, timestamp string) (string, error) {
+	// chainId := math.HexOrDecimal256(*big.NewInt(1))
 	domain := EIP712Domain{
 		Name:    "dydx",
 		Version: "1.0",
@@ -301,6 +311,35 @@ func generateAPIKeyEIP712(privateKey *ecdsa.PrivateKey, method, requestPath, bod
 		"message": messageFields,
 	}
 
+	// var typedData = apitypes.TypedData{
+	// 	Types: apitypes.Types{
+	// 		"EIP712Domain": []apitypes.Type{
+	// 			{Name: "name", Type: "string"},
+	// 			{Name: "version", Type: "string"},
+	// 			{Name: "chainId", Type: "uint256"},
+	// 		},
+	// 		"Message": []apitypes.Type{
+	// 			{Name: "method", Type: "address"},
+	// 			{Name: "requestPath", Type: "string"},
+	// 			{Name: "body", Type: "string"},
+	// 			{Name: "timestamp", Type: "string"},
+	// 		},
+	// 	},
+	// 	Domain: apitypes.TypedDataDomain{
+	// 		Name:    "dydx",
+	// 		Version: "1.0",
+	// 		ChainId: &chainId,
+	// 	},
+	// 	PrimaryType: "dYdX",
+	// 	Message: TypedDataMessage{
+	// 		"method":      method,
+	// 		"requestPath": requestPath,
+	// 		"body":        body,
+	// 		"timestamp":   timestamp,
+	// 	},
+	// }
+
+	// dataHash, _, err := sigverify.HashTypedData(typedData)
 	eipMessage, err := json.Marshal(data)
 	if err != nil {
 		return "", err
