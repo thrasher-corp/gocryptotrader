@@ -136,6 +136,9 @@ func (by *Bybit) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, 
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
 		return resp.Data, errInvalidInterval
 	}
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	}
 	params.Set("interval", interval)
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
