@@ -35,7 +35,6 @@ var Exchanges = []string{
 	"itbit",
 	"kraken",
 	"lbank",
-	"localbitcoins",
 	"okcoin international",
 	"okx",
 	"poloniex",
