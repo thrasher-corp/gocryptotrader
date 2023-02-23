@@ -558,8 +558,27 @@ func (b *Bitfinex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	history, err := b.GetMovementHistory(ctx, c.String(), "", time.Date(2012, 0, 0, 0, 0, 0, 0, time.Local), time.Now(), 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(history))
+	for i := range history {
+		resp[i] = exchange.WithdrawalHistory{
+			Status:      history[i].Status,
+			TransferID:  strconv.FormatInt(history[i].ID, 64),
+			Description: history[i].Description,
+			//	Timestamp:       history[i].Timestamp,
+			Currency:        history[i].Currency,
+			Amount:          history[i].Amount,
+			Fee:             history[i].Fee,
+			TransferType:    history[i].Type,
+			CryptoToAddress: history[i].Address,
+			//CryptoTxID:      history[i].TxID,
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -740,6 +759,19 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *Bitfinex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+	orderIDs := make([]int64, len(o))
+	var err error
+	for i := range o {
+		orderIDs[i], err = strconv.ParseInt(o[i].OrderID, 10, 64)
+		if err != nil {
+			return order.CancelBatchResponse{}, fmt.Errorf("%w - '%v'", err, o[i].OrderID)
+		}
+	}
+	_, err = b.CancelMultipleOrders(ctx, orderIDs)
+	if err != nil {
+		return order.CancelBatchResponse{}, err
+	}
+
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -1210,4 +1242,9 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 		return nil, fmt.Errorf("unable to find any available chains")
 	}
 	return availChains, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Bitfinex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }

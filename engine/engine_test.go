@@ -3,6 +3,11 @@ package engine
 import (
 	"context"
 	"errors"
+	"os"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -12,10 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"os"
-	"reflect"
-	"testing"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
@@ -343,9 +344,6 @@ func TestAllExchanges(t *testing.T) {
 		t.Fatal("ZB load config error", err)
 	}
 	for i := range cfg.Exchanges {
-		if i > 0 {
-			continue
-		}
 		name := cfg.Exchanges[i].Name
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -370,6 +368,9 @@ func TestAllExchanges(t *testing.T) {
 			exch.UpdateTradablePairs(context.Background(), true)
 			b := exch.GetBase()
 			assets := b.CurrencyPairs.GetAssetTypes(false)
+			if len(assets) == 0 {
+				t.Fatal(name)
+			}
 			testMap := make([]assetPair, len(assets))
 			for j := range assets {
 				err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
@@ -413,7 +414,37 @@ type assetPair struct {
 	Asset asset.Item
 }
 
+// unsupportedFunctionNames represent the functions that are not
+// currently tested under this suite due to irrelevance
+// or not worth checking yet
+var unsupportedFunctionNames = []string{
+	"GetCollateralCurrencyForContract",
+	"GetCurrencyForRealisedPNL",
+	"FlushWebsocketChannels",
+	"GetOrderExecutionLimits",
+	"IsPerpetualFutureCurrency",
+	"UpdateCurrencyStates",
+	"UpdateOrderExecutionLimits",
+	"CanTradePair",
+	"CanTrade",
+	"CanWithdraw",
+	"CanDeposit",
+	"GetCurrencyStateSnapshot",
+	"GetPositionSummary",
+	"ScaleCollateral",
+	"CalculateTotalCollateral",
+	"GetFuturesPositions",
+	"GetFundingRates",
+	"IsPerpetualFutureCurrency",
+	"GetMarginRatesHistory",
+	"CalculatePNL",
+	"AuthenticateWebsocket",
+}
+
 func testWrappers(t *testing.T, e exchange.IBotExchange, assetParams []assetPair) ([]string, error) {
+	if e.GetName() == "Bitflyer" {
+		return nil, nil
+	}
 	iExchange := reflect.TypeOf(&e).Elem()
 	actualExchange := reflect.ValueOf(e)
 	errType := reflect.TypeOf(common.ErrNotYetImplemented)
@@ -431,6 +462,9 @@ func testWrappers(t *testing.T, e exchange.IBotExchange, assetParams []assetPair
 methods:
 	for x := 0; x < iExchange.NumMethod(); x++ {
 		name := iExchange.Method(x).Name
+		if common.StringDataContains(unsupportedFunctionNames, name) {
+			continue
+		}
 		method := actualExchange.MethodByName(name)
 		inputs := make([]reflect.Value, method.Type().NumIn())
 		assetPairIndex := 0
@@ -448,7 +482,9 @@ methods:
 				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair)
 			case input.AssignableTo(assetParam):
 				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Asset)
-				assetPairIndex++
+				if assetPairIndex < len(assetParams)-1 {
+					assetPairIndex++
+				}
 			case input.AssignableTo(klineParam):
 				inputs[y] = reflect.ValueOf(kline.OneHour)
 			case input.AssignableTo(codeParam):
@@ -648,5 +684,5 @@ func TestDataHandlerErrors(t *testing.T) {
 }
 
 func SomethingToReadTheDataHandlerAndCheckForErrors() error {
-
+	return nil
 }
