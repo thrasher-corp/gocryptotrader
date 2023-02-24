@@ -569,7 +569,7 @@ func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type
 	case input.AssignableTo(wr):
 		return &withdraw.Request{
 			Exchange:      name,
-			Currency:      p.Base,
+			Currency:      p.Quote,
 			Description:   "1337",
 			Amount:        1337,
 			Type:          withdraw.Crypto,

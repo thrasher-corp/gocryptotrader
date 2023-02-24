@@ -634,8 +634,8 @@ func (b *Bithumb) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdr
 	if math.Mod(withdrawRequest.Amount, 1) != 0 {
 		return nil, errors.New("currency KRW does not support decimal places")
 	}
-	if withdrawRequest.Currency != currency.KRW {
-		return nil, errors.New("only KRW is supported")
+	if !withdrawRequest.Currency.Equal(currency.KRW) {
+		return nil, fmt.Errorf("only KRW supported, received '%v'", withdrawRequest.Currency)
 	}
 	bankDetails := strconv.FormatFloat(withdrawRequest.Fiat.Bank.BankCode, 'f', -1, 64) +
 		"_" + withdrawRequest.Fiat.Bank.BankName
