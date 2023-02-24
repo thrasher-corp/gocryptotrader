@@ -711,28 +711,32 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if !b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return nil, common.ErrNotYetImplemented
-	}
-
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
 
-	orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
-	if err != nil {
-		return &order.ModifyResponse{OrderID: action.OrderID}, err
+	if b.Websocket.IsEnabled() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
+		if err != nil {
+			return &order.ModifyResponse{OrderID: action.OrderID}, err
+		}
+
+		wsRequest := WsUpdateOrderRequest{
+			OrderID: orderIDInt,
+			Price:   action.Price,
+			Amount:  action.Amount,
+		}
+		if action.Side == order.Sell && action.Amount > 0 {
+			wsRequest.Amount *= -1
+		}
+		err = b.WsModifyOrder(&wsRequest)
+		if err != nil {
+			return nil, err
+		}
+		return action.DeriveModifyResponse()
 	}
 
-	wsRequest := WsUpdateOrderRequest{
-		OrderID: orderIDInt,
-		Price:   action.Price,
-		Amount:  action.Amount,
-	}
-	if action.Side == order.Sell && action.Amount > 0 {
-		wsRequest.Amount *= -1
-	}
-	err = b.WsModifyOrder(&wsRequest)
+	_, err := b.OrderUpdate(ctx, action.OrderID, "", action.ClientOrderID, action.Amount, action.Price, -1)
 	if err != nil {
 		return nil, err
 	}

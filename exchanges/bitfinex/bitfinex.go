@@ -79,6 +79,7 @@ const (
 	bitfinexDepositMethod   = "conf/pub:map:tx:method"
 	bitfinexDepositAddress  = "auth/w/deposit/address"
 	bitfinexMarginPairs     = "conf/pub:list:pair:margin"
+	bitfinexOrderUpdate     = "auth/w/order/update"
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
@@ -1459,6 +1460,32 @@ func (b *Bitfinex) NewOrder(ctx context.Context, currencyPair, orderType string,
 
 	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexOrderNew,
+		req,
+		&response,
+		orderV1)
+}
+
+// OrderUpdate will send an update signal for an existing order
+// and attempt to modify it
+func (b *Bitfinex) OrderUpdate(ctx context.Context, orderID, groupID, clientOrderID string, amount, price, leverage float64) (interface{}, error) {
+	response := Order{}
+	req := make(map[string]interface{})
+	if orderID != "" {
+		req["id"] = orderID
+	}
+	if groupID != "" {
+		req["gid"] = groupID
+	}
+	if clientOrderID != "" {
+		req["cid"] = clientOrderID
+	}
+	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	if leverage > 1 {
+		req["lev"] = strconv.FormatFloat(leverage, 'f', -1, 64)
+	}
+	return response, b.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
+		bitfinexOrderUpdate,
 		req,
 		&response,
 		orderV1)

@@ -1808,3 +1808,11 @@ func TestAccetableMethodStore(t *testing.T) {
 		t.Error("incorrect values")
 	}
 }
+
+func TestOrderUpdate(t *testing.T) {
+	t.Parallel()
+	_, err := b.OrderUpdate(context.Background(), "1234", "", "", 1, 1, 1)
+	if err != nil {
+		t.Error(err)
+	}
+}

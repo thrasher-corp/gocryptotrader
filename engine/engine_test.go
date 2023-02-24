@@ -441,9 +441,19 @@ var unsupportedFunctionNames = []string{
 	"AuthenticateWebsocket",
 }
 
+var acceptableErrors = []error{
+	common.ErrFunctionNotSupported,
+	asset.ErrNotSupported,
+	request.ErrAuthRequestFailed,
+}
+
 func testWrappers(t *testing.T, e exchange.IBotExchange, assetParams []assetPair) ([]string, error) {
 	if e.GetName() == "Bitflyer" {
 		return nil, nil
+	}
+	var acceptableErr error
+	for i := range acceptableErrors {
+		acceptableErr = common.AppendError(acceptableErr, acceptableErrors[i])
 	}
 	iExchange := reflect.TypeOf(&e).Elem()
 	actualExchange := reflect.ValueOf(e)
@@ -488,7 +498,7 @@ methods:
 			case input.AssignableTo(klineParam):
 				inputs[y] = reflect.ValueOf(kline.OneHour)
 			case input.AssignableTo(codeParam):
-				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair.Base)
+				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair.Quote)
 			case input.AssignableTo(timeParam):
 				if setStartTime {
 					inputs[y] = reflect.ValueOf(endDateroo)
@@ -516,7 +526,7 @@ methods:
 					// so turn off verbosity.
 					e.GetBase().Verbose = false
 				}
-
+			errProcessing:
 				for y := range outputs {
 					incoming := outputs[y].Interface()
 					if reflect.TypeOf(incoming) == errType {
@@ -525,14 +535,11 @@ methods:
 							t.Errorf("%s type assertion failure for %v", name, incoming)
 							continue
 						}
-						switch {
-						case errors.Is(err, common.ErrFunctionNotSupported),
-							errors.Is(err, request.ErrAuthRequestFailed):
-							funcs = append(funcs, name+" "+err.Error())
-						default:
-							if err != nil {
-								t.Error(err)
+						for z := range acceptableErrors {
+							if errors.Is(err, acceptableErrors[z]) {
+								break errProcessing
 							}
+							t.Error(err)
 						}
 						break
 					}
@@ -595,6 +602,7 @@ func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type
 			Price:         1337,
 			Amount:        1337,
 			ClientOrderID: "13371337",
+			OrderID:       "1337",
 		}
 	case input.AssignableTo(oc):
 		return &order.Cancel{

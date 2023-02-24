@@ -427,8 +427,21 @@ func (b *Bithumb) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	transactions, err := b.GetUserTransactions(ctx, 0, 0, 3, c, currency.EMPTYCODE)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(transactions.Data))
+	for i := range transactions.Data {
+		resp[i] = exchange.WithdrawalHistory{
+			Timestamp: transactions.Data[i].TransferDate,
+			Currency:  transactions.Data[i].OrderCurrency.String(),
+			Amount:    transactions.Data[i].Amount,
+			Fee:       transactions.Data[i].Fee,
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -528,7 +541,7 @@ func (b *Bithumb) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *Bithumb) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -833,7 +846,7 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bithumb) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -860,4 +873,9 @@ func (b *Bithumb) UpdateCurrencyStates(ctx context.Context, a asset.Item) error 
 		}
 	}
 	return b.States.UpdateAll(a, payload)
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Bithumb) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }

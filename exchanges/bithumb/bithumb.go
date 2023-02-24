@@ -359,11 +359,26 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType, count
 }
 
 // GetUserTransactions returns customer transactions
-func (b *Bithumb) GetUserTransactions(ctx context.Context) (UserTransactions, error) {
-	response := UserTransactions{}
+func (b *Bithumb) GetUserTransactions(ctx context.Context, offset, count, searchType int64, orderCurrency, paymentCurrency currency.Code) (UserTransactions, error) {
+	params := url.Values{}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if searchType > 0 {
+		params.Set("searchGb", strconv.FormatInt(searchType, 10))
+	}
+	if !orderCurrency.IsEmpty() {
+		params.Set("order_currency", orderCurrency.String())
+	}
+	if !paymentCurrency.IsEmpty() {
+		params.Set("payment_currency", paymentCurrency.String())
+	}
+	var response UserTransactions
 
-	return response,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUserTrans, nil, &response)
+	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUserTrans, params, &response)
 }
 
 // PlaceTrade executes a trade order
