@@ -176,14 +176,15 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	}
 	err = ku.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            kucoinWebsocketURL,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             ku.WsConnect,
-			Subscriber:            ku.Subscribe,
-			Unsubscriber:          ku.Unsubscribe,
-			GenerateSubscriptions: ku.GenerateDefaultSubscriptions,
-			Features:              &ku.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:         exch,
+			DefaultURL:             kucoinWebsocketURL,
+			RunningURL:             wsRunningEndpoint,
+			Connector:              ku.WsConnect,
+			Subscriber:             ku.Subscribe,
+			Unsubscriber:           ku.Unsubscribe,
+			GenerateSubscriptions:  ku.GenerateDefaultSubscriptions,
+			Features:               &ku.Features.Supports.WebsocketCapabilities,
+			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
@@ -664,6 +665,10 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
+	sideString, err := ku.orderSideString(s.Side)
+	if err != nil {
+		return nil, err
+	}
 	err = ku.CurrencyPairs.IsAssetEnabled(s.AssetType)
 	if err != nil {
 		return nil, err
@@ -677,10 +682,6 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	switch s.AssetType {
 	case asset.Futures:
-		sideString, err := ku.orderSideString(s.Side)
-		if err != nil {
-			return nil, err
-		}
 		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, sideString, s.Pair.Upper().String(), s.Type.Lower(), "", "", "", "", s.Amount, s.Price, s.TriggerPrice, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, s.Hidden, false)
 		if err != nil {
 			return nil, err
@@ -690,20 +691,12 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if s.ClientID != "" && s.ClientOrderID == "" {
 			s.ClientOrderID = s.ClientID
 		}
-		sideString, err := ku.orderSideString(s.Side)
-		if err != nil {
-			return nil, err
-		}
 		o, err := ku.PostOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", "", s.Amount, s.Price, 0, 0, 0, s.PostOnly, s.Hidden, false)
 		if err != nil {
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(o)
 	case asset.Margin:
-		sideString, err := ku.orderSideString(s.Side)
-		if err != nil {
-			return nil, err
-		}
 		o, err := ku.PostMarginOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", s.MarginMode, "", s.Price, s.Amount, s.TriggerPrice, s.Amount, 0, s.PostOnly, s.Hidden, false, s.AutoBorrow)
 		if err != nil {
 			return nil, err
@@ -1087,6 +1080,11 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 	if getOrdersRequest.Validate() != nil {
 		return nil, err
 	}
+	var sideString string
+	sideString, err = ku.orderSideString(getOrdersRequest.Side)
+	if err != nil {
+		return nil, err
+	}
 	var orders []order.Detail
 	var orderSide order.Side
 	var orderStatus order.Status
@@ -1097,11 +1095,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		var futuresOrders *FutureOrdersResponse
 		var newOrders *FutureOrdersResponse
 		if len(getOrdersRequest.Pairs) == 0 {
-			var sideString string
-			sideString, err = ku.orderSideString(getOrdersRequest.Side)
-			if err != nil {
-				return nil, err
-			}
 			futuresOrders, err = ku.GetFuturesOrders(ctx, "", "", sideString, getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 			if err != nil {
 				return nil, err
@@ -1109,11 +1102,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		} else {
 			for x := range getOrdersRequest.Pairs {
 				getOrdersRequest.Pairs[x], err = ku.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
-				if err != nil {
-					return nil, err
-				}
-				var sideString string
-				sideString, err = ku.orderSideString(getOrdersRequest.Side)
 				if err != nil {
 					return nil, err
 				}
@@ -1161,22 +1149,12 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 		var responseOrders *OrdersListResponse
 		var newOrders *OrdersListResponse
 		if len(getOrdersRequest.Pairs) == 0 {
-			var sideString string
-			sideString, err = ku.orderSideString(getOrdersRequest.Side)
-			if err != nil {
-				return nil, err
-			}
 			responseOrders, err = ku.ListOrders(ctx, "", "", sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			for x := range getOrdersRequest.Pairs {
-				var sideString string
-				sideString, err = ku.orderSideString(getOrdersRequest.Side)
-				if err != nil {
-					return nil, err
-				}
 				newOrders, err = ku.ListOrders(ctx, "", getOrdersRequest.Pairs[x].String(), sideString, getOrdersRequest.Type.Lower(), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 				if err != nil {
 					return nil, fmt.Errorf("%w while fetching for symbol %s", err, getOrdersRequest.Pairs[x].String())

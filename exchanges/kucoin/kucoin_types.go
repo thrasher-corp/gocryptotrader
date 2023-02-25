@@ -1015,7 +1015,7 @@ type WsAccountBalance struct {
 // WsDebtRatioChange represents a push data
 type WsDebtRatioChange struct {
 	DebtRatio float64            `json:"debtRatio"`
-	TotalDebt string             `json:"totalDebt"`
+	TotalDebt float64            `json:"totalDebt,string"`
 	DebtList  map[string]string  `json:"debtList"`
 	Timestamp kucoinTimeMilliSec `json:"timestamp"`
 }
@@ -1091,23 +1091,27 @@ type WsFuturesOrderbokInfo struct {
 
 // WsFuturesExecutionData represents execution data for symbol.
 type WsFuturesExecutionData struct {
-	Symbol           string            `json:"symbol"`
-	Sequence         int64             `json:"sequence"`
-	Side             string            `json:"side"`
+	Sequence         int               `json:"sequence"`
 	FilledQuantity   float64           `json:"matchSize"` // Filled quantity
 	UnfilledQuantity float64           `json:"size"`
 	FilledPrice      float64           `json:"price"`
-	TakerOrderID     string            `json:"takerOrderId"`
-	Time             kucoinTimeNanoSec `json:"time"`
-	MakerOrderID     string            `json:"makerOrderId"`
 	TradeID          string            `json:"tradeId"`
+	MakerUserID      string            `json:"makerUserId"`
+	Symbol           string            `json:"symbol"`
+	Side             string            `json:"side"`
+	TakerOrderID     string            `json:"takerOrderId"`
+	MakerOrderID     string            `json:"makerOrderId"`
+	TakerUserID      string            `json:"takerUserId"`
+	Timestamp        kucoinTimeNanoSec `json:"ts"`
 }
 
 // WsOrderbookLevel5 represents an orderbook push data with depth level 5.
 type WsOrderbookLevel5 struct {
-	Asks      []orderbook.Item  `json:"asks"`
-	Bids      []orderbook.Item  `json:"bids"`
-	Timestamp kucoinTimeNanoSec `json:"ts"`
+	Sequence      int64              `json:"sequence"`
+	Asks          []orderbook.Item   `json:"asks"`
+	Bids          []orderbook.Item   `json:"bids"`
+	PushTimestamp kucoinTimeMilliSec `json:"ts"`
+	Timestamp     kucoinTimeMilliSec `json:"timestamp"`
 }
 
 // WsFundingRate represents the funding rate push data information through the websocket channel.

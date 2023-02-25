@@ -78,9 +78,7 @@ var defaultSubscriptionChannels = []string{
 	marketTickerChannel,
 	marginFundingbookChangeChannel,
 	marketCandlesChannel,
-	marketOrderbookLevel2Channels,
 	marketOrderbookLevel2to5Channel,
-	marketTickerSnapshotForCurrencyChannel,
 
 	futuresTickerV2Channel,
 	futuresOrderbookLevel2Depth50Channel,
@@ -685,7 +683,7 @@ func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
 	}
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Spot,
-		Last:         response.Size,
+		Last:         response.Price,
 		LastUpdated:  response.Timestamp.Time(),
 		ExchangeName: ku.Name,
 		Pair:         pair,
@@ -869,7 +867,6 @@ func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription
 	if err != nil {
 		return err
 	}
-
 	var errs common.Errors
 	for x := range payloads {
 		err = ku.Websocket.Conn.SendJSONMessage(payloads[x])
@@ -888,7 +885,14 @@ func (ku *Kucoin) getChannelsAssetType(channelName string) (asset.Item, error) {
 	switch channelName {
 	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
 		return asset.Futures, nil
-	case marketTickerChannel, marketAllTickersChannel, marketTickerSnapshotChannel, marketTickerSnapshotForCurrencyChannel, marketOrderbookLevel2Channels, marketOrderbookLevel2to5Channel, marketOrderbokLevel2To50Channel, marketCandlesChannel, marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel, marginFundingbookChangeChannel, privateSpotTradeOrders, accountBalanceChannel, marginPositionChannel, marginLoanChannel,
+	case marketTickerChannel, marketAllTickersChannel,
+		marketTickerSnapshotChannel, marketTickerSnapshotForCurrencyChannel,
+		marketOrderbookLevel2Channels, marketOrderbookLevel2to5Channel,
+		marketOrderbokLevel2To50Channel, marketCandlesChannel,
+		marketMatchChannel, indexPriceIndicatorChannel,
+		markPriceIndicatorChannel, marginFundingbookChangeChannel,
+		privateSpotTradeOrders, accountBalanceChannel,
+		marginPositionChannel, marginLoanChannel,
 		spotMarketAdvancedChannel:
 		return asset.Spot, nil
 	default:
@@ -921,6 +925,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	if err != nil {
 		return nil, err
 	}
+	marginLoanCurrencyCheckMap := map[currency.Code]bool{}
 	for x := range channels {
 		switch channels[x] {
 		case accountBalanceChannel, marginPositionChannel,
@@ -961,21 +966,20 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				})
 			}
 		case marginLoanChannel:
-			currencyExist := map[currency.Code]bool{}
 			for b := range spotPairs {
-				if !currencyExist[spotPairs[b].Base] {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  channels[x],
-						Currency: currency.Pair{Base: spotPairs[b].Base},
-					})
-					currencyExist[spotPairs[b].Base] = true
-				}
-				if !currencyExist[spotPairs[b].Quote] {
+				if !marginLoanCurrencyCheckMap[spotPairs[b].Quote] {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
 						Channel:  channels[x],
 						Currency: currency.Pair{Base: spotPairs[b].Quote},
 					})
-					currencyExist[spotPairs[b].Quote] = true
+					marginLoanCurrencyCheckMap[spotPairs[b].Quote] = true
+				}
+				if !marginLoanCurrencyCheckMap[spotPairs[b].Base] {
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: currency.Pair{Base: spotPairs[b].Base},
+					})
+					marginLoanCurrencyCheckMap[spotPairs[b].Base] = true
 				}
 			}
 		case marginFundingbookChangeChannel:
@@ -1026,7 +1030,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 }
 
 func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, operation string) ([]WsSubscriptionInput, error) {
-	payloads := make([]WsSubscriptionInput, len(subscriptions))
+	payloads := make([]WsSubscriptionInput, 0, len(subscriptions))
 	marketTickerSnapshotForCurrencyChannelCurrencyFilter := map[currency.Code]int{}
 	for x := range subscriptions {
 		var err error
@@ -1060,12 +1064,12 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				}
 				symbols = subscriptions[x].Currency.String()
 			}
-			payloads[x] = WsSubscriptionInput{
+			payloads = append(payloads, WsSubscriptionInput{
 				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, symbols),
 				Response: true,
-			}
+			})
 		case marketAllTickersChannel,
 			privateSpotTradeOrders,
 			accountBalanceChannel,
@@ -1090,19 +1094,14 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				spotMarketAdvancedChannel:
 				input.PrivateChannel = true
 			}
-			payloads[x] = input
-		case marketTickerSnapshotChannel,
-			futuresPositionChangeEventChannel,
-			futuresTradeOrdersBySymbolChannel,
-			futuresTrasactionStatisticsTimerEventChannel,
-			futuresContractMarketDataChannel,
-			futuresOrderbookLevel2Depth50Channel,
-			futuresOrderbookLevel2Depth5Channel,
-			futuresExecutionDataChannel,
-			futuresOrderbookLevel2Channel,
-			futuresTickerChannel,
+			payloads = append(payloads, input)
+		case marketTickerSnapshotChannel, futuresPositionChangeEventChannel,
+			futuresTradeOrdersBySymbolChannel, futuresTrasactionStatisticsTimerEventChannel,
+			futuresContractMarketDataChannel, futuresOrderbookLevel2Depth50Channel,
+			futuresOrderbookLevel2Depth5Channel, futuresExecutionDataChannel,
+			futuresOrderbookLevel2Channel, futuresTickerChannel,
 			futuresTickerV2Channel: // Symbols
-			payloads[x] = WsSubscriptionInput{
+			item := WsSubscriptionInput{
 				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.String()),
@@ -1111,8 +1110,9 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 			switch subscriptions[x].Channel {
 			case futuresPositionChangeEventChannel,
 				futuresTradeOrdersBySymbolChannel:
-				payloads[x].PrivateChannel = true
+				item.PrivateChannel = true
 			}
+			payloads = append(payloads, item)
 		case marketTickerSnapshotForCurrencyChannel,
 			marginLoanChannel:
 			// 3 means the Currency is used by both switch cases
@@ -1133,29 +1133,29 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 			input.Type = operation
 			input.Topic = fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String())
 			input.Response = true
-			payloads[x] = input
+			payloads = append(payloads, input)
 		case marketCandlesChannel:
 			interval, err := ku.intervalToString(subscriptions[x].Params["interval"].(kline.Interval))
 			if err != nil {
 				return nil, err
 			}
-			payloads[x] = WsSubscriptionInput{
+			payloads = append(payloads, WsSubscriptionInput{
 				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Upper().String(), interval),
 				Response: true,
-			}
+			})
 		case marginFundingbookChangeChannel:
 			currencies, okay := subscriptions[x].Params["currencies"].(string)
 			if !okay {
 				return nil, errors.New("currencies not passed")
 			}
-			payloads[x] = WsSubscriptionInput{
+			payloads = append(payloads, WsSubscriptionInput{
 				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 				Type:     operation,
 				Topic:    fmt.Sprintf(subscriptions[x].Channel, currencies),
 				Response: true,
-			}
+			})
 		}
 	}
 	return payloads, nil

@@ -1932,7 +1932,9 @@ func (ku *Kucoin) orderTypeToString(orderType order.Type) string {
 func (ku *Kucoin) orderSideString(side order.Side) (string, error) {
 	switch side {
 	case order.Buy, order.Sell:
-		return strings.ToLower(side.String()), nil
+		return side.Lower(), nil
+	case order.AnySide:
+		return "", nil
 	default:
 		return "", errors.New("unsupported order side")
 	}

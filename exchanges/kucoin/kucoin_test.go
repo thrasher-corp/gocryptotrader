@@ -1729,9 +1729,9 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
-		Pairs:     enabledPairs[:3],
+		Pairs:     append([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}, enabledPairs[:3]...),
 		AssetType: asset.Futures,
-		Side:      order.Sell,
+		Side:      order.AnySide,
 	}
 	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
@@ -1742,15 +1742,14 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	enabledPairs, err = ku.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
 	getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.Limit,
-		Pairs:     enabledPairs[:3],
+		Pairs:     []currency.Pair{spotTradablePair},
 		AssetType: asset.Spot,
 		Side:      order.Sell,
+	}
+	if ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType) != nil {
+		return
 	}
 	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
@@ -1853,8 +1852,8 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 }
 
 var (
-	symbolTickerPushDataJSON     = `{"type":"message","topic":"/market/ticker:BTC-USDT","subject":"trade.ticker","data":{"sequence":"1545896668986","price":"0.08","size":"0.011","bestAsk":"0.08","bestAskSize":"0.18","bestBid":"0.049","bestBidSize":"0.036"}}`
-	allSymbolsTickerPushDataJSON = `{"type":"message","topic":"/market/ticker:all","subject":"BTC-USDT","data":{"sequence":"1545896668986","bestAsk":"0.08","size":"0.011","bestBidSize":"0.036","price":"0.08","bestAskSize":"0.18",        "bestBid":"0.049"    }}`
+	symbolTickerPushDataJSON     = `{"type": "message","topic": "/market/ticker:FET-BTC","subject": "trade.ticker","data": {"bestAsk": "0.000018679","bestAskSize": "258.4609","bestBid": "0.000018622","bestBidSize": "68.5961","price": "0.000018628","sequence": "38509148","size": "8.943","time": 1677321643926}}`
+	allSymbolsTickerPushDataJSON = `{"type": "message","topic": "/market/ticker:all","subject": "FTM-ETH","data": {"bestAsk": "0.0002901","bestAskSize": "3514.4978","bestBid": "0.0002894","bestBidSize": "65.536","price": "0.0002894","sequence": "186911324","size": "150","time": 1677320967673}}`
 )
 
 func TestSybmbolTicker(t *testing.T) {
@@ -1884,11 +1883,10 @@ func TestMarketTradeSnapshotPushData(t *testing.T) {
 }
 
 var (
-	orderbookLevel5PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth50:BTC-USDT","subject": "level2","data": {"asks": [["21621.7","3.03206193"],["21621.8","1.00048239"],["21621.9","0.29558803"],["21622","0.0049653"],["21622.4","0.06177582"],["21622.9","0.39664116"],["21623.7","0.00803466"],["21624.2","0.65405"],["21624.3","0.34661426"],["21624.6","0.00035589"],["21624.9","0.61282048"],["21625.2","0.16421424"],["21625.4","0.90107014"],["21625.5","0.73484442"],["21625.9","0.04"],["21626.2","0.28569324"],["21626.4","0.18403701"],["21627.1","0.06503999"],["21627.2","0.56105832"],["21627.7","0.10649999"],["21628.1","2.66459953"],["21628.2","0.32"],["21628.5","0.27605551"],["21628.6","1.59482596"],["21628.9","0.16"],["21629.8","0.08"],["21630","0.04"],["21631.6","0.1"],["21631.8","0.0920185"],["21633.6","0.00447983"],["21633.7","0.00015044"],["21634.3","0.32193346"],["21634.4","0.00004"],["21634.5","0.1"],["21634.6","0.0002865"],["21635.6","0.12069941"],["21635.8","0.00117158"],["21636","0.00072816"],["21636.5","0.98611492"],["21636.6","0.00007521"],["21637.2","0.00699999"],["21637.6","0.00017129"],["21638","0.00013035"],["21638.1","0.05"],["21638.5","0.92427"],["21639.2","1.84998696"],["21639.3","0.04827233"],["21640","0.56255996"],["21640.9","0.8"],["21641","0.12"]],"bids": [["21621.6","0.40949924"],["21621.5","0.27703279"],["21621.3","0.04"],["21621.1","0.0086"],["21621","0.6653104"],["21620.9","0.35435999"],["21620.8","0.37224309"],["21620.5","0.416184"],["21620.3","0.24"],["21619.6","0.13883999"],["21619.5","0.21053355"],["21618.7","0.2"],["21618.6","0.001"],["21618.5","0.2258151"],["21618.4","0.06503999"],["21618.3","0.00370056"],["21618","0.12067842"],["21617.7","0.34844131"],["21617.6","0.92845495"],["21617.5","0.66460535"],["21617","0.01"],["21616.7","0.0004624"],["21616.4","0.02"],["21615.6","0.04828251"],["21615","0.59065665"],["21614.4","0.00227"],["21614.3","0.1"],["21613","0.32193346"],["21612.9","0.0028638"],["21612.6","0.1"],["21612.5","0.92539"],["21610.7","0.08208616"],["21610.6","0.00967666"],["21610.3","0.12"],["21610.2","0.00611126"],["21609.9","0.00226344"],["21609.8","0.00315812"],["21609.1","0.00547218"],["21608.6","0.09793157"],["21608.5","0.00437793"],["21608.4","1.85013454"],["21608.1","0.00366647"],["21607.9","0.00611595"],["21607.7","0.83263561"],["21607.6","0.00368919"],["21607.5","0.00280702"],["21607.1","0.66610849"],["21606.8","0.00364164"],["21606.2","0.80351642"],["21605.7","0.075"]],"timestamp": 1676319280783}}`
-	orderbookLevel2PushDataJSON = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT","subject": "level2","data": {"asks": [[	"21612.7",	"0.32307467"],[	"21613.1",	"0.1581911"],[	"21613.2",	"1.37156153"],[	"21613.3",	"2.58327302"],[	"21613.4",	"0.00302088"]],"bids": [[	"21612.6",	"2.34316818"],[	"21612.3",	"0.5771615"],[	"21612.2",	"0.21605964"],[	"21612.1",	"0.22894841"],[	"21611.6",	"0.29251003"]],"timestamp": 1676319909635}}`
+	orderbookLevel5PushDataJSON    = `{"type": "message","topic": "/spotMarket/level2Depth50:BTC-USDT","subject": "level2","data": {"asks": [["21621.7","3.03206193"],["21621.8","1.00048239"],["21621.9","0.29558803"],["21622","0.0049653"],["21622.4","0.06177582"],["21622.9","0.39664116"],["21623.7","0.00803466"],["21624.2","0.65405"],["21624.3","0.34661426"],["21624.6","0.00035589"],["21624.9","0.61282048"],["21625.2","0.16421424"],["21625.4","0.90107014"],["21625.5","0.73484442"],["21625.9","0.04"],["21626.2","0.28569324"],["21626.4","0.18403701"],["21627.1","0.06503999"],["21627.2","0.56105832"],["21627.7","0.10649999"],["21628.1","2.66459953"],["21628.2","0.32"],["21628.5","0.27605551"],["21628.6","1.59482596"],["21628.9","0.16"],["21629.8","0.08"],["21630","0.04"],["21631.6","0.1"],["21631.8","0.0920185"],["21633.6","0.00447983"],["21633.7","0.00015044"],["21634.3","0.32193346"],["21634.4","0.00004"],["21634.5","0.1"],["21634.6","0.0002865"],["21635.6","0.12069941"],["21635.8","0.00117158"],["21636","0.00072816"],["21636.5","0.98611492"],["21636.6","0.00007521"],["21637.2","0.00699999"],["21637.6","0.00017129"],["21638","0.00013035"],["21638.1","0.05"],["21638.5","0.92427"],["21639.2","1.84998696"],["21639.3","0.04827233"],["21640","0.56255996"],["21640.9","0.8"],["21641","0.12"]],"bids": [["21621.6","0.40949924"],["21621.5","0.27703279"],["21621.3","0.04"],["21621.1","0.0086"],["21621","0.6653104"],["21620.9","0.35435999"],["21620.8","0.37224309"],["21620.5","0.416184"],["21620.3","0.24"],["21619.6","0.13883999"],["21619.5","0.21053355"],["21618.7","0.2"],["21618.6","0.001"],["21618.5","0.2258151"],["21618.4","0.06503999"],["21618.3","0.00370056"],["21618","0.12067842"],["21617.7","0.34844131"],["21617.6","0.92845495"],["21617.5","0.66460535"],["21617","0.01"],["21616.7","0.0004624"],["21616.4","0.02"],["21615.6","0.04828251"],["21615","0.59065665"],["21614.4","0.00227"],["21614.3","0.1"],["21613","0.32193346"],["21612.9","0.0028638"],["21612.6","0.1"],["21612.5","0.92539"],["21610.7","0.08208616"],["21610.6","0.00967666"],["21610.3","0.12"],["21610.2","0.00611126"],["21609.9","0.00226344"],["21609.8","0.00315812"],["21609.1","0.00547218"],["21608.6","0.09793157"],["21608.5","0.00437793"],["21608.4","1.85013454"],["21608.1","0.00366647"],["21607.9","0.00611595"],["21607.7","0.83263561"],["21607.6","0.00368919"],["21607.5","0.00280702"],["21607.1","0.66610849"],["21606.8","0.00364164"],["21606.2","0.80351642"],["21605.7","0.075"]],"timestamp": 1676319280783}}`
+	orderbookLevel2PushDataJSON    = `{"type": "message","topic": "/spotMarket/level2Depth5:BTC-USDT","subject": "level2","data": {"asks": [[	"21612.7",	"0.32307467"],[	"21613.1",	"0.1581911"],[	"21613.2",	"1.37156153"],[	"21613.3",	"2.58327302"],[	"21613.4",	"0.00302088"]],"bids": [[	"21612.6",	"2.34316818"],[	"21612.3",	"0.5771615"],[	"21612.2",	"0.21605964"],[	"21612.1",	"0.22894841"],[	"21611.6",	"0.29251003"]],"timestamp": 1676319909635}}`
+	tradeCandlesUpdatePushDataJSON = `{"type":"message","topic":"/market/candles:BTC-USDT_1hour","subject":"trade.candles.update","data":{"symbol":"BTC-USDT","candles":["1589968800","9786.9","9740.8","9806.1","9732","27.45649579","268280.09830877"],"time":1589970010253893337}}`
 )
-
-var tradeCandlesUpdatePushDataJSON = `{"type":"message","topic":"/market/candles:BTC-USDT_1hour","subject":"trade.candles.update","data":{"symbol":"BTC-USDT","candles":["1589968800","9786.9","9740.8","9806.1","9732","27.45649579","268280.09830877"],"time":1589970010253893337}}`
 
 func TestTradeCandlestickPushDataJSON(t *testing.T) {
 	t.Parallel()
@@ -1970,19 +1968,16 @@ func TestAccountBalanceNotice(t *testing.T) {
 	}
 }
 
-var debtRatioChangePushDataJSON = `{"type":"message","topic":"/margin/position","subject":"debt.ratio",    "channelType":"private",    "data": {        "debtRatio": 0.7505,        "totalDebt": "21.7505",        "debtList": {"BTC": "1.21","USDT": "2121.2121","EOS": "0"},        "timestamp": 15538460812100               }}`
+var (
+	debtRatioChangePushDataJSON           = `{"type":"message","topic":"/margin/position","subject":"debt.ratio","channelType":"private","data": {"debtRatio": 0.7505,"totalDebt": "21.7505","debtList": {"BTC": "1.21","USDT": "2121.2121","EOS": "0"},"timestamp": 1553846081210}}`
+	positionStatusChangeEventPushDataJSON = `{"type":"message","topic":"/margin/position","subject":"position.status","channelType":"private","data": {"type": "FROZEN_FL","timestamp": 1553846081210}}`
+)
 
 func TestDebtRatioChangePushData(t *testing.T) {
 	t.Parallel()
 	if err := ku.wsHandleData([]byte(debtRatioChangePushDataJSON)); err != nil {
 		t.Error(err)
 	}
-}
-
-var positionStatusChangeEventPushDataJSON = `{"type":"message","topic":"/margin/position","subject":"position.status","channelType":"private","data": {"type": "FROZEN_FL","timestamp": 15538460812100}}`
-
-func TestPositionStatusChangeEvent(t *testing.T) {
-	t.Parallel()
 	if err := ku.wsHandleData([]byte(positionStatusChangeEventPushDataJSON)); err != nil {
 		t.Error(err)
 	}
@@ -2045,8 +2040,8 @@ func TestPublicFuturesMarketData(t *testing.T) {
 }
 
 var (
-	publicFuturesExecutionDataJSON               = `{"topic": "/contractMarket/execution:XBTUSDM","subject": "match","data": {"symbol": "XBTUSDM","sequence": 36,     "side": "buy","matchSize": 1,      "size": 1,"price": 3200.00,"takerOrderId": "5c9dd00870744d71c43f5e25","time": 1553846281766256031,"makerOrderId": "5c9d852070744d0976909a0c","tradeId": "5c9dd00970744d6f5a3d32fc"      }}`
-	publicFuturesOrderbookWithDepth5PushDataJSON = `{"type": "message","topic": "/contractMarket/level2Depth5:XBTUSDM","subject": "level2","data": {"sequence": 1668672185642,"asks": [[17222.00000000,10802],[17223,5691],[17224,8153],[17225,5051],[17226,20000]],"bids": [[17221.00000000,4690],[17220,3766],[17219.00000000,4857],[17218,750],[17217.00000000,2100]],    "ts": 1670571892868,    "timestamp": 1670571892868    }}`
+	publicFuturesExecutionDataJSON               = `{"type": "message","topic": "/contractMarket/execution:XBTUSDTM","subject": "match","data": {"makerUserId": "6287c3015c27f000017d0c2f","symbol": "XBTUSDTM","sequence": 31443494,"side": "buy","size": 35,"price": 23083.00000000,"takerOrderId": "63f94040839d00000193264b","makerOrderId": "63f94036839d0000019310c3","takerUserId": "6133f817230d8d000607b941","tradeId": "63f940400000650065f4996f","ts": 1677279296134648869}}`
+	publicFuturesOrderbookWithDepth5PushDataJSON = `{ "type": "message", "topic": "/contractMarket/level2Depth5:XBTUSDTM", "subject": "level2", "data": { "sequence": 1672332328701, "asks": [[	23149,	13703],[	23150,	1460],[	23151.00000000,	941],[	23152,	4591],[	23153,	4107] ], "bids": [[	23148.00000000,	22801],[23147.0,4766],[	23146,	1388],[	23145.00000000,	2593],[	23144.00000000,	6286] ], "ts": 1677280435684, "timestamp": 1677280435684 }}`
 )
 
 func TestPublicFuturesExecutionData(t *testing.T) {
@@ -2253,7 +2248,7 @@ func TestSubmitOrder(t *testing.T) {
 			Quote: currency.BTC,
 		},
 		Exchange:  ku.Name,
-		Side:      order.Buy,
+		Side:      order.Bid,
 		Type:      order.Limit,
 		Price:     1,
 		Amount:    1000000000,
