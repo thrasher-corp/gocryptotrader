@@ -298,7 +298,7 @@ func (dy *DYDX) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	}
 
 	for x := range stats {
-		pair, err := pairs.DeriveFrom(stats[x].Market)
+		pair, err := currency.NewPairFromString(stats[x].Market)
 		if err != nil {
 			return err
 		}

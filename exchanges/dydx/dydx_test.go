@@ -156,7 +156,7 @@ func TestCheckIfUserExists(t *testing.T) {
 
 func TestCheckIfUsernameExists(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.CheckIfUsernameExists(context.Background(), ""); err != nil {
+	if _, err := dy.CheckIfUsernameExists(context.Background(), "sam"); err != nil {
 		t.Error(err)
 	}
 }
