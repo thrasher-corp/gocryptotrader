@@ -51,7 +51,7 @@ func (dy *DYDX) WsConnect() error {
 	dy.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Message:     []byte(`pong`),
 		MessageType: websocket.TextMessage,
-		Delay:       time.Second * 30,
+		Delay:       time.Second * 5,
 	})
 	if dy.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", dy.Name)
@@ -61,7 +61,10 @@ func (dy *DYDX) WsConnect() error {
 	return nil
 }
 
+var orderbookSnapshootCurrencies map[string]bool
+
 func (dy *DYDX) wsReadData() {
+	orderbookSnapshootCurrencies = map[string]bool{}
 	defer dy.Websocket.Wg.Done()
 	for {
 		resp := dy.Websocket.Conn.ReadMessage()
@@ -112,24 +115,45 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	case orderbookChannel:
-		var market MarketOrderbook
-		err = json.Unmarshal(respRaw, &market)
-		if err != nil {
-			return err
-		}
 		pair, err := currency.NewPairFromString(resp.ID)
 		if err != nil {
 			return err
 		}
-		newOrderbook := orderbook.Base{
-			Asset:       asset.Spot,
-			Asks:        market.Asks.generateOrderbookItem(),
-			Bids:        market.Bids.generateOrderbookItem(),
-			Exchange:    dy.Name,
-			Pair:        pair,
-			LastUpdated: time.Now(),
+		if resp.MessageID == 1 || !orderbookSnapshootCurrencies[resp.ID] {
+			orderbookSnapshootCurrencies[resp.ID] = true
+			var market MarketOrderbook
+			err = json.Unmarshal(resp.Contents, &market)
+			if err != nil {
+				return err
+			}
+			return dy.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+				Asset:       asset.Spot,
+				Asks:        market.Asks.generateOrderbookItem(),
+				Bids:        market.Bids.generateOrderbookItem(),
+				Pair:        pair,
+				Exchange:    dy.Name,
+				LastUpdated: time.Now(),
+			})
 		}
-		return dy.Websocket.Orderbook.LoadSnapshot(&newOrderbook)
+		var market MarketOrderbookUpdate
+		err = json.Unmarshal(resp.Contents, &market)
+		if err != nil {
+			return err
+		}
+		update := &orderbook.Update{
+			Asset:      asset.Spot,
+			Pair:       pair,
+			UpdateTime: time.Now(),
+		}
+		update.Asks, err = market.Asks.generateOrderbookItem()
+		if err != nil {
+			return err
+		}
+		update.Bids, err = market.Bids.generateOrderbookItem()
+		if err != nil {
+			return err
+		}
+		return dy.Websocket.Orderbook.Update(update)
 	case tradesChannel:
 		var myTrades MarketTrades
 		err := json.Unmarshal(resp.Contents, &myTrades)
@@ -147,12 +171,12 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			trades[i] = trade.Data{
-				Amount:       myTrades.Trades[i].Size,
 				AssetType:    asset.Spot,
 				CurrencyPair: pair,
 				Exchange:     dy.Name,
 				Side:         side,
-				Timestamp:    time.Now(),
+				Timestamp:    myTrades.Trades[i].CreatedAt,
+				Amount:       myTrades.Trades[i].Size,
 				Price:        myTrades.Trades[i].Price,
 			}
 		}
@@ -175,10 +199,13 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 				Ask:          value.IndexPrice,
 				Pair:         pair,
 				AssetType:    asset.Spot,
+				Open:         market.Markets[key].PriceChange24H,
+				Volume:       market.Markets[key].Volume24H,
 			}
 			count++
 		}
 		dy.Websocket.DataHandler <- tickers
+	case "connected":
 	default:
 		dy.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: dy.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil

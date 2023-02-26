@@ -2,6 +2,7 @@ package dydx
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -101,7 +102,7 @@ type InstrumentDatas struct {
 		TickSize                         float64   `json:"tickSize,string"`
 		IndexPrice                       float64   `json:"indexPrice,string"`
 		OraclePrice                      string    `json:"oraclePrice"`
-		PriceChange24H                   string    `json:"priceChange24H"`
+		PriceChange24H                   float64   `json:"priceChange24H,string"`
 		NextFundingRate                  string    `json:"nextFundingRate"`
 		NextFundingAt                    time.Time `json:"nextFundingAt"`
 		MinOrderSize                     string    `json:"minOrderSize"`
@@ -117,6 +118,7 @@ type InstrumentDatas struct {
 		MaxPositionSize                  string    `json:"maxPositionSize"`
 		AssetResolution                  string    `json:"assetResolution"`
 		SyntheticAssetID                 string    `json:"syntheticAssetId"`
+		TransferMarginFraction           string    `json:"transferMarginFraction"`
 	} `json:"markets"`
 }
 
@@ -124,6 +126,34 @@ type InstrumentDatas struct {
 type MarketOrderbook struct {
 	Bids orderbookDatas `json:"bids"`
 	Asks orderbookDatas `json:"asks"`
+}
+
+type wsOrderbookUpdate [][2]string
+
+// MarketOrderbookUpdate represents  bids and asks updates
+type MarketOrderbookUpdate struct {
+	Bids   wsOrderbookUpdate `json:"bids"`
+	Asks   wsOrderbookUpdate `json:"asks"`
+	Offset string            `json:"offset"`
+}
+
+func (a wsOrderbookUpdate) generateOrderbookItem() ([]orderbook.Item, error) {
+	books := make([]orderbook.Item, len(a))
+	for x := range a {
+		price, err := strconv.ParseFloat(a[x][0], 64)
+		if err != nil {
+			return nil, err
+		}
+		size, err := strconv.ParseFloat(a[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		books[x] = orderbook.Item{
+			Amount: size,
+			Price:  price,
+		}
+	}
+	return books, nil
 }
 
 // OrderbookData represents asks and bids price and size data.
