@@ -541,31 +541,28 @@ func (g *Gateio) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		return err
 	}
 
-	var errs common.Errors
+	var errs error
 	for k := range payloads {
 		resp, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		var response WebsocketAuthenticationResponse
 		err = json.Unmarshal(resp, &response)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		if response.Result.Status != "success" {
-			errs = append(errs, fmt.Errorf("%v could not subscribe to %v",
+			errs = common.AppendError(errs, fmt.Errorf("%v could not subscribe to %v",
 				g.Name,
 				payloads[k].Method))
 			continue
 		}
 		g.Websocket.AddSuccessfulSubscriptions(payloads[k].Channels...)
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (g *Gateio) generatePayload(channelsToSubscribe []stream.ChannelSubscription) ([]WebsocketRequest, error) {

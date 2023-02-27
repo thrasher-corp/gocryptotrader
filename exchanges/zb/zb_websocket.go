@@ -299,7 +299,7 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error
 
 // Subscribe sends a websocket message to receive data from the channel
 func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
+	var errs error
 	for i := range channelsToSubscribe {
 		subscriptionRequest := Subscription{
 			Event:   zWebsocketAddChannel,
@@ -307,7 +307,7 @@ func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 		}
 		err := z.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		z.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])

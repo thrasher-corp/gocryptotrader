@@ -115,7 +115,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
+	var errs error
 	for i := range channelsToSubscribe {
 		var subReq WsReq
 		subReq.Topic = channelsToSubscribe[i].Channel
@@ -123,7 +123,7 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 
 		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		if channelsToSubscribe[i].Channel == wsKlines {
@@ -140,20 +140,17 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		}
 		err = by.Websocket.Conn.SendJSONMessage(subReq)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		by.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
+	var errs error
 
 	for i := range channelsToUnsubscribe {
 		var unSub WsReq
@@ -162,7 +159,7 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.Spot)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		unSub.Parameters = WsParams{
@@ -170,15 +167,12 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		}
 		err = by.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		by.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // wsReadData receives and passes on websocket messages for processing

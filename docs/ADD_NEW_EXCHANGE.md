@@ -216,7 +216,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
@@ -248,7 +247,6 @@ var Exchanges = []string{
 	"itbit",
 	"kraken",
 	"lbank",
-	"localbitcoins",
 	"okcoin international",
 	"okx",
 	"poloniex",

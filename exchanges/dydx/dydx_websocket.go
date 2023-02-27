@@ -325,19 +325,16 @@ func (dy *DYDX) handleSubscriptions(subscriptions []stream.ChannelSubscription, 
 	if err != nil {
 		return err
 	}
-	var errs common.Errors
+	var errs error
 	for x := range payloads {
 		err = dy.Websocket.Conn.SendJSONMessage(payloads[x])
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		dy.Websocket.AddSuccessfulSubscriptions(subscriptions[x])
 	}
-	if len(errs) > 0 {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Subscribe sends a subscriptions requests through the websocket connection.
