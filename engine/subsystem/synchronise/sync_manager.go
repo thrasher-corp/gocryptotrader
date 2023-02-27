@@ -172,7 +172,7 @@ func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair,
 }
 
 // checkSyncItem checks the individual sync item
-func (m *Manager) checkSyncItem(exch exchange.IBotExchange, agent *Agent, update time.Duration) (smallest time.Duration) {
+func (m *Manager) checkSyncItem(exch exchange.IBotExchange, agent *Agent, update time.Duration) time.Duration {
 	until := agent.NextUpdate(m.TimeoutREST, m.TimeoutWebsocket)
 	if until == 0 {
 		// This needs to set processing in this controller routine so that it
