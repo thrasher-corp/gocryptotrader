@@ -455,7 +455,7 @@ func (a *Agent) NextUpdate(timeoutRest, timeoutWS time.Duration) time.Duration {
 
 		timeout := time.Until(a.LastUpdated.Add(timeoutWS))
 		if timeout <= 0 {
-			// Update immediately
+			// Update immediately via switching to REST request
 			return 0
 		}
 		return timeout
