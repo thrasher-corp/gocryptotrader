@@ -2556,7 +2556,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(subs) != 8 {
+	if len(subs) < 8 { // NOTE: Tickers testing enables all spot assets which causes this to be variable.
 		t.Fatal("unexpected subscription length")
 	}
 }
