@@ -549,7 +549,7 @@ func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
 			return err
 		}
 	}
-	var errs common.Errors
+	var errs error
 channels:
 	for i := range sub {
 		subscriptionRequest := WsCommand{
@@ -560,7 +560,7 @@ channels:
 			sub[i].Channel) && creds != nil:
 			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "subscribe")
 			if err != nil {
-				errs = append(errs, err)
+				errs = common.AppendError(errs, err)
 				continue channels
 			}
 			p.Websocket.AddSuccessfulSubscriptions(sub[i])
@@ -574,7 +574,7 @@ channels:
 
 		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 
@@ -596,7 +596,7 @@ func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
 			return err
 		}
 	}
-	var errs common.Errors
+	var errs error
 channels:
 	for i := range unsub {
 		unsubscriptionRequest := WsCommand{
@@ -607,7 +607,7 @@ channels:
 			unsub[i].Channel) && creds != nil:
 			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "unsubscribe")
 			if err != nil {
-				errs = append(errs, err)
+				errs = common.AppendError(errs, err)
 				continue channels
 			}
 			p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])
@@ -620,7 +620,7 @@ channels:
 		}
 		err := p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])

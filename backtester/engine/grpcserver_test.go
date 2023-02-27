@@ -16,10 +16,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+var dbConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-database-candles.strat")
 
 func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()
@@ -52,6 +54,43 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath: dcaConfigPath,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+
+	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:  dcaConfigPath,
+		StartTimeOverride: timestamppb.New(time.Now()),
+		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Minute)),
+	})
+	if !errors.Is(err, gctcommon.ErrStartAfterEnd) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrStartAfterEnd)
+	}
+	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:  dbConfigPath,
+		StartTimeOverride: timestamppb.New(time.Now()),
+		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Minute)),
+	})
+	if !errors.Is(err, gctcommon.ErrStartAfterEnd) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrStartAfterEnd)
+	}
+
+	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:  dcaConfigPath,
+		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Minute)),
+		EndTimeOverride:   timestamppb.New(time.Now()),
+		IntervalOverride:  1,
+	})
+	if !errors.Is(err, gctkline.ErrInvalidInterval) {
+		t.Errorf("received '%v' expecting '%v'", err, gctkline.ErrInvalidInterval)
+	}
+
+	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:  dcaConfigPath,
+		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Hour * 2)),
+		EndTimeOverride:   timestamppb.New(time.Now()),
+		IntervalOverride:  uint64(time.Hour.Nanoseconds()),
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
@@ -188,11 +227,11 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		}
 	}
 	if defaultConfig.DataSettings.LiveData != nil {
-		creds := make([]*btrpc.ExchangeCredentials, len(defaultConfig.DataSettings.LiveData.ExchangeCredentials))
+		creds := make([]*btrpc.Credentials, len(defaultConfig.DataSettings.LiveData.ExchangeCredentials))
 		for i := range defaultConfig.DataSettings.LiveData.ExchangeCredentials {
-			creds[i] = &btrpc.ExchangeCredentials{
+			creds[i] = &btrpc.Credentials{
 				Exchange: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Exchange,
-				Keys: &btrpc.ExchangeKeys{
+				Keys: &btrpc.ExchangeCredentials{
 					Key:             defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
 					Secret:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
 					ClientId:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
@@ -319,7 +358,21 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		Path:             "test",
 		InclusiveEndDate: false,
 	}
-	cfg.DataSettings.LiveData = &btrpc.LiveData{}
+	cfg.DataSettings.LiveData = &btrpc.LiveData{
+		Credentials: []*btrpc.Credentials{
+			{
+				Exchange: "test",
+				Keys: &btrpc.ExchangeCredentials{
+					Key:             "1",
+					Secret:          "2",
+					ClientId:        "3",
+					PemKey:          "4",
+					SubAccount:      "5",
+					OneTimePassword: "6",
+				},
+			},
+		},
+	}
 	cfg.DataSettings.CsvData = &btrpc.CSVData{
 		Path: "test",
 	}
