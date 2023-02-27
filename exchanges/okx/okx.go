@@ -463,9 +463,9 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		if len(resp) == 0 {
 			return nil, err
 		}
-		var errs common.Errors
+		var errs error
 		for x := range resp {
-			errs = append(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+			errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
 		}
 		return nil, errs
 	}
@@ -513,10 +513,10 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		if len(resp) == 0 {
 			return nil, err
 		}
-		errs := common.Errors{}
+		var errs error
 		for x := range resp {
 			if resp[x].SCode != "0" {
-				errs = append(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+				errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
 			}
 		}
 		return nil, errs

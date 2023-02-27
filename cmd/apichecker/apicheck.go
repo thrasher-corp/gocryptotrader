@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -48,7 +47,6 @@ const (
 	pathKraken           = "https://www.kraken.com/features/api"
 	pathAlphaPoint       = "https://alphapoint.github.io/slate/#introduction"
 	pathYobit            = "https://www.yobit.net/en/api/"
-	pathLocalBitcoins    = "https://localbitcoins.com/api-docs/"
 	pathGetAllLists      = "https://api.trello.com/1/boards/%s/lists?cards=none&card_fields=all&filter=open&fields=all&key=%s&token=%s"
 	pathNewCard          = "https://api.trello.com/1/cards?idList=%s&name=%s&key=%s&token=%s"
 	pathChecklists       = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
@@ -488,8 +486,6 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		dataStrings, err = htmlScrapeAlphaPoint(htmlData)
 	case pathYobit:
 		dataStrings, err = htmlScrapeYobit(htmlData)
-	case pathLocalBitcoins:
-		dataStrings, err = htmlScrapeLocalBitcoins(htmlData)
 	case pathOkCoin:
 		dataStrings, err = htmlScrapeOk(htmlData)
 	default:
@@ -1134,32 +1130,6 @@ loop:
 			}
 		}
 	}
-	return resp, nil
-}
-
-// htmlScrapeLocalBitcoins gets the check string for Yobit Exchange
-func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer temp.Body.Close()
-
-	a, err := io.ReadAll(temp.Body)
-	if err != nil {
-		return nil, err
-	}
-	r, err := regexp.Compile(htmlData.RegExp)
-	if err != nil {
-		return nil, err
-	}
-	str := r.FindString(string(a))
-	sha, err := crypto.GetSHA256([]byte(str))
-	if err != nil {
-		return nil, err
-	}
-	var resp []string
-	resp = append(resp, crypto.HexEncodeToString(sha))
 	return resp, nil
 }
 

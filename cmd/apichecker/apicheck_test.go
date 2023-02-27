@@ -386,16 +386,6 @@ func TestHTMLYobit(t *testing.T) {
 	}
 }
 
-func TestHTMLScrapeLocalBitcoins(t *testing.T) {
-	t.Parallel()
-	data := HTMLScrapingData{TokenData: "div",
-		RegExp: `col-md-12([\s\S]*?)clearfix`,
-		Path:   "https://localbitcoins.com/api-docs/"}
-	if _, err := htmlScrapeLocalBitcoins(&data); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestHTMLScrapeOk(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "a",

@@ -397,7 +397,7 @@ func RegisterBacktesterServiceHandlerServer(ctx context.Context, mux *runtime.Se
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/btrpc.BacktesterService/StartAllTasks", runtime.WithHTTPPathPattern("/v1/startall"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/btrpc.BacktesterService/StartAllTasks", runtime.WithHTTPPathPattern("/v1/startalltasks"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -649,7 +649,7 @@ func RegisterBacktesterServiceHandlerClient(ctx context.Context, mux *runtime.Se
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/btrpc.BacktesterService/StartAllTasks", runtime.WithHTTPPathPattern("/v1/startall"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/btrpc.BacktesterService/StartAllTasks", runtime.WithHTTPPathPattern("/v1/startalltasks"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -765,7 +765,7 @@ var (
 
 	pattern_BacktesterService_StartTask_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "starttask"}, ""))
 
-	pattern_BacktesterService_StartAllTasks_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "startall"}, ""))
+	pattern_BacktesterService_StartAllTasks_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "startalltasks"}, ""))
 
 	pattern_BacktesterService_StopTask_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "stoptask"}, ""))
 

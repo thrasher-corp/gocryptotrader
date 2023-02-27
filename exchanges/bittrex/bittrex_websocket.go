@@ -253,21 +253,18 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var x int
-	var errs common.Errors
+	var errs error
 	for x = 0; x+wsMessageRateLimit < len(channelsToSubscribe); x += wsMessageRateLimit {
 		err := b.subscribeSlice(channelsToSubscribe[x : x+wsMessageRateLimit])
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 		}
 	}
 	err := b.subscribeSlice(channelsToSubscribe[x:])
 	if err != nil {
-		errs = append(errs, err)
+		errs = common.AppendError(errs, err)
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscription) error {
@@ -301,38 +298,32 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 	if err != nil {
 		return err
 	}
-	var errs common.Errors
+	var errs error
 	for i := range response.Response {
 		if !response.Response[i].Success {
-			errs = append(errs, errors.New("unable to subscribe to "+channels[i]+" - error code "+response.Response[i].ErrorCode))
+			errs = common.AppendError(errs, errors.New("unable to subscribe to "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
 func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var x int
-	var errs common.Errors
+	var errs error
 	for x = 0; x+wsMessageRateLimit < len(channelsToUnsubscribe); x += wsMessageRateLimit {
 		err := b.unsubscribeSlice(channelsToUnsubscribe[x : x+wsMessageRateLimit])
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 		}
 	}
 	err := b.unsubscribeSlice(channelsToUnsubscribe[x:])
 	if err != nil {
-		errs = append(errs, err)
+		errs = common.AppendError(errs, err)
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscription) error {
@@ -366,18 +357,15 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 	if err != nil {
 		return err
 	}
-	var errs common.Errors
+	var errs error
 	for i := range response.Response {
 		if !response.Response[i].Success {
-			errs = append(errs, errors.New("unable to unsubscribe from "+channels[i]+" - error code "+response.Response[i].ErrorCode))
+			errs = common.AppendError(errs, errors.New("unable to unsubscribe from "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
 		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // wsReadData gets and passes on websocket messages for processing

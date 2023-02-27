@@ -721,31 +721,28 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 	if err != nil {
 		return err
 	}
-	var errs common.Errors
+	var errs error
 	for k := range payloads {
 		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
-			errs = append(errs, err)
+			err = common.AppendError(errs, err)
 			continue
 		}
 		var resp WsEventResponse
 		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 		} else {
 			if resp.Result != nil && resp.Result.Status != "success" {
-				errs = append(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, payloads[k].Channel))
+				err = common.AppendError(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, payloads[k].Channel))
 				continue
 			} else if resp.Error != nil && resp.Error.Code != 0 {
-				errs = append(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
+				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
 				continue
 			}
 			g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 		}
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([]WsInput, error) {
