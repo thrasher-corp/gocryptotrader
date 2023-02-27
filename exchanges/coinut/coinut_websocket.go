@@ -616,11 +616,11 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
+	var errs error
 	for i := range channelsToSubscribe {
 		fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 
@@ -632,7 +632,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		}
 		err = c.Websocket.Conn.SendJSONMessage(subscribe)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
@@ -645,11 +645,11 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
+	var errs error
 	for i := range channelToUnsubscribe {
 		fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 
@@ -662,32 +662,29 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 		resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce,
 			subscribe)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		var response map[string]interface{}
 		err = json.Unmarshal(resp, &response)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 
 		val, ok := response["status"].([]interface{})
 		if !ok {
-			errs = append(errs, errors.New("unable to type assert response status"))
+			errs = common.AppendError(errs, errors.New("unable to type assert response status"))
 		}
 		if val[0] != "OK" {
-			errs = append(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
+			errs = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
 				c.Name,
 				channelToUnsubscribe[i].Channel))
 			continue
 		}
 		c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (c *COINUT) wsAuthenticate(ctx context.Context) error {

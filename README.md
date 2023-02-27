@@ -41,7 +41,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |

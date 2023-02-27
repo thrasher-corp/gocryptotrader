@@ -13,17 +13,17 @@ import (
 // eg if no comparisonTimes match, you will receive 1 TimeRange of Start End with dataInRange = false
 // eg2 if 1 comparisonTime matches in the middle of start and end, you will receive three ranges
 func FindTimeRangesContainingData(start, end time.Time, period time.Duration, comparisonTimes []time.Time) ([]TimeRange, error) {
-	var errs common.Errors
+	var errs error
 	if start.IsZero() {
-		errs = append(errs, errors.New("invalid start time"))
+		errs = common.AppendError(errs, errors.New("invalid start time"))
 	}
 	if end.IsZero() {
-		errs = append(errs, errors.New("invalid end time"))
+		errs = common.AppendError(errs, errors.New("invalid end time"))
 	}
 	if err := validatePeriod(period); err != nil {
-		errs = append(errs, err)
+		errs = common.AppendError(errs, err)
 	}
-	if len(errs) > 0 {
+	if errs != nil {
 		return nil, errs
 	}
 	var t TimePeriodCalculator
@@ -52,17 +52,17 @@ func validatePeriod(period time.Duration) error {
 // CalculateTimePeriodsInRange can break down start and end times into time periods
 // eg 1 hourly intervals
 func CalculateTimePeriodsInRange(start, end time.Time, period time.Duration) ([]TimePeriod, error) {
-	var errs common.Errors
+	var errs error
 	if start.IsZero() {
-		errs = append(errs, errors.New("invalid start time"))
+		errs = common.AppendError(errs, errors.New("invalid start time"))
 	}
 	if end.IsZero() {
-		errs = append(errs, errors.New("invalid end time"))
+		errs = common.AppendError(errs, errors.New("invalid end time"))
 	}
 	if err := validatePeriod(period); err != nil {
-		errs = append(errs, err)
+		errs = common.AppendError(errs, err)
 	}
-	if len(errs) > 0 {
+	if errs != nil {
 		return nil, errs
 	}
 

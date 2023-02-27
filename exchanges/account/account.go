@@ -237,10 +237,10 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		s.exchangeAccounts[exch] = accounts
 	}
 
-	var errs common.Errors
+	var errs error
 	for x := range incoming.Accounts {
 		if !incoming.Accounts[x].AssetType.IsValid() {
-			errs = append(errs, fmt.Errorf("cannot load sub account holdings for %s [%s] %w",
+			errs = common.AppendError(errs, fmt.Errorf("cannot load sub account holdings for %s [%s] %w",
 				incoming.Accounts[x].ID,
 				incoming.Accounts[x].AssetType,
 				asset.ErrNotSupported))
@@ -295,11 +295,7 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		return err
 	}
 
-	if errs != nil {
-		return errs
-	}
-
-	return nil
+	return errs
 }
 
 // load checks to see if there is a change from incoming balance, if there is a
