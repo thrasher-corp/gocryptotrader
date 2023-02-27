@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -241,7 +241,7 @@ func generateOnboardingEIP712(privateKey *ecdsa.PrivateKey) (string, error) {
 	if signature[64] < 27 {
 		signature[64] += 27
 	}
-	return hex.EncodeToString(signature), nil
+	return hexutil.Encode(signature), nil
 }
 
 // generateAPIKeyEIP712 generated an EIP712 API key signature using private key
@@ -295,7 +295,7 @@ func generateAPIKeyEIP712(privateKey *ecdsa.PrivateKey, method, requestPath, bod
 		signature[64] += 27
 	}
 	if len(signature) > 44 {
-		return hex.EncodeToString(signature)[:44], nil
+		return hexutil.Encode(signature)[:44], nil
 	}
-	return hex.EncodeToString(signature), nil
+	return hexutil.Encode(signature), nil
 }

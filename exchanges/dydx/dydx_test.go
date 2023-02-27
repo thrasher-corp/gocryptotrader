@@ -399,10 +399,12 @@ func TestOnboarding(t *testing.T) {
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Error(err)
 	}
+	dy.Verbose = true
 	_, err = dy.Onboarding(context.Background(), &OnboardingParam{
 		StarkXCoordinate: "starkKeyXCoordinate",
 		StarkYCoordinate: "starkKeyYCoordinate",
 		Country:          "RU",
+		EthereumAddress:  "0xEe965271cD28892e28909863D680d7d91Bb66157",
 	})
 	if err != nil {
 		t.Error(err)
@@ -479,7 +481,7 @@ func TestGetUserPendingLinkRequest(t *testing.T) {
 
 func TestCreateAccount(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(missingAuthenticationCredentials)
 	}
 	_, err := dy.CreateAccount(context.Background(), "starkKey", "ycoordinate")

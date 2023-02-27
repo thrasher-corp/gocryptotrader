@@ -94,7 +94,7 @@ const (
 var (
 	errMissingMarketInstrument  = errors.New("missing market instrument")
 	errInvalidPeriod            = errors.New("invalid period specified")
-	errSortByIsRequired         = errors.New("parameter \"sortBy\" is required")
+	errSortByIsRequired         = errors.New("parameter 'sortBy' is required")
 	errMissingPublicID          = errors.New("missing user public id")
 	errInvalidSendRequestAction = errors.New("invalid send request action")
 	errInvalidStarkCredentials  = errors.New("invalid stark key credentials")
@@ -172,9 +172,6 @@ func (dy *DYDX) GetFastWithdrawalLiquidity(ctx context.Context, param FastWithdr
 func (dy *DYDX) GetMarketStats(ctx context.Context, instrument string, days int64) (map[string]TickerData, error) {
 	params := url.Values{}
 	if days != 0 {
-		if days != 1 && days != 7 && days != 30 {
-			return nil, errors.New("only 1,7, and 30 days are allowed")
-		}
 		params.Set("days", strconv.FormatInt(days, 10))
 	}
 	var resp *TickerDatas
@@ -274,7 +271,7 @@ func (dy *DYDX) GetAPIServerTime(ctx context.Context) (*APIServerTime, error) {
 // GetPublicLeaderboardPNLs retrieves the top PNLs for a specified period and how they rank against each other.
 func (dy *DYDX) GetPublicLeaderboardPNLs(ctx context.Context, period, sortBy string, startingBeforeOrAt time.Time, limit int64) (*LeaderboardPNLs, error) {
 	if period == "" {
-		return nil, fmt.Errorf("%w \"period\" is required", errInvalidPeriod)
+		return nil, fmt.Errorf("%w 'period' is required", errInvalidPeriod)
 	}
 	if sortBy == "" {
 		return nil, errSortByIsRequired
@@ -431,7 +428,11 @@ func (dy *DYDX) SendUserLinkRequest(ctx context.Context, params UserLinkParams) 
 	if err != nil {
 		return nil, err
 	}
-	if creds.ClientID == params.Address {
+	_, address, err := GeneratePublicKeyAndAddress(creds.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	if address == params.Address {
 		return nil, errors.New("address should not be your address")
 	}
 	var resp interface{}
@@ -457,10 +458,10 @@ func (dy *DYDX) GetUserPendingLinkRequest(ctx context.Context, userType, outgoin
 // CreateAccount represents a new account instance created using the provided stark Key credentials.
 func (dy *DYDX) CreateAccount(ctx context.Context, starkKey, starkYCoordinate string) (*AccountResponse, error) {
 	if starkKey == "" {
-		return nil, fmt.Errorf("%w missing \"starkKey\"", errInvalidStarkCredentials)
+		return nil, fmt.Errorf("%w missing 'starkKey'", errInvalidStarkCredentials)
 	}
 	if starkYCoordinate == "" {
-		return nil, fmt.Errorf("%w missing \"starkYCoordinate\"", errInvalidStarkCredentials)
+		return nil, fmt.Errorf("%w missing 'starkYCoordinate'", errInvalidStarkCredentials)
 	}
 	param := map[string]string{"starkKey": starkKey, "starkKeyYCoordinate": starkYCoordinate}
 	var resp *AccountResponse
@@ -641,7 +642,7 @@ func (dy *DYDX) CreateNewOrder(ctx context.Context, arg *CreateOrderRequestParam
 		arg.ClientID = strconv.FormatInt(dy.Websocket.Conn.GenerateMessageID(true), 10)
 	}
 	if arg.PostOnly && arg.TimeInForce == "FOK" {
-		return nil, errors.New("Order cannot be postOnly and have timeInForce: FOK")
+		return nil, errors.New("order cannot be postOnly and have timeInForce: FOK")
 	}
 	creds, err := dy.GetCredentials(ctx)
 	if err != nil {
