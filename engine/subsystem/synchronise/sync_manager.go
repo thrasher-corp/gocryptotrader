@@ -159,7 +159,7 @@ func (m *Manager) getSmallestTimeout() time.Duration {
 
 // checkSyncItems checks agent against its current last update time on all
 // individual Synchronisation items.
-func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update time.Duration) (smallest time.Duration) {
+func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update time.Duration) time.Duration {
 	if m.SynchronizeOrderbook {
 		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Orderbook, usingREST)
 		update = m.checkSyncItem(exch, agent, update)
