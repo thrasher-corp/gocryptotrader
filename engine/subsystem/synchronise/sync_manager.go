@@ -496,7 +496,7 @@ func (a *Agent) SetProcessingViaREST(wsTimeout time.Duration) {
 
 // Update updates the underlying agent fields. If protocol is switched from REST
 // to WEBSOCKET it will display that switch.
-func (a *Agent) Update(protocol subsystem.ProtocolType, incomingErr error) (isInitialUpdate bool) {
+func (a *Agent) Update(protocol subsystem.ProtocolType, incomingErr error) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if incomingErr != nil {
