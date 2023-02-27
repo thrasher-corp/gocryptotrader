@@ -1,6 +1,7 @@
 package synchronise
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -24,18 +25,18 @@ var (
 	testPair           = currency.NewPair(currency.BTC, currency.USD)
 )
 
-type TestExchangeManager struct {
+type testExchangeManager struct {
 	hold  []exchange.IBotExchange
 	Error bool
 }
 
-func (em *TestExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
+func (em *testExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	if !em.Error {
 		return em.hold, nil
 	}
 	return nil, errGetExchanges
 }
-func (em *TestExchangeManager) GetExchangeByName(string) (exchange.IBotExchange, error) {
+func (em *testExchangeManager) GetExchangeByName(string) (exchange.IBotExchange, error) {
 	return nil, nil
 }
 
@@ -87,13 +88,13 @@ func TestNewManager(t *testing.T) {
 		t.Fatalf("error '%v', expected '%v'", err, ErrNoItemsEnabled)
 	}
 
-	cfg.SynchronizeOrderbook = true
+	cfg.SynchroniseOrderbook = true
 	_, err = NewManager(cfg)
 	if !errors.Is(err, subsystem.ErrNilExchangeManager) {
 		t.Fatalf("error '%v', expected '%v'", err, subsystem.ErrNilExchangeManager)
 	}
 
-	cfg.ExchangeManager = &TestExchangeManager{}
+	cfg.ExchangeManager = &testExchangeManager{}
 	_, err = NewManager(cfg)
 	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
 		t.Fatalf("error '%v', expected '%v'", err, currency.ErrCurrencyCodeEmpty)
@@ -136,10 +137,10 @@ func TestIsRunning(t *testing.T) {
 func TestManagerStart(t *testing.T) {
 	t.Parallel()
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
+		SynchroniseOrderbook: true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{},
+		ExchangeManager:      &testExchangeManager{},
 		WebsocketRPCEnabled:  true,
 	}
 
@@ -174,10 +175,10 @@ func TestSyncManagerStop(t *testing.T) {
 	}
 
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
+		SynchroniseOrderbook: true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{},
+		ExchangeManager:      &testExchangeManager{},
 		WebsocketRPCEnabled:  true,
 	}
 
@@ -253,14 +254,14 @@ func TestSyncManagerUpdate(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
-	m.SynchronizeOrderbook = true
+	m.SynchroniseOrderbook = true
 	// ticker not enabled
 	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, subsystem.Ticker, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
-	m.SynchronizeTicker = true
+	m.SynchroniseTicker = true
 	err = m.Update(testName, subsystem.Websocket, testPair, asset.Spot, 1336, nil)
 	if !errors.Is(err, errUnknownSyncType) {
 		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncType)
@@ -306,10 +307,10 @@ func TestCheckAllExchangeAssets(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
+		SynchroniseOrderbook: true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{Error: true},
+		ExchangeManager:      &testExchangeManager{Error: true},
 		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
@@ -325,20 +326,20 @@ func TestCheckAllExchangeAssets(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, errGetExchanges)
 	}
 
-	m.ExchangeManager = &TestExchangeManager{hold: []exchange.IBotExchange{&ProblemWithGettingWebsocketP{}}}
+	m.ExchangeManager = &testExchangeManager{hold: []exchange.IBotExchange{&ProblemWithGettingWebsocketP{}}}
 	_, err = m.checkAllExchangeAssets()
 	if !errors.Is(err, errGetWebsocket) {
 		t.Fatalf("received %v, but expected: %v", err, errGetWebsocket)
 	}
 
-	m.ExchangeManager = &TestExchangeManager{hold: []exchange.IBotExchange{&ProblemWithGettingEnabledPairs{}}}
+	m.ExchangeManager = &testExchangeManager{hold: []exchange.IBotExchange{&ProblemWithGettingEnabledPairs{}}}
 	_, err = m.checkAllExchangeAssets()
 	if !errors.Is(err, errGetEnabledPairs) {
 		t.Fatalf("received %v, but expected: %v", err, errGetEnabledPairs)
 	}
 
 	// No sync agents enabled should just return the lowest protocol time.
-	m.ExchangeManager = &TestExchangeManager{hold: []exchange.IBotExchange{&TestExchange{}}}
+	m.ExchangeManager = &testExchangeManager{hold: []exchange.IBotExchange{&TestExchange{}}}
 	wait, err := m.checkAllExchangeAssets()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
@@ -353,10 +354,10 @@ func TestGetSmallestTimeout(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
+		SynchroniseOrderbook: true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{Error: true},
+		ExchangeManager:      &testExchangeManager{Error: true},
 		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
@@ -386,11 +387,11 @@ func TestCheckSyncItems(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
-		SynchronizeTicker:    true,
+		SynchroniseOrderbook: true,
+		SynchroniseTicker:    true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{Error: true},
+		ExchangeManager:      &testExchangeManager{Error: true},
 		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
@@ -435,11 +436,11 @@ func TestPrintTickerSummary(t *testing.T) {
 	m.PrintTickerSummary(&ticker.Price{}, subsystem.Rest, nil)
 
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
-		SynchronizeTicker:    true,
+		SynchroniseOrderbook: true,
+		SynchroniseTicker:    true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{Error: true},
+		ExchangeManager:      &testExchangeManager{Error: true},
 		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
@@ -468,11 +469,11 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	m.PrintOrderbookSummary(nil, subsystem.Rest, nil)
 
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
-		SynchronizeTicker:    true,
+		SynchroniseOrderbook: true,
+		SynchroniseTicker:    true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{Error: true},
+		ExchangeManager:      &testExchangeManager{Error: true},
 		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
@@ -500,11 +501,11 @@ func TestRelayWebsocketEvent(t *testing.T) {
 	t.Parallel()
 
 	cfg := &ManagerConfig{
-		SynchronizeOrderbook: true,
-		SynchronizeTicker:    true,
+		SynchroniseOrderbook: true,
+		SynchroniseTicker:    true,
 		FiatDisplayCurrency:  currency.USD,
 		PairFormatDisplay:    currency.EMPTYFORMAT,
-		ExchangeManager:      &TestExchangeManager{Error: true},
+		ExchangeManager:      &testExchangeManager{Error: true},
 		WebsocketRPCEnabled:  true,
 		TimeoutREST:          time.Second,
 		TimeoutWebsocket:     time.Second * 2,
@@ -536,4 +537,83 @@ func TestWaitForInitialSync(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
+}
+
+type orderbookWorkerTester struct {
+	TestExchange
+}
+
+func (*orderbookWorkerTester) UpdateOrderbook(ctx context.Context, pair currency.Pair, a asset.Item) (*orderbook.Base, error) {
+	return &orderbook.Base{}, nil
+}
+
+func TestOrderbookWorker(t *testing.T) {
+	t.Parallel()
+
+	m, err := NewManager(&ManagerConfig{
+		SynchroniseOrderbook: true,
+		ExchangeManager:      &testExchangeManager{},
+		FiatDisplayCurrency:  currency.USD,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.orderbookJobs = make(chan RESTJob)
+
+	m.workerWG.Add(1)
+	go m.orderbookWorker(context.Background())
+
+	m.orderbookJobs <- RESTJob{}
+	m.workerWG.Wait()
+
+	m.started = 1
+
+	m.workerWG.Add(1)
+	go m.orderbookWorker(context.Background())
+
+	m.orderbookJobs <- RESTJob{exch: &orderbookWorkerTester{}}
+	close(m.orderbookJobs)
+	m.workerWG.Wait()
+}
+
+type tickerWorkerTester struct {
+	TestExchange
+}
+
+func (*tickerWorkerTester) SupportsRESTTickerBatchUpdates(a asset.Item) bool      { return a == asset.Spot }
+func (*tickerWorkerTester) UpdateTickers(ctx context.Context, a asset.Item) error { return nil }
+func (*tickerWorkerTester) UpdateTicker(ctx context.Context, pair currency.Pair, a asset.Item) (*ticker.Price, error) {
+	return &ticker.Price{}, nil
+}
+
+func TestTickerkWorker(t *testing.T) {
+	t.Parallel()
+
+	m, err := NewManager(&ManagerConfig{
+		SynchroniseTicker:   true,
+		ExchangeManager:     &testExchangeManager{},
+		FiatDisplayCurrency: currency.USD,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, but expected: %v", err, nil)
+	}
+
+	m.tickerJobs = make(chan RESTJob)
+
+	m.workerWG.Add(1)
+	go m.tickerWorker(context.Background())
+
+	m.tickerJobs <- RESTJob{}
+	m.workerWG.Wait()
+
+	m.started = 1
+
+	m.workerWG.Add(1)
+	go m.tickerWorker(context.Background())
+
+	m.tickerJobs <- RESTJob{exch: &tickerWorkerTester{}, Asset: asset.Spot}
+	m.tickerJobs <- RESTJob{exch: &tickerWorkerTester{}, Asset: asset.Futures}
+	close(m.tickerJobs)
+	m.workerWG.Wait()
 }

@@ -9,7 +9,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var errInvalidParams = errors.New("cannot add or update, invalid params")
+var (
+	items            = lookup{match: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Item)}
+	errInvalidParams = errors.New("cannot add or update, invalid params")
+)
 
 // Item holds various fields for storing currency pair stats
 type Item struct {
@@ -20,16 +23,17 @@ type Item struct {
 	Volume    float64
 }
 
-// items holds a match lookup and alignment
-var items = struct {
-	// The bucket field is a slice containing all ticker items that have been updated.
+// lookup defines a protected match lookup map to a direct store of items
+type lookup struct {
+	// The bucket field is a slice containing all ticker items that have been
+	// updated.
 	bucket []Item
-	// The match field is a map that allows for fast lookup of ticker items by address.
+	// The match field is a map that allows for fast lookup of ticker items by
+	// address.
 	match map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Item
-	// The mu field is a mutex used to synchronize access to the bucket and match fields.
+	// The mu field is a mutex used to synchronise access to the bucket and
+	// match fields.
 	mu sync.Mutex
-}{
-	match: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Item),
 }
 
 // Add adds or updates the item stats

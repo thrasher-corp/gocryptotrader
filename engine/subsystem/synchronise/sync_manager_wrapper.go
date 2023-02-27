@@ -33,11 +33,11 @@ func (m *Manager) Start() error {
 	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 
-	if m.SynchronizeTicker {
+	if m.SynchroniseTicker {
 		m.tickerJobs = make(chan RESTJob, defaultChannelBuffer)
 	}
 
-	if m.SynchronizeOrderbook {
+	if m.SynchroniseOrderbook {
 		m.orderbookJobs = make(chan RESTJob, defaultChannelBuffer)
 	}
 
@@ -47,10 +47,12 @@ func (m *Manager) Start() error {
 	// like to add priority lanes for requests (order management) which will
 	// need to be heavily coupled with the rate limit systems.
 	for i := 0; i < m.NumWorkers; i++ {
-		if m.SynchronizeTicker {
+		if m.SynchroniseTicker {
+			m.workerWG.Add(1)
 			go m.tickerWorker(context.TODO())
 		}
-		if m.SynchronizeOrderbook {
+		if m.SynchroniseOrderbook {
+			m.workerWG.Add(1)
 			go m.orderbookWorker(context.TODO())
 		}
 		// TODO: Implement trade synchronization.
@@ -71,7 +73,7 @@ func (m *Manager) Start() error {
 			time.Since(m.initSyncStartTime),
 			m.createdCounter)
 
-		if m.SynchronizeContinuously {
+		if m.SynchroniseContinuously {
 			return
 		}
 
@@ -93,12 +95,13 @@ func (m *Manager) Stop() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", subsystem.ErrNotStarted)
 	}
-	if m.SynchronizeTicker {
+	if m.SynchroniseTicker {
 		close(m.tickerJobs)
 	}
-	if m.SynchronizeOrderbook {
+	if m.SynchroniseOrderbook {
 		close(m.orderbookJobs)
 	}
+	m.workerWG.Wait()
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil
 }
@@ -127,11 +130,11 @@ func (m *Manager) Update(exchangeName string, updateProtocol subsystem.ProtocolT
 	// NOTE: Switch for a pre-lock check against config field bools.
 	switch syncType {
 	case subsystem.Orderbook:
-		if !m.SynchronizeOrderbook {
+		if !m.SynchroniseOrderbook {
 			return nil
 		}
 	case subsystem.Ticker:
-		if !m.SynchronizeTicker {
+		if !m.SynchroniseTicker {
 			return nil
 		}
 	default:

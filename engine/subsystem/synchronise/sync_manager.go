@@ -24,7 +24,7 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}
 
-	if !c.SynchronizeOrderbook && !c.SynchronizeTicker {
+	if !c.SynchroniseOrderbook && !c.SynchroniseTicker {
 		return nil, ErrNoItemsEnabled
 	}
 
@@ -53,16 +53,16 @@ func NewManager(c *ManagerConfig) (*Manager, error) {
 	}
 
 	log.Debugf(log.SyncMgr, "Exchange currency pair syncer config: continuous: %v ticker: %v orderbook: %v workers: %v verbose: %v timeout REST: %v timeout Websocket: %v",
-		c.SynchronizeContinuously,
-		c.SynchronizeTicker,
-		c.SynchronizeOrderbook,
+		c.SynchroniseContinuously,
+		c.SynchroniseTicker,
+		c.SynchroniseOrderbook,
 		c.NumWorkers,
 		c.Verbose,
 		c.TimeoutREST,
 		c.TimeoutWebsocket)
 
 	var tickerBatchTracking map[string]map[asset.Item]time.Time
-	if c.SynchronizeTicker {
+	if c.SynchroniseTicker {
 		tickerBatchTracking = make(map[string]map[asset.Item]time.Time)
 	}
 
@@ -160,11 +160,11 @@ func (m *Manager) getSmallestTimeout() time.Duration {
 // checkSyncItems checks agent against its current last update time on all
 // individual Synchronisation items.
 func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update time.Duration) time.Duration {
-	if m.SynchronizeOrderbook {
+	if m.SynchroniseOrderbook {
 		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Orderbook, usingREST)
 		update = m.checkSyncItem(exch, agent, update)
 	}
-	if m.SynchronizeTicker {
+	if m.SynchroniseTicker {
 		agent := m.getAgent(exch.GetName(), pair, a, subsystem.Ticker, usingREST)
 		update = m.checkSyncItem(exch, agent, update)
 	}
@@ -192,13 +192,13 @@ func (m *Manager) sendJob(exch exchange.IBotExchange, agent *Agent) {
 	switch agent.SynchronisationType {
 	case subsystem.Orderbook:
 		select {
-		case m.orderbookJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset, Item: agent.SynchronisationType}:
+		case m.orderbookJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset}:
 		default:
 			log.Error(log.SyncMgr, "Jobs channel is at max capacity for orderbooks, data integrity cannot be trusted.")
 		}
 	case subsystem.Ticker:
 		select {
-		case m.tickerJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset, Item: agent.SynchronisationType}:
+		case m.tickerJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset}:
 		default:
 			log.Error(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
 		}
@@ -281,6 +281,7 @@ func (m *Manager) loadAgent(agent *Agent, syncItem subsystem.SynchronisationType
 
 // orderbookWorker waits for an orderbook job then executes a REST request.
 func (m *Manager) orderbookWorker(ctx context.Context) {
+	defer m.workerWG.Done()
 	for j := range m.orderbookJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
 			return
@@ -291,7 +292,7 @@ func (m *Manager) orderbookWorker(ctx context.Context) {
 		if err == nil && m.WebsocketRPCEnabled {
 			m.relayWebsocketEvent(result, "orderbook_update", j.Asset.String(), exchName)
 		}
-		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, j.Item, err)
+		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, subsystem.Orderbook, err)
 		if err != nil {
 			log.Error(log.SyncMgr, err)
 		}
@@ -300,6 +301,7 @@ func (m *Manager) orderbookWorker(ctx context.Context) {
 
 // tickerWorker waits for a ticker job then executes a REST request.
 func (m *Manager) tickerWorker(ctx context.Context) {
+	defer m.workerWG.Done()
 	for j := range m.tickerJobs {
 		if atomic.LoadInt32(&m.started) == 0 {
 			return
@@ -346,7 +348,7 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 		if err == nil && m.WebsocketRPCEnabled {
 			m.relayWebsocketEvent(result, "ticker_update", j.Asset.String(), exchName)
 		}
-		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, j.Item, err)
+		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, subsystem.Ticker, err)
 		if err != nil {
 			log.Error(log.SyncMgr, err)
 		}
@@ -446,27 +448,20 @@ func (a *Agent) NextUpdate(timeoutRest, timeoutWS time.Duration) time.Duration {
 		return -1
 	}
 
+	protocolTimeout := timeoutRest
 	if a.IsUsingWebsocket {
 		if a.LastUpdated.IsZero() {
 			// Update not needed, stream connection established waiting for
 			// initial update.
 			return -1
 		}
-
-		timeout := time.Until(a.LastUpdated.Add(timeoutWS))
-		if timeout <= 0 {
-			// Update immediately via switching to REST request
-			return 0
-		}
-		return timeout
-	}
-
-	if a.LastUpdated.IsZero() {
+		protocolTimeout = timeoutWS
+	} else if a.LastUpdated.IsZero() {
 		// Update immediately, via REST request
 		return 0
 	}
 
-	timeout := time.Until(a.LastUpdated.Add(timeoutRest))
+	timeout := time.Until(a.LastUpdated.Add(protocolTimeout))
 	if timeout <= 0 {
 		// Update immediately
 		return 0

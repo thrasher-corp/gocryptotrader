@@ -386,6 +386,10 @@ instruments:
 			default:
 				continue instruments
 			}
+			// NOTE: Filtering is done below to remove the underscore in a
+			// limited amount of index asset strings while the rest don't
+			// contain an underscore. Calling DeriveFrom will then error and
+			// the instruments will be missed.
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
 			pair, err = enabled.DeriveFrom(tick[j].Symbol, "")
 		case asset.PerpetualContract:

@@ -454,13 +454,15 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	switch a {
 	case asset.Spot, asset.Margin:
-		tick, err := b.GetTickers(ctx)
+		var tick []PriceChangeStats
+		tick, err = b.GetTickers(ctx)
 		if err != nil {
 			return err
 		}
 
 		for y := range tick {
-			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, "")
+			var cp currency.Pair
+			cp, err = enabledPairs.DeriveFrom(tick[y].Symbol, "")
 			if err != nil {
 				continue
 			}
@@ -484,14 +486,20 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.USDTMarginedFutures:
-		tick, err := b.U24HTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
+		var tick []U24HrPriceChangeStats
+		tick, err = b.U24HTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
 
 		for y := range tick {
+			// NOTE: Filtering is done below to remove the underscore in a
+			// limited amount of USDTMarginedFutures asset strings while the
+			// rest don't contain an underscore. Calling DeriveFrom will then
+			// error and the instruments will be missed.
 			tick[y].Symbol = strings.Replace(tick[y].Symbol, currency.UnderscoreDelimiter, "", 1)
-			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, "")
+			var cp currency.Pair
+			cp, err = enabledPairs.DeriveFrom(tick[y].Symbol, "")
 			if err != nil {
 				continue
 			}
@@ -512,13 +520,15 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.CoinMarginedFutures:
-		tick, err := b.GetFuturesSwapTickerChangeStats(ctx, currency.EMPTYPAIR, "")
+		var tick []PriceChangeStats
+		tick, err = b.GetFuturesSwapTickerChangeStats(ctx, currency.EMPTYPAIR, "")
 		if err != nil {
 			return err
 		}
 
 		for y := range tick {
-			cp, err := enabledPairs.DeriveFrom(tick[y].Symbol, currency.UnderscoreDelimiter)
+			var cp currency.Pair
+			cp, err = enabledPairs.DeriveFrom(tick[y].Symbol, currency.UnderscoreDelimiter)
 			if err != nil {
 				continue
 			}

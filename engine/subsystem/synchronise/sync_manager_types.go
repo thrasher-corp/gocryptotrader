@@ -54,9 +54,9 @@ type Agent struct {
 
 // ManagerConfig stores the currency pair synchronisation manager config
 type ManagerConfig struct {
-	SynchronizeTicker       bool
-	SynchronizeOrderbook    bool
-	SynchronizeContinuously bool
+	SynchroniseTicker       bool
+	SynchroniseOrderbook    bool
+	SynchroniseContinuously bool
 	TimeoutREST             time.Duration
 	TimeoutWebsocket        time.Duration
 	NumWorkers              int
@@ -88,6 +88,7 @@ type Manager struct {
 
 	orderbookJobs chan RESTJob
 	tickerJobs    chan RESTJob
+	workerWG      sync.WaitGroup
 }
 
 // RESTJob defines a potential REST synchronisation job
@@ -95,5 +96,4 @@ type RESTJob struct {
 	exch  exchange.IBotExchange
 	Pair  currency.Pair
 	Asset asset.Item
-	Item  subsystem.SynchronisationType
 }

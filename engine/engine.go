@@ -545,9 +545,9 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableExchangeSyncManager {
 		bot.currencyPairSyncer, err = synchronise.NewManager(&synchronise.ManagerConfig{
-			SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
-			SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
-			SynchronizeContinuously: bot.Settings.SyncContinuously,
+			SynchroniseTicker:       bot.Settings.EnableTickerSyncing,
+			SynchroniseOrderbook:    bot.Settings.EnableOrderbookSyncing,
+			SynchroniseContinuously: bot.Settings.SyncContinuously,
 			TimeoutREST:             bot.Settings.SyncTimeoutREST,
 			TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
 			NumWorkers:              bot.Settings.SyncWorkersCount,
