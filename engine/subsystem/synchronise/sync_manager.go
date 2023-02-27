@@ -157,7 +157,7 @@ func (m *Manager) getSmallestTimeout() time.Duration {
 	return m.TimeoutWebsocket
 }
 
-// checkSyncItems checks agent against it's current last update time on all
+// checkSyncItems checks agent against its current last update time on all
 // individual Synchronisation items.
 func (m *Manager) checkSyncItems(exch exchange.IBotExchange, pair currency.Pair, a asset.Item, usingREST bool, update time.Duration) (smallest time.Duration) {
 	if m.SynchronizeOrderbook {
