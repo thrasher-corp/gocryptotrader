@@ -867,16 +867,16 @@ func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription
 	if err != nil {
 		return err
 	}
-	var errs common.Errors
+	var errs error
 	for x := range payloads {
 		err = ku.Websocket.Conn.SendJSONMessage(payloads[x])
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		ku.Websocket.AddSuccessfulSubscriptions(subscriptions[x])
 	}
-	return errs.Unwrap()
+	return errs
 }
 
 // getChannelsAssetType returns the asset type to which the subscription channel belongs to
@@ -994,7 +994,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 					currencyExist[spotPairs[b].Quote] = true
 				}
 			}
-			currencies := ""
+			var currencies string
 			for b := range currencyExist {
 				currencies += b.String() + ","
 			}

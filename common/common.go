@@ -433,28 +433,78 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	return
 }
 
-// Errors defines multiple errors
-type Errors []error
-
-// Error implements error interface
-func (e Errors) Error() string {
-	if len(e) == 0 {
-		return ""
-	}
-	var r string
-	for i := range e {
-		r += e[i].Error() + ", "
-	}
-	return r[:len(r)-2]
+// multiError holds all the errors as a slice, this is unexported, so it forces
+// inbuilt error handling.
+type multiError struct {
+	loadedErrors []error
+	offset       *int
 }
 
-// Unwrap implements interface behaviour for errors.Is() matching NOTE: only
-// returns first element.
-func (e Errors) Unwrap() error {
-	if len(e) == 0 {
-		return nil
+// AppendError appends error in a more idiomatic way. This can start out as a
+// standard error e.g. err := errors.New("random error")
+// err = AppendError(err, errors.New("another random error"))
+func AppendError(original, incoming error) error {
+	errSliceP, ok := original.(*multiError)
+	if ok {
+		errSliceP.offset = nil
 	}
-	return e[0]
+	if incoming == nil {
+		return original // Skip append - continue as normal.
+	}
+	if !ok {
+		// This assumes that a standard error is passed in and we can want to
+		// track it and add additional errors.
+		errSliceP = &multiError{}
+		if original != nil {
+			errSliceP.loadedErrors = append(errSliceP.loadedErrors, original)
+		}
+	}
+	if incomingSlice, ok := incoming.(*multiError); ok {
+		// Join slices if needed.
+		errSliceP.loadedErrors = append(errSliceP.loadedErrors, incomingSlice.loadedErrors...)
+	} else {
+		errSliceP.loadedErrors = append(errSliceP.loadedErrors, incoming)
+	}
+	return errSliceP
+}
+
+// Error displays all errors comma separated, if unwrapped has been called and
+// has not been reset will display the individual error
+func (e *multiError) Error() string {
+	if e.offset != nil {
+		return e.loadedErrors[*e.offset].Error()
+	}
+	allErrors := make([]string, len(e.loadedErrors))
+	for x := range e.loadedErrors {
+		allErrors[x] = e.loadedErrors[x].Error()
+	}
+	return strings.Join(allErrors, ", ")
+}
+
+// Unwrap increments the offset so errors.Is() can be called to its individual
+// error for correct matching.
+func (e *multiError) Unwrap() error {
+	if e.offset == nil {
+		e.offset = new(int)
+	} else {
+		*e.offset++
+	}
+	if *e.offset == len(e.loadedErrors) {
+		e.offset = nil
+		return nil // Force errors.Is package to return false.
+	}
+	return e
+}
+
+// Is checks to see if the errors match. It calls package errors.Is() so that
+// we can keep fmt.Errorf() trimmings. This is called in errors package at
+// interface assertion err.(interface{ Is(error) bool }).
+func (e *multiError) Is(incoming error) bool {
+	if e.offset != nil && errors.Is(e.loadedErrors[*e.offset], incoming) {
+		e.offset = nil
+		return true
+	}
+	return false
 }
 
 // StartEndTimeCheck provides some basic checks which occur
