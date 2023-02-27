@@ -5,17 +5,18 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -336,6 +337,49 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 	}
 }
 
+type assetPair struct {
+	Pair  currency.Pair
+	Asset asset.Item
+}
+
+// unsupportedFunctionNames represent the functions that are not
+// currently tested under this suite due to irrelevance
+// or not worth checking yet
+var unsupportedFunctionNames = []string{
+	"GetCollateralCurrencyForContract",
+	"GetCurrencyForRealisedPNL",
+	"FlushWebsocketChannels",
+	"GetOrderExecutionLimits",
+	"IsPerpetualFutureCurrency",
+	"UpdateCurrencyStates",
+	"UpdateOrderExecutionLimits",
+	"CanTradePair",
+	"CanTrade",
+	"CanWithdraw",
+	"CanDeposit",
+	"GetCurrencyStateSnapshot",
+	"GetPositionSummary",
+	"ScaleCollateral",
+	"CalculateTotalCollateral",
+	"GetFuturesPositions",
+	"GetFundingRates",
+	"IsPerpetualFutureCurrency",
+	"GetMarginRatesHistory",
+	"CalculatePNL",
+	"AuthenticateWebsocket",
+}
+
+var unsupportedExchangeNames = []string{
+	"alphapoint",
+	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
+}
+
+var acceptableErrors = []error{
+	common.ErrFunctionNotSupported,
+	asset.ErrNotSupported,
+	request.ErrAuthRequestFailed,
+}
+
 func TestAllExchanges(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
@@ -398,7 +442,7 @@ func TestAllExchanges(t *testing.T) {
 					Asset: assets[j],
 				}
 			}
-			what, err := testWrappers(t, exch, testMap)
+			what, err := executeExchangeWrapperTests(t, exch, testMap)
 			if err != nil {
 				t.Error(err)
 			}
@@ -409,54 +453,16 @@ func TestAllExchanges(t *testing.T) {
 	}
 }
 
-type assetPair struct {
-	Pair  currency.Pair
-	Asset asset.Item
-}
-
-// unsupportedFunctionNames represent the functions that are not
-// currently tested under this suite due to irrelevance
-// or not worth checking yet
-var unsupportedFunctionNames = []string{
-	"GetCollateralCurrencyForContract",
-	"GetCurrencyForRealisedPNL",
-	"FlushWebsocketChannels",
-	"GetOrderExecutionLimits",
-	"IsPerpetualFutureCurrency",
-	"UpdateCurrencyStates",
-	"UpdateOrderExecutionLimits",
-	"CanTradePair",
-	"CanTrade",
-	"CanWithdraw",
-	"CanDeposit",
-	"GetCurrencyStateSnapshot",
-	"GetPositionSummary",
-	"ScaleCollateral",
-	"CalculateTotalCollateral",
-	"GetFuturesPositions",
-	"GetFundingRates",
-	"IsPerpetualFutureCurrency",
-	"GetMarginRatesHistory",
-	"CalculatePNL",
-	"AuthenticateWebsocket",
-}
-
-var acceptableErrors = []error{
-	common.ErrFunctionNotSupported,
-	asset.ErrNotSupported,
-	request.ErrAuthRequestFailed,
-}
-
-func testWrappers(t *testing.T, e exchange.IBotExchange, assetParams []assetPair) ([]string, error) {
-	if e.GetName() == "Bitflyer" {
+func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) ([]string, error) {
+	if common.StringDataContains(unsupportedExchangeNames, strings.ToLower(exch.GetName())) {
 		return nil, nil
 	}
 	var acceptableErr error
 	for i := range acceptableErrors {
 		acceptableErr = common.AppendError(acceptableErr, acceptableErrors[i])
 	}
-	iExchange := reflect.TypeOf(&e).Elem()
-	actualExchange := reflect.ValueOf(e)
+	iExchange := reflect.TypeOf(&exch).Elem()
+	actualExchange := reflect.ValueOf(exch)
 	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 
 	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
@@ -498,7 +504,11 @@ methods:
 			case input.AssignableTo(klineParam):
 				inputs[y] = reflect.ValueOf(kline.OneHour)
 			case input.AssignableTo(codeParam):
-				inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair.Quote)
+				if name == "GetAvailableTransferChains" {
+					inputs[y] = reflect.ValueOf(currency.ETH)
+				} else {
+					inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair.Quote)
+				}
 			case input.AssignableTo(timeParam):
 				if setStartTime {
 					inputs[y] = reflect.ValueOf(endDateroo)
@@ -507,7 +517,10 @@ methods:
 					setStartTime = true
 				}
 			default:
-				resp := buildRequest(name, assetParams[assetPairIndex].Asset, assetParams[assetPairIndex].Pair, input)
+				resp, err := buildRequest(exch, exch.GetName(), name, assetParams[assetPairIndex].Asset, assetParams[assetPairIndex].Pair, input)
+				if err != nil {
+					t.Errorf("%v %v %v %v %v %v", exch, name, assetParams[assetPairIndex].Asset, assetParams[assetPairIndex].Pair, input.Name(), err)
+				}
 				if resp == nil {
 					// unsupported request
 					continue methods
@@ -524,7 +537,7 @@ methods:
 				if method.Type().NumIn() == 0 {
 					// Some empty functions will reset the exchange struct to defaults,
 					// so turn off verbosity.
-					e.GetBase().Verbose = false
+					exch.GetBase().Verbose = false
 				}
 			errProcessing:
 				for y := range outputs {
@@ -552,7 +565,33 @@ methods:
 	return funcs, nil
 }
 
-func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type) interface{} {
+func isFiat(c string) bool {
+	var fiats = []string{
+		currency.USD.Item.Lower,
+		currency.AUD.Item.Lower,
+		currency.EUR.Item.Lower,
+		currency.CAD.Item.Lower,
+		currency.TRY.Item.Lower,
+		currency.UAH.Item.Lower,
+		currency.RUB.Item.Lower,
+		currency.RUR.Item.Lower,
+		currency.JPY.Item.Lower,
+		currency.HKD.Item.Lower,
+		currency.SGD.Item.Lower,
+		currency.ZUSD.Item.Lower,
+		currency.ZEUR.Item.Lower,
+		currency.ZCAD.Item.Lower,
+		currency.ZJPY.Item.Lower,
+	}
+	for i := range fiats {
+		if fiats[i] == c {
+			return true
+		}
+	}
+	return false
+}
+
+func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset.Item, p currency.Pair, input reflect.Type) (interface{}, error) {
 	pairs := reflect.TypeOf((*currency.Pairs)(nil)).Elem()
 	wr := reflect.TypeOf((**withdraw.Request)(nil)).Elem()
 	os := reflect.TypeOf((**order.Submit)(nil)).Elem()
@@ -565,24 +604,70 @@ func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type
 	case input.AssignableTo(pairs):
 		return currency.Pairs{
 			p,
-		}
+		}, nil
 	case input.AssignableTo(wr):
-		return &withdraw.Request{
-			Exchange:      name,
-			Currency:      p.Quote,
+		req := &withdraw.Request{
+			Exchange:      exchName,
 			Description:   "1337",
 			Amount:        1337,
-			Type:          withdraw.Crypto,
 			ClientOrderID: "1337",
-			Crypto: withdraw.CryptoRequest{
+		}
+		if funcName == "WithdrawCryptocurrencyFunds" {
+			req.Type = withdraw.Crypto
+			if !isFiat(p.Base.Item.Lower) {
+				req.Currency = p.Base
+			} else {
+				req.Currency = p.Quote
+			}
+			req.Crypto = withdraw.CryptoRequest{
 				Address:    "1337",
 				AddressTag: "1337",
-				Chain:      "1337",
-			},
+				Chain:      "ERC20",
+			}
+		} else {
+			req.Type = withdraw.Fiat
+			b := exch.GetBase()
+			if len(b.Config.BaseCurrencies) > 0 {
+				req.Currency = b.Config.BaseCurrencies[0]
+			} else {
+				req.Currency = currency.USD
+			}
+			req.Fiat = withdraw.FiatRequest{
+				Bank: banking.Account{
+					Enabled:             true,
+					ID:                  "1337",
+					BankName:            "1337",
+					BankAddress:         "1337",
+					BankPostalCode:      "1337",
+					BankPostalCity:      "1337",
+					BankCountry:         "1337",
+					AccountName:         "1337",
+					AccountNumber:       "1337",
+					SWIFTCode:           "1337",
+					IBAN:                "1337",
+					BSBNumber:           "1337",
+					BankCode:            1337,
+					SupportedCurrencies: req.Currency.String(),
+					SupportedExchanges:  exchName,
+				},
+				IsExpressWire:                 false,
+				RequiresIntermediaryBank:      false,
+				IntermediaryBankAccountNumber: 1338,
+				IntermediaryBankName:          "1338",
+				IntermediaryBankAddress:       "1338",
+				IntermediaryBankCity:          "1338",
+				IntermediaryBankCountry:       "1338",
+				IntermediaryBankPostalCode:    "1338",
+				IntermediarySwiftCode:         "1338",
+				IntermediaryBankCode:          1338,
+				IntermediaryIBAN:              "1338",
+				WireCurrency:                  "1338",
+			}
 		}
+		return req, nil
 	case input.AssignableTo(os):
 		return &order.Submit{
-			Exchange:      name,
+			Exchange:      exchName,
 			Type:          order.Market,
 			Side:          order.Buy,
 			Pair:          p,
@@ -591,10 +676,10 @@ func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type
 			Amount:        1337,
 			ClientID:      "1337",
 			ClientOrderID: "13371337",
-		}
+		}, nil
 	case input.AssignableTo(om):
 		return &order.Modify{
-			Exchange:      name,
+			Exchange:      exchName,
 			Type:          order.Market,
 			Side:          order.Buy,
 			Pair:          p,
@@ -603,27 +688,27 @@ func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type
 			Amount:        1337,
 			ClientOrderID: "13371337",
 			OrderID:       "1337",
-		}
+		}, nil
 	case input.AssignableTo(oc):
 		return &order.Cancel{
-			Exchange:      name,
+			Exchange:      exchName,
 			Type:          order.Market,
 			Side:          order.Buy,
 			Pair:          p,
 			AssetType:     a,
 			ClientOrderID: "13371337",
-		}
+		}, nil
 	case input.AssignableTo(occ):
 		return []order.Cancel{
 			{
-				Exchange:      name,
+				Exchange:      exchName,
 				Type:          order.Market,
 				Side:          order.Buy,
 				Pair:          p,
 				AssetType:     a,
 				ClientOrderID: "13371337",
 			},
-		}
+		}, nil
 	case input.AssignableTo(gor):
 		return &order.GetOrdersRequest{
 			Type:      order.AnyType,
@@ -631,9 +716,9 @@ func buildRequest(name string, a asset.Item, p currency.Pair, input reflect.Type
 			OrderID:   "1337",
 			AssetType: a,
 			Pairs:     currency.Pairs{p},
-		}
+		}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // disruptFormatting adds in an unused delimiter and strange casing features to
@@ -648,49 +733,4 @@ func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 		Quote:     p.Quote.Lower(),
 		Delimiter: "-TEST-DELIM-",
 	}, nil
-}
-
-func TestDataHandlerErrors(t *testing.T) {
-	t.Parallel()
-	// the goal of this test is to create a custom
-	// data handler per exchange that has a websocket
-	// then if any errors are returned, add to a t.Error
-	// allow the websocket to be running for 30 seconds
-	t.Parallel()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal("ZB load config error", err)
-	}
-	for i := range cfg.Exchanges {
-		if i > 0 {
-			continue
-		}
-		name := cfg.Exchanges[i].Name
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			em := SetupExchangeManager()
-			exch, err := em.NewExchangeByName(name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			exchCfg, err := cfg.GetExchangeConfig(name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			exch.SetDefaults()
-			exchCfg.Websocket = convert.BoolPtr(true)
-			exchCfg.Features.Enabled.Websocket = true
-			err = exch.Setup(exchCfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-			ws, err := exch.GetWebsocket()
-			ws.DataHandler = make(chan interface{}, 1)
-		})
-	}
-}
-
-func SomethingToReadTheDataHandlerAndCheckForErrors() error {
-	return nil
 }

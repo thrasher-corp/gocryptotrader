@@ -220,11 +220,7 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	params.Set("symbol", symbol)
+	params.Set("symbol", arg.Symbol.String())
 	// if the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
 	needBatch := false
@@ -297,7 +293,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
 				log.Warn(log.ExchangeSys, err.Error())
-				return resp, err
+				return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 			}
 		}
 		fromID = resp[len(resp)-1].ATradeID
@@ -318,7 +314,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			spotDefaultRate,
 			&additionalTrades)
 		if err != nil {
-			return resp, err
+			return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 		}
 		lastIndex := len(additionalTrades)
 		if !arg.EndTime.IsZero() {

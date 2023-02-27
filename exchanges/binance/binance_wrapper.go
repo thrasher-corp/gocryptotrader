@@ -840,26 +840,69 @@ func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error) {
 	const limit = 1000
-	tradeData, err := b.GetMostRecentTrades(ctx,
-		RecentTradeRequestParams{p, limit})
+	rFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
 	}
+	pFmt := p.Format(rFmt)
+	resp := make([]trade.Data, 0, limit)
+	switch a {
+	case asset.Spot:
+		tradeData, err := b.GetMostRecentTrades(ctx,
+			RecentTradeRequestParams{pFmt, limit})
+		if err != nil {
+			return nil, err
+		}
 
-	resp := make([]trade.Data, len(tradeData))
-	for i := range tradeData {
-		resp[i] = trade.Data{
-			TID:          strconv.FormatInt(tradeData[i].ID, 10),
-			Exchange:     b.Name,
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Price:        tradeData[i].Price,
-			Amount:       tradeData[i].Quantity,
-			Timestamp:    tradeData[i].Time,
+		for i := range tradeData {
+			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(tradeData[i].ID, 10),
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    a,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Quantity,
+				Timestamp:    tradeData[i].Time,
+			})
+		}
+	case asset.USDTMarginedFutures:
+		tradeData, err := b.URecentTrades(ctx, pFmt, "", limit)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range tradeData {
+			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(tradeData[i].ID, 10),
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    a,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Qty,
+				Timestamp:    tradeData[i].Time.Time(),
+			})
+		}
+	case asset.CoinMarginedFutures:
+		tradeData, err := b.GetFuturesPublicTrades(ctx, pFmt, limit)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range tradeData {
+			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(tradeData[i].ID, 10),
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    a,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Qty,
+				Timestamp:    tradeData[i].Time.Time(),
+			})
 		}
 	}
+
 	if b.IsSaveTradeDataEnabled() {
 		err := trade.AddTradesToBuffer(b.Name, resp...)
 		if err != nil {
@@ -873,35 +916,34 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
+	rFmt, err := b.GetPairFormat(a, true)
+	if err != nil {
+		return nil, err
+	}
+	pFmt := p.Format(rFmt)
 	req := AggregatedTradeRequestParams{
-		Symbol:    p,
+		Symbol:    pFmt,
 		StartTime: from,
 		EndTime:   to,
 	}
 	trades, err := b.GetAggregatedTrades(ctx, &req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %v", err, pFmt)
 	}
 	result := make([]trade.Data, len(trades))
-	exName := b.GetName()
 	for i := range trades {
-		t := trades[i].toTradeData(p, exName, a)
-		result[i] = *t
+		result[i] = trade.Data{
+			CurrencyPair: p,
+			TID:          strconv.FormatInt(trades[i].ATradeID, 10),
+			Amount:       trades[i].Quantity,
+			Exchange:     b.Name,
+			Price:        trades[i].Price,
+			Timestamp:    trades[i].TimeStamp,
+			AssetType:    a,
+			Side:         order.AnySide,
+		}
 	}
 	return result, nil
-}
-
-func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType asset.Item) *trade.Data {
-	return &trade.Data{
-		CurrencyPair: p,
-		TID:          strconv.FormatInt(a.ATradeID, 10),
-		Amount:       a.Quantity,
-		Exchange:     exchange,
-		Price:        a.Price,
-		Timestamp:    a.TimeStamp,
-		AssetType:    aType,
-		Side:         order.AnySide,
-	}
 }
 
 // SubmitOrder submits a new order
@@ -1691,31 +1733,74 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 
-	if a != asset.Spot {
-		// TODO: Add support for other asset types.
-		return nil, common.ErrNotYetImplemented
-	}
-
-	candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
-		Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
-		Symbol:    req.Pair,
-		StartTime: req.Start,
-		EndTime:   req.End,
-		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
-	})
-	if err != nil {
-		return nil, err
-	}
-	timeSeries := make([]kline.Candle, len(candles))
-	for x := range candles {
-		timeSeries[x] = kline.Candle{
-			Time:   candles[x].OpenTime,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
+	timeSeries := make([]kline.Candle, req.Size())
+	switch a {
+	case asset.Spot:
+		var candles []CandleStick
+		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
+			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
+			Symbol:    req.Pair,
+			StartTime: req.Start,
+			EndTime:   req.End,
+			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+		})
+		if err != nil {
+			return nil, err
 		}
+		for i := range candles {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   candles[i].OpenTime,
+				Open:   candles[i].Open,
+				High:   candles[i].High,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+	case asset.USDTMarginedFutures:
+		var candles []FuturesCandleStick
+		candles, err = b.UKlineData(ctx,
+			req.RequestFormatted,
+			b.FormatExchangeKlineInterval(interval),
+			int64(b.Features.Enabled.Kline.ResultLimit),
+			req.Start,
+			req.End)
+		if err != nil {
+			return nil, err
+		}
+		for i := range candles {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   candles[i].OpenTime,
+				Open:   candles[i].Open,
+				High:   candles[i].High,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+	case asset.CoinMarginedFutures:
+		var candles []FuturesCandleStick
+		candles, err = b.GetFuturesKlineData(ctx,
+			req.RequestFormatted,
+			b.FormatExchangeKlineInterval(interval),
+			int64(b.Features.Enabled.Kline.ResultLimit),
+			req.Start,
+			req.End)
+		if err != nil {
+			return nil, err
+		}
+		for i := range candles {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   candles[i].OpenTime,
+				Open:   candles[i].Open,
+				High:   candles[i].High,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	return req.ProcessResponse(timeSeries)
 }
@@ -1728,34 +1813,75 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		return nil, err
 	}
 
-	if a != asset.Spot {
-		// TODO: Add support for other asset types.
-		return nil, common.ErrNotYetImplemented
-	}
-
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		var candles []CandleStick
-		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			Symbol:    req.Pair,
-			StartTime: req.RangeHolder.Ranges[x].Start.Time,
-			EndTime:   req.RangeHolder.Ranges[x].End.Time,
-			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range candles {
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+		switch a {
+		case asset.Spot:
+			var candles []CandleStick
+			candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
+				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
+				Symbol:    req.Pair,
+				StartTime: req.RangeHolder.Ranges[x].Start.Time,
+				EndTime:   req.RangeHolder.Ranges[x].End.Time,
+				Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 			})
+			if err != nil {
+				return nil, err
+			}
+			for i := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+		case asset.USDTMarginedFutures:
+			var candles []FuturesCandleStick
+			candles, err = b.UKlineData(ctx,
+				req.RequestFormatted,
+				b.FormatExchangeKlineInterval(interval),
+				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for i := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+		case asset.CoinMarginedFutures:
+			var candles []FuturesCandleStick
+			candles, err = b.GetFuturesKlineData(ctx,
+				req.RequestFormatted,
+				b.FormatExchangeKlineInterval(interval),
+				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for i := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+		default:
+			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 		}
 	}
 	return req.ProcessResponse(timeSeries)

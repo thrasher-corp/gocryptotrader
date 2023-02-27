@@ -579,7 +579,7 @@ func (b *Bitstamp) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *Bitstamp) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -926,4 +926,9 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 	}
 	return req.ProcessResponse(timeSeries)
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Bitstamp) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }

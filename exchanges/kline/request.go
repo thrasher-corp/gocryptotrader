@@ -181,6 +181,15 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	return holder, err
 }
 
+// Size returns the max length of return for pre-allocation.
+func (r *Request) Size() int {
+	if r == nil {
+		return 0
+	}
+
+	return int(TotalCandlesPerInterval(r.Start, r.End, r.ExchangeInterval))
+}
+
 // ExtendedRequest used in extended functionality for when candles requested
 // exceed exchange limits and require multiple requests.
 type ExtendedRequest struct {
