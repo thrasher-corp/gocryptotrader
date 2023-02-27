@@ -1264,13 +1264,13 @@ channels:
 		*s = append(*s, outbound)
 	}
 
-	var errs common.Errors
+	var errs error
 	for subType, subs := range subscriptions {
 		for i := range *subs {
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
 				_, err := k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 				if err != nil {
-					errs = append(errs, err)
+					errs = common.AppendError(errs, err)
 					continue
 				}
 				k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
@@ -1285,16 +1285,13 @@ channels:
 			}
 			_, err := k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 			if err != nil {
-				errs = append(errs, err)
+				errs = common.AppendError(errs, err)
 				continue
 			}
 			k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 		}
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -1339,12 +1336,12 @@ channels:
 		unsubs = append(unsubs, unsub)
 	}
 
-	var errs common.Errors
+	var errs error
 	for i := range unsubs {
 		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
 			_, err := k.Websocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
 			if err != nil {
-				errs = append(errs, err)
+				errs = common.AppendError(errs, err)
 				continue
 			}
 			k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
@@ -1353,15 +1350,12 @@ channels:
 
 		_, err := k.Websocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // wsAddOrder creates an order, returned order ID if success

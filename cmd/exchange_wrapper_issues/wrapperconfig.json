@@ -141,11 +141,6 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "localbitcoins": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "okcoin international": {
    "key": "Key",
    "secret": "Secret",

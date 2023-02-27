@@ -1889,7 +1889,7 @@ func TestInvalidateBlockTradeSignature(t *testing.T) {
 	}
 }
 
-var blockTradeResponseJSON = `[	{	  "trade_seq":30289730,	  "trade_id":"48079573",	  "timestamp":1590485535978,	  "tick_direction":0,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":8900.0,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043192",	  "matching_id":"None",	  "mark_price":8895.19,	  "liquidity":"M",	  "instrument_name":"BTC-PERPETUAL",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":-0.00561798,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":200000.0	},	{	  "underlying_price":8902.86,	  "trade_seq":1,	  "trade_id":"48079574",	  "timestamp":1590485535979,	  "tick_direction":1,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":0.0133,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043194",	  "matching_id":"None",	  "mark_price":0.01831619,	  "liquidity":"M",	  "iv":62.44,	  "instrument_name":"BTC-28MAY20-9000-C",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":0.002,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":5.0	}]`
+const blockTradeResponseJSON = `[	{	  "trade_seq":30289730,	  "trade_id":"48079573",	  "timestamp":1590485535978,	  "tick_direction":0,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":8900.0,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043192",	  "matching_id":"None",	  "mark_price":8895.19,	  "liquidity":"M",	  "instrument_name":"BTC-PERPETUAL",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":-0.00561798,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":200000.0	},	{	  "underlying_price":8902.86,	  "trade_seq":1,	  "trade_id":"48079574",	  "timestamp":1590485535979,	  "tick_direction":1,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":0.0133,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043194",	  "matching_id":"None",	  "mark_price":0.01831619,	  "liquidity":"M",	  "iv":62.44,	  "instrument_name":"BTC-28MAY20-9000-C",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":0.002,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":5.0	}]`
 
 func TestExecuteBlockTrade(t *testing.T) {
 	t.Parallel()
@@ -1942,7 +1942,7 @@ func TestGetUserBlocTrade(t *testing.T) {
 	}
 }
 
-var blockTradeResponsesJSON = `[	{	  "trade_seq": 4,	  "trade_id": "92462",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 0.0151,	  "order_type": "limit",	  "order_id": "343121",	  "matching_id": null,	  "liquidity": "M",	  "iv": 72.38,	  "instrument_name": "BTC-9AUG19-11500-P",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 2.3	},	{	  "trade_seq": 41,	  "trade_id": "92460",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 11753,	  "order_type": "limit",	  "order_id": "343117",	  "matching_id": null,	  "liquidity": "M",	  "instrument_name": "BTC-9AUG19",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 50	}]`
+const blockTradeResponsesJSON = `[	{	  "trade_seq": 4,	  "trade_id": "92462",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 0.0151,	  "order_type": "limit",	  "order_id": "343121",	  "matching_id": null,	  "liquidity": "M",	  "iv": 72.38,	  "instrument_name": "BTC-9AUG19-11500-P",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 2.3	},	{	  "trade_seq": 41,	  "trade_id": "92460",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 11753,	  "order_type": "limit",	  "order_id": "343117",	  "matching_id": null,	  "liquidity": "M",	  "instrument_name": "BTC-9AUG19",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 50	}]`
 
 func TestGetLastBlockTradesbyCurrency(t *testing.T) {
 	t.Parallel()
@@ -1996,7 +1996,7 @@ func TestMovePositions(t *testing.T) {
 	}
 }
 
-var announcementPushDataJSON = `{    "jsonrpc": "2.0",    "method": "subscription",    "params": {         "channel": "announcements",         "data": {            "action": "new",            "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",            "id": 1532593832021,            "important": true,            "publication_timestamp": 1532593832021,            "title": "Example announcement"        }    }}`
+const announcementPushDataJSON = `{    "jsonrpc": "2.0",    "method": "subscription",    "params": {         "channel": "announcements",         "data": {            "action": "new",            "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",            "id": 1532593832021,            "important": true,            "publication_timestamp": 1532593832021,            "title": "Example announcement"        }    }}`
 
 func TestHandlerAnnouncementPushData(t *testing.T) {
 	t.Parallel()
@@ -2005,7 +2005,7 @@ func TestHandlerAnnouncementPushData(t *testing.T) {
 	}
 }
 
-var (
+const (
 	orderbookPushDataJSON       = `{	"params" : {"data" : {"timestamp" : 1554375447971,"instrument_name" : "ETH-PERPETUAL","change_id" : 109615,"bids" : [[160,40]],"asks" : [[161,20]]},	  "channel" : "book.ETH-PERPETUAL.100.1.100ms"	},	"method" : "subscription",	"jsonrpc" : "2.0"}`
 	orderbookUpdatePushDataJSON = `{"params" : {"data" : {"type" : "snapshot","timestamp" : 1554373962454,"instrument_name" : "BTC-PERPETUAL","change_id" : 297217,"bids" : [["new",5042.34,30],["new",5041.94,20]],"asks" : [["new",5042.64,40],["new",5043.3,40]]},"channel" : "book.BTC-PERPETUAL.100ms"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 )
@@ -2020,7 +2020,7 @@ func TestOrderbookPushData(t *testing.T) {
 	}
 }
 
-var candlestickPushDataJSON = `{"params" : {"data" : {"volume" : 0.05219351,"tick" : 1573645080000,"open" : 8869.79,"low" : 8788.25,"high" : 8870.31,"cost" : 460,"close" : 8791.25},"channel" : "chart.trades.BTC-PERPETUAL.1"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const candlestickPushDataJSON = `{"params" : {"data" : {"volume" : 0.05219351,"tick" : 1573645080000,"open" : 8869.79,"low" : 8788.25,"high" : 8870.31,"cost" : 460,"close" : 8791.25},"channel" : "chart.trades.BTC-PERPETUAL.1"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestChartPushData(t *testing.T) {
 	t.Parallel()
@@ -2029,7 +2029,7 @@ func TestChartPushData(t *testing.T) {
 	}
 }
 
-var indexPricePushDataJSON = `{	"params" : {"data" : {"timestamp" : 1550588002899,"price" : 3937.89,"index_name" : "btc_usd"},"channel" : "deribit_price_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const indexPricePushDataJSON = `{	"params" : {"data" : {"timestamp" : 1550588002899,"price" : 3937.89,"index_name" : "btc_usd"},"channel" : "deribit_price_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestIndexPricePushData(t *testing.T) {
 	t.Parallel()
@@ -2038,7 +2038,7 @@ func TestIndexPricePushData(t *testing.T) {
 	}
 }
 
-var priceRankingPushDataJSON = `{"params" : {"data" : [{"weight" : 14.29,		  "timestamp" : 1573202284040,		  "price" : 9109.35,		  "original_price" : 9109.35,		  "identifier" : "bitfinex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284055,		  "price" : 9084.83,		  "original_price" : 9084.83,		  "identifier" : "bitstamp",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283191,		  "price" : 9079.91,		  "original_price" : 9079.91,		  "identifier" : "bittrex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284094,		  "price" : 9085.81,		  "original_price" : 9085.81,		  "identifier" : "coinbase",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283881,		  "price" : 9086.27,		  "original_price" : 9086.27,		  "identifier" : "gemini",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283420,		  "price" : 9088.38,		  "original_price" : 9088.38,		  "identifier" : "itbit",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283459,		  "price" : 9083.6,		  "original_price" : 9083.6,		  "identifier" : "kraken",		  "enabled" : true		},		{		  "weight" : 0,		  "timestamp" : 0,		  "price" : null,		  "original_price" : null,		  "identifier" : "lmax",		  "enabled" : false		}	  ],	  "channel" : "deribit_price_ranking.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const priceRankingPushDataJSON = `{"params" : {"data" : [{"weight" : 14.29,		  "timestamp" : 1573202284040,		  "price" : 9109.35,		  "original_price" : 9109.35,		  "identifier" : "bitfinex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284055,		  "price" : 9084.83,		  "original_price" : 9084.83,		  "identifier" : "bitstamp",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283191,		  "price" : 9079.91,		  "original_price" : 9079.91,		  "identifier" : "bittrex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284094,		  "price" : 9085.81,		  "original_price" : 9085.81,		  "identifier" : "coinbase",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283881,		  "price" : 9086.27,		  "original_price" : 9086.27,		  "identifier" : "gemini",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283420,		  "price" : 9088.38,		  "original_price" : 9088.38,		  "identifier" : "itbit",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283459,		  "price" : 9083.6,		  "original_price" : 9083.6,		  "identifier" : "kraken",		  "enabled" : true		},		{		  "weight" : 0,		  "timestamp" : 0,		  "price" : null,		  "original_price" : null,		  "identifier" : "lmax",		  "enabled" : false		}	  ],	  "channel" : "deribit_price_ranking.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestPriceRakingPushData(t *testing.T) {
 	t.Parallel()
@@ -2047,7 +2047,7 @@ func TestPriceRakingPushData(t *testing.T) {
 	}
 }
 
-var priceStatisticsPushDataJSON = `{"params" : {"data" : {"low24h" : 58012.08,"index_name" : "btc_usd","high_volatility" : false,"high24h" : 59311.42,"change24h" : 1009.61},"channel" : "deribit_price_statistics.btc_usd"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const priceStatisticsPushDataJSON = `{"params" : {"data" : {"low24h" : 58012.08,"index_name" : "btc_usd","high_volatility" : false,"high24h" : 59311.42,"change24h" : 1009.61},"channel" : "deribit_price_statistics.btc_usd"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestPriceStatisticsPushData(t *testing.T) {
 	t.Parallel()
@@ -2056,7 +2056,7 @@ func TestPriceStatisticsPushData(t *testing.T) {
 	}
 }
 
-var volatilityIndexPushDataJSON = `{"params" : {"data" : {"volatility" : 129.36,"timestamp" : 1619777946007,"index_name" : "btc_usd","estimated_delivery" : 129.36},"channel" : "deribit_volatility_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const volatilityIndexPushDataJSON = `{"params" : {"data" : {"volatility" : 129.36,"timestamp" : 1619777946007,"index_name" : "btc_usd","estimated_delivery" : 129.36},"channel" : "deribit_volatility_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestVolatilityIndexPushData(t *testing.T) {
 	t.Parallel()
@@ -2065,7 +2065,7 @@ func TestVolatilityIndexPushData(t *testing.T) {
 	}
 }
 
-var estimatedExpirationPricePushDataJSON = `{"params" : {"data" : {"seconds" : 180929,"price" : 3939.73,"is_estimated" : false},"channel" : "estimated_expiration_price.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const estimatedExpirationPricePushDataJSON = `{"params" : {"data" : {"seconds" : 180929,"price" : 3939.73,"is_estimated" : false},"channel" : "estimated_expiration_price.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestEstimatedExpirationPricePushData(t *testing.T) {
 	t.Parallel()
@@ -2074,7 +2074,7 @@ func TestEstimatedExpirationPricePushData(t *testing.T) {
 	}
 }
 
-var incrementalTickerPushDataJSON = `{"params" : {"data" : {"timestamp" : 1623060194301,"stats" : {"volume_usd" : 284061480,"volume" : 7871.02139035,"price_change" : 0.7229,"low" : 35213.5,"high" : 36824.5},"state" : "open","settlement_price" : 36169.49,		"open_interest" : 502097590,		"min_price" : 35898.37,"max_price" : 36991.72,"mark_price" : 36446.51,"last_price" : 36457.5,"instrument_name" : "BTC-PERPETUAL","index_price" : 36441.64,		"funding_8h" : 0.0000211,"estimated_delivery_price" : 36441.64,"current_funding" : 0,"best_bid_price" : 36442.5,"best_bid_amount" : 5000,"best_ask_price" : 36443,"best_ask_amount" : 100},"channel" : "incremental_ticker.BTC-PERPETUAL"},	"method" : "subscription","jsonrpc" : "2.0"  }`
+const incrementalTickerPushDataJSON = `{"params" : {"data" : {"timestamp" : 1623060194301,"stats" : {"volume_usd" : 284061480,"volume" : 7871.02139035,"price_change" : 0.7229,"low" : 35213.5,"high" : 36824.5},"state" : "open","settlement_price" : 36169.49,		"open_interest" : 502097590,		"min_price" : 35898.37,"max_price" : 36991.72,"mark_price" : 36446.51,"last_price" : 36457.5,"instrument_name" : "BTC-PERPETUAL","index_price" : 36441.64,		"funding_8h" : 0.0000211,"estimated_delivery_price" : 36441.64,"current_funding" : 0,"best_bid_price" : 36442.5,"best_bid_amount" : 5000,"best_ask_price" : 36443,"best_ask_amount" : 100},"channel" : "incremental_ticker.BTC-PERPETUAL"},	"method" : "subscription","jsonrpc" : "2.0"  }`
 
 func TestIncrementalTickerPushData(t *testing.T) {
 	t.Parallel()
@@ -2083,7 +2083,7 @@ func TestIncrementalTickerPushData(t *testing.T) {
 	}
 }
 
-var instrumentStatePushDataJSON = `{"params" : {"data" : {"timestamp" : 1553080940000,"state" : "created","instrument_name" : "BTC-22MAR19"},"channel" : "instrument.state.any.any"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const instrumentStatePushDataJSON = `{"params" : {"data" : {"timestamp" : 1553080940000,"state" : "created","instrument_name" : "BTC-22MAR19"},"channel" : "instrument.state.any.any"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestInstrumentStatePushData(t *testing.T) {
 	t.Parallel()
@@ -2092,7 +2092,7 @@ func TestInstrumentStatePushData(t *testing.T) {
 	}
 }
 
-var markPriceOptionsPushDataJSON = `{"params" : {"data" : [{"timestamp" : 1622470378005,"mark_price" : 0.0333,"iv" : 0.9,"instrument_name" : "BTC-2JUN21-37000-P"},{"timestamp" : 1622470378005,"mark_price" : 0.117,"iv" : 0.9,"instrument_name" : "BTC-4JUN21-40500-P"},{"timestamp" : 1622470378005,"mark_price" : 0.0177,"iv" : 0.9,"instrument_name" : "BTC-4JUN21-38250-C"},{"timestamp" : 1622470378005,		  "mark_price" : 0.0098,		  "iv" : 0.9,		  "instrument_name" : "BTC-1JUN21-37000-C"		},		{		  "timestamp" : 1622470378005,		  "mark_price" : 0.0371,		  "iv" : 0.9,		  "instrument_name" : "BTC-4JUN21-36500-P"		}	  ],	  "channel" : "markprice.options.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const markPriceOptionsPushDataJSON = `{"params" : {"data" : [{"timestamp" : 1622470378005,"mark_price" : 0.0333,"iv" : 0.9,"instrument_name" : "BTC-2JUN21-37000-P"},{"timestamp" : 1622470378005,"mark_price" : 0.117,"iv" : 0.9,"instrument_name" : "BTC-4JUN21-40500-P"},{"timestamp" : 1622470378005,"mark_price" : 0.0177,"iv" : 0.9,"instrument_name" : "BTC-4JUN21-38250-C"},{"timestamp" : 1622470378005,		  "mark_price" : 0.0098,		  "iv" : 0.9,		  "instrument_name" : "BTC-1JUN21-37000-C"		},		{		  "timestamp" : 1622470378005,		  "mark_price" : 0.0371,		  "iv" : 0.9,		  "instrument_name" : "BTC-4JUN21-36500-P"		}	  ],	  "channel" : "markprice.options.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestMarkPriceOption(t *testing.T) {
 	t.Parallel()
@@ -2101,7 +2101,7 @@ func TestMarkPriceOption(t *testing.T) {
 	}
 }
 
-var platformStatePushDataJSON = `{"params" : {"data" : {"allow_unauthenticated_public_requests" : true},"channel" : "platform_state.public_methods_state"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const platformStatePushDataJSON = `{"params" : {"data" : {"allow_unauthenticated_public_requests" : true},"channel" : "platform_state.public_methods_state"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestPlatformStatsPushData(t *testing.T) {
 	t.Parallel()
@@ -2110,7 +2110,7 @@ func TestPlatformStatsPushData(t *testing.T) {
 	}
 }
 
-var quoteTickerPushDataJSON = `{"params" : {"data" : {"timestamp" : 1550658624149,"instrument_name" : "BTC-PERPETUAL","best_bid_price" : 3914.97,"best_bid_amount" : 40,"best_ask_price" : 3996.61,"best_ask_amount" : 50},"channel" : "quote.BTC-PERPETUAL"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const quoteTickerPushDataJSON = `{"params" : {"data" : {"timestamp" : 1550658624149,"instrument_name" : "BTC-PERPETUAL","best_bid_price" : 3914.97,"best_bid_amount" : 40,"best_ask_price" : 3996.61,"best_ask_amount" : 50},"channel" : "quote.BTC-PERPETUAL"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestQuotePushData(t *testing.T) {
 	t.Parallel()
@@ -2119,7 +2119,7 @@ func TestQuotePushData(t *testing.T) {
 	}
 }
 
-var rfqPushDataJSON = `{"params" : {"data" : {"state" : true,"side" : null,"last_rfq_tstamp" : 1634816143836,"instrument_name" : "BTC-PERPETUAL","amount" : null	  },"channel" : "rfq.btc"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const rfqPushDataJSON = `{"params" : {"data" : {"state" : true,"side" : null,"last_rfq_tstamp" : 1634816143836,"instrument_name" : "BTC-PERPETUAL","amount" : null	  },"channel" : "rfq.btc"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestRFQPushData(t *testing.T) {
 	t.Parallel()
@@ -2128,7 +2128,7 @@ func TestRFQPushData(t *testing.T) {
 	}
 }
 
-var instrumentsTickerPushDataJSON = `{"params" : {"data" : {"timestamp" : 1623060194301,"stats" : {"volume_usd" : 284061480,"volume" : 7871.02139035,"price_change" : 0.7229,"low" : 35213.5,"high" : 36824.5},"state" : "open","settlement_price" : 36169.49,"open_interest" : 502097590,"min_price" : 35898.37,		"max_price" : 36991.72,		"mark_price" : 36446.51,		"last_price" : 36457.5,		"interest_value" : 1.7362511643080387,		"instrument_name" : "BTC-PERPETUAL",		"index_price" : 36441.64,		"funding_8h" : 0.0000211,		"estimated_delivery_price" : 36441.64,		"current_funding" : 0,		"best_bid_price" : 36442.5,		"best_bid_amount" : 5000,		"best_ask_price" : 36443,		"best_ask_amount" : 100	  },	  "channel" : "ticker.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const instrumentsTickerPushDataJSON = `{"params" : {"data" : {"timestamp" : 1623060194301,"stats" : {"volume_usd" : 284061480,"volume" : 7871.02139035,"price_change" : 0.7229,"low" : 35213.5,"high" : 36824.5},"state" : "open","settlement_price" : 36169.49,"open_interest" : 502097590,"min_price" : 35898.37,		"max_price" : 36991.72,		"mark_price" : 36446.51,		"last_price" : 36457.5,		"interest_value" : 1.7362511643080387,		"instrument_name" : "BTC-PERPETUAL",		"index_price" : 36441.64,		"funding_8h" : 0.0000211,		"estimated_delivery_price" : 36441.64,		"current_funding" : 0,		"best_bid_price" : 36442.5,		"best_bid_amount" : 5000,		"best_ask_price" : 36443,		"best_ask_amount" : 100	  },	  "channel" : "ticker.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestInstrumentsTickerPushData(t *testing.T) {
 	t.Parallel()
@@ -2137,7 +2137,7 @@ func TestInstrumentsTickerPushData(t *testing.T) {
 	}
 }
 
-var (
+const (
 	instrumentTradesPushDataJSON = `{"params":{"data":[{"trade_seq":30289442,"trade_id" : "48079269","timestamp" : 1590484512188,"tick_direction" : 2,"price" : 8950,"mark_price" : 8948.9,"instrument_name" : "BTC-PERPETUAL","index_price" : 8955.88,"direction" : "sell","amount" : 10}],"channel" : "trades.BTC-PERPETUAL.raw"},"method":"subscription","jsonrpc":"2.0"}`
 	currencyTradesPushDataJSON   = `{"params":{"data":[{"trade_seq":2,"trade_id" : "48079289","timestamp" : 1590484589306,"tick_direction" : 2,"price" : 0.0075,"mark_price" : 0.01062686,"iv" : 47.58,"instrument_name" : "BTC-27MAY20-9000-C",		  "index_price" : 8956.17,"direction" : "sell","amount" : 3}],"channel" : "trades.option.BTC.raw"},"method":"subscription","jsonrpc":"2.0"}`
 )
@@ -2152,7 +2152,7 @@ func TestInstrumentTradesPushData(t *testing.T) {
 	}
 }
 
-var (
+const (
 	changeUpdatesPushDataJSON          = `{"params" : {"data" : {"trades" : [{"trade_seq" : 866638,"trade_id" : "1430914","timestamp" : 1605780344032,"tick_direction" : 1,"state" : "filled","self_trade" : false,"reduce_only" : false,"profit_loss" : 0.00004898,"price" : 17391,"post_only" : false,"order_type" : "market",			"order_id" : "3398016",			"matching_id" : null,			"mark_price" : 17391,			"liquidity" : "T",			"instrument_name" : "BTC-PERPETUAL",			"index_price" : 17501.88,			"fee_currency" : "BTC",			"fee" : 1.6e-7,			"direction" : "sell",			"amount" : 10		  }		],		"positions" : [		  {			"total_profit_loss" : 1.69711368,			"size_currency" : 10.646886321,			"size" : 185160,			"settlement_price" : 16025.83,			"realized_profit_loss" : 0.012454598,			"realized_funding" : 0.01235663,			"open_orders_margin" : 0,			"mark_price" : 17391,			"maintenance_margin" : 0.234575865,			"leverage" : 33,			"kind" : "future",			"interest_value" : 1.7362511643080387,			"instrument_name" : "BTC-PERPETUAL",			"initial_margin" : 0.319750953,			"index_price" : 17501.88,			"floating_profit_loss" : 0.906961435,			"direction" : "buy",			"delta" : 10.646886321,			"average_price" : 15000		  }		],		"orders" : [		  {			"web" : true,			"time_in_force" : "good_til_cancelled",			"replaced" : false,			"reduce_only" : false,			"profit_loss" : 0.00009166,			"price" : 15665.5,			"post_only" : false,			"order_type" : "market",			"order_state" : "filled",			"order_id" : "3398016",			"max_show" : 10,			"last_update_timestamp" : 1605780344032,			"label" : "",			"is_liquidation" : false,			"instrument_name" : "BTC-PERPETUAL",			"filled_amount" : 10,			"direction" : "sell",			"creation_timestamp" : 1605780344032,			"commission" : 1.6e-7,			"average_price" : 17391,			"api" : false,			"amount" : 10		  }		],		"instrument_name" : "BTC-PERPETUAL"	  },	  "channel" : "user.changes.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 	currencyChangesUpdatesPushDataJSON = `{"params" : {"data" : {"trades" : [{"trade_seq" : 866638,"trade_id" : "1430914","timestamp" : 1605780344032,"tick_direction" : 1,"state" : "filled","self_trade" : false,"reduce_only" : false,"profit_loss" : 0.00004898,"price" : 17391,"post_only" : false,"order_type" : "market","order_id" : "3398016",			"matching_id" : null,			"mark_price" : 17391,			"liquidity" : "T",			"instrument_name" : "BTC-PERPETUAL",			"index_price" : 17501.88,			"fee_currency" : "BTC",			"fee" : 1.6e-7,			"direction" : "sell",			"amount" : 10		  }		],		"positions" : [		  {			"total_profit_loss" : 1.69711368,			"size_currency" : 10.646886321,			"size" : 185160,			"settlement_price" : 16025.83,			"realized_profit_loss" : 0.012454598,			"realized_funding" : 0.01235663,			"open_orders_margin" : 0,			"mark_price" : 17391,			"maintenance_margin" : 0.234575865,			"leverage" : 33,			"kind" : "future",			"interest_value" : 1.7362511643080387,			"instrument_name" : "BTC-PERPETUAL",			"initial_margin" : 0.319750953,			"index_price" : 17501.88,			"floating_profit_loss" : 0.906961435,			"direction" : "buy",			"delta" : 10.646886321,			"average_price" : 15000		  }		],		"orders" : [		  {			"web" : true,			"time_in_force" : "good_til_cancelled",			"replaced" : false,			"reduce_only" : false,			"profit_loss" : 0.00009166,			"price" : 15665.5,			"post_only" : false,			"order_type" : "market",			"order_state" : "filled",			"order_id" : "3398016",			"max_show" : 10,			"last_update_timestamp" : 1605780344032,			"label" : "",			"is_liquidation" : false,			"instrument_name" : "BTC-PERPETUAL",			"filled_amount" : 10,			"direction" : "sell",			"creation_timestamp" : 1605780344032,			"commission" : 1.6e-7,			"average_price" : 17391,			"api" : false,			"amount" : 10		  }		],		"instrument_name" : "BTC-PERPETUAL"	  },	  "channel" : "user.changes.future.BTC.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 )
@@ -2167,7 +2167,7 @@ func TestChangeUpdatesPushData(t *testing.T) {
 	}
 }
 
-var (
+const (
 	userOrdersRawInstrumentPushDataJSON            = `{	"params" : {"data" : {"time_in_force" : "good_til_cancelled","replaced" : false,		"reduce_only" : false,		"profit_loss" : 0,		"price" : 10502.52,		"post_only" : false,		"original_order_type" : "market",		"order_type" : "limit",		"order_state" : "open",		"order_id" : "5",		"max_show" : 200,		"last_update_timestamp" : 1581507423789,		"label" : "",		"is_liquidation" : false,		"instrument_name" : "BTC-PERPETUAL",		"filled_amount" : 0,		"direction" : "buy",		"creation_timestamp" : 1581507423789,		"commission" : 0,		"average_price" : 0,		"api" : false,		"amount" : 200	  },	  "channel" : "user.orders.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 	userOrdersByInstrumentWithIntervalPushDataJSON = `{	"params" : {"data" : [{"time_in_force" : "good_til_cancelled","replaced" : false,		  "reduce_only" : false,		  "profit_loss" : 0,		  "price" : 10460.43,		  "post_only" : false,		  "original_order_type" : "market",		  "order_type" : "limit",		  "order_state" : "open",		  "order_id" : "4",		  "max_show" : 200,		  "last_update_timestamp" : 1581507159533,		  "label" : "",		  "is_liquidation" : false,		  "instrument_name" : "BTC-PERPETUAL",		  "filled_amount" : 0,		  "direction" : "buy",		  "creation_timestamp" : 1581507159533,		  "commission" : 0,		  "average_price" : 0,		  "api" : false,		  "amount" : 200		}	  ],	  "channel" : "user.orders.BTC-PERPETUAL.100ms"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 	userOrderByCurrencyRawPushDataJSON             = `{	"params" : {"data" : {"time_in_force" : "good_til_cancelled",		"replaced" : false,"reduce_only" : false,		"profit_loss" : 0,		"price" : 10542.68,		"post_only" : false,		"original_order_type" : "market",		"order_type" : "limit",		"order_state" : "open",		"order_id" : "6",		"max_show" : 200,		"last_update_timestamp" : 1581507583024,		"label" : "",		"is_liquidation" : false,		"instrument_name" : "BTC-PERPETUAL",		"filled_amount" : 0,		"direction" : "buy",		"creation_timestamp" : 1581507583024,		"commission" : 0,		"average_price" : 0,		"api" : false,		"amount" : 200	  },	  "channel" : "user.orders.any.any.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
@@ -2190,7 +2190,7 @@ func TestUserOrdersPushData(t *testing.T) {
 	}
 }
 
-var userPortfolioPushDataJSON = `{	"params" : {	  "data" : {		"total_pl" : 0.00000425,		"session_upl" : 0.00000425,		"session_rpl" : -2e-8,		"projected_maintenance_margin" : 0.00009141,		"projected_initial_margin" : 0.00012542,		"projected_delta_total" : 0.0043,		"portfolio_margining_enabled" : false,		"options_vega" : 0,		"options_value" : 0,		"options_theta" : 0,		"options_session_upl" : 0,		"options_session_rpl" : 0,		"options_pl" : 0,		"options_gamma" : 0,		"options_delta" : 0,		"margin_balance" : 0.2340038,		"maintenance_margin" : 0.00009141,		"initial_margin" : 0.00012542,		"futures_session_upl" : 0.00000425,		"futures_session_rpl" : -2e-8,		"futures_pl" : 0.00000425,		"estimated_liquidation_ratio" : 0.01822795,		"equity" : 0.2340038,		"delta_total" : 0.0043,		"currency" : "BTC",		"balance" : 0.23399957,		"available_withdrawal_funds" : 0.23387415,		"available_funds" : 0.23387838	  },	  "channel" : "user.portfolio.btc"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const userPortfolioPushDataJSON = `{	"params" : {	  "data" : {		"total_pl" : 0.00000425,		"session_upl" : 0.00000425,		"session_rpl" : -2e-8,		"projected_maintenance_margin" : 0.00009141,		"projected_initial_margin" : 0.00012542,		"projected_delta_total" : 0.0043,		"portfolio_margining_enabled" : false,		"options_vega" : 0,		"options_value" : 0,		"options_theta" : 0,		"options_session_upl" : 0,		"options_session_rpl" : 0,		"options_pl" : 0,		"options_gamma" : 0,		"options_delta" : 0,		"margin_balance" : 0.2340038,		"maintenance_margin" : 0.00009141,		"initial_margin" : 0.00012542,		"futures_session_upl" : 0.00000425,		"futures_session_rpl" : -2e-8,		"futures_pl" : 0.00000425,		"estimated_liquidation_ratio" : 0.01822795,		"equity" : 0.2340038,		"delta_total" : 0.0043,		"currency" : "BTC",		"balance" : 0.23399957,		"available_withdrawal_funds" : 0.23387415,		"available_funds" : 0.23387838	  },	  "channel" : "user.portfolio.btc"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestUserPortfolioPushData(t *testing.T) {
 	t.Parallel()
@@ -2199,7 +2199,7 @@ func TestUserPortfolioPushData(t *testing.T) {
 	}
 }
 
-var (
+const (
 	userTradesPushDataJSON             = `{"params" : {"data" : [{"trade_seq" :30289432,"trade_id":"48079254","timestamp":1590484156350,		  "tick_direction" : 0,		  "state" : "filled",		  "self_trade" : false,		  "reduce_only" : false,		  "price" : 8954,		  "post_only" : false,		  "order_type" : "market",		  "order_id" : "4008965646",		  "matching_id" : null,		  "mark_price" : 8952.86,		  "liquidity" : "T",		  "instrument_name" : "BTC-PERPETUAL",		  "index_price" : 8956.73,		  "fee_currency" : "BTC",		  "fee" : 0.00000168,		  "direction" : "sell",		  "amount" : 20		},		{		  "trade_seq" : 30289433,		  "trade_id" : "48079255",		  "timestamp" : 1590484156350,		  "tick_direction" : 1,		  "state" : "filled",		  "self_trade" : false,		  "reduce_only" : false,		  "price" : 8954,		  "post_only" : false,		  "order_type" : "market",		  "order_id" : "4008965646",		  "matching_id" : null,		  "mark_price" : 8952.86,"liquidity" : "T","instrument_name" : "BTC-PERPETUAL","index_price" : 8956.73,"fee_currency" : "BTC","fee" : 0.00000168,"direction" : "sell","amount" : 20	}],"channel" : "user.trades.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 	userTradesWithCurrencyPushDataJSON = `{"params" : {"data" : [{"trade_seq" :74405,	"trade_id":"48079262","timestamp":1590484255886,		  "tick_direction" : 2,		  "state" : "filled",		  "self_trade" : false,		  "reduce_only" : false,		  "price" : 8947,		  "post_only" : false,		  "order_type" : "limit",		  "order_id" : "4008978075",		  "matching_id" : null,		  "mark_price" : 8970.03,		  "liquidity" : "T",		  "instrument_name" : "BTC-25SEP20",		  "index_price" : 8953.53,		  "fee_currency" : "BTC",		  "fee" : 0.00049961,		  "direction" : "sell",		  "amount" : 8940		}	  ],	  "channel" : "user.trades.future.BTC.100ms"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 )

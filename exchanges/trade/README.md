@@ -82,7 +82,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | No |
 | Lbank | Yes | No | Yes |
-| LocalBitcoins | Yes | NA | No |
 | OKCoin International | Yes | Yes | No |
 | Okx | Yes | Yes | Yes |
 | Poloniex | Yes | Yes | Yes |

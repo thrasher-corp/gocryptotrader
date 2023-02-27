@@ -1111,18 +1111,14 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 		return ErrCancelOrderIsNil
 	}
 
-	var errs common.Errors
+	var errs error
 	for _, o := range opt {
 		err := o.Check()
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 		}
 	}
-
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Validate checks internal struct requirements and returns filter requirement
@@ -1144,17 +1140,14 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 		return errUnrecognisedOrderType
 	}
 
-	var errs common.Errors
+	var errs error
 	for _, o := range opt {
 		err := o.Check()
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 		}
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Filter reduces slice by optional fields
@@ -1185,14 +1178,13 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrAssetNotSet
 	}
 
-	var errs common.Errors
+	var errs error
 	for _, o := range opt {
 		err := o.Check()
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 		}
 	}
-
 	if errs != nil {
 		return errs
 	}
