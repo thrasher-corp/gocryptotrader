@@ -36,7 +36,8 @@ const (
 
 var (
 	// DefaultExcludedDirectories defines the basic directory exclusion list for GCT
-	DefaultExcludedDirectories = []string{".github",
+	DefaultExcludedDirectories = []string{
+		".github",
 		".git",
 		"node_modules",
 		".vscode",
@@ -54,6 +55,7 @@ var (
 		"testdata_templates",
 		"tools_templates",
 		"web_templates",
+		".devcontainer",
 	}
 
 	// global flag for verbosity
@@ -546,12 +548,15 @@ func UpdateDocumentation(details DocumentationDetails) {
 			}
 			continue
 		}
-		if strings.Contains(name, engineFolder) {
+		if strings.Contains(name, engineFolder) && !strings.Contains(name, "subsystem") {
 			d, err := os.ReadDir(details.Directories[i])
 			if err != nil {
 				fmt.Println("Excluding file:", err)
 			}
 			for x := range d {
+				if strings.Contains(d[x].Name(), "subsystem") {
+					continue
+				}
 				nameSplit := strings.Split(d[x].Name(), ".go")
 				engineTemplateName := engineFolder + " " + nameSplit[0]
 				if details.Tmpl.Lookup(engineTemplateName) == nil {
