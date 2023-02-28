@@ -3894,13 +3894,13 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 	return currency.Pair{Base: currency.NewCode(ccies[0]), Delimiter: currency.UnderscoreDelimiter, Quote: currency.NewCode(ccies[1])}, nil
 }
 func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair) (settlement string, err error) {
-	currencyPair = currencyPair.Upper()
+	quote := currencyPair.Quote.Upper().String()
 	switch {
-	case strings.HasPrefix(currencyPair.Quote.String(), currency.USDT.String()):
+	case strings.HasPrefix(quote, currency.USDT.String()):
 		return currency.USDT.Item.Lower, nil
-	case strings.HasPrefix(currencyPair.Quote.String(), currency.BTC.String()):
+	case strings.HasPrefix(quote, currency.BTC.String()):
 		return currency.BTC.Item.Lower, nil
-	case strings.HasPrefix(currencyPair.Quote.String(), currency.USD.String()):
+	case strings.HasPrefix(quote, currency.USD.String()):
 		return currency.USD.Item.Lower, nil
 	default:
 		return "", fmt.Errorf("%w %v", errCannotParseSettlementCurrency, currencyPair)

@@ -3129,7 +3129,7 @@ func getFirstTradablePairOfAssets() {
 	futuresTradablePair = enabledPairs[0]
 	enabledPairs, err = g.GetEnabledPairs(asset.Options)
 	if err != nil {
-		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Futures)
+		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Options)
 	}
 	optionsTradablePair = enabledPairs[0]
 	enabledPairs, err = g.GetEnabledPairs(asset.DeliveryFutures)
