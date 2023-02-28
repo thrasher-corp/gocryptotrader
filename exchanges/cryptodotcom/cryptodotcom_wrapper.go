@@ -1018,7 +1018,75 @@ func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (cr *Cryptodotcom) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
+	if !cr.AreCredentialsValid(ctx) && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = cr.calculateTradingFee(ctx, feeBuilder) * feeBuilder.Amount * feeBuilder.PurchasePrice
+	case exchange.CryptocurrencyWithdrawalFee:
+		switch feeBuilder.Pair.Base {
+		case currency.USDT:
+			fee = 1.08
+		case currency.TUSD:
+			fee = 1.09
+		case currency.BTC:
+			fee = 0.0005
+		case currency.ETH:
+			fee = 0.01
+		case currency.LTC:
+			fee = 0.001
+		}
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.Amount)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	return fee, nil
+
 	return 0, common.ErrNotYetImplemented
+}
+
+func (cr *Cryptodotcom) checkCredentials(ctx context.Context) bool {
+	creds, err := cr.GetCredentials(ctx)
+	return err == nil && cr.ValidateAPICredentials(creds) == nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0750 * price * amount
+}
+
+// calculateTradingFee return fee based on users current fee tier or default values
+func (b *Cryptodotcom) calculateTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) float64 {
+	formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
+	if err != nil {
+		if feeBuilder.IsMaker {
+			return 0.001
+		}
+		return 0.002
+	}
+	feeTiers, err := dy.GetFeeInformation(ctx, formattedPair.String())
+	if err != nil {
+		// TODO: Return actual error, we shouldn't pivot around errors.
+		if feeBuilder.IsMaker {
+			return 0.001
+		}
+		return 0.002
+	}
+	if feeBuilder.IsMaker {
+		return feeTiers[0].MakerFee
+	}
+	return feeTiers[0].TakerFee
 }
 
 // ValidateCredentials validates current credentials used for wrapper
