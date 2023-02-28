@@ -64,6 +64,9 @@ type kucoinTimeMilliSec int64
 
 // Time returns a time.Time object
 func (k kucoinTimeMilliSec) Time() time.Time {
+	if k < 0 {
+		return time.Time{}
+	}
 	return time.UnixMilli(int64(k))
 }
 
@@ -72,6 +75,9 @@ type kucoinTimeNanoSec int64
 
 // Time returns a time.Time object
 func (k *kucoinTimeNanoSec) Time() time.Time {
+	if *k < 0 {
+		return time.Time{}
+	}
 	return time.Unix(0, int64(*k))
 }
 
@@ -830,7 +836,7 @@ type WsSpotTicker struct {
 type WsSpotTickerDetail struct {
 	AveragePrice     float64            `json:"averagePrice"`
 	BaseCurrency     string             `json:"baseCurrency"`
-	Board            int                `json:"board"`
+	Board            int64              `json:"board"`
 	Buy              float64            `json:"buy"`
 	ChangePrice      float64            `json:"changePrice"`
 	ChangeRate       float64            `json:"changeRate"`
@@ -848,7 +854,7 @@ type WsSpotTickerDetail struct {
 	Open             float64            `json:"open"`
 	QuoteCurrency    string             `json:"quoteCurrency"`
 	Sell             float64            `json:"sell"`
-	Sort             int                `json:"sort"`
+	Sort             int64              `json:"sort"`
 	Symbol           string             `json:"symbol"`
 	SymbolCode       string             `json:"symbolCode"`
 	TakerCoefficient float64            `json:"takerCoefficient"`
@@ -1091,7 +1097,7 @@ type WsFuturesOrderbokInfo struct {
 
 // WsFuturesExecutionData represents execution data for symbol.
 type WsFuturesExecutionData struct {
-	Sequence         int               `json:"sequence"`
+	Sequence         int64             `json:"sequence"`
 	FilledQuantity   float64           `json:"matchSize"` // Filled quantity
 	UnfilledQuantity float64           `json:"size"`
 	FilledPrice      float64           `json:"price"`
@@ -1117,7 +1123,7 @@ type WsOrderbookLevel5 struct {
 // WsFundingRate represents the funding rate push data information through the websocket channel.
 type WsFundingRate struct {
 	Symbol      string             `json:"symbol"`
-	Granularity int                `json:"granularity"`
+	Granularity int64              `json:"granularity"`
 	FundingRate float64            `json:"fundingRate"`
 	Timestamp   kucoinTimeMilliSec `json:"timestamp"`
 }
@@ -1125,7 +1131,7 @@ type WsFundingRate struct {
 // WsFuturesMarkPriceAndIndexPrice represents mark price and index price information.
 type WsFuturesMarkPriceAndIndexPrice struct {
 	Symbol      string             `json:"symbol"`
-	Granularity int                `json:"granularity"`
+	Granularity int64              `json:"granularity"`
 	IndexPrice  float64            `json:"indexPrice"`
 	MarkPrice   float64            `json:"markPrice"`
 	Timestamp   kucoinTimeMilliSec `json:"timestamp"`
@@ -1145,7 +1151,7 @@ type WsFuturesTransactionStatisticsTimeEvent struct {
 	Symbol                   string            `json:"symbol"`
 	Volume24H                float64           `json:"volume"`
 	Turnover24H              float64           `json:"turnover"`
-	LastPrice                int               `json:"lastPrice"`
+	LastPrice                int64             `json:"lastPrice"`
 	PriceChangePercentage24H float64           `json:"priceChgPct"`
 	SnapshotTime             kucoinTimeNanoSec `json:"ts"`
 }
@@ -1314,7 +1320,7 @@ type SpotAPISubAccountParams struct {
 	Remark         string `json:"remark"`
 	Permission     string `json:"permission,omitempty"`    // Permissions(Only "General" and "Trade" permissions can be set, such as "General, Trade". The default is "General")
 	IPWhitelist    string `json:"ipWhitelist,omitempty"`   // IP whitelist(You may add up to 20 IPs. Use a halfwidth comma to each IP)
-	Expire         int    `json:"expire,string,omitempty"` // API expiration time; Never expire(default)-1，30Day30，90Day90，180Day180，360Day360
+	Expire         int64  `json:"expire,string,omitempty"` // API expiration time; Never expire(default)-1，30Day30，90Day90，180Day180，360Day360
 }
 
 // SubAccountResponse represents the sub-user detail.
@@ -1330,10 +1336,10 @@ type SubAccountResponse struct {
 type SubAccount struct {
 	UserID    string             `json:"userId"`
 	SubName   string             `json:"subName"`
-	Type      int                `json:"type"` //type:1-rebot  or type:0-nomal
+	Type      int64              `json:"type"` //type:1-rebot  or type:0-nomal
 	Remarks   string             `json:"remarks"`
-	UID       int                `json:"uid,omitempty"`
-	Status    int                `json:"status,omitempty"`
+	UID       int64              `json:"uid,omitempty"`
+	Status    int64              `json:"status,omitempty"`
 	Access    string             `json:"access,omitempty"`
 	CreatedAt kucoinTimeMilliSec `json:"createdAt,omitempty"`
 }

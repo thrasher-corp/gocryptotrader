@@ -57,7 +57,8 @@ func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
 		if value == "" {
 			// Setting the time to zero because some timestamp fields could return an empty string while there is no error
 			// So, in such cases, kucoinTimeMilliSec returns 0 timestamp.
-			*k = kucoinTimeMilliSec(0)
+			*k = kucoinTimeMilliSec(-1)
+			return nil
 		}
 		tmsp, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
@@ -84,7 +85,8 @@ func (k *kucoinTimeNanoSec) UnmarshalJSON(data []byte) error {
 		if val == "" {
 			// Setting the time to zero because some timestamp fields could return an empty string while there is no error
 			// So, in such cases, kucoinTimeNanoSec returns 0 timestamp.
-			*k = kucoinTimeNanoSec(0)
+			*k = kucoinTimeNanoSec(-1)
+			return nil
 		}
 		tmsp, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
