@@ -442,7 +442,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 				ExchangeName:    d.Name,
 				Status:          deposits.Data[y].State,
 				TransferID:      deposits.Data[y].TransactionID,
-				Timestamp:       time.UnixMilli(deposits.Data[y].UpdatedTimestamp),
+				Timestamp:       deposits.Data[y].UpdatedTimestamp.Time(),
 				Currency:        currencies[x].Currency,
 				Amount:          deposits.Data[y].Amount,
 				CryptoToAddress: deposits.Data[y].Address,
@@ -463,7 +463,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 				ExchangeName:    d.Name,
 				Status:          withdrawalData.Data[z].State,
 				TransferID:      withdrawalData.Data[z].TransactionID,
-				Timestamp:       time.UnixMilli(withdrawalData.Data[z].UpdatedTimestamp),
+				Timestamp:       withdrawalData.Data[z].UpdatedTimestamp.Time(),
 				Currency:        currencies[x].Currency,
 				Amount:          withdrawalData.Data[z].Amount,
 				CryptoToAddress: withdrawalData.Data[z].Address,
@@ -504,7 +504,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 			resp = append(resp, exchange.WithdrawalHistory{
 				Status:          withdrawalData.Data[y].State,
 				TransferID:      withdrawalData.Data[y].TransactionID,
-				Timestamp:       time.UnixMilli(withdrawalData.Data[y].UpdatedTimestamp),
+				Timestamp:       withdrawalData.Data[y].UpdatedTimestamp.Time(),
 				Currency:        currencies[x].Currency,
 				Amount:          withdrawalData.Data[y].Amount,
 				CryptoToAddress: withdrawalData.Data[y].Address,
@@ -547,7 +547,7 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Exchange:     d.Name,
 			Price:        trades.Trades[a].Price,
 			Amount:       trades.Trades[a].Amount,
-			Timestamp:    time.UnixMilli(trades.Trades[a].Timestamp),
+			Timestamp:    trades.Trades[a].Timestamp.Time(),
 			AssetType:    assetType,
 			Side:         sideData,
 			CurrencyPair: p,
@@ -580,10 +580,10 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 		}
 		for t := range tradesData.Trades {
 			if t == 99 {
-				if timestampStart.Equal(time.UnixMilli(tradesData.Trades[t].Timestamp)) {
+				if timestampStart.Equal(tradesData.Trades[t].Timestamp.Time()) {
 					hasMore = false
 				}
-				timestampStart = time.UnixMilli(tradesData.Trades[t].Timestamp)
+				timestampStart = tradesData.Trades[t].Timestamp.Time()
 			}
 			sideData := order.Sell
 			if tradesData.Trades[t].Direction == sideBUY {
@@ -594,7 +594,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 				Exchange:     d.Name,
 				Price:        tradesData.Trades[t].Price,
 				Amount:       tradesData.Trades[t].Amount,
-				Timestamp:    time.UnixMilli(tradesData.Trades[t].Timestamp),
+				Timestamp:    tradesData.Trades[t].Timestamp.Time(),
 				AssetType:    assetType,
 				Side:         sideData,
 				CurrencyPair: p,
@@ -825,7 +825,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		RemainingAmount: orderInfo.Amount - orderInfo.FilledAmount,
 		OrderID:         orderInfo.OrderID,
 		Pair:            pair,
-		LastUpdated:     time.UnixMilli(orderInfo.LastUpdateTimestamp),
+		LastUpdated:     orderInfo.LastUpdateTimestamp.Time(),
 		Side:            orderSide,
 		Type:            orderType,
 		Status:          orderStatus,
@@ -898,7 +898,6 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {
-			println(fmtPair.String())
 			return nil, err
 		}
 		var oTypeString string
@@ -948,7 +947,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 				RemainingAmount: ordersData[y].Amount - ordersData[y].FilledAmount,
 				OrderID:         ordersData[y].OrderID,
 				Pair:            getOrdersRequest.Pairs[x],
-				LastUpdated:     time.UnixMilli(ordersData[y].LastUpdateTimestamp),
+				LastUpdated:     ordersData[y].LastUpdateTimestamp.Time(),
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,
@@ -1017,7 +1016,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 				RemainingAmount: ordersData[y].Amount - ordersData[y].FilledAmount,
 				OrderID:         ordersData[y].OrderID,
 				Pair:            getOrdersRequest.Pairs[x],
-				LastUpdated:     time.UnixMilli(ordersData[y].LastUpdateTimestamp),
+				LastUpdated:     ordersData[y].LastUpdateTimestamp.Time(),
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,

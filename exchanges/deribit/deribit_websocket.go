@@ -66,7 +66,6 @@ const (
 
 var defaultSubscriptions = []string{
 	chartTradesChannel, // chart trades channel to fetch candlestick data.
-	incrementalTickerChannel,
 	orderbookChannel,
 	tickerChannel,
 	tradesWithKindChannel,
@@ -117,7 +116,15 @@ func (d *Deribit) WsConnect() error {
 		}
 		d.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
-	return d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
+	err = d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
+	if err != nil {
+		return err
+	}
+	subscriptions, err := d.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return d.Subscribe(subscriptions)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -344,8 +351,8 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 			Side:            side,
 			Status:          status,
 			AssetType:       a,
-			Date:            time.UnixMilli(orderData[x].CreationTimestamp),
-			LastUpdated:     time.UnixMilli(orderData[x].LastUpdateTimestamp),
+			Date:            orderData[x].CreationTimestamp.Time(),
+			LastUpdated:     orderData[x].LastUpdateTimestamp.Time(),
 			Pair:            currencyPair,
 		}
 	}
@@ -393,7 +400,7 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 		tradeDatas[x] = trade.Data{
 			CurrencyPair: currencyPair,
 			Exchange:     d.Name,
-			Timestamp:    time.UnixMilli(changeData.Trades[x].Timestamp),
+			Timestamp:    changeData.Trades[x].Timestamp.Time(),
 			Price:        changeData.Trades[x].Price,
 			Amount:       changeData.Trades[x].Amount,
 			Side:         side,
@@ -436,8 +443,8 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 			Side:            side,
 			Status:          status,
 			AssetType:       a,
-			Date:            time.UnixMilli(changeData.Orders[x].CreationTimestamp),
-			LastUpdated:     time.UnixMilli(changeData.Orders[x].LastUpdateTimestamp),
+			Date:            changeData.Orders[x].CreationTimestamp.Time(),
+			LastUpdated:     changeData.Orders[x].LastUpdateTimestamp.Time(),
 			Pair:            currencyPair,
 		}
 	}
@@ -462,7 +469,7 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 		ExchangeName: d.Name,
 		Pair:         cp,
 		AssetType:    asset.Futures,
-		LastUpdated:  time.UnixMilli(quoteTicker.Timestamp),
+		LastUpdated:  quoteTicker.Timestamp.Time(),
 		Bid:          quoteTicker.BestBidPrice,
 		Ask:          quoteTicker.BestAskPrice,
 		BidSize:      quoteTicker.BestBidAmount,
@@ -511,7 +518,7 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		tradeDatas[x] = trade.Data{
 			CurrencyPair: currencyPair,
 			Exchange:     d.Name,
-			Timestamp:    time.UnixMilli((*tradeList)[x].Timestamp),
+			Timestamp:    (*tradeList)[x].Timestamp.Time(),
 			Price:        (*tradeList)[x].Price,
 			Amount:       (*tradeList)[x].Amount,
 			Side:         side,
@@ -526,7 +533,30 @@ func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) er
 	if len(channels) != 2 {
 		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	return d.processTicker(respRaw, channels)
+	cp, err := currency.NewPairFromString(channels[1])
+	if err != nil {
+		return err
+	}
+	var response WsResponse
+	incrementalTicker := &WsIncrementalTicker{}
+	response.Params.Data = incrementalTicker
+	err = json.Unmarshal(respRaw, &response)
+	if err != nil {
+		return err
+	}
+	d.Websocket.DataHandler <- &ticker.Price{
+		ExchangeName: d.Name,
+		Pair:         cp,
+		AssetType:    asset.Futures,
+		LastUpdated:  incrementalTicker.Timestamp.Time(),
+		BidSize:      incrementalTicker.BestBidAmount,
+		AskSize:      incrementalTicker.BestAskAmount,
+		High:         incrementalTicker.MaxPrice,
+		Low:          incrementalTicker.MinPrice,
+		Volume:       incrementalTicker.Stats.Volume,
+		QuoteVolume:  incrementalTicker.Stats.VolumeUsd,
+	}
+	return nil
 }
 
 func (d *Deribit) processInstrumentTicker(respRaw []byte, channels []string) error {
@@ -552,7 +582,7 @@ func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
 		ExchangeName: d.Name,
 		Pair:         cp,
 		AssetType:    asset.Futures,
-		LastUpdated:  time.UnixMilli(incrementalTicker.Timestamp),
+		LastUpdated:  incrementalTicker.Timestamp.Time(),
 		Bid:          incrementalTicker.BestBidPrice,
 		Ask:          incrementalTicker.BestAskPrice,
 		BidSize:      incrementalTicker.BestBidAmount,
@@ -658,7 +688,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
-				LastUpdated:     time.UnixMilli(orderbookData.Timestamp),
+				LastUpdated:     orderbookData.Timestamp.Time(),
 				Pair:            cp,
 				Asks:            asks,
 				Bids:            bids,
@@ -781,18 +811,20 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 							Channel:  orderbookChannel,
 							Currency: pairs[z],
 							Params: map[string]interface{}{
-								"group":    "250",
-								"depth":    "20",
+								// if needed, group and depth of orderbook can be passed as follow "group":    "250", "depth":    "20",
 								"interval": "100ms",
 							},
 						},
-						stream.ChannelSubscription{
+					)
+					if d.Websocket.CanUseAuthenticatedEndpoints() {
+						subscriptions = append(subscriptions, stream.ChannelSubscription{
 							Channel:  orderbookChannel,
 							Currency: pairs[z],
 							Params: map[string]interface{}{
 								"interval": "raw",
 							},
 						})
+					}
 				case tickerChannel:
 					if pairs[z].Quote.Upper().String() != "PERPETUAL" {
 						continue
@@ -905,11 +937,13 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			}
 			group, okay := subscs[x].Params["group"].(string)
 			if !okay {
-				group = "100"
+				subscription.Params["channels"] = []string{orderbookChannel + "." + subscs[x].Currency.String() + "." + interval}
+				break
 			}
 			depth, okay := subscs[x].Params["depth"].(string)
 			if !okay {
 				subscription.Params["channels"] = []string{orderbookChannel + "." + subscs[x].Currency.String() + "." + interval}
+				break
 			}
 			subscription.Params["channels"] = []string{orderbookChannel + "." + subscs[x].Currency.String() + "." + group + "." + depth + "." + interval}
 		case chartTradesChannel:
@@ -1034,7 +1068,7 @@ func (d *Deribit) handleSubscription(operation string, channels []stream.Channel
 			return fmt.Errorf("%v %v", d.Name, err)
 		}
 		if payloads[x].ID == response.ID && len(response.Result) == 0 {
-			return fmt.Errorf("subscription to channel %s was not successful", payloads[x].Params["channels"][0])
+			log.Error(log.ExchangeSys, fmt.Sprintf("subscription to channel %s was not successful", payloads[x].Params["channels"][0]))
 		}
 	}
 	return nil

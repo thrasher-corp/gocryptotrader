@@ -1302,8 +1302,6 @@ func (d *Deribit) SetAnnouncementAsRead(ctx context.Context, id int64) error {
 	return nil
 }
 
-// func (d *Deribit) setAPIKeyAsDefault
-
 // SetEmailForSubAccount links an email given to the designated subaccount
 func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email string) error {
 	if sid <= 0 {
@@ -1638,7 +1636,6 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 		return 0, errInvalidInstrumentName
 	}
 	params := url.Values{}
-	println(instrument)
 	params.Set("instrument_name", instrument)
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -2132,7 +2129,6 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
 	}
-	println(endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params))
 	item := &request.Item{
 		Method:        method,
 		Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),
