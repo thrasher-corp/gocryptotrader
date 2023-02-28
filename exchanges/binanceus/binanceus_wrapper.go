@@ -474,8 +474,8 @@ func (bi *Binanceus) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and withdrawals
-func (bi *Binanceus) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+// GetAccountFundingHistory returns funding history, deposits and withdrawals
+func (bi *Binanceus) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -464,9 +464,9 @@ func (p *Poloniex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (p *Poloniex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

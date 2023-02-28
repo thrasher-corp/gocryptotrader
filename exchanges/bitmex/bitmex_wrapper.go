@@ -549,15 +549,57 @@ func (b *Bitmex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitmex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitmex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+	history, err := b.GetWalletHistory(ctx, "all")
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundHistory, len(history))
+	for i := range history {
+		resp[i] = exchange.FundHistory{
+			ExchangeName:    b.Name,
+			Status:          history[i].TransactStatus,
+			Timestamp:       history[i].Timestamp,
+			Currency:        history[i].Currency,
+			Amount:          history[i].Amount,
+			Fee:             history[i].Fee,
+			TransferType:    history[i].TransactType,
+			CryptoToAddress: history[i].Address,
+			CryptoTxID:      history[i].TransactID,
+			CryptoChain:     history[i].Network,
+		}
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitmex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitmex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	history, err := b.GetWalletHistory(ctx, c.String())
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(history))
+	for i := range history {
+		resp[i] = exchange.WithdrawalHistory{
+			Status:          history[i].TransactStatus,
+			Timestamp:       history[i].Timestamp,
+			Currency:        history[i].Currency,
+			Amount:          history[i].Amount,
+			Fee:             history[i].Fee,
+			TransferType:    history[i].TransactType,
+			CryptoToAddress: history[i].Address,
+			CryptoTxID:      history[i].TransactID,
+			CryptoChain:     history[i].Network,
+		}
+	}
+	return resp, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Bitmex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -568,7 +610,7 @@ func (b *Bitmex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Bitmex) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if assetType == asset.Index {
-		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
@@ -716,7 +758,34 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	var orderIDs, clientIDs []string
+	for i := range o {
+		switch {
+		case o[i].ClientOrderID != "":
+			clientIDs = append(clientIDs, o[i].ClientID)
+		case o[i].OrderID != "":
+			orderIDs = append(orderIDs, o[i].OrderID)
+		default:
+			return order.CancelBatchResponse{}, order.ErrOrderIDNotSet
+		}
+	}
+	joinedOrderIDs := strings.Join(orderIDs, ",")
+	joinedClientIDs := strings.Join(clientIDs, ",")
+	params := &OrderCancelParams{
+		OrderID:       joinedOrderIDs,
+		ClientOrderID: joinedClientIDs,
+	}
+	resp := order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	cancelResponse, err := b.CancelOrders(ctx, params)
+	if err != nil {
+		return order.CancelBatchResponse{}, err
+	}
+	for i := range cancelResponse {
+		resp.Status[cancelResponse[i].OrderID] = cancelResponse[i].OrdStatus
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

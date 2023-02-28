@@ -203,9 +203,9 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFundingHistory(context.Background())
+	_, err := b.GetAccountFundingHistory(context.Background())
 	if err == nil {
-		t.Error("GetFundingHistory() Expected error")
+		t.Error("GetAccountFundingHistory() Expected error")
 	}
 }
 

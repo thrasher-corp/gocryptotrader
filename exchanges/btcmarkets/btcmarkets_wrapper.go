@@ -489,15 +489,35 @@ func (b *BTCMarkets) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTCMarkets) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *BTCMarkets) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := b.ListWithdrawals(ctx, -1, -1, -1)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals))
+	for i := range withdrawals {
+		if c.IsEmpty() || c.Equal(withdrawals[i].AssetName) {
+			resp = append(resp, exchange.WithdrawalHistory{
+				Status:          withdrawals[i].Status,
+				TransferID:      withdrawals[i].ID,
+				Description:     withdrawals[i].Description,
+				Timestamp:       withdrawals[i].CreationTime,
+				Currency:        withdrawals[i].AssetName.String(),
+				Amount:          withdrawals[i].Amount,
+				Fee:             withdrawals[i].Fee,
+				TransferType:    withdrawals[i].RequestType,
+				CryptoToAddress: withdrawals[i].PaymentDetails.Address,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -645,7 +665,25 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	orderIds := make([]string, len(o))
+	for i := range o {
+		orderIds[i] = o[i].OrderID
+	}
+	batchResp, err := b.CancelBatch(ctx, orderIds)
+	if err != nil {
+		return order.CancelBatchResponse{}, err
+	}
+	resp := order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	for i := range batchResp.CancelOrders {
+		resp.Status[batchResp.CancelOrders[i].OrderID] = "success"
+	}
+	for i := range batchResp.UnprocessedRequests {
+		resp.Status[batchResp.UnprocessedRequests[i].RequestID] = batchResp.UnprocessedRequests[i].Code + " - " + batchResp.UnprocessedRequests[i].Message
+	}
+
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

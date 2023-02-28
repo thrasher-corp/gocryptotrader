@@ -445,9 +445,9 @@ func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return resp, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bittrex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	closedDepositData, err := b.GetClosedDeposits(ctx)
 	if err != nil {
 		return nil, err
@@ -606,7 +606,7 @@ func (b *Bittrex) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *Bittrex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair, or cancels all orders for all
@@ -967,8 +967,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	year, month, day := req.Start.Date()
 	curYear, curMonth, curDay := time.Now().Date()
 
-	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
-	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	var getHistoric, getRecent bool
 
 	switch req.ExchangeInterval {
 	case kline.OneMin, kline.FiveMin:
@@ -1040,6 +1039,10 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bittrex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+func (b *Bittrex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	_, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
 	return nil, common.ErrNotYetImplemented
 }

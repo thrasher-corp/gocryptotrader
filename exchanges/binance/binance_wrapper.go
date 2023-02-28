@@ -805,9 +805,9 @@ func (b *Binance) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Binance) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Binance) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

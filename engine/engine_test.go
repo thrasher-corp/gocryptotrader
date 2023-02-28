@@ -372,6 +372,7 @@ var unsupportedFunctionNames = []string{
 var unsupportedExchangeNames = []string{
 	"alphapoint",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
+	"bittrex",  // the api is about to expire in March and we haven't updated it yet
 }
 
 var acceptableErrors = []error{
@@ -472,7 +473,7 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 	timeParam := reflect.TypeOf((*time.Time)(nil)).Elem()
 	codeParam := reflect.TypeOf((*currency.Code)(nil)).Elem()
 
-	startDateroo := time.Now().Add(-time.Hour * 2).Truncate(time.Hour)
+	startDateroo := time.Now().Add(-time.Hour * 24 * 20).Truncate(time.Hour)
 	endDateroo := time.Now().Truncate(time.Hour)
 	var funcs []string
 methods:
@@ -502,7 +503,7 @@ methods:
 					assetPairIndex++
 				}
 			case input.AssignableTo(klineParam):
-				inputs[y] = reflect.ValueOf(kline.OneHour)
+				inputs[y] = reflect.ValueOf(kline.OneDay)
 			case input.AssignableTo(codeParam):
 				if name == "GetAvailableTransferChains" {
 					inputs[y] = reflect.ValueOf(currency.ETH)
@@ -510,11 +511,11 @@ methods:
 					inputs[y] = reflect.ValueOf(assetParams[assetPairIndex].Pair.Quote)
 				}
 			case input.AssignableTo(timeParam):
-				if setStartTime {
-					inputs[y] = reflect.ValueOf(endDateroo)
-				} else {
+				if !setStartTime {
 					inputs[y] = reflect.ValueOf(startDateroo)
 					setStartTime = true
+				} else {
+					inputs[y] = reflect.ValueOf(endDateroo)
 				}
 			default:
 				resp, err := buildRequest(exch, exch.GetName(), name, assetParams[assetPairIndex].Asset, assetParams[assetPairIndex].Pair, input)
@@ -552,7 +553,11 @@ methods:
 							if errors.Is(err, acceptableErrors[z]) {
 								break errProcessing
 							}
-							t.Error(err)
+							literalInputs := make([]interface{}, len(inputs))
+							for i := range inputs {
+								literalInputs[i] = inputs[i].Interface()
+							}
+							t.Errorf("Error: '%v'. Inputs: %v", err, literalInputs)
 						}
 						break
 					}

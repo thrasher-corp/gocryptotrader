@@ -1,6 +1,11 @@
 package bitstamp
 
-import "errors"
+import (
+	"errors"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Transaction types
 const (
@@ -141,14 +146,14 @@ type DepositAddress struct {
 
 // WithdrawalRequests holds request information on withdrawals
 type WithdrawalRequests struct {
-	OrderID       int64   `json:"id"`
-	Date          string  `json:"datetime"`
-	Type          int     `json:"type"`
-	Amount        float64 `json:"amount,string"`
-	Status        int     `json:"status"`
-	Data          interface{}
-	Address       string `json:"address"`        // Bitcoin withdrawals only
-	TransactionID string `json:"transaction_id"` // Bitcoin withdrawals only
+	OrderID       int64         `json:"id"`
+	Date          time.Time     `json:"datetime"`
+	Type          int64         `json:"type"`
+	Amount        float64       `json:"amount,string"`
+	Status        int64         `json:"status"`
+	Currency      currency.Code `json:"currency"`
+	Address       string        `json:"address"`
+	TransactionID string        `json:"transaction_id"`
 }
 
 // CryptoWithdrawalResponse response from a crypto withdrawal request

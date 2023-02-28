@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -133,8 +134,17 @@ func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Tim
 		common.EncodeURLValues(btseTrades, urlValues), &t, spot, queryFunc)
 }
 
-// OHLCV retrieve and return OHLCV candle data for requested symbol
-func (b *BTSE) OHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int) (OHLCV, error) {
+// GetOHLCV retrieve and return OHLCV candle data for requested symbol
+func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
+	var ep exchange.URL
+	switch a {
+	case asset.Spot:
+		ep = exchange.RestSpot
+	case asset.Futures:
+		ep = exchange.RestFutures
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	var o OHLCV
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -152,7 +162,8 @@ func (b *BTSE) OHLCV(ctx context.Context, symbol string, start, end time.Time, r
 	}
 	urlValues.Add("resolution", strconv.FormatInt(int64(res), 10))
 	endpoint := common.EncodeURLValues(btseOHLCV, urlValues)
-	return o, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, true, queryFunc)
+
+	return o, b.SendHTTPRequest(ctx, ep, http.MethodGet, endpoint, &o, true, queryFunc)
 }
 
 // GetPrice get current price for requested symbol

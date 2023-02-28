@@ -420,9 +420,9 @@ func (b *Bithumb) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bithumb) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bithumb) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

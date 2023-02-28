@@ -2036,8 +2036,8 @@ func TestGetFundingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, err := ok.GetFundingHistory(context.Background()); err != nil {
-		t.Error("Okx GetFundingHistory() error", err)
+	if _, err := ok.GetAccountFundingHistory(context.Background()); err != nil {
+		t.Error("Okx GetAccountFundingHistory() error", err)
 	}
 }
 

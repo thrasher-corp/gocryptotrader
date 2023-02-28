@@ -655,9 +655,9 @@ func (k *Kraken) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (k *Kraken) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (k *Kraken) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

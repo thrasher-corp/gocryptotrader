@@ -808,7 +808,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 	if err != nil {
 		return err
 	}
-	return result.GetError()
+	return result.GetError(false)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -890,7 +890,7 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	if err != nil {
 		return err
 	}
-	return result.GetError()
+	return result.GetError(true)
 }
 
 // Error defines all error information for each request
@@ -902,11 +902,17 @@ type Error struct {
 }
 
 // GetError checks and returns an error if it is supplied.
-func (e Error) GetError() error {
+func (e Error) GetError(isAuthRequest bool) error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ReturnMsg)
+		}
 		return errors.New(e.ReturnMsg)
 	}
 	if e.ExtCode != "" && e.ExtMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ExtMsg)
+		}
 		return errors.New(e.ExtMsg)
 	}
 	return nil

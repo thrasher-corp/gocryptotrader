@@ -560,14 +560,14 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var getFundingHistoryResponse []exchange.FundHistory
-		getFundingHistoryResponse, err = e.GetFundingHistory(context.TODO())
+		getFundingHistoryResponse, err = e.GetAccountFundingHistory(context.TODO())
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetFundingHistory",
+			Function: "GetAccountFundingHistory",
 			Error:    msg,
 			Response: jsonifyInterface([]interface{}{getFundingHistoryResponse}),
 		})

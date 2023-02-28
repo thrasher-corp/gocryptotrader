@@ -634,7 +634,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" || errCap.Status == errStr {
 			if errCap.Error != "" { // v1 errors
-				return errors.New(errCap.Error)
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
 			switch data := errCap.Reason.(type) { // v2 errors
 			case map[string]interface{}:

@@ -148,7 +148,7 @@ func TestFetchOrderBookL2(t *testing.T) {
 
 func TestOHLCV(t *testing.T) {
 	t.Parallel()
-	_, err := b.OHLCV(context.Background(),
+	_, err := b.GetOHLCV(context.Background(),
 		testSPOTPair,
 		time.Now().AddDate(0, 0, -1),
 		time.Now(), 60)
@@ -156,7 +156,7 @@ func TestOHLCV(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.OHLCV(context.Background(),
+	_, err = b.GetOHLCV(context.Background(),
 		testSPOTPair, time.Now(), time.Now().AddDate(0, 0, -1), 60)
 	if err == nil {
 		t.Fatal("expected error if start is after end date")

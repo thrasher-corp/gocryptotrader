@@ -323,9 +323,9 @@ func (i *ItBit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (i *ItBit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (i *ItBit) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

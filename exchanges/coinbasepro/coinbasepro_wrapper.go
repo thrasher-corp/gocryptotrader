@@ -473,9 +473,9 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	return orderbook.Get(c.Name, p, assetType)
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *CoinbasePro) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (c *CoinbasePro) GetAccountFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

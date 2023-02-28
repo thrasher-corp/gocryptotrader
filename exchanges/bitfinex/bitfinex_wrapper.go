@@ -320,7 +320,7 @@ func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			pairs = append(pairs, pair)
 		}
 	default:
-		return nil, errors.New("asset type not supported by this endpoint")
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	return pairs, nil
 }
@@ -551,9 +551,9 @@ func (b *Bitfinex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitfinex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitfinex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

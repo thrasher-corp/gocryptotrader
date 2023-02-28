@@ -179,7 +179,7 @@ func (b *bybitNumericalValue) Float64() float64 { return float64(*b) }
 
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
-	GetError() error
+	GetError(isAuthRequest bool) error
 }
 
 // PairData stores pair data

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1096,7 +1097,7 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 	if err != nil {
 		return err
 	}
-	return result.GetError()
+	return result.GetError(true)
 }
 
 // USDCError defines all error information for each USDC request
@@ -1106,8 +1107,11 @@ type USDCError struct {
 }
 
 // GetError checks and returns an error if it is supplied.
-func (e USDCError) GetError() error {
+func (e USDCError) GetError(isAuthRequest bool) error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ReturnMsg)
+		}
 		return errors.New(e.ReturnMsg)
 	}
 	return nil

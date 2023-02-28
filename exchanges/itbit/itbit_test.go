@@ -130,7 +130,7 @@ func TestGetWalletTrades(t *testing.T) {
 func TestGetFundingHistory(t *testing.T) {
 	_, err := i.GetFundingHistoryForWallet(context.Background(), "1337", url.Values{})
 	if err == nil {
-		t.Error("GetFundingHistory() Expected error")
+		t.Error("GetAccountFundingHistory() Expected error")
 	}
 }
 

@@ -464,9 +464,9 @@ func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(g.Name, fPair, assetType)
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gemini) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -479,15 +479,33 @@ func (b *Bitstamp) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitstamp) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitstamp) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := b.GetWithdrawalRequests(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals))
+	for i := range withdrawals {
+		if c.IsEmpty() || c.Equal(withdrawals[i].Currency) {
+			resp = append(resp, exchange.WithdrawalHistory{
+				Status:          strconv.FormatInt(withdrawals[i].Status, 10),
+				Timestamp:       withdrawals[i].Date,
+				Currency:        withdrawals[i].Currency.String(),
+				Amount:          withdrawals[i].Amount,
+				TransferType:    strconv.FormatInt(withdrawals[i].Type, 10),
+				CryptoToAddress: withdrawals[i].Address,
+				CryptoTxID:      withdrawals[i].TransactionID,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset

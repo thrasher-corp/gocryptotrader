@@ -813,9 +813,9 @@ func (h *HUOBI) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HUOBI) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (h *HUOBI) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -435,9 +435,9 @@ func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTSE) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *BTSE) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -453,7 +453,7 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -982,40 +982,67 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
-	switch req.Asset {
-	case asset.Spot:
-		req, err := b.OHLCV(ctx,
-			req.RequestFormatted.String(),
-			req.Start,
-			req.End,
-			intervalInt)
-		if err != nil {
-			return nil, err
-		}
+	candles, err := b.GetOHLCV(ctx,
+		req.RequestFormatted.String(),
+		req.Start,
+		req.End,
+		intervalInt,
+		a)
+	if err != nil {
+		return nil, err
+	}
 
-		timeSeries = make([]kline.Candle, len(req))
-		for x := range req {
-			timeSeries[x] = kline.Candle{
-				Time:   time.Unix(int64(req[x][0]), 0),
-				Open:   req[x][1],
-				High:   req[x][2],
-				Low:    req[x][3],
-				Close:  req[x][4],
-				Volume: req[x][5],
-			}
+	timeSeries := make([]kline.Candle, len(candles))
+	for x := range candles {
+		timeSeries[x] = kline.Candle{
+			Time:   time.Unix(int64(candles[x][0]), 0),
+			Open:   candles[x][1],
+			High:   candles[x][2],
+			Low:    candles[x][3],
+			Close:  candles[x][4],
+			Volume: candles[x][5],
 		}
-	case asset.Futures:
-		return nil, common.ErrNotYetImplemented
-	default:
-		return nil, fmt.Errorf("asset %s not supported", req.Asset)
 	}
 	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(req.ExchangeInterval))
+	if err != nil {
+		return nil, err
+	}
+
+	timeSeries := make([]kline.Candle, req.Size())
+	for i := range req.RangeHolder.Ranges {
+		var candles OHLCV
+		candles, err = b.GetOHLCV(ctx,
+			req.RequestFormatted.String(),
+			req.RangeHolder.Ranges[i].Start.Time,
+			req.RangeHolder.Ranges[i].End.Time,
+			intervalInt,
+			a)
+		if err != nil {
+			return nil, err
+		}
+		for x := range candles {
+			timeSeries[x] = kline.Candle{
+				Time:   time.Unix(int64(candles[x][0]), 0),
+				Open:   candles[x][1],
+				High:   candles[x][2],
+				Low:    candles[x][3],
+				Close:  candles[x][4],
+				Volume: candles[x][5],
+			}
+		}
+	}
+
+	return req.ProcessResponse(timeSeries)
 }
 
 func (b *BTSE) seedOrderSizeLimits(ctx context.Context) error {
