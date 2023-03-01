@@ -317,9 +317,10 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 	}
 
 	if genResp.Status[0] != coinutStatusOK {
-		return fmt.Errorf("%s SendHTTPRequest error: %s",
-			c.Name,
-			genResp.Status[0])
+		if authenticated {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, genResp.Status[0])
+		}
+		return fmt.Errorf("%s SendHTTPRequest error: %s", c.Name, genResp.Status[0])
 	}
 
 	return json.Unmarshal(rawMsg, result)

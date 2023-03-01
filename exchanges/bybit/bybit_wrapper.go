@@ -795,7 +795,7 @@ func (by *Bybit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (by *Bybit) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -985,7 +985,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		var oType string
 		switch s.Type {
 		case order.Market:
-			timeInForce = ""
 			oType = "Market"
 		case order.Limit:
 			oType = "Limit"
@@ -1005,7 +1004,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		var oType string
 		switch s.Type {
 		case order.Market:
-			timeInForce = ""
 			oType = "Market"
 		case order.Limit:
 			oType = "Limit"
@@ -1025,7 +1023,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		var oType string
 		switch s.Type {
 		case order.Market:
-			timeInForce = ""
 			oType = "Market"
 		case order.Limit:
 			oType = "Limit"
@@ -1133,7 +1130,26 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (by *Bybit) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	orderIDs := make([]string, 0, len(orders))
+	for i := range orders {
+		if orders[i].ClientOrderID != "" {
+			return order.CancelBatchResponse{}, fmt.Errorf("%w order ids only", common.ErrFunctionNotSupported)
+		}
+		if orders[i].OrderID != "" {
+			orderIDs = append(orderIDs, orders[i].OrderID)
+		}
+	}
+	cancelledOrders, err := by.BatchCancelOrderByIDs(ctx, orderIDs)
+	if err != nil {
+		return order.CancelBatchResponse{}, err
+	}
+	resp := order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	for i := range orderIDs {
+		resp.Status[orderIDs[i]] = strconv.FormatBool(cancelledOrders)
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

@@ -48,6 +48,7 @@ const (
 	bybitFastCancelSpotOrder      = "/spot/v1/order/fast"
 	bybitBatchCancelSpotOrder     = "/spot/order/batch-cancel"
 	bybitFastBatchCancelSpotOrder = "/spot/order/batch-fast-cancel"
+	bybitBatchCancelByIDs         = "/spot/order/batch-cancel-by-ids"
 	bybitOpenOrder                = "/spot/v1/open-orders"
 	bybitPastOrder                = "/spot/v1/history-orders"
 	bybitTradeHistory             = "/spot/v1/myTrades"
@@ -642,7 +643,7 @@ func (by *Bybit) BatchFastCancelOrder(ctx context.Context, symbol, side, orderTy
 func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (bool, error) {
 	params := url.Values{}
 	if len(orderIDs) == 0 {
-		return false, errEmptyOrderIDs
+		return false, common.ErrNilPointer
 	}
 	params.Set("orderIds", strings.Join(orderIDs, ","))
 
@@ -652,7 +653,7 @@ func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelByIDs, params, nil, &resp, privateSpotRate)
 }
 
 // ListOpenOrders returns all open orders

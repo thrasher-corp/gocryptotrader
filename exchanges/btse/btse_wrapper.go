@@ -441,18 +441,25 @@ func (b *BTSE) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHis
 	return nil, common.ErrFunctionNotSupported
 }
 
-func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
+func (b *BTSE) withinLimits(pair currency.Pair, amount float64) error {
 	val, found := OrderSizeLimits(pair.String())
 	if !found {
-		return false
+		return fmt.Errorf("%w for pair %v", order.ErrExchangeLimitNotLoaded, pair)
 	}
-	return (math.Mod(amount, val.MinSizeIncrement) == 0) ||
-		amount < val.MinOrderSize ||
-		amount > val.MaxOrderSize
+	if math.Mod(amount, val.MinSizeIncrement) < 0 {
+		return fmt.Errorf("%w %v %v %v", order.ErrAmountBelowMin, pair, amount, val.MinSizeIncrement)
+	}
+	if amount < val.MinOrderSize {
+		return fmt.Errorf("%w %v %v %v", order.ErrAmountBelowMin, pair, amount, val.MinOrderSize)
+	}
+	if amount > val.MaxOrderSize {
+		return fmt.Errorf("%w %v %v %v", order.ErrAmountExceedsMax, pair, amount, val.MinSizeIncrement)
+	}
+	return nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -519,9 +526,9 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err != nil {
 		return nil, err
 	}
-	inLimits := b.withinLimits(fPair, s.Amount)
-	if !inLimits {
-		return nil, errors.New("order outside of limits")
+	err = b.withinLimits(fPair, s.Amount)
+	if err != nil {
+		return nil, err
 	}
 
 	r, err := b.CreateOrder(ctx,

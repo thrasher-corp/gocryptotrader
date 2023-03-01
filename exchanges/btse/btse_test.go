@@ -151,15 +151,31 @@ func TestOHLCV(t *testing.T) {
 	_, err := b.GetOHLCV(context.Background(),
 		testSPOTPair,
 		time.Now().AddDate(0, 0, -1),
-		time.Now(), 60)
+		time.Now(),
+		60,
+		asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	_, err = b.GetOHLCV(context.Background(),
-		testSPOTPair, time.Now(), time.Now().AddDate(0, 0, -1), 60)
+		testSPOTPair,
+		time.Now(),
+		time.Now().AddDate(0, 0, -1),
+		60,
+		asset.Spot)
 	if err == nil {
 		t.Fatal("expected error if start is after end date")
+	}
+
+	_, err = b.GetOHLCV(context.Background(),
+		testSPOTPair,
+		time.Now().AddDate(0, 0, -1),
+		time.Now(),
+		60,
+		asset.Futures)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -820,42 +836,42 @@ func TestWithinLimits(t *testing.T) {
 	t.Parallel()
 	seedOrderSizeLimitMap()
 	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
-	v := b.withinLimits(p, 1.0)
-	if !v {
-		t.Fatal("expected valid limits")
+	err := b.withinLimits(p, 1.0)
+	if err != nil {
+		t.Error(err)
 	}
-	v = b.withinLimits(p, 5.0000001)
-	if v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 5.0000001)
+	if err != nil {
+		t.Error(err)
 	}
-	v = b.withinLimits(p, 100)
-	if !v {
-		t.Fatal("expected valid limits")
+	err = b.withinLimits(p, 100)
+	if err != nil {
+		t.Error(err)
 	}
-	v = b.withinLimits(p, 10.1)
-	if v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 10.1)
+	if err != nil {
+		t.Error(err)
 	}
 
 	p.Base = currency.LTC
-	v = b.withinLimits(p, 10)
-	if v {
-		t.Fatal("expected valid limits")
+	err = b.withinLimits(p, 10)
+	if err != nil {
+		t.Error(err)
 	}
 
-	v = b.withinLimits(p, 0.009)
-	if !v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 0.009)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Error(err)
 	}
 	p.Base = currency.BTC
-	v = b.withinLimits(p, 10)
-	if v {
-		t.Fatal("expected valid limits")
+	err = b.withinLimits(p, 10)
+	if err != nil {
+		t.Error(err)
 	}
 
-	v = b.withinLimits(p, 0.001)
-	if !v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 0.001)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Error(err)
 	}
 }
 

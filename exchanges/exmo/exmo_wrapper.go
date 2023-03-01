@@ -415,12 +415,48 @@ func (e *EXMO) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (e *EXMO) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+	hist, err := e.GetWalletHistory(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundHistory, 0, len(hist.History))
+	for i := range hist.History {
+		if hist.History[i].Type != "deposit" {
+			continue
+		}
+		resp = append(resp, exchange.FundHistory{
+			Status:     hist.History[i].Status,
+			TransferID: hist.History[i].Txid,
+			Timestamp:  hist.History[i].Timestamp,
+			Currency:   hist.History[i].Currency,
+			Amount:     hist.History[i].Amount,
+			BankFrom:   hist.History[i].Provider,
+		})
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	hist, err := e.GetWalletHistory(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, 0, len(hist.History))
+	for i := range hist.History {
+		if hist.History[i].Type != "withdrawal" {
+			continue
+		}
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:     hist.History[i].Status,
+			TransferID: hist.History[i].Txid,
+			Timestamp:  hist.History[i].Timestamp,
+			Currency:   hist.History[i].Currency,
+			Amount:     hist.History[i].Amount,
+			CryptoTxID: hist.History[i].Txid,
+		})
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -523,7 +559,12 @@ func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (e *EXMO) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (e *EXMO) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

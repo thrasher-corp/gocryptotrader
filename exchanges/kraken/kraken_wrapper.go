@@ -662,10 +662,14 @@ func (k *Kraken) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundH
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := k.WithdrawStatus(ctx, c, "")
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
 	for i := range withdrawals {
-		resp = append(resp, exchange.WithdrawalHistory{
+		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals[i].Status,
 			TransferID:      withdrawals[i].Refid,
 			Timestamp:       time.Unix(int64(withdrawals[i].Time), 0),
@@ -674,10 +678,10 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 			CryptoToAddress: withdrawals[i].Info,
 			CryptoTxID:      withdrawals[i].TxID,
 			Currency:        c.String(),
-		})
+		}
 	}
 
-	return
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset

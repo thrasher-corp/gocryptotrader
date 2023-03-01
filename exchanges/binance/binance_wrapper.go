@@ -812,28 +812,30 @@ func (b *Binance) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	w, err := b.WithdrawHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
+func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := b.WithdrawHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {
 		return nil, err
 	}
 
-	for i := range w {
-		tm, err := time.Parse(binanceSAPITimeLayout, w[i].ApplyTime)
+	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
+	var tm time.Time
+	for i := range withdrawals {
+		tm, err = time.Parse(binanceSAPITimeLayout, withdrawals[i].ApplyTime)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, exchange.WithdrawalHistory{
-			Status:          strconv.FormatInt(w[i].Status, 10),
-			TransferID:      w[i].ID,
-			Currency:        w[i].Coin,
-			Amount:          w[i].Amount,
-			Fee:             w[i].TransactionFee,
-			CryptoToAddress: w[i].Address,
-			CryptoTxID:      w[i].TransactionID,
-			CryptoChain:     w[i].Network,
+		resp[i] = exchange.WithdrawalHistory{
+			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
+			TransferID:      withdrawals[i].ID,
+			Currency:        withdrawals[i].Coin,
+			Amount:          withdrawals[i].Amount,
+			Fee:             withdrawals[i].TransactionFee,
+			CryptoToAddress: withdrawals[i].Address,
+			CryptoTxID:      withdrawals[i].TransactionID,
+			CryptoChain:     withdrawals[i].Network,
 			Timestamp:       tm,
-		})
+		}
 	}
 
 	return resp, nil

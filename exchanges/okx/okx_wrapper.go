@@ -604,12 +604,12 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHis
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := ok.GetWithdrawalHistory(ctx, c.String(), "", "", "", "", time.Time{}, time.Time{}, -5)
 	if err != nil {
 		return nil, err
 	}
-	resp = make([]exchange.WithdrawalHistory, 0, len(withdrawals))
+	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals))
 	for x := range withdrawals {
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          withdrawals[x].StateOfWithdrawal,

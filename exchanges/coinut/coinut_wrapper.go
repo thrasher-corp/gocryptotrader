@@ -530,8 +530,8 @@ func (c *COINUT) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundH
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *COINUT) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (c *COINUT) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -729,8 +729,38 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *COINUT) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (c *COINUT) CancelBatchOrders(ctx context.Context, details []order.Cancel) (order.CancelBatchResponse, error) {
+	req := make([]CancelOrders, 0, len(details))
+	for i := range details {
+		if details[i].ClientOrderID != "" {
+			return order.CancelBatchResponse{}, fmt.Errorf("%w only orderid suppoerted", common.ErrFunctionNotSupported)
+		}
+		if details[i].OrderID != "" {
+			currencyID := c.instrumentMap.LookupID(details[i].Pair.String())
+			oid, err := strconv.ParseInt(details[i].OrderID, 10, 64)
+			if err != nil {
+				return order.CancelBatchResponse{}, err
+			}
+			req = append(req, CancelOrders{
+				InstrumentID: currencyID,
+				OrderID:      oid,
+			})
+		}
+	}
+	results, err := c.CancelOrders(ctx, req)
+	if err != nil {
+		return order.CancelBatchResponse{}, err
+	}
+	resp := order.CancelBatchResponse{Status: make(map[string]string)}
+	for i := range results.Results {
+		resp.Status[strconv.FormatInt(results.Results[i].OrderID, 10)] = results.Results[i].Status
+	}
+	return resp, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (c *COINUT) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

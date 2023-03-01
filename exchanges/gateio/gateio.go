@@ -460,8 +460,8 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 
 	if err := json.Unmarshal(intermidiary, &errCap); err == nil {
 		if !errCap.Result {
-			return fmt.Errorf("%s auth request error, code: %d message: %s",
-				g.Name,
+			return fmt.Errorf("%w code: %d message: %s",
+				request.ErrAuthRequestFailed,
 				errCap.Code,
 				errCap.Message)
 		}

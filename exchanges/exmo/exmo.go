@@ -119,7 +119,7 @@ func (e *EXMO) CreateOrder(ctx context.Context, pair, orderType string, price, a
 	var resp response
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderCreate, v, &resp)
 	if !resp.Result {
-		return -1, errors.New(resp.Error)
+		return -1, fmt.Errorf("%w %v", err, resp.Error)
 	}
 	return resp.OrderID, err
 }
@@ -135,7 +135,7 @@ func (e *EXMO) CancelExistingOrder(ctx context.Context, orderID int64) error {
 	var resp response
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderCancel, v, &resp)
 	if !resp.Result {
-		return errors.New(resp.Error)
+		return fmt.Errorf("%w %v", err, resp.Error)
 	}
 	return err
 }
@@ -256,9 +256,9 @@ func (e *EXMO) WithdrawCryptocurrency(ctx context.Context, currency, address, in
 		return -1, err
 	}
 	if resp.Success == 0 || !resp.Result {
-		return -1, errors.New(resp.Error)
+		return -1, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, resp.Error)
 	}
-	return resp.TaskID, err
+	return resp.TaskID, nil
 }
 
 // GetWithdrawTXID gets the result of a withdrawal request

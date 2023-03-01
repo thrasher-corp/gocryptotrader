@@ -398,7 +398,7 @@ func (b *Bitfinex) FetchTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	}
 
 	b.appendOptionalDelimiter(&fPair)
-	tick, err := ticker.GetTicker(b.Name, fPair, asset.Spot)
+	tick, err := ticker.GetTicker(b.Name, fPair, a)
 	if err != nil {
 		return b.UpdateTicker(ctx, fPair, a)
 	}
@@ -435,7 +435,7 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return o, err
 	}
 	if assetType != asset.Spot && assetType != asset.Margin && assetType != asset.MarginFunding {
-		return o, fmt.Errorf("assetType not supported: %v", assetType)
+		return o, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	b.appendOptionalDelimiter(&fPair)
 	var prefix = "t"
@@ -587,20 +587,20 @@ func (b *Bitfinex) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *Bitfinex) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if assetType == asset.MarginFunding {
-		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+func (b *Bitfinex) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if a == asset.MarginFunding {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
-	p, err = b.FormatExchangeCurrency(p, assetType)
+	p, err = b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 	var currString string
-	currString, err = b.fixCasing(p, assetType)
+	currString, err = b.fixCasing(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +625,7 @@ allTrades:
 				TID:          tID,
 				Exchange:     b.Name,
 				CurrencyPair: p,
-				AssetType:    assetType,
+				AssetType:    a,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
 				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
