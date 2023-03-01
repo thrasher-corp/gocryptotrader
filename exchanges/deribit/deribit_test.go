@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -2454,5 +2456,80 @@ func TestGetOrderHistory(t *testing.T) {
 		Pairs:     []currency.Pair{enabledPairs[0]},
 	}); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGuessAssetTypeFromInstrument(t *testing.T) {
+	availablePairs, err := d.GetAvailablePairs(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, cp := range availablePairs {
+		t.Run(strconv.Itoa(id), func(t *testing.T) {
+			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.Futures {
+				println(asset.Futures.String(), cp.String())
+				t.Errorf("expected %v, but found %v", asset.Futures, assetType)
+			}
+		})
+	}
+	availablePairs, err = d.GetAvailablePairs(asset.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, cp := range availablePairs {
+		t.Run(strconv.Itoa(id), func(t *testing.T) {
+			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.Options {
+				t.Errorf("expected %v, but found %v", asset.Options, assetType)
+			}
+		})
+	}
+	availablePairs, err = d.GetAvailablePairs(asset.OptionCombo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, cp := range availablePairs {
+		t.Run(strconv.Itoa(id), func(t *testing.T) {
+			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.OptionCombo {
+				println(asset.OptionCombo.String(), cp.String(), "But Found: ", assetType.String())
+				t.Fatalf("expected %v, but found %v", asset.OptionCombo, assetType)
+			}
+		})
+	}
+	availablePairs, err = d.GetAvailablePairs(asset.FutureCombo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, cp := range availablePairs {
+		t.Run(strconv.Itoa(id), func(t *testing.T) {
+			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.FutureCombo {
+				t.Errorf("expected %v, but found %v", asset.FutureCombo, assetType)
+			}
+		})
+	}
+}
+
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	var feeBuilder = &exchange.FeeBuilder{
+		Amount:  1,
+		FeeType: exchange.CryptocurrencyTradeFee,
+		Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			currency.USDT.String(), "_"),
+		IsMaker:             false,
+		PurchasePrice:       1,
+		FiatCurrency:        currency.USD,
+		BankTransactionType: exchange.WireTransfer,
+	}
+	_, err := d.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !areTestAPIKeysSet() {
+		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		}
+	} else {
+		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		}
 	}
 }

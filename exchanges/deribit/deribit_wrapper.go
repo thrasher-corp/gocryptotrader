@@ -1028,7 +1028,32 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (d *Deribit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrFunctionNotSupported
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
+	if !d.AreCredentialsValid(ctx) && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	var fee float64
+	var err error
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee, err = calculateTradingFee(feeBuilder)
+		if err != nil {
+			return 0, err
+		}
+	case exchange.CryptocurrencyDepositFee:
+	case exchange.CryptocurrencyWithdrawalFee:
+		// Withdrawals are processed instantly if the balance in our hot wallet permits so. We keep only a small percentage of coins in hot storage,
+		// therefore there is a chance that your withdrawal cannot be processed immediately. If needed, once a day we will replenish the balance of the hot wallet from the cold storage.
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -14,6 +14,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -2426,4 +2427,85 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 	default:
 		return asset.Empty, nil
 	}
+}
+
+func guessAssetTypeFromInstrument(currencyPair currency.Pair) asset.Item {
+	vals := strings.Split(currencyPair.String(), currency.DashDelimiter)
+	if strings.HasSuffix(currencyPair.String(), "PERPETUAL") || len(vals) == 2 {
+		return asset.Futures
+	}
+	added := false
+	if len(vals) >= 3 {
+		for a := range vals {
+			lastVals := strings.Split(vals[a], currency.UnderscoreDelimiter)
+			if len(lastVals) > 1 {
+				added = true
+				if a < len(vals)-1 {
+					lastVals = append(lastVals, vals[a+1:]...)
+				}
+				vals = append(vals[:a], lastVals...)
+			}
+		}
+	}
+	if len(vals) == 4 {
+		if added {
+			return asset.FutureCombo
+		}
+		if strings.EqualFold(vals[3], "C") || strings.EqualFold(vals[3], "P") {
+			return asset.Options
+		}
+		return asset.OptionCombo
+	} else if len(vals) >= 5 {
+		return asset.OptionCombo
+	}
+	return asset.Empty
+}
+
+func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	assetType := guessAssetTypeFromInstrument(feeBuilder.Pair)
+	switch assetType {
+	case asset.Futures, asset.FutureCombo:
+		switch {
+		case strings.HasSuffix(feeBuilder.Pair.String(), "USDC-PERPETUAL"):
+			if feeBuilder.IsMaker {
+				return 0, nil
+			}
+			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
+		case strings.HasPrefix(feeBuilder.Pair.String(), "BTC"),
+			strings.HasPrefix(feeBuilder.Pair.String(), "ETH"):
+			if strings.HasSuffix(feeBuilder.Pair.String(), "PERPETUAL") {
+				if feeBuilder.IsMaker {
+					return 0, nil
+				}
+				return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
+			}
+			// weekly futures contracts
+			if feeBuilder.IsMaker {
+				return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0001, nil
+			}
+			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
+		case strings.HasPrefix(feeBuilder.Pair.String(), "SOL"): // perpetual and weekly SOL contracts
+			if feeBuilder.IsMaker {
+				return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.00002, nil
+			}
+			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
+		}
+	case asset.Options, asset.OptionCombo:
+		switch {
+		case strings.HasPrefix(feeBuilder.Pair.String(), "BTC"),
+			strings.HasPrefix(feeBuilder.Pair.String(), "ETH"):
+			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0003, nil
+		case strings.HasPrefix(feeBuilder.Pair.String(), "SOL"):
+			if feeBuilder.IsMaker {
+				return 0, nil
+			}
+			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0003, nil
+		}
+	}
+	return 0, fmt.Errorf("%w asset: %v", asset.ErrNotSupported, assetType)
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.0003 * price * amount
 }
