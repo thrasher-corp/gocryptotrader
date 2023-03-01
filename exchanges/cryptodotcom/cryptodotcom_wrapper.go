@@ -1021,39 +1021,20 @@ func (cr *Cryptodotcom) GetFeeByType(ctx context.Context, feeBuilder *exchange.F
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !cr.AreCredentialsValid(ctx) && // Todo check connection status
+	if !cr.AreCredentialsValid(ctx) &&
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-
 	var fee float64
-
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = cr.calculateTradingFee(ctx, feeBuilder) * feeBuilder.Amount * feeBuilder.PurchasePrice
+		fee = calculateTradingFee(feeBuilder) * feeBuilder.Amount * feeBuilder.PurchasePrice
 	case exchange.CryptocurrencyWithdrawalFee:
-		switch feeBuilder.Pair.Base {
-		case currency.USDT:
-			fee = 1.08
-		case currency.TUSD:
-			fee = 1.09
-		case currency.BTC:
-			fee = 0.0005
-		case currency.ETH:
-			fee = 0.01
-		case currency.LTC:
-			fee = 0.001
-		}
-	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.Amount)
-	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
+		fee = 0.5 * feeBuilder.PurchasePrice * feeBuilder.Amount
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	return fee, nil
-
-	return 0, common.ErrNotYetImplemented
 }
 
 func (cr *Cryptodotcom) checkCredentials(ctx context.Context) bool {
@@ -1067,26 +1048,31 @@ func getOfflineTradeFee(price, amount float64) float64 {
 }
 
 // calculateTradingFee return fee based on users current fee tier or default values
-func (b *Cryptodotcom) calculateTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) float64 {
-	formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
-	if err != nil {
+func calculateTradingFee(feeBuilder *exchange.FeeBuilder) float64 {
+	switch {
+	case feeBuilder.Amount*feeBuilder.PurchasePrice <= 250:
+		return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.075
+	case feeBuilder.Amount*feeBuilder.PurchasePrice < 1000000:
 		if feeBuilder.IsMaker {
-			return 0.001
+			return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.07
 		}
-		return 0.002
-	}
-	feeTiers, err := dy.GetFeeInformation(ctx, formattedPair.String())
-	if err != nil {
-		// TODO: Return actual error, we shouldn't pivot around errors.
+		return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.072
+	case feeBuilder.Amount*feeBuilder.PurchasePrice < 5000000:
 		if feeBuilder.IsMaker {
-			return 0.001
+			return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.065
 		}
-		return 0.002
+		return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.069
+	case feeBuilder.Amount*feeBuilder.PurchasePrice <= 10000000:
+		if feeBuilder.IsMaker {
+			return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.06
+		}
+		return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.065
+	default:
+		if !feeBuilder.IsMaker {
+			return feeBuilder.PurchasePrice * feeBuilder.Amount * 0.05
+		}
+		return 0
 	}
-	if feeBuilder.IsMaker {
-		return feeTiers[0].MakerFee
-	}
-	return feeTiers[0].TakerFee
 }
 
 // ValidateCredentials validates current credentials used for wrapper
