@@ -379,6 +379,7 @@ var acceptableErrors = []error{
 	common.ErrFunctionNotSupported,
 	asset.ErrNotSupported,
 	request.ErrAuthRequestFailed,
+	order.ErrUnsupportedOrderType,
 }
 
 func TestAllExchanges(t *testing.T) {
@@ -414,7 +415,6 @@ func TestAllExchanges(t *testing.T) {
 			}
 
 			b := exch.GetBase()
-			b.Verbose = true
 			assets := b.CurrencyPairs.GetAssetTypes(false)
 			if len(assets) == 0 {
 				t.Fatal(name)
@@ -704,32 +704,34 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 		return req, nil
 	case input.AssignableTo(os):
 		return &order.Submit{
-			Exchange:      exchName,
-			Type:          order.Market,
-			Side:          order.Buy,
-			Pair:          p,
-			AssetType:     a,
-			Price:         1337,
-			Amount:        1,
-			ClientID:      "1337",
-			ClientOrderID: "13371337",
+			Exchange:          exchName,
+			Type:              order.Limit,
+			Side:              order.Buy,
+			Pair:              p,
+			AssetType:         a,
+			Price:             1337,
+			Amount:            1,
+			ClientID:          "1337",
+			ClientOrderID:     "13371337",
+			ImmediateOrCancel: true,
 		}, nil
 	case input.AssignableTo(om):
 		return &order.Modify{
-			Exchange:      exchName,
-			Type:          order.Market,
-			Side:          order.Buy,
-			Pair:          p,
-			AssetType:     a,
-			Price:         1337,
-			Amount:        1,
-			ClientOrderID: "13371337",
-			OrderID:       "1337",
+			Exchange:          exchName,
+			Type:              order.Limit,
+			Side:              order.Buy,
+			Pair:              p,
+			AssetType:         a,
+			Price:             1337,
+			Amount:            1,
+			ClientOrderID:     "13371337",
+			OrderID:           "1337",
+			ImmediateOrCancel: true,
 		}, nil
 	case input.AssignableTo(oc):
 		return &order.Cancel{
 			Exchange:      exchName,
-			Type:          order.Market,
+			Type:          order.Limit,
 			Side:          order.Buy,
 			Pair:          p,
 			AssetType:     a,

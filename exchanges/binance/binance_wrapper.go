@@ -977,7 +977,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
-			return nil, errors.New("unsupported order type")
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 
 		var orderRequest = NewOrderRequest{

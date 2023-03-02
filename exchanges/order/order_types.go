@@ -23,6 +23,7 @@ var (
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
+	ErrUnsupportedOrderType       = errors.New("unsupported order type")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates = errors.New("no rates")
 

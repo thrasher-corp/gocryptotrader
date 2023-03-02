@@ -467,12 +467,51 @@ func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+	transfers, err := g.Transfers(ctx, currency.EMPTYCODE, time.Time{}, 50, "", false)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundHistory, len(transfers))
+	for i := range transfers {
+		resp[i] = exchange.FundHistory{
+			Status:          transfers[i].Status,
+			TransferID:      transfers[i].WithdrawalId,
+			Timestamp:       transfers[i].Timestamp,
+			Currency:        transfers[i].Currency.String(),
+			Amount:          transfers[i].Amount,
+			Fee:             transfers[i].FeeAmount,
+			TransferType:    transfers[i].Type,
+			CryptoToAddress: transfers[i].Destination,
+			CryptoTxID:      transfers[i].TxHash,
+		}
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	transfers, err := g.Transfers(ctx, c, time.Time{}, 50, "", false)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, 0, len(transfers))
+	for i := range transfers {
+		if transfers[i].Type != "Withdrawal" {
+			continue
+		}
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:          transfers[i].Status,
+			TransferID:      transfers[i].WithdrawalId,
+			Timestamp:       transfers[i].Timestamp,
+			Currency:        transfers[i].Currency.String(),
+			Amount:          transfers[i].Amount,
+			Fee:             transfers[i].FeeAmount,
+			TransferType:    transfers[i].Type,
+			CryptoToAddress: transfers[i].Destination,
+			CryptoTxID:      transfers[i].TxHash,
+		})
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -598,7 +637,12 @@ func (g *Gemini) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (g *Gemini) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (g *Gemini) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

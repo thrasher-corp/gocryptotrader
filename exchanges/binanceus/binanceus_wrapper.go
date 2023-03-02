@@ -2,7 +2,6 @@ package binanceus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -582,7 +581,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		timeInForce = BinanceRequestParamsTimeGTC
 		requestParamOrderType = BinanceRequestParamsOrderLimit
 	default:
-		return nil, errors.New(bi.Name + " unsupported order type")
+		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
 	var response NewOrderResponse
 	response, err = bi.NewOrder(ctx, &NewOrderRequest{

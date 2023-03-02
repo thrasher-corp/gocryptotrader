@@ -1,6 +1,10 @@
 package gemini
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 const (
 	marketDataLevel2 = "l2"
@@ -103,6 +107,24 @@ type OrderResult struct {
 		CancelRejects   []string `json:"cancelRejects"`
 	} `json:"details"`
 	Message string `json:"message"`
+}
+
+type TransferResponse struct {
+	Type                  string        `json:"type"`
+	Status                string        `json:"status"`
+	Timestamp             time.Time     `json:"timestampms"`
+	EventID               int64         `json:"eid"`
+	DepositAdvanceEventID int64         `json:"advanceEid"`
+	Currency              currency.Code `json:"currency"`
+	Amount                float64       `json:"amount,string"`
+	FeeAmount             float64       `json:"feeAmount,string"`
+	FeeCurrency           currency.Code `json:"feeCurrency"`
+	Method                string        `json:"method"`
+	TxHash                string        `json:"txHash"`
+	WithdrawalId          string        `json:"withdrawalId"`
+	OutputIdx             int64         `json:"outputIdx"`
+	Destination           string        `json:"destination"`
+	Purpose               string        `json:"destination"`
 }
 
 // Order contains order information

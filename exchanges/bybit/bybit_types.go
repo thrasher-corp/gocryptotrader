@@ -37,11 +37,10 @@ var (
 	errStopOrderOrOrderLinkIDMissing = errors.New("at least one should be present among stopOrderID and orderLinkID")
 	errOrderOrOrderLinkIDMissing     = errors.New("at least one should be present among orderID and orderLinkID")
 
-	errSymbolMissing        = errors.New("symbol missing")
-	errUnsupportedOrderType = errors.New("unsupported order type")
-	errEmptyOrderIDs        = errors.New("orderIDs can't be empty")
-	errMissingPrice         = errors.New("price should be present for Limit and LimitMaker orders")
-	errExpectedOneOrder     = errors.New("expected one order")
+	errSymbolMissing    = errors.New("symbol missing")
+	errEmptyOrderIDs    = errors.New("orderIDs can't be empty")
+	errMissingPrice     = errors.New("price should be present for Limit and LimitMaker orders")
+	errExpectedOneOrder = errors.New("expected one order")
 )
 
 // bybitTimeSec provides an internal conversion helper

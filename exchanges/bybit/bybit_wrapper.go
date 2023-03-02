@@ -959,7 +959,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		case order.Limit:
 			requestParamsOrderType = BybitRequestParamsOrderLimit
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 
 		var orderRequest = PlaceOrderRequest{
@@ -989,7 +989,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o FuturesOrderDataResp
 		o, err = by.CreateCoinFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
@@ -1008,7 +1008,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o FuturesOrderDataResp
 		o, err = by.CreateUSDTFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
@@ -1027,7 +1027,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o FuturesOrderDataResp
 		o, err = by.CreateFuturesOrder(ctx, 0, formattedPair, sideType, oType, timeInForce,
@@ -1047,7 +1047,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o USDCCreateOrderResp
 		o, err = by.PlaceUSDCOrder(ctx, formattedPair, oType, "Order", sideType, timeInForce,
