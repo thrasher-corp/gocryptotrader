@@ -414,16 +414,19 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 		ordBook, err = ku.GetFuturesOrderbook(ctx, pair.String())
 	case asset.Spot, asset.Margin:
 		if ku.IsRESTAuthenticationSupported() {
-			ordBook, err = ku.GetPartOrderbook100(ctx, pair.String())
-		} else {
 			ordBook, err = ku.GetOrderbook(ctx, pair.String())
+			if err == nil {
+				break
+			}
 		}
+		ordBook, err = ku.GetPartOrderbook100(ctx, pair.String())
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if err != nil {
 		return nil, err
 	}
+
 	book := &orderbook.Base{
 		Exchange:        ku.Name,
 		Pair:            pair,
@@ -912,7 +915,8 @@ func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, accoun
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-// The endpoint was deprecated for futures, please transfer assets from the FUTURES account to the MAIN account first, and then withdraw from the MAIN account
+// The endpoint was deprecated for futures, please transfer assets from the FUTURES account to the MAIN account first,
+// and then withdraw from the MAIN account
 func (ku *Kucoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err

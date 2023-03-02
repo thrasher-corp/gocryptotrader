@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -2239,25 +2240,58 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	}
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
 			Quote: currency.BTC,
 		},
-		Exchange:  ku.Name,
-		Side:      order.Bid,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    1000000000,
-		ClientID:  "myOrder",
-		AssetType: asset.Spot,
+		Exchange:      ku.Name,
+		Side:          order.Bid,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        100000,
+		ClientOrderID: "myOrder",
+		AssetType:     asset.Spot,
 	}
 	_, err := ku.SubmitOrder(context.Background(), orderSubmission)
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("Kucoin SubmitOrder() expecting %v, but found %v", asset.ErrNotSupported, err)
+	}
+	orderSubmission.Side = order.Buy
+	orderSubmission.AssetType = asset.Options
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if !strings.Contains(err.Error(), "asset type not found") {
+		t.Errorf("Kucoin SubmitOrder() expecting %s, but found %v", "asset type not found", err)
+	}
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
+	}
+	orderSubmission.AssetType = asset.Spot
+	orderSubmission.Side = order.Buy
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
-		t.Error("Kucoin SubmitOrder() error", err)
+		t.Errorf("Kucoin SubmitOrder() %v", err)
+	}
+	orderSubmission.AssetType = asset.Margin
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
+	}
+	orderSubmission.AssetType = asset.Spot
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
+	}
+	orderSubmission.AssetType = asset.Futures
+	orderSubmission.Pair = futuresTradablePair
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if !strings.Contains(err.Error(), "leverage must be greater than 0.01") {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
+	}
+	orderSubmission.Leverage = 0.01
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
 	}
 }
 

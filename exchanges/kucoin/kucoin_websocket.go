@@ -27,6 +27,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var fetchedInstrumentOrderbook map[string]bool
+
 const (
 	publicBullets  = "/v1/bullet-public"
 	privateBullets = "/v1/bullet-private"
@@ -117,6 +119,7 @@ func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	fetchedInstrumentOrderbook = map[string]bool{}
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
@@ -245,6 +248,11 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processOrderbook(resp.Data)
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
+		ok := fetchedInstrumentOrderbook[topicInfo[1]]
+		if !ok {
+			fetchedInstrumentOrderbook[topicInfo[1]] = true
+			return ku.processOrderbookSnapshoot(resp.Data, topicInfo[1])
+		}
 		return ku.processOrderbookWithDepth(resp.Data, topicInfo[1])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
@@ -281,7 +289,6 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
 		return ku.processStopOrderEvent(resp.Data)
-
 	case strings.HasPrefix(futuresTickerV2Channel, topicInfo[0]),
 		strings.HasPrefix(futuresTickerChannel, topicInfo[0]):
 		return ku.processFuturesTickerV2(resp.Data)
@@ -724,6 +731,49 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 		Volume:     resp.Candles.TransactionVolume,
 	}
 	return nil
+}
+
+func (ku *Kucoin) processOrderbookSnapshoot(respData []byte, instrument string) error {
+	response := WsLevel2Orderbook{}
+	err := json.Unmarshal(respData, &response)
+	if err != nil {
+		return err
+	}
+	pair, err := currency.NewPairFromString(instrument)
+	if err != nil {
+		return err
+	}
+	snapshoot := orderbook.Base{
+		LastUpdated: response.TimeMS.Time(),
+		Pair:        pair,
+		Asset:       asset.Spot,
+		Exchange:    ku.Name,
+	}
+	for x := range response.Asks {
+		item := orderbook.Item{}
+		item.Price, err = strconv.ParseFloat(response.Asks[x][0], 64)
+		if err != nil {
+			return err
+		}
+		item.Amount, err = strconv.ParseFloat(response.Asks[x][1], 64)
+		if err != nil {
+			return err
+		}
+		snapshoot.Asks = append(snapshoot.Asks, item)
+	}
+	for x := range response.Bids {
+		item := orderbook.Item{}
+		item.Price, err = strconv.ParseFloat(response.Bids[x][0], 64)
+		if err != nil {
+			return err
+		}
+		item.Amount, err = strconv.ParseFloat(response.Bids[x][1], 64)
+		if err != nil {
+			return err
+		}
+		snapshoot.Bids = append(snapshoot.Bids, item)
+	}
+	return ku.Websocket.Orderbook.LoadSnapshot(&snapshoot)
 }
 
 func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) error {

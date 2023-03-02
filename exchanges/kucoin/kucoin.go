@@ -878,10 +878,9 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 // PostMarginOrder used to place two types of margin orders: limit and market
 func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, selfTradePrevention, marginModel, timeInForce string, price, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg, autoBorrow bool) (*PostMarginOrderResp, error) {
 	params := make(map[string]interface{})
-	if clientOID == "" {
-		return nil, errors.New("clientOid can not be empty")
+	if clientOID != "" {
+		params["clientOid"] = clientOID
 	}
-	params["clientOid"] = clientOID
 	if side == "" {
 		return nil, errors.New("side can not be empty")
 	}
@@ -1936,6 +1935,6 @@ func (ku *Kucoin) orderSideString(side order.Side) (string, error) {
 	case order.AnySide:
 		return "", nil
 	default:
-		return "", errors.New("unsupported order side")
+		return "", fmt.Errorf("%w, side:%s", order.ErrSideIsInvalid, side.String())
 	}
 }
