@@ -73,9 +73,9 @@ func TestMain(m *testing.M) {
 	request.MaxRequestJobs = 100
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	setupWS()
+	// setupWS()
 	ku.Run()
-	getFirstTradablePairOfAssets()
+	// getFirstTradablePairOfAssets()
 	os.Exit(m.Run())
 }
 
@@ -2454,4 +2454,14 @@ func getFirstTradablePairOfAssets() {
 		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Futures)
 	}
 	futuresTradablePair = enabledPairs[0]
+}
+
+func TestWsConne(t *testing.T) {
+	t.Parallel()
+	ku.Verbose = true
+	err := ku.WsConnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 20)
 }

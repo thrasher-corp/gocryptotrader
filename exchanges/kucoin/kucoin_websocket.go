@@ -77,13 +77,13 @@ const (
 )
 
 var defaultSubscriptionChannels = []string{
-	marketTickerChannel,
-	marginFundingbookChangeChannel,
-	marketCandlesChannel,
+	// marketTickerChannel,
+	// marginFundingbookChangeChannel,
+	// marketCandlesChannel,
 	marketOrderbookLevel2to5Channel,
 
-	futuresTickerV2Channel,
-	futuresOrderbookLevel2Depth50Channel,
+	// futuresTickerV2Channel,
+	// futuresOrderbookLevel2Depth50Channel,
 }
 
 var (
@@ -160,8 +160,13 @@ func (ku *Kucoin) WsConnect() error {
 		MessageType: websocket.TextMessage,
 	})
 
-	ku.setupOrderbookManager()
-	return nil
+	// ku.setupOrderbookManager()
+	subscriptions, err := ku.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return ku.Subscribe(subscriptions)
+	// return nil
 }
 
 // GetInstanceServers retrieves the server list and temporary public token
@@ -773,6 +778,7 @@ func (ku *Kucoin) processOrderbookSnapshoot(respData []byte, instrument string) 
 		}
 		snapshoot.Bids = append(snapshoot.Bids, item)
 	}
+	println("Snapshot ", instrument)
 	return ku.Websocket.Orderbook.LoadSnapshot(&snapshoot)
 }
 
@@ -815,6 +821,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 		}
 		update.Bids = append(update.Bids, item)
 	}
+	println("Updating ", instrument)
 	return ku.Websocket.Orderbook.Update(&update)
 }
 
