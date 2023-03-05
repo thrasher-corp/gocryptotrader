@@ -2670,6 +2670,6 @@ type CreateAPIKeyResponse struct {
 
 // PriceAndAmount used in updating an order
 type PriceAndAmount struct {
-	Amount float64 `json:"amount,string"`
-	Price  float64 `json:"price,string"`
+	Amount float64 `json:"amount,string,omitempty"`
+	Price  float64 `json:"price,string,omitempty"`
 }

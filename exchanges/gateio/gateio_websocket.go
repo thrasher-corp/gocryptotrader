@@ -62,8 +62,12 @@ func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
+	if err != nil {
+		return err
+	}
 	var dialer websocket.Dialer
-	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}

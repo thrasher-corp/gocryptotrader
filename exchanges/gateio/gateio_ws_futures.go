@@ -67,8 +67,12 @@ func (g *Gateio) WsFuturesConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
+	if err != nil {
+		return err
+	}
 	var dialer websocket.Dialer
-	err := g.Websocket.SetWebsocketURL(futuresWebsocketUsdtURL, false, true)
+	err = g.Websocket.SetWebsocketURL(futuresWebsocketUsdtURL, false, true)
 	if err != nil {
 		return err
 	}

@@ -273,8 +273,8 @@ func (g *Gateio) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) ([]
 }
 
 // UpdateAPIKeyOfSubAccount update API key of the sub-account
-func (g *Gateio) UpdateAPIKeyOfSubAccount(ctx context.Context, arg CreateAPIKeySubAccountParams) error {
-	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPut, fmt.Sprintf(subAccountKeysUserID, arg.SubAccountUserID), nil, &arg, nil)
+func (g *Gateio) UpdateAPIKeyOfSubAccount(ctx context.Context, subAccountAPIKey string, arg CreateAPIKeySubAccountParams) error {
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPut, fmt.Sprintf(subAccountKeysUserID, arg.SubAccountUserID)+"/"+subAccountAPIKey, nil, &arg, nil)
 }
 
 // DeleteAPIKeyOfSubAccount deletes an API Key of the sub-account
@@ -612,6 +612,7 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 	if len(args) > 10 {
 		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
 	}
+	var err error
 	for x := range args {
 		if (x != 0) && args[x-1].Account != args[x].Account {
 			return nil, errDifferentAccount
@@ -632,7 +633,11 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
 		if args[x].Text == "" {
-			args[x].Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
+			args[x].Text, err = common.GenerateRandomString(10, common.NumberCharacters)
+			if err != nil {
+				return nil, err
+			}
+			args[x].Text = "t-" + args[x].Text
 		}
 		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -642,7 +647,17 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 		}
 	}
 	var response []SpotOrder
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, spotBatchOrders, nil, &args, &response)
+	// return response,
+	err = g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, spotBatchOrders, nil, &args, &response)
+	if err != nil {
+		return nil, err
+	}
+	for x := range response {
+		if !response[x].Succeeded {
+			return response, fmt.Errorf("%s %s", response[x].ErrorLabel, response[x].Message)
+		}
+	}
+	return response, nil
 }
 
 // GetSpotOpenOrders retrieves all open orders
@@ -811,8 +826,12 @@ func (g *Gateio) AmendSpotOrder(ctx context.Context, orderID string, currencyPai
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
+	params.Set("currency_pair", currencyPair.String())
 	if isCrossMarginAccount {
 		params.Set("account", asset.CrossMargin.String())
+	}
+	if arg.Amount != 0 && arg.Price != 0 {
+		return nil, errors.New("only can chose one of amount or price")
 	}
 	var resp *SpotOrder
 	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPatch, spotOrders+"/"+orderID, params, arg, &resp)
@@ -925,7 +944,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, errInvalidAmount
 	}
 	arg.Put.Account = strings.ToLower(arg.Put.Account)
-	if arg.Put.Account == "spot" {
+	if arg.Put.Account == "" {
 		arg.Put.Account = "normal"
 	}
 	var response *OrderID
@@ -1593,6 +1612,9 @@ func (g *Gateio) ModifyALoan(ctx context.Context, loanID string, arg *ModifyLoan
 	if arg.Side != sideBorrow && arg.Side != sideLend {
 		return nil, errInvalidLoanSide
 	}
+	if arg.CurrencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	var response *MarginLoanResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPatch, marginLoans+"/"+loanID, nil, &arg, &response)
 }
@@ -1941,7 +1963,9 @@ func (g *Gateio) GetFuturesOrderbook(ctx context.Context, settle, contract, inte
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	params.Set("with_id", strconv.FormatBool(withOrderbookID))
+	if withOrderbookID {
+		params.Set("with_id", "true")
+	}
 	var response *Orderbook
 	return response, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues(fmt.Sprintf(futuresOrderbook, settle), params), &response)
 }
@@ -3552,7 +3576,12 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*O
 	if arg.TimeInForce == iocTIF || arg.Price < 0 {
 		arg.Price = 0
 	}
-	arg.Text = "t-" + strconv.FormatInt(g.Websocket.Conn.GenerateMessageID(true), 10)
+	var err error
+	arg.Text, err = common.GenerateRandomString(10, common.NumberCharacters)
+	if err != nil {
+		return nil, err
+	}
+	arg.Text = "t-" + arg.Text
 	var response *OptionOrderResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
 		optionsOrders, nil, &arg, &response)
@@ -3902,6 +3931,9 @@ func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair) (settleme
 		return currency.BTC.Item.Lower, nil
 	case strings.HasPrefix(quote, currency.USD.String()):
 		return currency.USD.Item.Lower, nil
+	case strings.HasPrefix(currencyPair.Base.Upper().String(), currency.BTC.String()):
+		// some instruments having a BTC base currency uses a BTC settlement
+		return currency.BTC.Item.Lower, nil
 	default:
 		return "", fmt.Errorf("%w %v", errCannotParseSettlementCurrency, currencyPair)
 	}
