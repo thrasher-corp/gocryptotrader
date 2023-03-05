@@ -866,14 +866,17 @@ type WsSpotTickerDetail struct {
 
 // WsOrderbook represents orderbook information.
 type WsOrderbook struct {
-	Changes struct {
-		Asks [][3]string `json:"asks"`
-		Bids [][3]string `json:"bids"`
-	} `json:"changes"`
+	Changes       OrderbookChanges   `json:"changes"`
 	SequenceEnd   int64              `json:"sequenceEnd"`
 	SequenceStart int64              `json:"sequenceStart"`
 	Symbol        string             `json:"symbol"`
 	TimeMS        kucoinTimeMilliSec `json:"time"`
+}
+
+// OrderbookChanges represents orderbook ask and bid changes.
+type OrderbookChanges struct {
+	Asks [][3]string `json:"asks"`
+	Bids [][3]string `json:"bids"`
 }
 
 // WsLevel2Orderbook represents orderbook information.

@@ -2455,13 +2455,3 @@ func getFirstTradablePairOfAssets() {
 	}
 	futuresTradablePair = enabledPairs[0]
 }
-
-func TestWsConne(t *testing.T) {
-	t.Parallel()
-	ku.Verbose = true
-	err := ku.WsConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second * 20)
-}

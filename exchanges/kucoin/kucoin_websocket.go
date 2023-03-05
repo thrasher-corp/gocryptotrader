@@ -28,6 +28,7 @@ import (
 )
 
 var fetchedInstrumentOrderbook map[string]bool
+var fetchedFuturesSnapshotOrderbook map[string]bool
 
 const (
 	publicBullets  = "/v1/bullet-public"
@@ -77,13 +78,13 @@ const (
 )
 
 var defaultSubscriptionChannels = []string{
-	// marketTickerChannel,
-	// marginFundingbookChangeChannel,
-	// marketCandlesChannel,
-	marketOrderbookLevel2to5Channel,
+	marketTickerChannel,
+	marginFundingbookChangeChannel,
+	marketCandlesChannel,
+	marketOrderbokLevel2To50Channel,
 
-	// futuresTickerV2Channel,
-	// futuresOrderbookLevel2Depth50Channel,
+	futuresTickerV2Channel,
+	futuresOrderbookLevel2Depth50Channel,
 }
 
 var (
@@ -120,6 +121,7 @@ func (ku *Kucoin) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	fetchedInstrumentOrderbook = map[string]bool{}
+	fetchedFuturesSnapshotOrderbook = map[string]bool{}
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
@@ -160,13 +162,8 @@ func (ku *Kucoin) WsConnect() error {
 		MessageType: websocket.TextMessage,
 	})
 
-	// ku.setupOrderbookManager()
-	subscriptions, err := ku.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return ku.Subscribe(subscriptions)
-	// return nil
+	ku.setupOrderbookManager()
+	return nil
 }
 
 // GetInstanceServers retrieves the server list and temporary public token
@@ -253,10 +250,17 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processOrderbook(resp.Data)
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
-		ok := fetchedInstrumentOrderbook[topicInfo[1]]
-		if !ok {
+		if !fetchedInstrumentOrderbook[topicInfo[1]] {
 			fetchedInstrumentOrderbook[topicInfo[1]] = true
-			return ku.processOrderbookSnapshoot(resp.Data, topicInfo[1])
+			cp, err := currency.NewPairFromString(topicInfo[1])
+			if err != nil {
+				return err
+			}
+			book, err := ku.FetchOrderbook(context.Background(), cp, asset.Spot)
+			err = ku.Websocket.Orderbook.LoadSnapshot(book)
+			if err != nil {
+				return err
+			}
 		}
 		return ku.processOrderbookWithDepth(resp.Data, topicInfo[1])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
@@ -298,12 +302,42 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		strings.HasPrefix(futuresTickerChannel, topicInfo[0]):
 		return ku.processFuturesTickerV2(resp.Data)
 	case strings.HasPrefix(futuresOrderbookLevel2Channel, topicInfo[0]):
+		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
+			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
+			cp, err := currency.NewPairFromString(topicInfo[1])
+			if err != nil {
+				return err
+			}
+			orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+			if err != nil {
+				return err
+			}
+			err = ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
+			if err != nil {
+				return err
+			}
+		}
 		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
 	case strings.HasPrefix(futuresExecutionDataChannel, topicInfo[0]):
 		var response WsFuturesExecutionData
 		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(futuresOrderbookLevel2Depth5Channel, topicInfo[0]),
 		strings.HasPrefix(futuresOrderbookLevel2Depth50Channel, topicInfo[0]):
+		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
+			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
+			cp, err := currency.NewPairFromString(topicInfo[1])
+			if err != nil {
+				return err
+			}
+			orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+			if err != nil {
+				return err
+			}
+			err = ku.Websocket.Orderbook.LoadSnapshot(orderbooks)
+			if err != nil {
+				return err
+			}
+		}
 		return ku.processFuturesOrderbookLevel5(resp.Data, topicInfo[1])
 	case strings.HasPrefix(futuresContractMarketDataChannel, topicInfo[0]):
 		if resp.Subject == "mark.index.price" {
@@ -485,25 +519,36 @@ func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrume
 	return nil
 }
 
-func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instruments string) error {
+func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument string) error {
 	resp := WsOrderbookLevel5{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(instruments)
+	asks := make([][3]string, len(resp.Asks))
+	for x := range resp.Asks {
+		asks[x] = [3]string{strconv.FormatFloat(resp.Asks[x].Price, 'f', -1, 64), strconv.FormatFloat(resp.Asks[x].Amount, 'f', -1, 64), ""}
+	}
+	bids := make([][3]string, len(resp.Bids))
+	for x := range resp.Asks {
+		bids[x] = [3]string{strconv.FormatFloat(resp.Bids[x].Price, 'f', -1, 64), strconv.FormatFloat(resp.Bids[x].Amount, 'f', -1, 64), ""}
+	}
+	init, err := ku.UpdateLocalBuffer(&WsOrderbook{
+		Changes: OrderbookChanges{
+			Asks: asks,
+			Bids: bids,
+		},
+		Symbol: instrument,
+		TimeMS: resp.Timestamp,
+	}, asset.Futures)
 	if err != nil {
-		return err
+		if init {
+			return nil
+		}
+		return fmt.Errorf("%v - UpdateLocalCache error: %s",
+			ku.Name,
+			err)
 	}
-	base := orderbook.Base{
-		Exchange:        ku.Name,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		LastUpdated:     resp.Timestamp.Time(),
-		Pair:            pair,
-		Asset:           asset.Futures,
-		Asks:            resp.Asks,
-		Bids:            resp.Bids,
-	}
-	return ku.Websocket.Orderbook.LoadSnapshot(&base)
+	return nil
 }
 
 func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument string) error {
@@ -519,16 +564,14 @@ func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument stri
 	if err != nil {
 		return err
 	}
-	base := orderbook.Base{
-		Exchange:        ku.Name,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		LastUpdated:     detail.Time,
-		Pair:            pair,
-		Asset:           asset.Futures,
-		Asks:            detail.Asks,
-		Bids:            detail.Bids,
+	base := orderbook.Update{
+		UpdateTime: detail.Time,
+		Pair:       pair,
+		Asset:      asset.Futures,
+		Asks:       detail.Asks,
+		Bids:       detail.Bids,
 	}
-	return ku.Websocket.Orderbook.LoadSnapshot(&base)
+	return ku.Websocket.Orderbook.Update(&base)
 }
 
 func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
@@ -778,7 +821,6 @@ func (ku *Kucoin) processOrderbookSnapshoot(respData []byte, instrument string) 
 		}
 		snapshoot.Bids = append(snapshoot.Bids, item)
 	}
-	println("Snapshot ", instrument)
 	return ku.Websocket.Orderbook.LoadSnapshot(&snapshoot)
 }
 
@@ -788,51 +830,43 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(instrument)
-	if err != nil {
-		return err
-	}
-	update := orderbook.Update{
-		UpdateTime: response.TimeMS.Time(),
-		Pair:       pair,
-		Asset:      asset.Spot,
-	}
+	asks := make([][3]string, len(response.Asks))
 	for x := range response.Asks {
-		item := orderbook.Item{}
-		item.Price, err = strconv.ParseFloat(response.Asks[x][0], 64)
-		if err != nil {
-			return err
-		}
-		item.Amount, err = strconv.ParseFloat(response.Asks[x][1], 64)
-		if err != nil {
-			return err
-		}
-		update.Asks = append(update.Asks, item)
+		asks[x][0] = response.Asks[x][0]
+		asks[x][1] = response.Asks[x][1]
 	}
+	bids := make([][3]string, len(response.Bids))
 	for x := range response.Bids {
-		item := orderbook.Item{}
-		item.Price, err = strconv.ParseFloat(response.Bids[x][0], 64)
-		if err != nil {
-			return err
-		}
-		item.Amount, err = strconv.ParseFloat(response.Bids[x][1], 64)
-		if err != nil {
-			return err
-		}
-		update.Bids = append(update.Bids, item)
+		bids[x][0] = response.Bids[x][0]
+		bids[x][1] = response.Bids[x][1]
 	}
-	println("Updating ", instrument)
-	return ku.Websocket.Orderbook.Update(&update)
+	init, err := ku.UpdateLocalBuffer(&WsOrderbook{
+		Changes: OrderbookChanges{
+			Asks: asks,
+			Bids: bids,
+		},
+		Symbol: instrument,
+		TimeMS: response.TimeMS,
+	}, asset.Spot)
+	if err != nil {
+		if init {
+			return nil
+		}
+		return fmt.Errorf("%v - UpdateLocalCache error: %s",
+			ku.Name,
+			err)
+	}
+	return nil
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (ku *Kucoin) UpdateLocalBuffer(wsdp *WsOrderbook) (bool, error) {
-	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
+func (ku *Kucoin) UpdateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bool, error) {
+	enabledPairs, err := ku.GetEnabledPairs(assetType)
 	if err != nil {
 		return false, err
 	}
 
-	format, err := ku.GetPairFormat(asset.Spot, true)
+	format, err := ku.GetPairFormat(assetType, true)
 	if err != nil {
 		return false, err
 	}
@@ -844,18 +878,18 @@ func (ku *Kucoin) UpdateLocalBuffer(wsdp *WsOrderbook) (bool, error) {
 		return false, err
 	}
 
-	err = ku.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
+	err = ku.obm.stageWsUpdate(wsdp, currencyPair, assetType)
 	if err != nil {
-		init, err2 := ku.obm.checkIsInitialSync(currencyPair)
+		init, err2 := ku.obm.checkIsInitialSync(currencyPair, assetType)
 		if err2 != nil {
 			return false, err2
 		}
 		return init, err
 	}
 
-	err = ku.applyBufferUpdate(currencyPair)
+	err = ku.applyBufferUpdate(currencyPair, assetType)
 	if err != nil {
-		ku.flushAndCleanup(currencyPair)
+		ku.flushAndCleanup(currencyPair, assetType)
 	}
 
 	return false, err
@@ -868,7 +902,7 @@ func (ku *Kucoin) processOrderbook(respData []byte) error {
 		return err
 	}
 
-	init, err := ku.UpdateLocalBuffer(&response)
+	init, err := ku.UpdateLocalBuffer(&response, asset.Spot)
 	if err != nil {
 		if init {
 			return nil
@@ -1238,7 +1272,8 @@ type update struct {
 // job defines a synchronisation job that tells a go routine to fetch an
 // orderbook via the REST protocol
 type job struct {
-	Pair currency.Pair
+	Pair      currency.Pair
+	AssetType asset.Item
 }
 
 func (ku *Kucoin) setupOrderbookManager() {
@@ -1263,7 +1298,6 @@ func (ku *Kucoin) setupOrderbookManager() {
 		}
 		ku.obm.Mutex.Unlock()
 	}
-
 	for i := 0; i < maxWSOrderbookWorkers; i++ {
 		// 10 workers for synchronising book
 		ku.SynchroniseWebsocketOrderbook()
@@ -1318,8 +1352,8 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (ku *Kucoin) applyBufferUpdate(pair currency.Pair) error {
-	fetching, needsFetching, err := ku.obm.handleFetchingBook(pair)
+func (ku *Kucoin) applyBufferUpdate(pair currency.Pair, assetType asset.Item) error {
+	fetching, needsFetching, err := ku.obm.handleFetchingBook(pair, assetType)
 	if err != nil {
 		return err
 	}
@@ -1330,10 +1364,10 @@ func (ku *Kucoin) applyBufferUpdate(pair currency.Pair) error {
 		if ku.Verbose {
 			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", ku.Name)
 		}
-		return ku.obm.fetchBookViaREST(pair)
+		return ku.obm.fetchBookViaREST(pair, assetType)
 	}
 
-	recent, err := ku.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	recent, err := ku.Websocket.Orderbook.GetOrderbook(pair, assetType)
 	if err != nil {
 		log.Errorf(
 			log.WebsocketMgr,
@@ -1343,14 +1377,14 @@ func (ku *Kucoin) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = ku.obm.checkAndProcessUpdate(ku.ProcessUpdate, pair, recent)
+		err = ku.obm.checkAndProcessUpdate(ku.ProcessUpdate, pair, recent, assetType)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
 				ku.Name,
 				err)
-			err = ku.obm.setNeedsFetchingBook(pair)
+			err = ku.obm.setNeedsFetchingBook(pair, assetType)
 			if err != nil {
 				return err
 			}
@@ -1361,14 +1395,14 @@ func (ku *Kucoin) applyBufferUpdate(pair currency.Pair) error {
 }
 
 // setNeedsFetchingBook completes the book fetching initiation.
-func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
+func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair, assetType asset.Item) error {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 	state.needsFetchingBook = true
 	return nil
@@ -1391,7 +1425,7 @@ func (ku *Kucoin) SynchroniseWebsocketOrderbook() {
 					}
 				}
 			case j := <-ku.obm.jobs:
-				err := ku.processJob(j.Pair)
+				err := ku.processJob(j.Pair, j.AssetType)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
 						"%s processing websocket orderbook error %v",
@@ -1403,22 +1437,32 @@ func (ku *Kucoin) SynchroniseWebsocketOrderbook() {
 }
 
 // SeedLocalCache seeds depth data
-func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := ku.GetPartOrderbook100(ctx, p.String())
-	if err != nil {
-		return err
+func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair, assetType asset.Item) error {
+	var ob *Orderbook
+	var err error
+	switch assetType {
+	case asset.Spot, asset.Margin:
+		ob, err = ku.GetPartOrderbook100(ctx, p.String())
+		if err != nil {
+			return err
+		}
+	case asset.Futures:
+		ob, err = ku.GetFuturesOrderbook(context.Background(), p.String())
+		if err != nil {
+			return err
+		}
 	}
 	if ob.Sequence <= 0 {
 		return fmt.Errorf("%w p", errMissingOrderbookSequence)
 	}
-	return ku.SeedLocalCacheWithBook(p, ob)
+	return ku.SeedLocalCacheWithBook(p, ob, assetType)
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook) error {
+func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, assetType asset.Item) error {
 	newOrderBook := orderbook.Base{
 		Pair:            p,
-		Asset:           asset.Spot,
+		Asset:           assetType,
 		Exchange:        ku.Name,
 		LastUpdateID:    orderbookNew.Sequence,
 		VerifyOrderbook: ku.CanVerifyOrderbook,
@@ -1441,42 +1485,42 @@ func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderboo
 }
 
 // processJob fetches and processes orderbook updates
-func (ku *Kucoin) processJob(p currency.Pair) error {
-	err := ku.SeedLocalCache(context.TODO(), p)
+func (ku *Kucoin) processJob(p currency.Pair, assetType asset.Item) error {
+	err := ku.SeedLocalCache(context.TODO(), p, assetType)
 	if err != nil {
-		err = ku.obm.stopFetchingBook(p)
+		err = ku.obm.stopFetchingBook(p, assetType)
 		if err != nil {
 			return err
 		}
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
-			p, asset.Spot, err)
+			p, assetType, err)
 	}
 
-	err = ku.obm.stopFetchingBook(p)
+	err = ku.obm.stopFetchingBook(p, assetType)
 	if err != nil {
 		return err
 	}
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	err = ku.applyBufferUpdate(p)
+	err = ku.applyBufferUpdate(p, assetType)
 	if err != nil {
-		ku.flushAndCleanup(p)
+		ku.flushAndCleanup(p, assetType)
 		return err
 	}
 	return nil
 }
 
 // flushAndCleanup flushes orderbook and clean local cache
-func (ku *Kucoin) flushAndCleanup(p currency.Pair) {
-	errClean := ku.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
+func (ku *Kucoin) flushAndCleanup(p currency.Pair, assetType asset.Item) {
+	errClean := ku.Websocket.Orderbook.FlushOrderbook(p, assetType)
 	if errClean != nil {
 		log.Errorf(log.WebsocketMgr,
 			"%s flushing websocket error: %v",
 			ku.Name,
 			errClean)
 	}
-	errClean = ku.obm.cleanup(p)
+	errClean = ku.obm.cleanup(p, assetType)
 	if errClean != nil {
 		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
 			ku.Name,
@@ -1534,16 +1578,16 @@ func (o *orderbookManager) stageWsUpdate(u *WsOrderbook, pair currency.Pair, a a
 
 // handleFetchingBook checks if a full book is being fetched or needs to be
 // fetched
-func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, needsFetching bool, err error) {
+func (o *orderbookManager) handleFetchingBook(pair currency.Pair, assetType asset.Item) (fetching, needsFetching bool, err error) {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return false,
 			false,
 			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
 				pair,
-				asset.Spot)
+				assetType)
 	}
 
 	if state.fetchingBook {
@@ -1559,38 +1603,38 @@ func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, nee
 }
 
 // stopFetchingBook completes the book fetching.
-func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
+func (o *orderbookManager) stopFetchingBook(pair currency.Pair, assetType asset.Item) error {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 	if !state.fetchingBook {
 		return fmt.Errorf("fetching book already set to false for %s %s",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 	state.fetchingBook = false
 	return nil
 }
 
 // completeInitialSync sets if an asset type has completed its initial sync
-func (o *orderbookManager) completeInitialSync(pair currency.Pair) error {
+func (o *orderbookManager) completeInitialSync(pair currency.Pair, assetType asset.Item) error {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return fmt.Errorf("complete initial sync cannot match currency pair %s asset type %s",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 	if !state.initialSync {
 		return fmt.Errorf("initital sync already set to false for %s %s",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 	state.initialSync = false
 	return nil
@@ -1598,52 +1642,52 @@ func (o *orderbookManager) completeInitialSync(pair currency.Pair) error {
 
 // checkIsInitialSync checks status if the book is Initial Sync being via the REST
 // protocol.
-func (o *orderbookManager) checkIsInitialSync(pair currency.Pair) (bool, error) {
+func (o *orderbookManager) checkIsInitialSync(pair currency.Pair, assetType asset.Item) (bool, error) {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return false,
 			fmt.Errorf("checkIsInitialSync of orderbook cannot match currency pair %s asset type %s",
 				pair,
-				asset.Spot)
+				assetType)
 	}
 	return state.initialSync, nil
 }
 
 // fetchBookViaREST pushes a job of fetching the orderbook via the REST protocol
 // to get an initial full book that we can apply our buffered updates too.
-func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
+func (o *orderbookManager) fetchBookViaREST(pair currency.Pair, assetType asset.Item) error {
 	o.Lock()
 	defer o.Unlock()
 
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return fmt.Errorf("fetch book via rest cannot match currency pair %s asset type %s",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 
 	state.initialSync = true
 	state.fetchingBook = true
 
 	select {
-	case o.jobs <- job{pair}:
+	case o.jobs <- job{pair, assetType}:
 		return nil
 	default:
 		return fmt.Errorf("%s %s book synchronisation channel blocked up",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 }
 
-func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, recent *orderbook.Base, assetType asset.Item) error {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return fmt.Errorf("could not match pair [%s] asset type [%s] in hash table to process websocket orderbook update",
-			pair, asset.Spot)
+			pair, assetType)
 	}
 
 	// This will continuously remove updates from the buffered channel and
@@ -1652,15 +1696,15 @@ buffer:
 	for {
 		select {
 		case d := <-state.buffer:
-			process, err := state.validate(d, recent)
+			process, err := state.validate(d, recent, assetType)
 			if err != nil {
 				return err
 			}
 			if process {
-				err := processor(pair, asset.Spot, d)
+				err := processor(pair, assetType, d)
 				if err != nil {
 					return fmt.Errorf("%s %s processing update error: %w",
-						pair, asset.Spot, err)
+						pair, assetType, err)
 				}
 			}
 		default:
@@ -1671,7 +1715,7 @@ buffer:
 }
 
 // validate checks for correct update alignment
-func (u *update) validate(updt *WsOrderbook, recent *orderbook.Base) (bool, error) {
+func (u *update) validate(updt *WsOrderbook, recent *orderbook.Base, assetType asset.Item) (bool, error) {
 	if updt.SequenceEnd <= recent.LastUpdateID {
 		// Drop any event where u is <= lastUpdateId in the snapshot.
 		return false, nil
@@ -1684,7 +1728,7 @@ func (u *update) validate(updt *WsOrderbook, recent *orderbook.Base) (bool, erro
 		if updt.SequenceStart > id || updt.SequenceEnd < id {
 			return false, fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s",
 				recent.Pair,
-				asset.Spot)
+				assetType)
 		}
 		u.initialSync = false
 	}
@@ -1692,14 +1736,14 @@ func (u *update) validate(updt *WsOrderbook, recent *orderbook.Base) (bool, erro
 }
 
 // cleanup cleans up buffer and reset fetch and init
-func (o *orderbookManager) cleanup(pair currency.Pair) error {
+func (o *orderbookManager) cleanup(pair currency.Pair, assetType asset.Item) error {
 	o.Lock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		o.Unlock()
 		return fmt.Errorf("cleanup cannot match %s %s to hash table",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 
 bufferEmpty:
@@ -1713,26 +1757,26 @@ bufferEmpty:
 	}
 	o.Unlock()
 	// disable rest orderbook synchronisation
-	_ = o.stopFetchingBook(pair)
-	_ = o.completeInitialSync(pair)
-	_ = o.stopNeedsFetchingBook(pair)
+	_ = o.stopFetchingBook(pair, assetType)
+	_ = o.completeInitialSync(pair, assetType)
+	_ = o.stopNeedsFetchingBook(pair, assetType)
 	return nil
 }
 
 // stopNeedsFetchingBook completes the book fetching initiation.
-func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
+func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair, assetType asset.Item) error {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	state, ok := o.state[pair.Base][pair.Quote][assetType]
 	if !ok {
 		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 	if !state.needsFetchingBook {
 		return fmt.Errorf("needs fetching book already set to false for %s %s",
 			pair,
-			asset.Spot)
+			assetType)
 	}
 	state.needsFetchingBook = false
 	return nil
