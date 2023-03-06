@@ -2429,10 +2429,11 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 	}
 }
 
-func guessAssetTypeFromInstrument(currencyPair currency.Pair) asset.Item {
-	vals := strings.Split(currencyPair.String(), currency.DashDelimiter)
-	if strings.HasSuffix(currencyPair.String(), "PERPETUAL") || len(vals) == 2 {
-		return asset.Futures
+func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error) {
+	currencyPairString := currencyPair.String()
+	vals := strings.Split(currencyPairString, currency.DashDelimiter)
+	if strings.HasSuffix(currencyPairString, "PERPETUAL") || len(vals) == 2 {
+		return asset.Futures, nil
 	}
 	added := false
 	if len(vals) >= 3 {
@@ -2449,20 +2450,23 @@ func guessAssetTypeFromInstrument(currencyPair currency.Pair) asset.Item {
 	}
 	if len(vals) == 4 {
 		if added {
-			return asset.FutureCombo
+			return asset.FutureCombo, nil
 		}
 		if strings.EqualFold(vals[3], "C") || strings.EqualFold(vals[3], "P") {
-			return asset.Options
+			return asset.Options, nil
 		}
-		return asset.OptionCombo
+		return asset.OptionCombo, nil
 	} else if len(vals) >= 5 {
-		return asset.OptionCombo
+		return asset.OptionCombo, nil
 	}
-	return asset.Empty
+	return asset.Empty, errUnsupportedInstrumentFormat
 }
 
 func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	assetType := guessAssetTypeFromInstrument(feeBuilder.Pair)
+	assetType, err := guessAssetTypeFromInstrument(feeBuilder.Pair)
+	if err != nil {
+		return 0, err
+	}
 	switch assetType {
 	case asset.Futures, asset.FutureCombo:
 		switch {
@@ -2502,7 +2506,7 @@ func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0003, nil
 		}
 	}
-	return 0, fmt.Errorf("%w asset: %v", asset.ErrNotSupported, assetType)
+	return 0, fmt.Errorf("%w asset: %s", asset.ErrNotSupported, assetType.String())
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee

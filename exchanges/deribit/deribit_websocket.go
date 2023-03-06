@@ -113,8 +113,8 @@ func (d *Deribit) WsConnect() error {
 		err = d.wsLogin(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", d.Name, err)
+			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
-		d.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	err = d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
 	if err != nil {

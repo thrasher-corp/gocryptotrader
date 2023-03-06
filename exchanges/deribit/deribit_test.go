@@ -52,9 +52,12 @@ func TestMain(m *testing.M) {
 	}
 	d.Config = exchCfg
 	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.AuthenticatedWebsocketSupport = false
+	if apiKey != "" && apiSecret != "" {
+		exchCfg.API.Credentials.Key = apiKey
+		exchCfg.API.Credentials.Secret = apiSecret
+		d.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
 	d.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = d.Setup(exchCfg)
 	if err != nil {
@@ -2464,11 +2467,13 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var assetType asset.Item
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
-			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.Futures {
-				println(asset.Futures.String(), cp.String())
+			if assetType, err = guessAssetTypeFromInstrument(cp); assetType != asset.Futures {
 				t.Errorf("expected %v, but found %v", asset.Futures, assetType)
+			} else if err != nil {
+				t.Error(err)
 			}
 		})
 	}
@@ -2478,8 +2483,10 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	}
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
-			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.Options {
+			if assetType, err = guessAssetTypeFromInstrument(cp); assetType != asset.Options {
 				t.Errorf("expected %v, but found %v", asset.Options, assetType)
+			} else if err != nil {
+				t.Error(err)
 			}
 		})
 	}
@@ -2489,9 +2496,10 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	}
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
-			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.OptionCombo {
-				println(asset.OptionCombo.String(), cp.String(), "But Found: ", assetType.String())
+			if assetType, err = guessAssetTypeFromInstrument(cp); assetType != asset.OptionCombo {
 				t.Fatalf("expected %v, but found %v", asset.OptionCombo, assetType)
+			} else if err != nil {
+				t.Error(err)
 			}
 		})
 	}
@@ -2501,10 +2509,19 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	}
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
-			if assetType := guessAssetTypeFromInstrument(cp); assetType != asset.FutureCombo {
+			if assetType, err = guessAssetTypeFromInstrument(cp); assetType != asset.FutureCombo {
 				t.Errorf("expected %v, but found %v", asset.FutureCombo, assetType)
+			} else if err != nil {
+				t.Error(err)
 			}
 		})
+	}
+	cp, err := currency.NewPairFromString("something_else")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = guessAssetTypeFromInstrument(cp); !errors.Is(err, errUnsupportedInstrumentFormat) {
+		t.Errorf("expected %v, but found %v", errUnsupportedInstrumentFormat, err)
 	}
 }
 
@@ -2531,5 +2548,86 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 		}
+	}
+}
+
+func TestCalculateTradingFee(t *testing.T) {
+	t.Parallel()
+	feeBuilder := &exchange.FeeBuilder{
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.Pair{Base: currency.BTC, Quote: currency.USD, Delimiter: currency.DashDelimiter},
+		IsMaker:       true,
+		Amount:        1,
+		PurchasePrice: 1000,
+	}
+	var result float64
+	result, err := calculateTradingFee(feeBuilder)
+	if err != nil {
+		t.Error(err)
+	} else if result != 1e-1 {
+		t.Errorf("expected result %f, got %f", 1e-1, result)
+	}
+	// futures
+	feeBuilder.Pair, err = currency.NewPairFromString("BTC-21OCT22")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = calculateTradingFee(feeBuilder)
+	if err != nil {
+		t.Error(err)
+	} else if result != 0.1 {
+		t.Errorf("expected 0.0001 but found %f", result)
+	}
+	// options
+	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C")
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.IsMaker = false
+	result, err = calculateTradingFee(feeBuilder)
+	if err != nil {
+		t.Error(err)
+	} else if result != 0.3 {
+		t.Errorf("expected 0.3 but found %f", result)
+	}
+	// options
+	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C,SOL-21OCT22-20-P")
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.IsMaker = true
+	_, err = calculateTradingFee(feeBuilder)
+	if err != nil {
+		t.Error(err)
+	} else if result != 0.3 {
+		t.Errorf("expected 0.3 but found %f", result)
+	}
+	// option_combo
+	feeBuilder.Pair, err = currency.NewPairFromString("BTC-STRG-21OCT22-19000_21000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.IsMaker = false
+	_, err = calculateTradingFee(feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	// future_combo
+	feeBuilder.Pair, err = currency.NewPairFromString("SOL-FS-30DEC22_28OCT22")
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.IsMaker = false
+	_, err = calculateTradingFee(feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	feeBuilder.Pair, err = currency.NewPairFromString("some_instrument")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = calculateTradingFee(feeBuilder)
+	if !errors.Is(err, errUnsupportedInstrumentFormat) {
+		t.Error(err)
 	}
 }

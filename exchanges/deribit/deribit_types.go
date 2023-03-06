@@ -53,6 +53,7 @@ var (
 	errMissingBlockTradeID                 = errors.New("missing block trade id")
 	errMissingSubAccountID                 = errors.New("missing subaccount id")
 	errNoOrderDeleted                      = errors.New("no order deleted")
+	errUnsupportedInstrumentFormat         = errors.New("unsupported instrument type format")
 
 	websocketRequestTimeout = time.Second * 30
 )
