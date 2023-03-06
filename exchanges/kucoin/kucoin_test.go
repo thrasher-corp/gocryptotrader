@@ -73,9 +73,9 @@ func TestMain(m *testing.M) {
 	request.MaxRequestJobs = 100
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	// setupWS()
+	setupWS()
 	ku.Run()
-	// getFirstTradablePairOfAssets()
+	getFirstTradablePairOfAssets()
 	os.Exit(m.Run())
 }
 
