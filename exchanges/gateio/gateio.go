@@ -647,7 +647,6 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 		}
 	}
 	var response []SpotOrder
-	// return response,
 	err = g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, spotBatchOrders, nil, &args, &response)
 	if err != nil {
 		return nil, err
