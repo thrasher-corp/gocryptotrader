@@ -307,6 +307,9 @@ func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var pair currency.Pair
 		pair, err = pairs.DeriveFrom(ticks[x].Symbol, currency.DashDelimiter)
 		if err != nil {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 			continue
 		}
 

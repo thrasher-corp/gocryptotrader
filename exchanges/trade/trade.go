@@ -48,9 +48,7 @@ func (t *Trade) Update(save bool, data ...Data) error {
 	}
 
 	if save {
-		if err := AddTradesToBuffer(t.exchangeName, data...); err != nil {
-			return err
-		}
+		return AddTradesToBuffer(t.exchangeName, data...)
 	}
 
 	return nil

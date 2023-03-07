@@ -830,3 +830,15 @@ func TestUpdateTickers(t *testing.T) {
 		}
 	}
 }
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	ticks, err := b.GetTickers(context.Background())
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(ticks) == 0 {
+		t.Fatal("no data returned")
+	}
+}

@@ -45,7 +45,6 @@ type Settings struct {
 	// Exchange syncer settings
 	EnableTickerSyncing    bool
 	EnableOrderbookSyncing bool
-	EnableTradeSyncing     bool
 	SyncWorkersCount       int
 	SyncContinuously       bool
 	SyncTimeoutREST        time.Duration

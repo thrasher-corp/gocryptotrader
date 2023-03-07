@@ -5,7 +5,7 @@
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronise)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/synchronise)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
@@ -28,7 +28,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | syncmanager | Determines whether the subsystem is enabled | `true` |
 | tickersync |  Enables ticker syncing for all enabled exchanges |   `true`|
 | orderbooksync | Enables orderbook syncing for all enabled exchanges |  `true` |
-| tradesync | Enables trade syncing for all enabled exchanges |  `true` |
 | syncworkers | The amount of workers (goroutines) to use for syncing exchange data | `15` |
 | synccontinuously | Whether to sync exchange data continuously (ticker, orderbook and trades) | `true` |
 | synctimeout | The amount of time in golang `time.Duration` format before the syncer will switch from one protocol to the other (e.g. from REST to websocket) | `15000000000` |

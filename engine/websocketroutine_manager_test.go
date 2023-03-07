@@ -7,7 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronise"
+	"github.com/thrasher-corp/gocryptotrader/engine/synchronise"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"

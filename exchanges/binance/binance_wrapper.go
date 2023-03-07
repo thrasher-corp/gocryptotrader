@@ -464,6 +464,9 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, err = enabledPairs.DeriveFrom(tick[y].Symbol, "")
 			if err != nil {
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					return err
+				}
 				continue
 			}
 
@@ -501,8 +504,12 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, err = enabledPairs.DeriveFrom(tick[y].Symbol, "")
 			if err != nil {
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					return err
+				}
 				continue
 			}
+
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
 				High:         tick[y].HighPrice,
@@ -530,8 +537,12 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, err = enabledPairs.DeriveFrom(tick[y].Symbol, currency.UnderscoreDelimiter)
 			if err != nil {
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					return err
+				}
 				continue
 			}
+
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
 				High:         tick[y].HighPrice,

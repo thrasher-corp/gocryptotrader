@@ -25,7 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronise"
+	"github.com/thrasher-corp/gocryptotrader/engine/synchronise"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"

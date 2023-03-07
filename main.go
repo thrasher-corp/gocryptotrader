@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem/synchronise"
+	"github.com/thrasher-corp/gocryptotrader/engine/synchronise"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -65,7 +65,6 @@ func main() {
 	// Exchange syncer settings
 	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
 	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")
-	flag.BoolVar(&settings.EnableTradeSyncing, "tradesync", false, "enables trade syncing for all enabled exchanges")
 	flag.IntVar(&settings.SyncWorkersCount, "syncworkers", synchronise.DefaultWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
 	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", true, "whether to sync exchange data continuously (ticker, orderbook and trade history info")
 	flag.DurationVar(&settings.SyncTimeoutREST, "synctimeoutrest", synchronise.DefaultTimeoutREST,

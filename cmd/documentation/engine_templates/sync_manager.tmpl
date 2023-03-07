@@ -1,4 +1,4 @@
-{{define "engine subsystem synchronise" -}}
+{{define "engine synchronise" -}}
 {{template "header" .}}
 ## Current Features for {{.CapitalName}}
 + The currency pair syncer subsystem is used to keep all trades, tickers and orderbooks up to date for all enabled exchange asset currency pairs
@@ -10,7 +10,6 @@
 | syncmanager | Determines whether the subsystem is enabled | `true` |
 | tickersync |  Enables ticker syncing for all enabled exchanges |   `true`|
 | orderbooksync | Enables orderbook syncing for all enabled exchanges |  `true` |
-| tradesync | Enables trade syncing for all enabled exchanges |  `true` |
 | syncworkers | The amount of workers (goroutines) to use for syncing exchange data | `15` |
 | synccontinuously | Whether to sync exchange data continuously (ticker, orderbook and trades) | `true` |
 | synctimeout | The amount of time in golang `time.Duration` format before the syncer will switch from one protocol to the other (e.g. from REST to websocket) | `15000000000` |

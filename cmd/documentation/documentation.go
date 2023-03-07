@@ -548,13 +548,13 @@ func UpdateDocumentation(details DocumentationDetails) {
 			}
 			continue
 		}
-		if strings.Contains(name, engineFolder) && !strings.Contains(name, "subsystem") {
+		if strings.Contains(name, engineFolder) && !strings.Contains(name, "subsystem") && !strings.Contains(name, "synchronise") {
 			d, err := os.ReadDir(details.Directories[i])
 			if err != nil {
 				fmt.Println("Excluding file:", err)
 			}
 			for x := range d {
-				if strings.Contains(d[x].Name(), "subsystem") {
+				if strings.Contains(d[x].Name(), "subsystem") || strings.Contains(d[x].Name(), "synchronise") {
 					continue
 				}
 				nameSplit := strings.Split(d[x].Name(), ".go")

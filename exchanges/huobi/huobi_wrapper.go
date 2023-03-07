@@ -446,6 +446,9 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var pair currency.Pair
 		pair, err = enabled.DeriveFrom(tickers.Data[x].Symbol, "")
 		if err != nil {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 			continue
 		}
 

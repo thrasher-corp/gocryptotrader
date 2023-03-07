@@ -318,23 +318,25 @@ func (b *Bitstamp) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return fmt.Errorf("%w for [%v]", asset.ErrNotSupported, a)
 	}
 
-	ticks, err := b.GetTickers(ctx)
+	enabledPairs, err := b.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
 
-	pairs, err := b.GetEnabledPairs(a)
+	ticks, err := b.GetTickers(ctx)
 	if err != nil {
 		return err
 	}
 
 	for x := range ticks {
 		var pair currency.Pair
-		pair, err = pairs.DeriveFrom(ticks[x].Pair, currency.ForwardSlashDelimiter)
+		pair, err = enabledPairs.DeriveFrom(ticks[x].Pair, currency.ForwardSlashDelimiter)
 		if err != nil {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 			continue
 		}
-
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         ticks[x].Last,
 			High:         ticks[x].High,

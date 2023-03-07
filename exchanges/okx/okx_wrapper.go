@@ -415,6 +415,9 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 		var pair currency.Pair
 		pair, err = pairs.DeriveFrom(ticks[y].InstrumentID, currency.DashDelimiter)
 		if err != nil {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 			continue
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
