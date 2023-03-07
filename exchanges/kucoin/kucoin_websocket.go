@@ -250,22 +250,6 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processOrderbook(resp.Data)
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
-		if !fetchedInstrumentOrderbook[topicInfo[1]] {
-			fetchedInstrumentOrderbook[topicInfo[1]] = true
-			cp, err := currency.NewPairFromString(topicInfo[1])
-			if err != nil {
-				return err
-			}
-			var book *orderbook.Base
-			book, err = ku.FetchOrderbook(context.Background(), cp, asset.Spot)
-			if err != nil {
-				return err
-			}
-			err = ku.Websocket.Orderbook.LoadSnapshot(book)
-			if err != nil {
-				return err
-			}
-		}
 		return ku.processOrderbookWithDepth(resp.Data, topicInfo[1])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
