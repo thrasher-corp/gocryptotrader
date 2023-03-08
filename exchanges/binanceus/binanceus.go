@@ -913,8 +913,7 @@ func (bi *Binanceus) GetSubaccountTransferHistory(ctx context.Context,
 	startTimeT := time.UnixMilli(int64(startTime))
 	endTimeT := time.UnixMilli(int64(endTime))
 
-	hundredDayBefore := time.Now()
-	hundredDayBefore.Sub(time.UnixMilli(int64((time.Hour * 24 * 10) / time.Millisecond)))
+	hundredDayBefore := time.Now().Add(-time.Hour * 24 * 100).Truncate(time.Hour)
 	if !(startTimeT.Before(hundredDayBefore)) || startTimeT.Before(time.Now()) {
 		params.Set("startTime", strconv.Itoa(int(startTime)))
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// Coinmarketcap account plan bitmasks, url and enpoint consts
+// Coinmarketcap account plan bitmasks, url and endpoint consts
 const (
 	Basic uint8 = 1 << iota
 	Hobbyist

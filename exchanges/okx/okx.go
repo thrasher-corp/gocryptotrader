@@ -32,7 +32,7 @@ type Okx struct {
 	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
 
 	// WsRequestSemaphore channel is used to block write operation on the websocket connection to reduce contention; a kind of bounded parallelism.
-	// it is made to hold upto 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
+	// it is made to hold up to 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
 	// and when the operation is completed the thread releases (consumes) one value from the channel so that the other waiting operation can enter.
 	// ok.WsRequestSemaphore <- 1
 	// defer func() { <-ok.WsRequestSemaphore }()
@@ -463,9 +463,9 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		if len(resp) == 0 {
 			return nil, err
 		}
-		var errs common.Errors
+		var errs error
 		for x := range resp {
-			errs = append(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+			errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
 		}
 		return nil, errs
 	}
@@ -513,10 +513,10 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		if len(resp) == 0 {
 			return nil, err
 		}
-		errs := common.Errors{}
+		var errs error
 		for x := range resp {
 			if resp[x].SCode != "0" {
-				errs = append(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
+				errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].SCode, resp[x].SMessage))
 			}
 		}
 		return nil, errs
@@ -2648,7 +2648,7 @@ func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
 		after, before, gridAlgoOrders, limit)
 }
 
-// GetGridAlgoOrderHistory retrieves list of grid algo orders with the complete data including the stoped orders.
+// GetGridAlgoOrderHistory retrieves list of grid algo orders with the complete data including the stopped orders.
 func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
 	after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
@@ -2984,7 +2984,7 @@ func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instID string) ([]
 	case instID != "":
 		params.Set("instId", instID)
 	default:
-		return nil, errors.New("missing required variable instType (instrument type) or insId( Instrument ID )")
+		return nil, errors.New("missing required variable instType (instrument type) or instId( Instrument ID )")
 	}
 	var response []TickerResponse
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues(marketTickers, params), nil, &response, false)
@@ -2996,7 +2996,7 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	} else {
-		return nil, errors.New("missing required variable instType(instruction type) or insId( Instrument ID )")
+		return nil, errors.New("missing required variable instType(instruction type) or instId( Instrument ID )")
 	}
 	var response []TickerResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues(marketTicker, params), nil, &response, false)
@@ -3374,7 +3374,6 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	if underlying == "" {
 		return nil, errMissingRequiredUnderlying
 	}
-	params.Set("Underlying", underlying)
 	params.Set("uly", underlying)
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))

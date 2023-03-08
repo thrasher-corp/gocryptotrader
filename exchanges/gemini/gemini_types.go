@@ -228,7 +228,7 @@ type ErrorCapture struct {
 	Message string `json:"message"`
 }
 
-// WsRequestPayload Request info to subscribe to a WS enpoint
+// WsRequestPayload Request info to subscribe to a WS endpoint
 type WsRequestPayload struct {
 	Request string `json:"request"`
 	Nonce   int64  `json:"nonce"`

@@ -568,7 +568,7 @@ type Trade struct {
 	Timestamp int64   `json:"ts"`
 }
 
-// TradeHistory stores the the trade history data
+// TradeHistory stores the trade history data
 type TradeHistory struct {
 	ID        int64   `json:"id"`
 	Timestamp int64   `json:"ts"`

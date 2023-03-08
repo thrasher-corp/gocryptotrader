@@ -244,7 +244,7 @@ func (s *RPCServer) GetSubsystems(_ context.Context, _ *gctrpc.GetSubsystemsRequ
 	return &gctrpc.GetSusbsytemsResponse{SubsystemsStatus: s.GetSubsystemsStatus()}, nil
 }
 
-// EnableSubsystem enables a engine subsytem
+// EnableSubsystem enables a engine subsystem
 func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
 	err := s.SetSubsystem(r.Subsystem, true)
 	if err != nil {
@@ -254,7 +254,7 @@ func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsyste
 		Data: fmt.Sprintf("subsystem %s enabled", r.Subsystem)}, nil
 }
 
-// DisableSubsystem disables a engine subsytem
+// DisableSubsystem disables a engine subsystem
 func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
 	err := s.SetSubsystem(r.Subsystem, false)
 	if err != nil {
@@ -2046,7 +2046,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		return nil, err
 	}
 	var pass bool
-	var newErrors common.Errors
+	var newErrors error
 	for i := range r.Pairs {
 		var p currency.Pair
 		p, err = currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
@@ -2057,12 +2057,12 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		if r.Enable {
 			err = exchCfg.CurrencyPairs.EnablePair(a, p.Format(pairFmt))
 			if err != nil {
-				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
+				newErrors = common.AppendError(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
 				continue
 			}
 			err = base.CurrencyPairs.EnablePair(a, p)
 			if err != nil {
-				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
+				newErrors = common.AppendError(newErrors, fmt.Errorf("%s %w", r.Pairs[i], err))
 				continue
 			}
 			pass = true
@@ -2072,7 +2072,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		err = exchCfg.CurrencyPairs.DisablePair(a, p.Format(pairFmt))
 		if err != nil {
 			if errors.Is(err, currency.ErrPairNotFound) {
-				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
+				newErrors = common.AppendError(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
 				continue
 			}
 			return nil, err
@@ -2081,7 +2081,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		err = base.CurrencyPairs.DisablePair(a, p)
 		if err != nil {
 			if errors.Is(err, currency.ErrPairNotFound) {
-				newErrors = append(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
+				newErrors = common.AppendError(newErrors, fmt.Errorf("%s %w", r.Pairs[i], errSpecificPairNotEnabled))
 				continue
 			}
 			return nil, err
@@ -2092,7 +2092,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
-			newErrors = append(newErrors, err)
+			newErrors = common.AppendError(newErrors, err)
 		}
 	}
 
@@ -2542,10 +2542,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		if len(tradeCandles.Candles) == 0 {
 			continue
 		}
-
-		for i := range tradeCandles.Candles {
-			response.Candles = append(response.Candles, tradeCandles.Candles[i])
-		}
+		response.Candles = append(response.Candles, tradeCandles.Candles...)
 
 		for i := range response.Candles {
 			log.Infof(log.GRPCSys,

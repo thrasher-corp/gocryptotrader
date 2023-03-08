@@ -372,15 +372,15 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 	}
 
 	if len(data.Error) > 0 {
-		var errs common.Errors
+		var errs error
 		for x := range data.Error {
 			errString, ok := data.Error[x].(string)
 			if !ok {
 				continue
 			}
-			errs = append(errs, errors.New(errString))
+			errs = common.AppendError(errs, errors.New(errString))
 		}
-		if len(errs) > 0 {
+		if errs != nil {
 			return nil, errs
 		}
 	}
@@ -1178,7 +1178,7 @@ func (k *Kraken) WithdrawStatus(ctx context.Context, c currency.Code, method str
 	return response.Result, GetError(response.Error)
 }
 
-// WithdrawCancel sends a withdrawal cancelation request
+// WithdrawCancel sends a withdrawal cancellation request
 func (k *Kraken) WithdrawCancel(ctx context.Context, c currency.Code, refID string) (bool, error) {
 	var response struct {
 		Error  []string `json:"error"`

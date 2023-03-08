@@ -189,7 +189,7 @@ func (b *Bitmex) SendTrollboxMessage(ctx context.Context, params ChatSendParams)
 		&messages)
 }
 
-// GetTrollboxChannels the channels from the the bitmex trollbox
+// GetTrollboxChannels the channels from the bitmex trollbox
 func (b *Bitmex) GetTrollboxChannels(ctx context.Context) ([]ChatChannel, error) {
 	var channels []ChatChannel
 
@@ -198,7 +198,7 @@ func (b *Bitmex) GetTrollboxChannels(ctx context.Context) ([]ChatChannel, error)
 		&channels)
 }
 
-// GetTrollboxConnectedUsers the channels from the the bitmex trollbox
+// GetTrollboxConnectedUsers the channels from the bitmex trollbox
 func (b *Bitmex) GetTrollboxConnectedUsers(ctx context.Context) (ConnectedUsers, error) {
 	var users ConnectedUsers
 
@@ -206,7 +206,7 @@ func (b *Bitmex) GetTrollboxConnectedUsers(ctx context.Context) (ConnectedUsers,
 }
 
 // GetAccountExecutions returns all raw transactions, which includes order
-// opening and cancelation, and order status changes. It can be quite noisy.
+// opening and cancellation, and order status changes. It can be quite noisy.
 // More focused information is available at /execution/tradeHistory.
 func (b *Bitmex) GetAccountExecutions(ctx context.Context, params *GenericRequestParams) ([]Execution, error) {
 	var executionList []Execution

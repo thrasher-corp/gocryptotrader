@@ -65,7 +65,6 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	if len(data) == 0 {
 		return nil
 	}
-	var errs common.Errors
 	if atomic.AddInt32(&processor.started, 0) == 0 {
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -73,13 +72,14 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		wg.Wait()
 	}
 	validDatas := make([]Data, 0, len(data))
+	var errs error
 	for i := range data {
 		if data[i].Price == 0 ||
 			data[i].Amount == 0 ||
 			data[i].CurrencyPair.IsEmpty() ||
 			data[i].Exchange == "" ||
 			data[i].Timestamp.IsZero() {
-			errs = append(errs, fmt.Errorf("%v received invalid trade data: %+v", exchangeName, data[i]))
+			errs = common.AppendError(errs, fmt.Errorf("%v received invalid trade data: %+v", exchangeName, data[i]))
 			continue
 		}
 
@@ -99,7 +99,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		}
 		uu, err := uuid.NewV4()
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
+			errs = common.AppendError(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
 		}
 		data[i].ID = uu
 		validDatas = append(validDatas, data[i])
@@ -107,10 +107,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	processor.mutex.Lock()
 	processor.buffer = append(processor.buffer, validDatas...)
 	processor.mutex.Unlock()
-	if len(errs) > 0 {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Run will save trade data to the database in batches

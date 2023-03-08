@@ -151,7 +151,7 @@ func (b *Base) SetFeatureDefaults() {
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
-// exhange supports REST batch ticker fetching
+// exchange supports REST batch ticker fetching
 func (b *Base) SupportsRESTTickerBatchUpdates() bool {
 	return b.Features.Supports.RESTCapabilities.TickerBatching
 }
@@ -1014,7 +1014,7 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 }
 
 // SetGlobalPairsManager sets defined asset and pairs management system with
-// with global formatting
+// global formatting
 func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
 	if request == nil {
 		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided",

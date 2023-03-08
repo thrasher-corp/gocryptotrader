@@ -592,8 +592,8 @@ func TestGetFuturesKlineData(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = b.GetFuturesKlineData(context.Background(), pair, "M", 5, time.Time{})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, errInvalidStartTime) {
+		t.Errorf("received: %s, expected: %s", err, errInvalidStartTime)
 	}
 
 	_, err = b.GetFuturesKlineData(context.Background(), pair, "60", 5, time.Unix(1577836800, 0))
@@ -1230,8 +1230,8 @@ func TestGetUSDTFuturesKlineData(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = b.GetUSDTFuturesKlineData(context.Background(), pair, "M", 5, time.Time{})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, errInvalidStartTime) {
+		t.Errorf("received: %s, expected: %s", err, errInvalidStartTime)
 	}
 
 	_, err = b.GetUSDTFuturesKlineData(context.Background(), pair, "60", 5, time.Unix(1577836800, 0))

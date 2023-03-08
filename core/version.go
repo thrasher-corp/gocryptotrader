@@ -11,7 +11,7 @@ const (
 	MajorVersion = "0"
 	MinorVersion = "1"
 
-	PrereleaseBlurb = "This version is pre-release and is not inteded to be used as a production ready trading framework or bot - use at your own risk."
+	PrereleaseBlurb = "This version is pre-release and is not intended to be used as a production ready trading framework or bot - use at your own risk."
 	IsRelease       = false
 	GitHub          = "GitHub: https://github.com/thrasher-corp/gocryptotrader"
 	Trello          = "Trello: https://trello.com/b/ZAhMhpOy/gocryptotrader"

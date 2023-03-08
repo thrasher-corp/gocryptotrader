@@ -107,7 +107,7 @@ func (b *Base) GetRippleBalance(address string) (float64, error) {
 	return result.XRPBalance, nil
 }
 
-// GetAddressBalance acceses the portfolio base and returns the balance by passed
+// GetAddressBalance accesses the portfolio base and returns the balance by passed
 // in address, coin type and description
 func (b *Base) GetAddressBalance(address, description string, coinType currency.Code) (float64, bool) {
 	for x := range b.Addresses {

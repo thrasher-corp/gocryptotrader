@@ -1,0 +1,19 @@
+	os, errOs := order.StringToOrderStatus(genOrderDetail.Status)
+	if errOs != nil {
+		return order.Detail{}, fmt.Errorf("error parsing order status: %s", errOs)
+	tt, errOt := order.StringToOrderType(genOrderDetail.Type)
+	if errOt != nil {
+		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOt)
+	currency.CANN:       0.2,
+	InstrumentID  string  `json:"insId"`
+	currency.DOTA:       0.01,
+	currency.SCRPT:      0.01,
+	currency.NOO:        0.002,
+	currency.BU:       0.1,
+	currency.HAV:      10,
+	currency.GARD:     100,
+	currency.DASHS:      0.01,
+	const pressXToJSON = `[0,"bu",[4131.85,4131.85]]`
+	wsTradeExecuted                        = "te"
+	wsBalanceUpdate                        = "bu"
+		"59512": errors.New("unable to set up this permission for ND brokers sub accounts. by default, all ND sub accounts can transfer funds out"),

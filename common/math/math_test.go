@@ -95,7 +95,7 @@ func TestRoundFloat(t *testing.T) {
 		for testInput, expectedOutput := range values {
 			actualOutput := RoundFloat(testInput, precision)
 			if actualOutput != expectedOutput {
-				t.Errorf("RoundFloat Expected '%v'. Actual '%v' on precission %d",
+				t.Errorf("RoundFloat Expected '%v'. Actual '%v' on precision %d",
 					expectedOutput, actualOutput, precision)
 			}
 		}
