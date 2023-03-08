@@ -1672,6 +1672,10 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = ku.GetHistoricCandles(context.Background(), spotTradablePair, asset.Margin, kline.OneHour, startTime, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {

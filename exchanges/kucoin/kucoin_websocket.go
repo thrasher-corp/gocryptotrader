@@ -1249,7 +1249,6 @@ type update struct {
 // orderbook via the REST protocol
 type job struct {
 	Pair currency.Pair
-	// AssetType asset.Item
 }
 
 func (ku *Kucoin) setupOrderbookManager() {
@@ -1274,7 +1273,7 @@ func (ku *Kucoin) setupOrderbookManager() {
 		}
 		ku.obm.Mutex.Unlock()
 	}
-	for i := 0; i < maxWSOrderbookWorkers*10; i++ {
+	for i := 0; i < maxWSOrderbookWorkers; i++ {
 		// 10 workers for synchronising book
 		ku.SynchroniseWebsocketOrderbook()
 	}
@@ -1293,7 +1292,7 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 			return err
 		}
 		var sequence int64
-		if ws.Changes.Asks[i][2] != "" {
+		if ws.Changes.Bids[i][2] != "" {
 			sequence, err = strconv.ParseInt(ws.Changes.Bids[i][2], 10, 64)
 			if err != nil {
 				return err
@@ -1419,21 +1418,13 @@ func (ku *Kucoin) SynchroniseWebsocketOrderbook() {
 }
 
 // SeedLocalCache seeds depth data
-func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair /*, assetType asset.Item*/) error {
+func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	var ob *Orderbook
 	var err error
-	// switch assetType {
-	// case asset.Spot, asset.Margin:
 	ob, err = ku.GetPartOrderbook100(ctx, p.String())
 	if err != nil {
 		return err
 	}
-	// case asset.Futures:
-	// 	ob, err = ku.GetFuturesOrderbook(context.Background(), p.String())
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
 	if ob.Sequence <= 0 {
 		return fmt.Errorf("%w p", errMissingOrderbookSequence)
 	}

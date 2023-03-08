@@ -1279,7 +1279,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 					Volume: candles[x].Volume,
 				})
 		}
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		intervalString, err := ku.intervalToString(interval)
 		if err != nil {
 			return nil, err
