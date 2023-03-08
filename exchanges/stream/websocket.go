@@ -26,8 +26,8 @@ const (
 var (
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
-	// ErrNotConnected defines an error when there is no websocket connection
-	ErrNotConnected = errors.New("websocket connection not established")
+	// ErrNotConnected defines an error when websocket is not connected
+	ErrNotConnected = errors.New("websocket is not connected")
 
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")

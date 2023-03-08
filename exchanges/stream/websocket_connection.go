@@ -217,9 +217,12 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if isDisconnectionError(err) {
-			// NOTE: If w.setConnectedStatus(false) does not return true it was
-			// set by library operations not an external closure.
 			if w.setConnectedStatus(false) {
+				// NOTE: When w.setConnectedStatus() returns true the underlying
+				// state was changed and this infers that the connection was
+				// externally closed and an error is reported else Shutdown()
+				// method on WebsocketConnection type has been called and can
+				// be skipped.
 				select {
 				case w.readMessageErrors <- err:
 				default:
