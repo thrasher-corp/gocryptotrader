@@ -809,7 +809,7 @@ type WsPushData struct {
 	Topic       string          `json:"topic"`
 	UserID      string          `json:"userId"`
 	Subject     string          `json:"subject"`
-	ChannelType string          `json:"channelType,omitempty"`
+	ChannelType string          `json:"channelType"`
 	Data        json.RawMessage `json:"data"`
 }
 
@@ -996,11 +996,11 @@ type WsTradeOrder struct {
 	RemainSize float64           `json:"remainSize,string"`
 	Status     string            `json:"status"`
 	Timestamp  kucoinTimeNanoSec `json:"ts"`
-	Liquidity  string            `json:"liquidity,omitempty"`
-	MatchPrice string            `json:"matchPrice,omitempty"`
-	MatchSize  string            `json:"matchSize,omitempty"`
-	TradeID    string            `json:"tradeId,omitempty"`
-	OldSize    string            `json:"oldSize,omitempty"`
+	Liquidity  string            `json:"liquidity"`
+	MatchPrice string            `json:"matchPrice"`
+	MatchSize  string            `json:"matchSize"`
+	TradeID    string            `json:"tradeId"`
+	OldSize    string            `json:"oldSize"`
 }
 
 // WsAccountBalance represents a Account Balance push data.
@@ -1341,10 +1341,10 @@ type SubAccount struct {
 	SubName   string             `json:"subName"`
 	Type      int64              `json:"type"` //type:1-rebot  or type:0-nomal
 	Remarks   string             `json:"remarks"`
-	UID       int64              `json:"uid,omitempty"`
-	Status    int64              `json:"status,omitempty"`
-	Access    string             `json:"access,omitempty"`
-	CreatedAt kucoinTimeMilliSec `json:"createdAt,omitempty"`
+	UID       int64              `json:"uid"`
+	Status    int64              `json:"status"`
+	Access    string             `json:"access"`
+	CreatedAt kucoinTimeMilliSec `json:"createdAt"`
 }
 
 // SpotAPISubAccount represents a Spot APIs for sub-accounts.
@@ -1356,7 +1356,7 @@ type SpotAPISubAccount struct {
 	Passphrase  string             `json:"passphrase"`
 	Permission  string             `json:"permission"`
 	IPWhitelist string             `json:"ipWhitelist"`
-	CreatedAt   kucoinTimeMilliSec `json:"createdAt,omitempty"`
+	CreatedAt   kucoinTimeMilliSec `json:"createdAt"`
 }
 
 // DeleteSubAccountResponse represents delete sub-account response.

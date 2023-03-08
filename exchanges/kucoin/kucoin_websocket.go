@@ -560,7 +560,8 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 	}
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Futures,
-		Last:         resp.FilledSize,
+		Last:         resp.FilledPrice,
+		Volume:       resp.FilledSize,
 		LastUpdated:  resp.FilledTime.Time(),
 		ExchangeName: ku.Name,
 		Pair:         pair,

@@ -2355,7 +2355,6 @@ func TestGetSubAccountSpotAPIList(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	ku.Verbose = true
 	if _, err := ku.GetSubAccountSpotAPIList(context.Background(), "sam", ""); err != nil {
 		t.Error(err)
 	}

@@ -50,21 +50,21 @@ type RateLimit struct {
 
 // rate of request per interval
 const (
-	retriveAccountLedgerRate              = 18
-	masterSubUserTransferRate             = 3
-	retriveDepositListRate                = 6
-	retriveV1HistoricalDepositListRate    = 6
-	retriveWithdrawalListRate             = 6
-	retriveV1HistoricalWithdrawalListRate = 6
-	placeOrderRate                        = 45
-	placeMarginOrdersRate                 = 45
-	placeBulkOrdersRate                   = 3
-	cancelOrderRate                       = 60
-	cancelAllOrdersRate                   = 3
-	listOrdersRate                        = 30
-	listFillsRate                         = 9
-	retriveFullOrderbookRate              = 30
-	retriveMarginAccountRate              = 1
+	retrieveAccountLedgerRate              = 18
+	masterSubUserTransferRate              = 3
+	retrieveDepositListRate                = 6
+	retrieveV1HistoricalDepositListRate    = 6
+	retrieveWithdrawalListRate             = 6
+	retrieveV1HistoricalWithdrawalListRate = 6
+	placeOrderRate                         = 45
+	placeMarginOrdersRate                  = 45
+	placeBulkOrdersRate                    = 3
+	cancelOrderRate                        = 60
+	cancelAllOrdersRate                    = 3
+	listOrdersRate                         = 30
+	listFillsRate                          = 9
+	retrieveFullOrderbookRate              = 30
+	retrieveMarginAccountRate              = 1
 
 	futuresRetrieveAccountOverviewRate     = 30
 	futuresRetrieveTransactionHistoryRate  = 9
@@ -84,12 +84,12 @@ const (
 
 const (
 	// for spot endpoints
-	retriveAccountLedgerEPL request.EndpointLimit = iota
+	retrieveAccountLedgerEPL request.EndpointLimit = iota
 	masterSubUserTransferEPL
 	retrieveDepositListEPL
-	retriveV1HistoricalDepositListEPL
-	retriveWithdrawalListEPL
-	retriveV1HistoricalWithdrawalListEPL
+	retrieveV1HistoricalDepositListEPL
+	retrieveWithdrawalListEPL
+	retrieveV1HistoricalWithdrawalListEPL
 	placeOrderEPL
 	placeMarginOrdersEPL
 	placeBulkOrdersEPL
@@ -97,8 +97,8 @@ const (
 	cancelAllOrdersEPL
 	listOrdersEPL
 	listFillsEPL
-	retriveFullOrderbookEPL
-	retriveMarginAccountEPL
+	retrieveFullOrderbookEPL
+	retrieveMarginAccountEPL
 	defaultSpotEPL
 
 	// for futures endpoints
@@ -121,17 +121,17 @@ func (r *RateLimit) Limit(ctx context.Context, epl request.EndpointLimit) error 
 	var limiter *rate.Limiter
 	var tokens int
 	switch epl {
-	case retriveAccountLedgerEPL:
+	case retrieveAccountLedgerEPL:
 		return r.RetrieveAccountLedger.Wait(ctx)
 	case masterSubUserTransferEPL:
 		return r.MasterSubUserTransfer.Wait(ctx)
 	case retrieveDepositListEPL:
 		return r.RetrieveDepositList.Wait(ctx)
-	case retriveV1HistoricalDepositListEPL:
+	case retrieveV1HistoricalDepositListEPL:
 		return r.RetrieveV1HistoricalDepositList.Wait(ctx)
-	case retriveWithdrawalListEPL:
+	case retrieveWithdrawalListEPL:
 		return r.RetrieveWithdrawalList.Wait(ctx)
-	case retriveV1HistoricalWithdrawalListEPL:
+	case retrieveV1HistoricalWithdrawalListEPL:
 		return r.RetrieveV1HistoricalWithdrawalList.Wait(ctx)
 	case placeOrderEPL:
 		return r.PlaceOrder.Wait(ctx)
@@ -147,9 +147,9 @@ func (r *RateLimit) Limit(ctx context.Context, epl request.EndpointLimit) error 
 		return r.ListOrders.Wait(ctx)
 	case listFillsEPL:
 		return r.ListFills.Wait(ctx)
-	case retriveFullOrderbookEPL:
+	case retrieveFullOrderbookEPL:
 		return r.RetrieveFullOrderbook.Wait(ctx)
-	case retriveMarginAccountEPL:
+	case retrieveMarginAccountEPL:
 		return r.RetrieveMarginAccount.Wait(ctx)
 	case futuresRetrieveAccountOverviewEPL:
 		return r.FRetrieveAccountOverviewRate.Wait(ctx)
@@ -208,12 +208,12 @@ func (r *RateLimit) Limit(ctx context.Context, epl request.EndpointLimit) error 
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
 		// spot specific rate limiters
-		RetrieveAccountLedger:              request.NewRateLimit(threeSecondsInterval, retriveAccountLedgerRate),
+		RetrieveAccountLedger:              request.NewRateLimit(threeSecondsInterval, retrieveAccountLedgerRate),
 		MasterSubUserTransfer:              request.NewRateLimit(threeSecondsInterval, masterSubUserTransferRate),
-		RetrieveDepositList:                request.NewRateLimit(threeSecondsInterval, retriveDepositListRate),
-		RetrieveV1HistoricalDepositList:    request.NewRateLimit(threeSecondsInterval, retriveV1HistoricalDepositListRate),
-		RetrieveWithdrawalList:             request.NewRateLimit(threeSecondsInterval, retriveWithdrawalListRate),
-		RetrieveV1HistoricalWithdrawalList: request.NewRateLimit(threeSecondsInterval, retriveV1HistoricalWithdrawalListRate),
+		RetrieveDepositList:                request.NewRateLimit(threeSecondsInterval, retrieveDepositListRate),
+		RetrieveV1HistoricalDepositList:    request.NewRateLimit(threeSecondsInterval, retrieveV1HistoricalDepositListRate),
+		RetrieveWithdrawalList:             request.NewRateLimit(threeSecondsInterval, retrieveWithdrawalListRate),
+		RetrieveV1HistoricalWithdrawalList: request.NewRateLimit(threeSecondsInterval, retrieveV1HistoricalWithdrawalListRate),
 		PlaceOrder:                         request.NewRateLimit(threeSecondsInterval, placeOrderRate),
 		PlaceMarginOrders:                  request.NewRateLimit(threeSecondsInterval, placeMarginOrdersRate),
 		PlaceBulkOrders:                    request.NewRateLimit(threeSecondsInterval, placeBulkOrdersRate),
@@ -221,8 +221,8 @@ func SetRateLimit() *RateLimit {
 		CancelAllOrders:                    request.NewRateLimit(threeSecondsInterval, cancelAllOrdersRate),
 		ListOrders:                         request.NewRateLimit(threeSecondsInterval, listOrdersRate),
 		ListFills:                          request.NewRateLimit(threeSecondsInterval, listFillsRate),
-		RetrieveFullOrderbook:              request.NewRateLimit(threeSecondsInterval, retriveFullOrderbookRate),
-		RetrieveMarginAccount:              request.NewRateLimit(threeSecondsInterval, retriveMarginAccountRate),
+		RetrieveFullOrderbook:              request.NewRateLimit(threeSecondsInterval, retrieveFullOrderbookRate),
+		RetrieveMarginAccount:              request.NewRateLimit(threeSecondsInterval, retrieveMarginAccountRate),
 
 		// default spot and futures rates
 		SpotRate:    request.NewRateLimit(oneMinuteInterval, defaultSpotRate),

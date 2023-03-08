@@ -266,7 +266,7 @@ func (ku *Kucoin) GetOrderbook(ctx context.Context, pair string) (*Orderbook, er
 	params := url.Values{}
 	params.Set("symbol", pair)
 	var o *orderbookResponse
-	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveFullOrderbookEPL, http.MethodGet, common.EncodeURLValues(kucoinGetOrderbook, params), nil, &o)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retrieveFullOrderbookEPL, http.MethodGet, common.EncodeURLValues(kucoinGetOrderbook, params), nil, &o)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +404,7 @@ func (ku *Kucoin) GetMarginRiskLimit(ctx context.Context, marginModel string) ([
 		params.Set("marginModel", marginModel)
 	}
 	var resp []MarginRiskLimit
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveMarginAccountEPL, http.MethodGet, common.EncodeURLValues(kucoinGetMarginRiskLimit, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retrieveMarginAccountEPL, http.MethodGet, common.EncodeURLValues(kucoinGetMarginRiskLimit, params), nil, &resp)
 }
 
 // PostBorrowOrder used to post borrow order
@@ -1420,7 +1420,7 @@ func (ku *Kucoin) GetAccountLedgers(ctx context.Context, ccy, direction, bizType
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *AccountLedgerResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveAccountLedgerEPL, http.MethodGet, common.EncodeURLValues(kucoinGetAccountLedgers, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retrieveAccountLedgerEPL, http.MethodGet, common.EncodeURLValues(kucoinGetAccountLedgers, params), nil, &resp)
 }
 
 // GetAccountSummaryInformation this can be used to obtain account summary information.
@@ -1620,7 +1620,7 @@ func (ku *Kucoin) GetHistoricalDepositList(ctx context.Context, ccy, status stri
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *HistoricalDepositWithdrawalResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveV1HistoricalDepositListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalDepositList, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retrieveV1HistoricalDepositListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalDepositList, params), nil, &resp)
 }
 
 // GetWithdrawalList get withdrawal list items
@@ -1639,7 +1639,7 @@ func (ku *Kucoin) GetWithdrawalList(ctx context.Context, ccy, status string, sta
 		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
 	var resp *WithdrawalsResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveWithdrawalListEPL, http.MethodGet, common.EncodeURLValues(kucoinWithdrawal, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retrieveWithdrawalListEPL, http.MethodGet, common.EncodeURLValues(kucoinWithdrawal, params), nil, &resp)
 }
 
 // GetHistoricalWithdrawalList get historical withdrawal list items
@@ -1664,7 +1664,7 @@ func (ku *Kucoin) GetHistoricalWithdrawalList(ctx context.Context, ccy, status s
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *HistoricalDepositWithdrawalResponse
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retriveV1HistoricalWithdrawalListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalWithdrawalList, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, retrieveV1HistoricalWithdrawalListEPL, http.MethodGet, common.EncodeURLValues(kucoinGetHistoricalWithdrawalList, params), nil, &resp)
 }
 
 // GetWithdrawalQuotas get withdrawal quota details
