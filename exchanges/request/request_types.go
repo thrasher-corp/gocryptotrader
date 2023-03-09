@@ -49,7 +49,6 @@ type Item struct {
 	Headers       map[string]string
 	Body          io.Reader
 	Result        interface{}
-	AuthRequest   bool
 	NonceEnabled  bool
 	Verbose       bool
 	HTTPDebugging bool

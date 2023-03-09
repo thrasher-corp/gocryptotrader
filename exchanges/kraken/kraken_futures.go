@@ -327,14 +327,13 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 			Path:          futuresURL + common.EncodeURLValues(path, data),
 			Headers:       headers,
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       k.Verbose,
 			HTTPDebugging: k.HTTPDebugging,
 			HTTPRecording: k.HTTPRecording,
 		}, nil
 	}
 
-	err = k.SendPayload(ctx, request.Unset, newRequest)
+	err = k.SendPayload(ctx, request.Unset, newRequest, true)
 	if err != nil {
 		return err
 	}

@@ -644,7 +644,7 @@ type AggregatedBalance struct {
 type CancelOrderBatch struct {
 	Success []string `json:"success"`
 	Failed  []struct {
-		OrderID      int64  `json:"order-id,string"`
+		OrderID      string `json:"order-id"`
 		ErrorCode    string `json:"err-code"`
 		ErrorMessage string `json:"err-msg"`
 	} `json:"failed"`

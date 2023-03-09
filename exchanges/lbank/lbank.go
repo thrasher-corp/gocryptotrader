@@ -479,7 +479,7 @@ func (l *Lbank) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 	return l.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 func (l *Lbank) loadPrivKey(ctx context.Context) error {
@@ -558,7 +558,6 @@ func (l *Lbank) SendAuthHTTPRequest(ctx context.Context, method, endpoint string
 		Path:          endpoint,
 		Headers:       headers,
 		Result:        result,
-		AuthRequest:   true,
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,
 		HTTPRecording: l.HTTPRecording,
@@ -567,5 +566,5 @@ func (l *Lbank) SendAuthHTTPRequest(ctx context.Context, method, endpoint string
 	return l.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBufferString(payload)
 		return item, nil
-	})
+	}, true)
 }

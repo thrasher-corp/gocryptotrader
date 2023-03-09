@@ -371,7 +371,7 @@ func (b *Bittrex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 		HTTPRecording:  b.HTTPRecording,
 		HeaderResponse: resultHeader,
 	}
-	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) { return item, nil })
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) { return item, nil }, false)
 }
 
 // SendAuthHTTPRequest sends an authenticated request
@@ -429,7 +429,6 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 			Headers:        headers,
 			Body:           body,
 			Result:         result,
-			AuthRequest:    true,
 			Verbose:        b.Verbose,
 			HTTPDebugging:  b.HTTPDebugging,
 			HTTPRecording:  b.HTTPRecording,
@@ -437,7 +436,7 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 		}, nil
 	}
 
-	return b.SendPayload(ctx, request.Unset, newRequest)
+	return b.SendPayload(ctx, request.Unset, newRequest, true)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

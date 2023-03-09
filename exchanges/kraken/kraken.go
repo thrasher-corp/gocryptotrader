@@ -993,7 +993,7 @@ func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 	return k.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -1039,13 +1039,12 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			Headers:       headers,
 			Body:          strings.NewReader(encoded),
 			Result:        &interim,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       k.Verbose,
 			HTTPDebugging: k.HTTPDebugging,
 			HTTPRecording: k.HTTPRecording,
 		}, nil
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

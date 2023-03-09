@@ -4236,13 +4236,12 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &intermediary,
-			AuthRequest:   authenticated,
 			Verbose:       ok.Verbose,
 			HTTPDebugging: ok.HTTPDebugging,
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-	err = ok.SendPayload(ctx, f, newRequest)
+	err = ok.SendPayload(ctx, f, newRequest, authenticated)
 	if err != nil {
 		return err
 	}

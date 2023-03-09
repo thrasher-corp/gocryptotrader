@@ -558,8 +558,8 @@ func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (e *EXMO) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+func (e *EXMO) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.

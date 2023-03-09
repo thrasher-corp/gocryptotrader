@@ -704,14 +704,13 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &intermediary,
-			AuthRequest:   authenticated,
 			Verbose:       o.Verbose,
 			HTTPDebugging: o.HTTPDebugging,
 			HTTPRecording: o.HTTPRecording,
 		}, nil
 	}
 
-	err = o.SendPayload(ctx, request.Unset, newRequest)
+	err = o.SendPayload(ctx, request.Unset, newRequest, authenticated)
 	if err != nil {
 		return err
 	}

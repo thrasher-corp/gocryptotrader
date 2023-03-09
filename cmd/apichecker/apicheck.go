@@ -1280,7 +1280,7 @@ func sendGetReq(path string, result interface{}) error {
 		Verbose: verbose}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // sendAuthReq sends auth req
@@ -1298,7 +1298,7 @@ func sendAuthReq(method, path string, result interface{}) error {
 		Verbose: verbose}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 }
 
 // trelloGetBoardID gets all board ids on trello for a given user

@@ -1029,8 +1029,29 @@ func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HUOBI) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (h *HUOBI) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	ids := make([]string, 0, len(o))
+	cIDs := make([]string, 0, len(o))
+	for i := range o {
+		if o[i].ClientOrderID != "" {
+			cIDs = append(cIDs, o[i].ClientOrderID)
+			continue
+		}
+		ids = append(ids, o[i].OrderID)
+	}
+
+	cancelledOrders, err := h.CancelOrderBatch(ctx, ids, cIDs)
+	if err != nil {
+		return nil, err
+	}
+	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
+	for i := range cancelledOrders.Success {
+		resp.Status[cancelledOrders.Success[i]] = "true"
+	}
+	for i := range cancelledOrders.Failed {
+		resp.Status[cancelledOrders.Failed[i].OrderID] = cancelledOrders.Failed[i].ErrorMessage
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

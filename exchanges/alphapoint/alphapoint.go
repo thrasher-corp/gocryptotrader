@@ -566,7 +566,7 @@ func (a *Alphapoint) SendHTTPRequest(ctx context.Context, ep exchange.URL, metho
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -608,7 +608,6 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 		Path:          path,
 		Headers:       headers,
 		Result:        result,
-		AuthRequest:   true,
 		NonceEnabled:  true,
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
@@ -617,5 +616,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
-	})
+	}, true)
 }

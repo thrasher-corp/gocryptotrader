@@ -561,7 +561,7 @@ func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -615,13 +615,12 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Headers:       headers,
 			Body:          readerValues,
 			Result:        &interim,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording,
 		}, nil
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

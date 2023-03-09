@@ -534,7 +534,7 @@ func (h *HitBTC) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 	return h.SendPayload(ctx, marketRequests, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
@@ -557,7 +557,6 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		Path:          path,
 		Headers:       headers,
 		Result:        result,
-		AuthRequest:   true,
 		Verbose:       h.Verbose,
 		HTTPDebugging: h.HTTPDebugging,
 		HTTPRecording: h.HTTPRecording,
@@ -566,7 +565,7 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	return h.SendPayload(ctx, f, func() (*request.Item, error) {
 		item.Body = bytes.NewBufferString(values.Encode())
 		return item, nil
-	})
+	}, true)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

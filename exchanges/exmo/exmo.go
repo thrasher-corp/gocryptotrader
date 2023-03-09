@@ -324,7 +324,7 @@ func (e *EXMO) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path 
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -364,13 +364,12 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.
 			Headers:       headers,
 			Body:          strings.NewReader(payload),
 			Result:        result,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       e.Verbose,
 			HTTPDebugging: e.HTTPDebugging,
 			HTTPRecording: e.HTTPRecording,
 		}, nil
-	})
+	}, true)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

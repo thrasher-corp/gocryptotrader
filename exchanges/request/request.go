@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -60,7 +61,7 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate) error {
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, isAuth bool) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -82,6 +83,9 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 	atomic.AddInt32(&r.jobs, 1)
 	err := r.doRequest(ctx, ep, newRequest)
 	atomic.AddInt32(&r.jobs, -1)
+	if isAuth {
+		err = common.AppendError(err, ErrAuthRequestFailed)
+	}
 	return err
 }
 
@@ -239,13 +243,6 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
-			if p.AuthRequest {
-				return fmt.Errorf("%w %s unsuccessful HTTP status code: %d raw response: %s",
-					ErrAuthRequestFailed,
-					r.name,
-					resp.StatusCode,
-					string(contents))
-			}
 			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
 				r.name,
 				resp.StatusCode,

@@ -2,7 +2,6 @@ package zb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -562,8 +561,8 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (z *ZB) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (z *ZB) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -777,11 +776,17 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 	if err != nil {
 		return nil, err
 	}
-
-	if req.Side == order.AnySide {
-		return nil, errors.New("specific order side is required")
+	sides := make([]int64, 0, 2)
+	switch {
+	case req.Side == order.AnySide:
+		sides = append(sides, 0, 1)
+	case req.Side.IsLong():
+		sides = append(sides, 1)
+	case req.Side.IsShort():
+		sides = append(sides, 0)
+	default:
+		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, req.Side)
 	}
-
 	var allOrders []Order
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range req.Pairs {
@@ -798,28 +803,26 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 			}
 		}
 	} else {
-		var side int64
-		if req.Side == order.Buy {
-			side = 1
-		}
-		for x := range req.Pairs {
-			for y := int64(1); ; y++ {
-				var fPair currency.Pair
-				fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
-				if err != nil {
-					return nil, err
-				}
-				var resp []Order
-				resp, err = z.GetOrders(ctx, fPair.String(), y, side)
-				if err != nil {
-					return nil, err
-				}
-				if len(resp) == 0 {
-					break
-				}
-				allOrders = append(allOrders, resp...)
-				if len(resp) != 10 {
-					break
+		for i := range sides {
+			for x := range req.Pairs {
+				for y := int64(1); ; y++ {
+					var fPair currency.Pair
+					fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+					if err != nil {
+						return nil, err
+					}
+					var resp []Order
+					resp, err = z.GetOrders(ctx, fPair.String(), y, sides[i])
+					if err != nil {
+						return nil, err
+					}
+					if len(resp) == 0 {
+						break
+					}
+					allOrders = append(allOrders, resp...)
+					if len(resp) != 10 {
+						break
+					}
 				}
 			}
 		}

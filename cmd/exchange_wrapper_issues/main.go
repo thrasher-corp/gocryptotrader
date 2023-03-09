@@ -665,7 +665,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			AssetType: assetTypes[i],
 		})
 
-		var CancelBatchOrdersResponse order.CancelBatchResponse
+		var CancelBatchOrdersResponse *order.CancelBatchResponse
 		CancelBatchOrdersResponse, err = e.CancelBatchOrders(context.TODO(), request)
 		msg = ""
 		if err != nil {

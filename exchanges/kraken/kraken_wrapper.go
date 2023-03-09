@@ -835,21 +835,21 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
+func (k *Kraken) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+		return nil, common.ErrFunctionNotSupported
 	}
 
-	ordersList := make([]string, len(orders))
-	for i := range orders {
-		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
-			return order.CancelBatchResponse{}, err
+	ordersList := make([]string, len(o))
+	for i := range o {
+		if err := o[i].Validate(o[i].StandardCancel()); err != nil {
+			return nil, err
 		}
-		ordersList[i] = orders[i].OrderID
+		ordersList[i] = o[i].OrderID
 	}
 
 	err := k.wsCancelOrders(ordersList)
-	return order.CancelBatchResponse{}, err
+	return nil, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

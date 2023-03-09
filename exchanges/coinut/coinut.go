@@ -299,13 +299,12 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &rawMsg,
-			AuthRequest:   authenticated,
 			NonceEnabled:  true,
 			Verbose:       c.Verbose,
 			HTTPDebugging: c.HTTPDebugging,
 			HTTPRecording: c.HTTPRecording,
 		}, nil
-	})
+	}, authenticated)
 	if err != nil {
 		return err
 	}

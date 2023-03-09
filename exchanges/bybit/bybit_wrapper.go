@@ -1129,21 +1129,21 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (by *Bybit) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	orderIDs := make([]string, 0, len(orders))
-	for i := range orders {
-		if orders[i].ClientOrderID != "" {
-			return order.CancelBatchResponse{}, fmt.Errorf("%w order ids only", common.ErrFunctionNotSupported)
+func (by *Bybit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	orderIDs := make([]string, 0, len(o))
+	for i := range o {
+		if o[i].ClientOrderID != "" {
+			return nil, fmt.Errorf("%w order ids only", common.ErrFunctionNotSupported)
 		}
-		if orders[i].OrderID != "" {
-			orderIDs = append(orderIDs, orders[i].OrderID)
+		if o[i].OrderID != "" {
+			orderIDs = append(orderIDs, o[i].OrderID)
 		}
 	}
 	cancelledOrders, err := by.BatchCancelOrderByIDs(ctx, orderIDs)
 	if err != nil {
-		return order.CancelBatchResponse{}, err
+		return nil, err
 	}
-	resp := order.CancelBatchResponse{
+	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
 	for i := range orderIDs {

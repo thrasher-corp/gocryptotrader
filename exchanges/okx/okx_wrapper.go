@@ -869,43 +869,42 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	var cancelBatchResponse order.CancelBatchResponse
-	if len(orders) > 20 {
-		return cancelBatchResponse, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
-	} else if len(orders) == 0 {
-		return cancelBatchResponse, fmt.Errorf("%w, must have at least 1 cancel order", errNoOrderParameterPassed)
+func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) > 20 {
+		return nil, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
+	} else if len(o) == 0 {
+		return nil, fmt.Errorf("%w, must have at least 1 cancel order", errNoOrderParameterPassed)
 	}
-	cancelOrderParams := []CancelOrderRequestParam{}
+	cancelOrderParams := make([]CancelOrderRequestParam, len(o))
 	var err error
-	for x := range orders {
-		ord := orders[x]
+	for x := range o {
+		ord := o[x]
 		err = ord.Validate(ord.StandardCancel())
 		if err != nil {
-			return cancelBatchResponse, err
+			return nil, err
 		}
 		if !ok.SupportsAsset(ord.AssetType) {
-			return cancelBatchResponse, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
+			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
 		var instrumentID string
 		var format currency.PairFormat
 		format, err = ok.GetPairFormat(ord.AssetType, false)
 		if err != nil {
-			return cancelBatchResponse, err
+			return nil, err
 		}
 		if !ord.Pair.IsPopulated() {
-			return cancelBatchResponse, errIncompleteCurrencyPair
+			return nil, errIncompleteCurrencyPair
 		}
 		instrumentID = format.Format(ord.Pair)
 		if err != nil {
-			return cancelBatchResponse, err
+			return nil, err
 		}
 		req := CancelOrderRequestParam{
 			InstrumentID:          instrumentID,
 			OrderID:               ord.OrderID,
 			ClientSupplierOrderID: ord.ClientOrderID,
 		}
-		cancelOrderParams = append(cancelOrderParams, req)
+		cancelOrderParams[x] = req
 	}
 	var canceledOrders []OrderData
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -914,17 +913,18 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
 	}
 	if err != nil {
-		return cancelBatchResponse, err
+		return nil, err
 	}
+	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	for x := range canceledOrders {
-		cancelBatchResponse.Status[canceledOrders[x].OrderID] = func() string {
+		resp.Status[canceledOrders[x].OrderID] = func() string {
 			if canceledOrders[x].SCode != "0" && canceledOrders[x].SCode != "2" {
 				return ""
 			}
 			return order.Cancelled.String()
 		}()
 	}
-	return cancelBatchResponse, nil
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

@@ -784,7 +784,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 
 	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -830,13 +830,12 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        result,
-			AuthRequest:   true,
 			Verbose:       c.Verbose,
 			HTTPDebugging: c.HTTPDebugging,
 			HTTPRecording: c.HTTPRecording,
 		}, nil
 	}
-	return c.SendPayload(ctx, request.Unset, newRequest)
+	return c.SendPayload(ctx, request.Unset, newRequest, true)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

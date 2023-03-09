@@ -294,8 +294,8 @@ func (a *Alphapoint) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (a *Alphapoint) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (a *Alphapoint) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders for a given account

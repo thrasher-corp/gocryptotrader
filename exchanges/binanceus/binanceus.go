@@ -1792,7 +1792,7 @@ func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, pa
 	}
 	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -1820,7 +1820,7 @@ func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.U
 
 	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -1861,11 +1861,10 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 			Path:          fullPath,
 			Headers:       headers,
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       bi.Verbose,
 			HTTPDebugging: bi.HTTPDebugging,
 			HTTPRecording: bi.HTTPRecording}, nil
-	})
+	}, true)
 	if err != nil {
 		return err
 	}
@@ -1908,7 +1907,6 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		Path:          endpointPath + userAccountStream,
 		Headers:       headers,
 		Result:        &resp,
-		AuthRequest:   true,
 		Verbose:       bi.Verbose,
 		HTTPDebugging: bi.HTTPDebugging,
 		HTTPRecording: bi.HTTPRecording,
@@ -1916,7 +1914,7 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	err = bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 	if err != nil {
 		return "", err
 	}
@@ -1953,7 +1951,6 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 		Method:        http.MethodPut,
 		Path:          path,
 		Headers:       headers,
-		AuthRequest:   true,
 		Verbose:       bi.Verbose,
 		HTTPDebugging: bi.HTTPDebugging,
 		HTTPRecording: bi.HTTPRecording,
@@ -1961,7 +1958,7 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 }
 
 // CloseUserDataStream Close out a user data stream.
@@ -1990,7 +1987,6 @@ func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 		Method:        http.MethodDelete,
 		Path:          path,
 		Headers:       headers,
-		AuthRequest:   true,
 		Verbose:       bi.Verbose,
 		HTTPDebugging: bi.HTTPDebugging,
 		HTTPRecording: bi.HTTPRecording,
@@ -1998,5 +1994,5 @@ func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 
 	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 }

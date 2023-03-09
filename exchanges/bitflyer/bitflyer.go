@@ -301,7 +301,7 @@ func (b *Bitflyer) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request

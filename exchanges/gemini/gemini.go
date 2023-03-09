@@ -387,7 +387,7 @@ func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 	return g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
@@ -438,13 +438,12 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			Path:          endpoint + "/v1/" + path,
 			Headers:       headers,
 			Result:        result,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       g.Verbose,
 			HTTPDebugging: g.HTTPDebugging,
 			HTTPRecording: g.HTTPRecording,
 		}, nil
-	})
+	}, true)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

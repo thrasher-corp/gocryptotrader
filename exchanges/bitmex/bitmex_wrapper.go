@@ -790,7 +790,7 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	var orderIDs, clientIDs []string
 	for i := range o {
 		switch {
@@ -799,7 +799,7 @@ func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		case o[i].OrderID != "":
 			orderIDs = append(orderIDs, o[i].OrderID)
 		default:
-			return order.CancelBatchResponse{}, order.ErrOrderIDNotSet
+			return nil, order.ErrOrderIDNotSet
 		}
 	}
 	joinedOrderIDs := strings.Join(orderIDs, ",")
@@ -808,12 +808,12 @@ func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		OrderID:       joinedOrderIDs,
 		ClientOrderID: joinedClientIDs,
 	}
-	resp := order.CancelBatchResponse{
+	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
 	cancelResponse, err := b.CancelOrders(ctx, params)
 	if err != nil {
-		return order.CancelBatchResponse{}, err
+		return nil, err
 	}
 	for i := range cancelResponse {
 		resp.Status[cancelResponse[i].OrderID] = cancelResponse[i].OrdStatus

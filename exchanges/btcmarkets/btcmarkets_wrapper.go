@@ -664,16 +664,16 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	orderIds := make([]string, len(o))
 	for i := range o {
 		orderIds[i] = o[i].OrderID
 	}
 	batchResp, err := b.CancelBatch(ctx, orderIds)
 	if err != nil {
-		return order.CancelBatchResponse{}, err
+		return nil, err
 	}
-	resp := order.CancelBatchResponse{
+	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
 	for i := range batchResp.CancelOrders {

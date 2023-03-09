@@ -360,7 +360,7 @@ func (z *ZB) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, 
 
 	return z.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -401,14 +401,13 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 			Method:        httpMethod,
 			Path:          urlPath,
 			Result:        &intermediary,
-			AuthRequest:   true,
 			Verbose:       z.Verbose,
 			HTTPDebugging: z.HTTPDebugging,
 			HTTPRecording: z.HTTPRecording,
 		}, nil
 	}
 
-	err = z.SendPayload(ctx, f, newRequest)
+	err = z.SendPayload(ctx, f, newRequest, true)
 	if err != nil {
 		return err
 	}

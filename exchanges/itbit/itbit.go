@@ -303,7 +303,7 @@ func (i *ItBit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 	return i.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
@@ -368,13 +368,12 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 			Headers:       headers,
 			Body:          bytes.NewBuffer(PayloadJSON),
 			Result:        &intermediary,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       i.Verbose,
 			HTTPDebugging: i.HTTPDebugging,
 			HTTPRecording: i.HTTPRecording,
 		}, nil
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

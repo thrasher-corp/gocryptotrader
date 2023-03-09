@@ -536,7 +536,7 @@ func (b *Bithumb) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
@@ -585,12 +585,11 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 			Headers:       headers,
 			Body:          bytes.NewBufferString(payload),
 			Result:        &intermediary,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

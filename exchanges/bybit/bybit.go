@@ -805,7 +805,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	})
+	}, false)
 	if err != nil {
 		return err
 	}
@@ -883,11 +883,10 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &result,
-			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

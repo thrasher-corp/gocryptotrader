@@ -634,8 +634,8 @@ func (h *HitBTC) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HitBTC) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+func (h *HitBTC) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.

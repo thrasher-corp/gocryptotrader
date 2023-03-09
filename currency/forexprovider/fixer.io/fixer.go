@@ -234,12 +234,11 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 		auth = true
 	}
 	item := &request.Item{
-		Method:      http.MethodGet,
-		Path:        path,
-		Result:      &result,
-		AuthRequest: auth,
-		Verbose:     f.Verbose}
+		Method:  http.MethodGet,
+		Path:    path,
+		Result:  &result,
+		Verbose: f.Verbose}
 	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, auth)
 }

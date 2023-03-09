@@ -729,17 +729,17 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *COINUT) CancelBatchOrders(ctx context.Context, details []order.Cancel) (order.CancelBatchResponse, error) {
-	req := make([]CancelOrders, 0, len(details))
-	for i := range details {
-		if details[i].ClientOrderID != "" {
-			return order.CancelBatchResponse{}, fmt.Errorf("%w only orderid suppoerted", common.ErrFunctionNotSupported)
+func (c *COINUT) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	req := make([]CancelOrders, 0, len(o))
+	for i := range o {
+		if o[i].ClientOrderID != "" {
+			return nil, fmt.Errorf("%w only orderid suppoerted", common.ErrFunctionNotSupported)
 		}
-		if details[i].OrderID != "" {
-			currencyID := c.instrumentMap.LookupID(details[i].Pair.String())
-			oid, err := strconv.ParseInt(details[i].OrderID, 10, 64)
+		if o[i].OrderID != "" {
+			currencyID := c.instrumentMap.LookupID(o[i].Pair.String())
+			oid, err := strconv.ParseInt(o[i].OrderID, 10, 64)
 			if err != nil {
-				return order.CancelBatchResponse{}, err
+				return nil, err
 			}
 			req = append(req, CancelOrders{
 				InstrumentID: currencyID,
@@ -749,9 +749,9 @@ func (c *COINUT) CancelBatchOrders(ctx context.Context, details []order.Cancel) 
 	}
 	results, err := c.CancelOrders(ctx, req)
 	if err != nil {
-		return order.CancelBatchResponse{}, err
+		return nil, err
 	}
-	resp := order.CancelBatchResponse{Status: make(map[string]string)}
+	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	for i := range results.Results {
 		resp.Status[strconv.FormatInt(results.Results[i].OrderID, 10)] = results.Results[i].Status
 	}

@@ -457,7 +457,7 @@ func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, end
 	}
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
@@ -530,13 +530,12 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 			Headers:       headers,
 			Body:          body,
 			Result:        result,
-			AuthRequest:   true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording,
 		}, nil
 	}
-	return b.SendPayload(ctx, f, newRequest)
+	return b.SendPayload(ctx, f, newRequest, true)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

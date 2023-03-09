@@ -427,8 +427,8 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (o *OKCoin) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // FetchOrderbook returns orderbook base on the currency pair

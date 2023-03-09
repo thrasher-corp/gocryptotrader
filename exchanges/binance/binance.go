@@ -747,7 +747,7 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, false)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -776,7 +776,7 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -821,11 +821,10 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			Path:          fullPath,
 			Headers:       headers,
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
-	})
+	}, true)
 	if err != nil {
 		return err
 	}
@@ -1111,7 +1110,6 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		Path:          endpointPath + userAccountStream,
 		Headers:       headers,
 		Result:        &resp,
-		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
@@ -1119,7 +1117,7 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 	if err != nil {
 		return "", err
 	}
@@ -1152,7 +1150,6 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 		Method:        http.MethodPut,
 		Path:          path,
 		Headers:       headers,
-		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
@@ -1160,7 +1157,7 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, true)
 }
 
 // FetchSpotExchangeLimits fetches spot order execution limits

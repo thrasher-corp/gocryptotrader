@@ -605,8 +605,8 @@ func (b *Bittrex) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bittrex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+func (b *Bittrex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair, or cancels all orders for all
