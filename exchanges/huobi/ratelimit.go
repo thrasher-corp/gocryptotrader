@@ -42,22 +42,22 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	// TODO: Add futures and swap functionality
 	case huobiFuturesAuth:
-		return r.FuturesAuth.Wait(ctx)
+		return r.FuturesAuth, 1, nil
 	case huobiFuturesUnAuth:
-		return r.FuturesUnauth.Wait(ctx)
+		return r.FuturesUnauth, 1, nil
 	case huobiFuturesTransfer:
-		return r.FuturesXfer.Wait(ctx)
+		return r.FuturesXfer, 1, nil
 	case huobiSwapAuth:
-		return r.SwapAuth.Wait(ctx)
+		return r.SwapAuth, 1, nil
 	case huobiSwapUnauth:
-		return r.SwapUnauth.Wait(ctx)
+		return r.SwapUnauth, 1, nil
 	default:
 		// Spot calls
-		return r.Spot.Wait(ctx)
+		return r.Spot, 1, nil
 	}
 }
 

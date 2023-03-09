@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -194,165 +193,99 @@ type RateLimit struct {
 }
 
 // Limit executes rate limiting functionality for Binance
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	var limiter *rate.Limiter
-	var tokens int
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	case publicSpotRate:
-		limiter, tokens = r.SpotRate, 1
+		return r.SpotRate, 1, nil
 	case privateSpotRate:
-		limiter, tokens = r.PrivateSpotRate, 1
-
+		return r.PrivateSpotRate, 1, nil
 	case cFuturesDefaultRate:
-		limiter, tokens = r.CMFuturesDefaultRate, 1
-
+		return r.CMFuturesDefaultRate, 1, nil
 	case cFuturesCancelActiveOrderRate, cFuturesCreateConditionalOrderRate, cFuturesCancelConditionalOrderRate, cFuturesReplaceActiveOrderRate,
 		cFuturesReplaceConditionalOrderRate, cFuturesCreateOrderRate:
-		limiter, tokens = r.CMFuturesOrderRate, 1
+		return r.CMFuturesOrderRate, 1, nil
 	case cFuturesCancelAllActiveOrderRate, cFuturesCancelAllConditionalOrderRate:
-		limiter, tokens = r.CMFuturesOrderRate, 10
-
+		return r.CMFuturesOrderRate, 10, nil
 	case cFuturesGetActiveOrderRate, cFuturesGetConditionalOrderRate, cFuturesGetRealtimeOrderRate:
-		limiter, tokens = r.CMFuturesOrderListRate, 1
-
+		return r.CMFuturesOrderListRate, 1, nil
 	case cFuturesTradeRate:
-		limiter, tokens = r.CMFuturesExecutionRate, 1
-
+		return r.CMFuturesExecutionRate, 1, nil
 	case cFuturesSetLeverageRate, cFuturesUpdateMarginRate, cFuturesSetTradingRate, cFuturesSwitchPositionRate, cFuturesGetTradingFeeRate:
-		limiter, tokens = r.CMFuturesPositionRate, 1
-
+		return r.CMFuturesPositionRate, 1, nil
 	case cFuturesPositionRate, cFuturesWalletBalanceRate:
-		limiter, tokens = r.CMFuturesPositionListRate, 1
-
+		return r.CMFuturesPositionListRate, 1, nil
 	case cFuturesLastFundingFeeRate, cFuturesPredictFundingRate:
-		limiter, tokens = r.CMFuturesFundingRate, 1
-
+		return r.CMFuturesFundingRate, 1, nil
 	case cFuturesWalletFundRecordRate, cFuturesWalletWithdrawalRate:
-		limiter, tokens = r.CMFuturesWalletRate, 1
-
+		return r.CMFuturesWalletRate, 1, nil
 	case cFuturesAPIKeyInfoRate:
-		limiter, tokens = r.CMFuturesAccountRate, 1
-
+		return r.CMFuturesAccountRate, 1, nil
 	case uFuturesDefaultRate:
-		limiter, tokens = r.UFuturesDefaultRate, 1
-
+		return r.UFuturesDefaultRate, 1, nil
 	case uFuturesCreateOrderRate, uFuturesCancelOrderRate, uFuturesCreateConditionalOrderRate, uFuturesCancelConditionalOrderRate:
-		limiter, tokens = r.UFuturesOrderRate, 1
-
+		return r.UFuturesOrderRate, 1, nil
 	case uFuturesCancelAllOrderRate, uFuturesCancelAllConditionalOrderRate:
-		limiter, tokens = r.UFuturesOrderRate, 10
-
+		return r.UFuturesOrderRate, 10, nil
 	case uFuturesSetLeverageRate, uFuturesSwitchMargin, uFuturesSwitchPosition, uFuturesSetMarginRate, uFuturesSetTradingStopRate, uFuturesUpdateMarginRate:
-		limiter, tokens = r.UFuturesPositionRate, 1
-
+		return r.UFuturesPositionRate, 1, nil
 	case uFuturesPositionRate, uFuturesGetClosedTradesRate, uFuturesGetTradesRate:
-		limiter, tokens = r.UFuturesPositionListRate, 1
-
+		return r.UFuturesPositionListRate, 1, nil
 	case uFuturesGetActiveOrderRate, uFuturesGetActiveRealtimeOrderRate, uFuturesGetConditionalOrderRate, uFuturesGetConditionalRealtimeOrderRate:
-		limiter, tokens = r.UFuturesOrderListRate, 1
-
+		return r.UFuturesOrderListRate, 1, nil
 	case uFuturesGetMyLastFundingFeeRate, uFuturesPredictFundingRate:
-		limiter, tokens = r.UFuturesFundingRate, 1
-
+		return r.UFuturesFundingRate, 1, nil
 	case futuresDefaultRate:
-		limiter, tokens = r.FuturesDefaultRate, 1
-
+		return r.FuturesDefaultRate, 1, nil
 	case futuresCancelOrderRate, futuresCreateOrderRate, futuresReplaceOrderRate, futuresReplaceConditionalOrderRate, futuresCancelConditionalOrderRate,
 		futuresCreateConditionalOrderRate:
-		limiter, tokens = r.FuturesOrderRate, 1
-
+		return r.FuturesOrderRate, 1, nil
 	case futuresCancelAllOrderRate, futuresCancelAllConditionalOrderRate:
-		limiter, tokens = r.FuturesOrderRate, 10
-
+		return r.FuturesOrderRate, 10, nil
 	case futuresGetActiveOrderRate, futuresGetConditionalOrderRate, futuresGetActiveRealtimeOrderRate, futuresGetConditionalRealtimeOrderRate:
-		limiter, tokens = r.FuturesOrderListRate, 1
-
+		return r.FuturesOrderListRate, 1, nil
 	case futuresGetTradeRate:
-		limiter, tokens = r.FuturesExecutionRate, 1
-
+		return r.FuturesExecutionRate, 1, nil
 	case futuresSetLeverageRate, futuresUpdateMarginRate, futuresSetTradingStopRate, futuresSwitchPositionModeRate, futuresSwitchMarginRate, futuresSwitchPositionRate:
-		limiter, tokens = r.FuturesPositionRate, 1
-
+		return r.FuturesPositionRate, 1, nil
 	case futuresPositionRate:
-		limiter, tokens = r.FuturesPositionListRate, 1
-
+		return r.FuturesPositionListRate, 1, nil
 	case usdcPublicRate:
-		limiter, tokens = r.USDCPublic, 1
-
+		return r.USDCPublic, 1, nil
 	case usdcCancelAllOrderRate:
-		limiter, tokens = r.USDCCancelAllOrderRate, 1
-
+		return r.USDCCancelAllOrderRate, 1, nil
 	case usdcPlaceOrderRate:
-		limiter, tokens = r.USDCPlaceOrderRate, 1
-
+		return r.USDCPlaceOrderRate, 1, nil
 	case usdcModifyOrderRate:
-		limiter, tokens = r.USDCModifyOrderRate, 1
-
+		return r.USDCModifyOrderRate, 1, nil
 	case usdcCancelOrderRate:
-		limiter, tokens = r.USDCCancelOrderRate, 1
-
+		return r.USDCCancelOrderRate, 1, nil
 	case usdcGetOrderRate:
-		limiter, tokens = r.USDCGetOrderRate, 1
-
+		return r.USDCGetOrderRate, 1, nil
 	case usdcGetOrderHistoryRate:
-		limiter, tokens = r.USDCGetOrderHistoryRate, 1
-
+		return r.USDCGetOrderHistoryRate, 1, nil
 	case usdcGetTradeHistoryRate:
-		limiter, tokens = r.USDCGetTradeHistoryRate, 1
-
+		return r.USDCGetTradeHistoryRate, 1, nil
 	case usdcGetTransactionRate:
-		limiter, tokens = r.USDCGetTransactionRate, 1
-
+		return r.USDCGetTransactionRate, 1, nil
 	case usdcGetWalletRate:
-		limiter, tokens = r.USDCGetWalletRate, 1
-
+		return r.USDCGetWalletRate, 1, nil
 	case usdcGetAssetRate:
-		limiter, tokens = r.USDCGetAssetRate, 1
-
+		return r.USDCGetAssetRate, 1, nil
 	case usdcGetMarginRate:
-		limiter, tokens = r.USDCGetMarginRate, 1
-
+		return r.USDCGetMarginRate, 1, nil
 	case usdcGetPositionRate:
-		limiter, tokens = r.USDCGetPositionRate, 1
-
+		return r.USDCGetPositionRate, 1, nil
 	case usdcSetLeverageRate:
-		limiter, tokens = r.USDCSetLeverageRate, 1
-
+		return r.USDCSetLeverageRate, 1, nil
 	case usdcGetSettlementRate:
-		limiter, tokens = r.USDCGetSettlementRate, 1
-
+		return r.USDCGetSettlementRate, 1, nil
 	case usdcSetRiskRate:
-		limiter, tokens = r.USDCSetRiskRate, 1
-
+		return r.USDCSetRiskRate, 1, nil
 	case usdcGetPredictedFundingRate:
-		limiter, tokens = r.USDCGetPredictedFundingRate, 1
-
+		return r.USDCGetPredictedFundingRate, 1, nil
 	default:
-		limiter, tokens = r.SpotRate, 1
+		return r.SpotRate, 1, nil
 	}
-
-	var finalDelay time.Duration
-	var reserves = make([]*rate.Reservation, tokens)
-	for i := 0; i < tokens; i++ {
-		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
-		// which would otherwise allow the rate limit to be exceeded over short periods
-		reserves[i] = limiter.Reserve()
-		finalDelay = limiter.Reserve().Delay()
-	}
-
-	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
-		// Cancel all potential reservations to free up rate limiter if deadline
-		// is exceeded.
-		for x := range reserves {
-			reserves[x].Cancel()
-		}
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
-			finalDelay,
-			context.DeadlineExceeded)
-	}
-
-	time.Sleep(finalDelay)
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

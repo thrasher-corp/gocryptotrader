@@ -205,20 +205,20 @@ type GlobalLimitTest struct {
 
 var errEndpointLimitNotFound = errors.New("endpoint limit not found")
 
-func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) error {
+func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) (*rate.Limiter, int, error) {
 	switch e {
 	case Auth:
 		if g.Auth == nil {
-			return errors.New("auth rate not set")
+			return nil, 0, errors.New("auth rate not set")
 		}
-		return g.Auth.Wait(ctx)
+		return g.Auth, 1, nil
 	case UnAuth:
 		if g.UnAuth == nil {
-			return errors.New("unauth rate not set")
+			return nil, 0, errors.New("unauth rate not set")
 		}
-		return g.UnAuth.Wait(ctx)
+		return g.UnAuth, 1, nil
 	default:
-		return fmt.Errorf("cannot execute functionality: %d %w",
+		return nil, 0, fmt.Errorf("cannot execute functionality: %d %w",
 			e,
 			errEndpointLimitNotFound)
 	}

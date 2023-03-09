@@ -30,28 +30,17 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
+	// TODO: Authenticated endpoints cannot be tested.
 	switch f {
 	case request.Auth:
-		return r.Auth.Wait(ctx)
+		return r.Auth, 1, nil
 	case orders:
-		err := r.Auth.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		return r.Order.Wait(ctx)
+		return r.Order, 1, nil
 	case lowVolume:
-		err := r.LowVolume.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		err = r.Order.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		return r.Auth.Wait(ctx)
+		return r.LowVolume, 1, nil
 	default:
-		return r.UnAuth.Wait(ctx)
+		return r.UnAuth, 1, nil
 	}
 }
 

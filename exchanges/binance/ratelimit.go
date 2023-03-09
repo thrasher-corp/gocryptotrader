@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -105,138 +104,113 @@ type RateLimit struct {
 }
 
 // Limit executes rate limiting functionality for Binance
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	var limiter *rate.Limiter
-	var tokens int
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	case spotDefaultRate:
-		limiter, tokens = r.SpotRate, 1
+		return r.SpotRate, 1, nil
 	case spotOrderbookTickerAllRate,
 		spotSymbolPriceAllRate:
-		limiter, tokens = r.SpotRate, 2
+		return r.SpotRate, 2, nil
 	case spotHistoricalTradesRate,
 		spotOrderbookDepth500Rate:
-		limiter, tokens = r.SpotRate, 5
+		return r.SpotRate, 5, nil
 	case spotOrderbookDepth1000Rate,
 		spotAccountInformationRate,
 		spotExchangeInfo:
-		limiter, tokens = r.SpotRate, 10
+		return r.SpotRate, 10, nil
 	case spotPriceChangeAllRate:
-		limiter, tokens = r.SpotRate, 40
+		return r.SpotRate, 40, nil
 	case spotOrderbookDepth5000Rate:
-		limiter, tokens = r.SpotRate, 50
+		return r.SpotRate, 50, nil
 	case spotOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 1
+		return r.SpotOrdersRate, 1, nil
 	case spotOrderQueryRate:
-		limiter, tokens = r.SpotOrdersRate, 2
+		return r.SpotOrdersRate, 2, nil
 	case spotOpenOrdersSpecificRate:
-		limiter, tokens = r.SpotOrdersRate, 3
+		return r.SpotOrdersRate, 3, nil
 	case spotAllOrdersRate:
-		limiter, tokens = r.SpotOrdersRate, 10
+		return r.SpotOrdersRate, 10, nil
 	case spotOpenOrdersAllRate:
-		limiter, tokens = r.SpotOrdersRate, 40
+		return r.SpotOrdersRate, 40, nil
 	case uFuturesDefaultRate,
 		uFuturesKline100Rate:
-		limiter, tokens = r.UFuturesRate, 1
+		return r.UFuturesRate, 1, nil
 	case uFuturesOrderbook50Rate,
 		uFuturesKline500Rate,
 		uFuturesOrderbookTickerAllRate:
-		limiter, tokens = r.UFuturesRate, 2
+		return r.UFuturesRate, 2, nil
 	case uFuturesOrderbook100Rate,
 		uFuturesKline1000Rate,
 		uFuturesAccountInformationRate:
-		limiter, tokens = r.UFuturesRate, 5
+		return r.UFuturesRate, 5, nil
 	case uFuturesOrderbook500Rate,
 		uFuturesKlineMaxRate:
-		limiter, tokens = r.UFuturesRate, 10
+		return r.UFuturesRate, 10, nil
 	case uFuturesOrderbook1000Rate,
 		uFuturesHistoricalTradesRate:
-		limiter, tokens = r.UFuturesRate, 20
+		return r.UFuturesRate, 20, nil
 	case uFuturesTickerPriceHistoryRate:
-		limiter, tokens = r.UFuturesRate, 40
+		return r.UFuturesRate, 40, nil
 	case uFuturesOrdersDefaultRate:
-		limiter, tokens = r.UFuturesOrdersRate, 1
+		return r.UFuturesOrdersRate, 1, nil
 	case uFuturesBatchOrdersRate,
 		uFuturesGetAllOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 5
+		return r.UFuturesOrdersRate, 5, nil
 	case uFuturesCountdownCancelRate:
-		limiter, tokens = r.UFuturesOrdersRate, 10
+		return r.UFuturesOrdersRate, 10, nil
 	case uFuturesCurrencyForceOrdersRate,
 		uFuturesSymbolOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 20
+		return r.UFuturesOrdersRate, 20, nil
 	case uFuturesIncomeHistoryRate:
-		limiter, tokens = r.UFuturesOrdersRate, 30
+		return r.UFuturesOrdersRate, 30, nil
 	case uFuturesPairOrdersRate,
 		uFuturesGetAllOpenOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 40
+		return r.UFuturesOrdersRate, 40, nil
 	case uFuturesAllForceOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 50
+		return r.UFuturesOrdersRate, 50, nil
 	case cFuturesKline100Rate:
-		limiter, tokens = r.CFuturesRate, 1
+		return r.CFuturesRate, 1, nil
 	case cFuturesKline500Rate,
 		cFuturesOrderbookTickerAllRate:
-		limiter, tokens = r.CFuturesRate, 2
+		return r.CFuturesRate, 2, nil
 	case cFuturesKline1000Rate,
 		cFuturesAccountInformationRate:
-		limiter, tokens = r.CFuturesRate, 5
+		return r.CFuturesRate, 5, nil
 	case cFuturesKlineMaxRate,
 		cFuturesIndexMarkPriceRate:
-		limiter, tokens = r.CFuturesRate, 10
+		return r.CFuturesRate, 10, nil
 	case cFuturesHistoricalTradesRate,
 		cFuturesCurrencyForceOrdersRate:
-		limiter, tokens = r.CFuturesRate, 20
+		return r.CFuturesRate, 20, nil
 	case cFuturesTickerPriceHistoryRate:
-		limiter, tokens = r.CFuturesRate, 40
+		return r.CFuturesRate, 40, nil
 	case cFuturesAllForceOrdersRate:
-		limiter, tokens = r.CFuturesRate, 50
+		return r.CFuturesRate, 50, nil
 	case cFuturesOrdersDefaultRate:
-		limiter, tokens = r.CFuturesOrdersRate, 1
+		return r.CFuturesOrdersRate, 1, nil
 	case cFuturesBatchOrdersRate,
 		cFuturesGetAllOpenOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 5
+		return r.CFuturesOrdersRate, 5, nil
 	case cFuturesCancelAllOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 10
+		return r.CFuturesOrdersRate, 10, nil
 	case cFuturesIncomeHistoryRate,
 		cFuturesSymbolOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 20
+		return r.CFuturesOrdersRate, 20, nil
 	case cFuturesPairOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 40
+		return r.CFuturesOrdersRate, 40, nil
 	case cFuturesOrderbook50Rate:
-		limiter, tokens = r.CFuturesRate, 2
+		return r.CFuturesRate, 2, nil
 	case cFuturesOrderbook100Rate:
-		limiter, tokens = r.CFuturesRate, 5
+		return r.CFuturesRate, 5, nil
 	case cFuturesOrderbook500Rate:
-		limiter, tokens = r.CFuturesRate, 10
+		return r.CFuturesRate, 10, nil
 	case cFuturesOrderbook1000Rate:
-		limiter, tokens = r.CFuturesRate, 20
+		return r.CFuturesRate, 20, nil
 	case cFuturesDefaultRate:
-		limiter, tokens = r.CFuturesRate, 1
+		return r.CFuturesRate, 1, nil
 	default:
-		limiter, tokens = r.SpotRate, 1
+		return r.SpotRate, 1, nil
 	}
-
-	var finalDelay time.Duration
-	var reserves = make([]*rate.Reservation, tokens)
-	for i := 0; i < tokens; i++ {
-		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
-		// which would otherwise allow the rate limit to be exceeded over short periods
-		reserves[i] = limiter.Reserve()
-		finalDelay = reserves[i].Delay()
-	}
-
-	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
-		// Cancel all potential reservations to free up rate limiter if deadline
-		// is exceeded.
-		for x := range reserves {
-			reserves[x].Cancel()
-		}
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
-			finalDelay,
-			context.DeadlineExceeded)
-	}
-
-	time.Sleep(finalDelay)
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

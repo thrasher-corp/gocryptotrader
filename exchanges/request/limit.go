@@ -30,8 +30,8 @@ type BasicLimit struct {
 }
 
 // Limit executes a single rate limit set by NewRateLimit
-func (b *BasicLimit) Limit(ctx context.Context, _ EndpointLimit) error {
-	return b.r.Wait(ctx)
+func (b *BasicLimit) Limit(ctx context.Context, _ EndpointLimit) (*rate.Limiter, int, error) {
+	return b.r, 1, nil
 }
 
 // EndpointLimit defines individual endpoint rate limits that are set when
@@ -42,7 +42,7 @@ type EndpointLimit int
 // wrapper for extended rate limiting configuration i.e. Shells of rate
 // limits with a global rate for sub rates.
 type Limiter interface {
-	Limit(context.Context, EndpointLimit) error
+	Limit(context.Context, EndpointLimit) (*rate.Limiter, int, error)
 }
 
 // NewRateLimit creates a new RateLimit based of time interval and how many
@@ -65,6 +65,8 @@ func NewBasicRateLimit(interval time.Duration, actions int) Limiter {
 	return &BasicLimit{NewRateLimit(interval, actions)}
 }
 
+var errRequestSystemShutdown = errors.New("request system has shutdown")
+
 // InitiateRateLimit sleeps for designated end point rate limits
 func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
 	if r == nil {
@@ -74,11 +76,59 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		return nil
 	}
 
-	if r.limiter != nil {
-		return r.limiter.Limit(ctx, e)
+	if r.limiter == nil {
+		return nil
 	}
 
-	return nil
+	rateLimiter, tokens, err := r.limiter.Limit(ctx, e)
+	if err != nil {
+		return err
+	}
+
+	if tokens <= 0 {
+		return errors.New("invalid tokens must equal or greater than 1")
+	}
+
+	if rateLimiter == nil {
+		return errors.New("cannot rate limit, rate limiter is nil")
+	}
+
+	var finalDelay time.Duration
+	var reservations = make([]*rate.Reservation, tokens)
+	for i := 0; i < tokens; i++ {
+		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
+		// which would otherwise allow the rate limit to be exceeded over short periods
+		reservations[i] = rateLimiter.Reserve()
+		finalDelay = reservations[i].Delay()
+	}
+
+	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
+		// Cancel all potential reservations to free up rate limiter if deadline
+		// is exceeded.
+		for x := range reservations {
+			reservations[x].Cancel()
+		}
+		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
+			finalDelay,
+			context.DeadlineExceeded)
+	}
+
+	tick := time.NewTimer(finalDelay) // TODO: Create a pool for this.
+	defer tick.Stop()
+	select {
+	case <-tick.C:
+		return nil
+	case <-ctx.Done():
+		for x := range reservations {
+			reservations[x].Cancel()
+		}
+		return ctx.Err()
+	case <-r.shutdown:
+		for x := range reservations {
+			reservations[x].Cancel()
+		}
+		return errRequestSystemShutdown
+	}
 }
 
 // DisableRateLimiter disables the rate limiting system for the exchange

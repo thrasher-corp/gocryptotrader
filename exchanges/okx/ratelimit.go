@@ -529,322 +529,322 @@ const (
 )
 
 // Limit executes rate limiting for Okx exchange given the context and EndpointLimit
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	case placeOrderEPL:
-		return r.PlaceOrder.Wait(ctx)
+		return r.PlaceOrder, 1, nil
 	case placeMultipleOrdersEPL:
-		return r.PlaceMultipleOrders.Wait(ctx)
+		return r.PlaceMultipleOrders, 1, nil
 	case cancelOrderEPL:
-		return r.CancelOrder.Wait(ctx)
+		return r.CancelOrder, 1, nil
 	case cancelMultipleOrdersEPL:
-		return r.CancelMultipleOrders.Wait(ctx)
+		return r.CancelMultipleOrders, 1, nil
 	case amendOrderEPL:
-		return r.AmendOrder.Wait(ctx)
+		return r.AmendOrder, 1, nil
 	case amendMultipleOrdersEPL:
-		return r.AmendMultipleOrders.Wait(ctx)
+		return r.AmendMultipleOrders, 1, nil
 	case closePositionEPL:
-		return r.CloseDeposit.Wait(ctx)
+		return r.CloseDeposit, 1, nil
 	case getOrderDetEPL:
-		return r.GetOrderDetails.Wait(ctx)
+		return r.GetOrderDetails, 1, nil
 	case getOrderListEPL:
-		return r.GetOrderList.Wait(ctx)
+		return r.GetOrderList, 1, nil
 	case getOrderHistory7DaysEPL:
-		return r.GetOrderHistory7Days.Wait(ctx)
+		return r.GetOrderHistory7Days, 1, nil
 	case getOrderHistory3MonthsEPL:
-		return r.GetOrderHistory3Months.Wait(ctx)
+		return r.GetOrderHistory3Months, 1, nil
 	case getTransactionDetail3DaysEPL:
-		return r.GetTransactionDetail3Days.Wait(ctx)
+		return r.GetTransactionDetail3Days, 1, nil
 	case getTransactionDetail3MonthsEPL:
-		return r.GetTransactionDetail3Months.Wait(ctx)
+		return r.GetTransactionDetail3Months, 1, nil
 	case placeAlgoOrderEPL:
-		return r.PlaceAlgoOrder.Wait(ctx)
+		return r.PlaceAlgoOrder, 1, nil
 	case cancelAlgoOrderEPL:
-		return r.CancelAlgoOrder.Wait(ctx)
+		return r.CancelAlgoOrder, 1, nil
 	case cancelAdvanceAlgoOrderEPL:
-		return r.CancelAdvanceAlgoOrder.Wait(ctx)
+		return r.CancelAdvanceAlgoOrder, 1, nil
 	case getAlgoOrderListEPL:
-		return r.GetAlgoOrderList.Wait(ctx)
+		return r.GetAlgoOrderList, 1, nil
 	case getAlgoOrderHistoryEPL:
-		return r.GetAlgoOrderHistory.Wait(ctx)
+		return r.GetAlgoOrderHistory, 1, nil
 	case getEasyConvertCurrencyListEPL:
-		return r.GetEasyConvertCurrencyList.Wait(ctx)
+		return r.GetEasyConvertCurrencyList, 1, nil
 	case placeEasyConvertEPL:
-		return r.PlaceEasyConvert.Wait(ctx)
+		return r.PlaceEasyConvert, 1, nil
 	case getEasyConvertHistoryEPL:
-		return r.GetEasyConvertHistory.Wait(ctx)
+		return r.GetEasyConvertHistory, 1, nil
 	case getOneClickRepayHistoryEPL:
-		return r.GetOneClickRepayHistory.Wait(ctx)
+		return r.GetOneClickRepayHistory, 1, nil
 	case oneClickRepayCurrencyListEPL:
-		return r.OneClickRepayCurrencyList.Wait(ctx)
+		return r.OneClickRepayCurrencyList, 1, nil
 	case tradeOneClickRepayEPL:
-		return r.TradeOneClickRepay.Wait(ctx)
+		return r.TradeOneClickRepay, 1, nil
 	case getCounterpartiesEPL:
-		return r.GetCounterparties.Wait(ctx)
+		return r.GetCounterparties, 1, nil
 	case createRfqEPL:
-		return r.CreateRfq.Wait(ctx)
+		return r.CreateRfq, 1, nil
 	case cancelRfqEPL:
-		return r.CancelRfq.Wait(ctx)
+		return r.CancelRfq, 1, nil
 	case cancelMultipleRfqEPL:
-		return r.CancelMultipleRfq.Wait(ctx)
+		return r.CancelMultipleRfq, 1, nil
 	case cancelAllRfqsEPL:
-		return r.CancelAllRfqs.Wait(ctx)
+		return r.CancelAllRfqs, 1, nil
 	case executeQuoteEPL:
-		return r.ExecuteQuote.Wait(ctx)
+		return r.ExecuteQuote, 1, nil
 	case setQuoteProductsEPL:
-		return r.SetQuoteProducts.Wait(ctx)
+		return r.SetQuoteProducts, 1, nil
 	case restMMPStatusEPL:
-		return r.RestMMPStatus.Wait(ctx)
+		return r.RestMMPStatus, 1, nil
 	case createQuoteEPL:
-		return r.CreateQuote.Wait(ctx)
+		return r.CreateQuote, 1, nil
 	case cancelQuoteEPL:
-		return r.CancelQuote.Wait(ctx)
+		return r.CancelQuote, 1, nil
 	case cancelMultipleQuotesEPL:
-		return r.CancelMultipleQuotes.Wait(ctx)
+		return r.CancelMultipleQuotes, 1, nil
 	case cancelAllQuotesEPL:
-		return r.CancelAllQuotes.Wait(ctx)
+		return r.CancelAllQuotes, 1, nil
 	case getRfqsEPL:
-		return r.GetRfqs.Wait(ctx)
+		return r.GetRfqs, 1, nil
 	case getQuotesEPL:
-		return r.GetQuotes.Wait(ctx)
+		return r.GetQuotes, 1, nil
 	case getTradesEPL:
-		return r.GetTrades.Wait(ctx)
+		return r.GetTrades, 1, nil
 	case getTradesHistoryEPL:
-		return r.GetTradesHistory.Wait(ctx)
+		return r.GetTradesHistory, 1, nil
 	case getPublicTradesEPL:
-		return r.GetPublicTrades.Wait(ctx)
+		return r.GetPublicTrades, 1, nil
 	case getCurrenciesEPL:
-		return r.GetCurrencies.Wait(ctx)
+		return r.GetCurrencies, 1, nil
 	case getBalanceEPL:
-		return r.GetBalance.Wait(ctx)
+		return r.GetBalance, 1, nil
 	case getAccountAssetValuationEPL:
-		return r.GetAccountAssetValuation.Wait(ctx)
+		return r.GetAccountAssetValuation, 1, nil
 	case fundsTransferEPL:
-		return r.FundsTransfer.Wait(ctx)
+		return r.FundsTransfer, 1, nil
 	case getFundsTransferStateEPL:
-		return r.GetFundsTransferState.Wait(ctx)
+		return r.GetFundsTransferState, 1, nil
 	case assetBillsDetailsEPL:
-		return r.AssetBillsDetails.Wait(ctx)
+		return r.AssetBillsDetails, 1, nil
 	case lightningDepositsEPL:
-		return r.LightningDeposits.Wait(ctx)
+		return r.LightningDeposits, 1, nil
 	case getDepositAddressEPL:
-		return r.GetDepositAddress.Wait(ctx)
+		return r.GetDepositAddress, 1, nil
 	case getDepositHistoryEPL:
-		return r.GetDepositHistory.Wait(ctx)
+		return r.GetDepositHistory, 1, nil
 	case withdrawalEPL:
-		return r.Withdrawal.Wait(ctx)
+		return r.Withdrawal, 1, nil
 	case lightningWithdrawalsEPL:
-		return r.LightningWithdrawals.Wait(ctx)
+		return r.LightningWithdrawals, 1, nil
 	case cancelWithdrawalEPL:
-		return r.CancelWithdrawal.Wait(ctx)
+		return r.CancelWithdrawal, 1, nil
 	case getWithdrawalHistoryEPL:
-		return r.GetWithdrawalHistory.Wait(ctx)
+		return r.GetWithdrawalHistory, 1, nil
 	case smallAssetsConvertEPL:
-		return r.SmallAssetsConvert.Wait(ctx)
+		return r.SmallAssetsConvert, 1, nil
 	case getSavingBalanceEPL:
-		return r.GetSavingBalance.Wait(ctx)
+		return r.GetSavingBalance, 1, nil
 	case savingsPurchaseRedemptionEPL:
-		return r.SavingsPurchaseRedemp.Wait(ctx)
+		return r.SavingsPurchaseRedemp, 1, nil
 	case setLendingRateEPL:
-		return r.SetLendingRate.Wait(ctx)
+		return r.SetLendingRate, 1, nil
 	case getLendingHistoryEPL:
-		return r.GetLendingHistory.Wait(ctx)
+		return r.GetLendingHistory, 1, nil
 	case getPublicBorrowInfoEPL:
-		return r.GetPublicBorrowInfo.Wait(ctx)
+		return r.GetPublicBorrowInfo, 1, nil
 	case getConvertCurrenciesEPL:
-		return r.GetConvertCurrencies.Wait(ctx)
+		return r.GetConvertCurrencies, 1, nil
 	case getConvertCurrencyPairEPL:
-		return r.GetConvertCurrencyPair.Wait(ctx)
+		return r.GetConvertCurrencyPair, 1, nil
 	case estimateQuoteEPL:
-		return r.EstimateQuote.Wait(ctx)
+		return r.EstimateQuote, 1, nil
 	case convertTradeEPL:
-		return r.ConvertTrade.Wait(ctx)
+		return r.ConvertTrade, 1, nil
 	case getConvertHistoryEPL:
-		return r.GetConvertHistory.Wait(ctx)
+		return r.GetConvertHistory, 1, nil
 	case getAccountBalanceEPL:
-		return r.GetAccountBalance.Wait(ctx)
+		return r.GetAccountBalance, 1, nil
 	case getPositionsEPL:
-		return r.GetPositions.Wait(ctx)
+		return r.GetPositions, 1, nil
 	case getPositionsHistoryEPL:
-		return r.GetPositionsHistory.Wait(ctx)
+		return r.GetPositionsHistory, 1, nil
 	case getAccountAndPositionRiskEPL:
-		return r.GetAccountAndPositionRisk.Wait(ctx)
+		return r.GetAccountAndPositionRisk, 1, nil
 	case getBillsDetailsEPL:
-		return r.GetBillsDetails.Wait(ctx)
+		return r.GetBillsDetails, 1, nil
 	case getAccountConfigurationEPL:
-		return r.GetAccountConfiguration.Wait(ctx)
+		return r.GetAccountConfiguration, 1, nil
 	case setPositionModeEPL:
-		return r.SetPositionMode.Wait(ctx)
+		return r.SetPositionMode, 1, nil
 	case setLeverageEPL:
-		return r.SetLeverage.Wait(ctx)
+		return r.SetLeverage, 1, nil
 	case getMaximumBuyOrSellAmountEPL:
-		return r.GetMaximumBuyOrSellAmount.Wait(ctx)
+		return r.GetMaximumBuyOrSellAmount, 1, nil
 	case getMaximumAvailableTradableAmountEPL:
-		return r.GetMaximumAvailableTradableAmount.Wait(ctx)
+		return r.GetMaximumAvailableTradableAmount, 1, nil
 	case increaseOrDecreaseMarginEPL:
-		return r.IncreaseOrDecreaseMargin.Wait(ctx)
+		return r.IncreaseOrDecreaseMargin, 1, nil
 	case getLeverageEPL:
-		return r.GetLeverage.Wait(ctx)
+		return r.GetLeverage, 1, nil
 	case getTheMaximumLoanOfInstrumentEPL:
-		return r.GetTheMaximumLoanOfInstrument.Wait(ctx)
+		return r.GetTheMaximumLoanOfInstrument, 1, nil
 	case getFeeRatesEPL:
-		return r.GetFeeRates.Wait(ctx)
+		return r.GetFeeRates, 1, nil
 	case getInterestAccruedDataEPL:
-		return r.GetInterestAccruedData.Wait(ctx)
+		return r.GetInterestAccruedData, 1, nil
 	case getInterestRateEPL:
-		return r.GetInterestRate.Wait(ctx)
+		return r.GetInterestRate, 1, nil
 	case setGreeksEPL:
-		return r.SetGreeks.Wait(ctx)
+		return r.SetGreeks, 1, nil
 	case isolatedMarginTradingSettingsEPL:
-		return r.IsolatedMarginTradingSettings.Wait(ctx)
+		return r.IsolatedMarginTradingSettings, 1, nil
 	case getMaximumWithdrawalsEPL:
-		return r.GetMaximumWithdrawals.Wait(ctx)
+		return r.GetMaximumWithdrawals, 1, nil
 	case getAccountRiskStateEPL:
-		return r.GetAccountRiskState.Wait(ctx)
+		return r.GetAccountRiskState, 1, nil
 	case vipLoansBorrowAnsRepayEPL:
-		return r.VipLoansBorrowAnsRepay.Wait(ctx)
+		return r.VipLoansBorrowAnsRepay, 1, nil
 	case getBorrowAnsRepayHistoryHistoryEPL:
-		return r.GetBorrowAnsRepayHistoryHistory.Wait(ctx)
+		return r.GetBorrowAnsRepayHistoryHistory, 1, nil
 	case getBorrowInterestAndLimitEPL:
-		return r.GetBorrowInterestAndLimit.Wait(ctx)
+		return r.GetBorrowInterestAndLimit, 1, nil
 	case positionBuilderEPL:
-		return r.PositionBuilder.Wait(ctx)
+		return r.PositionBuilder, 1, nil
 	case getGreeksEPL:
-		return r.GetGreeks.Wait(ctx)
+		return r.GetGreeks, 1, nil
 	case getPMLimitationEPL:
-		return r.GetPMLimitation.Wait(ctx)
+		return r.GetPMLimitation, 1, nil
 	case viewSubaccountListEPL:
-		return r.ViewSubaccountList.Wait(ctx)
+		return r.ViewSubaccountList, 1, nil
 	case resetSubAccountAPIKeyEPL:
-		return r.ResetSubAccountAPIKey.Wait(ctx)
+		return r.ResetSubAccountAPIKey, 1, nil
 	case getSubaccountTradingBalanceEPL:
-		return r.GetSubaccountTradingBalance.Wait(ctx)
+		return r.GetSubaccountTradingBalance, 1, nil
 	case getSubaccountFundingBalanceEPL:
-		return r.GetSubaccountFundingBalance.Wait(ctx)
+		return r.GetSubaccountFundingBalance, 1, nil
 	case historyOfSubaccountTransferEPL:
-		return r.HistoryOfSubaccountTransfer.Wait(ctx)
+		return r.HistoryOfSubaccountTransfer, 1, nil
 	case masterAccountsManageTransfersBetweenSubaccountEPL:
-		return r.MasterAccountsManageTransfersBetweenSubaccount.Wait(ctx)
+		return r.MasterAccountsManageTransfersBetweenSubaccount, 1, nil
 	case setPermissionOfTransferOutEPL:
-		return r.SetPermissionOfTransferOut.Wait(ctx)
+		return r.SetPermissionOfTransferOut, 1, nil
 	case getCustodyTradingSubaccountListEPL:
-		return r.GetCustodyTradingSubaccountList.Wait(ctx)
+		return r.GetCustodyTradingSubaccountList, 1, nil
 	case gridTradingEPL:
-		return r.GridTrading.Wait(ctx)
+		return r.GridTrading, 1, nil
 	case amendGridAlgoOrderEPL:
-		return r.AmendGridAlgoOrder.Wait(ctx)
+		return r.AmendGridAlgoOrder, 1, nil
 	case stopGridAlgoOrderEPL:
-		return r.StopGridAlgoOrder.Wait(ctx)
+		return r.StopGridAlgoOrder, 1, nil
 	case getGridAlgoOrderListEPL:
-		return r.GetGridAlgoOrderList.Wait(ctx)
+		return r.GetGridAlgoOrderList, 1, nil
 	case getGridAlgoOrderHistoryEPL:
-		return r.GetGridAlgoOrderHistory.Wait(ctx)
+		return r.GetGridAlgoOrderHistory, 1, nil
 	case getGridAlgoOrderDetailsEPL:
-		return r.GetGridAlgoOrderDetails.Wait(ctx)
+		return r.GetGridAlgoOrderDetails, 1, nil
 	case getGridAlgoSubOrdersEPL:
-		return r.GetGridAlgoSubOrders.Wait(ctx)
+		return r.GetGridAlgoSubOrders, 1, nil
 	case getGridAlgoOrderPositionsEPL:
-		return r.GetGridAlgoOrderPositions.Wait(ctx)
+		return r.GetGridAlgoOrderPositions, 1, nil
 	case spotGridWithdrawIncomeEPL:
-		return r.SpotGridWithdrawIncome.Wait(ctx)
+		return r.SpotGridWithdrawIncome, 1, nil
 	case computeMarginBalanceEPL:
-		return r.ComputeMarginBalance.Wait(ctx)
+		return r.ComputeMarginBalance, 1, nil
 	case adjustMarginBalanceEPL:
-		return r.AdjustMarginBalance.Wait(ctx)
+		return r.AdjustMarginBalance, 1, nil
 	case getGridAIParameterEPL:
-		return r.GetGridAIParameter.Wait(ctx)
+		return r.GetGridAIParameter, 1, nil
 	case getOfferEPL:
-		return r.GetOffer.Wait(ctx)
+		return r.GetOffer, 1, nil
 	case purchaseEPL:
-		return r.Purchase.Wait(ctx)
+		return r.Purchase, 1, nil
 	case redeemEPL:
-		return r.Redeem.Wait(ctx)
+		return r.Redeem, 1, nil
 	case cancelPurchaseOrRedemptionEPL:
-		return r.CancelPurchaseOrRedemption.Wait(ctx)
+		return r.CancelPurchaseOrRedemption, 1, nil
 	case getEarnActiveOrdersEPL:
-		return r.GetEarnActiveOrders.Wait(ctx)
+		return r.GetEarnActiveOrders, 1, nil
 	case getFundingOrderHistoryEPL:
-		return r.GetFundingOrderHistory.Wait(ctx)
+		return r.GetFundingOrderHistory, 1, nil
 	case getTickersEPL:
-		return r.GetTickers.Wait(ctx)
+		return r.GetTickers, 1, nil
 	case getIndexTickersEPL:
-		return r.GetIndexTickers.Wait(ctx)
+		return r.GetIndexTickers, 1, nil
 	case getOrderBookEPL:
-		return r.GetOrderBook.Wait(ctx)
+		return r.GetOrderBook, 1, nil
 	case getCandlesticksEPL:
-		return r.GetCandlesticks.Wait(ctx)
+		return r.GetCandlesticks, 1, nil
 	case getTradesRequestEPL:
-		return r.GetTradesRequest.Wait(ctx)
+		return r.GetTradesRequest, 1, nil
 	case get24HTotalVolumeEPL:
-		return r.Get24HTotalVolume.Wait(ctx)
+		return r.Get24HTotalVolume, 1, nil
 	case getOracleEPL:
-		return r.GetOracle.Wait(ctx)
+		return r.GetOracle, 1, nil
 	case getExchangeRateRequestEPL:
-		return r.GetExchangeRateRequest.Wait(ctx)
+		return r.GetExchangeRateRequest, 1, nil
 	case getIndexComponentsEPL:
-		return r.GetIndexComponents.Wait(ctx)
+		return r.GetIndexComponents, 1, nil
 	case getBlockTickersEPL:
-		return r.GetBlockTickers.Wait(ctx)
+		return r.GetBlockTickers, 1, nil
 	case getBlockTradesEPL:
-		return r.GetBlockTrades.Wait(ctx)
+		return r.GetBlockTrades, 1, nil
 	case getInstrumentsEPL:
-		return r.GetInstruments.Wait(ctx)
+		return r.GetInstruments, 1, nil
 	case getDeliveryExerciseHistoryEPL:
-		return r.GetDeliveryExerciseHistory.Wait(ctx)
+		return r.GetDeliveryExerciseHistory, 1, nil
 	case getOpenInterestEPL:
-		return r.GetOpenInterest.Wait(ctx)
+		return r.GetOpenInterest, 1, nil
 	case getFundingEPL:
-		return r.GetFunding.Wait(ctx)
+		return r.GetFunding, 1, nil
 	case getFundingRateHistoryEPL:
-		return r.GetFundingRateHistory.Wait(ctx)
+		return r.GetFundingRateHistory, 1, nil
 	case getLimitPriceEPL:
-		return r.GetLimitPrice.Wait(ctx)
+		return r.GetLimitPrice, 1, nil
 	case getOptionMarketDateEPL:
-		return r.GetOptionMarketDate.Wait(ctx)
+		return r.GetOptionMarketDate, 1, nil
 	case getEstimatedDeliveryPriceEPL:
-		return r.GetEstimatedDeliveryExercisePrice.Wait(ctx)
+		return r.GetEstimatedDeliveryExercisePrice, 1, nil
 	case getDiscountRateAndInterestFreeQuotaEPL:
-		return r.GetDiscountRateAndInterestFreeQuota.Wait(ctx)
+		return r.GetDiscountRateAndInterestFreeQuota, 1, nil
 	case getSystemTimeEPL:
-		return r.GetSystemTime.Wait(ctx)
+		return r.GetSystemTime, 1, nil
 	case getLiquidationOrdersEPL:
-		return r.GetLiquidationOrders.Wait(ctx)
+		return r.GetLiquidationOrders, 1, nil
 	case getMarkPriceEPL:
-		return r.GetMarkPrice.Wait(ctx)
+		return r.GetMarkPrice, 1, nil
 	case getPositionTiersEPL:
-		return r.GetPositionTiers.Wait(ctx)
+		return r.GetPositionTiers, 1, nil
 	case getInterestRateAndLoanQuotaEPL:
-		return r.GetInterestRateAndLoanQuota.Wait(ctx)
+		return r.GetInterestRateAndLoanQuota, 1, nil
 	case getInterestRateAndLoanQuoteForVIPLoansEPL:
-		return r.GetInterestRateAndLoanQuoteForVIPLoans.Wait(ctx)
+		return r.GetInterestRateAndLoanQuoteForVIPLoans, 1, nil
 	case getUnderlyingEPL:
-		return r.GetUnderlying.Wait(ctx)
+		return r.GetUnderlying, 1, nil
 	case getInsuranceFundEPL:
-		return r.GetInsuranceFund.Wait(ctx)
+		return r.GetInsuranceFund, 1, nil
 	case unitConvertEPL:
-		return r.UnitConvert.Wait(ctx)
+		return r.UnitConvert, 1, nil
 	case getSupportCoinEPL:
-		return r.GetSupportCoin.Wait(ctx)
+		return r.GetSupportCoin, 1, nil
 	case getTakerVolumeEPL:
-		return r.GetTakerVolume.Wait(ctx)
+		return r.GetTakerVolume, 1, nil
 	case getMarginLendingRatioEPL:
-		return r.GetMarginLendingRatio.Wait(ctx)
+		return r.GetMarginLendingRatio, 1, nil
 	case getLongShortRatioEPL:
-		return r.GetLongShortRatio.Wait(ctx)
+		return r.GetLongShortRatio, 1, nil
 	case getContractsOpenInterestAndVolumeEPL:
-		return r.GetContractsOpenInterestAndVolume.Wait(ctx)
+		return r.GetContractsOpenInterestAndVolume, 1, nil
 	case getOptionsOpenInterestAndVolumeEPL:
-		return r.GetOptionsOpenInterestAndVolume.Wait(ctx)
+		return r.GetOptionsOpenInterestAndVolume, 1, nil
 	case getPutCallRatioEPL:
-		return r.GetPutCallRatio.Wait(ctx)
+		return r.GetPutCallRatio, 1, nil
 	case getOpenInterestAndVolumeEPL:
-		return r.GetOpenInterestAndVolume.Wait(ctx)
+		return r.GetOpenInterestAndVolume, 1, nil
 	case getTakerFlowEPL:
-		return r.GetTakerFlow.Wait(ctx)
+		return r.GetTakerFlow, 1, nil
 	case getEventStatusEPL:
-		return r.GetEventStatus.Wait(ctx)
+		return r.GetEventStatus, 1, nil
 	default:
-		return errors.New("endpoint rate limit functionality not found")
+		return nil, 0, errors.New("endpoint rate limit functionality not found")
 	}
 }
 

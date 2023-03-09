@@ -24,12 +24,12 @@ type RateLimit struct {
 }
 
 // Limit executes rate limiting functionality for exchange
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	case orderFunc:
-		return r.Orders.Wait(ctx)
+		return r.Orders, 1, nil
 	default:
-		return r.Query.Wait(ctx)
+		return r.Query, 1, nil
 	}
 }
 

@@ -28,16 +28,16 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	case marketRequests:
-		return r.MarketData.Wait(ctx)
+		return r.MarketData, 1, nil
 	case tradingRequests:
-		return r.Trading.Wait(ctx)
+		return r.Trading, 1, nil
 	case otherRequests:
-		return r.Other.Wait(ctx)
+		return r.Other, 1, nil
 	default:
-		return errors.New("functionality not found")
+		return nil, 0, errors.New("functionality not found")
 	}
 }
 

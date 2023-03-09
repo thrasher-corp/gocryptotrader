@@ -22,11 +22,11 @@ type RateLimit struct {
 }
 
 // Limit limits requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	if f == request.Auth {
-		return r.Auth.Wait(ctx)
+		return r.Auth, 1, nil
 	}
-	return r.UnAuth.Wait(ctx)
+	return r.UnAuth, 1, nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

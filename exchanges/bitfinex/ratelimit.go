@@ -256,154 +256,153 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	case platformStatus:
-		return r.PlatformStatus.Wait(ctx)
+		return r.PlatformStatus, 1, nil
 	case tickerBatch:
-		return r.TickerBatch.Wait(ctx)
+		return r.TickerBatch, 1, nil
 	case tickerFunction:
-		return r.Ticker.Wait(ctx)
+		return r.Ticker, 1, nil
 	case tradeRateLimit:
-		return r.Trade.Wait(ctx)
+		return r.Trade, 1, nil
 	case orderbookFunction:
-		return r.Orderbook.Wait(ctx)
+		return r.Orderbook, 1, nil
 	case stats:
-		return r.Stats.Wait(ctx)
+		return r.Stats, 1, nil
 	case candle:
-		return r.Candle.Wait(ctx)
+		return r.Candle, 1, nil
 	case configs:
-		return r.Configs.Wait(ctx)
+		return r.Configs, 1, nil
 	case status:
-		return r.Stats.Wait(ctx)
+		return r.Stats, 1, nil
 	case liquid:
-		return r.Liquid.Wait(ctx)
+		return r.Liquid, 1, nil
 	case leaderBoard:
-		return r.LeaderBoard.Wait(ctx)
+		return r.LeaderBoard, 1, nil
 	case marketAveragePrice:
-		return r.MarketAveragePrice.Wait(ctx)
+		return r.MarketAveragePrice, 1, nil
 	case fx:
-		return r.Fx.Wait(ctx)
+		return r.Fx, 1, nil
 	case accountWalletBalance:
-		return r.AccountWalletBalance.Wait(ctx)
+		return r.AccountWalletBalance, 1, nil
 	case accountWalletHistory:
-		return r.AccountWalletHistory.Wait(ctx)
+		return r.AccountWalletHistory, 1, nil
 	case retrieveOrder:
-		return r.RetrieveOrder.Wait(ctx)
+		return r.RetrieveOrder, 1, nil
 	case submitOrder:
-		return r.SubmitOrder.Wait(ctx)
+		return r.SubmitOrder, 1, nil
 	case updateOrder:
-		return r.UpdateOrder.Wait(ctx)
+		return r.UpdateOrder, 1, nil
 	case cancelOrder:
-		return r.CancelOrder.Wait(ctx)
+		return r.CancelOrder, 1, nil
 	case orderBatch:
-		return r.OrderBatch.Wait(ctx)
+		return r.OrderBatch, 1, nil
 	case cancelBatch:
-		return r.CancelBatch.Wait(ctx)
+		return r.CancelBatch, 1, nil
 	case orderHistory:
-		return r.OrderHistory.Wait(ctx)
+		return r.OrderHistory, 1, nil
 	case getOrderTrades:
-		return r.GetOrderTrades.Wait(ctx)
+		return r.GetOrderTrades, 1, nil
 	case getTrades:
-		return r.GetTrades.Wait(ctx)
+		return r.GetTrades, 1, nil
 	case getLedgers:
-		return r.GetLedgers.Wait(ctx)
+		return r.GetLedgers, 1, nil
 	case getAccountMarginInfo:
-		return r.GetAccountMarginInfo.Wait(ctx)
+		return r.GetAccountMarginInfo, 1, nil
 	case getActivePositions:
-		return r.GetActivePositions.Wait(ctx)
+		return r.GetActivePositions, 1, nil
 	case claimPosition:
-		return r.ClaimPosition.Wait(ctx)
+		return r.ClaimPosition, 1, nil
 	case getPositionHistory:
-		return r.GetPositionHistory.Wait(ctx)
+		return r.GetPositionHistory, 1, nil
 	case getPositionAudit:
-		return r.GetPositionAudit.Wait(ctx)
+		return r.GetPositionAudit, 1, nil
 	case updateCollateralOnPosition:
-		return r.UpdateCollateralOnPosition.Wait(ctx)
+		return r.UpdateCollateralOnPosition, 1, nil
 	case getActiveFundingOffers:
-		return r.GetActiveFundingOffers.Wait(ctx)
+		return r.GetActiveFundingOffers, 1, nil
 	case submitFundingOffer:
-		return r.SubmitFundingOffer.Wait(ctx)
+		return r.SubmitFundingOffer, 1, nil
 	case cancelFundingOffer:
-		return r.CancelFundingOffer.Wait(ctx)
+		return r.CancelFundingOffer, 1, nil
 	case cancelAllFundingOffer:
-		return r.CancelAllFundingOffer.Wait(ctx)
+		return r.CancelAllFundingOffer, 1, nil
 	case closeFunding:
-		return r.CloseFunding.Wait(ctx)
+		return r.CloseFunding, 1, nil
 	case fundingAutoRenew:
-		return r.FundingAutoRenew.Wait(ctx)
+		return r.FundingAutoRenew, 1, nil
 	case keepFunding:
-		return r.KeepFunding.Wait(ctx)
+		return r.KeepFunding, 1, nil
 	case getOffersHistory:
-		return r.GetOffersHistory.Wait(ctx)
+		return r.GetOffersHistory, 1, nil
 	case getFundingLoans:
-		return r.GetFundingLoans.Wait(ctx)
+		return r.GetFundingLoans, 1, nil
 	case getFundingLoanHistory:
-		return r.GetFundingLoanHistory.Wait(ctx)
+		return r.GetFundingLoanHistory, 1, nil
 	case getFundingCredits:
-		return r.GetFundingCredits.Wait(ctx)
+		return r.GetFundingCredits, 1, nil
 	case getFundingCreditsHistory:
-		return r.GetFundingCreditsHistory.Wait(ctx)
+		return r.GetFundingCreditsHistory, 1, nil
 	case getFundingTrades:
-		return r.GetFundingTrades.Wait(ctx)
+		return r.GetFundingTrades, 1, nil
 	case getFundingInfo:
-		return r.GetFundingInfo.Wait(ctx)
+		return r.GetFundingInfo, 1, nil
 	case getUserInfo:
-		return r.GetUserInfo.Wait(ctx)
+		return r.GetUserInfo, 1, nil
 	case transferBetweenWallets:
-		return r.TransferBetweenWallets.Wait(ctx)
+		return r.TransferBetweenWallets, 1, nil
 	case getDepositAddress:
-		return r.GetDepositAddress.Wait(ctx)
+		return r.GetDepositAddress, 1, nil
 	case withdrawal:
-		return r.Withdrawal.Wait(ctx)
+		return r.Withdrawal, 1, nil
 	case getMovements:
-		return r.GetMovements.Wait(ctx)
+		return r.GetMovements, 1, nil
 	case getAlertList:
-		return r.GetAlertList.Wait(ctx)
+		return r.GetAlertList, 1, nil
 	case setPriceAlert:
-		return r.SetPriceAlert.Wait(ctx)
+		return r.SetPriceAlert, 1, nil
 	case deletePriceAlert:
-		return r.DeletePriceAlert.Wait(ctx)
+		return r.DeletePriceAlert, 1, nil
 	case getBalanceForOrdersOffers:
-		return r.GetBalanceForOrdersOffers.Wait(ctx)
+		return r.GetBalanceForOrdersOffers, 1, nil
 	case userSettingsWrite:
-		return r.UserSettingsWrite.Wait(ctx)
+		return r.UserSettingsWrite, 1, nil
 	case userSettingsRead:
-		return r.UserSettingsRead.Wait(ctx)
+		return r.UserSettingsRead, 1, nil
 	case userSettingsDelete:
-		return r.UserSettingsDelete.Wait(ctx)
-
+		return r.UserSettingsDelete, 1, nil
 		//  Bitfinex V1 API
 	case getAccountFees:
-		return r.GetAccountFees.Wait(ctx)
+		return r.GetAccountFees, 1, nil
 	case getWithdrawalFees:
-		return r.GetWithdrawalFees.Wait(ctx)
+		return r.GetWithdrawalFees, 1, nil
 	case getAccountSummary:
-		return r.GetAccountSummary.Wait(ctx)
+		return r.GetAccountSummary, 1, nil
 	case newDepositAddress:
-		return r.NewDepositAddress.Wait(ctx)
+		return r.NewDepositAddress, 1, nil
 	case getKeyPermissions:
-		return r.GetKeyPermissions.Wait(ctx)
+		return r.GetKeyPermissions, 1, nil
 	case getMarginInfo:
-		return r.GetMarginInfo.Wait(ctx)
+		return r.GetMarginInfo, 1, nil
 	case getAccountBalance:
-		return r.GetAccountBalance.Wait(ctx)
+		return r.GetAccountBalance, 1, nil
 	case walletTransfer:
-		return r.WalletTransfer.Wait(ctx)
+		return r.WalletTransfer, 1, nil
 	case withdrawV1:
-		return r.WithdrawV1.Wait(ctx)
+		return r.WithdrawV1, 1, nil
 	case orderV1:
-		return r.OrderV1.Wait(ctx)
+		return r.OrderV1, 1, nil
 	case orderMulti:
-		return r.OrderMulti.Wait(ctx)
+		return r.OrderMulti, 1, nil
 	case statsV1:
-		return r.Stats.Wait(ctx)
+		return r.Stats, 1, nil
 	case fundingbook:
-		return r.Fundingbook.Wait(ctx)
+		return r.Fundingbook, 1, nil
 	case lends:
-		return r.Lends.Wait(ctx)
+		return r.Lends, 1, nil
 	default:
-		return errors.New("endpoint rate limit functionality not found")
+		return nil, 0, errors.New("endpoint rate limit functionality not found")
 	}
 }
 

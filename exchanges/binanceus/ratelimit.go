@@ -2,7 +2,6 @@ package binanceus
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -48,64 +47,43 @@ type RateLimit struct {
 }
 
 // Limit executes rate limiting functionality for Binance
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	var limiter *rate.Limiter
-	var tokens int
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
+
 	switch f {
 	case spotDefaultRate:
-		limiter, tokens = r.SpotRate, 1
+		return r.SpotRate, 1, nil
 	case spotOrderbookTickerAllRate,
 		spotSymbolPriceAllRate:
-		limiter, tokens = r.SpotRate, 2
+		return r.SpotRate, 2, nil
 	case spotHistoricalTradesRate,
 		spotOrderbookDepth500Rate:
-		limiter, tokens = r.SpotRate, 5
+		return r.SpotRate, 5, nil
 	case spotOrderbookDepth1000Rate,
 		spotAccountInformationRate,
 		spotExchangeInfo,
 		spotTradesQueryRate:
-		limiter, tokens = r.SpotRate, 10
+		return r.SpotRate, 10, nil
 	case spotPriceChangeAllRate:
-		limiter, tokens = r.SpotRate, 40
+		return r.SpotRate, 40, nil
 	case spotOrderbookDepth5000Rate:
-		limiter, tokens = r.SpotRate, 50
+		return r.SpotRate, 50, nil
 	case spotOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 1
+		return r.SpotOrdersRate, 1, nil
 	case spotOrderQueryRate,
 		spotSingleOCOOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 2
+		return r.SpotOrdersRate, 2, nil
 	case spotOpenOrdersSpecificRate:
-		limiter, tokens = r.SpotOrdersRate, 3
+		return r.SpotOrdersRate, 3, nil
 	case spotAllOrdersRate,
 		spotAllOCOOrdersRate:
-		limiter, tokens = r.SpotOrdersRate, 10
+		return r.SpotOrdersRate, 10, nil
 	case spotOrderRateLimitRate:
-		limiter, tokens = r.SpotOrdersRate, 20
+		return r.SpotOrdersRate, 20, nil
 	case spotOpenOrdersAllRate:
-		limiter, tokens = r.SpotOrdersRate, 40
+		return r.SpotOrdersRate, 40, nil
 	default:
-		limiter, tokens = r.SpotRate, 1
+		return r.SpotRate, 1, nil
 	}
-	var finalDelay time.Duration
-	var reserves = make([]*rate.Reservation, tokens)
-	for i := 0; i < tokens; i++ {
-		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
-		// which would otherwise allow the rate limit to be exceeded over short periods
-		reserves[i] = limiter.Reserve()
-		finalDelay = reserves[i].Delay()
-	}
-	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
-		// Cancel all potential reservations to free up rate limiter if deadline
-		// is exceeded.
-		for x := range reserves {
-			reserves[x].Cancel()
-		}
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
-			finalDelay,
-			context.DeadlineExceeded)
-	}
-	time.Sleep(finalDelay)
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

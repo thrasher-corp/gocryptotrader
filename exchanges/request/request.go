@@ -48,6 +48,7 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 		maxRetries:  MaxRetryAttempts,
 		timedLock:   timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
 		reporter:    globalReporter,
+		shutdown:    make(chan struct{}),
 	}
 
 	for _, o := range opts {
@@ -369,6 +370,7 @@ func (r *Requester) Shutdown() error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
+	close(r.shutdown)
 	return r._HTTPClient.release()
 }
 

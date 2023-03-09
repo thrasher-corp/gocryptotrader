@@ -40,6 +40,7 @@ type Requester struct {
 	backoff            Backoff
 	retryPolicy        RetryPolicy
 	timedLock          *timedmutex.TimedMutex
+	shutdown           chan struct{}
 }
 
 // Item is a temp item for requests

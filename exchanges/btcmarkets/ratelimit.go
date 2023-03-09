@@ -36,20 +36,20 @@ type RateLimit struct {
 }
 
 // Limit limits the outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
 	switch f {
 	case request.Auth:
-		return r.Auth.Wait(ctx)
+		return r.Auth, 1, nil
 	case orderFunc:
-		return r.OrderPlacement.Wait(ctx)
+		return r.OrderPlacement, 1, nil
 	case batchFunc:
-		return r.BatchOrders.Wait(ctx)
+		return r.BatchOrders, 1, nil
 	case withdrawFunc:
-		return r.WithdrawRequest.Wait(ctx)
+		return r.WithdrawRequest, 1, nil
 	case newReportFunc:
-		return r.CreateNewReport.Wait(ctx)
+		return r.CreateNewReport, 1, nil
 	default:
-		return r.UnAuth.Wait(ctx)
+		return r.UnAuth, 1, nil
 	}
 }
 
