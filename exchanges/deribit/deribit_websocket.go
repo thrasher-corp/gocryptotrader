@@ -71,6 +71,7 @@ var defaultSubscriptions = []string{
 	tradesWithKindChannel,
 }
 
+var timeer time.Time
 var (
 	pingMessage = WsSubscriptionInput{
 		ID:             2,
@@ -83,7 +84,7 @@ var (
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/set_heartbeat",
 		Params: map[string]interface{}{
-			"interval": 30,
+			"interval": 15,
 		},
 	}
 )
@@ -98,15 +99,6 @@ func (d *Deribit) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	pingMessageJSON, err := json.Marshal(pingMessage)
-	if err != nil {
-		return err
-	}
-	d.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		Delay:       time.Second * 30,
-		MessageType: websocket.PingMessage,
-		Message:     pingMessageJSON,
-	})
 	d.Websocket.Wg.Add(1)
 	go d.wsReadData()
 	if d.Websocket.CanUseAuthenticatedEndpoints() {
@@ -120,14 +112,11 @@ func (d *Deribit) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	subscriptions, err := d.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return d.Subscribe(subscriptions)
+	return nil
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
+	println("\n\n\n\n\n\nAuthenticating the Authenticated websocket connection...\n\n\n\n\n\n")
 	if !d.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", d.Name)
 	}
@@ -196,6 +185,9 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
+	}
+	if response.Method == "heartbeat" {
+		return d.Websocket.Conn.SendJSONMessage(pingMessage)
 	}
 	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {

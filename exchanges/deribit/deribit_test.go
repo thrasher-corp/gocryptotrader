@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 	}
 	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	setupWs()
+	// setupWs()
 	os.Exit(m.Run())
 }
 
@@ -2628,6 +2628,23 @@ func TestCalculateTradingFee(t *testing.T) {
 	}
 	_, err = calculateTradingFee(feeBuilder)
 	if !errors.Is(err, errUnsupportedInstrumentFormat) {
+		t.Error(err)
+	}
+}
+
+func TestGetTime(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	_, err := d.GetTime(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetServerTime(context.Background(), asset.Empty)
+	if err != nil {
 		t.Error(err)
 	}
 }

@@ -34,6 +34,9 @@ const (
 
 	// Public endpoints
 
+	// Supporting endpoints
+	serverTime = "public/get_time"
+
 	// Market Data
 	getBookByCurrency                = "public/get_book_summary_by_currency"
 	getBookByInstrument              = "public/get_book_summary_by_instrument"
@@ -2341,6 +2344,16 @@ func (d *Deribit) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTrad
 	params.Set("id", id)
 	var resp []BlockTradeData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getBlockTrades, params, &resp)
+}
+
+// GetTime retrieves the current time (in milliseconds). This API endpoint can be used to check the clock skew between your software and Deribit's systems.
+func (d *Deribit) GetTime(ctx context.Context) (time.Time, error) {
+	var result int64
+	err := d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, serverTime, &result)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.UnixMilli(result), nil
 }
 
 // GetLastBlockTradesByCurrency returns list of last users block trades

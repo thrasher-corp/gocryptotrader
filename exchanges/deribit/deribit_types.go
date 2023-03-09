@@ -1014,6 +1014,9 @@ type WsResponse struct {
 	Params struct {
 		Data    interface{} `json:"data"`
 		Channel string      `json:"channel"`
+
+		// Used in heartbead and test_request messages.
+		Type string `json:"type"`
 	} `json:"params"`
 	Method         string `json:"method"`
 	JSONRPCVersion string `json:"jsonrpc"`

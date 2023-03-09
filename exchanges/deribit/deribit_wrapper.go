@@ -467,7 +467,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 				Currency:        currencies[x].Currency,
 				Amount:          withdrawalData.Data[z].Amount,
 				CryptoToAddress: withdrawalData.Data[z].Address,
-				TransferType:    "deposit",
+				TransferType:    "withdrawal",
 			})
 		}
 	}
@@ -1144,4 +1144,9 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		}
 	}
 	return req.ProcessResponse(timeSeries)
+}
+
+// GetServerTime returns the current exchange server time.
+func (d *Deribit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return d.GetTime(ctx)
 }
