@@ -49,7 +49,7 @@ func TestRateLimit_Limit(t *testing.T) {
 			}
 
 			l := SetRateLimit()
-			if err := l.Limit(ctx, tt.Limit); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+			if _, _, err := l.Limit(ctx, tt.Limit); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
@@ -70,7 +70,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 			t.Parallel()
 
 			l := SetRateLimit()
-			if err := l.Limit(context.Background(), tt); err != nil {
+			if _, _, err := l.Limit(context.Background(), tt); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
