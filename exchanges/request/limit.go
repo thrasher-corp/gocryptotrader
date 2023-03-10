@@ -14,6 +14,11 @@ import (
 var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
+
+	errRequestSystemShutdown    = errors.New("request system has shutdown")
+	errLimiterSystemIsNil       = errors.New("limiter system is nil")
+	errInvalidTokenCount        = errors.New("invalid token count must equal or greater than 1")
+	errSpecificRateLimiterIsNil = errors.New("specific rate limiter is nil")
 )
 
 // Const here define individual functionality sub types for rate limiting
@@ -36,7 +41,7 @@ func (b *BasicLimit) Limit(ctx context.Context, _ EndpointLimit) (*rate.Limiter,
 
 // EndpointLimit defines individual endpoint rate limits that are set when
 // New is called.
-type EndpointLimit int
+type EndpointLimit uint16
 
 // Limiter interface groups rate limit functionality defined in the REST
 // wrapper for extended rate limiting configuration i.e. Shells of rate
@@ -65,19 +70,14 @@ func NewBasicRateLimit(interval time.Duration, actions int) Limiter {
 	return &BasicLimit{NewRateLimit(interval, actions)}
 }
 
-var errRequestSystemShutdown = errors.New("request system has shutdown")
-
 // InitiateRateLimit sleeps for designated end point rate limits
-func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
+func (r *Requester) initiateRateLimit(ctx context.Context, e EndpointLimit) error {
 	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
 		return nil
 	}
 
 	if r.limiter == nil {
-		return nil
+		return fmt.Errorf("cannot rate limit request %w", errLimiterSystemIsNil)
 	}
 
 	rateLimiter, tokens, err := r.limiter.Limit(ctx, e)
@@ -86,11 +86,11 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 	}
 
 	if tokens <= 0 {
-		return errors.New("invalid tokens must equal or greater than 1")
+		return fmt.Errorf("cannot rate limit request %w", errInvalidTokenCount)
 	}
 
 	if rateLimiter == nil {
-		return errors.New("cannot rate limit, rate limiter is nil")
+		return fmt.Errorf("cannot rate limit request %w", errSpecificRateLimiterIsNil)
 	}
 
 	var finalDelay time.Duration
@@ -113,7 +113,7 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 			context.DeadlineExceeded)
 	}
 
-	tick := time.NewTimer(finalDelay) // TODO: Create a pool for this.
+	tick := time.NewTimer(finalDelay)
 	defer tick.Stop()
 	select {
 	case <-tick.C:
@@ -127,7 +127,7 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		for x := range reservations {
 			reservations[x].Cancel()
 		}
-		return errRequestSystemShutdown
+		return fmt.Errorf("cannot rate limit request %w", errRequestSystemShutdown)
 	}
 }
 
