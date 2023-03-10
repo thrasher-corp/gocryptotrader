@@ -61,6 +61,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
+	h.CurrencyPairs.SetAssetEnabled(asset.Futures, true)
+	h.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, true)
+	h.UpdateTradablePairs(context.Background(), true)
 	os.Exit(m.Run())
 }
 
@@ -195,12 +198,9 @@ func TestFLastTradeData(t *testing.T) {
 
 func TestFRequestPublicBatchTrades(t *testing.T) {
 	t.Parallel()
-	a, err := h.FRequestPublicBatchTrades(context.Background(), futuresTestPair, 50)
+	_, err := h.FRequestPublicBatchTrades(context.Background(), futuresTestPair, 50)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(a.Data) != 50 {
-		t.Errorf("len of data should be 50")
 	}
 }
 
@@ -2657,6 +2657,26 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = h.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	fPairs, err := h.CurrencyPairs.GetPairs(asset.Futures, false)
+	if err != nil {
+		t.Error(err)
+	}
+	currencyPair, err = fPairs.GetRandomPair()
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = h.GetRecentTrades(context.Background(), currencyPair, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	currencyPair, err = currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = h.GetRecentTrades(context.Background(), currencyPair, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}

@@ -820,35 +820,118 @@ func (h *HUOBI) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHi
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetRecentTrades returns the most recent trades for a currency and asset
-func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	var tradeData []TradeHistory
-	tradeData, err = h.GetTradeHistory(ctx, p, 2000)
+func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	withdrawals, err := h.SearchForExistedWithdrawsAndDeposits(ctx, c, "withdraw", "", 0, 500)
 	if err != nil {
 		return nil, err
 	}
+	resp := make([]exchange.WithdrawalHistory, len(withdrawals.Data))
+	for i := range withdrawals.Data {
+		resp[i] = exchange.WithdrawalHistory{
+			Status:          withdrawals.Data[i].State,
+			TransferID:      withdrawals.Data[i].TransactionHash,
+			Timestamp:       withdrawals.Data[i].CreatedAt,
+			Currency:        withdrawals.Data[i].Currency.String(),
+			Amount:          withdrawals.Data[i].Amount,
+			Fee:             withdrawals.Data[i].Fee,
+			TransferType:    withdrawals.Data[i].Type,
+			CryptoToAddress: withdrawals.Data[i].Address,
+			CryptoTxID:      withdrawals.Data[i].TransactionHash,
+			CryptoChain:     withdrawals.Data[i].Chain,
+		}
+	}
+	return resp, nil
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error) {
 	var resp []trade.Data
-	for i := range tradeData {
-		for j := range tradeData[i].Trades {
+	pFmt, err := h.GetPairFormat(a, true)
+	if err != nil {
+		return nil, err
+	}
+
+	p = p.Format(pFmt)
+	switch a {
+	case asset.Spot:
+		var sTrades []TradeHistory
+		sTrades, err = h.GetTradeHistory(ctx, p, 2000)
+		if err != nil {
+			return nil, err
+		}
+		for i := range sTrades {
+			for j := range sTrades[i].Trades {
+				var side order.Side
+				side, err = order.StringToOrderSide(sTrades[i].Trades[j].Direction)
+				if err != nil {
+					return nil, err
+				}
+				resp = append(resp, trade.Data{
+					Exchange:     h.Name,
+					TID:          strconv.FormatFloat(sTrades[i].Trades[j].TradeID, 'f', -1, 64),
+					CurrencyPair: p,
+					AssetType:    a,
+					Side:         side,
+					Price:        sTrades[i].Trades[j].Price,
+					Amount:       sTrades[i].Trades[j].Amount,
+					Timestamp:    time.UnixMilli(sTrades[i].Timestamp),
+				})
+			}
+
+		}
+	case asset.Futures:
+		var fTrades FBatchTradesForContractData
+		fTrades, err = h.FRequestPublicBatchTrades(ctx, p, 2000)
+		if err != nil {
+			return nil, err
+		}
+		for i := range fTrades.Data {
+			for j := range fTrades.Data[i].Data {
+				var side order.Side
+				if fTrades.Data[i].Data[j].Direction != "" {
+					side, err = order.StringToOrderSide(fTrades.Data[i].Data[j].Direction)
+					if err != nil {
+						return nil, err
+					}
+				}
+				resp = append(resp, trade.Data{
+					Exchange:     h.Name,
+					TID:          strconv.FormatInt(fTrades.Data[i].Data[j].ID, 10),
+					CurrencyPair: p,
+					AssetType:    a,
+					Side:         side,
+					Price:        fTrades.Data[i].Data[j].Price,
+					Amount:       fTrades.Data[i].Data[j].Amount,
+					Timestamp:    time.UnixMilli(fTrades.Data[i].Data[j].Timestamp),
+				})
+			}
+		}
+	case asset.CoinMarginedFutures:
+		var cTrades BatchTradesData
+		cTrades, err = h.GetBatchTrades(ctx, p, 2000)
+		if err != nil {
+			return nil, err
+		}
+		for i := range cTrades.Data {
 			var side order.Side
-			side, err = order.StringToOrderSide(tradeData[i].Trades[j].Direction)
-			if err != nil {
-				return nil, err
+			if cTrades.Data[i].Direction != "" {
+				side, err = order.StringToOrderSide(cTrades.Data[i].Direction)
+				if err != nil {
+					return nil, err
+				}
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     h.Name,
-				TID:          strconv.FormatFloat(tradeData[i].Trades[j].TradeID, 'f', -1, 64),
+				TID:          strconv.FormatInt(cTrades.Data[i].ID, 10),
 				CurrencyPair: p,
-				AssetType:    assetType,
+				AssetType:    a,
 				Side:         side,
-				Price:        tradeData[i].Trades[j].Price,
-				Amount:       tradeData[i].Trades[j].Amount,
-				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
+				Price:        cTrades.Data[i].Price,
+				Amount:       cTrades.Data[i].Amount,
+				Timestamp:    time.UnixMilli(cTrades.Data[i].Timestamp),
 			})
 		}
 	}
@@ -1771,40 +1854,132 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		return nil, err
 	}
 
-	if a != asset.Spot {
-		// TODO: Implement futures and coin margined futures
-		return nil, common.ErrNotYetImplemented
-	}
-
-	candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
-		Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
-		Symbol: req.Pair,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	timeSeries := make([]kline.Candle, 0, len(candles))
-	for x := range candles {
-		timestamp := time.Unix(candles[x].ID, 0)
-		if timestamp.Before(req.Start) || timestamp.After(req.End) {
-			continue
-		}
-		timeSeries = append(timeSeries, kline.Candle{
-			Time:   timestamp,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	switch a {
+	case asset.Spot:
+		candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
+			Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
+			Symbol: req.Pair,
 		})
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range candles {
+			timestamp := time.Unix(candles[x].ID, 0)
+			if timestamp.Before(req.Start) || timestamp.After(req.End) {
+				continue
+			}
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   timestamp,
+				Open:   candles[x].Open,
+				High:   candles[x].High,
+				Low:    candles[x].Low,
+				Close:  candles[x].Close,
+				Volume: candles[x].Volume,
+			})
+		}
+	case asset.Futures:
+		candles, err := h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), 1200, req.Start, req.End)
+		if err != nil {
+			return nil, err
+		}
+		for x := range candles.Data {
+			timestamp := time.Unix(candles.Data[x].ID, 0)
+			if timestamp.Before(req.Start) || timestamp.After(req.End) {
+				continue
+			}
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   timestamp,
+				Open:   candles.Data[x].Open,
+				High:   candles.Data[x].High,
+				Low:    candles.Data[x].Low,
+				Close:  candles.Data[x].Close,
+				Volume: candles.Data[x].Volume,
+			})
+		}
+	case asset.CoinMarginedFutures:
+		candles, err := h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), 1200, req.Start, req.End)
+		if err != nil {
+			return nil, err
+		}
+		for x := range candles.Data {
+			timestamp := time.Unix(candles.Data[x].ID, 0)
+			if timestamp.Before(req.Start) || timestamp.After(req.End) {
+				continue
+			}
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   timestamp,
+				Open:   candles.Data[x].Open,
+				High:   candles.Data[x].High,
+				Low:    candles.Data[x].Low,
+				Close:  candles.Data[x].Close,
+				Volume: candles.Data[x].Volume,
+			})
+		}
 	}
+
 	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := h.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	switch a {
+	case asset.Spot:
+		return nil, common.ErrFunctionNotSupported
+	case asset.Futures:
+		for i := range req.RangeHolder.Ranges {
+			var candles FKlineData
+			candles, err = h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), 1200, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for x := range candles.Data {
+				timestamp := time.Unix(candles.Data[x].ID, 0)
+				if timestamp.Before(req.Start) || timestamp.After(req.End) {
+					continue
+				}
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   timestamp,
+					Open:   candles.Data[x].Open,
+					High:   candles.Data[x].High,
+					Low:    candles.Data[x].Low,
+					Close:  candles.Data[x].Close,
+					Volume: candles.Data[x].Volume,
+				})
+			}
+		}
+	case asset.CoinMarginedFutures:
+		for i := range req.RangeHolder.Ranges {
+			var candles SwapKlineData
+			candles, err = h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), 1200, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for x := range candles.Data {
+				timestamp := time.Unix(candles.Data[x].ID, 0)
+				if timestamp.Before(req.Start) || timestamp.After(req.End) {
+					continue
+				}
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   timestamp,
+					Open:   candles.Data[x].Open,
+					High:   candles.Data[x].High,
+					Low:    candles.Data[x].Low,
+					Close:  candles.Data[x].Close,
+					Volume: candles.Data[x].Volume,
+				})
+			}
+		}
+	}
+
+	return req.ProcessResponse(timeSeries)
 }
 
 // compatibleVars gets compatible variables for order vars

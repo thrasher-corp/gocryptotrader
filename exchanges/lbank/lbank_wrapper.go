@@ -381,7 +381,26 @@ func (l *Lbank) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHi
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	withdrawalRecords, err := l.GetWithdrawalRecords(ctx, c.String(), 1, 0, 100)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(withdrawalRecords.List))
+	for i := range withdrawalRecords.List {
+		id := strconv.FormatInt(withdrawalRecords.List[i].ID, 10)
+		resp[i] = exchange.WithdrawalHistory{
+			Status:          withdrawalRecords.List[i].Status,
+			TransferID:      id,
+			Timestamp:       withdrawalRecords.List[i].Time,
+			Currency:        withdrawalRecords.List[i].AssetCode,
+			Amount:          withdrawalRecords.List[i].Amount,
+			Fee:             withdrawalRecords.List[i].Fee,
+			TransferType:    "withdrawal",
+			CryptoToAddress: withdrawalRecords.List[i].Address,
+			CryptoTxID:      withdrawalRecords.List[i].TXHash,
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -502,7 +521,13 @@ func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (l *Lbank) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (l *Lbank) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+	resp, err := l.GetTimestamp(ctx)
+	return resp.Timestamp, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

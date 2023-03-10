@@ -86,7 +86,7 @@ type obItem struct {
 type FKlineData struct {
 	Ch   string `json:"ch"`
 	Data []struct {
-		Vol    float64 `json:"vol"`
+		Volume float64 `json:"vol"`
 		Close  float64 `json:"close"`
 		Count  float64 `json:"count"`
 		High   float64 `json:"high"`
@@ -139,16 +139,18 @@ type FBatchTradesForContractData struct {
 	Ch        string `json:"ch"`
 	Timestamp int64  `json:"ts"`
 	Data      []struct {
-		ID        int64 `json:"id"`
-		Timestamp int64 `json:"ts"`
-		Data      []struct {
-			Amount    float64 `json:"amount"`
-			Direction string  `json:"direction"`
-			ID        int64   `json:"id"`
-			Price     float64 `json:"price"`
-			Timestamp int64   `json:"ts"`
-		} `json:"data"`
+		ID        int64     `json:"id"`
+		Timestamp int64     `json:"ts"`
+		Data      []FTrades `json:"data"`
 	} `json:"data"`
+}
+
+type FTrades struct {
+	Amount    float64 `json:"amount"`
+	Direction string  `json:"direction"`
+	ID        int64   `json:"id"`
+	Price     float64 `json:"price"`
+	Timestamp int64   `json:"ts"`
 }
 
 // FClawbackRateAndInsuranceData stores clawback rate and insurance data for futures

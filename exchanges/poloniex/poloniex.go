@@ -21,6 +21,7 @@ import (
 
 const (
 	poloniexAPIURL               = "https://poloniex.com"
+	poloniexAltAPIUrl            = "https://api.poloniex.com"
 	poloniexAPITradingEndpoint   = "tradingApi"
 	poloniexAPIVersion           = "1"
 	poloniexBalances             = "returnBalances"
@@ -50,6 +51,9 @@ const (
 	poloniexActiveLoans          = "returnActiveLoans"
 	poloniexLendingHistory       = "returnLendingHistory"
 	poloniexAutoRenew            = "toggleAutoRenew"
+	poloniexCancelByIDs          = "/orders/cancelByIds"
+	poloniexTimestamp            = "/timestamp"
+	poloniexWalletActivity       = "/wallets/activity"
 	poloniexMaxOrderbookDepth    = 100
 )
 
@@ -252,6 +256,24 @@ func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, e
 		"/public?command=returnCurrencies&includeMultiChainCurrencies=true",
 		&resp.Data,
 	)
+}
+
+type TimeStampResponse struct {
+	ServerTime int64 `json:"serverTime"`
+}
+
+// GetTimestamp returns server time
+func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
+	var resp TimeStampResponse
+	err := p.SendHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		poloniexTimestamp,
+		&resp,
+	)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.UnixMilli(resp.ServerTime), nil
 }
 
 // GetLoanOrders returns the list of loan offers and demands for a given
@@ -861,6 +883,37 @@ func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool
 	}
 
 	return true, nil
+}
+
+// WalletActivity returns the wallet activity between set start and end time
+func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
+	values := url.Values{}
+	values.Set("start", strconv.FormatInt(start.Unix(), 10))
+	values.Set("end", strconv.FormatInt(end.Unix(), 10))
+	if activityType != "" {
+		values.Set("activityType", activityType)
+	}
+	var resp WalletActivityResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		poloniexWalletActivity,
+		values,
+		&resp)
+}
+
+// CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
+func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
+	values := url.Values{}
+	if len(orderIDs) > 0 {
+		values.Set("orderIds", strings.Join(orderIDs, ","))
+	}
+	if len(clientOrderIDs) > 0 {
+		values.Set("clientOrderIds", strings.Join(clientOrderIDs, ","))
+	}
+	var result []CancelOrdersResponse
+	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
+		poloniexCancelByIDs,
+		values,
+		&result)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

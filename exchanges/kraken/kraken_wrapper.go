@@ -1516,7 +1516,7 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 func compatibleOrderSide(side string) (order.Side, error) {

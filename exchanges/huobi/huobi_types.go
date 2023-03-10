@@ -1,6 +1,8 @@
 package huobi
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -1227,3 +1229,27 @@ var (
 		"cancelled": 6,
 	}
 )
+
+type withdrawalHistory struct {
+	Status string           `json:"status"`
+	Data   []withdrawalData `json:"data"`
+}
+
+type withdrawalData struct {
+	Id              int64         `json:"id"`
+	Type            string        `json:"type"`
+	Currency        currency.Code `json:"currency"`
+	TransactionHash string        `json:"tx-hash"`
+	Chain           string        `json:"chain"`
+	Amount          float64       `json:"amount"`
+	SubType         string        `json:"sub-type"`
+	Address         string        `json:"address"`
+	AddressTag      string        `json:"address-tag"`
+	FromAddressTag  string        `json:"from-addr-tag"`
+	Fee             float64       `json:"fee"`
+	State           string        `json:"state"`
+	ErrorCode       string        `json:"error-code"`
+	ErrorMessage    string        `json:"error-message"`
+	CreatedAt       time.Time     `json:"created-at"`
+	UpdatedAt       time.Time     `json:"updated-at"`
+}

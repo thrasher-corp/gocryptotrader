@@ -151,8 +151,9 @@ func (p *Poloniex) SetDefaults() {
 	}
 	p.API.Endpoints = p.NewEndpoints()
 	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      poloniexAPIURL,
-		exchange.WebsocketSpot: poloniexWebsocketAddress,
+		exchange.RestSpot:              poloniexAPIURL,
+		exchange.RestSpotSupplementary: poloniexAltAPIUrl,
+		exchange.WebsocketSpot:         poloniexWebsocketAddress,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -467,12 +468,61 @@ func (p *Poloniex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+	end := time.Now()
+	walletActivity, err := p.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "")
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundHistory, len(walletActivity.Deposits))
+	for i := range walletActivity.Deposits {
+		resp[i] = exchange.FundHistory{
+			ExchangeName:    p.Name,
+			Status:          walletActivity.Deposits[i].Status,
+			Timestamp:       walletActivity.Deposits[i].Timestamp,
+			Currency:        walletActivity.Deposits[i].Currency.String(),
+			Amount:          walletActivity.Deposits[i].Amount,
+			CryptoToAddress: walletActivity.Deposits[i].Address,
+			CryptoTxID:      walletActivity.Deposits[i].Txid,
+		}
+	}
+	for i := range walletActivity.Withdrawals {
+		resp[i] = exchange.FundHistory{
+			ExchangeName:    p.Name,
+			Status:          walletActivity.Withdrawals[i].Status,
+			Timestamp:       walletActivity.Withdrawals[i].Timestamp,
+			Currency:        walletActivity.Withdrawals[i].Currency.String(),
+			Amount:          walletActivity.Withdrawals[i].Amount,
+			Fee:             walletActivity.Withdrawals[i].Fee,
+			CryptoToAddress: walletActivity.Withdrawals[i].Address,
+			CryptoTxID:      walletActivity.Withdrawals[i].Txid,
+		}
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	end := time.Now()
+	withdrawals, err := p.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "withdrawals")
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals.Withdrawals))
+	for i := range withdrawals.Withdrawals {
+		if !withdrawals.Withdrawals[i].Currency.Equal(c) {
+			continue
+		}
+		resp[i] = exchange.WithdrawalHistory{
+			Status:          withdrawals.Withdrawals[i].Status,
+			Timestamp:       withdrawals.Withdrawals[i].Timestamp,
+			Currency:        withdrawals.Withdrawals[i].Currency.String(),
+			Amount:          withdrawals.Withdrawals[i].Amount,
+			Fee:             withdrawals.Withdrawals[i].Fee,
+			CryptoToAddress: withdrawals.Withdrawals[i].Address,
+			CryptoTxID:      withdrawals.Withdrawals[i].Txid,
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -619,7 +669,30 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	var orderIDs, clientOrderIDs []string
+	for i := range o {
+		if o[i].ClientOrderID != "" {
+			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
+			continue
+		}
+		orderIDs = append(orderIDs, o[i].OrderID)
+
+	}
+	cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, orderIDs, clientOrderIDs)
+	if err != nil {
+		return nil, err
+	}
+	resp := &order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	for i := range cancelledOrders {
+		if cancelledOrders[i].ClientOrderId != "" {
+			resp.Status[cancelledOrders[i].ClientOrderId] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+			continue
+		}
+		resp.Status[cancelledOrders[i].OrderId] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -979,8 +1052,35 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := p.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	timeSeries := make([]kline.Candle, req.Size())
+	for i := range req.RangeHolder.Ranges {
+		resp, err := p.GetChartData(ctx,
+			req.RequestFormatted.String(),
+			req.RangeHolder.Ranges[i].Start.Time,
+			req.RangeHolder.Ranges[i].End.Time,
+			p.FormatExchangeKlineInterval(req.ExchangeInterval))
+		if err != nil {
+			return nil, err
+		}
+		for x := range resp {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   time.UnixMilli(resp[x].Date),
+				Open:   resp[x].Open,
+				High:   resp[x].High,
+				Low:    resp[x].Low,
+				Close:  resp[x].Close,
+				Volume: resp[x].Volume,
+			})
+		}
+	}
+
+	return req.ProcessResponse(timeSeries)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
@@ -997,4 +1097,9 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	}
 
 	return curr.ChildChains, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return p.GetTimestamp(ctx)
 }

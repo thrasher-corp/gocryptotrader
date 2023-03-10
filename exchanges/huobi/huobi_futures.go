@@ -271,18 +271,22 @@ func (h *HUOBI) FLastTradeData(ctx context.Context, symbol currency.Pair) (FLast
 
 // FRequestPublicBatchTrades gets public batch trades for a futures contract
 func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.Pair, size int64) (FBatchTradesForContractData, error) {
-	var resp FBatchTradesForContractData
 	params := url.Values{}
 	symbolValue, err := h.formatFuturesPair(symbol)
 	if err != nil {
-		return resp, err
+		return FBatchTradesForContractData{}, err
 	}
 	params.Set("symbol", symbolValue)
-	if size > 1 && size < 2000 {
+	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	path := common.EncodeURLValues(fContractBatchTradeRecords, params)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
+	var resp FBatchTradesForContractData
+	err = h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
+	if err != nil {
+		return FBatchTradesForContractData{}, err
+	}
+	return resp, nil
 }
 
 // FQueryInsuranceAndClawbackData gets insurance and clawback data for a futures contract

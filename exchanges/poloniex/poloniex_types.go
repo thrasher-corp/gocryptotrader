@@ -475,3 +475,44 @@ type WsAuthorisationRequest struct {
 	Key     string `json:"key"`
 	Payload string `json:"payload"`
 }
+
+// CancelOrdersResponse holds cancelled order info
+type CancelOrdersResponse struct {
+	OrderId       string `json:"orderId"`
+	ClientOrderId string `json:"clientOrderId"`
+	State         string `json:"state"`
+	Code          int64  `json:"code"`
+	Message       string `json:"message"`
+}
+
+// WalletActivityResponse holds wallet activity info
+type WalletActivityResponse struct {
+	Deposits    []WalletDeposits    `json:"deposits"`
+	Withdrawals []WalletWithdrawals `json:"withdrawals"`
+}
+
+// WalletDeposits holds wallet depsoti info
+type WalletDeposits struct {
+	DepositNumber int64         `json:"depositNumber"`
+	Currency      currency.Code `json:"currency"`
+	Address       string        `json:"address"`
+	Amount        float64       `json:"amount,string"`
+	Confirmations int64         `json:"confirmations"`
+	Txid          string        `json:"txid"`
+	Timestamp     time.Time     `json:"timestamp"`
+	Status        string        `json:"status"`
+}
+
+// WalletWithdrawals holds wallet withdrawl info
+type WalletWithdrawals struct {
+	WithdrawalRequestsId int64         `json:"withdrawalRequestsId"`
+	Currency             currency.Code `json:"currency"`
+	Address              string        `json:"address"`
+	Amount               float64       `json:"amount,string"`
+	Fee                  float64       `json:"fee,string"`
+	Timestamp            time.Time     `json:"timestamp"`
+	Status               string        `json:"status"`
+	Txid                 string        `json:"txid"`
+	IpAddress            string        `json:"ipAddress"`
+	PaymentID            string        `json:"paymentID"`
+}

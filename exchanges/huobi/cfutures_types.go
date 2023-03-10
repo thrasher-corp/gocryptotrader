@@ -417,18 +417,17 @@ type LastTradeData struct {
 
 // BatchTradesData stores batch trades for a given swap contract
 type BatchTradesData struct {
-	Channel string `json:"ch"`
-	Data    []struct {
-		ID        int64 `json:"id"`
-		Timestamp int64 `json:"ts"`
-		Data      []struct {
-			Amount    float64 `json:"amount"`
-			Direction string  `json:"direction"`
-			ID        int64   `json:"id"`
-			Price     float64 `json:"price"`
-			Timestamp int64   `json:"ts"`
-		} `json:"data"`
-	} `json:"data"`
+	ID        int64    `json:"id"`
+	Timestamp int64    `json:"ts"`
+	Data      []CTrade `json:"data"`
+}
+
+type CTrade struct {
+	Amount    float64 `json:"amount"`
+	Direction string  `json:"direction"`
+	ID        int64   `json:"id"`
+	Price     float64 `json:"price"`
+	Timestamp int64   `json:"ts"`
 }
 
 // InsuranceAndClawbackData stores insurance fund's and clawback rate's data

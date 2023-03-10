@@ -49,6 +49,14 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
+func TestTimestamp(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetTimestamp(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetTicker(context.Background())

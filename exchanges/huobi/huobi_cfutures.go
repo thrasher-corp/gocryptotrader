@@ -188,9 +188,6 @@ func (h *HUOBI) GetBatchTrades(ctx context.Context, code currency.Pair, size int
 	if err != nil {
 		return resp, err
 	}
-	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided, only values between 1-1200 are supported")
-	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("size", strconv.FormatInt(size, 10))
