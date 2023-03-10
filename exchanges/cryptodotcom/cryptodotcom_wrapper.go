@@ -244,9 +244,9 @@ func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (c
 	if err != nil {
 		return nil, err
 	}
-	pairs := make(currency.Pairs, len(instruments))
-	for x := range instruments {
-		pairs[x], err = currency.NewPairFromString(instruments[x].InstrumentName)
+	pairs := make(currency.Pairs, len(instruments.Instruments))
+	for x := range instruments.Instruments {
+		pairs[x], err = currency.NewPairFromString(instruments.Instruments[x].InstrumentName)
 		if err != nil {
 			return nil, err
 		}
@@ -269,7 +269,7 @@ func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, asset
 	if !cr.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
-	p, err := cr.FormatExchangeCurrency(p, asset.Spot)
+	p, err := cr.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}

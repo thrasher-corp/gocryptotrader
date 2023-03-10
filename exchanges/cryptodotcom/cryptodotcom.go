@@ -85,9 +85,15 @@ const (
 )
 
 // GetInstruments provides information on all supported instruments
-func (cr *Cryptodotcom) GetInstruments(ctx context.Context) ([]Instrument, error) {
+func (cr *Cryptodotcom) GetInstruments(ctx context.Context) (*InstrumentList, error) {
 	var resp *InstrumentList
-	return resp.Instruments, cr.SendHTTPRequest(ctx, exchange.RestSpot, publicInstruments, publicInstrumentsRate, &resp)
+	err := cr.SendHTTPRequest(ctx, exchange.RestSpot, publicInstruments, publicInstrumentsRate, &resp)
+	if err != nil {
+		return nil, err
+	} else if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp, nil
 }
 
 // GetOrderbook retches the public order book for a particular instrument and depth.

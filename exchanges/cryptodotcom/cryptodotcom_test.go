@@ -69,6 +69,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
+	cr.Verbose = true
 	_, err := cr.GetInstruments(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -856,5 +857,13 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 		}
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	err := cr.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		t.Error(err)
 	}
 }
