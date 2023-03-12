@@ -145,6 +145,22 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = g.DisableAssetWebsocketSupport(asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = g.DisableAssetWebsocketSupport(asset.CrossMargin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = g.DisableAssetWebsocketSupport(asset.Options)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	g.API.Endpoints = g.NewEndpoints()
 	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
@@ -386,7 +402,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	}
 	switch a {
 	case asset.Spot:
-		tradables, err := g.ListAllCurrencyPairs(ctx)
+		tradables, err := g.ListSpotCurrencyPairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -472,7 +488,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		pairs := []currency.Pair{}
+		var pairs []currency.Pair
 		for x := range underlyings {
 			contracts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
 			if err != nil {
@@ -1262,7 +1278,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 	cancelAllOrdersResponse.Status = map[string]string{}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		cancel, err := g.CancelMultipleSpotOpenOrders(ctx, currency.EMPTYPAIR, o.AssetType)
+		cancel, err := g.CancelMultipleSpotOpenOrders(ctx, o.Pair, o.AssetType)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -1270,54 +1286,52 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].AutoOrderID, 10)] = cancel[x].Status
 		}
 	case asset.Futures:
-		contracts, err := g.GetAvailablePairs(asset.Futures)
+		if o.Pair.IsEmpty() {
+			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
+		}
+		if o.Pair.IsEmpty() {
+			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
+		}
+		settle, err := g.getSettlementFromCurrency(o.Pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		for i := range contracts {
-			settle, err := g.getSettlementFromCurrency(contracts[i])
-			if err != nil {
-				continue
-			}
-			cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, contracts[i], o.Side.Lower(), settle)
-			if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
-				return cancelAllOrdersResponse, err
-			}
-			for f := range cancel {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[f].ID, 10)] = cancel[f].Status
-			}
+		cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, o.Pair, o.Side.Lower(), settle)
+		if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
+			return cancelAllOrdersResponse, err
+		}
+		for f := range cancel {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[f].ID, 10)] = cancel[f].Status
 		}
 	case asset.DeliveryFutures:
-		contracts, err := g.GetAvailablePairs(asset.DeliveryFutures)
+		if o.Pair.IsEmpty() {
+			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
+		}
+		settle, err := g.getSettlementFromCurrency(o.Pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		for i := range contracts {
-			settle, err := g.getSettlementFromCurrency(contracts[i])
-			if err != nil {
-				continue
-			}
-			cancel, err := g.CancelMultipleDeliveryOrders(ctx, contracts[i], o.Side.Lower(), settle)
-			if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
-				return cancelAllOrdersResponse, err
-			}
-			for f := range cancel {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[f].ID, 10)] = cancel[f].Status
-			}
+		cancel, err := g.CancelMultipleDeliveryOrders(ctx, o.Pair, o.Side.Lower(), settle)
+		if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
+			return cancelAllOrdersResponse, err
+		}
+		for f := range cancel {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[f].ID, 10)] = cancel[f].Status
 		}
 	case asset.Options:
-		contracts, err := g.GetAvailablePairs(asset.DeliveryFutures)
+		if o.Pair.IsEmpty() {
+			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
+		}
+		underlying, err := g.GetUnderlyingFromCurrencyPair(o.Pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		for i := range contracts {
-			cancel, err := g.CancelMultipleOptionOpenOrders(ctx, contracts[i], contracts[i].String(), o.Side.Lower())
-			if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
-				return cancelAllOrdersResponse, err
-			}
-			for x := range cancel {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
-			}
+		cancel, err := g.CancelMultipleOptionOpenOrders(ctx, o.Pair, underlying.String(), o.Side.Lower())
+		if err != nil && len(cancelAllOrdersResponse.Status) != 0 {
+			return cancelAllOrdersResponse, err
+		}
+		for x := range cancel {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
 		}
 	default:
 		return cancelAllOrdersResponse, fmt.Errorf("%s does not support %s", g.Name, o.AssetType)
@@ -1573,10 +1587,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	case asset.Futures, asset.DeliveryFutures:
 		var pairs []currency.Pair
 		if len(req.Pairs) == 0 {
-			pairs, err = g.GetAvailablePairs(req.AssetType)
-			if err != nil {
-				return nil, err
-			}
+			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		for z := range pairs {
 			var settle string
@@ -1668,6 +1679,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	if err != nil {
 		return nil, err
 	}
+	format.Uppercase = true
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		for x := range req.Pairs {

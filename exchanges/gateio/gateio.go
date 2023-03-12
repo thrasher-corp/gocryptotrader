@@ -277,11 +277,6 @@ func (g *Gateio) UpdateAPIKeyOfSubAccount(ctx context.Context, subAccountAPIKey 
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPut, fmt.Sprintf(subAccountKeysUserID, arg.SubAccountUserID)+"/"+subAccountAPIKey, nil, &arg, nil)
 }
 
-// DeleteAPIKeyOfSubAccount deletes an API Key of the sub-account
-func (g *Gateio) DeleteAPIKeyOfSubAccount(ctx context.Context, userID int64, apiKey string) error {
-	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelOrdersEPL, http.MethodDelete, fmt.Sprintf(subAccountKeysUserID, userID), nil, nil, nil)
-}
-
 // GetAPIKeyOfSubAccount retrieves the API Key of the sub-account
 func (g *Gateio) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int64, apiKey string) (*CreateAPIKeyResponse, error) {
 	if subAccountUserID == 0 {
@@ -312,8 +307,8 @@ func (g *Gateio) UnlockSubAccount(ctx context.Context, subAccountUserID int64) e
 
 // *****************************************  Spot **************************************
 
-// ListAllCurrencies to retrieve detailed list of each currency.
-func (g *Gateio) ListAllCurrencies(ctx context.Context) ([]CurrencyInfo, error) {
+// ListSpotCurrencies to retrieve detailed list of each currency.
+func (g *Gateio) ListSpotCurrencies(ctx context.Context) ([]CurrencyInfo, error) {
 	var resp []CurrencyInfo
 	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, spotDefaultEPL, spotCurrencies, &resp)
 }
@@ -328,8 +323,8 @@ func (g *Gateio) GetCurrencyDetail(ctx context.Context, ccy currency.Code) (*Cur
 		spotCurrencies+"/"+ccy.String(), &resp)
 }
 
-// ListAllCurrencyPairs retrieve all currency pairs supported by the exchange.
-func (g *Gateio) ListAllCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail, error) {
+// ListSpotCurrencyPairs retrieve all currency pairs supported by the exchange.
+func (g *Gateio) ListSpotCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail, error) {
 	var resp []CurrencyPairDetail
 	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, spotDefaultEPL, spotCurrencyPairs, &resp)
 }
@@ -647,16 +642,7 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 		}
 	}
 	var response []SpotOrder
-	err = g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, spotBatchOrders, nil, &args, &response)
-	if err != nil {
-		return nil, err
-	}
-	for x := range response {
-		if !response[x].Succeeded {
-			return response, fmt.Errorf("%s %s", response[x].ErrorLabel, response[x].Message)
-		}
-	}
-	return response, nil
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, spotBatchOrders, nil, &args, &response)
 }
 
 // GetSpotOpenOrders retrieves all open orders
@@ -3905,7 +3891,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 }
 
 func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
-	return (feeForPair / 100) * purchasePrice * amount
+	return feeForPair * purchasePrice * amount
 }
 
 func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
