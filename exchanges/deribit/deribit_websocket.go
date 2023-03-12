@@ -112,6 +112,7 @@ func (d *Deribit) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	println("No error while connecting", d.Websocket.IsConnected())
 	return nil
 }
 

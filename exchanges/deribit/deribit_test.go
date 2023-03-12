@@ -2648,3 +2648,12 @@ func TestWrapperGetServerTime(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	err := d.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}

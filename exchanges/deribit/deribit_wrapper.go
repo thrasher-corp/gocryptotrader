@@ -156,14 +156,15 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = d.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            deribitWebsocketAddress,
-		RunningURL:            deribitWebsocketAddress,
-		Connector:             d.WsConnect,
-		Subscriber:            d.Subscribe,
-		Unsubscriber:          d.Unsubscribe,
-		GenerateSubscriptions: d.GenerateDefaultSubscriptions,
-		Features:              &d.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             deribitWebsocketAddress,
+		RunningURL:             deribitWebsocketAddress,
+		Connector:              d.WsConnect,
+		Subscriber:             d.Subscribe,
+		Unsubscriber:           d.Unsubscribe,
+		GenerateSubscriptions:  d.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &d.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -172,9 +173,9 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	println("Setting up!!!")
 	return d.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  deribitWebsocketAddress,
-		RateLimit:            rateLimit,
+		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
