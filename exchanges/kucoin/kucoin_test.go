@@ -35,10 +35,7 @@ const (
 
 var ku Kucoin
 
-var (
-	spotTradablePair    currency.Pair
-	futuresTradablePair currency.Pair
-)
+var spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 
 func TestMain(m *testing.M) {
 	ku.SetDefaults()
@@ -1642,7 +1639,7 @@ func TestFetchTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = ku.FetchTicker(context.Background(), spotTradablePair, asset.Margin); err != nil {
+	if _, err = ku.FetchTicker(context.Background(), marginTradablePair, asset.Margin); err != nil {
 		t.Error(err)
 	}
 	if _, err = ku.FetchTicker(context.Background(), futuresTradablePair, asset.Futures); err != nil {
@@ -1672,7 +1669,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = ku.GetHistoricCandles(context.Background(), spotTradablePair, asset.Margin, kline.OneHour, startTime, time.Now())
+	_, err = ku.GetHistoricCandles(context.Background(), marginTradablePair, asset.Margin, kline.OneHour, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1689,7 +1686,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ku.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Margin, kline.OneHour, startTime, endTime)
+	_, err = ku.GetHistoricCandlesExtended(context.Background(), marginTradablePair, asset.Margin, kline.OneHour, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1754,13 +1751,22 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.Sell,
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType) != nil {
-		return
+		t.SkipNow()
 	}
 	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Error(err)
 	}
 	getOrdersRequest.Pairs = []currency.Pair{}
+	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
+		t.SkipNow()
+	}
+	getOrdersRequest.AssetType = asset.Margin
+	getOrdersRequest.Pairs = currency.Pairs{marginTradablePair}
 	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Error(err)
@@ -2452,6 +2458,11 @@ func getFirstTradablePairOfAssets() {
 		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Spot)
 	}
 	spotTradablePair = enabledPairs[0]
+	enabledPairs, err = ku.GetEnabledPairs(asset.Margin)
+	if err != nil {
+		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Margin)
+	}
+	marginTradablePair = enabledPairs[0]
 	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Futures)
