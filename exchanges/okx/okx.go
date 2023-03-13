@@ -3025,14 +3025,18 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 }
 
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
-func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
-	switch assetType {
+func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) (string, error) {
+	switch a {
 	case asset.PerpetualSwap:
-		return okxInstTypeSwap
+		return okxInstTypeSwap, nil
 	case asset.Options:
-		return okxInstTypeOption
+		return okxInstTypeOption, nil
+	case asset.Spot:
+		return okxInstTypeSpot, nil
+	case asset.Futures:
+		return okxInstTypeFutures, nil
 	default:
-		return assetType.String()
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 }
 

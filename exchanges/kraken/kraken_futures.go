@@ -34,6 +34,22 @@ func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 	return &resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
+func (k *Kraken) GetCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, to, from time.Time) (*FuturesCandles, error) {
+	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	var resp FuturesCandles
+	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresCandles+tickType+"/"+symbolValue+"/"+resolution+"?"+params.Encode(), &resp)
+}
+
 // GetFuturesMarkets gets a list of futures markets and their data
 func (k *Kraken) GetFuturesMarkets(ctx context.Context) (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData

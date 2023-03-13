@@ -405,6 +405,9 @@ instruments:
 			pair, err = enabled.DeriveFrom(tick[j].Symbol)
 		}
 		if err != nil {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 			continue
 		}
 

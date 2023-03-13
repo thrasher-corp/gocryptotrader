@@ -391,7 +391,7 @@ func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawalRecords.List[i].Status,
 			TransferID:      id,
-			Timestamp:       withdrawalRecords.List[i].Time,
+			Timestamp:       time.Unix(withdrawalRecords.List[i].Time, 0),
 			Currency:        withdrawalRecords.List[i].AssetCode,
 			Amount:          withdrawalRecords.List[i].Amount,
 			Fee:             withdrawalRecords.List[i].Fee,

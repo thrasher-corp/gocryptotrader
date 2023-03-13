@@ -1024,7 +1024,6 @@ func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 	if err != nil {
 		return nil, err
 	}
-
 	timeSeries := make([]kline.Candle, req.Size())
 	for i := range req.RangeHolder.Ranges {
 		var candles OHLCV

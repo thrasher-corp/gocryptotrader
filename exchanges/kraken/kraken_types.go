@@ -44,6 +44,7 @@ const (
 	futuresOrderbook    = "/api/v3/orderbook"
 	futuresInstruments  = "/api/v3/instruments"
 	futuresTradeHistory = "/api/v3/history"
+	futuresCandles      = "charts/v1/"
 
 	futuresSendOrder         = "/api/v3/sendorder"
 	futuresCancelOrder       = "/api/v3/cancelorder"
@@ -729,3 +730,19 @@ var (
 	// KrakenRequestParamsTimeIOC IOC
 	KrakenRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )
+
+// FuturesCandles is the response when requesting futures candles
+type FuturesCandles struct {
+	Candles     []FuturesCandle `json:"candles"`
+	MoreCandles bool            `json:"more_candles"`
+}
+
+// FuturesCandle is an individual candle
+type FuturesCandle struct {
+	Close  float64 `json:"close,string"`
+	High   float64 `json:"high,string"`
+	Low    float64 `json:"low,string"`
+	Open   float64 `json:"open,string"`
+	Time   int64   `json:"time"`
+	Volume float64 `json:"volume,string"`
+}

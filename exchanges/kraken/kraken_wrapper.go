@@ -181,9 +181,10 @@ func (k *Kraken) SetDefaults() {
 	}
 	k.API.Endpoints = k.NewEndpoints()
 	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      krakenAPIURL,
-		exchange.RestFutures:   krakenFuturesURL,
-		exchange.WebsocketSpot: krakenWSURL,
+		exchange.RestSpot:                 krakenAPIURL,
+		exchange.RestFutures:              krakenFuturesURL,
+		exchange.WebsocketSpot:            krakenWSURL,
+		exchange.RestFuturesSupplementary: krakenFuturesSupplementaryURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -1474,43 +1475,54 @@ func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Minutes(), 'f', -1, 64)
 }
 
+// FormatExchangeKlineIntervalFutures returns Interval to exchange formatted string
+func (k *Kraken) FormatExchangeKlineIntervalFutures(in kline.Interval) string {
+	switch in {
+	case kline.OneDay:
+		return "1d"
+	default:
+		return in.Short()
+	}
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := k.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
-
-	if a != asset.Spot {
-		// TODO: Implement futures
-		return nil, common.ErrNotYetImplemented
-	}
-
-	candles, err := k.GetOHLC(ctx,
-		req.Pair,
-		k.FormatExchangeKlineInterval(req.ExchangeInterval))
-	if err != nil {
-		return nil, err
-	}
-
-	timeSeries := make([]kline.Candle, 0, len(candles))
-	for x := range candles {
-		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time * 1000)
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	switch a {
+	case asset.Spot:
+		candles, err := k.GetOHLC(ctx,
+			req.Pair,
+			k.FormatExchangeKlineInterval(req.ExchangeInterval))
 		if err != nil {
 			return nil, err
 		}
-		if timeValue.Before(req.Start) || timeValue.After(req.End) {
-			continue
+
+		for x := range candles {
+			timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time * 1000)
+			if err != nil {
+				return nil, err
+			}
+			if timeValue.Before(req.Start) || timeValue.After(req.End) {
+				continue
+			}
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   timeValue,
+				Open:   candles[x].Open,
+				High:   candles[x].High,
+				Low:    candles[x].Low,
+				Close:  candles[x].Close,
+				Volume: candles[x].Volume,
+			})
 		}
-		timeSeries = append(timeSeries, kline.Candle{
-			Time:   timeValue,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
-		})
+	default:
+		// TODO add new Futures API support
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 	}
+
 	return req.ProcessResponse(timeSeries)
 }
 

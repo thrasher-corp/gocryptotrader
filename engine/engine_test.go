@@ -346,6 +346,11 @@ type assetPair struct {
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
 var unsupportedFunctionNames = []string{
+	"Start",
+	"SetDefaults",
+	"UpdateTradablePairs",
+	"GetDefaultConfig",
+	"FetchTradablePairs",
 	"GetCollateralCurrencyForContract",
 	"GetCurrencyForRealisedPNL",
 	"FlushWebsocketChannels",
@@ -414,6 +419,10 @@ func TestAllExchanges(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			err = exch.UpdateTradablePairs(context.Background(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			b := exch.GetBase()
 			assets := b.CurrencyPairs.GetAssetTypes(false)
 			if len(assets) == 0 {
@@ -425,11 +434,6 @@ func TestAllExchanges(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			err = exch.UpdateTradablePairs(context.Background(), true)
-			if err != nil {
-				t.Fatal(err)
-			}
-
 			testMap := make([]assetPair, len(assets))
 			for j := range assets {
 				var pairs currency.Pairs
@@ -515,7 +519,7 @@ methods:
 			}
 		}
 
-		s := time.Now().Add(-time.Hour * 48).Truncate(time.Hour)
+		s := time.Now().Add(-time.Hour * 24 * 7).Truncate(time.Hour)
 		if name == "GetHistoricTrades" {
 			s = time.Now().Add(-time.Minute * 5)
 		}
@@ -542,7 +546,6 @@ methods:
 						inputs[z] = reflect.ValueOf(assetParams[y].Pair.Quote)
 					}
 				case input.AssignableTo(timeParam):
-
 					if !setStartTime {
 						inputs[z] = reflect.ValueOf(s)
 						setStartTime = true
@@ -626,6 +629,8 @@ func isFiat(c string) bool {
 	return false
 }
 
+// buildRequest returns more complex struct requirements for a wrapper
+// implementation
 func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset.Item, p currency.Pair, input reflect.Type) (interface{}, error) {
 	pairs := reflect.TypeOf((*currency.Pairs)(nil)).Elem()
 	wr := reflect.TypeOf((**withdraw.Request)(nil)).Elem()

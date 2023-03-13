@@ -230,7 +230,7 @@ func (a *Alphapoint) FetchOrderbook(ctx context.Context, p currency.Pair, assetT
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *Alphapoint) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (a *Alphapoint) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
 	return nil, common.ErrNotYetImplemented
 }

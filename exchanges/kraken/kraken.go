@@ -24,10 +24,11 @@ import (
 )
 
 const (
-	krakenAPIURL         = "https://api.kraken.com"
-	krakenFuturesURL     = "https://futures.kraken.com/derivatives"
-	krakenSpotVersion    = "0"
-	krakenFuturesVersion = "3"
+	krakenAPIURL                  = "https://api.kraken.com"
+	krakenFuturesURL              = "https://futures.kraken.com/derivatives"
+	krakenFuturesSupplementaryURL = "https://futures.kraken.com/api/"
+	krakenSpotVersion             = "0"
+	krakenFuturesVersion          = "3"
 )
 
 // Kraken is the overarching type across the alphapoint package

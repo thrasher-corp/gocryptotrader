@@ -108,8 +108,6 @@ type SpotNewOrderResponse struct {
 	ID      string `json:"id"`      // 委托挂单号
 }
 
-// //-------------Kline
-
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
 	Symbol string // 交易对, zb_qc,zb_usdt,zb_btc...
@@ -258,4 +256,52 @@ type TradeHistory []struct {
 	Tid       int64   `json:"tid"`
 	TradeType string  `json:"trade_type"`
 	Type      string  `json:"type"`
+}
+
+// WalletRecordsRequest hold request params
+type WalletRecordsRequest struct {
+	Currency  string `json:"method"`
+	PageIndex int64  `json:"pageIndex"`
+	PageSize  int64  `json:"pageSize"`
+}
+
+// DepositRecordsResponse holds response data
+type DepositRecordsResponse struct {
+	List      []DepositRecord `json:"list"`
+	PageIndex int64           `json:"pageIndex"`
+	PageSize  int64           `json:"pageSize"`
+	Total     int64           `json:"total"`
+}
+
+// DepositRecord holds details of a deposit
+type DepositRecord struct {
+	Address          string  `json:"address"`
+	Amount           float64 `json:"amount,string"`
+	ConfirmTimes     int64   `json:"confirmTimes"`
+	Currency         string  `json:"currency"`
+	Description      string  `json:"description"`
+	Hash             string  `json:"hash"`
+	Id               int64   `json:"id"`
+	InternalTransfer int64   `json:"itransfer"`
+	Status           int64   `json:"status"`
+	SubmitTime       int64   `json:"submit_time,string"`
+}
+
+// WithdrawalRecordsResponse holds response data
+type WithdrawalRecordsResponse struct {
+	List      []WithdrawalRecord `json:"list"`
+	PageIndex int64              `json:"pageIndex"`
+	PageSize  int64              `json:"pageSize"`
+	Total     int64              `json:"total"`
+}
+
+// WithdrawalRecord holds details of a withdrawal
+type WithdrawalRecord struct {
+	Amount     float64 `json:"amount"`
+	Fees       float64 `json:"fees"`
+	Id         int64   `json:"id"`
+	ManageTime int64   `json:"manageTime"`
+	Status     int64   `json:"status"`
+	SubmitTime int64   `json:"submitTime"`
+	ToAddress  string  `json:"toAddress"`
 }

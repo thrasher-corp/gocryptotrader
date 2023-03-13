@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -37,6 +38,8 @@ const (
 	zbWithdraw                        = "withdraw"
 	zbDepositAddress                  = "getUserAddress"
 	zbMultiChainDepositAddress        = "getPayinAddress"
+	zbWithdrawalRecords               = "getWithdrawRecord"
+	zbDepositRecords                  = "getChargeRecord"
 )
 
 // ZB is the overarching type across this package
@@ -75,6 +78,38 @@ func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (i
 		return 0, err
 	}
 	return newOrderID, nil
+}
+
+// GetDepositRecords returns the deposit records
+func (z *ZB) GetDepositRecords(ctx context.Context, arg *WalletRecordsRequest) (*DepositRecordsResponse, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w WalletRecordsRequest", common.ErrNilPointer)
+	}
+	var resp DepositRecordsResponse
+	vals := url.Values{}
+	vals.Set("method", "getChargeRecord")
+	vals.Set("currency", arg.Currency)
+	if arg.PageSize > 0 {
+		vals.Set("pageIndex", strconv.FormatInt(arg.PageIndex, 10))
+	}
+	if arg.PageIndex > 0 {
+		vals.Set("pageSize", strconv.FormatInt(arg.PageSize, 10))
+	}
+	return &resp, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
+}
+
+// GetWithdrawalRecords returns the withdrawal records
+func (z *ZB) GetWithdrawalRecords(ctx context.Context, arg *WalletRecordsRequest) (*WithdrawalRecordsResponse, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w WalletRecordsRequest", common.ErrNilPointer)
+	}
+	var resp WithdrawalRecordsResponse
+	vals := url.Values{}
+	vals.Set("method", "getWithdrawRecord")
+	vals.Set("currency", arg.Currency)
+	vals.Set("pageIndex", strconv.FormatInt(arg.PageIndex, 10))
+	vals.Set("pageSize", strconv.FormatInt(arg.PageSize, 10))
+	return &resp, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
 }
 
 // CancelExistingOrder cancels an order

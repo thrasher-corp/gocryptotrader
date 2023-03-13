@@ -426,12 +426,136 @@ func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accoun
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+
+	pairs, err := z.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	currs := pairs.GetCurrencies()
+
+	var records []exchange.FundHistory
+	for x := range currs {
+		totalPages := int64(1)
+		for y := int64(0); y < totalPages; y++ {
+			deposits, err := z.GetDepositRecords(ctx, &WalletRecordsRequest{
+				Currency:  currs[x].String(),
+				PageIndex: y,
+			})
+			if err != nil {
+				return nil, err
+			}
+			totalPages = deposits.Total
+			for i := range deposits.List {
+				var status string
+				switch deposits.List[i].Status {
+				case 0:
+					status = "pending confirm"
+				case 1:
+					status = "failed"
+				case 2:
+					status = "confirmed"
+				}
+				records = append(records, exchange.FundHistory{
+					ExchangeName:    z.GetName(),
+					Status:          status,
+					TransferID:      strconv.FormatInt(deposits.List[i].Id, 10),
+					Description:     deposits.List[i].Description,
+					Timestamp:       time.Unix(deposits.List[i].SubmitTime, 0),
+					Currency:        deposits.List[i].Currency,
+					Amount:          deposits.List[i].Amount,
+					CryptoToAddress: deposits.List[i].Address,
+					TransferType:    "deposit",
+				})
+			}
+		}
+	}
+
+	for x := range currs {
+		totalPages := int64(1)
+		for y := int64(0); y < totalPages; y++ {
+			withdrawals, err := z.GetWithdrawalRecords(ctx, &WalletRecordsRequest{
+				Currency:  currs[x].String(),
+				PageIndex: y,
+			})
+			if err != nil {
+				return nil, err
+			}
+			totalPages = withdrawals.Total
+			for i := range withdrawals.List {
+				var status string
+				switch withdrawals.List[i].Status {
+				case 0:
+					status = "submitted"
+				case 1:
+					status = "failed"
+				case 2:
+					status = "successful"
+				case 3:
+					status = "cancelled"
+				case 5:
+					status = "confirmed"
+				}
+				records = append(records, exchange.FundHistory{
+					ExchangeName:    z.GetName(),
+					Status:          status,
+					TransferID:      strconv.FormatInt(withdrawals.List[i].Id, 10),
+					Timestamp:       time.Unix(withdrawals.List[i].SubmitTime, 0),
+					Currency:        currs[i].String(),
+					Amount:          withdrawals.List[i].Amount,
+					CryptoToAddress: withdrawals.List[i].ToAddress,
+					Fee:             withdrawals.List[i].Fees,
+					TransferType:    "withdrawal",
+				})
+			}
+		}
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return records[i].Timestamp.Before(records[j].Timestamp)
+	})
+	return records, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	totalPages := int64(1)
+	var records []exchange.WithdrawalHistory
+	for y := int64(0); y < totalPages; y++ {
+		withdrawals, err := z.GetWithdrawalRecords(ctx, &WalletRecordsRequest{
+			Currency:  c.String(),
+			PageIndex: y,
+		})
+		if err != nil {
+			return nil, err
+		}
+		totalPages = withdrawals.Total
+		for i := range withdrawals.List {
+			var status string
+			switch withdrawals.List[i].Status {
+			case 0:
+				status = "submitted"
+			case 1:
+				status = "failed"
+			case 2:
+				status = "successful"
+			case 3:
+				status = "cancelled"
+			case 5:
+				status = "confirmed"
+			}
+			records = append(records, exchange.WithdrawalHistory{
+				Status:          status,
+				TransferID:      strconv.FormatInt(withdrawals.List[i].Id, 10),
+				Timestamp:       time.Unix(withdrawals.List[i].SubmitTime, 0),
+				Currency:        c.String(),
+				Amount:          withdrawals.List[i].Amount,
+				CryptoToAddress: withdrawals.List[i].ToAddress,
+				Fee:             withdrawals.List[i].Fees,
+				TransferType:    "withdrawal",
+			})
+		}
+	}
+	return records, nil
 }
 
 // GetServerTime returns the current exchange server time.

@@ -58,6 +58,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	k.UpdateTradablePairs(context.Background(), true)
 	os.Exit(m.Run())
 }
 
@@ -2008,7 +2009,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*12), time.Now())
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -2127,5 +2128,24 @@ func TestChecksumCalculation(t *testing.T) {
 	err := validateCRC32(&testOb, krakenAPIDocChecksum, 5, 8)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetCharts(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	cp.Delimiter = "_"
+	resp, err := k.GetCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	end := time.UnixMilli(resp.Candles[0].Time)
+	_, err = k.GetCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
+	if err != nil {
+		t.Error(err)
 	}
 }

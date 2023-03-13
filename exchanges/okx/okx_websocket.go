@@ -425,7 +425,10 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelSpotGridOrder ||
 			arg.Channel == okxChannelGridOrdersContract ||
 			arg.Channel == okxChannelEstimatedPrice {
-			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
+			instrumentType, err = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
+			if err != nil {
+				return err
+			}
 		}
 
 		if arg.Channel == okxChannelPositions ||
@@ -1723,13 +1726,9 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	var format currency.PairFormat
 	var err error
 	if tInstrumentType {
-		instrumentType = strings.ToLower(ok.GetInstrumentTypeFromAssetItem(assetType))
-		if instrumentType != okxInstTypeSpot &&
-			instrumentType != okxInstTypeMargin &&
-			instrumentType != okxInstTypeSwap &&
-			instrumentType != okxInstTypeFutures &&
-			instrumentType != okxInstTypeOption {
-			instrumentType = okxInstTypeANY
+		instrumentType, err = ok.GetInstrumentTypeFromAssetItem(assetType)
+		if err != nil {
+			return err
 		}
 	}
 	if tUnderlying {
@@ -1780,12 +1779,9 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	var err error
 	var format currency.PairFormat
 	if params.InstrumentType {
-		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
-		if instrumentType != okxInstTypeMargin &&
-			instrumentType != okxInstTypeSwap &&
-			instrumentType != okxInstTypeFutures &&
-			instrumentType != okxInstTypeOption {
-			instrumentType = okxInstTypeANY
+		instrumentType, err = ok.GetInstrumentTypeFromAssetItem(assetType)
+		if err != nil {
+			return err
 		}
 	}
 	if params.Underlying {
