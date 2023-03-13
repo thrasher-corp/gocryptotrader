@@ -173,7 +173,6 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	println("Setting up!!!")
 	return d.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,

@@ -71,7 +71,6 @@ var defaultSubscriptions = []string{
 	tradesWithKindChannel,
 }
 
-var timeer time.Time
 var (
 	pingMessage = WsSubscriptionInput{
 		ID:             2,
@@ -112,12 +111,10 @@ func (d *Deribit) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	println("No error while connecting", d.Websocket.IsConnected())
 	return nil
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
-	println("\n\n\n\n\n\nAuthenticating the Authenticated websocket connection...\n\n\n\n\n\n")
 	if !d.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", d.Name)
 	}
@@ -188,6 +185,9 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
+		if response.Params.Type == "test_request" {
+			return nil
+		}
 		return d.Websocket.Conn.SendJSONMessage(pingMessage)
 	}
 	if response.ID > 2 {
@@ -280,6 +280,24 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		}
 	case "public/test", "public/set_heartbeat":
 	default:
+		switch result := response.Result.(type) {
+		case string:
+			if result == "ok" {
+				return nil
+			}
+		default:
+			var resp *VersionInformation
+			var data []byte
+			data, err = json.Marshal(response.Result)
+			if err != nil {
+				break
+			}
+			err = json.Unmarshal(data, &resp)
+			if err != nil || resp == nil {
+				break
+			}
+			return nil
+		}
 		d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: d.Name + stream.UnhandledMessage + string(respRaw),
 		}

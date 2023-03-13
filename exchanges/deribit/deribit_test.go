@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 	}
 	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	// setupWs()
+	setupWs()
 	os.Exit(m.Run())
 }
 
@@ -2634,7 +2634,6 @@ func TestCalculateTradingFee(t *testing.T) {
 
 func TestGetTime(t *testing.T) {
 	t.Parallel()
-	d.Verbose = true
 	_, err := d.GetTime(context.Background())
 	if err != nil {
 		t.Fatal(err)

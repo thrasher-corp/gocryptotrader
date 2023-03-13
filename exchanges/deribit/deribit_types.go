@@ -1020,6 +1020,14 @@ type WsResponse struct {
 	} `json:"params"`
 	Method         string `json:"method"`
 	JSONRPCVersion string `json:"jsonrpc"`
+
+	// for status "ok" and "version" push data messages
+	Result interface{} `json:"result"`
+}
+
+// VersionInformation represents websocket version information
+type VersionInformation struct {
+	Version string `json:"version"`
 }
 
 // wsOrderbook represents orderbook push data for a book websocket subscription.
