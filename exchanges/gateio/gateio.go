@@ -3126,7 +3126,7 @@ func (g *Gateio) CancelMultipleDeliveryOrders(ctx context.Context, contract curr
 // GetSingleDeliveryOrder Get a single order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (g *Gateio) GetSingleDeliveryOrder(ctx context.Context, settle, orderID string) (*Order, error) {
-	if settle != settleBTC && settle != settleUSD && settle != settleUSDT {
+	if settle != settleBTC && settle != settleUSDT {
 		return nil, errInvalidSettleCurrency
 	}
 	if orderID == "" {
@@ -3907,7 +3907,7 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 	}
 	return currency.Pair{Base: currency.NewCode(ccies[0]), Delimiter: currency.UnderscoreDelimiter, Quote: currency.NewCode(ccies[1])}, nil
 }
-func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair) (settlement string, err error) {
+func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair, ignoreUSDSettles bool) (settlement string, err error) {
 	quote := currencyPair.Quote.Upper().String()
 	switch {
 	case strings.HasPrefix(quote, currency.USDT.String()):
@@ -3915,6 +3915,9 @@ func (g *Gateio) getSettlementFromCurrency(currencyPair currency.Pair) (settleme
 	case strings.HasPrefix(quote, currency.BTC.String()):
 		return currency.BTC.Item.Lower, nil
 	case strings.HasPrefix(quote, currency.USD.String()):
+		if ignoreUSDSettles {
+			return currency.BTC.Item.Lower, nil
+		}
 		return currency.USD.Item.Lower, nil
 	case strings.HasPrefix(currencyPair.Base.Upper().String(), currency.BTC.String()):
 		// some instruments having a BTC base currency uses a BTC settlement

@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -183,23 +182,23 @@ func TestGetOrderInfo(t *testing.T) {
 	if err != nil {
 		t.Errorf("GetOrderInfo() %v", err)
 	}
-	_, err = g.GetOrderInfo(context.Background(), "917591554", spotTradablePair, asset.Options)
+	_, err = g.GetOrderInfo(context.Background(), "917591554", optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Errorf("GetOrderInfo() %v", err)
 	}
-	_, err = g.GetOrderInfo(context.Background(), "917591554", spotTradablePair, asset.Margin)
+	_, err = g.GetOrderInfo(context.Background(), "917591554", marginTradablePair, asset.Margin)
 	if err != nil {
 		t.Errorf("GetOrderInfo() %v", err)
 	}
-	_, err = g.GetOrderInfo(context.Background(), "917591554", spotTradablePair, asset.CrossMargin)
+	_, err = g.GetOrderInfo(context.Background(), "917591554", crossMarginTradablePair, asset.CrossMargin)
 	if err != nil {
 		t.Errorf("GetOrderInfo() %v", err)
 	}
-	_, err = g.GetOrderInfo(context.Background(), "917591554", spotTradablePair, asset.Futures)
+	_, err = g.GetOrderInfo(context.Background(), "917591554", futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Errorf("GetOrderInfo() %v", err)
 	}
-	_, err = g.GetOrderInfo(context.Background(), "917591554", spotTradablePair, asset.DeliveryFutures)
+	_, err = g.GetOrderInfo(context.Background(), "917591554", deliveryFuturesTradablePair, asset.DeliveryFutures)
 	if err != nil {
 		t.Errorf("GetOrderInfo() %v", err)
 	}
@@ -281,14 +280,14 @@ func TestGetOrderbook(t *testing.T) {
 	if err != nil {
 		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
 	}
-	settle, err := g.getSettlementFromCurrency(futuresTradablePair)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = g.GetFuturesOrderbook(context.Background(), settle, futuresTradablePair.String(), "", 10, false); err != nil {
 		t.Errorf("%s GetOrderbook() error %v", g.Name, err)
 	}
-	settle, err = g.getSettlementFromCurrency(deliveryFuturesTradablePair)
+	settle, err = g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +335,7 @@ func TestGetSpotAccounts(t *testing.T) {
 func TestCreateBatchOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CreateBatchOrders(context.Background(), []CreateOrderRequestData{
 		{
@@ -373,7 +372,7 @@ func TestGetSpotOpenOrders(t *testing.T) {
 func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.SpotClosePositionWhenCrossCurrencyDisabled(context.Background(), &ClosePositionRequestParam{
 		Amount:       0.1,
@@ -387,13 +386,13 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 func TestCreateSpotOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.PlaceSpotOrder(context.Background(), &CreateOrderRequestData{
-		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		CurrencyPair: spotTradablePair,
 		Side:         "buy",
 		Amount:       1,
-		Price:        1234567789,
+		Price:        900000,
 		Account:      g.assetTypeToString(asset.Spot),
 		Type:         "limit",
 	}); err != nil {
@@ -413,10 +412,10 @@ func TestGetSpotOrders(t *testing.T) {
 
 func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, order.Sell, asset.Empty); err != nil {
+	if _, err := g.CancelAllOpenOrdersSpecifiedCurrencyPair(context.Background(), spotTradablePair, order.Sell, asset.Empty); err != nil {
 		t.Errorf("%s CancelAllOpenOrdersSpecifiedCurrencyPair() error %v", g.Name, err)
 	}
 }
@@ -424,7 +423,7 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 func TestCancelBatchOrdersWithIDList(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelBatchOrdersWithIDList(context.Background(), []CancelOrderByIDParam{
 		{
@@ -478,13 +477,11 @@ func TestAmendSpotOrder(t *testing.T) {
 }
 func TestCancelSingleSpotOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelSingleSpotOrder(context.Background(), "1234",
-		currency.Pair{Base: currency.ETH,
-			Quote:     currency.USDT,
-			Delimiter: currency.UnderscoreDelimiter}.String(), false); err != nil {
+		spotTradablePair.String(), false); err != nil {
 		t.Errorf("%s CancelSingleSpotOrder() error %v", g.Name, err)
 	}
 }
@@ -508,8 +505,8 @@ func TestGetServerTime(t *testing.T) {
 
 func TestCountdownCancelorder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CountdownCancelorders(context.Background(), CountdownCancelOrderParam{
 		Timeout:      10,
@@ -522,7 +519,7 @@ func TestCountdownCancelorder(t *testing.T) {
 func TestCreatePriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CreatePriceTriggeredOrder(context.Background(), &PriceTriggeredOrderParam{
 		Trigger: TriggerPriceInfo{
@@ -556,7 +553,7 @@ func TestGetPriceTriggeredOrderList(t *testing.T) {
 func TestCancelAllOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.SkipNow()
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelMultipleSpotOpenOrders(context.Background(), currency.EMPTYPAIR, asset.CrossMargin); err != nil {
 		t.Errorf("%s CancelAllOpenOrders() error %v", g.Name, err)
@@ -835,7 +832,7 @@ func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
 	}
 }
 
-var createCrossMarginBorrowLoanJSON = `{	"id": "17",	"create_time": 1620381696159,	"update_time": 1620381696159,	"currency": "EOS",	"amount": "110.553635",	"text": "web",	"status": 2,	"repaid": "110.506649705159",	"repaid_interest": "0.046985294841",	"unpaid_interest": "0.0000074393366667"}`
+var createCrossMarginBorrowLoanJSON = `{"id": "17",	"create_time": 1620381696159,	"update_time": 1620381696159,	"currency": "EOS",	"amount": "110.553635",	"text": "web",	"status": 2,	"repaid": "110.506649705159",	"repaid_interest": "0.046985294841",	"unpaid_interest": "0.0000074393366667"}`
 
 func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	t.Parallel()
@@ -843,8 +840,8 @@ func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	if err := json.Unmarshal([]byte(createCrossMarginBorrowLoanJSON), &response); err != nil {
 		t.Errorf("%s error while deserializing to CrossMarginBorrowLoanResponse %v", g.Name, err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CreateCrossMarginBorrowLoan(context.Background(), CrossMarginBorrowLoanParams{
 		Currency: currency.BTC,
@@ -876,8 +873,8 @@ func TestGetSingleBorrowLoanDetail(t *testing.T) {
 
 func TestExecuteRepayment(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.ExecuteRepayment(context.Background(), CurrencyAndAmount{
 		Currency: currency.USD,
@@ -956,15 +953,15 @@ func TestGetDepositRecords(t *testing.T) {
 
 func TestTransferCurrency(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.TransferCurrency(context.Background(), &TransferCurrencyParam{
 		Currency:     currency.BTC,
 		From:         g.assetTypeToString(asset.Spot),
 		To:           g.assetTypeToString(asset.Margin),
 		Amount:       1202.000,
-		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		CurrencyPair: spotTradablePair,
 	}); err != nil {
 		t.Errorf("%s TransferCurrency() error %v", g.Name, err)
 	}
@@ -972,8 +969,8 @@ func TestTransferCurrency(t *testing.T) {
 
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if err := g.SubAccountTransfer(context.Background(), SubAccountTransferParam{
 		Currency:   currency.BTC,
@@ -998,7 +995,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 func TestSubAccountTransferToSubAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInformationNotProvided)
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if err := g.SubAccountTransferToSubAccount(context.Background(), &InterSubAccountTransferParams{
 		Currency:                currency.BTC,
@@ -1132,7 +1129,7 @@ func TestGetSingleContract(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(futuresTradablePair)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1142,7 +1139,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 }
 func TestGetFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(futuresTradablePair)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1292,38 +1289,54 @@ func TestGetSinglePosition(t *testing.T) {
 
 func TestUpdatePositionMargin(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdateFuturesPositionMargin(context.Background(), settleUSDT, 0.01, currency.NewPair(currency.ETH, currency.USD)); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.UpdateFuturesPositionMargin(context.Background(), settle, 0.01, futuresTradablePair); err != nil {
 		t.Errorf("%s UpdatePositionMargin() error %v", g.Name, err)
 	}
 }
 
 func TestUpdatePositionLeverage(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdateFuturesPositionLeverage(context.Background(), settleUSDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT}, 1, 0); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.UpdateFuturesPositionLeverage(context.Background(), settle, futuresTradablePair, 1, 0); err != nil {
 		t.Errorf("%s UpdatePositionLeverage() error %v", g.Name, err)
 	}
 }
 
 func TestUpdatePositionRiskLimit(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdateFuturesPositionRiskLimit(context.Background(), settleUSDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT}, 10); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.UpdateFuturesPositionRiskLimit(context.Background(), settle, futuresTradablePair, 10); err != nil {
 		t.Errorf("%s UpdatePositionRiskLimit() error %v", g.Name, err)
 	}
 }
 
 func TestCreateDeliveryOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
+	}
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if _, err := g.PlaceDeliveryOrder(context.Background(), &OrderCreateParams{
 		Contract:    deliveryFuturesTradablePair,
@@ -1331,7 +1344,7 @@ func TestCreateDeliveryOrder(t *testing.T) {
 		Iceberg:     0,
 		Price:       3765,
 		Text:        "t-my-custom-id",
-		Settle:      settleBTC,
+		Settle:      settle,
 		TimeInForce: gtcTIF,
 	}); err != nil {
 		t.Errorf("%s CreateDeliveryOrder() error %v", g.Name, err)
@@ -1343,17 +1356,25 @@ func TestGetDeliveryOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.GetDeliveryOrders(context.Background(), deliveryFuturesTradablePair, "open", settleBTC, "", 0, 0, 1); err != nil {
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.GetDeliveryOrders(context.Background(), deliveryFuturesTradablePair, "open", settle, "", 0, 0, 1); err != nil {
 		t.Errorf("%s GetDeliveryOrders() error %v", g.Name, err)
 	}
 }
 
 func TestCancelAllDeliveryOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.CancelMultipleDeliveryOrders(context.Background(), deliveryFuturesTradablePair, "ask", settleUSDT); err != nil {
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.CancelMultipleDeliveryOrders(context.Background(), deliveryFuturesTradablePair, "ask", settle); err != nil {
 		t.Errorf("%s CancelAllDeliveryOrders() error %v", g.Name, err)
 	}
 }
@@ -1366,14 +1387,23 @@ func TestGetSingleDeliveryOrder(t *testing.T) {
 	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleUSDT, "123456"); err != nil {
 		t.Errorf("%s GetSingleDeliveryOrder() error %v", g.Name, err)
 	}
+	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleBTC, "123456"); err != nil {
+		t.Errorf("%s GetSingleDeliveryOrder() error %v", g.Name, err)
+	}
+	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleUSD, "123456"); !errors.Is(err, errInvalidSettleCurrency) {
+		t.Errorf("%s GetSingleDeliveryOrder() expected %v, but found %v", g.Name, errInvalidSettleCurrency, err)
+	}
 }
 
 func TestCancelSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelSingleDeliveryOrder(context.Background(), settleUSDT, "123456"); err != nil {
+		t.Errorf("%s CancelSingleDeliveryOrder() error %v", g.Name, err)
+	}
+	if _, err := g.CancelSingleDeliveryOrder(context.Background(), settleBTC, "123456"); err != nil {
 		t.Errorf("%s CancelSingleDeliveryOrder() error %v", g.Name, err)
 	}
 }
@@ -1451,10 +1481,14 @@ func TestGetDeliveryAllAutoOrder(t *testing.T) {
 
 func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.CancelAllDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, deliveryFuturesTradablePair); err != nil {
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.CancelAllDeliveryPriceTriggeredOrder(context.Background(), settle, deliveryFuturesTradablePair); err != nil {
 		t.Errorf("%s CancelAllDeliveryPriceTriggeredOrder() error %v", g.Name, err)
 	}
 }
@@ -1471,8 +1505,8 @@ func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 
 func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelDeliveryPriceTriggeredOrder(context.Background(), settleUSDT, "12345"); err != nil {
 		t.Errorf("%s CancelDeliveryPriceTriggeredOrder() error %v", g.Name, err)
@@ -1501,8 +1535,8 @@ func TestRetrivePositionDetailInDualMode(t *testing.T) {
 
 func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.UpdatePositionMarginInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0.001, "dual_long"); err != nil {
 		t.Errorf("%s UpdatePositionMarginInDualMode() error %v", g.Name, err)
@@ -1510,8 +1544,8 @@ func TestUpdatePositionMarginInDualMode(t *testing.T) {
 }
 func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.UpdatePositionLeverageInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0.001, 0.001); err != nil {
 		t.Errorf("%s UpdatePositionLeverageInDualMode() error %v", g.Name, err)
@@ -1520,8 +1554,8 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 
 func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.UpdatePositionRiskLimitinDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 10); err != nil {
 		t.Errorf("%s UpdatePositionRiskLimitinDualMode() error %v", g.Name, err)
@@ -1530,17 +1564,21 @@ func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
 
 func TestCreateFuturesOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
+	}
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if _, err := g.PlaceFuturesOrder(context.Background(), &OrderCreateParams{
-		Contract:    currency.NewPair(currency.BTC, currency.USDT),
+		Contract:    futuresTradablePair,
 		Size:        6024,
 		Iceberg:     0,
 		Price:       3765,
 		TimeInForce: "gtc",
 		Text:        "t-my-custom-id",
-		Settle:      settleBTC,
+		Settle:      settle,
 	}); err != nil {
 		t.Errorf("%s CreateFuturesOrder() error %v", g.Name, err)
 	}
@@ -1558,10 +1596,10 @@ func TestGetFuturesOrders(t *testing.T) {
 
 func TestCancelMultipleFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.CancelMultipleFuturesOpenOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "ask", settleUSDT); err != nil {
+	if _, err := g.CancelMultipleFuturesOpenOrders(context.Background(), futuresTradablePair, "ask", settleUSDT); err != nil {
 		t.Errorf("%s CancelAllOpenOrdersMatched() error %v", g.Name, err)
 	}
 }
@@ -1578,8 +1616,8 @@ func TestGetSingleFuturesPriceTriggeredOrder(t *testing.T) {
 
 func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelFuturesPriceTriggeredOrder(context.Background(), settleUSDT, "12345"); err != nil {
 		t.Errorf("%s CancelFuturesPriceTriggeredOrder() error %v", g.Name, err)
@@ -1588,18 +1626,22 @@ func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 
 func TestCreateBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
+	}
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if _, err := g.PlaceBatchFuturesOrders(context.Background(), settleBTC, []OrderCreateParams{
 		{
-			Contract:    currency.NewPair(currency.BTC, currency.USDT),
+			Contract:    futuresTradablePair,
 			Size:        6024,
 			Iceberg:     0,
 			Price:       3765,
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
-			Settle:      settleBTC,
+			Settle:      settle,
 		},
 		{
 			Contract:    currency.NewPair(currency.BTC, currency.USDT),
@@ -1626,8 +1668,8 @@ func TestGetSingleFuturesOrder(t *testing.T) {
 }
 func TestCancelSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelSingleFuturesOrder(context.Background(), settleBTC, "12345"); err != nil {
 		t.Errorf("%s CancelSingleFuturesOrder() error %v", g.Name, err)
@@ -1635,8 +1677,8 @@ func TestCancelSingleFuturesOrder(t *testing.T) {
 }
 func TestAmendFuturesOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.AmendFuturesOrder(context.Background(), settleBTC, "1234", AmendFuturesOrderParam{
 		Price: 12345.990,
@@ -1677,8 +1719,8 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 
 func TestCountdownCancelOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CountdownCancelOrders(context.Background(), settleBTC, CountdownParams{
 		Timeout: 8,
@@ -1689,13 +1731,18 @@ func TestCountdownCancelOrders(t *testing.T) {
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), settleBTC, &FuturesPriceTriggeredOrderParam{
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), settle, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
 			Price:    1234.,
-			Contract: currency.NewPair(currency.OKB, currency.USDT),
+			Size:     2,
+			Contract: futuresTradablePair,
 		},
 		Trigger: FuturesTrigger{
 			Rule:      1,
@@ -1704,10 +1751,11 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	}); err != nil {
 		t.Errorf("%s CreatePriceTriggeredFuturesOrder() error %v", g.Name, err)
 	}
-	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), settleBTC, &FuturesPriceTriggeredOrderParam{
+	if _, err := g.CreatePriceTriggeredFuturesOrder(context.Background(), settle, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
 			Price:    1234.,
-			Contract: currency.NewPair(currency.OKB, currency.USDT),
+			Size:     1,
+			Contract: futuresTradablePair,
 		},
 		Trigger: FuturesTrigger{
 			Rule: 1,
@@ -1729,10 +1777,14 @@ func TestListAllFuturesAutoOrders(t *testing.T) {
 
 func TestCancelAllFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.CancelAllFuturesOpenOrders(context.Background(), settleBTC, currency.NewPair(currency.OKB, currency.USDT)); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.CancelAllFuturesOpenOrders(context.Background(), settle, futuresTradablePair); err != nil {
 		t.Errorf("%s CancelAllFuturesOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -1746,7 +1798,7 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 
 func TestGetSingleDeliveryContracts(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair)
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -1764,7 +1816,7 @@ func TestGetDeliveryOrderbook(t *testing.T) {
 
 func TestGetDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair)
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -1774,7 +1826,7 @@ func TestGetDeliveryTradingHistory(t *testing.T) {
 }
 func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair)
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -1785,7 +1837,7 @@ func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 
 func TestGetDeliveryFutureTickers(t *testing.T) {
 	t.Parallel()
-	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair)
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -1842,18 +1894,22 @@ func TestGetSingleDeliveryPosition(t *testing.T) {
 
 func TestUpdateDeliveryPositionMargin(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdateDeliveryPositionMargin(context.Background(), "usdt", 0.001, deliveryFuturesTradablePair); err != nil {
+	settle, err := g.getSettlementFromCurrency(deliveryFuturesTradablePair, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.UpdateDeliveryPositionMargin(context.Background(), settle, 0.001, deliveryFuturesTradablePair); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionMargin() error %v", g.Name, err)
 	}
 }
 
 func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.UpdateDeliveryPositionLeverage(context.Background(), "usdt", deliveryFuturesTradablePair, 0.001); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionLeverage() error %v", g.Name, err)
@@ -1862,8 +1918,8 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 
 func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.UpdateDeliveryPositionRiskLimit(context.Background(), "usdt", deliveryFuturesTradablePair, 30); err != nil {
 		t.Errorf("%s UpdateDeliveryPositionRiskLimit() error %v", g.Name, err)
@@ -1908,15 +1964,15 @@ func TestGetSettlementHistory(t *testing.T) {
 func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	t.Parallel()
 	underlying := "BTC_USDT"
-	val, err := g.GetSettlementHistory(context.Background(), underlying, 0, 1, time.Time{}, time.Time{})
+	optionsSettlement, err := g.GetSettlementHistory(context.Background(), underlying, 0, 1, time.Time{}, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cp, err := currency.NewPairFromString(val[0].Contract)
+	cp, err := currency.NewPairFromString(optionsSettlement[0].Contract)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), cp, underlying, val[0].Time.Unix()); err != nil {
+	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), cp, underlying, optionsSettlement[0].Time.Unix()); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedContractsSettlement() error %s", g.Name, err)
 	}
 }
@@ -1936,8 +1992,8 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 	if err := json.Unmarshal([]byte(flashSwapOrderResponseJSON), &response); err != nil {
 		t.Errorf("%s error while deserializing to FlashSwapOrderResponse %v", g.Name, err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CreateFlashSwapOrder(context.Background(), FlashSwapOrderParams{
 		PreviewID:    "1234",
@@ -2056,11 +2112,11 @@ func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
 
 func TestPlaceOptionOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	_, err := g.PlaceOptionOrder(context.Background(), OptionOrderParam{
-		Contract:    "BTC_USDT-20220902-18000-P",
+		Contract:    optionsTradablePair.String(),
 		OrderSize:   -1,
 		Iceberg:     0,
 		Text:        "-",
@@ -2085,7 +2141,7 @@ func TestGetOptionFuturesOrders(t *testing.T) {
 func TestCancelOptionOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInformationNotProvided)
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelMultipleOptionOpenOrders(context.Background(), optionsTradablePair, "", ""); err != nil {
 		t.Errorf("%s CancelOptionOpenOrders() error %v", g.Name, err)
@@ -2106,8 +2162,8 @@ func TestGetSingleOptionOrder(t *testing.T) {
 
 func TestCancelSingleOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelOptionSingleOrder(context.Background(), "1234"); err != nil {
 		t.Errorf("%s CancelSingleOrder() error %v", g.Name, err)
@@ -2126,8 +2182,8 @@ func TestGetOptionsPersonalTradingHistory(t *testing.T) {
 
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	_, err := g.WithdrawCurrency(context.Background(), WithdrawalRequestParam{})
 	if err != nil && !errors.Is(err, errInvalidAmount) {
@@ -2146,8 +2202,8 @@ func TestWithdrawCurrency(t *testing.T) {
 
 func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CancelWithdrawalWithSpecifiedID(context.Background(), "1234567"); err != nil {
 		t.Errorf("%s CancelWithdrawalWithSpecifiedID() error %v", g.Name, err)
@@ -2177,7 +2233,7 @@ func TestGetOptionUnderlyingTickers(t *testing.T) {
 
 func TestGetOptionFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetOptionFuturesCandlesticks(context.Background(), optionsTradablePair, 0, time.Time{}, time.Time{}, kline.OneMonth); err != nil {
+	if _, err := g.GetOptionFuturesCandlesticks(context.Background(), optionsTradablePair, 0, time.Now().Add(-time.Hour*10), time.Time{}, kline.ThirtyMin); err != nil {
 		t.Errorf("%s GetOptionFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
@@ -2200,8 +2256,8 @@ func TestGetOptionsTradeHistory(t *testing.T) {
 
 func TestCreateNewSubAccount(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInformationNotProvided)
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	if _, err := g.CreateNewSubAccount(context.Background(), SubAccountParams{
 		LoginName: "Sub_Account_for_testing",
@@ -2285,7 +2341,19 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := g.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
+	_, err := g.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
+	if err != nil {
+		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
+	}
+	_, err = g.UpdateOrderbook(context.Background(), marginTradablePair, asset.Margin)
+	if err != nil {
+		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
+	}
+	_, err = g.UpdateOrderbook(context.Background(), crossMarginTradablePair, asset.CrossMargin)
+	if err != nil {
+		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
+	}
+	_, err = g.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
@@ -2305,8 +2373,15 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 }
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := g.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	_, err := g.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = g.GetRecentTrades(context.Background(), marginTradablePair, asset.Margin)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = g.GetRecentTrades(context.Background(), crossMarginTradablePair, asset.CrossMargin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2314,11 +2389,11 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetRecentTrades(context.Background(), currencyPair, asset.Futures)
+	_, err = g.GetRecentTrades(context.Background(), futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetRecentTrades(context.Background(), currencyPair, asset.Options)
+	_, err = g.GetRecentTrades(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2594,7 +2669,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
 	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
-		Pairs:     enabledPairs[:2],
+		Pairs:     currency.Pairs{futuresTradablePair},
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		AssetType: asset.Futures,
@@ -2603,7 +2678,16 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
 	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
-		Pairs:     enabledPairs[:2],
+		Pairs:     currency.Pairs{deliveryFuturesTradablePair},
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		AssetType: asset.DeliveryFutures,
+	})
+	if err != nil {
+		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
+	}
+	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+		Pairs:     currency.Pairs{optionsTradablePair},
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		AssetType: asset.Options,
@@ -2671,17 +2755,30 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, time.Now().Add(-time.Hour), time.Now()); err != nil {
+	startTime := time.Now().Add(-time.Hour * 10)
+	if _, err := g.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, startTime, time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
-	if _, err := g.GetHistoricCandles(context.Background(), spotTradablePair, asset.Margin, kline.OneDay, time.Now().Add(-time.Hour), time.Now()); err != nil {
+	if _, err := g.GetHistoricCandles(context.Background(), marginTradablePair, asset.Margin, kline.OneDay, startTime, time.Now()); err != nil {
+		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
+	}
+	if _, err := g.GetHistoricCandles(context.Background(), crossMarginTradablePair, asset.CrossMargin, kline.OneDay, startTime, time.Now()); err != nil {
+		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
+	}
+	if _, err := g.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.OneDay, startTime, time.Now()); err != nil {
+		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
+	}
+	if _, err := g.GetHistoricCandles(context.Background(), deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneDay, startTime, time.Now()); err != nil {
+		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
+	}
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	startTime := time.Now().Add(-time.Minute * 10)
+	startTime := time.Now().Add(-time.Hour * 5)
 	_, err := g.GetHistoricCandlesExtended(context.Background(),
 		spotTradablePair, asset.Spot, kline.OneMin, startTime, time.Now())
 	if err != nil {
@@ -2693,8 +2790,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = g.GetHistoricCandlesExtended(context.Background(),
-		deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneMin, startTime, time.Now())
-	if err != nil && !strings.Contains(err.Error(), "no time series data to convert") {
+		deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneMin, time.Now().Add(-time.Hour*5), time.Now())
+	if err != nil {
 		t.Error(err)
 	}
 	_, err = g.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.OneMin, startTime, time.Now())
@@ -2706,9 +2803,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetHistoricCandlesExtended(context.Background(),
-		optionsTradablePair, asset.Options, kline.OneMin, startTime, time.Now())
-	if err != nil && !strings.Contains(err.Error(), "no time series data to convert") {
+	_, err = g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FiveMin, time.Now().Add(-time.Hour*5), time.Now())
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -3337,7 +3433,7 @@ func TestSettlement(t *testing.T) {
 	}
 	for x := range availablePairs {
 		t.Run(strconv.Itoa(x), func(t *testing.T) {
-			_, err = g.getSettlementFromCurrency(availablePairs[x])
+			_, err = g.getSettlementFromCurrency(availablePairs[x], true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3349,7 +3445,7 @@ func TestSettlement(t *testing.T) {
 	}
 	for x := range availablePairs {
 		t.Run(strconv.Itoa(x), func(t *testing.T) {
-			_, err = g.getSettlementFromCurrency(availablePairs[x])
+			_, err = g.getSettlementFromCurrency(availablePairs[x], false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3361,7 +3457,7 @@ func TestSettlement(t *testing.T) {
 	}
 	for x := range availablePairs {
 		t.Run(strconv.Itoa(x), func(t *testing.T) {
-			_, err := g.getSettlementFromCurrency(availablePairs[x])
+			_, err := g.getSettlementFromCurrency(availablePairs[x], false)
 			if err != nil {
 				t.Fatal(err)
 			}
