@@ -249,7 +249,7 @@ func (g *Gateio) Run() {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if !g.SupportsAsset(a) {
-		return nil, fmt.Errorf("%s does not support %s", g.Name, a.String())
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	fPair, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
@@ -398,7 +398,7 @@ func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType ass
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !g.SupportsAsset(a) {
-		return nil, fmt.Errorf("%s does not support %s", g.Name, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	switch a {
 	case asset.Spot:
@@ -511,7 +511,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		return pairs, nil
 	default:
-		return nil, fmt.Errorf("%s does not support %s", g.Name, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 }
 
@@ -538,7 +538,7 @@ func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !g.SupportsAsset(a) {
-		return fmt.Errorf("%s does not support %s", g.Name, a)
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	var err error
 	switch a {
@@ -641,7 +641,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	default:
-		return fmt.Errorf("%s does not support %s", g.Name, a)
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	return nil
 }
@@ -806,7 +806,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 			},
 		})
 	default:
-		return info, fmt.Errorf("%s does not support %s", g.Name, a)
+		return info, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	creds, err := g.GetCredentials(ctx)
 	if err != nil {
@@ -959,7 +959,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%s does not support %s", g.Name, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	err = g.AddTradesToBuffer(resp...)
 	if err != nil {
@@ -1137,7 +1137,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.ClientOrderID = optionOrder.Text
 		return response, nil
 	default:
-		return nil, fmt.Errorf("%s does not support %s", g.Name, s.AssetType)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, s.AssetType)
 	}
 }
 
@@ -1175,7 +1175,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	case asset.Options:
 		_, err = g.CancelOptionSingleOrder(ctx, o.OrderID)
 	default:
-		return fmt.Errorf("%s does not support %s", g.Name, o.AssetType)
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 	return err
 }
@@ -1270,7 +1270,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 			}
 		}
 	default:
-		return response, fmt.Errorf("%s does not support %s", g.Name, a)
+		return response, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	return response, nil
 }
@@ -1450,7 +1450,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			AssetType:      a,
 		}, nil
 	default:
-		return orderDetail, fmt.Errorf("%s does not support %s", g.Name, a)
+		return orderDetail, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 }
 
@@ -1669,7 +1669,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			})
 		}
 	default:
-		return nil, fmt.Errorf("%s does not support %s", g.Name, req.AssetType)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, req.AssetType)
 	}
 	return req.Filter(g.Name, orders), nil
 }
@@ -1779,7 +1779,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%s does not support %s", g.Name, req.AssetType)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, req.AssetType)
 	}
 	return req.Filter(g.Name, orders), nil
 }
@@ -1844,7 +1844,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		}
 	// TODO: add support for options when endpoint is returning data
 	default:
-		return nil, fmt.Errorf("%s does not support %s", g.Name, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 	return req.ProcessResponse(listCandlesticks)
 }
@@ -1908,7 +1908,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 		// TODO: add support for options when endpoint is returning data
 		default:
-			return nil, fmt.Errorf("%s does not support %s", g.Name, a)
+			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 		}
 	}
 	return req.ProcessResponse(candlestickItems)

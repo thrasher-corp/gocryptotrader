@@ -2771,6 +2771,9 @@ func TestGetHistoricCandles(t *testing.T) {
 	if _, err := g.GetHistoricCandles(context.Background(), deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneDay, startTime, time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -2799,6 +2802,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		crossMarginTradablePair, asset.CrossMargin, kline.OneMin, startTime, time.Now())
 	if err != nil {
 		t.Error(err)
+	}
+	if _, err := g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
 }
 func TestGetAvailableTransferTrains(t *testing.T) {
