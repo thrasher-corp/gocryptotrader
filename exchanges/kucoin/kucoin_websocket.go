@@ -666,7 +666,7 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 	ku.Websocket.DataHandler <- &orderChange
 	marginOrderChange := orderChange
 	marginOrderChange.AssetType = asset.Margin
-	ku.Websocket.DataHandler <- marginOrderChange
+	ku.Websocket.DataHandler <- &marginOrderChange
 	return nil
 }
 
@@ -769,7 +769,7 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	return nil
 }
 
-func (ku *Kucoin) processOrderbookSnapshoot(respData []byte, instrument string) error {
+func (ku *Kucoin) processOrderbookSnapShot(respData []byte, instrument string) error {
 	response := WsLevel2Orderbook{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -779,7 +779,7 @@ func (ku *Kucoin) processOrderbookSnapshoot(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	snapshoot := orderbook.Base{
+	snapShot := orderbook.Base{
 		LastUpdated: response.TimeMS.Time(),
 		Pair:        pair,
 		Asset:       asset.Spot,
@@ -795,7 +795,7 @@ func (ku *Kucoin) processOrderbookSnapshoot(respData []byte, instrument string) 
 		if err != nil {
 			return err
 		}
-		snapshoot.Asks = append(snapshoot.Asks, item)
+		snapShot.Asks = append(snapShot.Asks, item)
 	}
 	for x := range response.Bids {
 		item := orderbook.Item{}
@@ -807,15 +807,15 @@ func (ku *Kucoin) processOrderbookSnapshoot(respData []byte, instrument string) 
 		if err != nil {
 			return err
 		}
-		snapshoot.Bids = append(snapshoot.Bids, item)
+		snapShot.Bids = append(snapShot.Bids, item)
 	}
-	marginSnapshoot := snapshoot
-	marginSnapshoot.Asset = asset.Margin
-	err = ku.Websocket.Orderbook.LoadSnapshot(&snapshoot)
+	marginSnapShot := snapShot
+	marginSnapShot.Asset = asset.Margin
+	err = ku.Websocket.Orderbook.LoadSnapshot(&snapShot)
 	if err != nil {
 		return err
 	}
-	return ku.Websocket.Orderbook.LoadSnapshot(&marginSnapshoot)
+	return ku.Websocket.Orderbook.LoadSnapshot(&marginSnapShot)
 }
 
 func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) error {

@@ -3,6 +3,7 @@ package kucoin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -1751,7 +1752,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.Sell,
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType) != nil {
-		t.SkipNow()
+		t.Skip(fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, getOrdersRequest.AssetType))
 	}
 	_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
@@ -1763,7 +1764,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.SkipNow()
+		t.Skip(fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, getOrdersRequest.AssetType))
 	}
 	getOrdersRequest.AssetType = asset.Margin
 	getOrdersRequest.Pairs = currency.Pairs{marginTradablePair}
