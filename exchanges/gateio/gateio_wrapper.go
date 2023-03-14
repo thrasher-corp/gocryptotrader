@@ -1842,22 +1842,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				Volume: candles[x].Volume,
 			}
 		}
-	case asset.Options:
-		candles, err := g.GetOptionFuturesCandlesticks(ctx, req.RequestFormatted.Upper(), 0, start, end, interval)
-		if err != nil {
-			return nil, err
-		}
-		listCandlesticks = make([]kline.Candle, len(candles))
-		for x := range candles {
-			listCandlesticks[x] = kline.Candle{
-				Time:   candles[x].Timestamp.Time(),
-				Open:   candles[x].OpenPrice,
-				High:   candles[x].HighestPrice,
-				Low:    candles[x].LowestPrice,
-				Close:  candles[x].ClosePrice,
-				Volume: candles[x].Volume,
-			}
-		}
+	// TODO: add support for options when endpoint is returning data
 	default:
 		return nil, fmt.Errorf("%s does not support %s", g.Name, a)
 	}
@@ -1921,21 +1906,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 					Volume: candles[x].Volume,
 				})
 			}
-		case asset.Options:
-			candles, err := g.GetOptionFuturesCandlesticks(ctx, req.RequestFormatted.Upper(), uint64(g.Features.Enabled.Kline.ResultLimit), start, end, interval)
-			if err != nil {
-				return nil, err
-			}
-			for x := range candles {
-				candlestickItems = append(candlestickItems, kline.Candle{
-					Time:   candles[x].Timestamp.Time(),
-					Open:   candles[x].OpenPrice,
-					High:   candles[x].HighestPrice,
-					Low:    candles[x].LowestPrice,
-					Close:  candles[x].ClosePrice,
-					Volume: candles[x].Volume,
-				})
-			}
+		// TODO: add support for options when endpoint is returning data
 		default:
 			return nil, fmt.Errorf("%s does not support %s", g.Name, a)
 		}

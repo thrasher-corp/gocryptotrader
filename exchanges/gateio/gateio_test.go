@@ -2234,7 +2234,7 @@ func TestGetOptionUnderlyingTickers(t *testing.T) {
 func TestGetOptionFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GetOptionFuturesCandlesticks(context.Background(), optionsTradablePair, 0, time.Now().Add(-time.Hour*10), time.Time{}, kline.ThirtyMin); err != nil {
-		t.Errorf("%s GetOptionFuturesCandlesticks() error %v", g.Name, err)
+		t.Error(err)
 	}
 }
 
@@ -2771,9 +2771,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if _, err := g.GetHistoricCandles(context.Background(), deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneDay, startTime, time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
-	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); err != nil {
-		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
-	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -2800,10 +2797,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	_, err = g.GetHistoricCandlesExtended(context.Background(),
 		crossMarginTradablePair, asset.CrossMargin, kline.OneMin, startTime, time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FiveMin, time.Now().Add(-time.Hour*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
