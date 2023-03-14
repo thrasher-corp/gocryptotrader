@@ -192,6 +192,11 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 	})
 }
 
+// GetServerTime returns the current exchange server time.
+func (b *Bittrex) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
+}
+
 // Start starts the Bittrex go routine
 func (b *Bittrex) Start(wg *sync.WaitGroup) error {
 	if wg == nil {

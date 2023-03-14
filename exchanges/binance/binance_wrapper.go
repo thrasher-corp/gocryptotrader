@@ -1107,7 +1107,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 		orderID = strconv.FormatInt(order.OrderID, 10)
 	default:
-		return nil, fmt.Errorf("assetType not supported")
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
 
 	resp, err := s.DeriveSubmitResponse(orderID)

@@ -293,9 +293,7 @@ func TestGetWithdrawRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.GetWithdrawalRecords(context.Background(),
-		currency.ETH.Lower().String(),
-		"0", "1", "20")
+	_, err := l.GetWithdrawalRecords(context.Background(), currency.ETH.Lower().String(), 0, 1, 20)
 	if err != nil {
 		t.Error(err)
 	}

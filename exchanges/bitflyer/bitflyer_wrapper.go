@@ -206,6 +206,11 @@ func (b *Bitflyer) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
+// GetServerTime returns the current exchange server time.
+func (b *Bitflyer) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	fPair, err := b.FormatExchangeCurrency(p, a)

@@ -80,7 +80,6 @@ func (l *Lbank) GetTimestamp(ctx context.Context) (TimestampResponse, error) {
 	var resp TimestampResponse
 	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion2, lbankTimestamp)
 	return resp, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-
 }
 
 // GetTickers returns all tickers

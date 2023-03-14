@@ -1462,11 +1462,6 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }
 
-// GetServerTime returns the current exchange server time.
-func (b *Base) GetServerTime(context.Context, asset.Item) (time.Time, error) {
-	return time.Time{}, common.ErrNotYetImplemented
-}
-
 // GetMarginRatesHistory returns the margin rate history for the supplied currency
 func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	return nil, common.ErrNotYetImplemented

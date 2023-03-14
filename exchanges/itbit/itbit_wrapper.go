@@ -135,6 +135,11 @@ func (i *ItBit) Run() {
 	}
 }
 
+// GetServerTime returns the current exchange server time.
+func (i *ItBit) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
+}
+
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (i *ItBit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	return nil, common.ErrFunctionNotSupported
