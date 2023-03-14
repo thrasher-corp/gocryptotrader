@@ -37,6 +37,7 @@ const (
 )
 
 var d Deribit
+var futuresTradablePair, optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
 
 func TestMain(m *testing.M) {
 	d.SetDefaults()
@@ -71,6 +72,10 @@ func TestMain(m *testing.M) {
 	}
 	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	err = instantiateTradablePairs()
+	if err != nil {
+		log.Fatalf("%v, generating sample tradable pairs", err)
+	}
 	setupWs()
 	os.Exit(m.Run())
 }
@@ -103,15 +108,35 @@ func TestFetchTradablePairs(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
+	_, err = d.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.FetchTradablePairs(context.Background(), asset.OptionCombo)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.FetchTradablePairs(context.Background(), asset.FutureCombo)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	_, err := d.UpdateTicker(context.Background(), futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.UpdateTicker(context.Background(), cp, asset.Futures)
+	_, err = d.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.UpdateTicker(context.Background(), optionComboTradablePair, asset.OptionCombo)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.UpdateTicker(context.Background(), futureComboTradablePair, asset.FutureCombo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -123,15 +148,19 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	_, err := d.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	fmtPair, err := d.FormatExchangeCurrency(cp, asset.Futures)
+	_, err = d.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.UpdateOrderbook(context.Background(), fmtPair, asset.Futures)
+	_, err = d.UpdateOrderbook(context.Background(), futureComboTradablePair, asset.FutureCombo)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.UpdateOrderbook(context.Background(), optionComboTradablePair, asset.OptionCombo)
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,33 +168,39 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestFetchRecentTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	_, err := d.GetRecentTrades(context.Background(), futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetRecentTrades(context.Background(), cp, asset.Futures)
+	_, err = d.GetRecentTrades(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetRecentTrades(context.Background(), cp, asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
+	_, err = d.GetRecentTrades(context.Background(), optionComboTradablePair, asset.OptionCombo)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetRecentTrades(context.Background(), futureComboTradablePair, asset.FutureCombo)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	_, err := d.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Now().Add(-time.Minute*10), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricTrades(
-		context.Background(),
-		cp,
-		asset.Futures,
-		time.Now().Add(-time.Minute*10),
-		time.Now(),
-	)
+	_, err = d.GetHistoricTrades(context.Background(), optionsTradablePair, asset.Options, time.Now().Add(-time.Minute*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricTrades(context.Background(), futureComboTradablePair, asset.FutureCombo, time.Now().Add(-time.Minute*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricTrades(context.Background(), optionComboTradablePair, asset.OptionCombo, time.Now().Add(-time.Minute*10), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -173,23 +208,24 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	_, err := d.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandles(context.Background(), cp, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	_, err = d.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
 }
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour*10), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandlesExtended(context.Background(), cp,
-		asset.Futures,
+	_, err = d.GetHistoricCandlesExtended(context.Background(),
+		optionsTradablePair,
+		asset.Options,
 		kline.FifteenMin,
 		time.Now().Add(-time.Hour*10),
 		time.Now())
@@ -203,11 +239,7 @@ func TestSubmitOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
-	cp, err := currency.NewPairFromString(btcPerpInstrument)
-	if err != nil {
-		t.Error(err)
-	}
-	info, err := d.GetInstrumentData(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrumentData(context.Background(), futuresTradablePair.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +252,64 @@ func TestSubmitOrder(t *testing.T) {
 			Type:      order.Limit,
 			AssetType: asset.Futures,
 			Side:      order.Buy,
-			Pair:      cp,
+			Pair:      futuresTradablePair,
+		},
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	info, err = d.GetInstrumentData(context.Background(), optionsTradablePair.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.SubmitOrder(
+		context.Background(),
+		&order.Submit{
+			Exchange:  d.Name,
+			Price:     10,
+			Amount:    info.ContractSize * 3,
+			Type:      order.Limit,
+			AssetType: asset.Options,
+			Side:      order.Buy,
+			Pair:      optionsTradablePair,
+		},
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	info, err = d.GetInstrumentData(context.Background(), futureComboTradablePair.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.SubmitOrder(
+		context.Background(),
+		&order.Submit{
+			Exchange:  d.Name,
+			Price:     10,
+			Amount:    info.ContractSize * 3,
+			Type:      order.Limit,
+			AssetType: asset.FutureCombo,
+			Side:      order.Buy,
+			Pair:      futureComboTradablePair,
+		},
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	info, err = d.GetInstrumentData(context.Background(), optionComboTradablePair.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.SubmitOrder(
+		context.Background(),
+		&order.Submit{
+			Exchange:  d.Name,
+			Price:     10,
+			Amount:    info.ContractSize * 3,
+			Type:      order.Limit,
+			AssetType: asset.OptionCombo,
+			Side:      order.Buy,
+			Pair:      optionComboTradablePair,
 		},
 	)
 	if err != nil {
@@ -230,15 +319,11 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestGetMarkPriceHistory(t *testing.T) {
 	t.Parallel()
-	pairs, err := d.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil || len(pairs) == 0 {
-		t.Skip("tradable pairs not found")
-	}
-	_, err = d.GetMarkPriceHistory(context.Background(), pairs[0].String(), time.Now().Add(-5*time.Minute), time.Now())
+	_, err := d.GetMarkPriceHistory(context.Background(), futuresTradablePair.String(), time.Now().Add(-5*time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetrieveMarkPriceHistory(pairs[0].String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+	if _, err := d.WSRetrieveMarkPriceHistory(futuresTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -273,11 +358,11 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 
 func TestGetContractSize(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetContractSize(context.Background(), btcPerpInstrument)
+	_, err := d.GetContractSize(context.Background(), futuresTradablePair.String())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveContractSize(btcPerpInstrument); err != nil {
+	if _, err = d.WSRetrieveContractSize(futuresTradablePair.String()); err != nil {
 		t.Error(err)
 	}
 }
@@ -306,22 +391,22 @@ func TestGetDeliveryPrices(t *testing.T) {
 
 func TestGetFundingChartData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingChartData(context.Background(), btcPerpInstrument, "8h")
+	_, err := d.GetFundingChartData(context.Background(), futuresTradablePair.String(), "8h")
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveFundingChartData(btcPerpInstrument, "8h"); err != nil {
+	if _, err = d.WSRetrieveFundingChartData(futuresTradablePair.String(), "8h"); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetFundingRateHistory(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateHistory(context.Background(), btcPerpInstrument, time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetFundingRateHistory(context.Background(), futuresTradablePair.String(), time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetrieveFundingRateHistory(btcPerpInstrument, time.Now().Add(-time.Hour), time.Now())
+	_, err = d.WSRetrieveFundingRateHistory(futuresTradablePair.String(), time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -329,19 +414,19 @@ func TestGetFundingRateHistory(t *testing.T) {
 
 func TestGetFundingRateValue(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateValue(context.Background(), btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
+	_, err := d.GetFundingRateValue(context.Background(), futuresTradablePair.String(), time.Now().Add(-time.Hour*8), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetFundingRateValue(context.Background(), btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.GetFundingRateValue(context.Background(), futuresTradablePair.String(), time.Now(), time.Now().Add(-time.Hour*8))
 	if err != nil && !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
-	_, err = d.WSRetrieveFundingRateValue(btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.WSRetrieveFundingRateValue(futuresTradablePair.String(), time.Now(), time.Now().Add(-time.Hour*8))
 	if err != nil && !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
-	if _, err = d.WSRetrieveFundingRateValue(btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now()); err != nil {
+	if _, err = d.WSRetrieveFundingRateValue(futuresTradablePair.String(), time.Now().Add(-time.Hour*8), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -433,19 +518,19 @@ func TestGetLastSettlementsByCurrency(t *testing.T) {
 
 func TestGetLastSettlementsByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastSettlementsByInstrument(context.Background(), btcPerpInstrument, "", "", 0, time.Time{})
+	_, err := d.GetLastSettlementsByInstrument(context.Background(), futuresTradablePair.String(), "", "", 0, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastSettlementsByInstrument(context.Background(), btcPerpInstrument, "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	_, err = d.GetLastSettlementsByInstrument(context.Background(), futuresTradablePair.String(), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetrieveLastSettlementsByInstrument(btcPerpInstrument, "", "", 0, time.Time{})
+	_, err = d.WSRetrieveLastSettlementsByInstrument(futuresTradablePair.String(), "", "", 0, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveLastSettlementsByInstrument(btcPerpInstrument, "settlement", "5", 0, time.Now().Add(-2*time.Hour)); err != nil {
+	if _, err = d.WSRetrieveLastSettlementsByInstrument(futuresTradablePair.String(), "settlement", "5", 0, time.Now().Add(-2*time.Hour)); err != nil {
 		t.Error(err)
 	}
 }
@@ -541,15 +626,8 @@ func TestGetOrderbookData(t *testing.T) {
 	}
 }
 
-var orderbookJSON = `{"underlying_price":16582.3,"underlying_index":"index_price","timestamp":1668792897465,"stats":{"volume":null,"price_change":null,"low":null,"high":null},"state":"inactive","settlement_price":0.18292605,"open_interest":0.0,"min_price":0.1678,"max_price":0.1977,"mark_price":0.1827,"mark_iv":0.0,"last_price":0.18,"interest_rate":0.0,"instrument_name":"BTC-BOX-30DEC22-17000_20000","index_price":16582.3,"implied_bid":0.1775,"implied_ask":0.193,"greeks":{"vega":0.00192,"theta":-0.00154,"rho":-3.4168,"gamma":0.0,"delta":0.00013},"estimated_delivery_price":16582.3,"combo_state":"inactive","change_id":51602345369,"bids":[],"bid_iv":0.0,"best_bid_price":0.0,"best_bid_amount":0.0,"best_ask_price":0.0,"best_ask_amount":0.0,"asks":[],"ask_iv":0.0}`
-
 func TestGetOrderbookByInstrumentID(t *testing.T) {
 	t.Parallel()
-	var response Orderbook
-	err := json.Unmarshal([]byte(orderbookJSON), &response)
-	if err != nil {
-		t.Error(err)
-	}
 	combos, err := d.WSRetrieveComboIDS(currencyBTC, "")
 	if err != nil {
 		t.Skip(err)
@@ -569,17 +647,9 @@ func TestGetOrderbookByInstrumentID(t *testing.T) {
 		t.Error(err)
 	}
 }
-
-var rfqJSON = `{"traded_volume": 0,	"amount": 10,"side": "buy",	"last_rfq_tstamp": 1634816611595,"instrument_name": "BTC-PERPETUAL"}`
-
 func TestGetRequestForQuote(t *testing.T) {
 	t.Parallel()
-	var response RequestForQuote
-	err := json.Unmarshal([]byte(rfqJSON), &response)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = d.GetRequestForQuote(context.Background(), currencyBTC, d.GetAssetKind(asset.Futures))
+	_, err := d.GetRequestForQuote(context.Background(), currencyBTC, d.GetAssetKind(asset.Futures))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1400,11 +1470,11 @@ func TestSubmitClosePosition(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
-	_, err := d.SubmitClosePosition(context.Background(), btcPerpInstrument, "limit", 35000)
+	_, err := d.SubmitClosePosition(context.Background(), futuresTradablePair.String(), "limit", 35000)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSubmitClosePosition(btcPerpInstrument, "limit", 35000); err != nil {
+	if _, err = d.WSSubmitClosePosition(futuresTradablePair.String(), "limit", 35000); err != nil {
 		t.Error(err)
 	}
 }
@@ -1414,11 +1484,11 @@ func TestGetMargins(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err := d.GetMargins(context.Background(), btcPerpInstrument, 5, 35000)
+	_, err := d.GetMargins(context.Background(), futuresTradablePair.String(), 5, 35000)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveMargins(btcPerpInstrument, 5, 35000); err != nil {
+	if _, err = d.WSRetrieveMargins(futuresTradablePair.String(), 5, 35000); err != nil {
 		t.Error(err)
 	}
 }
@@ -1624,11 +1694,11 @@ func TestSendRequestForQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	err := d.SendRequestForQuote(context.Background(), "BTC-PERPETUAL", 1000, order.Buy)
+	err := d.SendRequestForQuote(context.Background(), futuresTradablePair.String(), 1000, order.Buy)
 	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSSendRequestForQuote("BTC-PERPETUAL", 1000, order.Buy); err != nil {
+	if err = d.WSSendRequestForQuote(futuresTradablePair.String(), 1000, order.Buy); err != nil {
 		t.Error(err)
 	}
 }
@@ -1715,18 +1785,11 @@ func TestGetComboIDS(t *testing.T) {
 
 func TestGetComboDetails(t *testing.T) {
 	t.Parallel()
-	combos, err := d.GetComboIDS(context.Background(), currencyBTC, "")
-	if err != nil {
-		t.Skip(err)
-	}
-	if len(combos) == 0 {
-		t.Skip("no combo instance found for currency BTC")
-	}
-	_, err = d.GetComboDetails(context.Background(), combos[0])
+	_, err := d.GetComboDetails(context.Background(), futureComboTradablePair.String())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetrieveComboDetails(combos[0]); err != nil {
+	if _, err := d.WSRetrieveComboDetails(futureComboTradablePair.String()); err != nil {
 		t.Error(err)
 	}
 }
@@ -1855,7 +1918,7 @@ func TestVerifyBlockTrade(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	_, err = d.VerifyBlockTrade(context.Background(), time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
+	_, err = d.VerifyBlockTrade(context.Background(), time.Now(), "something", "maker", "", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -1894,26 +1957,19 @@ func TestInvalidateBlockTradeSignature(t *testing.T) {
 	}
 }
 
-const blockTradeResponseJSON = `[	{	  "trade_seq":30289730,	  "trade_id":"48079573",	  "timestamp":1590485535978,	  "tick_direction":0,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":8900.0,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043192",	  "matching_id":"None",	  "mark_price":8895.19,	  "liquidity":"M",	  "instrument_name":"BTC-PERPETUAL",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":-0.00561798,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":200000.0	},	{	  "underlying_price":8902.86,	  "trade_seq":1,	  "trade_id":"48079574",	  "timestamp":1590485535979,	  "tick_direction":1,	  "state":"filled",	  "self_trade":false,	  "reduce_only":false,	  "price":0.0133,	  "post_only":false,	  "order_type":"limit",	  "order_id":"4009043194",	  "matching_id":"None",	  "mark_price":0.01831619,	  "liquidity":"M",	  "iv":62.44,	  "instrument_name":"BTC-28MAY20-9000-C",	  "index_price":8900.45,	  "fee_currency":"BTC",	  "fee":0.002,	  "direction":"sell",	  "block_trade_id":"6165",	  "amount":5.0	}]`
-
 func TestExecuteBlockTrade(t *testing.T) {
 	t.Parallel()
-	var response []BlockTradeResponse
-	err := json.Unmarshal([]byte(blockTradeResponseJSON), &response)
-	if err != nil {
-		t.Error(err)
-	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
-	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrumentData(context.Background(), futuresTradablePair.String())
 	if err != nil {
 		t.Skip(err)
 	}
-	_, err = d.ExecuteBlockTrade(context.Background(), time.Now(), "sdjkafdad", "maker", "", []BlockTradeParam{
+	_, err = d.ExecuteBlockTrade(context.Background(), time.Now(), "something", "maker", "", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
-			InstrumentName: "BTC-PERPETUAL",
+			InstrumentName: futuresTradablePair.String(),
 			Direction:      "buy",
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
@@ -1947,19 +2003,12 @@ func TestGetUserBlocTrade(t *testing.T) {
 	}
 }
 
-const blockTradeResponsesJSON = `[	{	  "trade_seq": 4,	  "trade_id": "92462",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 0.0151,	  "order_type": "limit",	  "order_id": "343121",	  "matching_id": null,	  "liquidity": "M",	  "iv": 72.38,	  "instrument_name": "BTC-9AUG19-11500-P",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 2.3	},	{	  "trade_seq": 41,	  "trade_id": "92460",	  "timestamp": 1565093070164,	  "tick_direction": 2,	  "state": "filled",	  "self_trade": false,	  "price": 11753,	  "order_type": "limit",	  "order_id": "343117",	  "matching_id": null,	  "liquidity": "M",	  "instrument_name": "BTC-9AUG19",	  "index_price": 11758.65,	  "fee_currency": "BTC",	  "fee": 0,	  "direction": "sell",	  "block_trade_id": "66",	  "amount": 50	}]`
-
 func TestGetLastBlockTradesbyCurrency(t *testing.T) {
 	t.Parallel()
-	var resp []BlockTradeData
-	err := json.Unmarshal([]byte(blockTradeResponsesJSON), &resp)
-	if err != nil {
-		t.Error(err)
-	}
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	_, err = d.GetLastBlockTradesByCurrency(context.Background(), "SOL", "", "", 5)
+	_, err := d.GetLastBlockTradesByCurrency(context.Background(), "SOL", "", "", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2043,7 +2092,7 @@ func TestIndexPricePushData(t *testing.T) {
 	}
 }
 
-const priceRankingPushDataJSON = `{"params" : {"data" : [{"weight" : 14.29,		  "timestamp" : 1573202284040,		  "price" : 9109.35,		  "original_price" : 9109.35,		  "identifier" : "bitfinex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284055,		  "price" : 9084.83,		  "original_price" : 9084.83,		  "identifier" : "bitstamp",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283191,		  "price" : 9079.91,		  "original_price" : 9079.91,		  "identifier" : "bittrex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284094,		  "price" : 9085.81,		  "original_price" : 9085.81,		  "identifier" : "coinbase",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283881,		  "price" : 9086.27,		  "original_price" : 9086.27,		  "identifier" : "gemini",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283420,		  "price" : 9088.38,		  "original_price" : 9088.38,		  "identifier" : "itbit",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283459,		  "price" : 9083.6,		  "original_price" : 9083.6,		  "identifier" : "kraken",		  "enabled" : true		},		{		  "weight" : 0,		  "timestamp" : 0,		  "price" : null,		  "original_price" : null,		  "identifier" : "lmax",		  "enabled" : false		}	  ],	  "channel" : "deribit_price_ranking.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
+const priceRankingPushDataJSON = `{"params" : {"data" :[{"weight" : 14.29,"timestamp" : 1573202284040,"price" : 9109.35,"original_price" : 9109.35,"identifier" : "bitfinex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284055,		  "price" : 9084.83,		  "original_price" : 9084.83,		  "identifier" : "bitstamp",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283191,		  "price" : 9079.91,		  "original_price" : 9079.91,		  "identifier" : "bittrex",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202284094,		  "price" : 9085.81,		  "original_price" : 9085.81,		  "identifier" : "coinbase",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283881,		  "price" : 9086.27,		  "original_price" : 9086.27,		  "identifier" : "gemini",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283420,		  "price" : 9088.38,		  "original_price" : 9088.38,		  "identifier" : "itbit",		  "enabled" : true		},		{		  "weight" : 14.29,		  "timestamp" : 1573202283459,		  "price" : 9083.6,		  "original_price" : 9083.6,		  "identifier" : "kraken",		  "enabled" : true		},		{		  "weight" : 0,		  "timestamp" : 0,		  "price" : null,		  "original_price" : null,		  "identifier" : "lmax",		  "enabled" : false		}	  ],	  "channel" : "deribit_price_ranking.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`
 
 func TestPriceRakingPushData(t *testing.T) {
 	t.Parallel()
@@ -2079,8 +2128,7 @@ func TestEstimatedExpirationPricePushData(t *testing.T) {
 	}
 }
 
-const incrementalTickerPushDataJSON = `{
-"jsonrpc": "2.0", "method": "subscription", "params": { "channel": "incremental_ticker.BTC-PERPETUAL", "data": { "type": "snapshot", "timestamp": 1677592580023, "stats": { "volume_usd": 224579520.0, "volume": 9581.70741368, "price_change": -1.2945, "low": 23123.5, "high": 23900.0 }, "state": "open", "settlement_price": 23240.71, "open_interest": 333091400, "min_price": 23057.4, "max_price": 23759.65, "mark_price": 23408.41, "last_price": 23409.0, "interest_value": 0.0, "instrument_name": "BTC-PERPETUAL", "index_price": 23406.85, "funding_8h": 0.0, "estimated_delivery_price": 23406.85, "current_funding": 0.0, "best_bid_price": 23408.5, "best_bid_amount": 53270.0, "best_ask_price": 23409.0, "best_ask_amount": 46990.0 } } }`
+const incrementalTickerPushDataJSON = `{"jsonrpc": "2.0", "method": "subscription", "params": { "channel": "incremental_ticker.BTC-PERPETUAL", "data": { "type": "snapshot", "timestamp": 1677592580023, "stats": { "volume_usd": 224579520.0, "volume": 9581.70741368, "price_change": -1.2945, "low": 23123.5, "high": 23900.0 }, "state": "open", "settlement_price": 23240.71, "open_interest": 333091400, "min_price": 23057.4, "max_price": 23759.65, "mark_price": 23408.41, "last_price": 23409.0, "interest_value": 0.0, "instrument_name": "BTC-PERPETUAL", "index_price": 23406.85, "funding_8h": 0.0, "estimated_delivery_price": 23406.85, "current_funding": 0.0, "best_bid_price": 23408.5, "best_bid_amount": 53270.0, "best_ask_price": 23409.0, "best_ask_amount": 46990.0 } } }`
 
 func TestIncrementalTickerPushData(t *testing.T) {
 	t.Parallel()
@@ -2220,13 +2268,6 @@ func TestUserTradesPushData(t *testing.T) {
 	}
 }
 
-func TestQuoteTickerPushData(t *testing.T) {
-	t.Parallel()
-	if err := d.wsHandleData([]byte(quoteTickerPushDataJSON)); err != nil {
-		t.Error(err)
-	}
-}
-
 func setupWs() {
 	if !d.Websocket.IsEnabled() {
 		return
@@ -2323,15 +2364,11 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	tradablePairs, err := d.FetchTradablePairs(context.Background(), asset.OptionCombo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = d.Subscribe([]stream.ChannelSubscription{
+	err := d.Subscribe([]stream.ChannelSubscription{
 		{
 			Channel:  chartTradesChannel,
 			Asset:    asset.Futures,
-			Currency: tradablePairs[0],
+			Currency: futuresTradablePair,
 		}})
 	if err != nil {
 		t.Error(err)
@@ -2339,7 +2376,8 @@ func TestSubscribe(t *testing.T) {
 }
 
 func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
-	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	t.Parallel()
+	info, err := d.GetInstrumentData(context.Background(), futuresTradablePair.String())
 	if err != nil {
 		t.Skip(err)
 	}
@@ -2354,18 +2392,14 @@ func TestCancelAllOrders(t *testing.T) {
 	if !areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip(endpointAuthorizationToManipulate)
 	}
-	currencyPair, err := currency.NewPairFromString("BTC-PERPETUAL")
-	if err != nil {
-		t.Fatal(err)
-	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		Pair:          currencyPair,
+		Pair:          futuresTradablePair,
 		AssetType:     asset.Futures,
 	}
-	_, err = d.CancelAllOrders(context.Background(), orderCancellation)
+	_, err := d.CancelAllOrders(context.Background(), orderCancellation)
 	if err != nil && !errors.Is(err, errNoOrderDeleted) {
 		t.Error(err)
 	}
@@ -2376,11 +2410,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	enabledPairs, err := d.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = d.GetOrderInfo(context.Background(), "1234", enabledPairs[0], asset.Futures)
+	_, err := d.GetOrderInfo(context.Background(), "1234", futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2427,17 +2457,13 @@ func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	enabledPairs, err := d.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Futures,
 		Side:      order.AnySide,
-		Pairs:     []currency.Pair{enabledPairs[0]},
+		Pairs:     currency.Pairs{futuresTradablePair},
 	}
-	_, err = d.GetActiveOrders(context.Background(), &getOrdersRequest)
+	_, err := d.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2448,22 +2474,18 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(authenticationSkipMessage)
 	}
-	enabledPairs, err := d.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if _, err := d.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Futures,
 		Side:      order.AnySide,
-		Pairs:     []currency.Pair{enabledPairs[0]},
+		Pairs:     []currency.Pair{futuresTradablePair},
 	}); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGuessAssetTypeFromInstrument(t *testing.T) {
-	availablePairs, err := d.GetAvailablePairs(asset.Futures)
+	availablePairs, err := d.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2477,7 +2499,7 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 			}
 		})
 	}
-	availablePairs, err = d.GetAvailablePairs(asset.Options)
+	availablePairs, err = d.GetEnabledPairs(asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2490,7 +2512,7 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 			}
 		})
 	}
-	availablePairs, err = d.GetAvailablePairs(asset.OptionCombo)
+	availablePairs, err = d.GetEnabledPairs(asset.OptionCombo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2503,7 +2525,7 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 			}
 		})
 	}
-	availablePairs, err = d.GetAvailablePairs(asset.FutureCombo)
+	availablePairs, err = d.GetEnabledPairs(asset.FutureCombo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2527,10 +2549,9 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = &exchange.FeeBuilder{
-		Amount:  1,
-		FeeType: exchange.CryptocurrencyTradeFee,
-		Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
-			currency.USDT.String(), "_"),
+		Amount:              1,
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		Pair:                futuresTradablePair,
 		IsMaker:             false,
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
@@ -2648,11 +2669,31 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 }
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	d.Verbose = true
-	err := d.WsConnect()
+func instantiateTradablePairs() error {
+	err := d.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
-		t.Error(err)
+		return err
 	}
+	var tradablePair currency.Pairs
+	tradablePair, err = d.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	futuresTradablePair = tradablePair[0]
+	tradablePair, err = d.GetEnabledPairs(asset.Options)
+	if err != nil {
+		return err
+	}
+	optionsTradablePair = tradablePair[0]
+	tradablePair, err = d.GetEnabledPairs(asset.OptionCombo)
+	if err != nil {
+		return err
+	}
+	optionComboTradablePair = tradablePair[0]
+	tradablePair, err = d.GetEnabledPairs(asset.FutureCombo)
+	if err != nil {
+		return err
+	}
+	futureComboTradablePair = tradablePair[0]
+	return nil
 }

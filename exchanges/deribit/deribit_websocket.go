@@ -203,7 +203,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	case "announcements":
 		announcement := &Announcement{}
 		response.Params.Data = announcement
-		err := json.Unmarshal(respRaw, &response)
+		err = json.Unmarshal(respRaw, &response)
 		if err != nil {
 			return err
 		}
@@ -286,22 +286,11 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 				return nil
 			}
 		default:
-			var resp *VersionInformation
-			var data []byte
-			data, err = json.Marshal(response.Result)
-			if err != nil {
-				break
-			}
-			err = json.Unmarshal(data, &resp)
-			if err != nil || resp == nil {
-				break
+			d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+				Message: d.Name + stream.UnhandledMessage + string(respRaw),
 			}
 			return nil
 		}
-		d.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: d.Name + stream.UnhandledMessage + string(respRaw),
-		}
-		return nil
 	}
 	return nil
 }
