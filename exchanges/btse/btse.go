@@ -136,12 +136,8 @@ func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Tim
 
 // GetOHLCV retrieve and return OHLCV candle data for requested symbol
 func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
-	var ep exchange.URL
 	switch a {
-	case asset.Spot:
-		ep = exchange.RestSpot
-	case asset.Futures:
-		ep = exchange.RestFutures
+	case asset.Spot, asset.Futures:
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -163,7 +159,7 @@ func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time
 	urlValues.Add("resolution", strconv.FormatInt(int64(res), 10))
 	endpoint := common.EncodeURLValues(btseOHLCV, urlValues)
 
-	return o, b.SendHTTPRequest(ctx, ep, http.MethodGet, endpoint, &o, true, queryFunc)
+	return o, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, a == asset.Spot, queryFunc)
 }
 
 // GetPrice get current price for requested symbol
@@ -502,7 +498,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 			body = bytes.NewBuffer(reqPayload)
 			hmac, err = crypto.GetHMAC(
 				crypto.HashSHA512_384,
-				[]byte((expandedEndpoint + nonce + string(reqPayload))),
+				[]byte(expandedEndpoint+nonce+string(reqPayload)),
 				[]byte(creds.Secret),
 			)
 			if err != nil {
@@ -512,7 +508,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 		} else {
 			hmac, err = crypto.GetHMAC(
 				crypto.HashSHA512_384,
-				[]byte((expandedEndpoint + nonce)),
+				[]byte(expandedEndpoint+nonce),
 				[]byte(creds.Secret),
 			)
 			if err != nil {

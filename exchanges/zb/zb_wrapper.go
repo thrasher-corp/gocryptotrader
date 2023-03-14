@@ -426,7 +426,6 @@ func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accoun
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-
 	pairs, err := z.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

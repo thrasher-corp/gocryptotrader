@@ -273,10 +273,19 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandles(context.Background(), "fUSD", "1m", 0, 0, 10, true)
+	b.Verbose = true
+	resp, err := b.GetCandles(context.Background(), "fUST", "1D", 1678060800000, time.Now().Round(time.Hour).UnixMilli(), 10000, true)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log(time.UnixMilli(1678060800000))
+	t.Log(time.UnixMilli(1678752000000))
+	t.Log(time.Now().Truncate(time.Hour))
+	// https://api.bitfinex.com/v2/candles/trade:1D:fUST:p30/hist?end=1678752000000&limit=10000&start=1678060800000
+
+	/// https://api.bitfinex.com/v2/candles/trade:fXMR:1D/hist?end=1678752000000&limit=10000&start=1678746000000
+	/// https://api.bitfinex.com/v2/candles/trade:1D:fUSD:p30/hist?end=1678744800000&limit=10000&start=1678140000000
+	t.Log(resp)
 }
 
 func TestGetLeaderboard(t *testing.T) {
@@ -457,6 +466,16 @@ func TestUpdateTicker(t *testing.T) {
 	}
 
 	_, err = b.UpdateTicker(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair, err = currency.NewPairFromStrings("COMP", "PFC")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateTicker(context.Background(), pair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1615,7 +1634,10 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 	for x := range testCases {
 		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
+			ret, err := b.FormatExchangeKlineInterval(test.interval)
+			if err != nil {
+				t.Error(err)
+			}
 			if ret != test.output {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}

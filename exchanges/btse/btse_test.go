@@ -27,10 +27,12 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	testSPOTPair            = "BTC-USD"
-	testFUTURESPair         = "BTCPFC"
 )
 
-var b BTSE
+var (
+	b               BTSE
+	testFUTURESPair = currency.NewPair(currency.ENJ, currency.PFC)
+)
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -52,6 +54,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	b.UpdateTradablePairs(context.Background(), true)
+	b.CurrencyPairs.EnablePair(asset.Futures, testFUTURESPair)
 	os.Exit(m.Run())
 }
 
@@ -94,6 +98,11 @@ func TestGetMarketsSummary(t *testing.T) {
 	if len(ret) != 1 {
 		t.Errorf("expected only one result when requesting BTC-USD data received: %v", len(ret))
 	}
+
+	_, err = b.GetMarketSummary(context.Background(), "", false)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestFetchOrderBook(t *testing.T) {
@@ -103,7 +112,7 @@ func TestFetchOrderBook(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.FetchOrderBook(context.Background(), testFUTURESPair, 0, 1, 1, false)
+	_, err = b.FetchOrderBook(context.Background(), testFUTURESPair.String(), 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -126,13 +135,9 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := currency.NewPairFromString(testFUTURESPair)
+	_, err = b.UpdateOrderbook(context.Background(), testFUTURESPair, asset.Futures)
 	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.UpdateOrderbook(context.Background(), f, asset.Futures)
-	if err != nil {
-		if !errors.Is(err, common.ErrNotYetImplemented) {
+		if !errors.Is(err, nil) {
 			t.Fatal(err)
 		}
 	}
@@ -169,7 +174,7 @@ func TestOHLCV(t *testing.T) {
 	}
 
 	_, err = b.GetOHLCV(context.Background(),
-		testSPOTPair,
+		testFUTURESPair.String(),
 		time.Now().AddDate(0, 0, -1),
 		time.Now(),
 		60,
@@ -221,8 +226,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	start := time.Now().AddDate(0, 0, -1)
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, start, time.Now())
-	if !errors.Is(err, common.ErrNotYetImplemented) {
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneHour, start, time.Now())
+	if !errors.Is(err, nil) {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricCandlesExtended(context.Background(), testFUTURESPair, asset.Futures, kline.OneHour, start, time.Now())
+	if !errors.Is(err, nil) {
 		t.Fatal(err)
 	}
 }
@@ -246,7 +255,7 @@ func TestGetTrades(t *testing.T) {
 	}
 
 	_, err = b.GetTrades(context.Background(),
-		testFUTURESPair,
+		testFUTURESPair.String(),
 		time.Now().AddDate(0, 0, -1), time.Now(),
 		0, 0, 50, false, false)
 	if err != nil {
@@ -475,6 +484,7 @@ func TestTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
+	b.Verbose = true
 	_, err := b.TradeHistory(context.Background(),
 		"",
 		time.Time{}, time.Time{},
@@ -734,6 +744,7 @@ func TestStatusToStandardStatus(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	assets := b.GetAssetTypes(false)
 	for i := range assets {
 		data, err := b.FetchTradablePairs(context.Background(), assets[i])
@@ -885,11 +896,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	currencyPair, err = currency.NewPairFromString(testFUTURESPair)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetRecentTrades(context.Background(), currencyPair, asset.Futures)
+	_, err = b.GetRecentTrades(context.Background(), testFUTURESPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}

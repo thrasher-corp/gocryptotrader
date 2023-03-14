@@ -64,11 +64,11 @@ func (b *BTSE) SetDefaults() {
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -251,8 +251,18 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		if !m[x].Active {
 			continue
 		}
+
 		var pair currency.Pair
-		pair, err = currency.NewPairFromString(m[x].Symbol)
+		quote := m[x].Quote
+		if a == asset.Futures {
+			symSplit := strings.Split(m[x].Symbol, m[x].Base)
+			if len(symSplit) == 1 {
+				return nil, errors.New("woah nelly")
+			}
+			quote = symSplit[1]
+		}
+
+		pair, err = currency.NewPairFromStrings(m[x].Base, quote)
 		if err != nil {
 			return nil, err
 		}

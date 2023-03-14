@@ -454,7 +454,7 @@ func TestCancelMultipleSpotOrders(t *testing.T) {
 	}
 	request := &CancelMultipleSpotOrdersRequest{
 		InstrumentID: spotCurrencyLowerStr,
-		OrderIDs:     []int64{1, 2, 3, 4},
+		OrderIDs:     []string{"1", "2", "3", "4"},
 	}
 
 	cancellations, err := o.CancelMultipleSpotOrders(context.Background(), request)
@@ -480,7 +480,7 @@ func TestCancelMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	}
 	request := &CancelMultipleSpotOrdersRequest{
 		InstrumentID: spotCurrencyLowerStr,
-		OrderIDs:     []int64{1, 2, 3, 4, 5},
+		OrderIDs:     []string{"1", "2", "3", "4", "5"},
 	}
 
 	_, err := o.CancelMultipleSpotOrders(context.Background(), request)
@@ -611,6 +611,15 @@ func TestGetMarginTradingAccounts(t *testing.T) {
 	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
 	}
+}
+
+func TestServerTime(t *testing.T) {
+	t.Parallel()
+	tt, err := o.ServerTime(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(tt)
 }
 
 func TestGetMarginTradingAccountsForCurrency(t *testing.T) {
@@ -856,12 +865,12 @@ func TestCancelMultipleMarginOrders(t *testing.T) {
 	}
 	request := &CancelMultipleSpotOrdersRequest{
 		InstrumentID: spotCurrencyLowerStr,
-		OrderIDs:     []int64{1, 2, 3, 4},
+		OrderIDs:     []string{"1", "2", "3", "4"},
 	}
 
-	_, errs := o.CancelMultipleMarginOrders(context.Background(), request)
-	if len(errs) > 0 {
-		t.Error(errs)
+	_, err := o.CancelMultipleMarginOrders(context.Background(), request)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -872,12 +881,12 @@ func TestCancelMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	}
 	request := &CancelMultipleSpotOrdersRequest{
 		InstrumentID: spotCurrencyLowerStr,
-		OrderIDs:     []int64{1, 2, 3, 4, 5},
+		OrderIDs:     []string{"1", "2", "3", "4", "5"},
 	}
 
-	_, errs := o.CancelMultipleMarginOrders(context.Background(), request)
-	if errs[0].Error() != "maximum 4 order cancellations for each pair" {
-		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	_, err := o.CancelMultipleMarginOrders(context.Background(), request)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

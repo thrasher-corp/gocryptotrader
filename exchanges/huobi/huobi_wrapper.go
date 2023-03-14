@@ -880,7 +880,6 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					Timestamp:    time.UnixMilli(sTrades[i].Timestamp),
 				})
 			}
-
 		}
 	case asset.Futures:
 		var fTrades FBatchTradesForContractData

@@ -775,5 +775,4 @@ func TestUpdateCurrencyStates(t *testing.T) {
 
 func GetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-
 }

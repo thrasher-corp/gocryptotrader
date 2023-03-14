@@ -307,7 +307,14 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 			if err != nil {
 				return nil, err
 			}
-			insts = append(insts, instruments...)
+
+			for i := range instruments {
+				if instruments[i].ExpTime.Before(time.Now()) || instruments[i].ListTime.After(time.Now()) {
+					fmt.Printf("%v %v %v", instruments[i].InstrumentID, instruments[i].ExpTime, instruments[i].ListTime)
+					continue
+				}
+				insts = append(insts, instruments[i])
+			}
 		}
 	case asset.Margin:
 		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{

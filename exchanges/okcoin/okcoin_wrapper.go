@@ -2,6 +2,7 @@ package okcoin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -295,71 +296,90 @@ func (o *OKCoin) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKCoin) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
-	prods, err := o.GetSpotTokenPairDetails(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	pairs := make([]currency.Pair, len(prods))
-	for x := range prods {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromStrings(prods[x].BaseCurrency, prods[x].QuoteCurrency)
+func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	switch a {
+	case asset.Spot, asset.Margin:
+		prods, err := o.GetSpotTokenPairDetails(ctx)
 		if err != nil {
 			return nil, err
 		}
-		pairs[x] = pair
+
+		pairs := make([]currency.Pair, len(prods))
+		for x := range prods {
+			var pair currency.Pair
+			pair, err = currency.NewPairFromStrings(prods[x].BaseCurrency, prods[x].QuoteCurrency)
+			if err != nil {
+				return nil, err
+			}
+			pairs[x] = pair
+		}
+		return pairs, nil
 	}
-	return pairs, nil
+
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := o.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
+	assets := o.GetAssetTypes(false)
+	for i := range assets {
+		pairs, err := o.FetchTradablePairs(ctx, assets[i])
+		if err != nil {
+			return err
+		}
+		err = o.UpdatePairs(pairs, assets[i], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-	return o.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
-	if a == asset.Spot {
-		resp, err := o.GetSpotAllTokenPairsInformation(ctx)
-		if err != nil {
-			return err
-		}
-		pairs, err := o.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
-		for i := range pairs {
-			for j := range resp {
-				if !pairs[i].Equal(resp[j].InstrumentID) {
-					continue
-				}
+	resp, err := o.GetSpotAllTokenPairsInformation(ctx)
+	if err != nil {
+		return err
+	}
+	pairs, err := o.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	for i := range pairs {
+		for j := range resp {
+			if !pairs[i].Equal(resp[j].InstrumentID) {
+				continue
+			}
 
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         resp[j].Last,
-					High:         resp[j].High24h,
-					Low:          resp[j].Low24h,
-					Bid:          resp[j].BestBid,
-					Ask:          resp[j].BestAsk,
-					Volume:       resp[j].BaseVolume24h,
-					QuoteVolume:  resp[j].QuoteVolume24h,
-					Open:         resp[j].Open24h,
-					Pair:         pairs[i],
-					LastUpdated:  resp[j].Timestamp,
-					ExchangeName: o.Name,
-					AssetType:    a})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         resp[j].Last,
+				High:         resp[j].High24h,
+				Low:          resp[j].Low24h,
+				Bid:          resp[j].BestBid,
+				Ask:          resp[j].BestAsk,
+				Volume:       resp[j].BaseVolume24h,
+				QuoteVolume:  resp[j].QuoteVolume24h,
+				Open:         resp[j].Open24h,
+				Pair:         pairs[i],
+				LastUpdated:  resp[j].Timestamp,
+				ExchangeName: o.Name,
+				AssetType:    a})
+			if err != nil {
+				return err
 			}
 		}
 	}
 	return nil
+}
+
+// FetchTicker returns the ticker for a currency pair
+func (o *OKCoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	t, err := ticker.GetTicker(o.Name, p, assetType)
+	if err != nil {
+		return o.UpdateTicker(ctx, p, assetType)
+	}
+	return t, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -368,15 +388,6 @@ func (o *OKCoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		return nil, err
 	}
 	return ticker.GetTicker(o.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (o *OKCoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerData, err := ticker.GetTicker(o.Name, p, assetType)
-	if err != nil {
-		return o.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerData, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -388,7 +399,7 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	}
 	var resp []trade.Data
 	switch assetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		var tradeData []GetSpotFilledOrdersInformationResponse
 		tradeData, err = o.GetSpotFilledOrdersInformation(ctx,
 			&GetSpotFilledOrdersInformationRequest{
@@ -426,9 +437,75 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	return resp, nil
 }
 
+var errOnlyOneAssetTypePerBatch = errors.New("can only cancel one asset type in a batch command")
+var errOneCurrencyPairRequired = errors.New("can only cancel one asset type in a batch command")
+var errOnlyOrderIDsORClientOrderIDsAllowed = errors.New("only order ids or client order ids allowed, not both")
+
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	orderIDs := make([]string, 0, len(orders))
+	clientOrderIDs := make([]string, 0, len(orders))
+	var a asset.Item
+	var cp currency.Pair
+	for i := range orders {
+		if a == asset.Empty {
+			a = orders[i].AssetType
+		}
+		if a != orders[i].AssetType {
+			return nil, errOnlyOneAssetTypePerBatch
+		}
+		if orders[i].Pair.IsEmpty() {
+			return nil, errOneCurrencyPairRequired
+		}
+		if cp.IsEmpty() {
+			cp = orders[i].Pair
+		}
+		if !cp.Equal(orders[i].Pair) {
+			return nil, errOneCurrencyPairRequired
+		}
+		if orders[i].ClientOrderID != "" {
+			clientOrderIDs = append(clientOrderIDs, orders[i].ClientOrderID)
+			continue
+		}
+		orderIDs = append(orderIDs, orders[i].OrderID)
+	}
+	if len(orderIDs) > 0 && len(clientOrderIDs) > 0 {
+		return nil, errOnlyOrderIDsORClientOrderIDsAllowed
+	}
+	cp, err := o.FormatExchangeCurrency(cp, a)
+	if err != nil {
+		return nil, err
+	}
+	var cancelOrderResponse map[string][]CancelMultipleSpotOrdersResponse
+	switch a {
+	case asset.Spot:
+		cancelOrderResponse, err = o.CancelMultipleSpotOrders(ctx, &CancelMultipleSpotOrdersRequest{
+			OrderIDs:       orderIDs,
+			ClientOrderIDs: clientOrderIDs,
+			InstrumentID:   cp.String(),
+		})
+	case asset.Margin:
+		cancelOrderResponse, err = o.CancelMultipleMarginOrders(ctx, &CancelMultipleSpotOrdersRequest{
+			OrderIDs:       orderIDs,
+			ClientOrderIDs: clientOrderIDs,
+			InstrumentID:   cp.String(),
+		})
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	resp := &order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	for _, cancelledOrders := range cancelOrderResponse {
+		for i := range cancelledOrders {
+			resp.Status[cancelledOrders[i].OrderID] = strconv.FormatBool(cancelledOrders[i].Result) + " " + cancelledOrders[i].Error.Error()
+		}
+	}
+	return resp, nil
+}
+
+func (o *OKCoin) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return o.ServerTime(ctx)
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
@@ -725,17 +802,12 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 		return order.CancelAllResponse{}, err
 	}
 
-	orderIDs := strings.Split(orderCancellation.OrderID, ",")
+	splitOrderIDs := strings.Split(orderCancellation.OrderID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
-	orderIDNumbers := make([]int64, 0, len(orderIDs))
-	for i := range orderIDs {
-		orderIDNumber, err := strconv.ParseInt(orderIDs[i], 10, 64)
-		if err != nil {
-			resp.Status[orderIDs[i]] = err.Error()
-			continue
-		}
-		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
+	orderIDs := make([]string, 0, len(splitOrderIDs))
+	for i := range splitOrderIDs {
+		orderIDs = append(orderIDs, splitOrderIDs[i])
 	}
 
 	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
@@ -747,7 +819,7 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(ctx,
 		&CancelMultipleSpotOrdersRequest{
 			InstrumentID: fpair.String(),
-			OrderIDs:     orderIDNumbers,
+			OrderIDs:     orderIDs,
 		})
 	if err != nil {
 		return resp, err
@@ -755,7 +827,7 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 
 	for x := range cancelOrdersResponse {
 		for y := range cancelOrdersResponse[x] {
-			resp.Status[strconv.FormatInt(cancelOrdersResponse[x][y].OrderID, 10)] = strconv.FormatBool(cancelOrdersResponse[x][y].Result)
+			resp.Status[cancelOrdersResponse[x][y].OrderID] = strconv.FormatBool(cancelOrdersResponse[x][y].Result)
 		}
 	}
 
@@ -865,8 +937,51 @@ func (o *OKCoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	if c.IsFiatCurrency() {
+		return nil, fmt.Errorf("%w for fiat currencies %v", common.ErrFunctionNotSupported, c)
+	}
+	records, err := o.GetAccountWithdrawalHistory(ctx, c.String())
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(records))
+	for i := range records {
+		var status string
+		switch records[i].Status {
+		case -3:
+			status = "pending cancel"
+		case -2:
+			status = "cancelled"
+		case -1:
+			status = "failed"
+		case 0:
+			status = "pending"
+		case 1:
+			status = "sending"
+		case 2:
+			status = "sent"
+		case 3:
+			status = "awaiting email verification"
+		case 4:
+			status = "awaiting manual verification"
+		case 5:
+			status = "awaiting identity verification"
+		}
+		resp[i] = exchange.WithdrawalHistory{
+			Status:          status,
+			TransferID:      records[i].PaymentID,
+			Timestamp:       records[i].Timestamp,
+			Currency:        records[i].Currency,
+			Amount:          records[i].Amount,
+			Fee:             records[i].Fee,
+			TransferType:    "withdrawal",
+			CryptoToAddress: records[i].To,
+			CryptoTxID:      records[i].TransactionID,
+			CryptoChain:     records[i].Chain,
+		}
+	}
+	return resp, nil
 }
 
 // GetActiveOrders retrieves any orders that are active/open

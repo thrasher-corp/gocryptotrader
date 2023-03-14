@@ -169,7 +169,7 @@ type GetAccountWithdrawalFeeResponse struct {
 type WithdrawalHistoryResponse struct {
 	Amount        float64   `json:"amount,string"`
 	Currency      string    `json:"currency"`
-	Fee           string    `json:"fee"`
+	Fee           float64   `json:"fee,string"`
 	From          string    `json:"from"`
 	Status        int64     `json:"status,string"`
 	Timestamp     time.Time `json:"timestamp"`
@@ -177,6 +177,7 @@ type WithdrawalHistoryResponse struct {
 	TransactionID string    `json:"txid"`
 	PaymentID     string    `json:"payment_id"`
 	Tag           string    `json:"tag"`
+	Chain         string    `json:"chain"`
 }
 
 // GetAccountBillDetailsRequest request data for GetAccountBillDetailsRequest
@@ -290,14 +291,15 @@ type CancelSpotOrderResponse struct {
 
 // CancelMultipleSpotOrdersRequest request data for CancelMultipleSpotOrders
 type CancelMultipleSpotOrdersRequest struct {
-	OrderIDs     []int64 `json:"order_ids,omitempty"` // order ID. You may cancel up to 4 orders of a trading pair
-	InstrumentID string  `json:"instrument_id"`       // by providing this parameter, the corresponding order of a designated trading pair will be cancelled. If not providing this parameter, it will be back to error code.
+	OrderIDs       []string `json:"order_ids,omitempty"`   // order ID. You may cancel up to 4 orders of a trading pair
+	ClientOrderIDs []string `json:"client_oids,omitempty"` // order ID. You may cancel up to 4 orders of a trading pair
+	InstrumentID   string   `json:"instrument_id"`         // by providing this parameter, the corresponding order of a designated trading pair will be cancelled. If not providing this parameter, it will be back to error code.
 }
 
 // CancelMultipleSpotOrdersResponse response data for CancelMultipleSpotOrders
 type CancelMultipleSpotOrdersResponse struct {
 	ClientOID string `json:"client_oid"`
-	OrderID   int64  `json:"order_id,string"`
+	OrderID   string `json:"order_id"`
 	Result    bool   `json:"result"`
 	Error     error  // Placeholder to store errors
 }
@@ -400,6 +402,12 @@ type GetSpotTokenPairsInformationResponse struct {
 	Open24h        float64       `json:"open_24h,string"`         // 24 hour open
 	QuoteVolume24h float64       `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
 	Timestamp      time.Time     `json:"timestamp"`
+}
+
+// ServerTimeResponse contains time
+type ServerTimeResponse struct {
+	Iso   time.Time `json:"iso"`
+	Epoch string    `json:"epoch"`
 }
 
 // GetSpotFilledOrdersInformationRequest request data for GetSpotFilledOrdersInformation

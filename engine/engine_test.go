@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -18,8 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-
-	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 func TestLoadConfigWithSettings(t *testing.T) {
@@ -377,7 +376,8 @@ var unsupportedFunctionNames = []string{
 var unsupportedExchangeNames = []string{
 	"alphapoint",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"bittrex",  // the api is about to expire in March and we haven't updated it yet
+	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
+	"itbit",    // itbit has no way of retrieving pair data
 }
 
 var acceptableErrors = []error{
@@ -387,15 +387,35 @@ var acceptableErrors = []error{
 	order.ErrUnsupportedOrderType,
 }
 
+// getPairFromPairs prioritises more normal pairs for an increased
+// likelihood of returning data from API endpoints
+func getPairFromPairs(p currency.Pairs) (currency.Pair, error) {
+	for i := range p {
+		if p[i].Base.Equal(currency.BTC) {
+			return p[i], nil
+		}
+	}
+	for i := range p {
+		if p[i].Base.Equal(currency.ETH) {
+			return p[i], nil
+		}
+	}
+	return p.GetRandomPair()
+}
+
 func TestAllExchanges(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("ZB load config error", err)
+		t.Fatal("load config error", err)
 	}
 	for i := range cfg.Exchanges {
 		name := cfg.Exchanges[i].Name
+		if common.StringDataContains(unsupportedExchangeNames, strings.ToLower(name)) {
+			continue
+		}
+
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			em := SetupExchangeManager()
@@ -445,23 +465,30 @@ func TestAllExchanges(t *testing.T) {
 				if len(pairs) == 0 {
 					pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
 					if err != nil {
-						t.Fatal(err)
+						t.Fatalf("GetPairs %v %v", err, assets[j])
 					}
-					p, err = pairs.GetRandomPair()
+					p, err = getPairFromPairs(pairs)
 					if err != nil {
-						t.Fatal(err)
+						t.Fatalf("getPairFromPairs %v %v", err, assets[j])
+					}
+					p, err = b.FormatExchangeCurrency(p, assets[j])
+					if err != nil {
+						t.Fatalf("FormatExchangeCurrency %v %v", err, assets[j])
 					}
 					err = b.CurrencyPairs.EnablePair(assets[j], p)
 					if err != nil {
-						t.Fatal(err)
+						t.Fatalf("EnablePair %v %v", err, assets[j])
 					}
 				} else {
-					p, err = pairs.GetRandomPair()
+					p, err = getPairFromPairs(pairs)
 					if err != nil {
-						t.Fatal(err)
+						t.Fatalf("getPairFromPairs %v %v", err, assets[j])
 					}
 				}
-
+				p, err = b.FormatExchangeCurrency(p, assets[j])
+				if err != nil {
+					t.Fatal(err)
+				}
 				p, err = disruptFormatting(p)
 				if err != nil {
 					t.Fatal(err)
@@ -483,9 +510,6 @@ func TestAllExchanges(t *testing.T) {
 }
 
 func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) ([]string, error) {
-	if common.StringDataContains(unsupportedExchangeNames, strings.ToLower(exch.GetName())) {
-		return nil, nil
-	}
 	var acceptableErr error
 	for i := range acceptableErrors {
 		acceptableErr = common.AppendError(acceptableErr, acceptableErrors[i])
@@ -501,7 +525,7 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 	timeParam := reflect.TypeOf((*time.Time)(nil)).Elem()
 	codeParam := reflect.TypeOf((*currency.Code)(nil)).Elem()
 
-	e := time.Now().Truncate(time.Hour)
+	e := time.Now().Add(-time.Hour * 24)
 	var funcs []string
 methods:
 	for x := 0; x < iExchange.NumMethod(); x++ {
@@ -510,20 +534,21 @@ methods:
 			continue
 		}
 		method := actualExchange.MethodByName(name)
-		inputs := make([]reflect.Value, method.Type().NumIn())
-		var loopLen int
+
+		var assetLen int
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
 			if input.AssignableTo(assetParam) {
-				loopLen = len(assetParams) - 1
+				assetLen = len(assetParams) - 1
 			}
 		}
 
 		s := time.Now().Add(-time.Hour * 24 * 7).Truncate(time.Hour)
 		if name == "GetHistoricTrades" {
-			s = time.Now().Add(-time.Minute * 5)
+			s = time.Now().Add(-time.Minute * 5).Truncate(time.Hour)
 		}
-		for y := 0; y <= loopLen; y++ {
+		for y := 0; y <= assetLen; y++ {
+			inputs := make([]reflect.Value, method.Type().NumIn())
 			setStartTime := false
 			for z := 0; z < method.Type().NumIn(); z++ {
 				input := method.Type().In(z)

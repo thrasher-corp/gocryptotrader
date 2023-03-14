@@ -503,7 +503,7 @@ type WalletDeposits struct {
 	Status        string        `json:"status"`
 }
 
-// WalletWithdrawals holds wallet withdrawl info
+// WalletWithdrawals holds wallet withdrawal info
 type WalletWithdrawals struct {
 	WithdrawalRequestsId int64         `json:"withdrawalRequestsId"`
 	Currency             currency.Code `json:"currency"`

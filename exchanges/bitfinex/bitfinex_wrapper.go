@@ -299,10 +299,11 @@ func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 	case asset.Margin:
 		for k := range items {
-			if !strings.Contains(k, ":") {
+			splitCurr := strings.Split(k[1:], currency.ColonDelimiter)
+			if len(splitCurr) == 1 {
 				continue
 			}
-			pair, err = currency.NewPairFromStrings(k[1:], "")
+			pair, err = currency.NewPairFromStrings(splitCurr[0], splitCurr[1])
 			if err != nil {
 				return nil, err
 			}
@@ -396,9 +397,9 @@ func (b *Bitfinex) FetchTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	if err != nil {
 		return nil, err
 	}
-
-	b.appendOptionalDelimiter(&fPair)
-	tick, err := ticker.GetTicker(b.Name, fPair, a)
+	DFPair := fPair
+	b.appendOptionalDelimiter(&DFPair)
+	tick, err := ticker.GetTicker(b.Name, DFPair, a)
 	if err != nil {
 		return b.UpdateTicker(ctx, fPair, a)
 	}
@@ -411,9 +412,9 @@ func (b *Bitfinex) FetchOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-
-	b.appendOptionalDelimiter(&fPair)
-	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	DFPair := fPair
+	b.appendOptionalDelimiter(&DFPair)
+	ob, err := orderbook.Get(b.Name, DFPair, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(ctx, fPair, assetType)
 	}
@@ -1105,16 +1106,34 @@ func (b *Bitfinex) ValidateCredentials(ctx context.Context, assetType asset.Item
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) string {
+func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) (string, error) {
 	switch in {
+	case kline.OneMin:
+		return "1m", nil
+	case kline.FiveMin:
+		return "5m", nil
+	case kline.FifteenMin:
+		return "15m", nil
+	case kline.ThirtyMin:
+		return "30m", nil
+	case kline.OneHour:
+		return "1h", nil
+	case kline.ThreeHour:
+		return "3h", nil
+	case kline.SixHour:
+		return "6h", nil
+	case kline.TwelveHour:
+		return "12h", nil
 	case kline.OneDay:
-		return "1D"
+		return "1D", nil
 	case kline.OneWeek:
-		return "7D"
+		return "7D", nil
 	case kline.OneWeek * 2:
-		return "14D"
+		return "14D", nil
+	case kline.OneMonth:
+		return "1M", nil
 	default:
-		return in.Short()
+		return "", fmt.Errorf("%w %v", kline.ErrInvalidInterval, in)
 	}
 }
 
@@ -1129,13 +1148,12 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-
-	candles, err := b.GetCandles(ctx,
-		cf,
-		b.FormatExchangeKlineInterval(req.ExchangeInterval),
-		req.Start.UnixMilli(),
-		req.End.UnixMilli(),
-		b.Features.Enabled.Kline.ResultLimit, true)
+	fInterval, err := b.FormatExchangeKlineInterval(req.ExchangeInterval)
+	if err != nil {
+		return nil, err
+	}
+	b.Verbose = true
+	candles, err := b.GetCandles(ctx, cf, fInterval, req.Start.UnixMilli(), req.End.UnixMilli(), b.Features.Enabled.Kline.ResultLimit, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1165,16 +1183,15 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	if err != nil {
 		return nil, err
 	}
-
+	fInterval, err := b.FormatExchangeKlineInterval(req.ExchangeInterval)
+	if err != nil {
+		return nil, err
+	}
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		var candles []Candle
-		candles, err = b.GetCandles(ctx,
-			cf,
-			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			req.RangeHolder.Ranges[x].Start.Ticks*1000,
-			req.RangeHolder.Ranges[x].End.Ticks*1000,
-			b.Features.Enabled.Kline.ResultLimit,
+		b.Verbose = true
+		candles, err = b.GetCandles(ctx, cf, fInterval, req.RangeHolder.Ranges[x].Start.Time.UnixMilli(), req.RangeHolder.Ranges[x].End.Time.UnixMilli(), b.Features.Enabled.Kline.ResultLimit,
 			true)
 		if err != nil {
 			return nil, err
