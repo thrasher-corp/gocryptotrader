@@ -109,6 +109,7 @@ type OrderResult struct {
 	Message string `json:"message"`
 }
 
+// TransferResponse contains transfer information
 type TransferResponse struct {
 	Type                  string        `json:"type"`
 	Status                string        `json:"status"`
@@ -121,10 +122,10 @@ type TransferResponse struct {
 	FeeCurrency           currency.Code `json:"feeCurrency"`
 	Method                string        `json:"method"`
 	TxHash                string        `json:"txHash"`
-	WithdrawalId          string        `json:"withdrawalId"`
+	WithdrawalID          string        `json:"withdrawalId"`
 	OutputIdx             int64         `json:"outputIdx"`
 	Destination           string        `json:"destination"`
-	Purpose               string        `json:"destination"`
+	Purpose               string        `json:"purpose"`
 }
 
 // Order contains order information

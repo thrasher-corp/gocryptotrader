@@ -2491,14 +2491,6 @@ func TestSetFillsFeedStatus(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
-	t.Parallel()
-	var b Base
-	if _, err := b.GetServerTime(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
-}
-
 func TestGetFundingRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base

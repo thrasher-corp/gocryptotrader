@@ -139,13 +139,14 @@ type FBatchTradesForContractData struct {
 	Ch        string `json:"ch"`
 	Timestamp int64  `json:"ts"`
 	Data      []struct {
-		ID        int64     `json:"id"`
-		Timestamp int64     `json:"ts"`
-		Data      []FTrades `json:"data"`
+		ID        int64          `json:"id"`
+		Timestamp int64          `json:"ts"`
+		Data      []FuturesTrade `json:"data"`
 	} `json:"data"`
 }
 
-type FTrades struct {
+// FuturesTrade is futures trade data
+type FuturesTrade struct {
 	Amount    float64 `json:"amount"`
 	Direction string  `json:"direction"`
 	ID        int64   `json:"id"`

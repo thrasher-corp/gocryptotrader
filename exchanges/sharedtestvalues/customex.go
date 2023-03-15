@@ -173,7 +173,7 @@ func (c *CustomEx) SupportsWithdrawPermissions(permissions uint32) bool {
 	return false
 }
 
-// GetFundingHistory is a mock method for CustomEx
+// GetAccountFundingHistory is a mock method for CustomEx
 func (c *CustomEx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, nil
 }

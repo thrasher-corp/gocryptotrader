@@ -417,12 +417,13 @@ type LastTradeData struct {
 
 // BatchTradesData stores batch trades for a given swap contract
 type BatchTradesData struct {
-	ID        int64    `json:"id"`
-	Timestamp int64    `json:"ts"`
-	Data      []CTrade `json:"data"`
+	ID        int64                      `json:"id"`
+	Timestamp int64                      `json:"ts"`
+	Data      []CoinMarginedFuturesTrade `json:"data"`
 }
 
-type CTrade struct {
+// CoinMarginedFuturesTrade holds coinmarginedfutures trade data
+type CoinMarginedFuturesTrade struct {
 	Amount    float64 `json:"amount"`
 	Direction string  `json:"direction"`
 	ID        int64   `json:"id"`

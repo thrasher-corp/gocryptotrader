@@ -493,6 +493,9 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+	if err != nil {
+		return nil, err
+	}
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
@@ -504,6 +507,7 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (
 	return resp, nil
 }
 
+// GetServerTime returns the current exchange server time.
 func (o *OKCoin) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return o.ServerTime(ctx)
 }
@@ -805,10 +809,6 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	splitOrderIDs := strings.Split(orderCancellation.OrderID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
-	orderIDs := make([]string, 0, len(splitOrderIDs))
-	for i := range splitOrderIDs {
-		orderIDs = append(orderIDs, splitOrderIDs[i])
-	}
 
 	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
@@ -819,7 +819,7 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(ctx,
 		&CancelMultipleSpotOrdersRequest{
 			InstrumentID: fpair.String(),
-			OrderIDs:     orderIDs,
+			OrderIDs:     splitOrderIDs,
 		})
 	if err != nil {
 		return resp, err

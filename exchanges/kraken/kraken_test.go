@@ -2141,13 +2141,13 @@ func TestGetCharts(t *testing.T) {
 		t.Error(err)
 	}
 	cp.Delimiter = "_"
-	resp, err := k.GetCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
+	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 
 	end := time.UnixMilli(resp.Candles[0].Time)
-	_, err = k.GetCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
+	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
 	if err != nil {
 		t.Error(err)
 	}

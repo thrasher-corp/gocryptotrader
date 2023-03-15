@@ -482,7 +482,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Currency:        walletActivity.Deposits[i].Currency.String(),
 			Amount:          walletActivity.Deposits[i].Amount,
 			CryptoToAddress: walletActivity.Deposits[i].Address,
-			CryptoTxID:      walletActivity.Deposits[i].Txid,
+			CryptoTxID:      walletActivity.Deposits[i].TransactionID,
 		}
 	}
 	for i := range walletActivity.Withdrawals {
@@ -494,7 +494,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Amount:          walletActivity.Withdrawals[i].Amount,
 			Fee:             walletActivity.Withdrawals[i].Fee,
 			CryptoToAddress: walletActivity.Withdrawals[i].Address,
-			CryptoTxID:      walletActivity.Withdrawals[i].Txid,
+			CryptoTxID:      walletActivity.Withdrawals[i].TransactionID,
 		}
 	}
 	return resp, nil
@@ -519,7 +519,7 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a
 			Amount:          withdrawals.Withdrawals[i].Amount,
 			Fee:             withdrawals.Withdrawals[i].Fee,
 			CryptoToAddress: withdrawals.Withdrawals[i].Address,
-			CryptoTxID:      withdrawals.Withdrawals[i].Txid,
+			CryptoTxID:      withdrawals.Withdrawals[i].TransactionID,
 		}
 	}
 	return resp, nil
@@ -669,7 +669,8 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	var orderIDs, clientOrderIDs []string
+	orderIDs := make([]string, 0, len(o))
+	clientOrderIDs := make([]string, 0, len(o))
 	for i := range o {
 		if o[i].ClientOrderID != "" {
 			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
@@ -685,11 +686,11 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		Status: make(map[string]string),
 	}
 	for i := range cancelledOrders {
-		if cancelledOrders[i].ClientOrderId != "" {
-			resp.Status[cancelledOrders[i].ClientOrderId] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+		if cancelledOrders[i].ClientOrderID != "" {
+			resp.Status[cancelledOrders[i].ClientOrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
 			continue
 		}
-		resp.Status[cancelledOrders[i].OrderId] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+		resp.Status[cancelledOrders[i].OrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
 	}
 	return resp, nil
 }

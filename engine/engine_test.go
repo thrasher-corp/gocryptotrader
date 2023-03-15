@@ -498,18 +498,13 @@ func TestAllExchanges(t *testing.T) {
 					Asset: assets[j],
 				}
 			}
-			what, err := executeExchangeWrapperTests(t, exch, testMap)
-			if err != nil {
-				t.Error(err)
-			}
-			for zz := range what {
-				t.Log(what[zz])
-			}
+			executeExchangeWrapperTests(t, exch, testMap)
 		})
 	}
 }
 
-func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) ([]string, error) {
+func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
+	t.Helper()
 	var acceptableErr error
 	for i := range acceptableErrors {
 		acceptableErr = common.AppendError(acceptableErr, acceptableErrors[i])
@@ -526,8 +521,6 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 	codeParam := reflect.TypeOf((*currency.Code)(nil)).Elem()
 
 	e := time.Now().Add(-time.Hour * 24)
-	var funcs []string
-methods:
 	for x := 0; x < iExchange.NumMethod(); x++ {
 		name := iExchange.Method(x).Name
 		if common.StringDataContains(unsupportedFunctionNames, name) {
@@ -545,7 +538,8 @@ methods:
 
 		s := time.Now().Add(-time.Hour * 24 * 7).Truncate(time.Hour)
 		if name == "GetHistoricTrades" {
-			s = time.Now().Add(-time.Minute * 5).Truncate(time.Hour)
+			// limit trade history
+			s = time.Now().Add(-time.Minute * 5)
 		}
 		for y := 0; y <= assetLen; y++ {
 			inputs := make([]reflect.Value, method.Type().NumIn())
@@ -578,13 +572,9 @@ methods:
 						inputs[z] = reflect.ValueOf(e)
 					}
 				default:
-					resp, err := buildRequest(exch, exch.GetName(), name, assetParams[y].Asset, assetParams[y].Pair, input)
-					if err != nil {
-						t.Errorf("%v %v %v %v %v %v", exch, name, assetParams[y].Asset, assetParams[y].Pair, input.Name(), err)
-					}
+					resp := buildRequest(exch, exch.GetName(), name, assetParams[y].Asset, assetParams[y].Pair, input)
 					if resp == nil {
-						// unsupported request
-						continue methods
+						t.Fatalf("unhandled method %v", method)
 					} else {
 						inputs[z] = reflect.ValueOf(resp)
 					}
@@ -624,8 +614,6 @@ methods:
 			})
 		}
 	}
-
-	return funcs, nil
 }
 
 func isFiat(c string) bool {
@@ -656,7 +644,7 @@ func isFiat(c string) bool {
 
 // buildRequest returns more complex struct requirements for a wrapper
 // implementation
-func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset.Item, p currency.Pair, input reflect.Type) (interface{}, error) {
+func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset.Item, p currency.Pair, input reflect.Type) interface{} {
 	pairs := reflect.TypeOf((*currency.Pairs)(nil)).Elem()
 	wr := reflect.TypeOf((**withdraw.Request)(nil)).Elem()
 	os := reflect.TypeOf((**order.Submit)(nil)).Elem()
@@ -669,7 +657,7 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 	case input.AssignableTo(pairs):
 		return currency.Pairs{
 			p,
-		}, nil
+		}
 	case input.AssignableTo(wr):
 		req := &withdraw.Request{
 			Exchange:      exchName,
@@ -679,13 +667,15 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 		}
 		if funcName == "WithdrawCryptocurrencyFunds" {
 			req.Type = withdraw.Crypto
-			if !isFiat(p.Base.Item.Lower) {
+			switch {
+			case !isFiat(p.Base.Item.Lower):
 				req.Currency = p.Base
-			} else if !isFiat(p.Quote.Item.Lower) {
+			case !isFiat(p.Quote.Item.Lower):
 				req.Currency = p.Quote
-			} else {
+			default:
 				req.Currency = currency.ETH
 			}
+
 			req.Crypto = withdraw.CryptoRequest{
 				Address:    "1337",
 				AddressTag: "1337",
@@ -731,7 +721,7 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 				WireCurrency:                  "1338",
 			}
 		}
-		return req, nil
+		return req
 	case input.AssignableTo(os):
 		return &order.Submit{
 			Exchange:          exchName,
@@ -744,7 +734,7 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
-		}, nil
+		}
 	case input.AssignableTo(om):
 		return &order.Modify{
 			Exchange:          exchName,
@@ -757,7 +747,7 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 			ClientOrderID:     "13371337",
 			OrderID:           "1337",
 			ImmediateOrCancel: true,
-		}, nil
+		}
 	case input.AssignableTo(oc):
 		return &order.Cancel{
 			Exchange:      exchName,
@@ -766,7 +756,7 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 			Pair:          p,
 			AssetType:     a,
 			ClientOrderID: "13371337",
-		}, nil
+		}
 	case input.AssignableTo(occ):
 		return []order.Cancel{
 			{
@@ -777,7 +767,7 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 				AssetType:     a,
 				ClientOrderID: "13371337",
 			},
-		}, nil
+		}
 	case input.AssignableTo(gor):
 		return &order.GetOrdersRequest{
 			Type:      order.AnyType,
@@ -785,9 +775,9 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 			OrderID:   "1337",
 			AssetType: a,
 			Pairs:     currency.Pairs{p},
-		}, nil
+		}
 	}
-	return nil, nil
+	return nil
 }
 
 // disruptFormatting adds in an unused delimiter and strange casing features to

@@ -61,9 +61,18 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
-	h.CurrencyPairs.SetAssetEnabled(asset.Futures, true)
-	h.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, true)
-	h.UpdateTradablePairs(context.Background(), true)
+	err = h.CurrencyPairs.SetAssetEnabled(asset.Futures, true)
+	if err != nil {
+		log.Fatal("Huobi setup error", err)
+	}
+	err = h.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, true)
+	if err != nil {
+		log.Fatal("Huobi setup error", err)
+	}
+	err = h.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal("Huobi setup error", err)
+	}
 	os.Exit(m.Run())
 }
 

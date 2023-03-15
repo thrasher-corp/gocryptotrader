@@ -567,16 +567,16 @@ func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a
 	resp := make([]exchange.WithdrawalHistory, len(history))
 	for i := range history {
 		resp[i] = exchange.WithdrawalHistory{
-			Status:      history[i].Status,
-			TransferID:  strconv.FormatInt(history[i].ID, 64),
-			Description: history[i].Description,
-			//	Timestamp:       history[i].Timestamp,
+			Status:          history[i].Status,
+			TransferID:      strconv.FormatInt(history[i].ID, 10),
+			Description:     history[i].Description,
+			Timestamp:       history[i].Timestamp,
 			Currency:        history[i].Currency,
 			Amount:          history[i].Amount,
 			Fee:             history[i].Fee,
 			TransferType:    history[i].Type,
 			CryptoToAddress: history[i].Address,
-			//CryptoTxID:      history[i].TxID,
+			CryptoTxID:      strconv.FormatInt(history[i].TxID, 10),
 		}
 	}
 	return resp, nil

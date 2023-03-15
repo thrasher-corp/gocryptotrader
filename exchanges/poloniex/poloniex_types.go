@@ -478,8 +478,8 @@ type WsAuthorisationRequest struct {
 
 // CancelOrdersResponse holds cancelled order info
 type CancelOrdersResponse struct {
-	OrderId       string `json:"orderId"`
-	ClientOrderId string `json:"clientOrderId"`
+	OrderID       string `json:"orderId"`
+	ClientOrderID string `json:"clientOrderId"`
 	State         string `json:"state"`
 	Code          int64  `json:"code"`
 	Message       string `json:"message"`
@@ -498,21 +498,26 @@ type WalletDeposits struct {
 	Address       string        `json:"address"`
 	Amount        float64       `json:"amount,string"`
 	Confirmations int64         `json:"confirmations"`
-	Txid          string        `json:"txid"`
+	TransactionID string        `json:"txid"`
 	Timestamp     time.Time     `json:"timestamp"`
 	Status        string        `json:"status"`
 }
 
 // WalletWithdrawals holds wallet withdrawal info
 type WalletWithdrawals struct {
-	WithdrawalRequestsId int64         `json:"withdrawalRequestsId"`
+	WithdrawalRequestsID int64         `json:"withdrawalRequestsId"`
 	Currency             currency.Code `json:"currency"`
 	Address              string        `json:"address"`
 	Amount               float64       `json:"amount,string"`
 	Fee                  float64       `json:"fee,string"`
 	Timestamp            time.Time     `json:"timestamp"`
 	Status               string        `json:"status"`
-	Txid                 string        `json:"txid"`
-	IpAddress            string        `json:"ipAddress"`
+	TransactionID        string        `json:"txid"`
+	IPAddress            string        `json:"ipAddress"`
 	PaymentID            string        `json:"paymentID"`
+}
+
+// TimeStampResponse returns the time
+type TimeStampResponse struct {
+	ServerTime int64 `json:"serverTime"`
 }

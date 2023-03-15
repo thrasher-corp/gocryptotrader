@@ -34,7 +34,8 @@ func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 	return &resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
-func (k *Kraken) GetCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, to, from time.Time) (*FuturesCandles, error) {
+// GetFuturesCharts returns candle data for kraken futures
+func (k *Kraken) GetFuturesCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, to, from time.Time) (*FuturesCandles, error) {
 	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return nil, err

@@ -26,7 +26,8 @@ const (
 var (
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
-	ErrAlreadyDisabled     = errors.New("websocket already disabled")
+	// ErrAlreadyDisabled is returned when you double-disable the websocket
+	ErrAlreadyDisabled = errors.New("websocket already disabled")
 
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")

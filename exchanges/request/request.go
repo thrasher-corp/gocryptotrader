@@ -25,7 +25,8 @@ var (
 	// ErrRequestSystemIsNil defines and error if the request system has not
 	// been set up yet.
 	ErrRequestSystemIsNil = errors.New("request system is nil")
-	ErrAuthRequestFailed  = errors.New("authenticated request failed")
+	// ErrAuthRequestFailed is a wrapping error to denote that it's an auth request that failed
+	ErrAuthRequestFailed = errors.New("authenticated request failed")
 
 	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")

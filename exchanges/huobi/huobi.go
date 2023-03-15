@@ -816,8 +816,9 @@ func (h *HUOBI) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) 
 	return resp.WithdrawQuota, nil
 }
 
-func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit int64) (withdrawalHistory, error) {
-	var resp withdrawalHistory
+// SearchForExistedWithdrawsAndDeposits returns withdrawal and deposit data
+func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit int64) (WithdrawalHistory, error) {
+	var resp WithdrawalHistory
 	vals := url.Values{}
 	vals.Set("type", transferType)
 	if !c.IsEmpty() {

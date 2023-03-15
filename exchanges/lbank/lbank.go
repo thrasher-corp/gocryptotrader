@@ -72,10 +72,7 @@ func (l *Lbank) GetTicker(ctx context.Context, symbol string) (TickerResponse, e
 	return t, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
 }
 
-type TimestampResponse struct {
-	Timestamp time.Time `json:"timestamp"`
-}
-
+// GetTimestamp returns a timestamp
 func (l *Lbank) GetTimestamp(ctx context.Context) (TimestampResponse, error) {
 	var resp TimestampResponse
 	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion2, lbankTimestamp)

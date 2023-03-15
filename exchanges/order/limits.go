@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -154,9 +155,9 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
-	// if !e.isSupported {
-	//	return MinMaxLevel{}, common.ErrFunctionNotSupported
-	//}
+	if !e.isSupported {
+		return MinMaxLevel{}, common.ErrFunctionNotSupported
+	}
 	if e.m == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}

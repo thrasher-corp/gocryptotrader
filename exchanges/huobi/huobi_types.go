@@ -1230,12 +1230,14 @@ var (
 	}
 )
 
-type withdrawalHistory struct {
+// WithdrawalHistory holds withdrawal history data
+type WithdrawalHistory struct {
 	Status string           `json:"status"`
-	Data   []withdrawalData `json:"data"`
+	Data   []WithdrawalData `json:"data"`
 }
 
-type withdrawalData struct {
+// WithdrawalData contains details of a withdrawal
+type WithdrawalData struct {
 	ID              int64         `json:"id"`
 	Type            string        `json:"type"`
 	Currency        currency.Code `json:"currency"`

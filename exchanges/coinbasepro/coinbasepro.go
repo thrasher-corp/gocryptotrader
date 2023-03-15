@@ -722,24 +722,8 @@ func (c *CoinbasePro) GetTrailingVolume(ctx context.Context) ([]Volume, error) {
 		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproTrailingVolume, nil, &resp)
 }
 
-type transferHistory struct {
-	Id          string    `json:"id"`
-	Type        string    `json:"type"`
-	CreatedAt   string    `json:"created_at"`
-	CompletedAt string    `json:"completed_at"`
-	CanceledAt  time.Time `json:"canceled_at"`
-	ProcessedAt time.Time `json:"processed_at"`
-	UserNonce   int64     `json:"user_nonce"`
-	Amount      string    `json:"amount"`
-	Details     struct {
-		CoinbaseAccountId       string `json:"coinbase_account_id"`
-		CoinbaseTransactionId   string `json:"coinbase_transaction_id"`
-		CoinbasePaymentMethodId string `json:"coinbase_payment_method_id"`
-	} `json:"details"`
-}
-
 // GetTransfers returns a history of withdrawal and or deposit transactions
-func (c *CoinbasePro) GetTransfers(ctx context.Context, profileID, transferType string, limit int64, start, end time.Time) ([]transferHistory, error) {
+func (c *CoinbasePro) GetTransfers(ctx context.Context, profileID, transferType string, limit int64, start, end time.Time) ([]TransferHistory, error) {
 	if !start.IsZero() && !end.IsZero() {
 		err := common.StartEndTimeCheck(start, end)
 		if err != nil {
@@ -762,7 +746,7 @@ func (c *CoinbasePro) GetTransfers(ctx context.Context, profileID, transferType 
 	if transferType != "" {
 		req["type"] = transferType
 	}
-	var resp []transferHistory
+	var resp []TransferHistory
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproTransfers, req, &resp)
 }
 

@@ -258,10 +258,6 @@ func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, e
 	)
 }
 
-type TimeStampResponse struct {
-	ServerTime int64 `json:"serverTime"`
-}
-
 // GetTimestamp returns server time
 func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
 	var resp TimeStampResponse

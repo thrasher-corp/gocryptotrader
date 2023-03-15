@@ -441,7 +441,7 @@ func (b *Bithumb) CancelTrade(ctx context.Context, transactionType, orderID, cur
 //
 // address: Currency withdrawing address
 // destination: Currency withdrawal Destination Tag (when withdraw XRP) OR
-// Currency withdrawal Payment Id (when withdraw XMR)
+// Currency withdrawal Payment ID (when withdraw XMR)
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM
 // (default value: BTC)
 // units: Quantity to withdraw currency

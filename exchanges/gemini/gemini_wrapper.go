@@ -475,7 +475,7 @@ func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundH
 	for i := range transfers {
 		resp[i] = exchange.FundHistory{
 			Status:          transfers[i].Status,
-			TransferID:      transfers[i].WithdrawalId,
+			TransferID:      transfers[i].WithdrawalID,
 			Timestamp:       transfers[i].Timestamp,
 			Currency:        transfers[i].Currency.String(),
 			Amount:          transfers[i].Amount,
@@ -501,7 +501,7 @@ func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 		}
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          transfers[i].Status,
-			TransferID:      transfers[i].WithdrawalId,
+			TransferID:      transfers[i].WithdrawalID,
 			Timestamp:       transfers[i].Timestamp,
 			Currency:        transfers[i].Currency.String(),
 			Amount:          transfers[i].Amount,
