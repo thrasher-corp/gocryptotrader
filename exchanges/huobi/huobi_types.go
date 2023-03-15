@@ -1236,7 +1236,7 @@ type withdrawalHistory struct {
 }
 
 type withdrawalData struct {
-	Id              int64         `json:"id"`
+	ID              int64         `json:"id"`
 	Type            string        `json:"type"`
 	Currency        currency.Code `json:"currency"`
 	TransactionHash string        `json:"tx-hash"`

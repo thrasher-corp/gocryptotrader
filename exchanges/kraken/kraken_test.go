@@ -58,7 +58,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	k.UpdateTradablePairs(context.Background(), true)
+	err = k.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
 

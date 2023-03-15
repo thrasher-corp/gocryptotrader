@@ -1057,7 +1057,7 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, req.Size())
+	timeSeries := make([]kline.Candle, 0, req.Size())
 	for i := range req.RangeHolder.Ranges {
 		resp, err := p.GetChartData(ctx,
 			req.RequestFormatted.String(),

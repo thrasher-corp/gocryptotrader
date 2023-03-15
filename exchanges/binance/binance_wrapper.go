@@ -1735,7 +1735,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, req.Size())
+	timeSeries := make([]kline.Candle, 0, req.Size())
 	switch a {
 	case asset.Spot:
 		var candles []CandleStick

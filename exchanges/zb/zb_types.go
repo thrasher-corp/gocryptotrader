@@ -281,7 +281,7 @@ type DepositRecord struct {
 	Currency         string  `json:"currency"`
 	Description      string  `json:"description"`
 	Hash             string  `json:"hash"`
-	Id               int64   `json:"id"`
+	ID               int64   `json:"id"`
 	InternalTransfer int64   `json:"itransfer"`
 	Status           int64   `json:"status"`
 	SubmitTime       int64   `json:"submit_time,string"`
@@ -299,7 +299,7 @@ type WithdrawalRecordsResponse struct {
 type WithdrawalRecord struct {
 	Amount     float64 `json:"amount"`
 	Fees       float64 `json:"fees"`
-	Id         int64   `json:"id"`
+	ID         int64   `json:"id"`
 	ManageTime int64   `json:"manageTime"`
 	Status     int64   `json:"status"`
 	SubmitTime int64   `json:"submitTime"`

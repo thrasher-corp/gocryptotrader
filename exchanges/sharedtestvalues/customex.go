@@ -143,6 +143,11 @@ func (c *CustomEx) SupportsRESTTickerBatchUpdates() bool {
 	return false
 }
 
+// GetServerTime is a mock method for CustomEx
+func (c *CustomEx) GetServerTime(context.Context, asset.Item) (time.Time, error) {
+	return time.Now(), nil
+}
+
 // GetFeeByType is a mock method for CustomEx
 func (c *CustomEx) GetFeeByType(ctx context.Context, f *exchange.FeeBuilder) (float64, error) {
 	return 0.0, nil

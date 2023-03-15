@@ -457,7 +457,7 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHisto
 				records = append(records, exchange.FundHistory{
 					ExchangeName:    z.GetName(),
 					Status:          status,
-					TransferID:      strconv.FormatInt(deposits.List[i].Id, 10),
+					TransferID:      strconv.FormatInt(deposits.List[i].ID, 10),
 					Description:     deposits.List[i].Description,
 					Timestamp:       time.Unix(deposits.List[i].SubmitTime, 0),
 					Currency:        deposits.List[i].Currency,
@@ -497,7 +497,7 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHisto
 				records = append(records, exchange.FundHistory{
 					ExchangeName:    z.GetName(),
 					Status:          status,
-					TransferID:      strconv.FormatInt(withdrawals.List[i].Id, 10),
+					TransferID:      strconv.FormatInt(withdrawals.List[i].ID, 10),
 					Timestamp:       time.Unix(withdrawals.List[i].SubmitTime, 0),
 					Currency:        currs[i].String(),
 					Amount:          withdrawals.List[i].Amount,
@@ -544,7 +544,7 @@ func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset
 			}
 			records = append(records, exchange.WithdrawalHistory{
 				Status:          status,
-				TransferID:      strconv.FormatInt(withdrawals.List[i].Id, 10),
+				TransferID:      strconv.FormatInt(withdrawals.List[i].ID, 10),
 				Timestamp:       time.Unix(withdrawals.List[i].SubmitTime, 0),
 				Currency:        c.String(),
 				Amount:          withdrawals.List[i].Amount,

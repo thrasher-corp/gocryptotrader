@@ -773,6 +773,13 @@ func TestUpdateCurrencyStates(t *testing.T) {
 	}
 }
 
-func GetWithdrawalsHistory(t *testing.T) {
+func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
 }

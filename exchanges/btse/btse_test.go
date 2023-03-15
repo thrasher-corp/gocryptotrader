@@ -54,8 +54,14 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	b.UpdateTradablePairs(context.Background(), true)
-	b.CurrencyPairs.EnablePair(asset.Futures, testFUTURESPair)
+	err = b.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = b.CurrencyPairs.EnablePair(asset.Futures, testFUTURESPair)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
 
