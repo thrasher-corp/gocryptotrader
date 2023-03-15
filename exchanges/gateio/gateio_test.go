@@ -1112,17 +1112,24 @@ func TestGetOrderbookOfLendingLoans(t *testing.T) {
 
 func TestGetAllFutureContracts(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetAllFutureContracts(context.Background(), settleUSD); err != nil {
+	_, err := g.GetAllFutureContracts(context.Background(), settleUSD)
+	if err != nil {
+		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, err)
+	}
+	if _, err = g.GetAllFutureContracts(context.Background(), settleUSDT); err != nil {
+		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, err)
+	}
+	if _, err = g.GetAllFutureContracts(context.Background(), settleBTC); err != nil {
 		t.Errorf("%s GetAllFutureContracts() error %v", g.Name, err)
 	}
 }
 func TestGetSingleContract(t *testing.T) {
 	t.Parallel()
-	usdtContracts, err := g.GetAllFutureContracts(context.Background(), settleUSDT)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	if _, err := g.GetSingleContract(context.Background(), settleUSDT, usdtContracts[0].Name); err != nil {
+	if _, err = g.GetSingleContract(context.Background(), settle, futuresTradablePair.String()); err != nil {
 		t.Errorf("%s GetSingleContract() error %s", g.Name, err)
 	}
 }
@@ -1150,56 +1157,44 @@ func TestGetFuturesTradingHistory(t *testing.T) {
 
 func TestGetFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	usdtContracts, err := g.GetAllFutureContracts(context.Background(), settleUSDT)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	if _, err := g.GetFuturesCandlesticks(context.Background(), settleUSDT, usdtContracts[0].Name, time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
+	if _, err := g.GetFuturesCandlesticks(context.Background(), settle, futuresTradablePair.String(), time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
 		t.Errorf("%s GetFuturesCandlesticks() error %v", g.Name, err)
 	}
 }
 
 func TestPremiumIndexKLine(t *testing.T) {
 	t.Parallel()
-	usdtContracts, err := g.GetAllFutureContracts(context.Background(), settleUSDT)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Error(err)
 	}
-	cp, err := currency.NewPairFromString(usdtContracts[0].Name)
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err := g.PremiumIndexKLine(context.Background(), settleUSDT, cp, time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
+	if _, err := g.PremiumIndexKLine(context.Background(), settle, futuresTradablePair, time.Time{}, time.Time{}, 0, kline.OneWeek); err != nil {
 		t.Errorf("%s PremiumIndexKLine() error %v", g.Name, err)
 	}
 }
 
 func TestGetFutureTickers(t *testing.T) {
 	t.Parallel()
-	usdtContracts, err := g.GetAllFutureContracts(context.Background(), settleUSDT)
-	if err != nil {
-		t.Error(err)
-	}
-	cp, err := currency.NewPairFromString(usdtContracts[0].Name)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.GetFuturesTickers(context.Background(), settleUSDT, cp); err != nil {
+	if _, err := g.GetFuturesTickers(context.Background(), settle, futuresTradablePair); err != nil {
 		t.Errorf("%s GetFuturesTickers() error %v", g.Name, err)
 	}
 }
 
 func TestGetFutureFundingRates(t *testing.T) {
 	t.Parallel()
-	usdtContracts, err := g.GetAllFutureContracts(context.Background(), settleUSDT)
-	if err != nil {
-		t.Error(err)
-	}
-	cp, err := currency.NewPairFromString(usdtContracts[0].Name)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.GetFutureFundingRates(context.Background(), settleUSDT, cp, 0); err != nil {
+	if _, err := g.GetFutureFundingRates(context.Background(), settle, futuresTradablePair, 0); err != nil {
 		t.Errorf("%s GetFutureFundingRates() error %v", g.Name, err)
 	}
 }
@@ -1213,15 +1208,11 @@ func TestGetFuturesInsuranceBalanceHistory(t *testing.T) {
 
 func TestGetFutureStats(t *testing.T) {
 	t.Parallel()
-	usdtContracts, err := g.GetAllFutureContracts(context.Background(), settleUSDT)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Error(err)
 	}
-	cp, err := currency.NewPairFromString(usdtContracts[0].Name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetFutureStats(context.Background(), settleUSDT, cp, time.Time{}, kline.OneHour, 0); err != nil {
+	if _, err := g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, kline.OneHour, 0); err != nil {
 		t.Errorf("%s GetFutureStats() error %v", g.Name, err)
 	}
 }
@@ -1235,15 +1226,11 @@ func TestGetIndexConstituent(t *testing.T) {
 
 func TestGetLiquidationHistory(t *testing.T) {
 	t.Parallel()
-	usdtContracts, err := g.GetAllFutureContracts(context.Background(), settleUSDT)
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
 	if err != nil {
 		t.Error(err)
 	}
-	cp, err := currency.NewPairFromString(usdtContracts[0].Name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := g.GetLiquidationHistory(context.Background(), settleUSDT, cp, time.Time{}, time.Time{}, 0); err != nil {
+	if _, err := g.GetLiquidationHistory(context.Background(), settle, futuresTradablePair, time.Time{}, time.Time{}, 0); err != nil {
 		t.Errorf("%s GetLiquidationHistory() error %v", g.Name, err)
 	}
 }

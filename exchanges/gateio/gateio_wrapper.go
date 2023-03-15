@@ -463,11 +463,11 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	case asset.DeliveryFutures:
 		btcContracts, err := g.GetAllDeliveryContracts(ctx, settleBTC)
 		if err != nil {
-			return nil, fmt.Errorf("USDT %v", err)
+			return nil, err
 		}
 		usdtContracts, err := g.GetAllDeliveryContracts(ctx, settleUSDT)
 		if err != nil {
-			return nil, fmt.Errorf("USDT %v", err)
+			return nil, err
 		}
 		btcContracts = append(btcContracts, usdtContracts...)
 		pairs := make([]currency.Pair, 0, len(btcContracts))
