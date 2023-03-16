@@ -426,6 +426,9 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
+			if tradables[x].Status == 0 {
+				continue
+			}
 			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
 			if !g.IsValidPairString(p) {
 				continue
@@ -449,6 +452,9 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		btcContracts = append(btcContracts, usdtContracts...)
 		pairs := make([]currency.Pair, 0, len(btcContracts))
 		for x := range btcContracts {
+			if btcContracts[x].InDelisting {
+				continue
+			}
 			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
 				continue
@@ -472,6 +478,9 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		btcContracts = append(btcContracts, usdtContracts...)
 		pairs := make([]currency.Pair, 0, len(btcContracts))
 		for x := range btcContracts {
+			if btcContracts[x].InDelisting {
+				continue
+			}
 			p := strings.ToUpper(btcContracts[x].Name)
 			if !g.IsValidPairString(p) {
 				continue
@@ -1540,7 +1549,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var spotOrders []SpotOrdersDetail
-		spotOrders, err = g.GetSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
+		spotOrders, err = g.GateioSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
 		if err != nil {
 			return nil, err
 		}
@@ -1691,7 +1700,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		for x := range req.Pairs {
 			fPair := req.Pairs[x].Format(format)
 			var spotOrders []SpotPersonalTradeHistory
-			spotOrders, err = g.GetPersonalTradingHistory(ctx, fPair, req.OrderID, 0, 0, req.AssetType == asset.CrossMargin, req.StartTime, req.EndTime)
+			spotOrders, err = g.GateIOGetPersonalTradingHistory(ctx, fPair, req.OrderID, 0, 0, req.AssetType == asset.CrossMargin, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}

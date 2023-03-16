@@ -364,7 +364,7 @@ func TestGetSpotOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.GetSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
+	if _, err := g.GateioSpotOpenOrders(context.Background(), 0, 0, false); err != nil {
 		t.Errorf("%s GetSpotOpenOrders() error %v", g.Name, err)
 	}
 }
@@ -491,7 +491,7 @@ func TestGetPersonalTradingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.GetPersonalTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{}); err != nil {
+	if _, err := g.GateIOGetPersonalTradingHistory(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{}); err != nil {
 		t.Errorf("%s GetPersonalTradingHistory() error %v", g.Name, err)
 	}
 }
@@ -2345,6 +2345,9 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
 	if _, err = g.UpdateOrderbook(context.Background(), deliveryFuturesTradablePair, asset.DeliveryFutures); err != nil {
+		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
+	}
+	if _, err = g.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options); err != nil {
 		t.Errorf("%s UpdateOrderbook() error %v", g.Name, err)
 	}
 }

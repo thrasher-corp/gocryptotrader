@@ -645,11 +645,11 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrdersEPL, http.MethodPost, spotBatchOrders, nil, &args, &response)
 }
 
-// GetSpotOpenOrders retrieves all open orders
+// GateioSpotOpenOrders retrieves all open orders
 // List open orders in all currency pairs.
 // Note that pagination parameters affect record number in each currency pair's open order list. No pagination is applied to the number of currency pairs returned. All currency pairs with open orders will be returned.
 // Spot and margin orders are returned by default. To list cross margin orders, account must be set to cross_margin
-func (g *Gateio) GetSpotOpenOrders(ctx context.Context, page, limit uint64, isCrossMargin bool) ([]SpotOrdersDetail, error) {
+func (g *Gateio) GateioSpotOpenOrders(ctx context.Context, page, limit uint64, isCrossMargin bool) ([]SpotOrdersDetail, error) {
 	params := url.Values{}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -842,8 +842,8 @@ func (g *Gateio) CancelSingleSpotOrder(ctx context.Context, orderID, currencyPai
 		exchange.RestSpot, spotCancelOrdersEPL, http.MethodDelete, spotOrders+"/"+orderID, params, nil, &response)
 }
 
-// GetPersonalTradingHistory retrieves personal trading history
-func (g *Gateio) GetPersonalTradingHistory(ctx context.Context, currencyPair currency.Pair,
+// GateIOGetPersonalTradingHistory retrieves personal trading history
+func (g *Gateio) GateIOGetPersonalTradingHistory(ctx context.Context, currencyPair currency.Pair,
 	orderID string, page, limit uint64, crossMarginAccount bool, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
