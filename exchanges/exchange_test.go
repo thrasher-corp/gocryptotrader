@@ -85,7 +85,7 @@ func TestSet(t *testing.T) {
 		t.Error("set method or createmap failed")
 	}
 	if val != "http://google.com/" {
-		t.Errorf("vals didnt match. expecting: %s, got: %s\n", "http://google.com/", val)
+		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
 	}
 	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3")
 	if err != nil {
@@ -122,7 +122,7 @@ func TestGetURL(t *testing.T) {
 		t.Error(err)
 	}
 	if getChangedVal != "http://OVERWRITTENBRO.com.au/" {
-		t.Error("couldnt get changed val")
+		t.Error("couldn't get changed val")
 	}
 	_, err = b.API.Endpoints.GetURL(URL(100))
 	if err == nil {
@@ -173,7 +173,7 @@ func TestSetDefaultEndpoints(t *testing.T) {
 		EdgeCase1: "",
 	})
 	if err != nil {
-		t.Errorf("expecting a warning due due to invalid url val but got an error: %v", err)
+		t.Errorf("expecting a warning due to invalid url value but got an error: %v", err)
 	}
 }
 
@@ -1198,6 +1198,7 @@ func TestSetupDefaults(t *testing.T) {
 		API: config.APIConfig{
 			AuthenticatedSupport: true,
 		},
+		ConnectionMonitorDelay: time.Second * 5,
 	}
 
 	err = b.SetupDefaults(&cfg)
@@ -2880,7 +2881,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
 	}
 
-	if len(r.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
-		t.Fatalf("received: '%v' but expected: '%v'", len(r.Ranges), 15)
+	if len(r.RangeHolder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
+		t.Fatalf("received: '%v' but expected: '%v'", len(r.RangeHolder.Ranges), 15)
 	}
 }

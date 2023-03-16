@@ -328,7 +328,7 @@ func (b *Base) Process() error {
 
 // Reverse reverses the order of orderbook items; some bid/asks are
 // returned in either ascending or descending order. One bid or ask slice
-// depending on whats received can be reversed. This is usually faster than
+// depending on what's received can be reversed. This is usually faster than
 // using a sort algorithm as the algorithm could be impeded by a worst case time
 // complexity when elements are shifted as opposed to just swapping element
 // values.

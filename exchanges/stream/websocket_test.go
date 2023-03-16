@@ -224,7 +224,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	// await timeout closure
 	ws.Wg.Wait()
 	if ws.IsTrafficMonitorRunning() {
-		t.Error("should be ded")
+		t.Error("should be dead")
 	}
 }
 

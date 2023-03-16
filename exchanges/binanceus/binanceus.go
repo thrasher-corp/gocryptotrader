@@ -237,18 +237,18 @@ func (bi *Binanceus) GetAggregateTrades(ctx context.Context, agg *AggregatedTrad
 	if agg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(agg.FromID, 10))
 	}
-	startTime := time.UnixMilli(int64(agg.StartTime))
-	endTime := time.UnixMilli(int64(agg.EndTime))
+	startTime := time.UnixMilli(agg.StartTime)
+	endTime := time.UnixMilli(agg.EndTime)
 
 	if (endTime.UnixNano() - startTime.UnixNano()) >= int64(time.Hour) {
 		endTime = startTime.Add(time.Minute * 59)
 	}
 
 	if !startTime.IsZero() && startTime.Unix() != 0 {
-		params.Set("startTime", strconv.Itoa(int(agg.StartTime)))
+		params.Set("startTime", strconv.FormatInt(agg.StartTime, 10))
 	}
 	if !endTime.IsZero() && endTime.Unix() != 0 {
-		params.Set("endTime", strconv.Itoa(int(agg.EndTime)))
+		params.Set("endTime", strconv.FormatInt(agg.EndTime, 10))
 	}
 	needBatch = needBatch || (!startTime.IsZero() && !endTime.IsZero() && endTime.Sub(startTime) > time.Hour)
 	if needBatch {
@@ -277,8 +277,8 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 		// Extend from the default of 500
 		params.Set("limit", "1000")
 	}
-	startTime := time.UnixMilli(int64(arg.StartTime))
-	endTime := time.UnixMilli(int64(arg.EndTime))
+	startTime := time.UnixMilli(arg.StartTime)
+	endTime := time.UnixMilli(arg.EndTime)
 	var fromID int64
 	if arg.FromID > 0 {
 		fromID = arg.FromID
@@ -292,8 +292,8 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 				// All requests returned empty
 				return nil, nil
 			}
-			params.Set("startTime", strconv.Itoa(int(startTime.UnixMilli())))
-			params.Set("endTime", strconv.Itoa(int(startTime.Add(increment).UnixMilli())))
+			params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+			params.Set("endTime", strconv.FormatInt(startTime.Add(increment).UnixMilli(), 10))
 			path := common.EncodeURLValues(aggregatedTrades, params)
 			err := bi.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
@@ -913,8 +913,7 @@ func (bi *Binanceus) GetSubaccountTransferHistory(ctx context.Context,
 	startTimeT := time.UnixMilli(int64(startTime))
 	endTimeT := time.UnixMilli(int64(endTime))
 
-	hundredDayBefore := time.Now()
-	hundredDayBefore.Sub(time.UnixMilli(int64((time.Hour * 24 * 10) / time.Millisecond)))
+	hundredDayBefore := time.Now().Add(-time.Hour * 24 * 100).Truncate(time.Hour)
 	if !(startTimeT.Before(hundredDayBefore)) || startTimeT.Before(time.Now()) {
 		params.Set("startTime", strconv.Itoa(int(startTime)))
 	}

@@ -101,10 +101,10 @@ func TestNew(t *testing.T) {
 			t.Parallel()
 			returned, err := New(tt.Input)
 			if !errors.Is(err, tt.Error) {
-				t.Fatalf("receieved: '%v' but expected: '%v'", err, tt.Error)
+				t.Fatalf("received: '%v' but expected: '%v'", err, tt.Error)
 			}
 			if returned != tt.Expected {
-				t.Fatalf("receieved: '%v' but expected: '%v'", returned, tt.Expected)
+				t.Fatalf("received: '%v' but expected: '%v'", returned, tt.Expected)
 			}
 		})
 	}
@@ -198,7 +198,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	data, err := json.Marshal(Item(0))
 	if !errors.Is(err, nil) {
-		t.Fatalf("receieved: '%v' but expected: '%v'", err, nil)
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	if string(data) != `""` {
@@ -207,7 +207,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 
 	data, err = json.Marshal(Spot)
 	if !errors.Is(err, nil) {
-		t.Fatalf("receieved: '%v' but expected: '%v'", err, nil)
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	if string(data) != `"spot"` {
@@ -218,7 +218,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 
 	err = json.Unmarshal(data, &spot)
 	if !errors.Is(err, nil) {
-		t.Fatalf("receieved: '%v' but expected: '%v'", err, nil)
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	if spot != Spot {
@@ -227,23 +227,23 @@ func TestUnmarshalMarshal(t *testing.T) {
 
 	err = json.Unmarshal([]byte(`"confused"`), &spot)
 	if !errors.Is(err, ErrNotSupported) {
-		t.Fatalf("receieved: '%v' but expected: '%v'", err, ErrNotSupported)
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNotSupported)
 	}
 
 	err = json.Unmarshal([]byte(`""`), &spot)
 	if !errors.Is(err, nil) {
-		t.Fatalf("receieved: '%v' but expected: '%v'", err, nil)
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	err = json.Unmarshal([]byte(`123`), &spot)
 	if errors.Is(err, nil) {
-		t.Fatalf("receieved: '%v' but expected: '%v'", nil, "an error")
+		t.Fatalf("received: '%v' but expected: '%v'", nil, "an error")
 	}
 }
 
 func TestUseDefault(t *testing.T) {
 	t.Parallel()
 	if UseDefault() != Spot {
-		t.Fatalf("receieved: '%v' but expected: '%v'", UseDefault(), Spot)
+		t.Fatalf("received: '%v' but expected: '%v'", UseDefault(), Spot)
 	}
 }

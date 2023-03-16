@@ -18,7 +18,7 @@ const (
 	btcmarketsWithdrawLimit        = 10
 	btcmarketsCreateNewReportLimit = 1
 
-	// Used to match endpints to rate limits
+	// Used to match endpoints to rate limits
 	orderFunc request.EndpointLimit = iota
 	batchFunc
 	withdrawFunc

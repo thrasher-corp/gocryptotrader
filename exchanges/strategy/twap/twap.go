@@ -200,7 +200,7 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 	if submit == nil {
 		return nil, strategy.ErrSubmitOrderIsNil
 	}
-	var errors common.Errors
+	var errors error
 	var resp *order.SubmitResponse
 	for attempt := 0; attempt < int(s.RetryAttempts); attempt++ {
 		// Check context here so we can immediately bypass the retry attempt and
@@ -222,7 +222,7 @@ func (s *Strategy) submitOrder(ctx context.Context, submit *order.Submit) (*orde
 			break
 		}
 		s.ReportError(err)
-		errors = append(errors, err)
+		errors = common.AppendError(errors, err)
 		time.Sleep(time.Second)
 	}
 	if errors != nil {

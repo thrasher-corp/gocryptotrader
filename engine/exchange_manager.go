@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
@@ -29,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/localbitcoins"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
@@ -175,8 +173,6 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(exmo.EXMO)
 	case "coinbasepro":
 		exch = new(coinbasepro.CoinbasePro)
-	case "ftx":
-		exch = new(ftx.FTX)
 	case "gateio":
 		exch = new(gateio.Gateio)
 	case "gemini":
@@ -191,8 +187,6 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(kraken.Kraken)
 	case "lbank":
 		exch = new(lbank.Lbank)
-	case "localbitcoins":
-		exch = new(localbitcoins.LocalBitcoins)
 	case "okcoin international":
 		exch = new(okcoin.OKCoin)
 	case "okx":

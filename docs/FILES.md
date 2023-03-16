@@ -18,7 +18,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Default data directory
 
-By default, GoCryptoTrader uses the following data directores:
+By default, GoCryptoTrader uses the following data directories:
 
 Operating System | Path | Translated
 --- | --- | ----

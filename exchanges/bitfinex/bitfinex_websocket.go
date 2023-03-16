@@ -1544,7 +1544,6 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
 	checksum := make(map[string]interface{})
 	checksum["event"] = "conf"
 	checksum["flags"] = bitfinexChecksumFlag + bitfinexWsSequenceFlag
@@ -1553,6 +1552,7 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		return err
 	}
 
+	var errs error
 	for i := range channelsToSubscribe {
 		req := make(map[string]interface{})
 		req["event"] = "subscribe"
@@ -1564,20 +1564,17 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
+	var errs error
 	for i := range channelsToUnsubscribe {
 		req := make(map[string]interface{})
 		req["event"] = "unsubscribe"
@@ -1589,18 +1586,15 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
-// WsSendAuth sends a autheticated event payload
+// WsSendAuth sends a authenticated event payload
 func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {

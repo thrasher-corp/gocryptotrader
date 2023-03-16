@@ -176,14 +176,15 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            btcMarketsWSURL,
-		RunningURL:            wsURL,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.generateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             btcMarketsWSURL,
+		RunningURL:             wsURL,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.generateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:          true,
 			UpdateIDProgression: true,
@@ -825,10 +826,7 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		if err != nil {
 			return nil, err
 		}
-		for a := range allPairs {
-			req.Pairs = append(req.Pairs,
-				allPairs[a])
-		}
+		req.Pairs = append(req.Pairs, allPairs...)
 	}
 
 	var resp []order.Detail
@@ -1053,13 +1051,13 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles CandleResponse
 		candles, err = b.GetMarketCandles(ctx,
 			req.RequestFormatted.String(),
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			req.Ranges[x].Start.Time,
-			req.Ranges[x].End.Time,
+			req.RangeHolder.Ranges[x].Start.Time,
+			req.RangeHolder.Ranges[x].End.Time,
 			-1,
 			-1,
 			-1)

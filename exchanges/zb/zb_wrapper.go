@@ -171,13 +171,14 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            zbWebsocketAPI,
-		RunningURL:            wsRunningURL,
-		Connector:             z.WsConnect,
-		GenerateSubscriptions: z.GenerateDefaultSubscriptions,
-		Subscriber:            z.Subscribe,
-		Features:              &z.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             zbWebsocketAPI,
+		RunningURL:             wsRunningURL,
+		Connector:              z.WsConnect,
+		GenerateSubscriptions:  z.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Subscriber:             z.Subscribe,
+		Features:               &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -501,9 +502,9 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 		}
 		return o.DeriveSubmitResponse(strconv.FormatInt(response.Data.EntrustID, 10))
 	}
-	var oT = SpotNewOrderRequestParamsTypeSell
+	var orderType = SpotNewOrderRequestParamsTypeSell
 	if o.Side == order.Buy {
-		oT = SpotNewOrderRequestParamsTypeBuy
+		orderType = SpotNewOrderRequestParamsTypeBuy
 	}
 
 	fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
@@ -515,7 +516,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 		Amount: o.Amount,
 		Price:  o.Price,
 		Symbol: fPair.Lower().String(),
-		Type:   oT,
+		Type:   orderType,
 	}
 	var response int64
 	response, err = z.SpotNewOrder(ctx, params)
@@ -923,27 +924,29 @@ func (z *ZB) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair,
 		return nil, err
 	}
 
-	startTime := start
+	count := kline.TotalCandlesPerInterval(req.Start, req.End, req.ExchangeInterval)
+	if count > 1000 {
+		return nil,
+			fmt.Errorf("candles count: %d max lookback: %d, %w",
+				count, 1000, kline.ErrRequestExceedsMaxLookback)
+	}
+
 	timeSeries := make([]kline.Candle, 0, req.Size())
-allKlines:
-	for {
-		candles, err := z.GetSpotKline(ctx, KlinesRequestParams{
+	for i := range req.RangeHolder.Ranges {
+		var candles KLineResponse
+		candles, err = z.GetSpotKline(ctx, KlinesRequestParams{
 			Type:   z.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol: req.RequestFormatted.String(),
-			Since:  startTime.UnixMilli(),
-			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
+			Since:  req.RangeHolder.Ranges[i].Start.Time.UnixMilli(),
+			Size:   int64(req.RangeHolder.Limit),
 		})
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range candles.Data {
-			if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
+			if candles.Data[x].KlineTime.Before(req.Start) || candles.Data[x].KlineTime.After(req.End) {
 				continue
-			}
-			if startTime.Equal(candles.Data[x].KlineTime) {
-				// no new data has been sent
-				break allKlines
 			}
 			timeSeries = append(timeSeries, kline.Candle{
 				Time:   candles.Data[x].KlineTime,
@@ -953,12 +956,6 @@ allKlines:
 				Close:  candles.Data[x].Close,
 				Volume: candles.Data[x].Volume,
 			})
-			if x == len(candles.Data)-1 {
-				startTime = candles.Data[x].KlineTime
-			}
-		}
-		if len(candles.Data) != int(z.Features.Enabled.Kline.ResultLimit) {
-			break allKlines
 		}
 	}
 	return req.ProcessResponse(timeSeries)

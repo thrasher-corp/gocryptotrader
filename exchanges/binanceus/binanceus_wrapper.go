@@ -189,14 +189,15 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 	}
 
 	err = bi.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceusDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             bi.WsConnect,
-		Subscriber:            bi.Subscribe,
-		Unsubscriber:          bi.Unsubscribe,
-		GenerateSubscriptions: bi.GenerateSubscriptions,
-		Features:              &bi.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             binanceusDefaultWebsocketURL,
+		RunningURL:             ePoint,
+		Connector:              bi.WsConnect,
+		Subscriber:             bi.Subscribe,
+		Unsubscriber:           bi.Unsubscribe,
+		GenerateSubscriptions:  bi.GenerateSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &bi.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -539,8 +540,8 @@ func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair,
 	assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	req := AggregatedTradeRequestParams{
 		Symbol:    p,
-		StartTime: uint64(timestampStart.UnixMilli()),
-		EndTime:   uint64(timestampEnd.UnixMilli()),
+		StartTime: timestampStart.UnixMilli(),
+		EndTime:   timestampEnd.UnixMilli(),
 	}
 	trades, err := bi.GetAggregateTrades(ctx, &req)
 	if err != nil {
@@ -906,13 +907,13 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles []CandleStick
 		candles, err = bi.GetSpotKline(ctx, &KlinesRequestParams{
 			Interval:  bi.GetIntervalEnum(req.ExchangeInterval),
 			Symbol:    req.Pair,
-			StartTime: req.Ranges[x].Start.Time,
-			EndTime:   req.Ranges[x].End.Time,
+			StartTime: req.RangeHolder.Ranges[x].Start.Time,
+			EndTime:   req.RangeHolder.Ranges[x].End.Time,
 			Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
 		})
 		if err != nil {

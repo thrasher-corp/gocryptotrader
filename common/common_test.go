@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -623,18 +624,105 @@ func TestInArray(t *testing.T) {
 
 func TestErrors(t *testing.T) {
 	t.Parallel()
-	var test Errors
-	if test.Error() != "" {
-		t.Fatal("string should be nil")
-	}
-	errTestOne := errors.New("test1")
-	test = append(test, errTestOne)
+
+	var errTestOne = errors.New("test1")
+	var test error
+	test = AppendError(test, errTestOne)
 	if !errors.Is(test, errTestOne) {
 		t.Fatal("does not match error")
 	}
-	test = append(test, errors.New("test2"))
+
+	var errTestTwo = errors.New("test2")
+	test = AppendError(test, errTestTwo)
+	if !errors.Is(test, errTestTwo) {
+		t.Fatal("does not match error")
+	}
+
+	if !errors.Is(test, errTestTwo) {
+		t.Fatal("does not match error")
+	}
+
+	// Append nil should log
+	test = AppendError(test, nil)
+
 	if test.Error() != "test1, test2" {
 		t.Fatal("does not match error")
+	}
+
+	// Join slices for whatever reason
+	test = AppendError(test, test)
+
+	if test.Error() != "test1, test2, test1, test2" {
+		t.Fatal("does not match error")
+	}
+
+	var errTestThree = errors.New("test3")
+	if errors.Is(test, errTestThree) {
+		t.Fatal("expected errors.Is() should not match")
+	}
+
+	if errors.Is(test, errTestThree) {
+		t.Fatal("expected errors.Is() should not match")
+	}
+
+	strangeError := errors.New("this is a strange error")
+
+	strangeError = AppendError(strangeError, errTestOne)
+	if strangeError.Error() != "this is a strange error, test1" {
+		t.Fatal("does not match error")
+	}
+
+	// Add trimmings
+	strangeError = AppendError(strangeError, fmt.Errorf("TRIMMINGS: %w", errTestTwo))
+	if strangeError.Error() != "this is a strange error, test1, TRIMMINGS: test2" {
+		t.Fatal("does not match error")
+	}
+
+	if !errors.Is(strangeError, errTestTwo) {
+		t.Fatal("does not match error")
+	}
+
+	if errors.Is(strangeError, errTestThree) {
+		t.Fatal("should not match")
+	}
+
+	// Test again because unwrap was called multiple times.
+	if strangeError.Error() != "this is a strange error, test1, TRIMMINGS: test2" {
+		t.Fatalf("received: '%v' but expected: '%v'", strangeError.Error(), "this is a strange error, test1, TRIMMINGS: test2")
+	}
+
+	strangeError = AppendError(strangeError, errors.New("even more error"))
+
+	strangeError = AppendError(strangeError, nil) // Skip this nasty thing.
+
+	// Test for individual display of errors
+	target := 0
+	for indv := errors.Unwrap(strangeError); indv != nil; indv = errors.Unwrap(indv) {
+		switch target {
+		case 0:
+			if indv.Error() != "this is a strange error" {
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "this is a strange error")
+			}
+		case 1:
+			if indv.Error() != "test1" {
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "test1")
+			}
+
+		case 2:
+			if indv.Error() != "TRIMMINGS: test2" {
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "TRIMMINGS: test2")
+			}
+		case 3:
+			if indv.Error() != "even more error" {
+				t.Fatalf("received: '%v' but expected: '%v'", indv.Error(), "even more error")
+			}
+		default:
+			t.Fatal("unhandled case")
+		}
+		target++
+	}
+	if target != 4 {
+		t.Fatal("targets not achieved")
 	}
 }
 
@@ -708,7 +796,7 @@ func TestMatchesEmailPattern(t *testing.T) {
 	if success {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}
-	success = MatchesEmailPattern("someon esemail@gmail")
+	success = MatchesEmailPattern("someone esemail@gmail")
 	if success {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
 	}

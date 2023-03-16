@@ -12,7 +12,7 @@ func TestDisruptFormatting(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	_, err = disruptFormatting(currency.Pair{Base: currency.BTC})
+	_, err = disruptFormatting(currency.Pair{Quote: currency.BTC})
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}

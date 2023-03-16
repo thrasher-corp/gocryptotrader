@@ -51,7 +51,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	return exchCfg, nil
 }
 
-// SetDefaults method assignes the default values for OKCoin
+// SetDefaults method assigns the default values for OKCoin
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.Name = okCoinExchangeName
@@ -180,14 +180,15 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsEndpoint,
-		RunningURL:            wsEndpoint,
-		Connector:             o.WsConnect,
-		Subscriber:            o.Subscribe,
-		Unsubscriber:          o.Unsubscribe,
-		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
-		Features:              &o.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             wsEndpoint,
+		RunningURL:             wsEndpoint,
+		Connector:              o.WsConnect,
+		Subscriber:             o.Subscribe,
+		Unsubscriber:           o.Unsubscribe,
+		GenerateSubscriptions:  o.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -1048,12 +1049,12 @@ func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 	gran := o.FormatExchangeKlineInterval(interval)
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles []kline.Candle
 		candles, err = o.GetMarketData(ctx, &GetMarketDataRequest{
 			Asset:        a,
-			Start:        req.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
-			End:          req.Ranges[x].End.Time.UTC().Format(time.RFC3339),
+			Start:        req.RangeHolder.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
+			End:          req.RangeHolder.Ranges[x].End.Time.UTC().Format(time.RFC3339),
 			Granularity:  gran,
 			InstrumentID: req.RequestFormatted.String(),
 		})

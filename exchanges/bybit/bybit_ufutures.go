@@ -78,6 +78,9 @@ func (by *Bybit) GetUSDTFuturesKlineData(ctx context.Context, symbol currency.Pa
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
 		return resp.Data, errInvalidInterval
 	}
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	}
 	params.Set("interval", interval)
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 

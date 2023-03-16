@@ -231,14 +231,15 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             binanceDefaultWebsocketURL,
+		RunningURL:             ePoint,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.GenerateSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -634,6 +635,8 @@ func (b *Binance) FetchTicker(ctx context.Context, p currency.Pair, assetType as
 func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
+		// TODO: Disconnect update orderbook functionality from fetch orderbook
+		// functionality across all wrappers as this mutes potential errors.
 		return b.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
@@ -659,6 +662,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = b.GetFuturesOrderbook(ctx, p, 1000)
+	default:
+		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
 		return book, err
@@ -1729,13 +1734,13 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles []CandleStick
 		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol:    req.Pair,
-			StartTime: req.Ranges[x].Start.Time,
-			EndTime:   req.Ranges[x].End.Time,
+			StartTime: req.RangeHolder.Ranges[x].Start.Time,
+			EndTime:   req.RangeHolder.Ranges[x].End.Time,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		})
 		if err != nil {

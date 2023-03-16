@@ -27,10 +27,11 @@ const (
 	OneDay        = 24 * OneHour
 	TwoDay        = 2 * OneDay
 	ThreeDay      = 3 * OneDay
+	FiveDay       = 5 * OneDay
 	SevenDay      = 7 * OneDay
-	OneWeek       = SevenDay
-	TwoWeek       = 2 * OneWeek
 	FifteenDay    = 15 * OneDay
+	OneWeek       = 7 * OneDay
+	TwoWeek       = 2 * OneWeek
 	OneMonth      = 30 * OneDay
 	ThreeMonth    = 3 * OneMonth
 	SixMonth      = 6 * OneMonth

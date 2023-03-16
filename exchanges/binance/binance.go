@@ -346,7 +346,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 //
 // KlinesRequestParams supports 5 parameters
 // symbol: the symbol to get the kline data for
-// limit: optinal
+// limit: optional
 // interval: the interval time for the data
 // startTime: startTime filter for kline data
 // endTime: endTime filter for the kline data

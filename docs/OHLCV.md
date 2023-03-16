@@ -83,11 +83,9 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Gemini         |             |
 | HitBTC         | Y           |     
 | Huobi          | Y           |      
-| FTX            | Y           | 
 | itBIT          |             |          
 | Kraken         | Y           |                 
-| lBank          | Y           |          
-| Localbitcoins  |             |          
+| lBank          | Y           |                
 | Okcoin         | Y           |  
 | Okx            | Y           |         
 | Poloniex       | Y           |          

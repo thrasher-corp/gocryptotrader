@@ -74,7 +74,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | CoinbasePro | Yes | Yes | No|
 | COINUT | Yes | Yes | No |
 | Exmo | Yes | NA | No |
-| FTX | Yes | Yes | Yes |
 | GateIO | Yes | Yes | No |
 | Gemini | Yes | Yes | Yes |
 | HitBTC | Yes | Yes | Yes |
@@ -82,7 +81,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | No |
 | Lbank | Yes | No | Yes |
-| LocalBitcoins | Yes | NA | No |
 | OKCoin International | Yes | Yes | No |
 | Okx | Yes | Yes | Yes |
 | Poloniex | Yes | Yes | Yes |

@@ -206,14 +206,15 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            publicBitfinexWebsocketEndpoint,
-		RunningURL:            wsEndpoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             publicBitfinexWebsocketEndpoint,
+		RunningURL:             wsEndpoint,
+		Connector:              b.WsConnect,
+		Subscriber:             b.Subscribe,
+		Unsubscriber:           b.Unsubscribe,
+		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
@@ -1026,7 +1027,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			orderDetail.Status = order.UnknownStatus
 		}
 
-		// API docs discrepency. Example contains prefixed "exchange "
+		// API docs discrepancy. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
 		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {
@@ -1130,13 +1131,13 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var candles []Candle
 		candles, err = b.GetCandles(ctx,
 			cf,
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			req.Ranges[x].Start.Ticks*1000,
-			req.Ranges[x].End.Ticks*1000,
+			req.RangeHolder.Ranges[x].Start.Ticks*1000,
+			req.RangeHolder.Ranges[x].End.Ticks*1000,
 			b.Features.Enabled.Kline.ResultLimit,
 			true)
 		if err != nil {
@@ -1158,6 +1159,9 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 }
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
+	if in.IsEmpty() || in.Base.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
+	}
 	var checkString [2]byte
 	if a == asset.Spot || a == asset.Margin {
 		checkString[0] = 't'

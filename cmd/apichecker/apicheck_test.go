@@ -386,16 +386,6 @@ func TestHTMLYobit(t *testing.T) {
 	}
 }
 
-func TestHTMLScrapeLocalBitcoins(t *testing.T) {
-	t.Parallel()
-	data := HTMLScrapingData{TokenData: "div",
-		RegExp: `col-md-12([\s\S]*?)clearfix`,
-		Path:   "https://localbitcoins.com/api-docs/"}
-	if _, err := htmlScrapeLocalBitcoins(&data); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestHTMLScrapeOk(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "a",
@@ -656,19 +646,6 @@ func TestTrelloDeleteCheckItems(t *testing.T) {
 	}
 	err := trelloDeleteCheckItem("")
 	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestHTMLScrapeFTX(t *testing.T) {
-	data := HTMLScrapingData{
-		TokenData:    "span",
-		Key:          "class",
-		Val:          "css-truncate css-truncate-target d-block width-fit",
-		TokenDataEnd: "svg",
-		Path:         "https://github.com/ftexchange/ftx"}
-	a, err := htmlScrapeFTX(&data)
-	if err != nil || len(a) != 1 {
 		t.Error(err)
 	}
 }

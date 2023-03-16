@@ -553,7 +553,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 			return err
 		}
 	}
-	var errs common.Errors
+	var errs error
 	for i := range channelsToSubscribe {
 		if (strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToSubscribe[i].Channel, "accounts")) && creds != nil {
@@ -562,7 +562,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 				wsAccountsOrdersEndPoint+channelsToSubscribe[i].Channel,
 				channelsToSubscribe[i].Channel)
 			if err != nil {
-				errs = append(errs, err)
+				errs = common.AppendError(errs, err)
 				continue
 			}
 			h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
@@ -572,7 +572,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 			Subscribe: channelsToSubscribe[i].Channel,
 		})
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
@@ -593,7 +593,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 			return err
 		}
 	}
-	var errs common.Errors
+	var errs error
 	for i := range channelsToUnsubscribe {
 		if (strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToUnsubscribe[i].Channel, "accounts")) && creds != nil {
@@ -602,7 +602,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 				wsAccountsOrdersEndPoint+channelsToUnsubscribe[i].Channel,
 				channelsToUnsubscribe[i].Channel)
 			if err != nil {
-				errs = append(errs, err)
+				errs = common.AppendError(errs, err)
 				continue
 			}
 			h.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
@@ -612,7 +612,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 			Unsubscribe: channelsToUnsubscribe[i].Channel,
 		})
 		if err != nil {
-			errs = append(errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		h.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])

@@ -263,7 +263,7 @@ func TestGetPairReader(t *testing.T) {
 	var expectedError error
 	ip, err := p.GetPairReader()
 	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	if ip != p {
 		t.Error("expected the same thing")
@@ -276,7 +276,7 @@ func TestGetCollateralReader(t *testing.T) {
 		base: &Item{exchange: "hello"},
 	}
 	if _, err := p.GetCollateralReader(); !errors.Is(err, ErrNotCollateral) {
-		t.Errorf("recevied '%v' expected '%v'", err, ErrNotCollateral)
+		t.Errorf("received '%v' expected '%v'", err, ErrNotCollateral)
 	}
 }
 
@@ -316,7 +316,7 @@ func TestPairReleaser(t *testing.T) {
 		base: &Item{exchange: "hello"},
 	}
 	if _, err := p.PairReleaser(); !errors.Is(err, nil) {
-		t.Errorf("recevied '%v' expected '%v'", err, nil)
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -326,7 +326,7 @@ func TestCollateralReleaser(t *testing.T) {
 		base: &Item{exchange: "hello"},
 	}
 	if _, err := p.CollateralReleaser(); !errors.Is(err, ErrNotCollateral) {
-		t.Errorf("recevied '%v' expected '%v'", err, ErrNotCollateral)
+		t.Errorf("received '%v' expected '%v'", err, ErrNotCollateral)
 	}
 }
 

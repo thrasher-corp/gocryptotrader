@@ -172,14 +172,15 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinbaseproWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             c.WsConnect,
-		Subscriber:            c.Subscribe,
-		Unsubscriber:          c.Unsubscribe,
-		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:         exch,
+		DefaultURL:             coinbaseproWebsocketURL,
+		RunningURL:             wsRunningURL,
+		Connector:              c.WsConnect,
+		Subscriber:             c.Subscribe,
+		Unsubscriber:           c.Unsubscribe,
+		GenerateSubscriptions:  c.GenerateDefaultSubscriptions,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer: true,
 		},
@@ -926,12 +927,12 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.Ranges {
+	for x := range req.RangeHolder.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(ctx,
 			req.RequestFormatted.String(),
-			req.Ranges[x].Start.Time.Format(time.RFC3339),
-			req.Ranges[x].End.Time.Format(time.RFC3339),
+			req.RangeHolder.Ranges[x].Start.Time.Format(time.RFC3339),
+			req.RangeHolder.Ranges[x].End.Time.Format(time.RFC3339),
 			int64(req.ExchangeInterval.Duration().Seconds()))
 		if err != nil {
 			return nil, err

@@ -216,7 +216,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
@@ -247,7 +246,6 @@ var Exchanges = []string{
 	"itbit",
 	"kraken",
 	"lbank",
-	"localbitcoins",
 	"okcoin international",
 	"okx",
 	"poloniex",
@@ -431,7 +429,7 @@ const(
 )
 
 func TestGetMarket(t *testing.T) {
-	t.Parallel() // adding t.Parralel() is preferred as it allows tests to run simultaneously, speeding up package test time
+	t.Parallel() // adding t.Parallel() is preferred as it allows tests to run simultaneously, speeding up package test time
 	f.Verbose = true // used for more detailed output
 	a, err := f.GetMarket(context.Background(), spotPair) // spotPair is just a const so it can be reused in other tests too
 	t.Log(a)
