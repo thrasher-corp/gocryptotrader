@@ -345,11 +345,11 @@ type assetPair struct {
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
 var unsupportedFunctionNames = []string{
-	"Start",
-	"SetDefaults",
-	"UpdateTradablePairs",
-	"GetDefaultConfig",
-	"FetchTradablePairs",
+	"Start",               // Is run via test setup
+	"SetDefaults",         // Is run via test setup
+	"UpdateTradablePairs", // Is run via test setup
+	"GetDefaultConfig",    // Is run via test setup
+	"FetchTradablePairs",  // Is run via test setup
 	"GetCollateralCurrencyForContract",
 	"GetCurrencyForRealisedPNL",
 	"FlushWebsocketChannels",
@@ -387,22 +387,6 @@ var acceptableErrors = []error{
 	order.ErrUnsupportedOrderType,
 }
 
-// getPairFromPairs prioritises more normal pairs for an increased
-// likelihood of returning data from API endpoints
-func getPairFromPairs(p currency.Pairs) (currency.Pair, error) {
-	for i := range p {
-		if p[i].Base.Equal(currency.BTC) {
-			return p[i], nil
-		}
-	}
-	for i := range p {
-		if p[i].Base.Equal(currency.ETH) {
-			return p[i], nil
-		}
-	}
-	return p.GetRandomPair()
-}
-
 func TestAllExchanges(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
@@ -418,89 +402,111 @@ func TestAllExchanges(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			em := SetupExchangeManager()
-			var exch exchange.IBotExchange
-			exch, err = em.NewExchangeByName(name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var exchCfg *config.Exchange
-			exchCfg, err = cfg.GetExchangeConfig(name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			exch.SetDefaults()
-			exchCfg.API.AuthenticatedSupport = true
-			exchCfg.API.Credentials.Key = "realKey"
-			exchCfg.API.Credentials.Secret = "realSecret"
-			exchCfg.API.Credentials.ClientID = "realClientID"
-			err = exch.Setup(exchCfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			err = exch.UpdateTradablePairs(context.Background(), true)
-			if err != nil {
-				t.Fatal(err)
-			}
-			b := exch.GetBase()
-			assets := b.CurrencyPairs.GetAssetTypes(false)
-			if len(assets) == 0 {
-				t.Fatal(name)
-			}
-			for j := range assets {
-				err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
-				if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
-					t.Fatal(err)
-				}
-			}
-			testMap := make([]assetPair, len(assets))
-			for j := range assets {
-				var pairs currency.Pairs
-				pairs, err = b.CurrencyPairs.GetPairs(assets[j], true)
-				if err != nil {
-					t.Fatal(err)
-				}
-				var p currency.Pair
-				if len(pairs) == 0 {
-					pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
-					if err != nil {
-						t.Fatalf("GetPairs %v %v", err, assets[j])
-					}
-					p, err = getPairFromPairs(pairs)
-					if err != nil {
-						t.Fatalf("getPairFromPairs %v %v", err, assets[j])
-					}
-					p, err = b.FormatExchangeCurrency(p, assets[j])
-					if err != nil {
-						t.Fatalf("FormatExchangeCurrency %v %v", err, assets[j])
-					}
-					err = b.CurrencyPairs.EnablePair(assets[j], p)
-					if err != nil {
-						t.Fatalf("EnablePair %v %v", err, assets[j])
-					}
-				} else {
-					p, err = getPairFromPairs(pairs)
-					if err != nil {
-						t.Fatalf("getPairFromPairs %v %v", err, assets[j])
-					}
-				}
-				p, err = b.FormatExchangeCurrency(p, assets[j])
-				if err != nil {
-					t.Fatal(err)
-				}
-				p, err = disruptFormatting(p)
-				if err != nil {
-					t.Fatal(err)
-				}
-				testMap[j] = assetPair{
-					Pair:  p,
-					Asset: assets[j],
-				}
-			}
+			exch, testMap := setupAllExchanges(t, name, cfg)
 			executeExchangeWrapperTests(t, exch, testMap)
 		})
 	}
+}
+
+// getPairFromPairs prioritises more normal pairs for an increased
+// likelihood of returning data from API endpoints
+func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
+	t.Helper()
+	for i := range p {
+		if p[i].Base.Equal(currency.BTC) {
+			return p[i], nil
+		}
+	}
+	for i := range p {
+		if p[i].Base.Equal(currency.ETH) {
+			return p[i], nil
+		}
+	}
+	return p.GetRandomPair()
+}
+
+func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
+	t.Helper()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exchCfg *config.Exchange
+	exchCfg, err = cfg.GetExchangeConfig(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	exchCfg.API.AuthenticatedSupport = true
+	exchCfg.API.Credentials.Key = "realKey"
+	exchCfg.API.Credentials.Secret = "realSecret"
+	exchCfg.API.Credentials.ClientID = "realClientID"
+	err = exch.Setup(exchCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = exch.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	assets := b.CurrencyPairs.GetAssetTypes(false)
+	if len(assets) == 0 {
+		t.Fatal(name)
+	}
+	for j := range assets {
+		err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
+		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+			t.Fatal(err)
+		}
+	}
+	testMap := make([]assetPair, len(assets))
+	for j := range assets {
+		var pairs currency.Pairs
+		pairs, err = b.CurrencyPairs.GetPairs(assets[j], true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var p currency.Pair
+		if len(pairs) == 0 {
+			pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
+			if err != nil {
+				t.Fatalf("GetPairs %v %v", err, assets[j])
+			}
+			p, err = getPairFromPairs(t, pairs)
+			if err != nil {
+				t.Fatalf("getPairFromPairs %v %v", err, assets[j])
+			}
+			p, err = b.FormatExchangeCurrency(p, assets[j])
+			if err != nil {
+				t.Fatalf("FormatExchangeCurrency %v %v", err, assets[j])
+			}
+			err = b.CurrencyPairs.EnablePair(assets[j], p)
+			if err != nil {
+				t.Fatalf("EnablePair %v %v", err, assets[j])
+			}
+		} else {
+			p, err = getPairFromPairs(t, pairs)
+			if err != nil {
+				t.Fatalf("getPairFromPairs %v %v", err, assets[j])
+			}
+		}
+		p, err = b.FormatExchangeCurrency(p, assets[j])
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err = disruptFormatting(t, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		testMap[j] = assetPair{
+			Pair:  p,
+			Asset: assets[j],
+		}
+	}
+	return exch, testMap
 }
 
 func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
@@ -513,12 +519,7 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 	actualExchange := reflect.ValueOf(exch)
 	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 
-	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
-	cpParam := reflect.TypeOf((*currency.Pair)(nil)).Elem()
 	assetParam := reflect.TypeOf((*asset.Item)(nil)).Elem()
-	klineParam := reflect.TypeOf((*kline.Interval)(nil)).Elem()
-	timeParam := reflect.TypeOf((*time.Time)(nil)).Elem()
-	codeParam := reflect.TypeOf((*currency.Code)(nil)).Elem()
 
 	e := time.Now().Add(-time.Hour * 24)
 	for x := 0; x < iExchange.NumMethod(); x++ {
@@ -545,106 +546,31 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 			inputs := make([]reflect.Value, method.Type().NumIn())
 			setStartTime := false
 			for z := 0; z < method.Type().NumIn(); z++ {
-				input := method.Type().In(z)
-				switch {
-				case input.Implements(contextParam):
-					// Need to deploy a context.Context value as nil value is not
-					// checked throughout codebase.
-					inputs[z] = reflect.ValueOf(context.Background())
-					continue
-				case input.AssignableTo(cpParam):
-					inputs[z] = reflect.ValueOf(assetParams[y].Pair)
-				case input.AssignableTo(assetParam):
-					inputs[z] = reflect.ValueOf(assetParams[y].Asset)
-				case input.AssignableTo(klineParam):
-					inputs[z] = reflect.ValueOf(kline.OneDay)
-				case input.AssignableTo(codeParam):
-					if name == "GetAvailableTransferChains" {
-						inputs[z] = reflect.ValueOf(currency.ETH)
-					} else {
-						inputs[z] = reflect.ValueOf(assetParams[y].Pair.Quote)
-					}
-				case input.AssignableTo(timeParam):
-					if !setStartTime {
-						inputs[z] = reflect.ValueOf(s)
-						setStartTime = true
-					} else {
-						inputs[z] = reflect.ValueOf(e)
-					}
-				default:
-					resp := buildRequest(exch, exch.GetName(), name, assetParams[y].Asset, assetParams[y].Pair, input)
-					if resp == nil {
-						t.Fatalf("unhandled method %v", method)
-					} else {
-						inputs[z] = reflect.ValueOf(resp)
-					}
+				inputType := method.Type().In(z)
+				tt := s
+				if setStartTime {
+					tt = e
 				}
+				funcArg := createFuncArgs(t, exch, &assetParams[y], method, inputType, name, tt)
+				inputs[z] = *funcArg
+				setStartTime = true
 			}
-
 			t.Run(name+"-"+assetParams[y].Asset.String()+"-"+assetParams[y].Pair.String(), func(t *testing.T) {
 				t.Parallel()
-				outputs := method.Call(inputs)
-				if method.Type().NumIn() == 0 {
-					// Some empty functions will reset the exchange struct to defaults,
-					// so turn off verbosity.
-					exch.GetBase().Verbose = false
-				}
-			errProcessing:
-				for i := range outputs {
-					incoming := outputs[i].Interface()
-					if reflect.TypeOf(incoming) == errType {
-						err, ok := incoming.(error)
-						if !ok {
-							t.Errorf("%s type assertion failure for %v", name, incoming)
-							continue
-						}
-						for z := range acceptableErrors {
-							if errors.Is(err, acceptableErrors[z]) {
-								break errProcessing
-							}
-						}
-						literalInputs := make([]interface{}, len(inputs))
-						for j := range inputs {
-							literalInputs[j] = inputs[j].Interface()
-						}
-						t.Errorf("Error: '%v'. Inputs: %v", err, literalInputs)
-						break
-					}
-				}
+				callFunction(t, method, inputs, exch, errType, name)
 			})
 		}
 	}
 }
 
-func isFiat(c string) bool {
-	var fiats = []string{
-		currency.USD.Item.Lower,
-		currency.AUD.Item.Lower,
-		currency.EUR.Item.Lower,
-		currency.CAD.Item.Lower,
-		currency.TRY.Item.Lower,
-		currency.UAH.Item.Lower,
-		currency.RUB.Item.Lower,
-		currency.RUR.Item.Lower,
-		currency.JPY.Item.Lower,
-		currency.HKD.Item.Lower,
-		currency.SGD.Item.Lower,
-		currency.ZUSD.Item.Lower,
-		currency.ZEUR.Item.Lower,
-		currency.ZCAD.Item.Lower,
-		currency.ZJPY.Item.Lower,
-	}
-	for i := range fiats {
-		if fiats[i] == c {
-			return true
-		}
-	}
-	return false
-}
-
-// buildRequest returns more complex struct requirements for a wrapper
-// implementation
-func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset.Item, p currency.Pair, input reflect.Type) interface{} {
+func createFuncArgs(t *testing.T, exch exchange.IBotExchange, assetParams *assetPair, method reflect.Value, inputType reflect.Type, functionName string, tt time.Time) *reflect.Value {
+	t.Helper()
+	cpParam := reflect.TypeOf((*currency.Pair)(nil)).Elem()
+	klineParam := reflect.TypeOf((*kline.Interval)(nil)).Elem()
+	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
+	timeParam := reflect.TypeOf((*time.Time)(nil)).Elem()
+	codeParam := reflect.TypeOf((*currency.Code)(nil)).Elem()
+	assetParam := reflect.TypeOf((*asset.Item)(nil)).Elem()
 	pairs := reflect.TypeOf((*currency.Pairs)(nil)).Elem()
 	wr := reflect.TypeOf((**withdraw.Request)(nil)).Elem()
 	os := reflect.TypeOf((**order.Submit)(nil)).Elem()
@@ -653,25 +579,44 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 	occ := reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
 	gor := reflect.TypeOf((**order.GetOrdersRequest)(nil)).Elem()
 
+	var input reflect.Value
 	switch {
-	case input.AssignableTo(pairs):
-		return currency.Pairs{
-			p,
+	case inputType.Implements(contextParam):
+		// Need to deploy a context.Context value as nil value is not
+		// checked throughout codebase.
+		input = reflect.ValueOf(context.Background())
+	case inputType.AssignableTo(cpParam):
+		input = reflect.ValueOf(assetParams.Pair)
+	case inputType.AssignableTo(assetParam):
+		input = reflect.ValueOf(assetParams.Asset)
+	case inputType.AssignableTo(klineParam):
+		input = reflect.ValueOf(kline.OneDay)
+	case inputType.AssignableTo(codeParam):
+		if functionName == "GetAvailableTransferChains" {
+			input = reflect.ValueOf(currency.ETH)
+		} else {
+			input = reflect.ValueOf(assetParams.Pair.Quote)
 		}
-	case input.AssignableTo(wr):
+	case inputType.AssignableTo(timeParam):
+		input = reflect.ValueOf(tt)
+	case inputType.AssignableTo(pairs):
+		input = reflect.ValueOf(currency.Pairs{
+			assetParams.Pair,
+		})
+	case inputType.AssignableTo(wr):
 		req := &withdraw.Request{
-			Exchange:      exchName,
+			Exchange:      exch.GetName(),
 			Description:   "1337",
 			Amount:        1,
 			ClientOrderID: "1337",
 		}
-		if funcName == "WithdrawCryptocurrencyFunds" {
+		if functionName == "WithdrawCryptocurrencyFunds" {
 			req.Type = withdraw.Crypto
 			switch {
-			case !isFiat(p.Base.Item.Lower):
-				req.Currency = p.Base
-			case !isFiat(p.Quote.Item.Lower):
-				req.Currency = p.Quote
+			case !isFiat(t, assetParams.Pair.Base.Item.Lower):
+				req.Currency = assetParams.Pair.Base
+			case !isFiat(t, assetParams.Pair.Quote.Item.Lower):
+				req.Currency = assetParams.Pair.Quote
 			default:
 				req.Currency = currency.ETH
 			}
@@ -705,7 +650,7 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 					BSBNumber:           "1337",
 					BankCode:            1337,
 					SupportedCurrencies: req.Currency.String(),
-					SupportedExchanges:  exchName,
+					SupportedExchanges:  exch.GetName(),
 				},
 				IsExpressWire:                 false,
 				RequiresIntermediaryBank:      false,
@@ -721,68 +666,131 @@ func buildRequest(exch exchange.IBotExchange, exchName, funcName string, a asset
 				WireCurrency:                  "1338",
 			}
 		}
-		return req
-	case input.AssignableTo(os):
-		return &order.Submit{
-			Exchange:          exchName,
+		input = reflect.ValueOf(req)
+	case inputType.AssignableTo(os):
+		input = reflect.ValueOf(&order.Submit{
+			Exchange:          exch.GetName(),
 			Type:              order.Limit,
 			Side:              order.Buy,
-			Pair:              p,
-			AssetType:         a,
+			Pair:              assetParams.Pair,
+			AssetType:         assetParams.Asset,
 			Price:             1337,
 			Amount:            1,
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
-		}
-	case input.AssignableTo(om):
-		return &order.Modify{
-			Exchange:          exchName,
+		})
+	case inputType.AssignableTo(om):
+		input = reflect.ValueOf(&order.Modify{
+			Exchange:          exch.GetName(),
 			Type:              order.Limit,
 			Side:              order.Buy,
-			Pair:              p,
-			AssetType:         a,
+			Pair:              assetParams.Pair,
+			AssetType:         assetParams.Asset,
 			Price:             1337,
 			Amount:            1,
 			ClientOrderID:     "13371337",
 			OrderID:           "1337",
 			ImmediateOrCancel: true,
-		}
-	case input.AssignableTo(oc):
-		return &order.Cancel{
-			Exchange:      exchName,
+		})
+	case inputType.AssignableTo(oc):
+		input = reflect.ValueOf(&order.Cancel{
+			Exchange:      exch.GetName(),
 			Type:          order.Limit,
 			Side:          order.Buy,
-			Pair:          p,
-			AssetType:     a,
+			Pair:          assetParams.Pair,
+			AssetType:     assetParams.Asset,
 			ClientOrderID: "13371337",
-		}
-	case input.AssignableTo(occ):
-		return []order.Cancel{
+		})
+	case inputType.AssignableTo(occ):
+		input = reflect.ValueOf([]order.Cancel{
 			{
-				Exchange:      exchName,
+				Exchange:      exch.GetName(),
 				Type:          order.Market,
 				Side:          order.Buy,
-				Pair:          p,
-				AssetType:     a,
+				Pair:          assetParams.Pair,
+				AssetType:     assetParams.Asset,
 				ClientOrderID: "13371337",
 			},
-		}
-	case input.AssignableTo(gor):
-		return &order.GetOrdersRequest{
+		})
+	case inputType.AssignableTo(gor):
+		input = reflect.ValueOf(&order.GetOrdersRequest{
 			Type:      order.AnyType,
 			Side:      order.AnySide,
 			OrderID:   "1337",
-			AssetType: a,
-			Pairs:     currency.Pairs{p},
+			AssetType: assetParams.Asset,
+			Pairs:     currency.Pairs{assetParams.Pair},
+		})
+	default:
+		input = reflect.Zero(inputType)
+	}
+	return &input
+}
+
+func callFunction(t *testing.T, method reflect.Value, inputs []reflect.Value, exch exchange.IBotExchange, errType reflect.Type, name string) {
+	t.Helper()
+	outputs := method.Call(inputs)
+	if method.Type().NumIn() == 0 {
+		// Some empty functions will reset the exchange struct to defaults,
+		// so turn off verbosity.
+		exch.GetBase().Verbose = false
+	}
+errProcessing:
+	for i := range outputs {
+		incoming := outputs[i].Interface()
+		if reflect.TypeOf(incoming) == errType {
+			err, ok := incoming.(error)
+			if !ok {
+				t.Errorf("%s type assertion failure for %v", name, incoming)
+				continue
+			}
+			for z := range acceptableErrors {
+				if errors.Is(err, acceptableErrors[z]) {
+					break errProcessing
+				}
+			}
+			literalInputs := make([]interface{}, len(inputs))
+			for j := range inputs {
+				literalInputs[j] = inputs[j].Interface()
+			}
+			t.Errorf("Error: '%v'. Inputs: %v", err, literalInputs)
+			break
 		}
 	}
-	return nil
+}
+
+// isFiat helps determine fiat currency without using currency.storage
+func isFiat(t *testing.T, c string) bool {
+	t.Helper()
+	var fiats = []string{
+		currency.USD.Item.Lower,
+		currency.AUD.Item.Lower,
+		currency.EUR.Item.Lower,
+		currency.CAD.Item.Lower,
+		currency.TRY.Item.Lower,
+		currency.UAH.Item.Lower,
+		currency.RUB.Item.Lower,
+		currency.RUR.Item.Lower,
+		currency.JPY.Item.Lower,
+		currency.HKD.Item.Lower,
+		currency.SGD.Item.Lower,
+		currency.ZUSD.Item.Lower,
+		currency.ZEUR.Item.Lower,
+		currency.ZCAD.Item.Lower,
+		currency.ZJPY.Item.Lower,
+	}
+	for i := range fiats {
+		if fiats[i] == c {
+			return true
+		}
+	}
+	return false
 }
 
 // disruptFormatting adds in an unused delimiter and strange casing features to
 // ensure format currency pair is used throughout the code base.
-func disruptFormatting(p currency.Pair) (currency.Pair, error) {
+func disruptFormatting(t *testing.T, p currency.Pair) (currency.Pair, error) {
+	t.Helper()
 	if p.Base.IsEmpty() {
 		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as base is not populated")
 	}
