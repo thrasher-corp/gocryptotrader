@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -45,8 +46,8 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	instrumentOrderbookCnl,
-	tickerCnl,
+	// instrumentOrderbookCnl,
+	// tickerCnl,
 	tradeCnl,
 	candlestickCnl,
 }
@@ -332,24 +333,28 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 		resp.Result = &WsResult{}
 	}
 	if resp.Method == "subscribe" {
-		switch resp.Result.Channel {
-		case "user.order":
+		switch {
+		case strings.HasPrefix(resp.Result.Channel, userOrderCnl):
 			return cr.processUserOrderbook(resp.Result)
-		case "user.trade":
+		case strings.HasPrefix(resp.Result.Channel, userTradeCnl):
 			if !cr.IsFillsFeedEnabled() {
 				return nil
 			}
 			return cr.processUserTrade(resp.Result)
-		case "user.balance":
+		case strings.HasPrefix(resp.Result.Channel, userBalanceCnl):
 			return cr.processUserBalance(resp.Result)
-		case "book":
+		case strings.HasPrefix(resp.Result.Channel, instrumentOrderbookCnl):
 			return cr.processOrderbook(resp.Result)
-		case "ticker":
+		case strings.HasPrefix(resp.Result.Channel, tickerCnl):
 			return cr.processTicker(resp.Result)
-		case "trade":
+		case strings.HasPrefix(resp.Result.Channel, tradeCnl):
 			return cr.processTrades(resp.Result)
-		case "candlestick":
+		case strings.HasPrefix(resp.Result.Channel, candlestickCnl):
 			return cr.processCandlestick(resp.Result)
+		default:
+			if resp.Code == 0 {
+				return nil
+			}
 		}
 	}
 	if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
