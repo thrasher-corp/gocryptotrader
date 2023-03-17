@@ -361,7 +361,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 			Amount: obData.Bids[x][1],
 		}
 		if book.Bids[x].Price == 0 {
-			return nil, fmt.Errorf("%w, bid price=%f", errInvalidPrice, book.Asks[x].Price)
+			return nil, fmt.Errorf("%w, bid price=%f", errInvalidPrice, book.Bids[x].Price)
 		}
 	}
 	err = book.Process()
