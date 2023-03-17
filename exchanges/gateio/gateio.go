@@ -31,9 +31,7 @@ const (
 
 	// SubAccount Endpoints
 	subAccounts          = "sub_accounts"
-	subAccountKeysUserID = "sub_accounts/%d/keys"   // sub_accounts/{user_id}/keys
-	subAccountLock       = "sub_accounts/%d/lock"   // sub_accounts/{user_id}/lock
-	subAccountUnlock     = "sub_accounts/%d/unlock" // sub_accounts/{user_id}/unlock
+	subAccountKeysUserID = "sub_accounts/%d/keys" // sub_accounts/{user_id}/keys
 
 	// Spot
 	gateioSpotCurrencies                                 = "spot/currencies"
@@ -92,57 +90,12 @@ const (
 	gateioCrossMarginBorrowable   = "margin/cross/borrowable"
 
 	// Futures
-	gateioFuturesSettleContracts            = "futures/%s/contracts"
-	gateioFuturesOrderbook                  = "futures/%s/order_book"
-	gateioFuturesTrades                     = "futures/%s/trades"
-	gateioFuturesCandlesticks               = "futures/%s/candlesticks"
-	gateioFuturesPremiumIndexKline          = "futures/%s/premium_index" // futures/{settle}/premium_index
-	gateioFuturesTicker                     = "futures/%s/tickers"
-	gateioFuturesFundingRate                = "futures/%s/funding_rate"
-	gateioFuturesInsuranceBalance           = "futures/%s/insurance"
-	gateioFuturesContractStats              = "futures/%s/contract_stats"
-	gateioFuturesIndexConstituent           = "futures/%s/index_constituents/%s"
-	gateioFuturesLiquidationHistory         = "futures/%s/liq_orders"
-	gateioFuturesAccounts                   = "futures/%s/accounts"
-	gateioFuturesAccountBook                = "futures/%s/account_book"
-	gateioFuturesPositions                  = "futures/%s/positions"
-	gateioFuturesSinglePosition             = "futures/%s/positions/%s"        // {settle} and {contract} respectively
-	gateioFuturesUpdatePositionMargin       = "futures/%s/positions/%s/margin" // {settle} and {contract} respectively
-	gateioFuturesPositionsLeverage          = "futures/%s/positions/%s/leverage"
-	gateioFuturesPositionRiskLimit          = "futures/%s/positions/%s/risk_limit"
-	gateioFuturesDualMode                   = "futures/%s/dual_mode"
-	gateioFuturesDualModePositions          = "futures/%s/dual_comp/positions/%s" // {settle} and {contract}
-	gateioFuturesDualModePositionMargin     = "futures/%s/dual_comp/positions/%s/margin"
-	gateioFuturesDualModePositionLeverage   = "futures/%s/dual_comp/positions/%s/leverage" // {settle} and {contract} and respectively
-	gateioFuturesDualModePositionsRiskLimit = "futures/%s/dual_comp/positions/%s/risk_limit"
-	gateioFuturesOrders                     = "futures/%s/orders"
-	gateioFuturesBatchOrders                = "futures/%s/batch_orders"
-	gateioFuturesPersonalTradingHistory     = "futures/%s/my_trades"
-	gateioFuturesPositionClose              = "futures/%s/position_close"
-	gateioFuturesLiquidations               = "futures/%s/liquidates"
-	gateioFuturesCountdownCancelAll         = "futures/%s/countdown_cancel_all"
-	gateioFuturesPriceOrders                = "futures/%s/price_orders"
+	gateioFuturesOrders      = "futures/%s/orders"
+	gateioFuturesPriceOrders = "futures/%s/price_orders"
 
 	// Delivery
-	gateioDeliveryContracts              = "delivery/%s/contracts"
-	gateioDeliveryOrderbook              = "delivery/%s/order_book"
-	gateioDeliveryTradeHistory           = "delivery/%s/trades"
-	gateioDeliveryCandlesticks           = "delivery/%s/candlesticks"
-	gateioDeliveryTicker                 = "delivery/%s/tickers"
-	gateioDeliveryInsuranceBalance       = "delivery/%s/insurance"
-	gateioDeliveryFuturesAccounts        = "delivery/%s/accounts"
-	gateioDeliveryAccountBook            = "delivery/%s/account_book"
-	gateioDeliveryPositions              = "delivery/%s/positions"
-	gateioDeliverySinglePosition         = gateioDeliveryPositions + "/%s"
-	gateioDeliveryUpdatePositionMargin   = "delivery/%s/positions/%s/margin"
-	gateioDeliveryPositionsLeverage      = "delivery/%s/positions/%s/leverage"
-	gateioDeliveryPositionRiskLimit      = "delivery/%s/positions/%s/risk_limit"
-	gateioDeliveryOrders                 = "delivery/%s/orders"
-	gateioDeliveryPersonalTradingHistory = "delivery/%s/my_trades"
-	gateioDeliveryPositionClose          = "delivery/%s/position_close"
-	gateioDeliveryLiquidations           = "delivery/%s/liquidates"
-	gateioDeliverySettlements            = "delivery/%s/settlements"
-	gateioDeliveryPriceOrders            = "delivery/%s/price_orders"
+	gateioDeliveryOrders      = "delivery/%s/orders"
+	gateioDeliveryPriceOrders = "delivery/%s/price_orders"
 
 	// Options
 	gateioOptionUnderlyings            = "options/underlyings"
@@ -152,7 +105,6 @@ const (
 	gateioOptionMySettlements          = "options/my_settlements"
 	gateioOptionsOrderbook             = "options/order_book"
 	gateioOptionsTickers               = "options/tickers"
-	gateioOptionsUnderlyingTickers     = "options/underlying/tickers/%s"
 	gateioOptionCandlesticks           = "options/candlesticks"
 	gateioOptionUnderlyingCandlesticks = "options/underlying/candlesticks"
 	gateioOptionsTrades                = "options/trades"
@@ -286,7 +238,7 @@ func (g *Gateio) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int
 		return nil, errMissingAPIKey
 	}
 	var resp *CreateAPIKeyResponse
-	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, fmt.Sprintf(subAccountKeysUserID+"/%s", subAccountUserID, apiKey), nil, nil, &resp)
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, fmt.Sprintf(subAccountKeysUserID+"/"+apiKey, subAccountUserID), nil, nil, &resp)
 }
 
 // LockSubAccount locks the sub-account
@@ -294,7 +246,7 @@ func (g *Gateio) LockSubAccount(ctx context.Context, subAccountUserID int64) err
 	if subAccountUserID == 0 {
 		return errInvalidSubAccountUserID
 	}
-	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodPost, fmt.Sprintf(subAccountLock, subAccountUserID), nil, nil, nil)
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodPost, "sub_accounts/"+strconv.FormatInt(subAccountUserID, 10)+"/lock", nil, nil, nil)
 }
 
 // UnlockSubAccount locks the sub-account
@@ -302,7 +254,7 @@ func (g *Gateio) UnlockSubAccount(ctx context.Context, subAccountUserID int64) e
 	if subAccountUserID == 0 {
 		return errInvalidSubAccountUserID
 	}
-	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodPost, fmt.Sprintf(subAccountUnlock, subAccountUserID), nil, nil, nil)
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodPost, "sub_accounts/"+strconv.FormatInt(subAccountUserID, 10)+"/unlock", nil, nil, nil)
 }
 
 // *****************************************  Spot **************************************
@@ -1445,7 +1397,7 @@ func (g *Gateio) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Co
 	}
 	var lendingLoans []OrderbookOfLendingLoan
 	return lendingLoans, g.SendHTTPRequest(ctx, exchange.RestSpot, spotDefaultEPL,
-		fmt.Sprintf("%s?currency=%s", gateioMarginFundingBook, ccy.String()), &lendingLoans)
+		gateioMarginFundingBook+"?currency="+ccy.String(), &lendingLoans)
 }
 
 // GetMarginAccountList margin account list
@@ -1928,7 +1880,7 @@ func (g *Gateio) GetSingleContract(ctx context.Context, settle, contract string)
 		return nil, errInvalidSettleCurrency
 	}
 	var futureContract *FuturesContract
-	return futureContract, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, fmt.Sprintf(gateioFuturesSettleContracts+"/%s", settle, contract), &futureContract)
+	return futureContract, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, "futures/"+settle+"/contracts/"+contract, &futureContract)
 }
 
 // GetFuturesOrderbook retrieves futures order book data
@@ -1952,7 +1904,7 @@ func (g *Gateio) GetFuturesOrderbook(ctx context.Context, settle, contract, inte
 		params.Set("with_id", "true")
 	}
 	var response *Orderbook
-	return response, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues(fmt.Sprintf(gateioFuturesOrderbook, settle), params), &response)
+	return response, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues("futures/"+settle+"/order_book", params), &response)
 }
 
 // GetFuturesTradingHistory retrieves futures trading history
@@ -1983,7 +1935,7 @@ func (g *Gateio) GetFuturesTradingHistory(ctx context.Context, settle string, co
 	}
 	var response []TradingHistoryItem
 	return response, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioFuturesTrades, settle), params), &response)
+		common.EncodeURLValues("futures/"+settle+"/trades", params), &response)
 }
 
 // GetFuturesCandlesticks retrieves specified contract candlesticks.
@@ -2015,7 +1967,7 @@ func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle, contract st
 	}
 	var candlesticks []FuturesCandlestick
 	return candlesticks, g.SendHTTPRequest(ctx, exchange.RestFutures, perpetualSwapDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioFuturesCandlesticks, settle), params),
+		common.EncodeURLValues("futures/"+settle+"/candlesticks", params),
 		&candlesticks)
 }
 
@@ -2045,7 +1997,7 @@ func (g *Gateio) PremiumIndexKLine(ctx context.Context, settleCurrency string, c
 	}
 	params.Set("interval", intervalString)
 	var resp []FuturesPremiumIndexKLineResponse
-	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues(fmt.Sprintf(gateioFuturesPremiumIndexKline, settleCurrency), params), &resp)
+	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues("futures/"+settleCurrency+"/premium_index", params), &resp)
 }
 
 // GetFuturesTickers retrieves futures ticker information for a specific settle and contract info.
@@ -2059,7 +2011,7 @@ func (g *Gateio) GetFuturesTickers(ctx context.Context, settle string, contract 
 		params.Set("contract", contract.String())
 	}
 	var tickers []FuturesTicker
-	return tickers, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues(fmt.Sprintf(gateioFuturesTicker, settle), params), &tickers)
+	return tickers, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues("futures/"+settle+"/tickers", params), &tickers)
 }
 
 // GetFutureFundingRates retrieves funding rate information.
@@ -2077,7 +2029,7 @@ func (g *Gateio) GetFutureFundingRates(ctx context.Context, settle string, contr
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var rates []FuturesFundingRate
-	return rates, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues(fmt.Sprintf(gateioFuturesFundingRate, settle), params), &rates)
+	return rates, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues("futures/"+settle+"/funding_rate", params), &rates)
 }
 
 // GetFuturesInsuranceBalanceHistory retrieves futures insurance balance history
@@ -2093,7 +2045,7 @@ func (g *Gateio) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle s
 	var balances []InsuranceBalance
 	return balances, g.SendHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioFuturesInsuranceBalance, settle), params),
+		common.EncodeURLValues("futures/"+settle+"/insurance", params),
 		&balances)
 }
 
@@ -2124,7 +2076,7 @@ func (g *Gateio) GetFutureStats(ctx context.Context, settle string, contract cur
 	var stats []ContractStat
 	return stats, g.SendHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioFuturesContractStats, settle), params),
+		common.EncodeURLValues("futures/"+settle+"/contract_stats", params),
 		&stats)
 }
 
@@ -2141,7 +2093,7 @@ func (g *Gateio) GetIndexConstituent(ctx context.Context, settle, index string) 
 	var constituents *IndexConstituent
 	return constituents, g.SendHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapDefaultEPL,
-		fmt.Sprintf(gateioFuturesIndexConstituent, settle, indexString),
+		"futures/"+settle+"/index_constituents/"+indexString,
 		&constituents)
 }
 
@@ -2168,7 +2120,7 @@ func (g *Gateio) GetLiquidationHistory(ctx context.Context, settle string, contr
 	var histories []LiquidationHistory
 	return histories, g.SendHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioFuturesLiquidationHistory, settle), params),
+		common.EncodeURLValues("futures/"+settle+"/liq_orders", params),
 		&histories)
 }
 
@@ -2179,7 +2131,7 @@ func (g *Gateio) QueryFuturesAccount(ctx context.Context, settle string) (*Futur
 		return nil, errInvalidSettleCurrency
 	}
 	var response *FuturesAccount
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, fmt.Sprintf(gateioFuturesAccounts, settle), nil, nil, &response)
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, "futures/"+settle+"/accounts", nil, nil, &response)
 }
 
 // GetFuturesAccountBooks retrieves account books
@@ -2202,8 +2154,7 @@ func (g *Gateio) GetFuturesAccountBooks(ctx context.Context, settle string, limi
 	}
 	var response []AccountBookItem
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL,
-		http.MethodGet,
-		fmt.Sprintf(gateioFuturesAccountBook, settle),
+		http.MethodGet, "futures/"+settle+"/account_book",
 		params,
 		nil,
 		&response)
@@ -2215,7 +2166,7 @@ func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle strin
 		return nil, errInvalidSettleCurrency
 	}
 	var response *Position
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, fmt.Sprintf(gateioFuturesPositions, settle), nil, nil, &response)
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, "futures/"+settle+"/positions", nil, nil, &response)
 }
 
 // GetSinglePosition returns a single position
@@ -2229,8 +2180,7 @@ func (g *Gateio) GetSinglePosition(ctx context.Context, settle string, contract 
 	}
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL,
-		http.MethodPost,
-		fmt.Sprintf(gateioFuturesSinglePosition, settle, contract.String()),
+		http.MethodPost, "futures/"+settle+"/positions/"+contract.String(),
 		nil, nil, &response)
 }
 
@@ -2250,8 +2200,7 @@ func (g *Gateio) UpdateFuturesPositionMargin(ctx context.Context, settle string,
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPlaceOrdersEPL,
-		http.MethodPost,
-		fmt.Sprintf(gateioFuturesUpdatePositionMargin, settle, contract.String()),
+		http.MethodPost, "futures/"+settle+"/positions/"+contract.String()+"/margin",
 		params, nil, &response)
 }
 
@@ -2274,7 +2223,7 @@ func (g *Gateio) UpdateFuturesPositionLeverage(ctx context.Context, settle strin
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
-		fmt.Sprintf(gateioFuturesPositionsLeverage, settle, contract.String()), params, nil, &response)
+		"futures/"+settle+"/positions/"+contract.String()+"/leverage", params, nil, &response)
 }
 
 // UpdateFuturesPositionRiskLimit updates the position risk limit
@@ -2289,9 +2238,7 @@ func (g *Gateio) UpdateFuturesPositionRiskLimit(ctx context.Context, settle stri
 	params.Set("risk_limit", strconv.FormatUint(riskLimit, 10))
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL,
-		http.MethodPost,
-		fmt.Sprintf(gateioFuturesPositionRiskLimit, settle, contract.String()),
-		params, nil, &response)
+		http.MethodPost, "futures/"+settle+"/positions/"+contract.String()+"/risk_limit", params, nil, &response)
 }
 
 // EnableOrDisableDualMode enable or disable dual mode
@@ -2304,8 +2251,7 @@ func (g *Gateio) EnableOrDisableDualMode(ctx context.Context, settle string, dua
 	params.Set("dual_mode", strconv.FormatBool(dualMode))
 	var response *DualModeResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL,
-		http.MethodGet,
-		fmt.Sprintf(gateioFuturesDualMode, settle),
+		http.MethodGet, "futures/"+settle+"/dual_mode",
 		params, nil, &response)
 }
 
@@ -2320,7 +2266,7 @@ func (g *Gateio) RetrivePositionDetailInDualMode(ctx context.Context, settle str
 	var response []Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioFuturesDualModePositions, settle, contract.String()),
+		"futures/"+settle+"/dual_comp/positions/"+contract.String(),
 		nil, nil, &response)
 }
 
@@ -2341,7 +2287,7 @@ func (g *Gateio) UpdatePositionMarginInDualMode(ctx context.Context, settle stri
 	var response []Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL,
 		http.MethodGet,
-		fmt.Sprintf(gateioFuturesDualModePositionMargin, settle, contract.String()),
+		"futures/"+settle+"/dual_comp/positions/"+contract.String()+"/margin",
 		params, nil, &response)
 }
 
@@ -2362,7 +2308,7 @@ func (g *Gateio) UpdatePositionLeverageInDualMode(ctx context.Context, settle st
 		params.Set("cross_leverage_limit", strconv.FormatFloat(crossLeverageLimit, 'f', -1, 64))
 	}
 	var response *Position
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodGet, fmt.Sprintf(gateioFuturesDualModePositionLeverage, settle, contract.String()), params, nil, &response)
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodGet, "futures/"+settle+"/dual_comp/positions/"+contract.String()+"/leverage", params, nil, &response)
 }
 
 // UpdatePositionRiskLimitinDualMode update position risk limit in dual mode
@@ -2381,7 +2327,7 @@ func (g *Gateio) UpdatePositionRiskLimitinDualMode(ctx context.Context, settle s
 	var response []Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodGet,
-		fmt.Sprintf(gateioFuturesDualModePositionsRiskLimit, settle, contract.String()), params,
+		"futures/"+settle+"/dual_comp/positions/"+contract.String()+"/risk_limit", params,
 		nil, &response)
 }
 
@@ -2531,8 +2477,7 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle string, arg
 	}
 	var response []Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL,
-		http.MethodPost,
-		fmt.Sprintf(gateioFuturesBatchOrders, settle),
+		http.MethodPost, "futures/"+settle+"/batch_orders",
 		nil, &args, &response)
 }
 
@@ -2547,7 +2492,7 @@ func (g *Gateio) GetSingleFuturesOrder(ctx context.Context, settle, orderID stri
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPrivateEPL,
-		http.MethodGet, fmt.Sprintf(gateioFuturesOrders+"/%s", settle, orderID),
+		http.MethodGet, fmt.Sprintf(gateioFuturesOrders+"/"+orderID, settle),
 		nil, nil, &response)
 }
 
@@ -2561,7 +2506,7 @@ func (g *Gateio) CancelSingleFuturesOrder(ctx context.Context, settle, orderID s
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapCancelOrdersEPL, http.MethodDelete,
-		fmt.Sprintf(gateioFuturesOrders+"/%s", settle, orderID), nil, nil, &response)
+		fmt.Sprintf(gateioFuturesOrders+"/"+orderID, settle), nil, nil, &response)
 }
 
 // AmendFuturesOrder amends an existing futures order
@@ -2577,7 +2522,7 @@ func (g *Gateio) AmendFuturesOrder(ctx context.Context, settle, orderID string, 
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPut,
-		fmt.Sprintf(gateioFuturesOrders+"/%s", settle, orderID), nil, &arg, &response)
+		fmt.Sprintf(gateioFuturesOrders+"/"+orderID, settle), nil, &arg, &response)
 }
 
 // GetMyPersonalTradingHistory retrieves my personal trading history
@@ -2606,7 +2551,7 @@ func (g *Gateio) GetMyPersonalTradingHistory(ctx context.Context, settle, lastID
 	}
 	var response []TradingHistoryItem
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioFuturesPersonalTradingHistory, settle), params, nil, &response)
+		"futures/"+settle+"/my_trades", params, nil, &response)
 }
 
 // GetFuturesPositionCloseHistory lists position close history
@@ -2632,7 +2577,7 @@ func (g *Gateio) GetFuturesPositionCloseHistory(ctx context.Context, settle stri
 	}
 	var response []PositionCloseHistoryResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioFuturesPositionClose, settle), params, nil, &response)
+		"futures/"+settle+"/position_close", params, nil, &response)
 }
 
 // GetFuturesLiquidationHistory list liquidation history
@@ -2653,7 +2598,7 @@ func (g *Gateio) GetFuturesLiquidationHistory(ctx context.Context, settle string
 	var response []LiquidationHistoryItem
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioFuturesLiquidations, settle), params, nil, &response)
+		"futures/"+settle+"/liquidates", params, nil, &response)
 }
 
 // CountdownCancelOrders represents a trigger time response
@@ -2667,7 +2612,7 @@ func (g *Gateio) CountdownCancelOrders(ctx context.Context, settle string, arg C
 	var response *TriggerTimeResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
-		fmt.Sprintf(gateioFuturesCountdownCancelAll, settle), nil, &arg, &response)
+		"futures/"+settle+"/countdown_cancel_all", nil, &arg, &response)
 }
 
 // CreatePriceTriggeredFuturesOrder create a price-triggered order
@@ -2763,7 +2708,7 @@ func (g *Gateio) GetSingleFuturesPriceTriggeredOrder(ctx context.Context, settle
 	var response *PriceTriggeredOrder
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL,
 		http.MethodGet,
-		fmt.Sprintf(gateioFuturesPriceOrders+"/%s", settle, orderID), nil, nil, &response)
+		fmt.Sprintf(gateioFuturesPriceOrders+"/"+orderID, settle), nil, nil, &response)
 }
 
 // CancelFuturesPriceTriggeredOrder cancel a price-triggered order
@@ -2776,7 +2721,7 @@ func (g *Gateio) CancelFuturesPriceTriggeredOrder(ctx context.Context, settle, o
 	}
 	var response *PriceTriggeredOrder
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapCancelOrdersEPL, http.MethodDelete,
-		fmt.Sprintf(gateioFuturesPriceOrders+"/%s", settle, orderID), nil, nil, &response)
+		fmt.Sprintf(gateioFuturesPriceOrders+"/"+orderID, settle), nil, nil, &response)
 }
 
 // *************************************** Delivery ***************************************
@@ -2789,7 +2734,7 @@ func (g *Gateio) GetAllDeliveryContracts(ctx context.Context, settle string) ([]
 	}
 	var contracts []DeliveryContract
 	return contracts, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL,
-		fmt.Sprintf(gateioDeliveryContracts, settle), &contracts)
+		"delivery/"+settle+"/contracts", &contracts)
 }
 
 // GetSingleDeliveryContracts retrieves a single delivery contract instance.
@@ -2799,7 +2744,7 @@ func (g *Gateio) GetSingleDeliveryContracts(ctx context.Context, settle string, 
 	}
 	var deliveryContract *DeliveryContract
 	return deliveryContract, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL,
-		fmt.Sprintf(gateioDeliveryContracts+"/%s", settle, contract), &deliveryContract)
+		"delivery/"+settle+"/contracts/"+contract.String(), &deliveryContract)
 }
 
 // GetDeliveryOrderbook delivery orderbook
@@ -2823,7 +2768,7 @@ func (g *Gateio) GetDeliveryOrderbook(ctx context.Context, settle, interval stri
 		params.Set("with_id", strconv.FormatBool(withOrderbookID))
 	}
 	var orderbook *Orderbook
-	return orderbook, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues(fmt.Sprintf(gateioDeliveryOrderbook, settle), params), &orderbook)
+	return orderbook, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues("delivery/"+settle+"/order_book", params), &orderbook)
 }
 
 // GetDeliveryTradingHistory retrieves futures trading history
@@ -2851,7 +2796,7 @@ func (g *Gateio) GetDeliveryTradingHistory(ctx context.Context, settle, lastID s
 	}
 	var histories []DeliveryTradingHistory
 	return histories, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioDeliveryTradeHistory, settle), params), &histories)
+		common.EncodeURLValues("delivery/"+settle+"/trades", params), &histories)
 }
 
 // GetDeliveryFuturesCandlesticks retrieves specified contract candlesticks
@@ -2884,7 +2829,7 @@ func (g *Gateio) GetDeliveryFuturesCandlesticks(ctx context.Context, settle stri
 	var candlesticks []FuturesCandlestick
 	return candlesticks, g.SendHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioDeliveryCandlesticks, settle), params),
+		common.EncodeURLValues("delivery/"+settle+"/candlesticks", params),
 		&candlesticks)
 }
 
@@ -2899,7 +2844,7 @@ func (g *Gateio) GetDeliveryFutureTickers(ctx context.Context, settle string, co
 		params.Set("contract", contract.String())
 	}
 	var tickers []FuturesTicker
-	return tickers, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues(fmt.Sprintf(gateioDeliveryTicker, settle), params), &tickers)
+	return tickers, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL, common.EncodeURLValues("delivery/"+settle+"/tickers", params), &tickers)
 }
 
 // GetDeliveryInsuranceBalanceHistory retrieves delivery futures insurance balance history
@@ -2914,7 +2859,7 @@ func (g *Gateio) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settle 
 	}
 	var balances []InsuranceBalance
 	return balances, g.SendHTTPRequest(ctx, exchange.RestSpot, spotDefaultEPL,
-		common.EncodeURLValues(fmt.Sprintf(gateioDeliveryInsuranceBalance, settle), params),
+		common.EncodeURLValues("delivery/"+settle+"/insurance", params),
 		&balances)
 }
 
@@ -2925,7 +2870,7 @@ func (g *Gateio) GetDeliveryFuturesAccounts(ctx context.Context, settle string) 
 		return nil, errInvalidSettleCurrency
 	}
 	var response *FuturesAccount
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, fmt.Sprintf(gateioDeliveryFuturesAccounts, settle), nil, nil, &response)
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, "delivery/"+settle+"/accounts", nil, nil, &response)
 }
 
 // GetDeliveryAccountBooks retrieves account books
@@ -2949,7 +2894,7 @@ func (g *Gateio) GetDeliveryAccountBooks(ctx context.Context, settle string, lim
 	var response []AccountBookItem
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliveryAccountBook, settle),
+		"delivery/"+settle+"/account_book",
 		params, nil, &response)
 }
 
@@ -2960,7 +2905,7 @@ func (g *Gateio) GetAllDeliveryPositionsOfUser(ctx context.Context, settle strin
 	}
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliveryPositions, settle), nil, nil, &response)
+		"delivery/"+settle+"/positions", nil, nil, &response)
 }
 
 // GetSingleDeliveryPosition get single position
@@ -2974,7 +2919,7 @@ func (g *Gateio) GetSingleDeliveryPosition(ctx context.Context, settle string, c
 	}
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliverySinglePosition, settle, contract.String()),
+		"delivery/"+settle+"/positions/"+contract.String(),
 		nil, nil, &response)
 }
 
@@ -2993,7 +2938,7 @@ func (g *Gateio) UpdateDeliveryPositionMargin(ctx context.Context, settle string
 	params.Set("change", strconv.FormatFloat(change, 'f', -1, 64))
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
-		fmt.Sprintf(gateioDeliveryUpdatePositionMargin, settle, contract.String()), params, nil, &response)
+		"delivery/"+settle+"/positions/"+contract.String()+"/margin", params, nil, &response)
 }
 
 // UpdateDeliveryPositionLeverage updates position leverage
@@ -3012,7 +2957,7 @@ func (g *Gateio) UpdateDeliveryPositionLeverage(ctx context.Context, settle stri
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
-		fmt.Sprintf(gateioDeliveryPositionsLeverage, settle, contract.String()),
+		"delivery/"+settle+"/positions/"+contract.String()+"/leverage",
 		params, nil, &response)
 }
 
@@ -3028,7 +2973,7 @@ func (g *Gateio) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle str
 	params.Set("risk_limit", strconv.FormatUint(riskLimit, 10))
 	var response *Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
-		fmt.Sprintf(gateioDeliveryPositionRiskLimit, settle, contract.String()), params, nil, &response)
+		"delivery/"+settle+"/positions/"+contract.String()+"/risk_limit", params, nil, &response)
 }
 
 // PlaceDeliveryOrder create a futures order
@@ -3134,7 +3079,7 @@ func (g *Gateio) GetSingleDeliveryOrder(ctx context.Context, settle, orderID str
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliveryOrders+"/%s", settle, orderID), nil, nil, &response)
+		fmt.Sprintf(gateioDeliveryOrders+"/"+orderID, settle), nil, nil, &response)
 }
 
 // CancelSingleDeliveryOrder cancel a single order
@@ -3147,7 +3092,7 @@ func (g *Gateio) CancelSingleDeliveryOrder(ctx context.Context, settle, orderID 
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapCancelOrdersEPL, http.MethodDelete,
-		fmt.Sprintf(gateioDeliveryOrders+"/%s", settle, orderID), nil, nil, &response)
+		fmt.Sprintf(gateioDeliveryOrders+"/"+orderID, settle), nil, nil, &response)
 }
 
 // GetDeliveryPersonalTradingHistory retrieves personal trading history
@@ -3176,7 +3121,7 @@ func (g *Gateio) GetDeliveryPersonalTradingHistory(ctx context.Context, settle, 
 	}
 	var response []TradingHistoryItem
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliveryPersonalTradingHistory, settle), params, nil, &response)
+		"delivery/"+settle+"/my_trades", params, nil, &response)
 }
 
 // GetDeliveryPositionCloseHistory retrieves position history
@@ -3202,7 +3147,7 @@ func (g *Gateio) GetDeliveryPositionCloseHistory(ctx context.Context, settle str
 	}
 	var response []PositionCloseHistoryResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliveryPositionClose, settle), params, nil, &response)
+		"delivery/"+settle+"/position_close", params, nil, &response)
 }
 
 // GetDeliveryLiquidationHistory lists liquidation history
@@ -3222,7 +3167,7 @@ func (g *Gateio) GetDeliveryLiquidationHistory(ctx context.Context, settle strin
 	}
 	var response []LiquidationHistoryItem
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliveryLiquidations, settle), params, nil, &response)
+		"delivery/"+settle+"/liquidates", params, nil, &response)
 }
 
 // GetDeliverySettlementHistory retrieves settlement history
@@ -3242,7 +3187,7 @@ func (g *Gateio) GetDeliverySettlementHistory(ctx context.Context, settle string
 	}
 	var response []SettlementHistoryItem
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliverySettlements, settle), params, nil, &response)
+		"delivery/"+settle+"/settlements", params, nil, &response)
 }
 
 // GetDeliveryPriceTriggeredOrder creates a price-triggered order
@@ -3341,7 +3286,7 @@ func (g *Gateio) GetSingleDeliveryPriceTriggeredOrder(ctx context.Context, settl
 	}
 	var response *PriceTriggeredOrder
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet,
-		fmt.Sprintf(gateioDeliveryPriceOrders+"/%s", settle, orderID), nil, nil, &response)
+		fmt.Sprintf(gateioDeliveryPriceOrders+"/"+orderID, settle), nil, nil, &response)
 }
 
 // CancelDeliveryPriceTriggeredOrder cancel a price-triggered order
@@ -3354,7 +3299,7 @@ func (g *Gateio) CancelDeliveryPriceTriggeredOrder(ctx context.Context, settle, 
 	}
 	var response *PriceTriggeredOrder
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapCancelOrdersEPL, http.MethodDelete,
-		fmt.Sprintf(gateioDeliveryPriceOrders+"/%s", settle, orderID), nil, nil, &response)
+		fmt.Sprintf(gateioDeliveryPriceOrders+"/"+orderID, settle), nil, nil, &response)
 }
 
 // ********************************** Options ***************************************************
@@ -3399,7 +3344,7 @@ func (g *Gateio) GetOptionsSpecifiedContractDetail(ctx context.Context, contract
 	}
 	var contr *OptionContract
 	return contr, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL,
-		fmt.Sprintf(gateioOptionContracts+"/%s", contract.String()), &contr)
+		gateioOptionContracts+"/"+contract.String(), &contr)
 }
 
 // GetSettlementHistory retrieves list of settlement history
@@ -3682,7 +3627,7 @@ func (g *Gateio) GetOptionUnderlyingTickers(ctx context.Context, underlying stri
 	}
 	var respos *OptionsUnderlyingTicker
 	return respos, g.SendHTTPRequest(ctx, exchange.RestSpot, perpetualSwapDefaultEPL,
-		fmt.Sprintf(gateioOptionsUnderlyingTickers, underlying), &respos)
+		"options/underlying/tickers/"+underlying, &respos)
 }
 
 // GetOptionFuturesCandlesticks retrieves option futures candlesticks

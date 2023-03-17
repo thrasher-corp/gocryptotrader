@@ -2077,11 +2077,7 @@ func TestGetSpecifiedContractPosition(t *testing.T) {
 	if err != nil && !errors.Is(err, errInvalidOrMissingContractParam) {
 		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, err)
 	}
-	cp, err := currency.NewPairFromString("BTC_USDT-20220826-32000-C")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = g.GetSpecifiedContractPosition(context.Background(), cp)
+	_, err = g.GetSpecifiedContractPosition(context.Background(), optionsTradablePair)
 	if err != nil {
 		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, err)
 	}
