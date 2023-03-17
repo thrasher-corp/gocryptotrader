@@ -776,7 +776,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 		for x := range settles {
 			var balance *FuturesAccount
 			if a == asset.Futures {
-				if settles[x] == currency.USD {
+				if settles[x].Equal(currency.USD) {
 					continue
 				}
 				balance, err = g.QueryFuturesAccount(ctx, settles[x].String())
@@ -1343,7 +1343,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("%w asset type: %v", common.ErrFunctionNotSupported, o.AssetType)
+		return cancelAllOrdersResponse, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 
 	return cancelAllOrdersResponse, nil
@@ -1851,7 +1851,9 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				Volume: candles[x].Volume,
 			}
 		}
-	// TODO: add support for options when endpoint is returning data
+	case asset.Options:
+		// TODO: add support for options when endpoint is returning data
+		return nil, common.ErrNotYetImplemented
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
@@ -1915,7 +1917,9 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 					Volume: candles[x].Volume,
 				})
 			}
-		// TODO: add support for options when endpoint is returning data
+		case asset.Options:
+			// TODO: add support for options when endpoint is returning data
+			return nil, common.ErrNotYetImplemented
 		default:
 			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 		}

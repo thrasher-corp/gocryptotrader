@@ -2761,8 +2761,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	if _, err := g.GetHistoricCandles(context.Background(), deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneDay, startTime, time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
-	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
+	}
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
 	}
 }
 
@@ -2793,8 +2796,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
+	if _, err := g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
 	}
 }
 func TestGetAvailableTransferTrains(t *testing.T) {
@@ -3356,7 +3359,7 @@ func TestGetAPIKeyOfSubAccount(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	_, err := g.GetAPIKeyOfSubAccount(context.Background(), 1234, "targe_api_key")
+	_, err := g.GetAPIKeyOfSubAccount(context.Background(), 1234, "target_api_key")
 	if err != nil {
 		t.Error(err)
 	}
