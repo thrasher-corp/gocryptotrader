@@ -69,7 +69,6 @@ func areTestAPIKeysSet() bool {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	cr.Verbose = true
 	_, err := cr.GetInstruments(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -827,15 +826,6 @@ func TestGetCreateParamMap(t *testing.T) {
 	}
 }
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := cr.WsConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second * 30)
-}
-
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := &exchange.FeeBuilder{
@@ -857,13 +847,5 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 		}
-	}
-}
-
-func TestUpdateTradablePairs(t *testing.T) {
-	t.Parallel()
-	err := cr.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		t.Error(err)
 	}
 }

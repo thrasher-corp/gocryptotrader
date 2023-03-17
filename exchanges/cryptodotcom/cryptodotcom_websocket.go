@@ -133,11 +133,15 @@ func (cr *Cryptodotcom) WsReadData() {
 }
 
 func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnection bool) error {
-	resp.Method = publicRespondHeartbeat
-	if authConnection {
-		return cr.Websocket.AuthConn.SendJSONMessage(resp)
+	subscriptionInput := &SubscriptionInput{
+		ID:     resp.ID,
+		Code:   resp.Code,
+		Method: publicRespondHeartbeat,
 	}
-	return cr.Websocket.Conn.SendJSONMessage(resp)
+	if authConnection {
+		return cr.Websocket.AuthConn.SendJSONMessage(subscriptionInput)
+	}
+	return cr.Websocket.Conn.SendJSONMessage(subscriptionInput)
 }
 
 // WsAuthConnect represents an authenticated connection to a websocket server
@@ -324,28 +328,32 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 			return cr.respondHeartbeat(resp, authConnection)
 		}
 	}
+	if resp.Result == nil {
+		resp.Result = &WsResult{}
+	}
 	if resp.Method == "subscribe" {
 		switch resp.Result.Channel {
 		case "user.order":
-			return cr.processUserOrderbook(&resp.Result)
+			return cr.processUserOrderbook(resp.Result)
 		case "user.trade":
 			if !cr.IsFillsFeedEnabled() {
 				return nil
 			}
-			return cr.processUserTrade(&resp.Result)
+			return cr.processUserTrade(resp.Result)
 		case "user.balance":
-			return cr.processUserBalance(&resp.Result)
+			return cr.processUserBalance(resp.Result)
 		case "book":
-			return cr.processOrderbook(&resp.Result)
+			return cr.processOrderbook(resp.Result)
 		case "ticker":
-			return cr.processTicker(&resp.Result)
+			return cr.processTicker(resp.Result)
 		case "trade":
-			return cr.processTrades(&resp.Result)
+			return cr.processTrades(resp.Result)
 		case "candlestick":
-			return cr.processCandlestick(&resp.Result)
-		default:
-			return nil
+			return cr.processCandlestick(resp.Result)
 		}
+	}
+	if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
+		return fmt.Errorf("could not match incoming message with signature: %d, and data: %s", resp.ID, string(respRaw))
 	}
 	return nil
 }

@@ -596,10 +596,17 @@ type SubscriptionPayload struct {
 
 // SubscriptionResponse represents a websocket subscription response.
 type SubscriptionResponse struct {
-	ID     int64    `json:"id"`
-	Code   int64    `json:"code,omitempty"`
-	Method string   `json:"method"`
-	Result WsResult `json:"result"`
+	ID     int64     `json:"id"`
+	Code   int64     `json:"code,omitempty"`
+	Method string    `json:"method"`
+	Result *WsResult `json:"result,omitempty"`
+}
+
+// SubscriptionInput represents a public/heartbead response
+type SubscriptionInput struct {
+	ID     int64  `json:"id"`
+	Code   int64  `json:"code,omitempty"`
+	Method string `json:"method"`
 }
 
 // SubscriptionRawData represents a subscription response raw data.
@@ -610,12 +617,12 @@ type SubscriptionRawData struct {
 
 // WsResult represents a subscriptions response result
 type WsResult struct {
-	Channel        string          `json:"channel"`
-	Subscription   string          `json:"subscription"`
-	Data           json.RawMessage `json:"data"`
-	InstrumentName string          `json:"instrument_name"`
-	Depth          int64           `json:"depth"`    // for orderbooks
-	Interval       string          `json:"interval"` // for candlestick data.
+	Channel        string          `json:"channel,omitempty"`
+	Subscription   string          `json:"subscription,omitempty"`
+	Data           json.RawMessage `json:"data,omitempty"`
+	InstrumentName string          `json:"instrument_name,omitempty"`
+	Depth          int64           `json:"depth,omitempty"`    // for orderbooks
+	Interval       string          `json:"interval,omitempty"` // for candlestick data.
 }
 
 // UserOrderbook represents a user orderbook object.

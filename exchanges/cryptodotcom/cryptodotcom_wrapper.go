@@ -145,7 +145,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	cr.Websocket = stream.New()
-	cr.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	cr.WebsocketResponseMaxLimit = time.Second * 15
 	cr.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	cr.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
