@@ -261,6 +261,12 @@ func (y *Yobit) FetchOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := y.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        y.Name,
 		Pair:            p,
@@ -508,8 +514,44 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 
 // GetOrderInfo returns order information based on order ID
 func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	iOID, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	format, err := y.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	resp, err := y.GetOrderInformation(ctx, iOID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	for id := range resp {
+		if id != orderID {
+			continue
+		}
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(resp[id].Pair, format.Delimiter)
+		if err != nil {
+			return order.Detail{}, err
+		}
+		var side order.Side
+		side, err = order.StringToOrderSide(resp[id].Type)
+		if err != nil {
+			return order.Detail{}, err
+		}
+		return order.Detail{
+			OrderID:  id,
+			Amount:   resp[id].Amount,
+			Price:    resp[id].Rate,
+			Side:     side,
+			Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
+			Pair:     symbol,
+			Exchange: y.Name,
+		}, nil
+	}
+	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

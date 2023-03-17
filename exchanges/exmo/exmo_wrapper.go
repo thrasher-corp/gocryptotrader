@@ -263,6 +263,12 @@ func (e *EXMO) FetchOrderbook(ctx context.Context, p currency.Pair, assetType as
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	callingBook := &orderbook.Base{
 		Exchange:        e.Name,
 		Pair:            p,
@@ -590,8 +596,7 @@ func (e *EXMO) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Canc
 
 // GetOrderInfo returns order information based on order ID
 func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	return order.Detail{}, common.ErrFunctionNotSupported
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

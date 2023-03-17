@@ -307,6 +307,12 @@ func (g *Gateio) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := g.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        g.Name,
 		Pair:            p,
@@ -612,7 +618,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders(ctx, "")
 	if err != nil {
-		return orderDetail, errors.New("failed to get open orders")
+		return orderDetail, err
 	}
 
 	if assetType == asset.Empty {

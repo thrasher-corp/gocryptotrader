@@ -329,7 +329,6 @@ func TestGetAccountFees(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
@@ -338,10 +337,10 @@ func TestGetAccountFees(t *testing.T) {
 }
 
 func TestGetWithdrawalFee(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 	_, err := b.GetWithdrawalFees(context.Background())
 	if err != nil {
 		t.Error("GetAccountInfo error", err)
@@ -349,10 +348,10 @@ func TestGetWithdrawalFee(t *testing.T) {
 }
 
 func TestGetAccountSummary(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetAccountSummary(context.Background())
 	if err == nil {
@@ -361,10 +360,10 @@ func TestGetAccountSummary(t *testing.T) {
 }
 
 func TestNewDeposit(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 	_, err := b.NewDeposit(context.Background(), "blabla", "testwallet", 0)
 	if err == nil {
 		t.Error("NewDeposit() Expected error")
@@ -382,10 +381,10 @@ func TestNewDeposit(t *testing.T) {
 }
 
 func TestGetKeyPermissions(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetKeyPermissions(context.Background())
 	if err != nil {
@@ -394,10 +393,10 @@ func TestGetKeyPermissions(t *testing.T) {
 }
 
 func TestGetMarginInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetMarginInfo(context.Background())
 	if err != nil {
@@ -406,10 +405,10 @@ func TestGetMarginInfo(t *testing.T) {
 }
 
 func TestGetAccountBalance(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetAccountBalance(context.Background())
 	if err != nil {
@@ -418,10 +417,10 @@ func TestGetAccountBalance(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
@@ -430,10 +429,10 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestWalletTransfer(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.WalletTransfer(context.Background(), 0.01, "btc", "bla", "bla")
 	if err == nil {
@@ -442,10 +441,10 @@ func TestWalletTransfer(t *testing.T) {
 }
 
 func TestNewOrder(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.NewOrder(context.Background(),
 		"BTCUSD",
@@ -489,10 +488,10 @@ func TestUpdateTickers(t *testing.T) {
 }
 
 func TestNewOrderMulti(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	newOrder := []PlaceOrder{
 		{
@@ -512,10 +511,10 @@ func TestNewOrderMulti(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.CancelExistingOrder(context.Background(), 1337)
 	if err == nil {
@@ -524,10 +523,10 @@ func TestCancelOrder(t *testing.T) {
 }
 
 func TestCancelMultipleOrders(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.CancelMultipleOrders(context.Background(), []int64{1337, 1336})
 	if err == nil {
@@ -536,10 +535,10 @@ func TestCancelMultipleOrders(t *testing.T) {
 }
 
 func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.CancelAllExistingOrders(context.Background())
 	if err == nil {
@@ -548,10 +547,10 @@ func TestCancelAllOrders(t *testing.T) {
 }
 
 func TestReplaceOrder(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.ReplaceOrder(context.Background(), 1337, "BTCUSD",
 		1, 1, true, order.Limit.Lower(), false)
@@ -561,10 +560,10 @@ func TestReplaceOrder(t *testing.T) {
 }
 
 func TestGetOrderStatus(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetOrderStatus(context.Background(), 1337)
 	if err == nil {
@@ -573,22 +572,27 @@ func TestGetOrderStatus(t *testing.T) {
 }
 
 func TestGetOpenOrders(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
-
+	b.Verbose = true
 	_, err := b.GetOpenOrders(context.Background())
+	if err == nil {
+		t.Error("GetOpenOrders() Expectederror")
+	}
+
+	_, err = b.GetOpenOrders(context.Background(), 1, 2, 3, 4)
 	if err == nil {
 		t.Error("GetOpenOrders() Expectederror")
 	}
 }
 
 func TestGetActivePositions(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetActivePositions(context.Background())
 	if err == nil {
@@ -597,10 +601,10 @@ func TestGetActivePositions(t *testing.T) {
 }
 
 func TestClaimPosition(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.ClaimPosition(context.Background(), 1337)
 	if err == nil {
@@ -609,10 +613,10 @@ func TestClaimPosition(t *testing.T) {
 }
 
 func TestGetBalanceHistory(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 	_, err := b.GetBalanceHistory(context.Background(),
 		"USD", time.Time{}, time.Time{}, 1, "deposit")
 	if err == nil {
@@ -621,10 +625,10 @@ func TestGetBalanceHistory(t *testing.T) {
 }
 
 func TestGetMovementHistory(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetMovementHistory(context.Background(), "USD", "bitcoin", time.Time{}, time.Time{}, 1)
 	if err == nil {
@@ -633,10 +637,10 @@ func TestGetMovementHistory(t *testing.T) {
 }
 
 func TestGetTradeHistory(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 	_, err := b.GetTradeHistory(context.Background(),
 		"BTCUSD", time.Time{}, time.Time{}, 1, 0)
 	if err == nil {
@@ -645,10 +649,10 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestNewOffer(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.NewOffer(context.Background(), "BTC", 1, 1, 1, "loan")
 	if err == nil {
@@ -657,10 +661,10 @@ func TestNewOffer(t *testing.T) {
 }
 
 func TestCancelOffer(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.CancelOffer(context.Background(), 1337)
 	if err == nil {
@@ -669,10 +673,10 @@ func TestCancelOffer(t *testing.T) {
 }
 
 func TestGetOfferStatus(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetOfferStatus(context.Background(), 1337)
 	if err == nil {
@@ -681,10 +685,10 @@ func TestGetOfferStatus(t *testing.T) {
 }
 
 func TestGetActiveCredits(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetActiveCredits(context.Background())
 	if err == nil {
@@ -693,10 +697,10 @@ func TestGetActiveCredits(t *testing.T) {
 }
 
 func TestGetActiveOffers(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetActiveOffers(context.Background())
 	if err == nil {
@@ -705,10 +709,10 @@ func TestGetActiveOffers(t *testing.T) {
 }
 
 func TestGetActiveMarginFunding(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetActiveMarginFunding(context.Background())
 	if err == nil {
@@ -717,10 +721,10 @@ func TestGetActiveMarginFunding(t *testing.T) {
 }
 
 func TestGetUnusedMarginFunds(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetUnusedMarginFunds(context.Background())
 	if err == nil {
@@ -729,10 +733,10 @@ func TestGetUnusedMarginFunds(t *testing.T) {
 }
 
 func TestGetMarginTotalTakenFunds(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.GetMarginTotalTakenFunds(context.Background())
 	if err == nil {
@@ -741,10 +745,10 @@ func TestGetMarginTotalTakenFunds(t *testing.T) {
 }
 
 func TestCloseMarginFunding(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.CloseMarginFunding(context.Background(), 1337)
 	if err == nil {

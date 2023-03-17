@@ -167,6 +167,12 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 // Retrieve gets orderbook depth data from the associated linked list and
 // returns the base equivalent copy
 func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]

@@ -342,6 +342,17 @@ func (h *HitBTC) GetOpenOrders(ctx context.Context, currency string) ([]OrderHis
 		&result)
 }
 
+// GetActiveOrderByClientOrderID Get an active order by id
+func (h *HitBTC) GetActiveOrderByClientOrderID(ctx context.Context, clientOrderID string) (OrderHistoryResponse, error) {
+	var result OrderHistoryResponse
+
+	return result, h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		apiv2OpenOrders+"/"+clientOrderID,
+		nil,
+		tradingRequests,
+		&result)
+}
+
 // PlaceOrder places an order on the exchange
 func (h *HitBTC) PlaceOrder(ctx context.Context, currency string, rate, amount float64, orderType, side string) (OrderResponse, error) {
 	var result OrderResponse

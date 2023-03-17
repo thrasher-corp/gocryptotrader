@@ -2424,10 +2424,10 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 
 	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
 	if err != nil {

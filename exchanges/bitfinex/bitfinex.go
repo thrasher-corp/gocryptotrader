@@ -1582,11 +1582,13 @@ func (b *Bitfinex) GetOrderStatus(ctx context.Context, orderID int64) (Order, er
 }
 
 // GetInactiveOrders returns order status information
-func (b *Bitfinex) GetInactiveOrders(ctx context.Context) ([]Order, error) {
+func (b *Bitfinex) GetInactiveOrders(ctx context.Context, IDs ...int64) ([]Order, error) {
 	var response []Order
 	req := make(map[string]interface{})
 	req["limit"] = "100"
-
+	if len(IDs) > 0 {
+		req["ids"] = IDs
+	}
 	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexInactiveOrders,
 		req,
@@ -1595,11 +1597,15 @@ func (b *Bitfinex) GetInactiveOrders(ctx context.Context) ([]Order, error) {
 }
 
 // GetOpenOrders returns all active orders and statuses
-func (b *Bitfinex) GetOpenOrders(ctx context.Context) ([]Order, error) {
+func (b *Bitfinex) GetOpenOrders(ctx context.Context, IDs ...int64) ([]Order, error) {
 	var response []Order
+	req := make(map[string]interface{})
+	if len(IDs) > 0 {
+		req["ids"] = IDs
+	}
 	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexOrders,
-		nil,
+		req,
 		&response,
 		orderMulti)
 }

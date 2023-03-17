@@ -494,7 +494,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	default:
-		return fmt.Errorf("assetType not supported: %v", a)
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	return nil
 }
@@ -527,6 +527,12 @@ func (k *Kraken) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := k.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        k.Name,
 		Pair:            p,
@@ -1017,6 +1023,8 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 				Exchange: k.Name,
 			}
 		}
+	default:
+		return order.Detail{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return orderDetail, nil
 }
@@ -1224,7 +1232,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)
 	}
 	return req.Filter(k.Name, orders), nil
 }

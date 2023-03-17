@@ -36,12 +36,12 @@ type AccountsBaseResponse struct {
 // Order is the order details for retrieving all orders
 type Order struct {
 	Currency    string  `json:"currency"`
-	ID          int64   `json:"id,string"`
+	ID          string  `json:"id"`
 	Price       float64 `json:"price"`
-	Status      int     `json:"status"`
+	Status      int64   `json:"status"`
 	TotalAmount float64 `json:"total_amount"`
 	TradeAmount float64 `json:"trade_amount"`
-	TradeDate   int     `json:"trade_date"`
+	TradeDate   int64   `json:"trade_date"`
 	TradeMoney  float64 `json:"trade_money"`
 	Type        int64   `json:"type"`
 	Fees        float64 `json:"fees,omitempty"`

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -35,6 +36,7 @@ const (
 	zbDepth                           = "depth"
 	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
 	zbGetOrdersGet                    = "getOrders"
+	zbGetOrder                        = "getOrder"
 	zbWithdraw                        = "withdraw"
 	zbDepositAddress                  = "getUserAddress"
 	zbMultiChainDepositAddress        = "getPayinAddress"
@@ -190,6 +192,33 @@ func (z *ZB) GetOrders(ctx context.Context, currency string, pageindex, side int
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("tradeType", strconv.FormatInt(side, 10))
 	return response, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &response, request.Auth)
+}
+
+// GetSingleOrder Get single buy order or sell order
+func (z *ZB) GetSingleOrder(ctx context.Context, orderID, customerOrderID string, currency currency.Pair) (*Order, error) {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var response Order
+	pFmt, err := z.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+
+	vals := url.Values{}
+	vals.Set("accesskey", creds.Key)
+	vals.Set("method", zbGetOrder)
+	vals.Set("currency", pFmt.Format(currency))
+	if orderID != "" {
+		vals.Set("id", orderID)
+	}
+	if customerOrderID != "" {
+		vals.Set("customerOrderId", customerOrderID)
+	}
+
+	return &response, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &response, request.Auth)
+
 }
 
 // GetMarkets returns market information including pricing, symbols and

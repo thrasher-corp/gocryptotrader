@@ -340,7 +340,7 @@ func (h *HUOBI) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !h.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
 	var pairs []currency.Pair
@@ -426,8 +426,11 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	if !h.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	switch a {
 	case asset.Spot:
@@ -521,6 +524,12 @@ func (h *HUOBI) FetchOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !assetType.IsValid() {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
 	book := &orderbook.Base{
 		Exchange:        h.Name,
 		Pair:            p,
@@ -1105,7 +1114,7 @@ func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	case asset.Futures:
 		_, err = h.FCancelOrder(ctx, o.Pair.Base, o.ClientID, o.ClientOrderID)
 	default:
-		return fmt.Errorf("%v assetType not supported", o.AssetType)
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, o.AssetType)
 	}
 	return err
 }
@@ -1371,6 +1380,8 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 				IsMaker:  orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly,
 			})
 		}
+	default:
+		return order.Detail{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return orderDetail, nil
 }

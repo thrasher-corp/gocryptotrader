@@ -417,6 +417,12 @@ func (c *COINUT) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !c.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err
@@ -475,6 +481,12 @@ func (c *COINUT) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        c.Name,
 		Pair:            p,
@@ -848,7 +860,7 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 
 // GetOrderInfo returns order information based on order ID
 func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrNotYetImplemented
+	return order.Detail{}, common.ErrFunctionNotSupported
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

@@ -328,15 +328,18 @@ func (b *Bithumb) GetLastTransaction(ctx context.Context) (LastTransactionTicker
 // count: Value : 1 ~1000 (default : 100)
 // after: YYYY-MM-DD hh:mm:ss's UNIX Timestamp
 // (2014-11-28 16:40:01 = 1417160401000)
-func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType, count, after, currency string) (Orders, error) {
+func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType string, count int64, after time.Time, orderCurrency, paymentCurrency currency.Code) (Orders, error) {
 	response := Orders{}
 	params := url.Values{}
 
-	if currency == "" {
-		return response, errSymbolIsEmpty
+	if orderCurrency.IsEmpty() {
+		return response, currency.ErrCurrencyCodeEmpty
+	}
+	if !paymentCurrency.IsEmpty() {
+		params.Set("payment_currency", paymentCurrency.Upper().String())
 	}
 
-	params.Set("order_currency", strings.ToUpper(currency))
+	params.Set("order_currency", orderCurrency.Upper().String())
 
 	if len(orderID) > 0 {
 		params.Set("order_id", orderID)
@@ -346,12 +349,12 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType, count
 		params.Set("type", transactionType)
 	}
 
-	if len(count) > 0 {
-		params.Set("count", count)
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
 	}
 
-	if len(after) > 0 {
-		params.Set("after", after)
+	if !after.IsZero() {
+		params.Set("after", after.Format(time.DateTime))
 	}
 
 	return response,

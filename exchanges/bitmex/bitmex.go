@@ -675,11 +675,8 @@ func (b *Bitmex) ConfirmWithdrawal(ctx context.Context, token string) (Transacti
 // GetCryptoDepositAddress returns a deposit address for a cryptocurency
 func (b *Bitmex) GetCryptoDepositAddress(ctx context.Context, cryptoCurrency string) (string, error) {
 	var address string
-
 	if !strings.EqualFold(cryptoCurrency, currency.XBT.String()) {
-		return "",
-			fmt.Errorf("cryptocurrency %s deposits are not supported by exchange only bitcoin",
-				cryptoCurrency)
+		return "", fmt.Errorf("%v %w only bitcoin", cryptoCurrency, currency.ErrCurrencyNotSupported)
 	}
 
 	return address, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,

@@ -29,6 +29,8 @@ var (
 	// ErrUnableToPlaceOrder defines an error when an order submission has
 	// failed.
 	ErrUnableToPlaceOrder = errors.New("order not placed")
+	// ErrOrderNotFound is returned when no order is found
+	ErrOrderNotFound = errors.New("order not found")
 
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderSide    = errors.New("unrecognised order side")

@@ -290,6 +290,9 @@ func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !b.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	tickers, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return err
@@ -321,6 +324,12 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !b.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
@@ -347,6 +356,12 @@ func (b *BTSE) FetchOrderbook(ctx context.Context, p currency.Pair, assetType as
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,

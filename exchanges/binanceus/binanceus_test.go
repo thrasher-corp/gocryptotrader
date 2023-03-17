@@ -149,10 +149,10 @@ func TestUpdateTradablePairs(t *testing.T) {
 }
 
 func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	t.Parallel()
 	if _, err := bi.FetchAccountInfo(context.Background(), asset.Spot); err != nil {
 		t.Error("Binanceus FetchAccountInfo() error", err)
 	}

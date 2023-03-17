@@ -275,7 +275,7 @@ func (ok *Okx) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, err
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !ok.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, ok.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	var insts []Instrument
 	var err error
@@ -380,7 +380,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 		baseVolume = mdata.VolCcy24H.Float64()
 		quoteVolume = mdata.Vol24H.Float64()
 	default:
-		return nil, fmt.Errorf("%w, asset type %s is not supported", errInvalidInstrumentType, a.String())
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	err = ticker.ProcessTicker(&ticker.Price{
 		Last:         mdata.LastTradePrice.Float64(),
@@ -473,6 +473,12 @@ func (ok *Okx) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        ok.Name,
 		Pair:            pair,
@@ -481,8 +487,8 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	}
 	var orderbookNew *OrderBookResponse
 	var err error
-	if !ok.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
 	}
 	var instrumentID string
 	format, err := ok.GetPairFormat(assetType, false)
@@ -525,12 +531,13 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 
 // UpdateAccountInfo retrieves balances for all enabled currencies.
 func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return account.Holdings{}, err
+	}
+
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = ok.Name
-	if !ok.SupportsAsset(assetType) {
-		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
-	}
 	balances, err := ok.GetBalance(ctx, "")
 	if err != nil {
 		return info, err
@@ -1045,13 +1052,8 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		return respData, err
 	}
-	if !pair.IsPopulated() {
-		return respData, errIncompleteCurrencyPair
-	}
+
 	instrumentID := format.Format(pair)
-	if !ok.SupportsAsset(assetType) {
-		return respData, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
-	}
 	orderDetail, err := ok.GetOrderDetail(ctx, &OrderDetailRequestParam{
 		InstrumentID: instrumentID,
 		OrderID:      orderID,

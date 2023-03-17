@@ -253,7 +253,7 @@ func (bi *Binanceus) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (bi *Binanceus) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !bi.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, bi.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	info, err := bi.GetExchangeInfo(ctx)
 	if err != nil {
@@ -288,6 +288,9 @@ func (bi *Binanceus) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (bi *Binanceus) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w '%v'", asset.ErrNotSupported, a)
 	}
@@ -318,7 +321,7 @@ func (bi *Binanceus) UpdateTicker(ctx context.Context, p currency.Pair, a asset.
 // UpdateTickers updates all currency pairs of a given asset type
 func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return fmt.Errorf("assetType not supported: %v", a)
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	tick, err := bi.GetTickers(ctx)
 	if err != nil {
@@ -389,6 +392,12 @@ func (bi *Binanceus) FetchOrderbook(ctx context.Context, pair currency.Pair, ass
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        bi.Name,
 		Pair:            pair,
@@ -429,7 +438,7 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	var acc account.SubAccount
 	info.Exchange = bi.Name
 	if assetType != asset.Spot {
-		return info, fmt.Errorf("%v  assetType is not supported", assetType)
+		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	theAccount, err := bi.GetAccount(ctx)
 	if err != nil {
@@ -507,6 +516,12 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	const limit = 1000
 	tradeData, err := bi.GetMostRecentTrades(ctx, RecentTradeRequestParams{p, limit})
 	if err != nil {
@@ -536,8 +551,13 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair,
-	assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	req := AggregatedTradeRequestParams{
 		Symbol:    p,
 		StartTime: timestampStart.UnixMilli(),
@@ -681,6 +701,12 @@ func (bi *Binanceus) CancelAllOrders(ctx context.Context, orderCancellation *ord
 
 // GetOrderInfo returns order information based on order ID
 func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+	if pair.IsEmpty() {
+		return order.Detail{}, currency.ErrCurrencyPairEmpty
+	}
+	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return order.Detail{}, err
+	}
 	var respData order.Detail
 	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {

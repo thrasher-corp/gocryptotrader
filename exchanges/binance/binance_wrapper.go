@@ -354,7 +354,7 @@ func (b *Binance) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !b.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	tradingStatus := "TRADING"
 	var pairs []currency.Pair
@@ -540,13 +540,16 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	default:
-		return fmt.Errorf("assetType not supported: %v", a)
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	switch a {
 	case asset.Spot, asset.Margin:
 		tick, err := b.GetPriceChangeStats(ctx, p)
@@ -612,7 +615,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		}
 
 	default:
-		return nil, fmt.Errorf("assetType not supported: %v", a)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	return ticker.GetTicker(b.Name, p, a)
 }
@@ -644,6 +647,12 @@ func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -778,7 +787,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		acc.Currencies = currencyDetails
 
 	default:
-		return info, fmt.Errorf("%v assetType not supported", assetType)
+		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
@@ -1221,7 +1230,7 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 			}
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("assetType not supported: %v", req.AssetType)
+		return cancelAllOrdersResponse, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)
 	}
 	return cancelAllOrdersResponse, nil
 }
@@ -1328,7 +1337,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Date = orderData.Time
 		respData.LastUpdated = orderData.UpdateTime
 	default:
-		return respData, fmt.Errorf("assetType %s not supported", assetType)
+		return respData, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return respData, nil
 }
@@ -1509,7 +1518,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				})
 			}
 		default:
-			return orders, fmt.Errorf("assetType not supported")
+			return orders, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)
 		}
 	}
 	return req.Filter(b.Name, orders), nil
@@ -1700,7 +1709,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			}
 		}
 	default:
-		return orders, fmt.Errorf("assetType not supported")
+		return orders, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)
 	}
 	return req.Filter(b.Name, orders), nil
 }
@@ -1950,7 +1959,7 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			return nil
 		}
 	default:
-		err = fmt.Errorf("unhandled asset type %s", a)
+		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %v", err)

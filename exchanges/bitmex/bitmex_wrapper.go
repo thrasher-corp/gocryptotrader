@@ -474,6 +474,12 @@ func (b *Bitmex) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -846,8 +852,43 @@ func (b *Bitmex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 
 // GetOrderInfo returns order information based on order ID
 func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	resp, err := b.GetOrders(ctx, &OrdersRequest{
+		Filter: `{"orderID":"` + orderID + `"}`,
+	})
+	if err != nil {
+		return order.Detail{}, err
+	}
+	for i := range resp {
+		if resp[i].OrderID != orderID {
+			continue
+		}
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
+		if err != nil {
+			return order.Detail{}, err
+		}
+		var oType order.Type
+		oType, err = b.getOrderType(resp[i].OrdType)
+		if err != nil {
+			return order.Detail{}, err
+		}
+		return order.Detail{
+			Date:            resp[i].Timestamp,
+			Price:           resp[i].Price,
+			Amount:          resp[i].OrderQty,
+			ExecutedAmount:  resp[i].CumQty,
+			RemainingAmount: resp[i].LeavesQty,
+			Exchange:        b.Name,
+			OrderID:         resp[i].OrderID,
+			Side:            orderSideMap[resp[i].Side],
+			Status:          orderStatus,
+			Type:            oType,
+			Pair:            pair,
+			AssetType:       assetType,
+		}, nil
+
+	}
+	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

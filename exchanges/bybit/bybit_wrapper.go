@@ -285,7 +285,7 @@ func (by *Bybit) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !by.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, by.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
 	var pair currency.Pair
@@ -458,7 +458,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 		}
 
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.Pair{})
+		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -652,6 +652,12 @@ func (by *Bybit) FetchOrderbook(ctx context.Context, currency currency.Pair, ass
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := by.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	var orderbookNew *Orderbook
 	var err error
 
@@ -1454,7 +1460,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	if len(req.Pairs) == 0 {
 		// sending an empty currency pair retrieves data for all currencies
-		req.Pairs = append(req.Pairs, currency.Pair{})
+		req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
 	}
 
 	var orders []order.Detail
@@ -1771,7 +1777,9 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (by *Bybit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	// TODO: Upgrade from v1 spot API
+	// TODO: give FeeBuilder asset property to distinguish between endpoints
+	return 0, common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -2076,7 +2084,7 @@ func (by *Bybit) GetServerTime(ctx context.Context, a asset.Item) (time.Time, er
 func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
 	pairs, err := by.CurrencyPairs.GetPairs(item, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	return pairs.DeriveFrom(symbol)
 }

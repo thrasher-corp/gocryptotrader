@@ -115,11 +115,11 @@ type Order struct {
 
 // OrderStatus holds order status information
 type OrderStatus struct {
-	Price        float64 `json:"price,string"`
-	Amount       float64 `json:"amount,string"`
-	Type         int     `json:"type"`
-	ID           int64   `json:"id,string"`
-	DateTime     string  `json:"datetime"`
+	Price        float64   `json:"price,string"`
+	Amount       float64   `json:"amount,string"`
+	Type         int       `json:"type"`
+	ID           string    `json:"id"`
+	DateTime     time.Time `json:"datetime"`
 	Status       string
 	Transactions []struct {
 		TradeID int64   `json:"tid"`

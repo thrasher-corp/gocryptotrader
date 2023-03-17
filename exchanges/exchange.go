@@ -197,18 +197,18 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 // types. e.g. "BTC-USD" Spot and "BTC_USD" PERP request formatted.
 func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair, asset.Item, error) {
 	if symbol == "" {
-		return currency.Pair{}, asset.Empty, currency.ErrCurrencyPairEmpty
+		return currency.EMPTYPAIR, asset.Empty, currency.ErrCurrencyPairEmpty
 	}
 	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		pFmt, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
-			return currency.Pair{}, asset.Empty, err
+			return currency.EMPTYPAIR, asset.Empty, err
 		}
 
 		enabled, err := b.GetEnabledPairs(assetTypes[i])
 		if err != nil {
-			return currency.Pair{}, asset.Empty, err
+			return currency.EMPTYPAIR, asset.Empty, err
 		}
 		for j := range enabled {
 			if pFmt.Format(enabled[j]) == symbol {
@@ -216,7 +216,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.Pair{}, asset.Empty, errSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, errSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -360,6 +360,9 @@ func (b *Base) GetSupportedFeatures() FeaturesSupported {
 // GetPairFormat returns the pair format based on the exchange and
 // asset type
 func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency.PairFormat, error) {
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return currency.PairFormat{}, err
+	}
 	if b.CurrencyPairs.UseGlobalFormat {
 		if requestFormat {
 			if b.CurrencyPairs.RequestFormat == nil {
@@ -398,7 +401,7 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return nil, nil //nolint:nilerr // non-fatal error
+		return nil, err
 	}
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
@@ -499,6 +502,9 @@ func (b *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.I
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
+	if p.IsEmpty() {
+		return currency.EMPTYPAIR, currency.ErrCurrencyPairEmpty
+	}
 	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
 		return currency.EMPTYPAIR, err

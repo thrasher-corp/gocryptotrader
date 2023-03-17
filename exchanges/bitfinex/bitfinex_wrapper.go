@@ -423,6 +423,12 @@ func (b *Bitfinex) FetchOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	o := &orderbook.Base{
 		Exchange:         b.Name,
 		Pair:             p,
@@ -791,10 +797,90 @@ func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 	return order.CancelAllResponse{}, err
 }
 
+func (b *Bitfinex) parseOrderToOrderDetail(o Order) (order.Detail, error) {
+	side, err := order.StringToOrderSide(o.Side)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	var timestamp float64
+	timestamp, err = strconv.ParseFloat(o.Timestamp, 64)
+	if err != nil {
+		log.Warnf(log.ExchangeSys,
+			"Unable to convert timestamp '%s', leaving blank",
+			o.Timestamp)
+	}
+
+	var pair currency.Pair
+	pair, err = currency.NewPairFromString(o.Symbol)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	orderDetail := order.Detail{
+		Amount:          o.OriginalAmount,
+		Date:            time.Unix(int64(timestamp), 0),
+		Exchange:        b.Name,
+		OrderID:         strconv.FormatInt(o.ID, 10),
+		Side:            side,
+		Price:           o.Price,
+		RemainingAmount: o.RemainingAmount,
+		Pair:            pair,
+		ExecutedAmount:  o.ExecutedAmount,
+	}
+
+	switch {
+	case o.IsLive:
+		orderDetail.Status = order.Active
+	case o.IsCancelled:
+		orderDetail.Status = order.Cancelled
+	case o.IsHidden:
+		orderDetail.Status = order.Hidden
+	default:
+		orderDetail.Status = order.UnknownStatus
+	}
+
+	// API docs discrepancy. Example contains prefixed "exchange "
+	// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
+	orderType := strings.Replace(o.Type, "exchange ", "", 1)
+	if orderType == "trailing-stop" {
+		orderDetail.Type = order.TrailingStop
+	} else {
+		orderDetail.Type, err = order.StringToOrderType(orderType)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
+	}
+
+	return orderDetail, nil
+}
+
 // GetOrderInfo returns order information based on order ID
 func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	id, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	resp, err := b.GetInactiveOrders(ctx, id)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	for i := range resp {
+		if resp[i].OrderID != id {
+			continue
+		}
+		return b.parseOrderToOrderDetail(resp[i])
+	}
+	resp, err = b.GetOpenOrders(ctx, id)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	for i := range resp {
+		if resp[i].OrderID != id {
+			continue
+		}
+		return b.parseOrderToOrderDetail(resp[i])
+	}
+	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -947,60 +1033,11 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		var side order.Side
-		side, err = order.StringToOrderSide(resp[i].Side)
+		var orderDetail order.Detail
+		orderDetail, err = b.parseOrderToOrderDetail(resp[i])
 		if err != nil {
 			return nil, err
 		}
-		var timestamp float64
-		timestamp, err = strconv.ParseFloat(resp[i].Timestamp, 64)
-		if err != nil {
-			log.Warnf(log.ExchangeSys,
-				"Unable to convert timestamp '%s', leaving blank",
-				resp[i].Timestamp)
-		}
-
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(resp[i].Symbol)
-		if err != nil {
-			return nil, err
-		}
-
-		orderDetail := order.Detail{
-			Amount:          resp[i].OriginalAmount,
-			Date:            time.Unix(int64(timestamp), 0),
-			Exchange:        b.Name,
-			OrderID:         strconv.FormatInt(resp[i].ID, 10),
-			Side:            side,
-			Price:           resp[i].Price,
-			RemainingAmount: resp[i].RemainingAmount,
-			Pair:            pair,
-			ExecutedAmount:  resp[i].ExecutedAmount,
-		}
-
-		switch {
-		case resp[i].IsLive:
-			orderDetail.Status = order.Active
-		case resp[i].IsCancelled:
-			orderDetail.Status = order.Cancelled
-		case resp[i].IsHidden:
-			orderDetail.Status = order.Hidden
-		default:
-			orderDetail.Status = order.UnknownStatus
-		}
-
-		// API docs discrepancy. Example contains prefixed "exchange "
-		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
-		if orderType == "trailing-stop" {
-			orderDetail.Type = order.TrailingStop
-		} else {
-			orderDetail.Type, err = order.StringToOrderType(orderType)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-			}
-		}
-
 		orders[i] = orderDetail
 	}
 	return req.Filter(b.Name, orders), nil
@@ -1021,61 +1058,11 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		var side order.Side
-		side, err = order.StringToOrderSide(resp[i].Side)
+		var orderDetail order.Detail
+		orderDetail, err = b.parseOrderToOrderDetail(resp[i])
 		if err != nil {
 			return nil, err
 		}
-		var timestamp int64
-		timestamp, err = strconv.ParseInt(resp[i].Timestamp, 10, 64)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
-		}
-		orderDate := time.Unix(timestamp, 0)
-
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(resp[i].Symbol)
-		if err != nil {
-			return nil, err
-		}
-
-		orderDetail := order.Detail{
-			Amount:               resp[i].OriginalAmount,
-			Date:                 orderDate,
-			Exchange:             b.Name,
-			OrderID:              strconv.FormatInt(resp[i].ID, 10),
-			Side:                 side,
-			Price:                resp[i].Price,
-			AverageExecutedPrice: resp[i].AverageExecutionPrice,
-			RemainingAmount:      resp[i].RemainingAmount,
-			ExecutedAmount:       resp[i].ExecutedAmount,
-			Pair:                 pair,
-		}
-		orderDetail.InferCostsAndTimes()
-
-		switch {
-		case resp[i].IsLive:
-			orderDetail.Status = order.Active
-		case resp[i].IsCancelled:
-			orderDetail.Status = order.Cancelled
-		case resp[i].IsHidden:
-			orderDetail.Status = order.Hidden
-		default:
-			orderDetail.Status = order.UnknownStatus
-		}
-
-		// API docs discrepancy. Example contains prefixed "exchange "
-		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
-		if orderType == "trailing-stop" {
-			orderDetail.Type = order.TrailingStop
-		} else {
-			orderDetail.Type, err = order.StringToOrderType(orderType)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-			}
-		}
-
 		orders[i] = orderDetail
 	}
 

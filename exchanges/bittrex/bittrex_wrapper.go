@@ -256,7 +256,7 @@ func (b *Bittrex) Run() {
 func (b *Bittrex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	// Bittrex only supports spot trading
 	if !b.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	markets, err := b.GetMarkets(ctx)
 	if err != nil {
@@ -362,6 +362,12 @@ func (b *Bittrex) FetchOrderbook(ctx context.Context, c currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,

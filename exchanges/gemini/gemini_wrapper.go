@@ -426,6 +426,12 @@ func (g *Gemini) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := g.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        g.Name,
 		Pair:            p,
@@ -664,8 +670,42 @@ func (g *Gemini) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 
 // GetOrderInfo returns order information based on order ID
 func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	iOID, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	resp, err := g.GetOrderStatus(ctx, iOID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	cp, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	var orderType order.Type
+	if resp.Type == "exchange limit" {
+		orderType = order.Limit
+	} else if resp.Type == "market buy" || resp.Type == "market sell" {
+		orderType = order.Market
+	}
+	var side order.Side
+	side, err = order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	return order.Detail{
+		OrderID:         strconv.FormatInt(resp.OrderID, 10),
+		Amount:          resp.OriginalAmount,
+		RemainingAmount: resp.RemainingAmount,
+		Pair:            cp,
+		Date:            time.UnixMilli(resp.TimestampMS),
+		Price:           resp.Price,
+		HiddenOrder:     resp.IsHidden,
+		ClientOrderID:   resp.ClientOrderID,
+		Type:            orderType,
+		Side:            side,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -759,7 +799,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			orderType = order.Market
 		}
 		var side order.Side
-		side, err = order.StringToOrderSide(resp[i].Type)
+		side, err = order.StringToOrderSide(resp[i].Side)
 		if err != nil {
 			return nil, err
 		}

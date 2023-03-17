@@ -2,7 +2,6 @@ package okcoin
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -426,7 +425,7 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			})
 		}
 	default:
-		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	err = o.AddTradesToBuffer(resp...)
 	if err != nil {
@@ -436,10 +435,6 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
-
-var errOnlyOneAssetTypePerBatch = errors.New("can only cancel one asset type in a batch command")
-var errOneCurrencyPairRequired = errors.New("can only cancel one asset type in a batch command")
-var errOnlyOrderIDsORClientOrderIDsAllowed = errors.New("only order ids or client order ids allowed, not both")
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
@@ -527,6 +522,12 @@ func (o *OKCoin) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *OKCoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !o.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	book := &orderbook.Base{
 		Exchange:        o.Name,
 		Pair:            p,

@@ -277,6 +277,12 @@ func (b *Bitflyer) FetchOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,

@@ -151,6 +151,12 @@ func (a *Alphapoint) UpdateTickers(assetType asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (a *Alphapoint) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := a.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	tick, err := a.GetTicker(ctx, p.String())
 	if err != nil {
 		return nil, err
@@ -185,6 +191,12 @@ func (a *Alphapoint) FetchTicker(ctx context.Context, p currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := a.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := a.GetOrderbook(ctx, p.String())
 	if err != nil {

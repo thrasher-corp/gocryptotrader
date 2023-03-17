@@ -262,6 +262,12 @@ func (l *Lbank) FetchOrderbook(ctx context.Context, c currency.Pair, assetType a
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := l.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        l.Name,
 		Pair:            p,

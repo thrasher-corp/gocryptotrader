@@ -389,6 +389,12 @@ func (b *Bitstamp) FetchOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -615,8 +621,30 @@ func (b *Bitstamp) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 
 // GetOrderInfo returns order information based on order ID
 func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	iOID, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	o, err := b.GetOrderStatus(ctx, iOID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	th := make([]order.TradeHistory, len(o.Transactions))
+	for i := range o.Transactions {
+		th[i] = order.TradeHistory{
+			TID:    strconv.FormatInt(o.Transactions[i].TradeID, 10),
+			Price:  o.Transactions[i].Price,
+			Fee:    o.Transactions[i].Fee,
+			Amount: o.Transactions[i].BTC,
+		}
+	}
+	return order.Detail{
+		Amount:  o.Amount,
+		Price:   o.Price,
+		OrderID: o.ID,
+		Date:    o.DateTime,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

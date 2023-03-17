@@ -323,6 +323,12 @@ func (b *Bithumb) FetchOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -561,12 +567,7 @@ func (b *Bithumb) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	}
 
 	for i := range currs {
-		orders, err := b.GetOrders(ctx,
-			"",
-			orderCancellation.Side.String(),
-			"100",
-			"",
-			currs[i].Base.String())
+		orders, err := b.GetOrders(ctx, "", orderCancellation.Side.String(), 100, time.Time{}, currs[i].Base, currency.EMPTYCODE)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -587,9 +588,37 @@ func (b *Bithumb) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (order.Detail, error) {
+	if pair.IsEmpty() {
+		return order.Detail{}, currency.ErrCurrencyPairEmpty
+	}
+	orders, err := b.GetOrders(ctx, orderID, "", 0, time.Time{}, pair.Base, currency.EMPTYCODE)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	for i := range orders.Data {
+		if orders.Data[i].OrderID != orderID {
+			continue
+		}
+		orderDetail := order.Detail{
+			Amount:          orders.Data[i].Units,
+			Exchange:        b.Name,
+			ExecutedAmount:  orders.Data[i].Units - orders.Data[i].UnitsRemaining,
+			OrderID:         orders.Data[i].OrderID,
+			Date:            orders.Data[i].OrderDate.Time(),
+			Price:           orders.Data[i].Price,
+			RemainingAmount: orders.Data[i].UnitsRemaining,
+			Pair:            pair,
+		}
+
+		if orders.Data[i].Type == "bid" {
+			orderDetail.Side = order.Buy
+		} else if orders.Data[i].Type == "ask" {
+			orderDetail.Side = order.Sell
+		}
+		return orderDetail, nil
+	}
+	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -691,7 +720,7 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	var orders []order.Detail
 	for x := range req.Pairs {
 		var resp Orders
-		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		resp, err = b.GetOrders(ctx, "", "", 1000, time.Time{}, req.Pairs[x].Base, currency.EMPTYCODE)
 		if err != nil {
 			return nil, err
 		}
@@ -747,7 +776,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 	var orders []order.Detail
 	for x := range req.Pairs {
 		var resp Orders
-		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		resp, err = b.GetOrders(ctx, "", "", 1000, time.Time{}, req.Pairs[x].Base, currency.EMPTYCODE)
 		if err != nil {
 			return nil, err
 		}

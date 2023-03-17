@@ -389,6 +389,12 @@ func (h *HitBTC) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if c.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := h.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        h.Name,
 		Pair:            c,
@@ -668,8 +674,34 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 
 // GetOrderInfo returns order information based on order ID
 func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	resp, err := h.GetActiveOrderByClientOrderID(ctx, orderID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	format, err := h.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	var symbol currency.Pair
+	symbol, err = currency.NewPairDelimiter(resp.Symbol,
+		format.Delimiter)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	var side order.Side
+	side, err = order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	return order.Detail{
+		OrderID:  resp.ID,
+		Amount:   resp.Quantity,
+		Exchange: h.Name,
+		Price:    resp.Price,
+		Date:     resp.CreatedAt,
+		Side:     side,
+		Pair:     symbol,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

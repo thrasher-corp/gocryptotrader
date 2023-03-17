@@ -336,57 +336,6 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 	}
 }
 
-type assetPair struct {
-	Pair  currency.Pair
-	Asset asset.Item
-}
-
-// unsupportedFunctionNames represent the functions that are not
-// currently tested under this suite due to irrelevance
-// or not worth checking yet
-var unsupportedFunctionNames = []string{
-	"Start",               // Is run via test setup
-	"SetDefaults",         // Is run via test setup
-	"UpdateTradablePairs", // Is run via test setup
-	"GetDefaultConfig",    // Is run via test setup
-	"FetchTradablePairs",  // Is run via test setup
-	"GetCollateralCurrencyForContract",
-	"GetCurrencyForRealisedPNL",
-	"FlushWebsocketChannels",
-	"GetOrderExecutionLimits",
-	"IsPerpetualFutureCurrency",
-	"UpdateCurrencyStates",
-	"UpdateOrderExecutionLimits",
-	"CanTradePair",
-	"CanTrade",
-	"CanWithdraw",
-	"CanDeposit",
-	"GetCurrencyStateSnapshot",
-	"GetPositionSummary",
-	"ScaleCollateral",
-	"CalculateTotalCollateral",
-	"GetFuturesPositions",
-	"GetFundingRates",
-	"IsPerpetualFutureCurrency",
-	"GetMarginRatesHistory",
-	"CalculatePNL",
-	"AuthenticateWebsocket",
-}
-
-var unsupportedExchangeNames = []string{
-	"alphapoint",
-	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
-	"itbit",    // itbit has no way of retrieving pair data
-}
-
-var acceptableErrors = []error{
-	common.ErrFunctionNotSupported,
-	asset.ErrNotSupported,
-	request.ErrAuthRequestFailed,
-	order.ErrUnsupportedOrderType,
-}
-
 func TestAllExchanges(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
@@ -402,27 +351,10 @@ func TestAllExchanges(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			exch, testMap := setupAllExchanges(t, name, cfg)
-			executeExchangeWrapperTests(t, exch, testMap)
+			exch, assetPairs := setupAllExchanges(t, name, cfg)
+			executeExchangeWrapperTests(t, exch, assetPairs)
 		})
 	}
-}
-
-// getPairFromPairs prioritises more normal pairs for an increased
-// likelihood of returning data from API endpoints
-func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
-	t.Helper()
-	for i := range p {
-		if p[i].Base.Equal(currency.BTC) {
-			return p[i], nil
-		}
-	}
-	for i := range p {
-		if p[i].Base.Equal(currency.ETH) {
-			return p[i], nil
-		}
-	}
-	return p.GetRandomPair()
 }
 
 func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
@@ -462,7 +394,7 @@ func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.
 			t.Fatal(err)
 		}
 	}
-	testMap := make([]assetPair, len(assets))
+	assetPairs := make([]assetPair, len(assets)+1)
 	for j := range assets {
 		var pairs currency.Pairs
 		pairs, err = b.CurrencyPairs.GetPairs(assets[j], true)
@@ -501,12 +433,17 @@ func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.
 		if err != nil {
 			t.Fatal(err)
 		}
-		testMap[j] = assetPair{
+		assetPairs[j] = assetPair{
 			Pair:  p,
 			Asset: assets[j],
 		}
 	}
-	return exch, testMap
+	// curveball scenario
+	assetPairs[len(assetPairs)-1] = assetPair{
+		Pair:  currency.EMPTYPAIR,
+		Asset: asset.Empty,
+	}
+	return exch, assetPairs
 }
 
 func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
@@ -517,17 +454,16 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 	}
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
-	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 
 	assetParam := reflect.TypeOf((*asset.Item)(nil)).Elem()
 
 	e := time.Now().Add(-time.Hour * 24)
 	for x := 0; x < iExchange.NumMethod(); x++ {
-		name := iExchange.Method(x).Name
-		if common.StringDataContains(unsupportedFunctionNames, name) {
+		methodName := iExchange.Method(x).Name
+		if _, ok := excludedMethodNames[methodName]; ok {
 			continue
 		}
-		method := actualExchange.MethodByName(name)
+		method := actualExchange.MethodByName(methodName)
 
 		var assetLen int
 		for y := 0; y < method.Type().NumIn(); y++ {
@@ -538,33 +474,50 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 		}
 
 		s := time.Now().Add(-time.Hour * 24 * 7).Truncate(time.Hour)
-		if name == "GetHistoricTrades" {
+		if methodName == "GetHistoricTrades" {
 			// limit trade history
 			s = time.Now().Add(-time.Minute * 5)
 		}
 		for y := 0; y <= assetLen; y++ {
 			inputs := make([]reflect.Value, method.Type().NumIn())
-			setStartTime := false
-			for z := 0; z < method.Type().NumIn(); z++ {
-				inputType := method.Type().In(z)
-				tt := s
-				if setStartTime {
-					tt = e
-				}
-				funcArg := createFuncArgs(t, exch, &assetParams[y], method, inputType, name, tt)
-				inputs[z] = *funcArg
-				setStartTime = true
+			argGenerator := &MethodArgumentGenerator{
+				Exchange:    exch,
+				AssetParams: &assetParams[y],
+				MethodName:  methodName,
+				Start:       s,
+				End:         e,
 			}
-			t.Run(name+"-"+assetParams[y].Asset.String()+"-"+assetParams[y].Pair.String(), func(t *testing.T) {
+			for z := 0; z < method.Type().NumIn(); z++ {
+				argGenerator.MethodInputType = method.Type().In(z)
+				generatedArg := generateMethodArg(t, argGenerator)
+				inputs[z] = *generatedArg
+			}
+			t.Run(methodName+"-"+assetParams[y].Asset.String()+"-"+assetParams[y].Pair.String(), func(t *testing.T) {
 				t.Parallel()
-				callFunction(t, method, inputs, exch, errType, name)
+				CallExchangeMethod(t, method, inputs, methodName, exch)
 			})
 		}
 	}
 }
 
-func createFuncArgs(t *testing.T, exch exchange.IBotExchange, assetParams *assetPair, method reflect.Value, inputType reflect.Type, functionName string, tt time.Time) *reflect.Value {
+// MethodArgumentGenerator is used to create arguments for
+// an IBotExchange method
+type MethodArgumentGenerator struct {
+	Exchange        exchange.IBotExchange
+	AssetParams     *assetPair
+	MethodInputType reflect.Type
+	MethodName      string
+	Start           time.Time
+	End             time.Time
+	StartTimeSet    bool
+	argNum          int64
+}
+
+// generateMethodArg determines the argument type and returns a pre-made
+// response, else an empty version of the type
+func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *reflect.Value {
 	t.Helper()
+	exchName := argGenerator.Exchange.GetName()
 	cpParam := reflect.TypeOf((*currency.Pair)(nil)).Elem()
 	klineParam := reflect.TypeOf((*kline.Interval)(nil)).Elem()
 	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
@@ -573,6 +526,7 @@ func createFuncArgs(t *testing.T, exch exchange.IBotExchange, assetParams *asset
 	assetParam := reflect.TypeOf((*asset.Item)(nil)).Elem()
 	pairs := reflect.TypeOf((*currency.Pairs)(nil)).Elem()
 	wr := reflect.TypeOf((**withdraw.Request)(nil)).Elem()
+	stringType := reflect.TypeOf((*string)(nil)).Elem()
 	os := reflect.TypeOf((**order.Submit)(nil)).Elem()
 	om := reflect.TypeOf((**order.Modify)(nil)).Elem()
 	oc := reflect.TypeOf((**order.Cancel)(nil)).Elem()
@@ -581,42 +535,61 @@ func createFuncArgs(t *testing.T, exch exchange.IBotExchange, assetParams *asset
 
 	var input reflect.Value
 	switch {
-	case inputType.Implements(contextParam):
+	case argGenerator.MethodInputType.AssignableTo(stringType):
+		switch argGenerator.MethodName {
+		case "GetDepositAddress":
+			if argGenerator.argNum == 2 {
+				// account type
+				input = reflect.ValueOf("trading")
+			} else {
+				// Crypto Chain
+				input = reflect.ValueOf("")
+			}
+		default:
+			// OrderID
+			input = reflect.ValueOf("1337")
+		}
+	case argGenerator.MethodInputType.Implements(contextParam):
 		// Need to deploy a context.Context value as nil value is not
 		// checked throughout codebase.
 		input = reflect.ValueOf(context.Background())
-	case inputType.AssignableTo(cpParam):
-		input = reflect.ValueOf(assetParams.Pair)
-	case inputType.AssignableTo(assetParam):
-		input = reflect.ValueOf(assetParams.Asset)
-	case inputType.AssignableTo(klineParam):
+	case argGenerator.MethodInputType.AssignableTo(cpParam):
+		input = reflect.ValueOf(argGenerator.AssetParams.Pair)
+	case argGenerator.MethodInputType.AssignableTo(assetParam):
+		input = reflect.ValueOf(argGenerator.AssetParams.Asset)
+	case argGenerator.MethodInputType.AssignableTo(klineParam):
 		input = reflect.ValueOf(kline.OneDay)
-	case inputType.AssignableTo(codeParam):
-		if functionName == "GetAvailableTransferChains" {
+	case argGenerator.MethodInputType.AssignableTo(codeParam):
+		if argGenerator.MethodName == "GetAvailableTransferChains" {
 			input = reflect.ValueOf(currency.ETH)
 		} else {
-			input = reflect.ValueOf(assetParams.Pair.Quote)
+			input = reflect.ValueOf(argGenerator.AssetParams.Pair.Quote)
 		}
-	case inputType.AssignableTo(timeParam):
-		input = reflect.ValueOf(tt)
-	case inputType.AssignableTo(pairs):
+	case argGenerator.MethodInputType.AssignableTo(timeParam):
+		if !argGenerator.StartTimeSet {
+			input = reflect.ValueOf(argGenerator.Start)
+			argGenerator.StartTimeSet = true
+		} else {
+			input = reflect.ValueOf(argGenerator.End)
+		}
+	case argGenerator.MethodInputType.AssignableTo(pairs):
 		input = reflect.ValueOf(currency.Pairs{
-			assetParams.Pair,
+			argGenerator.AssetParams.Pair,
 		})
-	case inputType.AssignableTo(wr):
+	case argGenerator.MethodInputType.AssignableTo(wr):
 		req := &withdraw.Request{
-			Exchange:      exch.GetName(),
+			Exchange:      exchName,
 			Description:   "1337",
 			Amount:        1,
 			ClientOrderID: "1337",
 		}
-		if functionName == "WithdrawCryptocurrencyFunds" {
+		if argGenerator.MethodName == "WithdrawCryptocurrencyFunds" {
 			req.Type = withdraw.Crypto
 			switch {
-			case !isFiat(t, assetParams.Pair.Base.Item.Lower):
-				req.Currency = assetParams.Pair.Base
-			case !isFiat(t, assetParams.Pair.Quote.Item.Lower):
-				req.Currency = assetParams.Pair.Quote
+			case !isFiat(t, argGenerator.AssetParams.Pair.Base.Item.Lower):
+				req.Currency = argGenerator.AssetParams.Pair.Base
+			case !isFiat(t, argGenerator.AssetParams.Pair.Quote.Item.Lower):
+				req.Currency = argGenerator.AssetParams.Pair.Quote
 			default:
 				req.Currency = currency.ETH
 			}
@@ -628,7 +601,7 @@ func createFuncArgs(t *testing.T, exch exchange.IBotExchange, assetParams *asset
 			}
 		} else {
 			req.Type = withdraw.Fiat
-			b := exch.GetBase()
+			b := argGenerator.Exchange.GetBase()
 			if len(b.Config.BaseCurrencies) > 0 {
 				req.Currency = b.Config.BaseCurrencies[0]
 			} else {
@@ -650,7 +623,7 @@ func createFuncArgs(t *testing.T, exch exchange.IBotExchange, assetParams *asset
 					BSBNumber:           "1337",
 					BankCode:            1337,
 					SupportedCurrencies: req.Currency.String(),
-					SupportedExchanges:  exch.GetName(),
+					SupportedExchanges:  exchName,
 				},
 				IsExpressWire:                 false,
 				RequiresIntermediaryBank:      false,
@@ -667,70 +640,75 @@ func createFuncArgs(t *testing.T, exch exchange.IBotExchange, assetParams *asset
 			}
 		}
 		input = reflect.ValueOf(req)
-	case inputType.AssignableTo(os):
+	case argGenerator.MethodInputType.AssignableTo(os):
 		input = reflect.ValueOf(&order.Submit{
-			Exchange:          exch.GetName(),
+			Exchange:          exchName,
 			Type:              order.Limit,
 			Side:              order.Buy,
-			Pair:              assetParams.Pair,
-			AssetType:         assetParams.Asset,
+			Pair:              argGenerator.AssetParams.Pair,
+			AssetType:         argGenerator.AssetParams.Asset,
 			Price:             1337,
 			Amount:            1,
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
 		})
-	case inputType.AssignableTo(om):
+	case argGenerator.MethodInputType.AssignableTo(om):
 		input = reflect.ValueOf(&order.Modify{
-			Exchange:          exch.GetName(),
+			Exchange:          exchName,
 			Type:              order.Limit,
 			Side:              order.Buy,
-			Pair:              assetParams.Pair,
-			AssetType:         assetParams.Asset,
+			Pair:              argGenerator.AssetParams.Pair,
+			AssetType:         argGenerator.AssetParams.Asset,
 			Price:             1337,
 			Amount:            1,
 			ClientOrderID:     "13371337",
 			OrderID:           "1337",
 			ImmediateOrCancel: true,
 		})
-	case inputType.AssignableTo(oc):
+	case argGenerator.MethodInputType.AssignableTo(oc):
 		input = reflect.ValueOf(&order.Cancel{
-			Exchange:      exch.GetName(),
+			Exchange:      exchName,
 			Type:          order.Limit,
 			Side:          order.Buy,
-			Pair:          assetParams.Pair,
-			AssetType:     assetParams.Asset,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
 			ClientOrderID: "13371337",
 		})
-	case inputType.AssignableTo(occ):
+	case argGenerator.MethodInputType.AssignableTo(occ):
 		input = reflect.ValueOf([]order.Cancel{
 			{
-				Exchange:      exch.GetName(),
+				Exchange:      exchName,
 				Type:          order.Market,
 				Side:          order.Buy,
-				Pair:          assetParams.Pair,
-				AssetType:     assetParams.Asset,
+				Pair:          argGenerator.AssetParams.Pair,
+				AssetType:     argGenerator.AssetParams.Asset,
 				ClientOrderID: "13371337",
 			},
 		})
-	case inputType.AssignableTo(gor):
+	case argGenerator.MethodInputType.AssignableTo(gor):
 		input = reflect.ValueOf(&order.GetOrdersRequest{
 			Type:      order.AnyType,
 			Side:      order.AnySide,
 			OrderID:   "1337",
-			AssetType: assetParams.Asset,
-			Pairs:     currency.Pairs{assetParams.Pair},
+			AssetType: argGenerator.AssetParams.Asset,
+			Pairs:     currency.Pairs{argGenerator.AssetParams.Pair},
 		})
 	default:
-		input = reflect.Zero(inputType)
+		input = reflect.Zero(argGenerator.MethodInputType)
 	}
+	argGenerator.argNum++
+
 	return &input
 }
 
-func callFunction(t *testing.T, method reflect.Value, inputs []reflect.Value, exch exchange.IBotExchange, errType reflect.Type, name string) {
+// CallExchangeMethod will call an exchange's method using generated arguments
+// and determine if the error is friendly
+func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues []reflect.Value, methodName string, exch exchange.IBotExchange) {
 	t.Helper()
-	outputs := method.Call(inputs)
-	if method.Type().NumIn() == 0 {
+	errType := reflect.TypeOf(common.ErrNotYetImplemented)
+	outputs := methodToCall.Call(methodValues)
+	if methodToCall.Type().NumIn() == 0 {
 		// Some empty functions will reset the exchange struct to defaults,
 		// so turn off verbosity.
 		exch.GetBase().Verbose = false
@@ -741,7 +719,7 @@ errProcessing:
 		if reflect.TypeOf(incoming) == errType {
 			err, ok := incoming.(error)
 			if !ok {
-				t.Errorf("%s type assertion failure for %v", name, incoming)
+				t.Errorf("%s type assertion failure for %v", methodName, incoming)
 				continue
 			}
 			for z := range acceptableErrors {
@@ -749,14 +727,90 @@ errProcessing:
 					break errProcessing
 				}
 			}
-			literalInputs := make([]interface{}, len(inputs))
-			for j := range inputs {
-				literalInputs[j] = inputs[j].Interface()
+			literalInputs := make([]interface{}, len(methodValues))
+			for j := range methodValues {
+				literalInputs[j] = methodValues[j].Interface()
 			}
-			t.Errorf("Error: '%v'. Inputs: %v", err, literalInputs)
+			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
 			break
 		}
 	}
+}
+
+// assetPair holds a currency pair associated with an asset
+type assetPair struct {
+	Pair  currency.Pair
+	Asset asset.Item
+}
+
+// excludedMethodNames represent the functions that are not
+// currently tested under this suite due to irrelevance
+// or not worth checking yet
+var excludedMethodNames = map[string]struct{}{
+	"Setup":                            {}, // Is run via test setup
+	"Start":                            {}, // Is run via test setup
+	"SetDefaults":                      {}, // Is run via test setup
+	"UpdateTradablePairs":              {}, // Is run via test setup
+	"GetDefaultConfig":                 {}, // Is run via test setup
+	"FetchTradablePairs":               {}, // Is run via test setup
+	"GetCollateralCurrencyForContract": {}, // Not widely supported/implemented futures endpoint
+	"GetCurrencyForRealisedPNL":        {}, // Not widely supported/implemented futures endpoint
+	"GetFuturesPositions":              {}, // Not widely supported/implemented futures endpoint
+	"GetFundingRates":                  {}, // Not widely supported/implemented futures endpoint
+	"IsPerpetualFutureCurrency":        {}, // Not widely supported/implemented futures endpoint
+	"GetMarginRatesHistory":            {}, // Not widely supported/implemented futures endpoint
+	"CalculatePNL":                     {}, // Not widely supported/implemented futures endpoint
+	"CalculateTotalCollateral":         {}, // Not widely supported/implemented futures endpoint
+	"ScaleCollateral":                  {}, // Not widely supported/implemented futures endpoint
+	"GetPositionSummary":               {}, // Not widely supported/implemented futures endpoint
+	"AuthenticateWebsocket":            {}, // Unnecessary websocket test
+	"FlushWebsocketChannels":           {}, // Unnecessary websocket test
+	"UnsubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
+	"SubscribeToWebsocketChannels":     {}, // Unnecessary websocket test
+	"GetOrderExecutionLimits":          {}, // Not widely supported/implemented feature
+	"UpdateCurrencyStates":             {}, // Not widely supported/implemented feature
+	"UpdateOrderExecutionLimits":       {}, // Not widely supported/implemented feature
+	"CanTradePair":                     {}, // Not widely supported/implemented feature
+	"CanTrade":                         {}, // Not widely supported/implemented feature
+	"CanWithdraw":                      {}, // Not widely supported/implemented feature
+	"CanDeposit":                       {}, // Not widely supported/implemented feature
+	"GetCurrencyStateSnapshot":         {}, // Not widely supported/implemented feature
+	"SetHTTPClientUserAgent":           {}, // standard base implementation
+	"SetClientProxyAddress":            {}, // standard base implementation
+}
+
+var unsupportedExchangeNames = []string{
+	"alphapoint",
+	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
+	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
+	"itbit",    // itbit has no way of retrieving pair data
+}
+
+var acceptableErrors = []error{
+	common.ErrFunctionNotSupported,   // Shows API cannot perform function and developer has recognised this
+	asset.ErrNotSupported,            // Shows that valid and invalid asset types are handled
+	request.ErrAuthRequestFailed,     // We must set authenticated requests properly in order to understand and better handle auth failures
+	order.ErrUnsupportedOrderType,    // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
+	currency.ErrCurrencyPairEmpty,    // Demonstrates handling of EMPTYPAIR scenario and returns the correct error
+	currency.ErrCurrencyNotSupported, // Ensures a standard error is used for when a particular currency/pair is not supported by an exchange
+	asset.ErrNotEnabled,              // Allows distinction when checking for supported versus enabled
+}
+
+// getPairFromPairs prioritises more normal pairs for an increased
+// likelihood of returning data from API endpoints
+func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
+	t.Helper()
+	for i := range p {
+		if p[i].Base.Equal(currency.BTC) {
+			return p[i], nil
+		}
+	}
+	for i := range p {
+		if p[i].Base.Equal(currency.ETH) {
+			return p[i], nil
+		}
+	}
+	return p.GetRandomPair()
 }
 
 // isFiat helps determine fiat currency without using currency.storage

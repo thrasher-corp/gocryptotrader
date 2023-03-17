@@ -362,6 +362,12 @@ func (p *Poloniex) FetchOrderbook(ctx context.Context, currencyPair currency.Pai
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if c.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := p.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	callingBook := &orderbook.Base{
 		Exchange:        p.Name,
 		Pair:            c,

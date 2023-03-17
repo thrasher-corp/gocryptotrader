@@ -316,6 +316,12 @@ func (z *ZB) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asse
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := z.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        z.Name,
 		Pair:            p,
@@ -734,17 +740,17 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 	for i := range allOpenOrders {
 		p, err := currency.NewPairFromString(allOpenOrders[i].Currency)
 		if err != nil {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[allOpenOrders[i].ID] = err.Error()
 			continue
 		}
 
 		err = z.CancelOrder(ctx, &order.Cancel{
-			OrderID:   strconv.FormatInt(allOpenOrders[i].ID, 10),
+			OrderID:   allOpenOrders[i].ID,
 			Pair:      p,
 			AssetType: asset.Spot,
 		})
 		if err != nil {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[allOpenOrders[i].ID] = err.Error()
 		}
 	}
 
@@ -753,8 +759,42 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 
 // GetOrderInfo returns order information based on order ID
 func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	if err := z.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return order.Detail{}, err
+	}
+
+	resp, err := z.GetSingleOrder(ctx, orderID, "", pair)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	side := order.Sell
+	if resp.Type == 1 {
+		side = order.Buy
+	}
+	var status order.Status
+	switch resp.Status {
+	case 1:
+		status = order.Cancelled
+	case 2:
+		status = order.Closed
+	case 3:
+		status = order.Pending
+	}
+	return order.Detail{
+		Price:           resp.Price,
+		Amount:          resp.TotalAmount,
+		ExecutedAmount:  resp.TradeAmount,
+		RemainingAmount: resp.TotalAmount - resp.TradeAmount,
+		Fee:             resp.Fees,
+		FeeAsset:        pair.Quote,
+		Exchange:        z.Name,
+		OrderID:         resp.ID,
+		Side:            side,
+		Status:          status,
+		AssetType:       assetType,
+		Date:            time.Unix(resp.TradeDate, 0),
+		Pair:            pair,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -881,10 +921,10 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
+		orderDate := time.Unix(allOrders[i].TradeDate, 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders[i] = order.Detail{
-			OrderID:  strconv.FormatInt(allOrders[i].ID, 10),
+			OrderID:  allOrders[i].ID,
 			Amount:   allOrders[i].TotalAmount,
 			Exchange: z.Name,
 			Date:     orderDate,
@@ -972,7 +1012,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		detail := order.Detail{
-			OrderID:              strconv.FormatInt(allOrders[i].ID, 10),
+			OrderID:              allOrders[i].ID,
 			Amount:               allOrders[i].TotalAmount,
 			ExecutedAmount:       allOrders[i].TradeAmount,
 			RemainingAmount:      allOrders[i].TotalAmount - allOrders[i].TradeAmount,

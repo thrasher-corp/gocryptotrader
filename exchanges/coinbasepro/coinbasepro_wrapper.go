@@ -430,6 +430,12 @@ func (c *CoinbasePro) FetchOrderbook(ctx context.Context, p currency.Pair, asset
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        c.Name,
 		Pair:            p,
@@ -606,23 +612,23 @@ func (c *CoinbasePro) CancelAllOrders(ctx context.Context, _ *order.Cancel) (ord
 func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	genOrderDetail, errGo := c.GetOrder(ctx, orderID)
 	if errGo != nil {
-		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", orderID, errGo)
+		return order.Detail{}, fmt.Errorf("error retrieving order %s : %w", orderID, errGo)
 	}
 	os, errOs := order.StringToOrderStatus(genOrderDetail.Status)
 	if errOs != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order status: %s", errOs)
+		return order.Detail{}, fmt.Errorf("error parsing order status: %w", errOs)
 	}
 	tt, errOt := order.StringToOrderType(genOrderDetail.Type)
 	if errOt != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOt)
+		return order.Detail{}, fmt.Errorf("error parsing order type: %w", errOt)
 	}
 	ss, errOss := order.StringToOrderSide(genOrderDetail.Side)
 	if errOss != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errOss)
+		return order.Detail{}, fmt.Errorf("error parsing order side: %w", errOss)
 	}
 	p, errP := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
 	if errP != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errP)
+		return order.Detail{}, fmt.Errorf("error parsing order side: %w", errP)
 	}
 
 	response := order.Detail{
@@ -641,12 +647,12 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 	}
 	fillResponse, errGF := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
 	if errGF != nil {
-		return response, fmt.Errorf("error retrieving the order fills: %s", errGF)
+		return response, fmt.Errorf("error retrieving the order fills: %w", errGF)
 	}
 	for i := range fillResponse {
 		trSi, errTSi := order.StringToOrderSide(fillResponse[i].Side)
 		if errTSi != nil {
-			return response, fmt.Errorf("error parsing order Side: %s", errTSi)
+			return response, fmt.Errorf("error parsing order Side: %w", errTSi)
 		}
 		response.Trades = append(response.Trades, order.TradeHistory{
 			Timestamp: fillResponse[i].CreatedAt,
