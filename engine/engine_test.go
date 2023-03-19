@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -351,7 +352,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 			continue
 		}
 
-		exch, assetPairs := setupAllExchanges(t, name, cfg)
+		exch, assetPairs := setupExchange(t, name, cfg)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
 			t.Parallel()
 			executeExchangeWrapperTests(t, exch, assetPairs)
@@ -371,28 +372,30 @@ func TestAllExchangeWebsockets(t *testing.T) {
 		if common.StringDataContains(unsupportedExchangeNames, strings.ToLower(name)) {
 			continue
 		}
-
-		exch, assetPairs := setupAllExchanges(t, name, cfg)
-		if cfg.Exchanges[i].Features.Supports.Websocket {
-			t.Run(name+" websocket tests", func(t *testing.T) {
-				t.Parallel()
+		t.Run(name+" websocket tests", func(t *testing.T) {
+			t.Parallel()
+			exch, assetPairs := setupExchange(t, name, cfg)
+			b := exch.GetBase()
+			if b.Features.Supports.Websocket {
 				executeExchangeWebsocketTests(t, exch, assetPairs)
-			})
-		}
+			} else {
+				t.Skipf("%v does not support websocket", name)
+			}
+		})
 	}
 }
 
-func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
+func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
 	t.Helper()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(name)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v %v", name, err)
 	}
 	var exchCfg *config.Exchange
 	exchCfg, err = cfg.GetExchangeConfig(name)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v %v", name, err)
 	}
 	exch.SetDefaults()
 	exchCfg.API.AuthenticatedSupport = true
@@ -401,22 +404,22 @@ func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.
 	exchCfg.API.Credentials.ClientID = "realClientID"
 	err = exch.Setup(exchCfg)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v %v", name, err)
 	}
 
 	err = exch.UpdateTradablePairs(context.Background(), true)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v %v", name, err)
 	}
 	b := exch.GetBase()
 	assets := b.CurrencyPairs.GetAssetTypes(false)
 	if len(assets) == 0 {
-		t.Fatal(name)
+		t.Fatalf("exchange '%v' has not assets", name)
 	}
 	for j := range assets {
 		err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
 		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
-			t.Fatal(err)
+			t.Fatalf("%v %v", name, err)
 		}
 	}
 	assetPairs := make([]assetPair, len(assets)+1)
@@ -424,39 +427,39 @@ func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.
 		var pairs currency.Pairs
 		pairs, err = b.CurrencyPairs.GetPairs(assets[j], true)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%v %v", name, err)
 		}
 		var p currency.Pair
 		if len(pairs) == 0 {
 			pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
 			if err != nil {
-				t.Fatalf("GetPairs %v %v", err, assets[j])
+				t.Fatalf("%v GetPairs %v %v", name, err, assets[j])
 			}
 			p, err = getPairFromPairs(t, pairs)
 			if err != nil {
-				t.Fatalf("getPairFromPairs %v %v", err, assets[j])
+				t.Fatalf("%v getPairFromPairs %v %v", name, err, assets[j])
 			}
 			p, err = b.FormatExchangeCurrency(p, assets[j])
 			if err != nil {
-				t.Fatalf("FormatExchangeCurrency %v %v", err, assets[j])
+				t.Fatalf("%v FormatExchangeCurrency %v %v", name, err, assets[j])
 			}
 			err = b.CurrencyPairs.EnablePair(assets[j], p)
 			if err != nil {
-				t.Fatalf("EnablePair %v %v", err, assets[j])
+				t.Fatalf("%v EnablePair %v %v", name, err, assets[j])
 			}
 		} else {
 			p, err = getPairFromPairs(t, pairs)
 			if err != nil {
-				t.Fatalf("getPairFromPairs %v %v", err, assets[j])
+				t.Fatalf("%v getPairFromPairs %v %v", name, err, assets[j])
 			}
 		}
 		p, err = b.FormatExchangeCurrency(p, assets[j])
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%v %v", name, err)
 		}
 		p, err = disruptFormatting(t, p)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%v %v", name, err)
 		}
 		assetPairs[j] = assetPair{
 			Pair:  p,
@@ -470,6 +473,42 @@ func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.
 	}
 
 	return exch, assetPairs
+}
+
+// isUnacceptableError sentences errs to 10 years dungeon if unacceptable
+func isUnacceptableError(err error) error {
+	for i := range acceptableErrors {
+		if errors.Is(err, acceptableErrors[i]) {
+			return nil
+		}
+	}
+	return err
+}
+
+func readDataHandler(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) error {
+	var err error
+	defer wg.Done()
+	timer := time.NewTimer(time.Second * 30)
+	for {
+		select {
+
+		case <-timer.C:
+			return err
+		case data := <-ws.DataHandler:
+			t.Log(data)
+			switch errData := data.(type) {
+			case error:
+				if isUnacceptableError(err) != nil {
+					err = common.AppendError(err, errData)
+				}
+			}
+		default:
+			if !ws.IsConnected() {
+				err = common.AppendError(err, fmt.Errorf("%s websocket disconnected during test", ws.GetName()))
+			}
+		}
+	}
+	return err
 }
 
 func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
@@ -505,38 +544,6 @@ func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange, ass
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-// isUnacceptableError sentences errs to 10 years dungeon if unacceptable
-func isUnacceptableError(err error) error {
-	for i := range acceptableErrors {
-		if errors.Is(err, acceptableErrors[i]) {
-			return nil
-		}
-	}
-	return err
-}
-
-func readDataHandler(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) error {
-	var err error
-	defer wg.Done()
-	timer := time.NewTimer(time.Second * 10)
-	for {
-		select {
-		case <-timer.C:
-			return err
-		case data := <-ws.DataHandler:
-			t.Log(data)
-			switch errData := data.(type) {
-			case error:
-				if isUnacceptableError(err) != nil {
-					err = common.AppendError(err, errData)
-				}
-			}
-
-		}
-	}
-	return err
 }
 
 func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
