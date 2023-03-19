@@ -1097,7 +1097,6 @@ type wsEstimatedExpirationPrice struct {
 
 // wsTicker represents changes in ticker (key information about the instrument).
 type wsTicker struct {
-	Type      string              `json:"type"`
 	Timestamp deribitMilliSecTime `json:"timestamp"`
 	Stats     struct {
 		VolumeUsd   float64 `json:"volume_usd"`
@@ -1113,12 +1112,12 @@ type wsTicker struct {
 	MaxPrice               float64 `json:"max_price"`
 	MarkPrice              float64 `json:"mark_price"`
 	LastPrice              float64 `json:"last_price"`
-	InterestValue          float64 `json:"interest_value"`
 	InstrumentName         string  `json:"instrument_name"`
 	IndexPrice             float64 `json:"index_price"`
-	Funding8H              float64 `json:"funding_8h"`
+	ImpliedBid             float64 `json:"implied_bid"`
+	ImpliedAsk             float64 `json:"implied_ask"`
 	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
-	CurrentFunding         float64 `json:"current_funding"`
+	ComboState             string  `json:"combo_state"`
 	BestBidPrice           float64 `json:"best_bid_price"`
 	BestBidAmount          float64 `json:"best_bid_amount"`
 	BestAskPrice           float64 `json:"best_ask_price"`
@@ -1142,6 +1141,32 @@ type WsIncrementalTicker struct {
 	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
 	BestBidAmount          float64 `json:"best_bid_amount"`
 	BestAskAmount          float64 `json:"best_ask_amount"`
+
+	// For future_combo instruments
+	ImpliedAsk float64 `json:"implied_ask"`
+	ImpliedBid float64 `json:"implied_bid"`
+
+	UnderlyingPrice float64 `json:"underlying_price"`
+	UnderlyingIndex string  `json:"underlying_index"`
+	State           string  `json:"state"`
+	SettlementPrice float64 `json:"settlement_price"`
+	OpenInterest    float64 `json:"open_interest"`
+
+	MarkIv       float64 `json:"mark_iv"`
+	LastPrice    float64 `json:"last_price"`
+	InterestRate float64 `json:"interest_rate"`
+	Greeks       struct {
+		Vega  float64 `json:"vega"`
+		Theta float64 `json:"theta"`
+		Rho   float64 `json:"rho"`
+		Gamma float64 `json:"gamma"`
+		Delta float64 `json:"delta"`
+	} `json:"greeks"`
+	ComboState   string  `json:"combo_state"`
+	BidIv        float64 `json:"bid_iv"`
+	BestBidPrice float64 `json:"best_bid_price"`
+	BestAskPrice float64 `json:"best_ask_price"`
+	AskIv        float64 `json:"ask_iv"`
 }
 
 // wsInstrumentState represents notifications about new or terminated instruments of given kind in given currency.

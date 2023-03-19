@@ -2472,7 +2472,7 @@ func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error
 	} else if len(vals) >= 5 {
 		return asset.OptionCombo, nil
 	}
-	return asset.Empty, errUnsupportedInstrumentFormat
+	return asset.Empty, fmt.Errorf("%w currency pair: %v", errUnsupportedInstrumentFormat, currencyPair)
 }
 
 func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {

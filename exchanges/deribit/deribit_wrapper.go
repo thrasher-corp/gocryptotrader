@@ -223,7 +223,7 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 	for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
 		var instrumentsData []InstrumentData
 		var err error
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() {
 			instrumentsData, err = d.WSRetrieveInstrumentsData(x, d.GetAssetKind(assetType), false)
 		} else {
 			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
@@ -277,7 +277,7 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 	var tickerData *TickerData
-	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if d.Websocket.IsConnected() {
 		tickerData, err = d.WSRetrievePublicTicker(p.String())
 	} else {
 		tickerData, err = d.GetPublicTicker(ctx, p.String())
@@ -336,7 +336,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return nil, err
 	}
 	var obData *Orderbook
-	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if d.Websocket.IsConnected() {
 		obData, err = d.WSRetrieveOrderbookData(fmtPair.String(), 50)
 	} else {
 		obData, err = d.GetOrderbookData(ctx, fmtPair.String(), 50)
@@ -418,7 +418,7 @@ func (d *Deribit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	var currencies []CurrencyData
 	var err error
-	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if d.Websocket.IsConnected() {
 		currencies, err = d.WSRetrieveCurrencies()
 	} else {
 		currencies, err = d.GetCurrencies(ctx)

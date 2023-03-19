@@ -88,6 +88,8 @@ var (
 	}
 )
 
+var counter int64
+
 // WsConnect starts a new connection with the websocket API
 func (d *Deribit) WsConnect() error {
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
@@ -185,9 +187,6 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		if response.Params.Type == "test_request" {
-			return nil
-		}
 		return d.Websocket.Conn.SendJSONMessage(pingMessage)
 	}
 	if response.ID > 2 {
@@ -297,8 +296,8 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 
 func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 	var currencyPair currency.Pair
-	a := asset.Futures
 	var err error
+	var a asset.Item
 	switch len(channels) {
 	case 4:
 		currencyPair, err = currency.NewPairFromString(channels[2])
@@ -340,6 +339,10 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 				return err
 			}
 		}
+		a, err = guessAssetTypeFromInstrument(currencyPair)
+		if err != nil {
+			return err
+		}
 		orderDetails[x] = order.Detail{
 			Price:           orderData[x].Price,
 			Amount:          orderData[x].Amount,
@@ -369,7 +372,7 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 		return err
 	}
 	var currencyPair currency.Pair
-	a := asset.Futures
+	var a asset.Item
 	switch len(channels) {
 	case 4:
 		currencyPair, err = currency.NewPairFromString(channels[2])
@@ -391,8 +394,14 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		if a != asset.Empty {
+		if currencyPair.IsEmpty() {
 			currencyPair, err = currency.NewPairFromString(changeData.Trades[x].InstrumentName)
+			if err != nil {
+				return err
+			}
+		}
+		if a == asset.Empty {
+			a, err = guessAssetTypeFromInstrument(currencyPair)
 			if err != nil {
 				return err
 			}
@@ -431,6 +440,11 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 			if err != nil {
 				return err
 			}
+		} else {
+			a, err = guessAssetTypeFromInstrument(currencyPair)
+			if err != nil {
+				return err
+			}
 		}
 		orders[x] = order.Detail{
 			Price:           changeData.Orders[x].Price,
@@ -465,10 +479,14 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
+	a, err := guessAssetTypeFromInstrument(cp)
+	if err != nil {
+		return err
+	}
 	d.Websocket.DataHandler <- &ticker.Price{
 		ExchangeName: d.Name,
 		Pair:         cp,
-		AssetType:    asset.Futures,
+		AssetType:    a,
 		LastUpdated:  quoteTicker.Timestamp.Time(),
 		Bid:          quoteTicker.BestBidPrice,
 		Ask:          quoteTicker.BestAskPrice,
@@ -481,7 +499,7 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	var err error
 	var currencyPair currency.Pair
-	a := asset.Futures
+	var a asset.Item
 	switch {
 	case (len(channels) == 3 && channels[0] == "trades") || (len(channels) == 4 && channels[0] == "user"):
 		currencyPair, err = currency.NewPairFromString(channels[len(channels)-2])
@@ -495,6 +513,12 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		}
 	default:
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
+	if a == asset.Empty {
+		a, err = guessAssetTypeFromInstrument(currencyPair)
+		if err != nil {
+			return err
+		}
 	}
 	var response WsResponse
 	tradeList := &[]wsTrade{}
@@ -544,10 +568,14 @@ func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) er
 	if err != nil {
 		return err
 	}
+	assetType, err := guessAssetTypeFromInstrument(cp)
+	if err != nil {
+		return err
+	}
 	d.Websocket.DataHandler <- &ticker.Price{
 		ExchangeName: d.Name,
 		Pair:         cp,
-		AssetType:    asset.Futures,
+		AssetType:    assetType,
 		LastUpdated:  incrementalTicker.Timestamp.Time(),
 		BidSize:      incrementalTicker.BestBidAmount,
 		AskSize:      incrementalTicker.BestAskAmount,
@@ -555,6 +583,8 @@ func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) er
 		Low:          incrementalTicker.MinPrice,
 		Volume:       incrementalTicker.Stats.Volume,
 		QuoteVolume:  incrementalTicker.Stats.VolumeUsd,
+		Ask:          incrementalTicker.ImpliedAsk,
+		Bid:          incrementalTicker.ImpliedBid,
 	}
 	return nil
 }
@@ -571,27 +601,40 @@ func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
+	var a asset.Item
 	var response WsResponse
-	incrementalTicker := &wsTicker{}
-	response.Params.Data = incrementalTicker
+	tickerPriceResponse := &wsTicker{}
+	response.Params.Data = tickerPriceResponse
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
-	d.Websocket.DataHandler <- &ticker.Price{
+	a, err = guessAssetTypeFromInstrument(cp)
+	if err != nil {
+		return err
+	}
+	tickerPrice := &ticker.Price{
 		ExchangeName: d.Name,
 		Pair:         cp,
-		AssetType:    asset.Futures,
-		LastUpdated:  incrementalTicker.Timestamp.Time(),
-		Bid:          incrementalTicker.BestBidPrice,
-		Ask:          incrementalTicker.BestAskPrice,
-		BidSize:      incrementalTicker.BestBidAmount,
-		AskSize:      incrementalTicker.BestAskAmount,
-		Last:         incrementalTicker.LastPrice,
-		High:         incrementalTicker.Stats.High,
-		Low:          incrementalTicker.Stats.Low,
-		Volume:       incrementalTicker.Stats.Volume,
+		AssetType:    a,
+		LastUpdated:  tickerPriceResponse.Timestamp.Time(),
+		Bid:          tickerPriceResponse.BestBidPrice,
+		Ask:          tickerPriceResponse.BestAskPrice,
+		BidSize:      tickerPriceResponse.BestBidAmount,
+		AskSize:      tickerPriceResponse.BestAskAmount,
+		Last:         tickerPriceResponse.LastPrice,
+		High:         tickerPriceResponse.Stats.High,
+		Low:          tickerPriceResponse.Stats.Low,
+		Volume:       tickerPriceResponse.Stats.Volume,
 	}
+	if a != asset.Futures {
+		tickerPrice.Low = tickerPriceResponse.MinPrice
+		tickerPrice.High = tickerPriceResponse.MaxPrice
+		tickerPrice.Last = tickerPriceResponse.MarkPrice
+		tickerPrice.Ask = tickerPriceResponse.ImpliedAsk
+		tickerPrice.Bid = tickerPriceResponse.ImpliedBid
+	}
+	d.Websocket.DataHandler <- tickerPrice
 	return nil
 }
 
@@ -615,16 +658,21 @@ func (d *Deribit) processCandleChart(respRaw []byte, channels []string) error {
 		return err
 	}
 	var response WsResponse
+	var a asset.Item
 	candleData := &wsCandlestickData{}
 	response.Params.Data = candleData
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
+	a, err = guessAssetTypeFromInstrument(cp)
+	if err != nil {
+		return err
+	}
 	d.Websocket.DataHandler <- stream.KlineData{
 		Timestamp:  time.UnixMilli(candleData.Tick),
 		Pair:       cp,
-		AssetType:  asset.Futures,
+		AssetType:  a,
 		Exchange:   d.Name,
 		OpenPrice:  candleData.Open,
 		HighPrice:  candleData.High,
@@ -643,6 +691,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
+	var assetType asset.Item
 	if len(channels) == 3 {
 		cp, err := currency.NewPairFromString(channels[1])
 		if err != nil {
@@ -684,6 +733,10 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 				Amount: amount,
 			}
 		}
+		assetType, err = guessAssetTypeFromInstrument(cp)
+		if err != nil {
+			return err
+		}
 		if orderbookData.Type == "snapshot" {
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:        d.Name,
@@ -692,18 +745,22 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 				Pair:            cp,
 				Asks:            asks,
 				Bids:            bids,
-				Asset:           asset.Futures,
+				Asset:           assetType,
 			})
 		} else if orderbookData.Type == "change" {
 			return d.Websocket.Orderbook.Update(&orderbook.Update{
 				Asks:  asks,
 				Bids:  bids,
 				Pair:  cp,
-				Asset: asset.Futures,
+				Asset: assetType,
 			})
 		}
 	} else if len(channels) == 5 {
 		cp, err := currency.NewPairFromString(channels[1])
+		if err != nil {
+			return err
+		}
+		assetType, err = guessAssetTypeFromInstrument(cp)
 		if err != nil {
 			return err
 		}
@@ -747,7 +804,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			Asks:     asks,
 			Bids:     bids,
 			Pair:     cp,
-			Asset:    asset.Futures,
+			Asset:    assetType,
 			Exchange: d.Name,
 		})
 	}
@@ -769,7 +826,6 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			userTradesByKindCurrencyAndIntervalChannel,
 		)
 	}
-
 	for y := range assets {
 		pairs, err := d.GetEnabledPairs(assets[y])
 		if err != nil {
@@ -783,9 +839,6 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				switch subscriptionChannels[x] {
 				// Public channels
 				case chartTradesChannel:
-					if pairs[z].Quote.Upper().String() != "PERPETUAL" {
-						continue
-					}
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
 							Channel:  chartTradesChannel,
@@ -795,9 +848,6 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 							},
 						})
 				case incrementalTickerChannel:
-					if pairs[z].Quote.Upper().String() != "PERPETUAL" {
-						continue
-					}
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
 						Channel:  incrementalTickerChannel,
 						Currency: pairs[z],
@@ -826,7 +876,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						})
 					}
 				case tickerChannel:
-					if pairs[z].Quote.Upper().String() != "PERPETUAL" {
+					if pairs[z].Quote.Upper().String() == "PERPETUAL" {
 						continue
 					}
 					subscriptions = append(subscriptions,

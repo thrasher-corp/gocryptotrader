@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2094,12 +2093,11 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	err := d.Subscribe([]stream.ChannelSubscription{
-		{
-			Channel:  chartTradesChannel,
-			Asset:    asset.Futures,
-			Currency: futuresTradablePair,
-		}})
+	subscriptions, err := d.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = d.Subscribe(subscriptions)
 	if err != nil {
 		t.Error(err)
 	}
