@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -336,7 +338,7 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 	}
 }
 
-func TestAllExchanges(t *testing.T) {
+func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../testdata/configtest.json", true)
@@ -349,11 +351,34 @@ func TestAllExchanges(t *testing.T) {
 			continue
 		}
 
-		t.Run(name, func(t *testing.T) {
+		exch, assetPairs := setupAllExchanges(t, name, cfg)
+		t.Run(name+" wrapper tests", func(t *testing.T) {
 			t.Parallel()
-			exch, assetPairs := setupAllExchanges(t, name, cfg)
 			executeExchangeWrapperTests(t, exch, assetPairs)
 		})
+	}
+}
+
+func TestAllExchangeWebsockets(t *testing.T) {
+	t.Parallel()
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("load config error", err)
+	}
+	for i := range cfg.Exchanges {
+		name := cfg.Exchanges[i].Name
+		if common.StringDataContains(unsupportedExchangeNames, strings.ToLower(name)) {
+			continue
+		}
+
+		exch, assetPairs := setupAllExchanges(t, name, cfg)
+		if cfg.Exchanges[i].Features.Supports.Websocket {
+			t.Run(name+" websocket tests", func(t *testing.T) {
+				t.Parallel()
+				executeExchangeWebsocketTests(t, exch, assetPairs)
+			})
+		}
 	}
 }
 
@@ -443,15 +468,78 @@ func setupAllExchanges(t *testing.T, name string, cfg *config.Config) (exchange.
 		Pair:  currency.EMPTYPAIR,
 		Asset: asset.Empty,
 	}
+
 	return exch, assetPairs
 }
 
-func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
-	t.Helper()
-	var acceptableErr error
-	for i := range acceptableErrors {
-		acceptableErr = common.AppendError(acceptableErr, acceptableErrors[i])
+func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
+	b := exch.GetBase()
+	if !exch.IsWebsocketEnabled() {
+		err := b.Websocket.Enable()
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
+	ws, err := exch.GetWebsocket()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ws.IsConnected() && !ws.IsConnecting() {
+		err = ws.Connect()
+		if isUnacceptableError(err) != nil {
+			t.Fatal(err)
+		}
+	}
+	// auth functions not purpose of test
+	ws.SetCanUseAuthenticatedEndpoints(false)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) {
+		err = readDataHandler(t, ws, wg)
+		if err != nil {
+			t.Error(err)
+		}
+	}(t, ws, &wg)
+	wg.Wait()
+	err = ws.Shutdown()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// isUnacceptableError sentences errs to 10 years dungeon if unacceptable
+func isUnacceptableError(err error) error {
+	for i := range acceptableErrors {
+		if errors.Is(err, acceptableErrors[i]) {
+			return nil
+		}
+	}
+	return err
+}
+
+func readDataHandler(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) error {
+	var err error
+	defer wg.Done()
+	timer := time.NewTimer(time.Second * 10)
+	for {
+		select {
+		case <-timer.C:
+			return err
+		case data := <-ws.DataHandler:
+			t.Log(data)
+			switch errData := data.(type) {
+			case error:
+				if isUnacceptableError(err) != nil {
+					err = common.AppendError(err, errData)
+				}
+			}
+
+		}
+	}
+	return err
+}
+
+func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
 
@@ -705,7 +793,6 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 // CallExchangeMethod will call an exchange's method using generated arguments
 // and determine if the error is friendly
 func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues []reflect.Value, methodName string, exch exchange.IBotExchange) {
-	t.Helper()
 	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 	outputs := methodToCall.Call(methodValues)
 	if methodToCall.Type().NumIn() == 0 {
@@ -713,7 +800,6 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		// so turn off verbosity.
 		exch.GetBase().Verbose = false
 	}
-errProcessing:
 	for i := range outputs {
 		incoming := outputs[i].Interface()
 		if reflect.TypeOf(incoming) == errType {
@@ -722,16 +808,13 @@ errProcessing:
 				t.Errorf("%s type assertion failure for %v", methodName, incoming)
 				continue
 			}
-			for z := range acceptableErrors {
-				if errors.Is(err, acceptableErrors[z]) {
-					break errProcessing
+			if isUnacceptableError(err) != nil {
+				literalInputs := make([]interface{}, len(methodValues))
+				for j := range methodValues {
+					literalInputs[j] = methodValues[j].Interface()
 				}
+				t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
 			}
-			literalInputs := make([]interface{}, len(methodValues))
-			for j := range methodValues {
-				literalInputs[j] = methodValues[j].Interface()
-			}
-			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
 			break
 		}
 	}

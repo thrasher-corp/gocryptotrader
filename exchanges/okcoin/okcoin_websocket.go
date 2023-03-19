@@ -628,7 +628,7 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 		if assets[x] != asset.Spot {
 			o.Websocket.DataHandler <- fmt.Errorf("%w %v", asset.ErrNotSupported, assets[x])
-			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assets[x])
+			continue
 		}
 		channels := defaultSpotSubscribedChannels
 		if o.IsWebsocketAuthenticationSupported() {
