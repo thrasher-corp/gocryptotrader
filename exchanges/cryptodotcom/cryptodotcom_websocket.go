@@ -46,8 +46,8 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	// instrumentOrderbookCnl,
-	// tickerCnl,
+	instrumentOrderbookCnl,
+	tickerCnl,
 	tradeCnl,
 	candlestickCnl,
 }

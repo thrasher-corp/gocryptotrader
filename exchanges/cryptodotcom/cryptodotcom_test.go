@@ -355,7 +355,8 @@ func TestGetTransactions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInfoNotProvided)
 	}
-	_, err := cr.GetTransactions(context.Background(), "BTC-USDT", "", time.Time{}, time.Time{}, 20)
+	cr.Verbose = true
+	_, err := cr.GetTransactions(context.Background(), "BTCUSD-PERP", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -366,7 +367,7 @@ func TestCreateSubAccountTransfer(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
 	}
-	err := cr.CreateSubAccountTransfer(context.Background(), "bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfavf", core.BitcoinDonationAddress, currency.USDT, 1232)
+	err := cr.CreateSubAccountTransfer(context.Background(), "destination_address", core.BitcoinDonationAddress, currency.USDT, 1232)
 	if err != nil {
 		t.Error(err)
 	}
@@ -724,7 +725,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+		t.Skip(credInfoNotProvided)
 	}
 	_, err := cr.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Amount:   10,
