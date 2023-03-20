@@ -37,31 +37,31 @@ const (
 	priceStatisticsChannel                 = "deribit_price_statistics"
 	volatilityIndexChannel                 = "deribit_volatility_index"
 	estimatedExpirationPriceChannel        = "estimated_expiration_price"
-	incrementalTickerChannel               = "incremental_ticker.%s"
-	instrumentStateChannel                 = "instrument.state.%s.%s" // %s.%s represents kind.currency
+	incrementalTickerChannel               = "incremental_ticker"
+	instrumentStateChannel                 = "instrument.state" // %s.%s represents kind.currency
 	markPriceOptionsChannel                = "markprice.options"
-	perpetualChannel                       = "perpetual.%s.%s" // %s.%s instrument_name.interval
+	perpetualChannel                       = "perpetual." // %s.%s instrument_name.interval
 	platformStateChannel                   = "platform_state"
 	platformStatePublicMethodsStateChannel = "platform_state.public_methods_state"
-	quoteChannel                           = "quote.%s" // %s representing instrument_name
+	quoteChannel                           = "quote" // %s representing instrument_name
 	requestForQuoteChannel                 = "rfq"
-	tickerChannel                          = "ticker.%s.%s"    // %s.%s instrument_name.interval
-	tradesChannel                          = "trades.%s.%s"    // %s.%s instrument_name.interval
-	tradesWithKindChannel                  = "trades.%s.%s.%s" // %s.%s.%s kind.currency.interval
+	tickerChannel                          = "ticker." // %s.%s instrument_name.interval
+	tradesChannel                          = "trades." // %s.%s instrument_name.interval
+	tradesWithKindChannel                  = "trades"  // %s.%s.%s kind.currency.interval
 
 	// private websocket channels
 	userAccessLogChannel                             = "user.access_log"
-	userChangesInstrumentsChannel                    = "user.changes.%s.%s"    // %s.%s instrument_name.interval
-	userChangesCurrencyChannel                       = "user.changes.%s.%s.%s" // %s.%s kind.currency.interval
+	userChangesInstrumentsChannel                    = "user.changes." // %s.%s instrument_name.interval
+	userChangesCurrencyChannel                       = "user.changes"  // %s.%s kind.currency.interval
 	userLockChannel                                  = "user.lock"
 	userMMPTriggerChannel                            = "user.mmp_trigger"
 	rawUserOrdersChannel                             = "user.orders.%s.raw"
-	userOrdersWithIntervalChannel                    = "user.orders.%s.%s"     // %s.%s represents instrument_name.interval
+	userOrdersWithIntervalChannel                    = "user.orders."          // %s.%s represents instrument_name.interval
 	rawUsersOrdersKindCurrencyChannel                = "user.orders.%s.%s.raw" // %s.%s represents kind.currency
-	rawUsersOrdersWithKindCurrencyAndIntervalChannel = "user.orders.%s.%s.%s"  // %s.%s.%s represents kind.currency.interval
+	rawUsersOrdersWithKindCurrencyAndIntervalChannel = "user.orders"           // %s.%s.%s represents kind.currency.interval
 	userPortfolioChannel                             = "user.portfolio"
-	userTradesChannelByInstrument                    = "user.trades.%s.%s"    // %s.%s instrument_name.interval
-	userTradesByKindCurrencyAndIntervalChannel       = "user.trades.%s.%s.%s" // %s.%s.%s represents kind.currency.interval
+	userTradesChannelByInstrument                    = "user.trades." // %s.%s instrument_name.interval
+	userTradesByKindCurrencyAndIntervalChannel       = "user.trades"  // %s.%s.%s represents kind.currency.interval
 )
 
 var defaultSubscriptions = []string{
@@ -87,8 +87,6 @@ var (
 		},
 	}
 )
-
-var counter int64
 
 // WsConnect starts a new connection with the websocket API
 func (d *Deribit) WsConnect() error {
@@ -1016,21 +1014,31 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 				return nil, errUnsupportedIndexName
 			}
 			subscription.Params["channels"] = []string{subscs[x].Channel + "." + indexName}
-		case instrumentStateChannel,
-			rawUsersOrdersKindCurrencyChannel:
+		case instrumentStateChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
 			currencyCode := subscs[x].Currency.Base.Upper().String()
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
-			subscription.Params["channels"] = []string{fmt.Sprintf(subscs[x].Channel, kind, currencyCode)}
+			subscription.Params["channels"] = []string{"instrument.state." + kind + "." + currencyCode}
+		case rawUsersOrdersKindCurrencyChannel:
+			kind := d.GetAssetKind(subscs[x].Asset)
+			currencyCode := subscs[x].Currency.Base.Upper().String()
+			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
+				currencyCode = "any"
+			}
+			subscription.Params["channels"] = []string{"user.orders." + kind + "." + currencyCode + ".raw"}
 		case quoteChannel,
-			rawUserOrdersChannel,
 			incrementalTickerChannel:
 			if subscs[x].Currency.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
-			subscription.Params["channels"] = []string{fmt.Sprintf(subscs[x].Channel, subscs[x].Currency.String())}
+			subscription.Params["channels"] = []string{subscs[x].Channel + "." + subscs[x].Currency.String()}
+		case rawUserOrdersChannel:
+			if subscs[x].Currency.IsEmpty() {
+				return nil, currency.ErrCurrencyPairEmpty
+			}
+			subscription.Params["channels"] = []string{"user.orders." + subscs[x].Currency.String() + ".raw"}
 		case requestForQuoteChannel,
 			userMMPTriggerChannel,
 			userPortfolioChannel:
@@ -1052,7 +1060,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if !okay {
 				interval = "raw"
 			}
-			subscription.Params["channels"] = []string{fmt.Sprintf(subscs[x].Channel, subscs[x].Currency.String(), interval)}
+			subscription.Params["channels"] = []string{subscs[x].Channel + subscs[x].Currency.String() + "." + interval}
 		case userChangesCurrencyChannel,
 			tradesWithKindChannel,
 			rawUsersOrdersWithKindCurrencyAndIntervalChannel,
@@ -1066,7 +1074,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if !okay {
 				interval = "raw"
 			}
-			subscription.Params["channels"] = []string{fmt.Sprintf(subscs[x].Channel, kind, currencyCode, interval)}
+			subscription.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode + "." + interval}
 		default:
 			return nil, errUnsupportedChannel
 		}
@@ -1118,7 +1126,7 @@ func (d *Deribit) handleSubscription(operation string, channels []stream.Channel
 			return fmt.Errorf("%v %v", d.Name, err)
 		}
 		if payloads[x].ID == response.ID && len(response.Result) == 0 {
-			log.Error(log.ExchangeSys, fmt.Sprintf("subscription to channel %s was not successful", payloads[x].Params["channels"][0]))
+			log.Errorf(log.ExchangeSys, "subscription to channel %s was not successful", payloads[x].Params["channels"][0])
 		}
 	}
 	return nil
