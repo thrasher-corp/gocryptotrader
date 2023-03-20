@@ -111,8 +111,8 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 				// Need to deploy a context.Context value as nil value is not
 				// checked throughout codebase. Cancelled to minimise external
 				// calls and speed up operation.
-				cancelled, fn := context.WithTimeout(context.Background(), 0)
-				defer fn()
+				cancelled, cancelfn := context.WithTimeout(context.Background(), 0)
+				cancelfn()
 				inputs[y] = reflect.ValueOf(cancelled)
 				continue
 			}
