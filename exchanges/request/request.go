@@ -84,7 +84,7 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 	atomic.AddInt32(&r.jobs, 1)
 	err := r.doRequest(ctx, ep, newRequest)
 	atomic.AddInt32(&r.jobs, -1)
-	if isAuth {
+	if err != nil && isAuth {
 		err = common.AppendError(err, ErrAuthRequestFailed)
 	}
 	return err

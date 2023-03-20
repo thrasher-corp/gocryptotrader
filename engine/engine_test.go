@@ -491,11 +491,9 @@ func readDataHandler(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) err
 	timer := time.NewTimer(time.Second * 30)
 	for {
 		select {
-
 		case <-timer.C:
 			return err
 		case data := <-ws.DataHandler:
-			t.Log(data)
 			switch errData := data.(type) {
 			case error:
 				if isUnacceptableError(err) != nil {
@@ -883,6 +881,7 @@ var acceptableErrors = []error{
 	order.ErrUnsupportedOrderType,    // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
 	currency.ErrCurrencyPairEmpty,    // Demonstrates handling of EMPTYPAIR scenario and returns the correct error
 	currency.ErrCurrencyNotSupported, // Ensures a standard error is used for when a particular currency/pair is not supported by an exchange
+	currency.ErrCurrencyNotFound,     // Semi-randomly selected currency pairs may not be found at an endpoint, so long as this is returned it is okay
 	asset.ErrNotEnabled,              // Allows distinction when checking for supported versus enabled
 }
 

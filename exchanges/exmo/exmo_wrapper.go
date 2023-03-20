@@ -803,7 +803,7 @@ func (e *EXMO) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 
 	methods, ok := chains[cryptocurrency.Upper().String()]
 	if !ok {
-		return nil, errors.New("no available chains")
+		return nil, fmt.Errorf("%w no available chains for %v", currency.ErrCurrencyNotFound, cryptocurrency)
 	}
 
 	var availChains []string

@@ -6,6 +6,7 @@
 package binance
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -60,5 +61,7 @@ func TestMain(m *testing.M) {
 	}
 	request.MaxRequestJobs = 100
 	log.Printf(sharedtestvalues.MockTesting, b.Name)
+	b.UpdateTradablePairs(context.Background(), true)
+
 	os.Exit(m.Run())
 }

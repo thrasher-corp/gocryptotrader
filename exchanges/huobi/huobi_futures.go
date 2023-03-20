@@ -1198,14 +1198,12 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	var errCap errorCapture
-	if err := json.Unmarshal(tempResp, &errCap); err == nil {
+	if err = json.Unmarshal(tempResp, &errCap); err == nil {
 		if errCap.ErrMsgType1 != "" {
-			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType1,
-				errors.New(errCap.ErrMsgType1))
+			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType1, errCap.ErrMsgType1)
 		}
 		if errCap.ErrMsgType2 != "" {
-			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType2,
-				errors.New(errCap.ErrMsgType2))
+			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType2, errCap.ErrMsgType2)
 		}
 	}
 	return json.Unmarshal(tempResp, result)

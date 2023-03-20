@@ -683,7 +683,7 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 		if !response.Success {
-			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.OrderID)
+			return fmt.Errorf("%w %v %v", request.ErrAuthRequestFailed, o.OrderID, response.Message)
 		}
 		return nil
 	}
@@ -812,7 +812,7 @@ func (z *ZB) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code
 				}, nil
 			}
 		}
-		return nil, fmt.Errorf("%s does not support chain %s", cryptocurrency.String(), chain)
+		return nil, fmt.Errorf("%w %s does not support chain %s", request.ErrAuthRequestFailed, cryptocurrency.String(), chain)
 	}
 	address, err := z.GetCryptoAddress(ctx, cryptocurrency)
 	if err != nil {

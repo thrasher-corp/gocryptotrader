@@ -414,18 +414,18 @@ type BalanceHistory struct {
 
 // MovementHistory holds deposit and withdrawal history data
 type MovementHistory struct {
-	ID               int64     `json:"id"`
-	TxID             int64     `json:"txid"`
-	Currency         string    `json:"currency"`
-	Method           string    `json:"method"`
-	Type             string    `json:"withdrawal"`
-	Amount           float64   `json:"amount,string"`
-	Description      string    `json:"description"`
-	Address          string    `json:"address"`
-	Status           string    `json:"status"`
-	Timestamp        time.Time `json:"timestamp"`
-	TimestampCreated time.Time `json:"timestamp_created"`
-	Fee              float64   `json:"fee"`
+	ID               int64   `json:"id"`
+	TxID             string  `json:"txid"`
+	Currency         string  `json:"currency"`
+	Method           string  `json:"method"`
+	Type             string  `json:"withdrawal"`
+	Amount           float64 `json:"amount,string"`
+	Description      string  `json:"description"`
+	Address          string  `json:"address"`
+	Status           string  `json:"status"`
+	Timestamp        float64 `json:"timestamp"`
+	TimestampCreated float64 `json:"timestamp_created"`
+	Fee              float64 `json:"fee"`
 }
 
 // TradeHistory holds trade history data

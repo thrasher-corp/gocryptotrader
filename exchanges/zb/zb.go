@@ -73,7 +73,7 @@ func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (i
 		return 0, err
 	}
 	if result.Code != 1000 {
-		return 0, fmt.Errorf("unsuccessful new order, message: %s code: %d", result.Message, result.Code)
+		return 0, fmt.Errorf("%w unsuccessful new order, message: %s code: %d", request.ErrAuthRequestFailed, result.Message, result.Code)
 	}
 	newOrderID, err := strconv.ParseInt(result.ID, 10, 64)
 	if err != nil {
@@ -139,7 +139,7 @@ func (z *ZB) CancelExistingOrder(ctx context.Context, orderID int64, symbol stri
 	}
 
 	if result.Code != 1000 {
-		return errors.New(result.Message)
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Message)
 	}
 	return nil
 }
@@ -174,8 +174,7 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(ctx context.Context, currency st
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("pageSize", strconv.FormatInt(pagesize, 10))
 
-	err = z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
-	return result, err
+	return result, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 }
 
 // GetOrders returns finished orders
@@ -218,7 +217,6 @@ func (z *ZB) GetSingleOrder(ctx context.Context, orderID, customerOrderID string
 	}
 
 	return &response, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &response, request.Auth)
-
 }
 
 // GetMarkets returns market information including pricing, symbols and
@@ -484,7 +482,8 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.Code > 1000 {
-			return fmt.Errorf("error code: %d error code message: %s error message: %s",
+			return fmt.Errorf("%w error code: %d error code message: %s error message: %s",
+				request.ErrAuthRequestFailed,
 				errCap.Code,
 				errorCode[errCap.Code],
 				errCap.Message)
@@ -586,7 +585,7 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 		return "", err
 	}
 	if resp.Code != 1000 {
-		return "", errors.New(resp.Message)
+		return "", fmt.Errorf("%w %v", request.ErrAuthRequestFailed, resp.Message)
 	}
 
 	return resp.ID, nil

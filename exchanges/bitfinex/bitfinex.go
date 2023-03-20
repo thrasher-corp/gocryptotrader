@@ -40,12 +40,12 @@ const (
 	bitfinexOrderCancelAll     = "order/cancel/all"
 	bitfinexOrderCancelReplace = "order/cancel/replace"
 	bitfinexOrderStatus        = "order/status"
-	bitfinexInactiveOrders     = "orders/hist"
+	bitfinexInactiveOrders     = "hist"
 	bitfinexOrders             = "orders"
 	bitfinexPositions          = "positions"
 	bitfinexClaimPosition      = "position/claim"
 	bitfinexHistory            = "history"
-	bitfinexHistoryMovements   = "history/movements"
+	bitfinexHistoryMovements   = "movements"
 	bitfinexTradeHistory       = "mytrades"
 	bitfinexOfferNew           = "offer/new"
 	bitfinexOfferCancel        = "offer/cancel"
@@ -66,12 +66,14 @@ const (
 	bitfinexV2AccountInfo   = "auth/r/info/user"
 	bitfinexV2MarginInfo    = "auth/r/info/margin/"
 	bitfinexV2FundingInfo   = "auth/r/info/funding/%s"
+	bitfinexV2Auth          = "auth/"
 	bitfinexDerivativeData  = "status/deriv?"
 	bitfinexPlatformStatus  = "platform/status"
 	bitfinexTickerBatch     = "tickers"
 	bitfinexTicker          = "ticker/"
 	bitfinexTrades          = "trades/"
 	bitfinexOrderbook       = "book/"
+	bitfinexHistoryShirt    = "hist"
 	bitfinexStatistics      = "stats1/"
 	bitfinexCandles         = "candles/trade"
 	bitfinexKeyPermissions  = "key_info"
@@ -1582,15 +1584,18 @@ func (b *Bitfinex) GetOrderStatus(ctx context.Context, orderID int64) (Order, er
 }
 
 // GetInactiveOrders returns order status information
-func (b *Bitfinex) GetInactiveOrders(ctx context.Context, IDs ...int64) ([]Order, error) {
+func (b *Bitfinex) GetInactiveOrders(ctx context.Context, symbol string, IDs ...int64) ([]Order, error) {
 	var response []Order
 	req := make(map[string]interface{})
-	req["limit"] = "100"
+	req["limit"] = 2500
 	if len(IDs) > 0 {
 		req["ids"] = IDs
 	}
-	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		bitfinexInactiveOrders,
+	return response, b.SendAuthenticatedHTTPRequestV2(
+		ctx,
+		exchange.RestSpot,
+		http.MethodPost,
+		bitfinexV2Auth+"r/"+bitfinexOrders+"/"+symbol+"/"+bitfinexInactiveOrders,
 		req,
 		&response,
 		orderMulti)
@@ -1662,7 +1667,7 @@ func (b *Bitfinex) GetBalanceHistory(ctx context.Context, symbol string, timeSin
 
 // GetMovementHistory returns an array of past deposits and withdrawals
 func (b *Bitfinex) GetMovementHistory(ctx context.Context, symbol, method string, timeSince, timeUntil time.Time, limit int) ([]MovementHistory, error) {
-	var response []MovementHistory
+	var response [][]interface{}
 	req := make(map[string]interface{})
 	req["currency"] = symbol
 
@@ -1679,11 +1684,80 @@ func (b *Bitfinex) GetMovementHistory(ctx context.Context, symbol, method string
 		req["limit"] = limit
 	}
 
-	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		bitfinexHistoryMovements,
+	err := b.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
+		"auth/r/"+bitfinexHistoryMovements+"/"+symbol+"/"+bitfinexHistoryShirt,
 		req,
 		&response,
 		orderMulti)
+	if err != nil {
+		return nil, err
+	}
+	var resp []MovementHistory
+	var ok bool
+	for i := range response {
+		var move MovementHistory
+		for j := range response[i] {
+			if response[i][j] == nil {
+				continue
+			}
+			switch j {
+			case 0:
+				var id float64
+				id, ok = response[i][j].(float64)
+				if !ok {
+					return nil, fmt.Errorf("unable to type ID")
+				}
+				move.ID = int64(id)
+			case 1:
+				move.Currency, ok = response[i][j].(string)
+				if !ok {
+					return nil, fmt.Errorf("unable to type CURRENCY")
+				}
+			case 5:
+				move.TimestampCreated, ok = response[i][j].(float64)
+				if !ok {
+					return nil, fmt.Errorf("unable to type MTS_STARTED")
+				}
+			case 6:
+				move.Timestamp, ok = response[i][j].(float64)
+				if !ok {
+					return nil, fmt.Errorf("unable to type MTS_UPDATED")
+				}
+			case 9:
+				move.Status, ok = response[i][j].(string)
+				if !ok {
+					return nil, fmt.Errorf("unable to type STATUS")
+				}
+			case 12:
+				move.Amount, ok = response[i][j].(float64)
+				if !ok {
+					return nil, fmt.Errorf("unable to type AMOUNT")
+				}
+			case 13:
+				move.Fee, ok = response[i][j].(float64)
+				if !ok {
+					return nil, fmt.Errorf("unable to type FEE")
+				}
+			case 16:
+				move.Address, ok = response[i][j].(string)
+				if !ok {
+					return nil, fmt.Errorf("unable to type DESTINATION_ADDRESS")
+				}
+			case 20:
+				move.TxID, ok = response[i][j].(string)
+				if !ok {
+					return nil, fmt.Errorf("unable to type TRANSACTION_ID")
+				}
+			case 21:
+				move.Description, ok = response[i][j].(string)
+				if !ok {
+					return nil, fmt.Errorf("unable to type WITHDRAW_TRANSACTION_NOTE")
+				}
+			}
+		}
+		resp = append(resp, move)
+	}
+	return resp, nil
 }
 
 // GetTradeHistory returns past executed trades

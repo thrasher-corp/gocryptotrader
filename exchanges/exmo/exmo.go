@@ -2,7 +2,6 @@ package exmo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -215,15 +214,11 @@ func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, 
 	case map[string]interface{}:
 		mapString := make(map[string]string)
 		for key, value := range r {
-			v, ok := value.(string)
-			if !ok {
-				return nil, errors.New("unable to type assert value data")
-			}
-			mapString[key] = v
+			mapString[key] = fmt.Sprintf("%v", value)
 		}
 		return mapString, nil
 	default:
-		return nil, errors.New("no addresses found, generate required addresses via site")
+		return nil, fmt.Errorf("%w no addresses found, generate via website", request.ErrAuthRequestFailed)
 	}
 }
 

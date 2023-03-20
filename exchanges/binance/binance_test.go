@@ -2417,18 +2417,30 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	b.HTTPRecording = true
+	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := startTime.Add(time.Hour * 24 * 7)
+	bAssets := b.GetAssetTypes(false)
+	for i := range bAssets {
+		cps, err := b.GetAvailablePairs(bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
+		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = b.GetHistoricCandles(context.Background(), cps[0], bAssets[i], kline.OneDay, startTime, end)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
 	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
-	if err != nil {
-		t.Error(err)
-	}
-
+	startTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
 	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
 		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
@@ -2437,17 +2449,23 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTC-USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
-	if err != nil {
-		t.Error(err)
+	b.HTTPRecording = true
+	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := startTime.Add(time.Hour * 24 * 7)
+	bAssets := b.GetAssetTypes(false)
+	for i := range bAssets {
+		cps, err := b.GetAvailablePairs(bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
+		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = b.GetHistoricCandlesExtended(context.Background(), cps[0], bAssets[i], kline.OneDay, startTime, end)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -2494,15 +2512,19 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
+	bAssets := b.GetAssetTypes(false)
+	for i := range bAssets {
+		cps, err := b.GetAvailablePairs(bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
+		_, err = b.GetRecentTrades(context.Background(),
+			cps[0], bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
 	}
-	_, err = b.GetRecentTrades(context.Background(),
-		currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {

@@ -445,16 +445,24 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if areTestAPIKeysSet() {
-		_, err := e.GetDepositAddress(context.Background(), currency.USDT, "", "ERC20")
-		if err != nil {
-			t.Error("GetDepositAddress() error", err)
-		}
-	} else {
-		_, err := e.GetDepositAddress(context.Background(), currency.LTC, "", "")
-		if err == nil {
-			t.Error("GetDepositAddress() error cannot be nil")
-		}
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	_, err := e.GetDepositAddress(context.Background(), currency.USDT, "", "ERC20")
+	if err != nil {
+		t.Error("GetDepositAddress() error", err)
+	}
+}
+
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	_, err := e.GetCryptoDepositAddress(context.Background())
+	if err != nil {
+		t.Error(err)
 	}
 }
 

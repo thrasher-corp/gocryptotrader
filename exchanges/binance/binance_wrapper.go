@@ -828,12 +828,7 @@ func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 	}
 
 	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
-	var tm time.Time
 	for i := range withdrawals {
-		tm, err = time.Parse(binanceSAPITimeLayout, withdrawals[i].ApplyTime)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 			TransferID:      withdrawals[i].ID,
@@ -843,7 +838,7 @@ func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 			CryptoToAddress: withdrawals[i].Address,
 			CryptoTxID:      withdrawals[i].TransactionID,
 			CryptoChain:     withdrawals[i].Network,
-			Timestamp:       tm,
+			Timestamp:       withdrawals[i].ApplyTime.Time(),
 		}
 	}
 
@@ -1746,7 +1741,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	switch a {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		var candles []CandleStick
 		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
@@ -1827,7 +1822,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		switch a {
-		case asset.Spot:
+		case asset.Spot, asset.Margin:
 			var candles []CandleStick
 			candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
 				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),

@@ -886,7 +886,6 @@ func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Pair:            pair,
 			AssetType:       assetType,
 		}, nil
-
 	}
 	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }

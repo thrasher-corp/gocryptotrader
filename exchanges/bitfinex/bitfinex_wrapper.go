@@ -576,13 +576,13 @@ func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a
 			Status:          history[i].Status,
 			TransferID:      strconv.FormatInt(history[i].ID, 10),
 			Description:     history[i].Description,
-			Timestamp:       history[i].Timestamp,
+			Timestamp:       time.Unix(int64(history[i].Timestamp), 0),
 			Currency:        history[i].Currency,
 			Amount:          history[i].Amount,
 			Fee:             history[i].Fee,
 			TransferType:    history[i].Type,
 			CryptoToAddress: history[i].Address,
-			CryptoTxID:      strconv.FormatInt(history[i].TxID, 10),
+			CryptoTxID:      history[i].TxID,
 		}
 	}
 	return resp, nil
@@ -860,7 +860,15 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return order.Detail{}, err
 	}
-	resp, err := b.GetInactiveOrders(ctx, id)
+
+	b.appendOptionalDelimiter(&pair)
+	var cf string
+	cf, err = b.fixCasing(pair, assetType)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	resp, err := b.GetInactiveOrders(ctx, cf, id)
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -1051,24 +1059,31 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	resp, err := b.GetInactiveOrders(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	orders := make([]order.Detail, len(resp))
-	for i := range resp {
-		var orderDetail order.Detail
-		orderDetail, err = b.parseOrderToOrderDetail(resp[i])
+	var orders []order.Detail
+	for i := range req.Pairs {
+		b.appendOptionalDelimiter(&req.Pairs[i])
+		var cf string
+		cf, err = b.fixCasing(req.Pairs[i], req.AssetType)
 		if err != nil {
 			return nil, err
 		}
-		orders[i] = orderDetail
+
+		var resp []Order
+		resp, err = b.GetInactiveOrders(ctx, cf)
+		if err != nil {
+			return nil, err
+		}
+
+		for j := range resp {
+			var orderDetail order.Detail
+			orderDetail, err = b.parseOrderToOrderDetail(resp[j])
+			if err != nil {
+				return nil, err
+			}
+			orders = append(orders, orderDetail)
+		}
 	}
 
-	for i := range req.Pairs {
-		b.appendOptionalDelimiter(&req.Pairs[i])
-	}
 	return req.Filter(b.Name, orders), nil
 }
 

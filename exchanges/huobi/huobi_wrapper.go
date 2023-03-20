@@ -1358,7 +1358,11 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			})
 		}
 	case asset.Futures:
-		orderInfo, err := h.FGetOrderInfo(ctx, "", orderID, "")
+		fPair, err := h.FormatSymbol(pair, asset.Futures)
+		if err != nil {
+			return order.Detail{}, err
+		}
+		orderInfo, err := h.FGetOrderInfo(ctx, fPair, orderID, "")
 		if err != nil {
 			return orderDetail, err
 		}
