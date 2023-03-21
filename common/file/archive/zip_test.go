@@ -57,9 +57,16 @@ func TestZip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Base(o[0]) != "binance.json" {
-		t.Fatal("unexpected archive result received")
+	var found bool
+	for i := range o {
+		if filepath.Base(o[i]) == "binance.json" {
+			found = true
+		}
 	}
+	if !found {
+		t.Fatal("could not find file in zip")
+	}
+
 	if expected := 6; len(o) != expected {
 		t.Fatalf("expected %v files to be extracted received: %v ", expected, len(o))
 	}

@@ -1920,7 +1920,7 @@ func TestNewBacktesterFromConfigs(t *testing.T) {
 
 	bt, err := NewBacktesterFromConfigs(cfg, dc)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	if bt.MetaData.DateLoaded.IsZero() {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateLoaded, "a date")

@@ -20127,6 +20127,18 @@
     }
    ]
   },
+  "/timestamp": {
+   "GET": [
+    {
+     "data": {
+      "serverTime": 1679366387677
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/tradingApi": {
    "POST": [
     {

@@ -443,7 +443,7 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHisto
 		totalPages := int64(1)
 		for y := int64(0); y < totalPages; y++ {
 			deposits, err := z.GetDepositRecords(ctx, &WalletRecordsRequest{
-				Currency:  currs[x].String(),
+				Currency:  currs[x],
 				PageIndex: y,
 			})
 			if err != nil {
@@ -479,7 +479,7 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHisto
 		totalPages := int64(1)
 		for y := int64(0); y < totalPages; y++ {
 			withdrawals, err := z.GetWithdrawalRecords(ctx, &WalletRecordsRequest{
-				Currency:  currs[x].String(),
+				Currency:  currs[x],
 				PageIndex: y,
 			})
 			if err != nil {
@@ -527,7 +527,7 @@ func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset
 	var records []exchange.WithdrawalHistory
 	for y := int64(0); y < totalPages; y++ {
 		withdrawals, err := z.GetWithdrawalRecords(ctx, &WalletRecordsRequest{
-			Currency:  c.String(),
+			Currency:  c,
 			PageIndex: y,
 		})
 		if err != nil {

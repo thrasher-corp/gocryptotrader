@@ -73,10 +73,14 @@ func (l *Lbank) GetTicker(ctx context.Context, symbol string) (TickerResponse, e
 }
 
 // GetTimestamp returns a timestamp
-func (l *Lbank) GetTimestamp(ctx context.Context) (TimestampResponse, error) {
+func (l *Lbank) GetTimestamp(ctx context.Context) (time.Time, error) {
 	var resp TimestampResponse
 	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion2, lbankTimestamp)
-	return resp, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.UnixMilli(resp.Timestamp), nil
 }
 
 // GetTickers returns all tickers

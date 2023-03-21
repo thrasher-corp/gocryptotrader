@@ -447,7 +447,7 @@ func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ctx context.Context, ord *ord
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
     return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

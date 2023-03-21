@@ -679,7 +679,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
-	if !errors.Is(err, common.ErrNotYetImplemented) {
+	if !errors.Is(err, nil) {
 		t.Fatal(err)
 	}
 }
@@ -1071,5 +1071,90 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	_, err := p.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWalletActivity(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := p.WalletActivity(context.Background(), time.Now().Add(-time.Minute), time.Now(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelMultipleOrdersByIDs(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := p.CancelMultipleOrdersByIDs(context.Background(), []string{"1234"}, []string{"5678"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := p.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := p.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip()
+	}
+	_, err := p.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTimestamp(t *testing.T) {
+	t.Parallel()
+	st, err := p.GetTimestamp(context.Background())
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Error("expected a time")
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := p.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Error("expected a time")
 	}
 }

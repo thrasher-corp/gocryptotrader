@@ -610,3 +610,36 @@ func TestGetStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTimestamp(t *testing.T) {
+	t.Parallel()
+	tt, err := l.GetTimestamp(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	if tt.IsZero() {
+		t.Error("expected time")
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	tt, err := l.GetServerTime(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if tt.IsZero() {
+		t.Error("expected time")
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := l.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}

@@ -484,7 +484,6 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	}
 
 	// out of order
-	holder.verbose = true
 	err = holder.Update(&orderbook.Update{
 		Asks:     []orderbook.Item{{Price: 999999}},
 		Pair:     cp,

@@ -90,7 +90,7 @@ func (z *ZB) GetDepositRecords(ctx context.Context, arg *WalletRecordsRequest) (
 	var resp DepositRecordsResponse
 	vals := url.Values{}
 	vals.Set("method", "getChargeRecord")
-	vals.Set("currency", arg.Currency)
+	vals.Set("currency", arg.Currency.String())
 	if arg.PageSize > 0 {
 		vals.Set("pageIndex", strconv.FormatInt(arg.PageIndex, 10))
 	}
@@ -108,7 +108,7 @@ func (z *ZB) GetWithdrawalRecords(ctx context.Context, arg *WalletRecordsRequest
 	var resp WithdrawalRecordsResponse
 	vals := url.Values{}
 	vals.Set("method", "getWithdrawRecord")
-	vals.Set("currency", arg.Currency)
+	vals.Set("currency", arg.Currency.String())
 	vals.Set("pageIndex", strconv.FormatInt(arg.PageIndex, 10))
 	vals.Set("pageSize", strconv.FormatInt(arg.PageSize, 10))
 	return &resp, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)

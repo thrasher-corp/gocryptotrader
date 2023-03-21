@@ -280,13 +280,9 @@ func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.P
 	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	path := common.EncodeURLValues(fContractBatchTradeRecords, params)
 	var resp FBatchTradesForContractData
-	err = h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
-	if err != nil {
-		return FBatchTradesForContractData{}, err
-	}
-	return resp, nil
+	path := common.EncodeURLValues(fContractBatchTradeRecords, params)
+	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
 // FQueryInsuranceAndClawbackData gets insurance and clawback data for a futures contract

@@ -615,11 +615,21 @@ func TestGetMarginTradingAccounts(t *testing.T) {
 
 func TestServerTime(t *testing.T) {
 	t.Parallel()
-	tt, err := o.ServerTime(context.Background())
+	_, err := o.ServerTime(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(tt)
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	tt, err := o.GetServerTime(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if tt.IsZero() {
+		t.Error("expected time")
+	}
 }
 
 func TestGetMarginTradingAccountsForCurrency(t *testing.T) {
@@ -1360,6 +1370,45 @@ func TestGetMarginLoanHistory(t *testing.T) {
 		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip()
+	}
+	_, err := o.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = o.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Margin,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := o.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
 		t.Error(err)
 	}
 }

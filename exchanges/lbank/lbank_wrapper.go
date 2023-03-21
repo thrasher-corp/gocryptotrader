@@ -387,6 +387,9 @@ func (l *Lbank) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHi
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	if err := l.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return nil, err
+	}
 	withdrawalRecords, err := l.GetWithdrawalRecords(ctx, c.String(), 1, 0, 100)
 	if err != nil {
 		return nil, err
@@ -532,8 +535,7 @@ func (l *Lbank) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order
 
 // GetServerTime returns the current exchange server time.
 func (l *Lbank) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
-	resp, err := l.GetTimestamp(ctx)
-	return resp.Timestamp, err
+	return l.GetTimestamp(ctx)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

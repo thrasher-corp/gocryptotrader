@@ -257,7 +257,7 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		if a == asset.Futures {
 			symSplit := strings.Split(m[x].Symbol, m[x].Base)
 			if len(symSplit) == 1 {
-				return nil, errors.New("woah nelly")
+				continue
 			}
 			quote = symSplit[1]
 		}

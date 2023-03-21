@@ -396,3 +396,21 @@ func TestExtendedRequest_Size(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", rExt.Size(), 200)
 	}
 }
+
+func TestRequest_Size(t *testing.T) {
+	t.Parallel()
+
+	var r *Request
+	if r.Size() != 0 {
+		t.Fatalf("received: '%v', but expected '%v'", r.Size(), 0)
+	}
+
+	r = &Request{
+		Start:            time.Now().Add(-time.Hour * 2).Truncate(time.Hour),
+		End:              time.Now().Truncate(time.Hour),
+		ExchangeInterval: OneHour,
+	}
+	if r.Size() != 2 {
+		t.Fatalf("received: '%v', but expected '%v'", r.Size(), 2)
+	}
+}

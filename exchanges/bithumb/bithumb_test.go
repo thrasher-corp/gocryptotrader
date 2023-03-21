@@ -169,7 +169,7 @@ func TestGetOrders(t *testing.T) {
 		t.Skip()
 	}
 	_, err := b.GetOrders(context.Background(),
-		"1337", order.Bid.Lower(), "100", "", testCurrency)
+		"1337", order.Bid.Lower(), 100, time.Time{}, currency.BTC, currency.KRW)
 	if err != nil {
 		t.Error(err)
 	}
@@ -774,6 +774,28 @@ func TestUpdateCurrencyStates(t *testing.T) {
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()

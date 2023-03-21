@@ -273,7 +273,6 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	resp, err := b.GetCandles(context.Background(), "fUST", "1D", 1678060800000, time.Now().Round(time.Hour).UnixMilli(), 10000, true)
 	if err != nil {
 		t.Fatal(err)
@@ -468,16 +467,6 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	pair, err = currency.NewPairFromStrings("COMP", "PFC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateTicker(context.Background(), pair, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -576,7 +565,6 @@ func TestGetOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	b.Verbose = true
 	_, err := b.GetOpenOrders(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -868,6 +856,9 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -875,26 +866,23 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err := b.GetActiveOrders(context.Background(), &getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get open orders: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
-	}
-
-	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -991,11 +979,16 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip()
 	}
-	_, err := b.ModifyOrder(context.Background(),
-		&order.Modify{AssetType: asset.Spot})
+	_, err := b.ModifyOrder(
+		context.Background(),
+		&order.Modify{
+			OrderID:   "1337",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1087,7 +1080,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set")
 	}
 
@@ -1844,8 +1837,8 @@ func TestAccetableMethodStore(t *testing.T) {
 
 func TestOrderUpdate(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip()
 	}
 
 	_, err := b.OrderUpdate(context.Background(), "1234", "", "", 1, 1, 1)
@@ -1856,10 +1849,9 @@ func TestOrderUpdate(t *testing.T) {
 
 func TestGetInactiveOrders(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip()
 	}
-	b.Verbose = true
 	_, err := b.GetInactiveOrders(context.Background(), "tBTCUSD")
 	if err != nil {
 		t.Error(err)

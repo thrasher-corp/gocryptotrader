@@ -260,9 +260,9 @@ type TradeHistory []struct {
 
 // WalletRecordsRequest hold request params
 type WalletRecordsRequest struct {
-	Currency  string `json:"method"`
-	PageIndex int64  `json:"pageIndex"`
-	PageSize  int64  `json:"pageSize"`
+	Currency  currency.Code `json:"method"`
+	PageIndex int64         `json:"pageIndex"`
+	PageSize  int64         `json:"pageSize"`
 }
 
 // DepositRecordsResponse holds response data

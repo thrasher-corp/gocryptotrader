@@ -678,13 +678,12 @@ func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	if err != nil {
 		return order.Detail{}, err
 	}
-	format, err := h.GetPairFormat(asset.Spot, false)
+	format, err := h.GetPairFormat(assetType, true)
 	if err != nil {
 		return order.Detail{}, err
 	}
-	var symbol currency.Pair
-	symbol, err = currency.NewPairDelimiter(resp.Symbol,
-		format.Delimiter)
+	pair = pair.Format(format)
+
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -700,7 +699,7 @@ func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		Price:    resp.Price,
 		Date:     resp.CreatedAt,
 		Side:     side,
-		Pair:     symbol,
+		Pair:     pair,
 	}, nil
 }
 

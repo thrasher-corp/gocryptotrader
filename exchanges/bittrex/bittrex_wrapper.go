@@ -1051,9 +1051,6 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bittrex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	_, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
-	if err != nil {
-		return nil, err
-	}
-	return nil, common.ErrNotYetImplemented
+	// TODO implement with API upgrade˜
+	return nil, common.ErrFunctionNotSupported
 }

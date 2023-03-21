@@ -124,10 +124,12 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetOrderInfo(context.Background(),
-		"6196974", currency.EMPTYPAIR, asset.Spot)
-	if err == nil {
-		t.Error("GetOrderInfo() Expected error")
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
+	}
+	_, err := y.GetOrderInfo(context.Background(), "1337", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

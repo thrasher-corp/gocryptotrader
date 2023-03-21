@@ -560,7 +560,11 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	}
 
 	if exch.CurrencyPairs == nil {
-		exch.CurrencyPairs = new(currency.PairsManager)
+		exch.CurrencyPairs = &b.CurrencyPairs
+		a := exch.CurrencyPairs.GetAssetTypes(false)
+		for i := range a {
+			exch.CurrencyPairs.SetAssetEnabled(a[i], true)
+		}
 	}
 
 	b.HTTPDebugging = exch.HTTPDebugging

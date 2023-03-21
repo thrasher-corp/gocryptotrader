@@ -95,7 +95,7 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 
 	if st.IsZero() {
-		t.Fatal("expected a time")
+		t.Error("expected a time")
 	}
 }
 
@@ -757,7 +757,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	_, err := k.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
@@ -2010,8 +2010,18 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*12), time.Now())
+	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	if err != nil {
+		t.Error(err)
+	}
+
+	pairs, err := k.CurrencyPairs.GetPairs(asset.Futures, false)
+	if err != nil {
+		t.Error(err)
+	}
+	k.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	_, err = k.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
+	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
 }
@@ -2024,8 +2034,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	_, err = k.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatal(err)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
 	}
 }
 
@@ -2056,7 +2066,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			ret := k.FormatExchangeKlineInterval(test.interval)
 
 			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+				t.Errorf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
 	}
@@ -2120,17 +2130,17 @@ func TestChecksumCalculation(t *testing.T) {
 	t.Parallel()
 	expected := "5005"
 	if v := trim("0.05005"); v != expected {
-		t.Fatalf("expected %s but received %s", expected, v)
+		t.Errorf("expected %s but received %s", expected, v)
 	}
 
 	expected = "500"
 	if v := trim("0.00000500"); v != expected {
-		t.Fatalf("expected %s but received %s", expected, v)
+		t.Errorf("expected %s but received %s", expected, v)
 	}
 
 	err := validateCRC32(&testOb, krakenAPIDocChecksum, 5, 8)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 

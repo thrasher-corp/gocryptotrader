@@ -490,7 +490,6 @@ func TestTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	b.Verbose = true
 	_, err := b.TradeHistory(context.Background(),
 		"",
 		time.Time{}, time.Time{},
@@ -750,7 +749,6 @@ func TestStatusToStandardStatus(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	assets := b.GetAssetTypes(false)
 	for i := range assets {
 		data, err := b.FetchTradablePairs(context.Background(), assets[i])

@@ -73,7 +73,7 @@ const (
 	bitfinexTicker          = "ticker/"
 	bitfinexTrades          = "trades/"
 	bitfinexOrderbook       = "book/"
-	bitfinexHistoryShirt    = "hist"
+	bitfinexHistoryShort    = "hist"
 	bitfinexStatistics      = "stats1/"
 	bitfinexCandles         = "candles/trade"
 	bitfinexKeyPermissions  = "key_info"
@@ -1685,7 +1685,7 @@ func (b *Bitfinex) GetMovementHistory(ctx context.Context, symbol, method string
 	}
 
 	err := b.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
-		"auth/r/"+bitfinexHistoryMovements+"/"+symbol+"/"+bitfinexHistoryShirt,
+		"auth/r/"+bitfinexHistoryMovements+"/"+symbol+"/"+bitfinexHistoryShort,
 		req,
 		&response,
 		orderMulti)

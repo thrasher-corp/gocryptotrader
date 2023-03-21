@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -884,6 +885,10 @@ func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool
 // WalletActivity returns the wallet activity between set start and end time
 func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
 	values := url.Values{}
+	err := common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
 	values.Set("start", strconv.FormatInt(start.Unix(), 10))
 	values.Set("end", strconv.FormatInt(end.Unix(), 10))
 	if activityType != "" {

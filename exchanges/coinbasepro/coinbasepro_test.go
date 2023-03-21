@@ -1069,3 +1069,14 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetTransfers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := c.GetTransfers(context.Background(), "", "", 100, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+}

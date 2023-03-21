@@ -238,7 +238,7 @@ type GetAllOpenIDResp struct {
 
 // TimestampResponse holds timestamp data
 type TimestampResponse struct {
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp int64 `json:"data"`
 }
 
 var errorCodes = map[int64]string{
