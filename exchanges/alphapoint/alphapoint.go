@@ -447,7 +447,7 @@ func (a *Alphapoint) ModifyExistingOrder(ctx context.Context, symbol string, ord
 // OrderID - Order id (ex: 1000)
 func (a *Alphapoint) CancelExistingOrder(ctx context.Context, orderID int64, omsid string) (int64, error) {
 	req := make(map[string]interface{})
-	req["OrderID"] = orderID
+	req["orderId"] = orderID
 	req["OMSId"] = omsid
 	response := Response{}
 

@@ -277,7 +277,6 @@ func TestGetCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 func TestGetLeaderboard(t *testing.T) {
