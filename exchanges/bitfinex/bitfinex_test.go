@@ -1854,3 +1854,14 @@ func TestGetInactiveOrders(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestCancelMultipleOrdersV2(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip()
+	}
+	_, err := b.CancelMultipleOrdersV2(context.Background(), 1337, 0, 0, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}

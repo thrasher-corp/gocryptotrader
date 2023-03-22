@@ -1519,24 +1519,162 @@ func (b *Bitfinex) CancelExistingOrder(ctx context.Context, orderID int64) (Orde
 		orderMulti)
 }
 
-type CancelMultiOrderResponse struct {
-}
-
 // CancelMultipleOrders cancels multiple orders
 func (b *Bitfinex) CancelMultipleOrders(ctx context.Context, orderIDs []int64) (string, error) {
-	var response [][]interface{}
+	response := GenericResponse{}
 	req := make(map[string]interface{})
 	req["order_ids"] = orderIDs
+	return response.Result, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
+		bitfinexOrderCancelMulti,
+		req,
+		nil,
+		orderMulti)
+}
 
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
+// CancelMultipleOrdersV2 cancels multiple orders
+func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOrderID, groupOrderID int64, clientOrderIDDate time.Time, allOrders bool) ([]CancelMultiOrderResponse, error) {
+	var response []interface{}
+	req := make(map[string]interface{})
+	if orderID > 0 {
+		req["id"] = orderID
+	}
+	if clientOrderID > 0 {
+		req["cid"] = orderID
+	}
+	if !clientOrderIDDate.IsZero() {
+		req["cid_date"] = clientOrderIDDate.Format(time.DateOnly)
+	}
+	if groupOrderID > 0 {
+		req["gid"] = groupOrderID
+	}
+	if allOrders {
+		req["all"] = 1
+	}
+
+	err := b.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexOrderCancelMulti,
 		req,
 		&response,
 		orderMulti)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return "", nil
+	var cancelledOrders []CancelMultiOrderResponse
+	for x := range response {
+		cancelledOrdersSlice, ok := response[x].([]interface{})
+		if !ok {
+			continue
+		}
+		for y := range cancelledOrdersSlice {
+			cancelledOrderFields, ok := cancelledOrdersSlice[y].([]interface{})
+			if !ok {
+				continue
+			}
+			var cancelledOrder CancelMultiOrderResponse
+			for z := range cancelledOrderFields {
+				switch z {
+				case 0:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("ID float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.OrderID = strconv.FormatFloat(f, 'f', -1, 64)
+				case 1:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("GID float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.GroupOrderID = strconv.FormatFloat(f, 'f', -1, 64)
+				case 2:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("CID float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.ClientOrderID = strconv.FormatFloat(f, 'f', -1, 64)
+				case 3:
+					f, ok := cancelledOrderFields[z].(string)
+					if !ok {
+						return nil, common.GetAssertError("SYMBOL string", cancelledOrderFields[z])
+					}
+					cancelledOrder.Symbol = f
+				case 4:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("MTS_CREATE float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.CreatedTime = time.UnixMilli(int64(f))
+				case 5:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("MTS_UPDATE float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.UpdatedTime = time.UnixMilli(int64(f))
+				case 6:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("AMOUNT float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.Amount = f
+				case 7:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("AMOUNT_ORIG float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.OriginalAmount = f
+				case 8:
+					f, ok := cancelledOrderFields[z].(string)
+					if !ok {
+						return nil, common.GetAssertError("TYPE string", cancelledOrderFields[z])
+					}
+					cancelledOrder.OrderType = f
+				case 9:
+					f, ok := cancelledOrderFields[z].(string)
+					if !ok {
+						return nil, common.GetAssertError("TYPE_PREV string", cancelledOrderFields[z])
+					}
+					cancelledOrder.OriginalOrderType = f
+				case 12:
+					f, ok := cancelledOrderFields[z].(string)
+					if !ok {
+						return nil, common.GetAssertError("FLAGS string", cancelledOrderFields[z])
+					}
+					cancelledOrder.OrderFlags = f
+				case 13:
+					f, ok := cancelledOrderFields[z].(string)
+					if !ok {
+						return nil, common.GetAssertError("ORDER_STATUS string", cancelledOrderFields[z])
+					}
+					cancelledOrder.OrderStatus = f
+				case 16:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("PRICE float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.Price = f
+				case 17:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("PRICE_AVG float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.AveragePrice = f
+				case 18:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("PRICE_TRAILING float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.TrailingPrice = f
+				case 19:
+					f, ok := cancelledOrderFields[z].(float64)
+					if !ok {
+						return nil, common.GetAssertError("PRICE_AUX_LIMIT float64", cancelledOrderFields[z])
+					}
+					cancelledOrder.AuxLimitPrice = f
+				}
+			}
+			cancelledOrders[y] = cancelledOrder
+		}
+	}
+	return cancelledOrders, nil
 }
 
 // CancelAllExistingOrders cancels all active and open orders

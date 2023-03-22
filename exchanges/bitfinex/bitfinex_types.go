@@ -834,3 +834,23 @@ type WsCancelOfferRequest struct {
 type WsCancelAllOrdersRequest struct {
 	All int64 `json:"all"`
 }
+
+// CancelMultiOrderResponse holds v2 cancelled order data
+type CancelMultiOrderResponse struct {
+	OrderID           string
+	ClientOrderID     string
+	GroupOrderID      string
+	Symbol            string
+	CreatedTime       time.Time
+	UpdatedTime       time.Time
+	Amount            float64
+	OriginalAmount    float64
+	OrderType         string
+	OriginalOrderType string
+	OrderFlags        string
+	OrderStatus       string
+	Price             float64
+	AveragePrice      float64
+	TrailingPrice     float64
+	AuxLimitPrice     float64
+}

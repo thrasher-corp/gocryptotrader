@@ -770,20 +770,10 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *Bitfinex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	orderIDs := make([]int64, len(o))
-	var err error
-	for i := range o {
-		orderIDs[i], err = strconv.ParseInt(o[i].OrderID, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%w - '%v'", err, o[i].OrderID)
-		}
-	}
-	_, err = b.CancelMultipleOrders(ctx, orderIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, common.ErrNotYetImplemented
+	// While bitfinex supports cancelling multiple orders, it is
+	// done in a way that is not helpful for GCT and it would be better instead
+	// to use CancelAllOrders or CancelOrder
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
