@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"errors"
-	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -13,10 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var (
-	id       = uuid.Must(uuid.NewV4())
-	rounding = int64(10)
-)
+var id = uuid.Must(uuid.NewV4())
 
 func TestGetLength(t *testing.T) {
 	t.Parallel()
@@ -783,7 +779,7 @@ func TestHitTheBidsByNominalSlippageFromMid(t *testing.T) {
 
 	// This exceeds the entire total base available
 	if amt.Sold != 20 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt.Sold, 20)
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 20)
 	}
 }
 
@@ -857,7 +853,7 @@ func TestLiftTheAsksByNominalSlippage(t *testing.T) {
 	}
 
 	if amt.Sold != 26930 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt.Sold, 26930)
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 26930)
 	}
 }
 
@@ -883,7 +879,7 @@ func TestLiftTheAsksByNominalSlippageFromMid(t *testing.T) {
 	}
 
 	if amt.Sold != 2675 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt.Sold, 2675)
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 2675)
 	}
 
 	// All the way up to the last price from mid price
@@ -931,7 +927,7 @@ func TestLiftTheAsksByNominalSlippageFromBest(t *testing.T) {
 
 	// This does not match the entire total quote available
 	if amt.Sold != 26930 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt.Sold, 26930)
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 26930)
 	}
 }
 
@@ -1661,37 +1657,6 @@ func TestLiftTheAsks_BaseRequired(t *testing.T) {
 	}
 }
 
-// RoundFloat helps number comparison when float point numbers
-// at large depths are not OS agnostic
-func RoundFloat(t *testing.T, num float64, decimalPlaces int64) float64 {
-	t.Helper()
-	if decimalPlaces < 0 {
-		return num
-	}
-	base := 1
-	for i := 0; i < int(decimalPlaces); i++ {
-		base *= 10
-	}
-	fBase := float64(base)
-	return math.Floor(num*fBase) / fBase
-}
-
-func TestRoundFloats(t *testing.T) {
-	num := 1.23456789101112
-	output := RoundFloat(t, num, 4)
-	if output != 1.2345 {
-		t.Errorf("received '%v' expected '%v'", output, 1.2345)
-	}
-	output = RoundFloat(t, num, 0)
-	if output != 1 {
-		t.Errorf("received '%v' expected '%v'", output, 1)
-	}
-	output = RoundFloat(t, num, 30)
-	if output != num {
-		t.Errorf("received '%v' expected '%v'", output, num)
-	}
-}
-
 func TestLiftTheAsksFromMid(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().LiftTheAsksFromMid(10, false)
@@ -1719,11 +1684,11 @@ func TestLiftTheAsksFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.0374111485 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.0374111485)
+	if mov.NominalPercentage != 0.03741114852225963 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.03741114852225963)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 0.1122334455 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.1122334455)
+	if mov.ImpactPercentage != 0.11223344556677892 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.11223344556677892)
 	}
 	if mov.SlippageCost != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
@@ -1734,14 +1699,14 @@ func TestLiftTheAsksFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.7474358034 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7474358034)
+	if mov.NominalPercentage != 0.747435803422031 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.747435803422031)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 1.4590347923 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923)
+	if mov.ImpactPercentage != 1.4590347923681257 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923681257)
 	}
-	if RoundFloat(t, mov.SlippageCost, rounding) != 189.5796460177 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460177)
+	if mov.SlippageCost != 189.57964601770072 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.57964601770072)
 	}
 
 	// All the way up to the last price from best bid price
@@ -1750,8 +1715,8 @@ func TestLiftTheAsksFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.7482229704 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7482229704)
+	if mov.NominalPercentage != 0.7482229704451926 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7482229704451926)
 	}
 	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
@@ -1788,11 +1753,11 @@ func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.0374111485 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.0374111485)
+	if mov.NominalPercentage != 0.03741114852225963 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.03741114852225963)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 0.1122334455 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.1122334455)
+	if mov.ImpactPercentage != 0.11223344556677892 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.11223344556677892)
 	}
 	if mov.SlippageCost != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
@@ -1803,16 +1768,14 @@ func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.7474358034 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7474358034)
+	if mov.NominalPercentage != 0.7474358034220139 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7474358034220139)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 1.4590347923 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923)
+	if mov.ImpactPercentage != 1.4590347923681257 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923681257)
 	}
-
-	// floating point precision after 10 decimal places differs on macos
-	if RoundFloat(t, mov.SlippageCost, rounding) != 189.5796460176 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176)
+	if mov.SlippageCost != 189.5796460176971 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176971)
 	}
 
 	// All the way up to the last price from best bid price
@@ -1862,8 +1825,8 @@ func TestLiftTheAsksFromBest(t *testing.T) {
 	if mov.NominalPercentage != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 0.0747943156 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.0747943156)
+	if mov.ImpactPercentage != 0.07479431563201197 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
 	}
 	if mov.SlippageCost != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
@@ -1874,14 +1837,14 @@ func TestLiftTheAsksFromBest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.7097591258 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258)
+	if mov.NominalPercentage != 0.7097591258590459 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590459)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 1.4210919970 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970)
+	if mov.ImpactPercentage != 1.4210919970082274 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
 	}
-	if RoundFloat(t, mov.SlippageCost, rounding) != 189.5796460177 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460177)
+	if mov.SlippageCost != 189.57964601770072 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.57964601770072)
 	}
 
 	// All the way up to the last price from best bid price
@@ -1890,8 +1853,8 @@ func TestLiftTheAsksFromBest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.7105459985 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985)
+	if mov.NominalPercentage != 0.7105459985041137 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985041137)
 	}
 	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
@@ -1931,8 +1894,8 @@ func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 	if mov.NominalPercentage != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 0.0747943156 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.0747943156)
+	if mov.ImpactPercentage != 0.07479431563201197 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
 	}
 	if mov.SlippageCost != 0 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
@@ -1942,14 +1905,14 @@ func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.7097591258 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258)
+	if mov.NominalPercentage != 0.7097591258590288 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590288)
 	}
-	if RoundFloat(t, mov.ImpactPercentage, rounding) != 1.4210919970 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970)
+	if mov.ImpactPercentage != 1.4210919970082274 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
 	}
-	if RoundFloat(t, mov.SlippageCost, rounding) != 189.5796460176 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176)
+	if mov.SlippageCost != 189.5796460176971 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176971)
 	}
 
 	// All the way up to the last price from best bid price
@@ -1958,8 +1921,8 @@ func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if RoundFloat(t, mov.NominalPercentage, rounding) != 0.7105459985 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985)
+	if mov.NominalPercentage != 0.7105459985041137 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985041137)
 	}
 	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)

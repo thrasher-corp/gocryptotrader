@@ -273,18 +273,11 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	resp, err := b.GetCandles(context.Background(), "fUST", "1D", 1678060800000, time.Now().Round(time.Hour).UnixMilli(), 10000, true)
+	_, err := b.GetCandles(context.Background(), "fUST", "1D", time.Now().Add(-time.Hour*4).Round(time.Hour).UnixMilli(), time.Now().Round(time.Hour).UnixMilli(), 10000, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(time.UnixMilli(1678060800000))
-	t.Log(time.UnixMilli(1678752000000))
-	t.Log(time.Now().Truncate(time.Hour))
-	// https://api.bitfinex.com/v2/candles/trade:1D:fUST:p30/hist?end=1678752000000&limit=10000&start=1678060800000
 
-	/// https://api.bitfinex.com/v2/candles/trade:fXMR:1D/hist?end=1678752000000&limit=10000&start=1678746000000
-	/// https://api.bitfinex.com/v2/candles/trade:1D:fUSD:p30/hist?end=1678744800000&limit=10000&start=1678140000000
-	t.Log(resp)
 }
 
 func TestGetLeaderboard(t *testing.T) {
