@@ -28,7 +28,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passPhrase              = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 
 	cantManipulateRealOrdersOrKeysNotSet = "skipping test: api keys not set or canManipulateRealOrders set to false"
 	credentialsNotSet                    = "credentials not set" // "skipping test message: api keys not set"
