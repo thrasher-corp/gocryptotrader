@@ -580,8 +580,8 @@ func (ku *Kucoin) GetFuturesRiskLimitLevel(ctx context.Context, symbol string) (
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodGet, kucoinFuturesRiskLimitLevel+symbol, nil, &resp)
 }
 
-// UpdateRiskLmitLevel is used to adjustment the risk limit level
-func (ku *Kucoin) UpdateRiskLmitLevel(ctx context.Context, symbol string, level int64) (bool, error) {
+// FuturesUpdateRiskLmitLevel is used to adjustment the risk limit level
+func (ku *Kucoin) FuturesUpdateRiskLmitLevel(ctx context.Context, symbol string, level int64) (bool, error) {
 	params := make(map[string]interface{})
 	if symbol == "" {
 		return false, errors.New("symbol can't be empty")
