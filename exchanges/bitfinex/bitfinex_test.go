@@ -1860,7 +1860,7 @@ func TestCancelMultipleOrdersV2(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	_, err := b.CancelMultipleOrdersV2(context.Background(), 1337, 0, 0, time.Time{}, 0)
+	_, err := b.CancelMultipleOrdersV2(context.Background(), 1337, 0, 0, time.Time{}, false)
 	if err != nil {
 		t.Error(err)
 	}
