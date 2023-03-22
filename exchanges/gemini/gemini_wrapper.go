@@ -602,13 +602,13 @@ func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, errors.New("only limit orders are enabled through this exchange")
 	}
 
-	fpair, err := g.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fPair, err := g.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 
 	response, err := g.NewOrder(ctx,
-		fpair.String(),
+		fPair.String(),
 		s.Amount,
 		s.Price,
 		s.Side.String(),

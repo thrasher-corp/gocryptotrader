@@ -381,8 +381,7 @@ func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	}
 
 	// Valid order book depths are 1, 25 and 500
-	orderbookData, sequence, err := b.GetOrderbook(ctx,
-		formattedPair.String(), orderbookDepth)
+	orderbookData, sequence, err := b.GetOrderbook(ctx, formattedPair.String(), orderbookDepth)
 	if err != nil {
 		return book, err
 	}

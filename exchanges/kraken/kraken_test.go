@@ -2019,7 +2019,10 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	k.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	err = k.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		t.Error(err)
+	}
 	_, err = k.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)

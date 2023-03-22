@@ -239,12 +239,12 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 
 // FetchTicker returns the ticker for a currency pair
 func (l *Lbank) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fpair, err := l.FormatExchangeCurrency(p, assetType)
+	fPair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	tickerNew, err := ticker.GetTicker(l.Name, fpair, assetType)
+	tickerNew, err := ticker.GetTicker(l.Name, fPair, assetType)
 	if err != nil {
 		return l.UpdateTicker(ctx, p, assetType)
 	}
@@ -274,12 +274,12 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		Asset:           assetType,
 		VerifyOrderbook: l.CanVerifyOrderbook,
 	}
-	fpair, err := l.FormatExchangeCurrency(p, assetType)
+	fPair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	a, err := l.GetMarketDepths(ctx, fpair.String(), "60", "1")
+	a, err := l.GetMarketDepths(ctx, fPair.String(), "60", "1")
 	if err != nil {
 		return book, err
 	}
@@ -493,13 +493,13 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 				s.Side)
 	}
 
-	fpair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fPair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 
 	tempResp, err := l.CreateOrder(ctx,
-		fpair.String(),
+		fPair.String(),
 		s.Side.String(),
 		s.Amount,
 		s.Price)
@@ -520,11 +520,11 @@ func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	fpair, err := l.FormatExchangeCurrency(o.Pair, o.AssetType)
+	fPair, err := l.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
-	_, err = l.RemoveOrder(ctx, fpair.String(), o.OrderID)
+	_, err = l.RemoveOrder(ctx, fPair.String(), o.OrderID)
 	return err
 }
 
@@ -767,20 +767,20 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 		tempCurr = getOrdersRequest.Pairs
 	}
 	for a := range tempCurr {
-		fpair, err := l.FormatExchangeCurrency(tempCurr[a], asset.Spot)
+		fPair, err := l.FormatExchangeCurrency(tempCurr[a], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
 		b := int64(1)
 		tempResp, err := l.QueryOrderHistory(ctx,
-			fpair.String(), strconv.FormatInt(b, 10), "200")
+			fPair.String(), strconv.FormatInt(b, 10), "200")
 		if err != nil {
 			return finalResp, err
 		}
 		for len(tempResp.Orders) != 0 {
 			tempResp, err = l.QueryOrderHistory(ctx,
-				fpair.String(), strconv.FormatInt(b, 10), "200")
+				fPair.String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return finalResp, err
 			}
@@ -859,13 +859,13 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 	}
 	resp := make(map[string][]string)
 	for a := range allPairs {
-		fpair, err := l.FormatExchangeCurrency(allPairs[a], asset.Spot)
+		fPair, err := l.FormatExchangeCurrency(allPairs[a], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		b := int64(1)
 		tempResp, err := l.GetOpenOrders(ctx,
-			fpair.String(),
+			fPair.String(),
 			strconv.FormatInt(b, 10),
 			"200")
 		if err != nil {
@@ -874,7 +874,7 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 		tempData := len(tempResp.Orders)
 		for tempData != 0 {
 			tempResp, err = l.GetOpenOrders(ctx,
-				fpair.String(),
+				fPair.String(),
 				strconv.FormatInt(b, 10),
 				"200")
 			if err != nil {
@@ -886,7 +886,7 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 			}
 
 			for c := 0; c < tempData; c++ {
-				resp[fpair.String()] = append(resp[fpair.String()],
+				resp[fPair.String()] = append(resp[fPair.String()],
 					tempResp.Orders[c].OrderID)
 			}
 			tempData = len(tempResp.Orders)

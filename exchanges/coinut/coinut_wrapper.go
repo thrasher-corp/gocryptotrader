@@ -428,12 +428,12 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		return nil, err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(p, a)
+	fPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
-	instID := c.instrumentMap.LookupID(fpair.String())
+	instID := c.instrumentMap.LookupID(fPair.String())
 	if instID == 0 {
 		return nil, errors.New("unable to lookup instrument ID")
 	}
@@ -498,12 +498,12 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	fPair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	instID := c.instrumentMap.LookupID(fpair.String())
+	instID := c.instrumentMap.LookupID(fPair.String())
 	if instID == 0 {
 		return book, errLookupInstrumentID
 	}
@@ -708,12 +708,12 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
+	fPair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	currencyID := c.instrumentMap.LookupID(fpair.String())
+	currencyID := c.instrumentMap.LookupID(fPair.String())
 
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *CancelOrdersResponse
@@ -794,12 +794,12 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 		}
 		var ordersToCancel []WsCancelOrderParameters
 		for i := range openOrders.Orders {
-			var fpair currency.Pair
-			fpair, err = c.FormatExchangeCurrency(details.Pair, asset.Spot)
+			var fPair currency.Pair
+			fPair, err = c.FormatExchangeCurrency(details.Pair, asset.Spot)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			if openOrders.Orders[i].InstrumentID == c.instrumentMap.LookupID(fpair.String()) {
+			if openOrders.Orders[i].InstrumentID == c.instrumentMap.LookupID(fPair.String()) {
 				ordersToCancel = append(ordersToCancel, WsCancelOrderParameters{
 					Currency: details.Pair,
 					OrderID:  openOrders.Orders[i].OrderID,
@@ -819,11 +819,11 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 		var allTheOrders []OrderResponse
 		ids := c.instrumentMap.GetInstrumentIDs()
 		for x := range ids {
-			fpair, err := c.FormatExchangeCurrency(details.Pair, asset.Spot)
+			fPair, err := c.FormatExchangeCurrency(details.Pair, asset.Spot)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			if ids[x] == c.instrumentMap.LookupID(fpair.String()) {
+			if ids[x] == c.instrumentMap.LookupID(fPair.String()) {
 				openOrders, err := c.GetOpenOrders(ctx, ids[x])
 				if err != nil {
 					return cancelAllOrdersResponse, err

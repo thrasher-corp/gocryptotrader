@@ -375,16 +375,16 @@ func (c *CoinbasePro) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	fpair, err := c.FormatExchangeCurrency(p, a)
+	fPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
-	tick, err := c.GetTicker(ctx, fpair.String())
+	tick, err := c.GetTicker(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
-	stats, err := c.GetStats(ctx, fpair.String())
+	stats, err := c.GetStats(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -442,12 +442,12 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		Asset:           assetType,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	fPair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	orderbookNew, err := c.GetOrderbook(ctx, fpair.String(), 2)
+	orderbookNew, err := c.GetOrderbook(ctx, fPair.String(), 2)
 	if err != nil {
 		return book, err
 	}
@@ -543,7 +543,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		return nil, err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fPair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +556,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			s.Amount,
 			s.QuoteAmount,
 			s.Side.Lower(),
-			fpair.String(),
+			fPair.String(),
 			"")
 	case order.Limit:
 		timeInForce := CoinbaseRequestParamsTimeGTC
@@ -570,7 +570,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			s.Side.Lower(),
 			timeInForce,
 			"",
-			fpair.String(),
+			fPair.String(),
 			"",
 			false)
 	default:

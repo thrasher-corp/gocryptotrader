@@ -517,7 +517,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 				params["interval"] = 1800
 			}
 
-			fpair, err := g.FormatExchangeCurrency(enabledCurrencies[j],
+			fPair, err := g.FormatExchangeCurrency(enabledCurrencies[j],
 				asset.Spot)
 			if err != nil {
 				return nil, err
@@ -525,7 +525,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
-				Currency: fpair.Upper(),
+				Currency: fPair.Upper(),
 				Params:   params,
 				Asset:    asset.Spot,
 			})

@@ -1591,7 +1591,10 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	h.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	err = h.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		t.Error(err)
+	}
 	_, err = h.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -1601,7 +1604,10 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, pairs[0])
+	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, pairs[0])
+	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		t.Error(err)
+	}
 	_, err = h.GetHistoricCandles(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -1624,7 +1630,10 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	h.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	err = h.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		t.Error(err)
+	}
 	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.Futures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -1634,7 +1643,10 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, pairs[0])
+	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, pairs[0])
+	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		t.Error(err)
+	}
 	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Error(err)

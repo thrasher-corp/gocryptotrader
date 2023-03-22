@@ -574,12 +574,12 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	fpair, err := g.FormatExchangeCurrency(o.Pair, o.AssetType)
+	fPair, err := g.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = g.CancelExistingOrder(ctx, orderIDInt, fpair.String())
+	_, err = g.CancelExistingOrder(ctx, orderIDInt, fPair.String())
 	return err
 }
 

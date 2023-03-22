@@ -317,7 +317,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		Config: cfg,
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
+		t.Fatalf("received '%v' expecting '%v'", err, nil)
 	}
 
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{

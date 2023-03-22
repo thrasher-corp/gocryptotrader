@@ -272,6 +272,14 @@ func TestCheckEventCondition(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
+	conf, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	err = exch.Setup(conf)
+	if err != nil {
+		t.Error(err)
+	}
 	em.Add(exch)
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
 	if !errors.Is(err, nil) {

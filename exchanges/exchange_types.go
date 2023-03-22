@@ -271,7 +271,8 @@ const (
 	edgeCase3URL                  = "EdgeCase3URL"
 )
 
-var keyURLs = []URL{RestSpot,
+var keyURLs = []URL{
+	RestSpot,
 	RestSpotSupplementary,
 	RestUSDTMargined,
 	RestCoinMargined,

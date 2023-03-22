@@ -732,12 +732,12 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 
 	var allTrades []UserTrades
 	for i := range req.Pairs {
-		fpair, err := e.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+		fPair, err := e.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := e.GetUserTrades(ctx, fpair.String(), "", "10000")
+		resp, err := e.GetUserTrades(ctx, fPair.String(), "", "10000")
 		if err != nil {
 			return nil, err
 		}

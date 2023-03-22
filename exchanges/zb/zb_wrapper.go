@@ -687,11 +687,11 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		}
 		return nil
 	}
-	fpair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
+	fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
-	return z.CancelExistingOrder(ctx, orderIDInt, fpair.String())
+	return z.CancelExistingOrder(ctx, orderIDInt, fPair.String())
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -1009,7 +1009,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
+		orderDate := time.Unix(allOrders[i].TradeDate, 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		detail := order.Detail{
 			OrderID:              allOrders[i].ID,

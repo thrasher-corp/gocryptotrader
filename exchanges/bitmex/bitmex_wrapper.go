@@ -491,14 +491,14 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, common.ErrFunctionNotSupported
 	}
 
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
 	orderbookNew, err := b.GetOrderbook(ctx,
 		OrderBookGetL2Params{
-			Symbol: fpair.String(),
+			Symbol: fPair.String(),
 			Depth:  500})
 	if err != nil {
 		return book, err

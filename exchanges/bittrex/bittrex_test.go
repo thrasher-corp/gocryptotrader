@@ -718,7 +718,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Fatal(err)
 	}
 }

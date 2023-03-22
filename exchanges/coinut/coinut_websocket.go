@@ -618,7 +618,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
-		fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -626,7 +626,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 
 		subscribe := wsRequest{
 			Request:      channelsToSubscribe[i].Channel,
-			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+			InstrumentID: c.instrumentMap.LookupID(fPair.String()),
 			Subscribe:    true,
 			Nonce:        getNonce(),
 		}
@@ -647,7 +647,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelToUnsubscribe {
-		fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -655,7 +655,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 
 		subscribe := wsRequest{
 			Request:      channelToUnsubscribe[i].Channel,
-			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+			InstrumentID: c.instrumentMap.LookupID(fPair.String()),
 			Subscribe:    false,
 			Nonce:        getNonce(),
 		}

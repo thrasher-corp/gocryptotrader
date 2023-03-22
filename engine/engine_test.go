@@ -362,6 +362,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 
 func TestAllExchangeWebsockets(t *testing.T) {
 	t.Parallel()
+
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../testdata/configtest.json", true)
 	if err != nil {
@@ -374,10 +375,10 @@ func TestAllExchangeWebsockets(t *testing.T) {
 		}
 		t.Run(name+" websocket tests", func(t *testing.T) {
 			t.Parallel()
-			exch, assetPairs := setupExchange(t, name, cfg)
+			exch, _ := setupExchange(t, name, cfg)
 			b := exch.GetBase()
 			if b.Features.Supports.Websocket {
-				executeExchangeWebsocketTests(t, exch, assetPairs)
+				executeExchangeWebsocketTests(t, exch)
 			} else {
 				t.Skipf("%v does not support websocket", name)
 			}
@@ -485,7 +486,7 @@ func isUnacceptableError(err error) error {
 	return err
 }
 
-func readDataHandler(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) error {
+func readDataHandler(ws *stream.Websocket, wg *sync.WaitGroup) error {
 	var err error
 	defer wg.Done()
 	timer := time.NewTimer(time.Second * 30)
@@ -494,11 +495,12 @@ func readDataHandler(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) err
 		case <-timer.C:
 			return err
 		case data := <-ws.DataHandler:
-			switch errData := data.(type) {
-			case error:
-				if isUnacceptableError(err) != nil {
-					err = common.AppendError(err, errData)
-				}
+			dataErr, ok := data.(error)
+			if !ok {
+				continue
+			}
+			if isUnacceptableError(dataErr) != nil {
+				err = common.AppendError(err, dataErr)
 			}
 		default:
 			if !ws.IsConnected() {
@@ -506,10 +508,10 @@ func readDataHandler(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) err
 			}
 		}
 	}
-	return err
 }
 
-func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
+func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange) {
+	t.Helper()
 	b := exch.GetBase()
 	if !exch.IsWebsocketEnabled() {
 		err := b.Websocket.Enable()
@@ -531,12 +533,12 @@ func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange, ass
 	ws.SetCanUseAuthenticatedEndpoints(false)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func(t *testing.T, ws *stream.Websocket, wg *sync.WaitGroup) {
-		err = readDataHandler(t, ws, wg)
+	go func(ws *stream.Websocket, wg *sync.WaitGroup) {
+		err = readDataHandler(ws, wg)
 		if err != nil {
 			t.Error(err)
 		}
-	}(t, ws, &wg)
+	}(ws, &wg)
 	wg.Wait()
 	err = ws.Shutdown()
 	if err != nil {
@@ -545,6 +547,7 @@ func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange, ass
 }
 
 func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
+	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
 
@@ -798,6 +801,7 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 // CallExchangeMethod will call an exchange's method using generated arguments
 // and determine if the error is friendly
 func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues []reflect.Value, methodName string, exch exchange.IBotExchange) {
+	t.Helper()
 	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 	outputs := methodToCall.Call(methodValues)
 	if methodToCall.Type().NumIn() == 0 {

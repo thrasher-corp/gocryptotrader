@@ -61,7 +61,9 @@ func TestMain(m *testing.M) {
 	}
 	request.MaxRequestJobs = 100
 	log.Printf(sharedtestvalues.MockTesting, b.Name)
-	b.UpdateTradablePairs(context.Background(), true)
-
+	err = b.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }

@@ -205,11 +205,11 @@ func (y *Yobit) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for i := range enabledPairs {
-		fpair, err := y.FormatExchangeCurrency(enabledPairs[i], a)
+		fPair, err := y.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
 			return err
 		}
-		curr := fpair.Lower().String()
+		curr := fPair.Lower().String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}
@@ -273,11 +273,11 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		Asset:           assetType,
 		VerifyOrderbook: y.CanVerifyOrderbook,
 	}
-	fpair, err := y.FormatExchangeCurrency(p, assetType)
+	fPair, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
-	orderbookNew, err := y.GetDepth(ctx, fpair.String())
+	orderbookNew, err := y.GetDepth(ctx, fPair.String())
 	if err != nil {
 		return book, err
 	}

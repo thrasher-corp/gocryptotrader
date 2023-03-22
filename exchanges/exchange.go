@@ -360,9 +360,6 @@ func (b *Base) GetSupportedFeatures() FeaturesSupported {
 // GetPairFormat returns the pair format based on the exchange and
 // asset type
 func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency.PairFormat, error) {
-	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return currency.PairFormat{}, err
-	}
 	if b.CurrencyPairs.UseGlobalFormat {
 		if requestFormat {
 			if b.CurrencyPairs.RequestFormat == nil {
@@ -563,7 +560,10 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		exch.CurrencyPairs = &b.CurrencyPairs
 		a := exch.CurrencyPairs.GetAssetTypes(false)
 		for i := range a {
-			exch.CurrencyPairs.SetAssetEnabled(a[i], true)
+			err = exch.CurrencyPairs.SetAssetEnabled(a[i], true)
+			if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+				return err
+			}
 		}
 	}
 
@@ -1331,6 +1331,8 @@ func (u URL) String() string {
 		return restCoinMarginedFuturesURL
 	case RestFutures:
 		return restFuturesURL
+	case RestFuturesSupplementary:
+		return restFuturesSupplementaryURL
 	case RestUSDCMargined:
 		return restUSDCMarginedFuturesURL
 	case RestSandbox:
@@ -1367,6 +1369,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return RestCoinMargined, nil
 	case restFuturesURL:
 		return RestFutures, nil
+	case restFuturesSupplementaryURL:
+		return RestFuturesSupplementary, nil
 	case restUSDCMarginedFuturesURL:
 		return RestUSDCMargined, nil
 	case restSandboxURL:
@@ -1386,7 +1390,7 @@ func getURLTypeFromString(ep string) (URL, error) {
 	case edgeCase3URL:
 		return EdgeCase3, nil
 	default:
-		return Invalid, fmt.Errorf("%w for %s", errEndpointStringNotFound, ep)
+		return Invalid, fmt.Errorf("%w '%s'", errEndpointStringNotFound, ep)
 	}
 }
 

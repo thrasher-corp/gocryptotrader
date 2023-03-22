@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
@@ -24,6 +23,7 @@ var (
 
 	// ErrCurrencyStateNotFound is an error when the currency state has not been
 	// found
+	// TODO: distinguish between unsupported and not found
 	ErrCurrencyStateNotFound = errors.New("currency state not found")
 )
 
@@ -34,9 +34,8 @@ func NewCurrencyStates() *States {
 
 // States defines all currency states for an exchange
 type States struct {
-	isSupported bool
-	m           map[asset.Item]map[*currency.Item]*Currency
-	mtx         sync.RWMutex
+	m   map[asset.Item]map[*currency.Item]*Currency
+	mtx sync.RWMutex
 }
 
 // GetCurrencyStateSnapshot returns the exchange currency state snapshot
@@ -160,9 +159,6 @@ func (s *States) Update(c currency.Code, a asset.Item, o Options) error {
 		return fmt.Errorf("%s, %w", a, asset.ErrNotSupported)
 	}
 	s.mtx.Lock()
-	if !s.isSupported {
-		s.isSupported = true
-	}
 	s.update(c, a, o)
 	s.mtx.Unlock()
 	return nil
@@ -187,9 +183,6 @@ func (s *States) update(c currency.Code, a asset.Item, o Options) {
 func (s *States) Get(c currency.Code, a asset.Item) (*Currency, error) {
 	if s == nil {
 		return nil, errNilStates
-	}
-	if !s.isSupported {
-		return nil, common.ErrFunctionNotSupported
 	}
 
 	if c.String() == "" {

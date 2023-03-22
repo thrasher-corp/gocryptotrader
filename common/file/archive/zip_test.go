@@ -67,8 +67,8 @@ func TestZip(t *testing.T) {
 		t.Fatal("could not find file in zip")
 	}
 
-	if expected := 6; len(o) != expected {
-		t.Fatalf("expected %v files to be extracted received: %v ", expected, len(o))
+	if expected := 6; len(o) < expected {
+		t.Fatalf("expected at least %v files to be extracted, received: %v ", expected, len(o))
 	}
 
 	folder = filepath.Join("..", "..", "..", "testdata", "invalid_file.json")

@@ -164,7 +164,7 @@ func TestSetDefaultEndpoints(t *testing.T) {
 	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		URL(15): "http://test2.com.au/",
+		URL(1337): "http://test2.com.au/",
 	})
 	if err == nil {
 		t.Error("expecting an error due to invalid url key")
@@ -2166,47 +2166,50 @@ func TestAddTradesToBuffer(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	if RestSpot.String() != "RestSpotURL" {
-		t.Errorf("invalid string conversion")
+	if RestSpot.String() != restSpotURL {
+		t.Errorf("received '%v' expected '%v'", RestSpot, restSpotURL)
 	}
-	if RestSpotSupplementary.String() != "RestSpotSupplementaryURL" {
-		t.Errorf("invalid string conversion")
+	if RestSpotSupplementary.String() != restSpotSupplementaryURL {
+		t.Errorf("received '%v' expected '%v'", RestSpotSupplementary, restSpotSupplementaryURL)
 	}
 	if RestUSDTMargined.String() != "RestUSDTMarginedFuturesURL" {
-		t.Errorf("invalid string conversion")
+		t.Errorf("received '%v' expected '%v'", RestUSDTMargined, "RestUSDTMarginedFuturesURL")
 	}
-	if RestCoinMargined.String() != "RestCoinMarginedFuturesURL" {
-		t.Errorf("invalid string conversion")
+	if RestCoinMargined.String() != restCoinMarginedFuturesURL {
+		t.Errorf("received '%v' expected '%v'", RestCoinMargined, restCoinMarginedFuturesURL)
 	}
-	if RestFutures.String() != "RestFuturesURL" {
-		t.Errorf("invalid string conversion")
+	if RestFutures.String() != restFuturesURL {
+		t.Errorf("received '%v' expected '%v'", RestFutures, restFuturesURL)
 	}
-	if RestUSDCMargined.String() != "RestUSDCMarginedFuturesURL" {
-		t.Errorf("invalid string conversion")
+	if RestFuturesSupplementary.String() != restFuturesSupplementaryURL {
+		t.Errorf("received '%v' expected '%v'", RestFutures, restFuturesSupplementaryURL)
 	}
-	if RestSandbox.String() != "RestSandboxURL" {
-		t.Errorf("invalid string conversion")
+	if RestUSDCMargined.String() != restUSDCMarginedFuturesURL {
+		t.Errorf("received '%v' expected '%v'", RestUSDCMargined, restUSDCMarginedFuturesURL)
 	}
-	if RestSwap.String() != "RestSwapURL" {
-		t.Errorf("invalid string conversion")
+	if RestSandbox.String() != restSandboxURL {
+		t.Errorf("received '%v' expected '%v'", RestSandbox, restSandboxURL)
 	}
-	if WebsocketSpot.String() != "WebsocketSpotURL" {
-		t.Errorf("invalid string conversion")
+	if RestSwap.String() != restSwapURL {
+		t.Errorf("received '%v' expected '%v'", RestSwap, restSwapURL)
 	}
-	if WebsocketSpotSupplementary.String() != "WebsocketSpotSupplementaryURL" {
-		t.Errorf("invalid string conversion")
+	if WebsocketSpot.String() != websocketSpotURL {
+		t.Errorf("received '%v' expected '%v'", WebsocketSpot, websocketSpotURL)
 	}
-	if ChainAnalysis.String() != "ChainAnalysisURL" {
-		t.Errorf("invalid string conversion")
+	if WebsocketSpotSupplementary.String() != websocketSpotSupplementaryURL {
+		t.Errorf("received '%v' expected '%v'", WebsocketSpotSupplementary, websocketSpotSupplementaryURL)
 	}
-	if EdgeCase1.String() != "EdgeCase1URL" {
-		t.Errorf("invalid string conversion")
+	if ChainAnalysis.String() != chainAnalysisURL {
+		t.Errorf("received '%v' expected '%v'", ChainAnalysis, chainAnalysisURL)
 	}
-	if EdgeCase2.String() != "EdgeCase2URL" {
-		t.Errorf("invalid string conversion")
+	if EdgeCase1.String() != edgeCase1URL {
+		t.Errorf("received '%v' expected '%v'", EdgeCase1, edgeCase1URL)
 	}
-	if EdgeCase3.String() != "EdgeCase3URL" {
-		t.Errorf("invalid string conversion")
+	if EdgeCase2.String() != edgeCase2URL {
+		t.Errorf("received '%v' expected '%v'", EdgeCase2, edgeCase2URL)
+	}
+	if EdgeCase3.String() != edgeCase3URL {
+		t.Errorf("received '%v' expected '%v'", EdgeCase3, edgeCase3URL)
 	}
 }
 

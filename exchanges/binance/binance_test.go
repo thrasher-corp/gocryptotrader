@@ -1958,13 +1958,13 @@ func TestCancelOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fpair, err := b.FormatExchangeCurrency(p, asset.CoinMarginedFutures)
+	fPair, err := b.FormatExchangeCurrency(p, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.CoinMarginedFutures,
-		Pair:      fpair,
+		Pair:      fPair,
 		OrderID:   "1234",
 	})
 	if err != nil {
@@ -2417,7 +2417,6 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	b.HTTPRecording = true
 	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := startTime.Add(time.Hour * 24 * 7)
 	bAssets := b.GetAssetTypes(false)
@@ -2427,7 +2426,7 @@ func TestGetHistoricCandles(t *testing.T) {
 			t.Error(err)
 		}
 		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
-		if err != nil {
+		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 			t.Fatal(err)
 		}
 		_, err = b.GetHistoricCandles(context.Background(), cps[0], bAssets[i], kline.OneDay, startTime, end)
@@ -2449,7 +2448,6 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	b.HTTPRecording = true
 	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := startTime.Add(time.Hour * 24 * 7)
 	bAssets := b.GetAssetTypes(false)
@@ -2459,7 +2457,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 			t.Error(err)
 		}
 		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
-		if err != nil {
+		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 			t.Fatal(err)
 		}
 		_, err = b.GetHistoricCandlesExtended(context.Background(), cps[0], bAssets[i], kline.OneDay, startTime, end)
@@ -2524,7 +2522,6 @@ func TestGetRecentTrades(t *testing.T) {
 			t.Error(err)
 		}
 	}
-
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {

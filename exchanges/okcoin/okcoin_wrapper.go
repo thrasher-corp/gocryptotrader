@@ -779,7 +779,7 @@ func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 		return err
 	}
 
-	fpair, err := o.FormatExchangeCurrency(cancel.Pair,
+	fPair, err := o.FormatExchangeCurrency(cancel.Pair,
 		cancel.AssetType)
 	if err != nil {
 		return err
@@ -787,7 +787,7 @@ func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 
 	orderCancellationResponse, err := o.CancelSpotOrder(ctx,
 		&CancelSpotOrderRequest{
-			InstrumentID: fpair.String(),
+			InstrumentID: fPair.String(),
 			OrderID:      orderID,
 		})
 	if err != nil {
@@ -811,7 +811,7 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
 
-	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
+	fPair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
 	if err != nil {
 		return resp, err
@@ -819,7 +819,7 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(ctx,
 		&CancelMultipleSpotOrdersRequest{
-			InstrumentID: fpair.String(),
+			InstrumentID: fPair.String(),
 			OrderIDs:     splitOrderIDs,
 		})
 	if err != nil {

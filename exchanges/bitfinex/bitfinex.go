@@ -1584,12 +1584,12 @@ func (b *Bitfinex) GetOrderStatus(ctx context.Context, orderID int64) (Order, er
 }
 
 // GetInactiveOrders returns order status information
-func (b *Bitfinex) GetInactiveOrders(ctx context.Context, symbol string, IDs ...int64) ([]Order, error) {
+func (b *Bitfinex) GetInactiveOrders(ctx context.Context, symbol string, ids ...int64) ([]Order, error) {
 	var response []Order
 	req := make(map[string]interface{})
 	req["limit"] = 2500
-	if len(IDs) > 0 {
-		req["ids"] = IDs
+	if len(ids) > 0 {
+		req["ids"] = ids
 	}
 	return response, b.SendAuthenticatedHTTPRequestV2(
 		ctx,
@@ -1602,11 +1602,11 @@ func (b *Bitfinex) GetInactiveOrders(ctx context.Context, symbol string, IDs ...
 }
 
 // GetOpenOrders returns all active orders and statuses
-func (b *Bitfinex) GetOpenOrders(ctx context.Context, IDs ...int64) ([]Order, error) {
+func (b *Bitfinex) GetOpenOrders(ctx context.Context, ids ...int64) ([]Order, error) {
 	var response []Order
 	req := make(map[string]interface{})
-	if len(IDs) > 0 {
-		req["ids"] = IDs
+	if len(ids) > 0 {
+		req["ids"] = ids
 	}
 	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexOrders,
@@ -1692,7 +1692,7 @@ func (b *Bitfinex) GetMovementHistory(ctx context.Context, symbol, method string
 	if err != nil {
 		return nil, err
 	}
-	var resp []MovementHistory
+	var resp []MovementHistory //nolint:prealloc // its an array in an array
 	var ok bool
 	for i := range response {
 		var move MovementHistory

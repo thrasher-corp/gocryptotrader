@@ -359,8 +359,8 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
-	if !p.IsPopulated() {
-		return nil, errIncompleteCurrencyPair
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	instrumentID := format.Format(p)
 	if !ok.SupportsAsset(a) {
@@ -487,7 +487,8 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	}
 	var orderbookNew *OrderBookResponse
 	var err error
-	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	err = ok.CurrencyPairs.IsAssetEnabled(assetType)
+	if err != nil {
 		return nil, err
 	}
 	var instrumentID string
@@ -650,9 +651,10 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return nil, err
 	}
-	if !p.IsPopulated() {
-		return nil, errIncompleteCurrencyPair
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
+
 	instrumentID := format.Format(p)
 	tradeData, err := ok.GetTrades(ctx, instrumentID, 1000)
 	if err != nil {
@@ -697,8 +699,8 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	if !p.IsPopulated() {
-		return nil, errIncompleteCurrencyPair
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp []trade.Data
 	instrumentID := format.Format(p)
@@ -763,8 +765,8 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err != nil {
 		return nil, err
 	}
-	if !s.Pair.IsPopulated() {
-		return nil, errIncompleteCurrencyPair
+	if s.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	instrumentID := format.Format(s.Pair)
 	var tradeMode string
@@ -832,8 +834,8 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if err != nil {
 		return nil, err
 	}
-	if !action.Pair.IsPopulated() {
-		return nil, errIncompleteCurrencyPair
+	if action.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	instrumentID := format.Format(action.Pair)
 	if err != nil {
@@ -868,8 +870,8 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if !ord.Pair.IsPopulated() {
-		return errIncompleteCurrencyPair
+	if ord.Pair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
 	}
 	instrumentID := format.Format(ord.Pair)
 	req := CancelOrderRequestParam{

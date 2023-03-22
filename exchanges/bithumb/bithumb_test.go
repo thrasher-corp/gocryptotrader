@@ -412,10 +412,14 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
+		Pairs:     currency.Pairs{currency.NewPair(currency.BTC, currency.KRW)},
 	}
 
 	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)

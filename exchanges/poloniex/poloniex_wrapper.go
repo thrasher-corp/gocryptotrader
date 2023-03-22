@@ -307,11 +307,11 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 	for i := range enabledPairs {
-		fpair, err := p.FormatExchangeCurrency(enabledPairs[i], a)
+		fPair, err := p.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
 			return err
 		}
-		curr := fpair.String()
+		curr := fPair.String()
 		if _, ok := tick[curr]; !ok {
 			continue
 		}
@@ -391,11 +391,11 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 			VerifyOrderbook: p.CanVerifyOrderbook,
 		}
 
-		fpair, err := p.FormatExchangeCurrency(enabledPairs[i], assetType)
+		fPair, err := p.FormatExchangeCurrency(enabledPairs[i], assetType)
 		if err != nil {
 			return book, err
 		}
-		data, ok := orderbookNew.Data[fpair.String()]
+		data, ok := orderbookNew.Data[fPair.String()]
 		if !ok {
 			continue
 		}

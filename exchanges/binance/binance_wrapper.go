@@ -661,6 +661,7 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	}
 	var orderbookNew *OrderBook
 	var err error
+
 	switch assetType {
 	case asset.Spot, asset.Margin:
 		orderbookNew, err = b.GetOrderBook(ctx,

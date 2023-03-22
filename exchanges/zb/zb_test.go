@@ -1061,9 +1061,12 @@ func TestGetDepositRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("api keys not set")
 	}
-	z.GetDepositRecords(context.Background(), &WalletRecordsRequest{
+	_, err := z.GetDepositRecords(context.Background(), &WalletRecordsRequest{
 		Currency: currency.BTC,
 	})
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetWithdrawalRecords(t *testing.T) {
@@ -1071,9 +1074,12 @@ func TestGetWithdrawalRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("api keys not set")
 	}
-	z.GetWithdrawalRecords(context.Background(), &WalletRecordsRequest{
+	_, err := z.GetWithdrawalRecords(context.Background(), &WalletRecordsRequest{
 		Currency: currency.BTC,
 	})
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetSingleOrder(t *testing.T) {

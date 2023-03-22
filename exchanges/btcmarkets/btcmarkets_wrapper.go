@@ -387,12 +387,7 @@ func (b *BTCMarkets) FetchTicker(ctx context.Context, p currency.Pair, assetType
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *BTCMarkets) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(ctx, p, assetType)
 	}
@@ -407,6 +402,7 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
+
 	book := &orderbook.Base{
 		Exchange:         b.Name,
 		Pair:             p,
@@ -415,14 +411,13 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		VerifyOrderbook:  b.CanVerifyOrderbook,
 	}
 
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
-
 	// Retrieve level one book which is the top 50 ask and bids, this is not
 	// cached.
-	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 1)
+	tempResp, err := b.GetOrderbook(ctx, fPair.String(), 1)
 	if err != nil {
 		return book, err
 	}
@@ -588,7 +583,7 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		s.Side = order.Bid
 	}
 
-	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fPair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -608,7 +603,7 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		s.Amount,
 		s.TriggerPrice,
 		s.QuoteAmount,
-		fpair.String(),
+		fPair.String(),
 		fOrderType,
 		fOrderSide,
 		b.getTimeInForce(s),
@@ -875,11 +870,11 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 
 	var resp []order.Detail
 	for x := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		tempData, err := b.GetOrders(ctx, fpair.String(), -1, -1, -1, true)
+		tempData, err := b.GetOrders(ctx, fPair.String(), -1, -1, -1, true)
 		if err != nil {
 			return resp, err
 		}
@@ -951,12 +946,12 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 		}
 	}
 	for y := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[y], asset.Spot)
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[y], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		orders, err := b.GetOrders(ctx, fpair.String(), -1, -1, -1, false)
+		orders, err := b.GetOrders(ctx, fPair.String(), -1, -1, -1, false)
 		if err != nil {
 			return resp, err
 		}

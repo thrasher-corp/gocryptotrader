@@ -401,12 +401,12 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		Asset:           assetType,
 		VerifyOrderbook: h.CanVerifyOrderbook,
 	}
-	fpair, err := h.FormatExchangeCurrency(c, assetType)
+	fPair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	orderbookNew, err := h.GetOrderbook(ctx, fpair.String(), 1000)
+	orderbookNew, err := h.GetOrderbook(ctx, fPair.String(), 1000)
 	if err != nil {
 		return book, err
 	}

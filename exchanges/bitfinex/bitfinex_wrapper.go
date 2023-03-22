@@ -666,7 +666,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		return nil, err
 	}
 
-	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
+	fPair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -677,7 +677,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
 			Type:     o.Type.String(),
-			Symbol:   fpair.String(),
+			Symbol:   fPair.String(),
 			Amount:   o.Amount,
 			Price:    o.Price,
 		})
@@ -686,13 +686,13 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		}
 	} else {
 		var response Order
-		b.appendOptionalDelimiter(&fpair)
+		b.appendOptionalDelimiter(&fPair)
 		orderType := o.Type.Lower()
 		if o.AssetType == asset.Spot {
 			orderType = "exchange " + orderType
 		}
 		response, err = b.NewOrder(ctx,
-			fpair.String(),
+			fPair.String(),
 			orderType,
 			o.Amount,
 			o.Price,
@@ -797,10 +797,10 @@ func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 	return order.CancelAllResponse{}, err
 }
 
-func (b *Bitfinex) parseOrderToOrderDetail(o Order) (order.Detail, error) {
+func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	side, err := order.StringToOrderSide(o.Side)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	var timestamp float64
 	timestamp, err = strconv.ParseFloat(o.Timestamp, 64)
@@ -813,10 +813,10 @@ func (b *Bitfinex) parseOrderToOrderDetail(o Order) (order.Detail, error) {
 	var pair currency.Pair
 	pair, err = currency.NewPairFromString(o.Symbol)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
-	orderDetail := order.Detail{
+	orderDetail := &order.Detail{
 		Amount:          o.OriginalAmount,
 		Date:            time.Unix(int64(timestamp), 0),
 		Exchange:        b.Name,
@@ -876,7 +876,12 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if resp[i].OrderID != id {
 			continue
 		}
-		return b.parseOrderToOrderDetail(resp[i])
+		var o *order.Detail
+		o, err = b.parseOrderToOrderDetail(&resp[i])
+		if err != nil {
+			return order.Detail{}, err
+		}
+		return *o, nil
 	}
 	resp, err = b.GetOpenOrders(ctx, id)
 	if err != nil {
@@ -886,7 +891,12 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if resp[i].OrderID != id {
 			continue
 		}
-		return b.parseOrderToOrderDetail(resp[i])
+		var o *order.Detail
+		o, err = b.parseOrderToOrderDetail(&resp[i])
+		if err != nil {
+			return order.Detail{}, err
+		}
+		return *o, nil
 	}
 	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
@@ -1041,12 +1051,12 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		var orderDetail order.Detail
-		orderDetail, err = b.parseOrderToOrderDetail(resp[i])
+		var orderDetail *order.Detail
+		orderDetail, err = b.parseOrderToOrderDetail(&resp[i])
 		if err != nil {
 			return nil, err
 		}
-		orders[i] = orderDetail
+		orders[i] = *orderDetail
 	}
 	return req.Filter(b.Name, orders), nil
 }
@@ -1075,12 +1085,12 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 
 		for j := range resp {
-			var orderDetail order.Detail
-			orderDetail, err = b.parseOrderToOrderDetail(resp[j])
+			var orderDetail *order.Detail
+			orderDetail, err = b.parseOrderToOrderDetail(&resp[j])
 			if err != nil {
 				return nil, err
 			}
-			orders = append(orders, orderDetail)
+			orders = append(orders, *orderDetail)
 		}
 	}
 

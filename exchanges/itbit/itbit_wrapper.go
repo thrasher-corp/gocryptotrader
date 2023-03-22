@@ -158,12 +158,12 @@ func (i *ItBit) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (i *ItBit) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	fpair, err := i.FormatExchangeCurrency(p, a)
+	fPair, err := i.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
-	tick, err := i.GetTicker(ctx, fpair.String())
+	tick, err := i.GetTicker(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -220,12 +220,12 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		PriceDuplication: true,
 		VerifyOrderbook:  i.CanVerifyOrderbook,
 	}
-	fpair, err := i.FormatExchangeCurrency(p, assetType)
+	fPair, err := i.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	orderbookNew, err := i.GetOrderbook(ctx, fpair.String())
+	orderbookNew, err := i.GetOrderbook(ctx, fPair.String())
 	if err != nil {
 		return book, err
 	}

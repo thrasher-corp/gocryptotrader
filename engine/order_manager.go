@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -472,20 +473,22 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 		newOrder.Price,
 		newOrder.Amount,
 		newOrder.Type)
-	if err != nil {
+	if err != nil && errors.Is(err, currencystate.ErrCurrencyStateNotFound) {
 		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
 			newOrder.Exchange,
 			err)
 	}
-	// Determines if current trading activity is turned off by the exchange for
-	// the currency pair
-	err = exch.CanTradePair(newOrder.Pair, newOrder.AssetType)
-	if err != nil {
-		return nil, fmt.Errorf("order manager: exchange %s cannot trade pair %s %s: %w",
-			newOrder.Exchange,
-			newOrder.Pair,
-			newOrder.AssetType,
-			err)
+	if err == nil {
+		// Determines if current trading activity is turned off by the exchange for
+		// the currency pair
+		err = exch.CanTradePair(newOrder.Pair, newOrder.AssetType)
+		if err != nil {
+			return nil, fmt.Errorf("order manager: exchange %s cannot trade pair %s %s: %w",
+				newOrder.Exchange,
+				newOrder.Pair,
+				newOrder.AssetType,
+				err)
+		}
 	}
 
 	result, err := exch.SubmitOrder(ctx, newOrder)
