@@ -487,7 +487,7 @@ func (b *Bitstamp) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitstamp) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitstamp) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -581,7 +581,7 @@ func (ok *Okx) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
-func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	depositHistories, err := ok.GetCurrencyDepositHistory(ctx, "", "", "", time.Time{}, time.Time{}, -1, 0)
 	if err != nil {
 		return nil, err
@@ -590,9 +590,9 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHis
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, 0, len(depositHistories)+len(withdrawalHistories))
+	resp := make([]exchange.FundingHistory, 0, len(depositHistories)+len(withdrawalHistories))
 	for x := range depositHistories {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    ok.Name,
 			Status:          strconv.Itoa(depositHistories[x].State),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
@@ -604,7 +604,7 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHis
 		})
 	}
 	for x := range withdrawalHistories {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    ok.Name,
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
 			Timestamp:       withdrawalHistories[x].Timestamp.Time(),

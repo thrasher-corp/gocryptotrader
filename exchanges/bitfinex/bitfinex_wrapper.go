@@ -560,7 +560,7 @@ func (b *Bitfinex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitfinex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitfinex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1154,7 +1154,6 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	b.Verbose = true
 	candles, err := b.GetCandles(ctx, cf, fInterval, req.Start.UnixMilli(), req.End.UnixMilli(), b.Features.Enabled.Kline.ResultLimit, true)
 	if err != nil {
 		return nil, err
@@ -1192,7 +1191,6 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		var candles []Candle
-		b.Verbose = true
 		candles, err = b.GetCandles(ctx, cf, fInterval, req.RangeHolder.Ranges[x].Start.Time.UnixMilli(), req.RangeHolder.Ranges[x].End.Time.UnixMilli(), b.Features.Enabled.Kline.ResultLimit,
 			true)
 		if err != nil {

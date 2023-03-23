@@ -393,7 +393,6 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	p := currency.NewPair(currency.BTC, currency.AUD)
 	a := asset.Spot
-	exchB.Verbose = true
 	_, err = exch.FetchOrderbook(context.Background(), p, a)
 	if err != nil {
 		t.Fatal(err)

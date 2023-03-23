@@ -46,7 +46,7 @@ type IBotExchange interface {
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
-	GetAccountFundingHistory(ctx context.Context) ([]FundHistory, error)
+	GetAccountFundingHistory(ctx context.Context) ([]FundingHistory, error)
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
 	GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]WithdrawalHistory, error)

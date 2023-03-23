@@ -800,7 +800,7 @@ func (by *Bybit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (by *Bybit) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (by *Bybit) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

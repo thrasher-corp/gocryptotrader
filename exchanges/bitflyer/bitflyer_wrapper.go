@@ -345,7 +345,7 @@ func (b *Bitflyer) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitflyer) GetAccountFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitflyer) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

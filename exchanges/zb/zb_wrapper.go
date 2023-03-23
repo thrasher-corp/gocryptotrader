@@ -431,14 +431,14 @@ func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accoun
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	pairs, err := z.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	currs := pairs.GetCurrencies()
 
-	var records []exchange.FundHistory
+	var records []exchange.FundingHistory
 	for x := range currs {
 		totalPages := int64(1)
 		for y := int64(0); y < totalPages; y++ {
@@ -460,7 +460,7 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHisto
 				case 2:
 					status = "confirmed"
 				}
-				records = append(records, exchange.FundHistory{
+				records = append(records, exchange.FundingHistory{
 					ExchangeName:    z.GetName(),
 					Status:          status,
 					TransferID:      strconv.FormatInt(deposits.List[i].ID, 10),
@@ -500,7 +500,7 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHisto
 				case 5:
 					status = "confirmed"
 				}
-				records = append(records, exchange.FundHistory{
+				records = append(records, exchange.FundingHistory{
 					ExchangeName:    z.GetName(),
 					Status:          status,
 					TransferID:      strconv.FormatInt(withdrawals.List[i].ID, 10),

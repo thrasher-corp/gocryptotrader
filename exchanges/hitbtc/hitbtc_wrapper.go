@@ -485,7 +485,7 @@ func (h *HitBTC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HitBTC) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (h *HitBTC) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	// TODO supported in v3 API
 	return nil, common.ErrFunctionNotSupported
 }

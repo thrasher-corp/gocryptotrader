@@ -381,7 +381,7 @@ func (l *Lbank) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (l *Lbank) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (l *Lbank) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

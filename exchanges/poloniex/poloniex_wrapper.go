@@ -473,15 +473,15 @@ func (p *Poloniex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	end := time.Now()
 	walletActivity, err := p.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "")
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, len(walletActivity.Deposits))
+	resp := make([]exchange.FundingHistory, len(walletActivity.Deposits))
 	for i := range walletActivity.Deposits {
-		resp[i] = exchange.FundHistory{
+		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Deposits[i].Status,
 			Timestamp:       walletActivity.Deposits[i].Timestamp,
@@ -492,7 +492,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		}
 	}
 	for i := range walletActivity.Withdrawals {
-		resp[i] = exchange.FundHistory{
+		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Withdrawals[i].Status,
 			Timestamp:       walletActivity.Withdrawals[i].Timestamp,

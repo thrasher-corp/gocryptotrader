@@ -593,14 +593,14 @@ func (b *Bitmex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitmex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitmex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	history, err := b.GetWalletHistory(ctx, "all")
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, len(history))
+	resp := make([]exchange.FundingHistory, len(history))
 	for i := range history {
-		resp[i] = exchange.FundHistory{
+		resp[i] = exchange.FundingHistory{
 			ExchangeName:    b.Name,
 			Status:          history[i].TransactStatus,
 			Timestamp:       history[i].Timestamp,

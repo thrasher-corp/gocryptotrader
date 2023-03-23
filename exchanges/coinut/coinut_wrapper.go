@@ -537,7 +537,7 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *COINUT) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (c *COINUT) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -463,7 +463,7 @@ func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gateio) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (g *Gateio) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -559,7 +559,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{fetchAccountInfoResponse}),
 		})
 
-		var getFundingHistoryResponse []exchange.FundHistory
+		var getFundingHistoryResponse []exchange.FundingHistory
 		getFundingHistoryResponse, err = e.GetAccountFundingHistory(context.TODO())
 		msg = ""
 		if err != nil {

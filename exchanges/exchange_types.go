@@ -111,8 +111,8 @@ type FeeBuilder struct {
 	Amount        float64
 }
 
-// FundHistory holds exchange funding history data
-type FundHistory struct {
+// FundingHistory holds exchange funding history data
+type FundingHistory struct {
 	ExchangeName      string
 	Status            string
 	TransferID        string

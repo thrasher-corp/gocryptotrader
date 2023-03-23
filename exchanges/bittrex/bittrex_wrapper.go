@@ -457,7 +457,7 @@ func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bittrex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bittrex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	closedDepositData, err := b.GetClosedDeposits(ctx)
 	if err != nil {
 		return nil, err
@@ -483,9 +483,9 @@ func (b *Bittrex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 	withdrawalData = append(withdrawalData, closedWithdrawalData...)
 	withdrawalData = append(withdrawalData, openWithdrawalData...)
 
-	resp := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
+	resp := make([]exchange.FundingHistory, 0, len(depositData)+len(withdrawalData))
 	for x := range depositData {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    b.Name,
 			Status:          depositData[x].Status,
 			Description:     depositData[x].CryptoAddressTag,
@@ -498,7 +498,7 @@ func (b *Bittrex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fund
 		})
 	}
 	for x := range withdrawalData {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    b.Name,
 			Status:          withdrawalData[x].Status,
 			Description:     withdrawalData[x].CryptoAddressTag,

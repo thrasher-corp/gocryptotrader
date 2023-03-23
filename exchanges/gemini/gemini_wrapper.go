@@ -472,14 +472,14 @@ func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	transfers, err := g.Transfers(ctx, currency.EMPTYCODE, time.Time{}, 50, "", false)
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, len(transfers))
+	resp := make([]exchange.FundingHistory, len(transfers))
 	for i := range transfers {
-		resp[i] = exchange.FundHistory{
+		resp[i] = exchange.FundingHistory{
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
 			Timestamp:       transfers[i].Timestamp,

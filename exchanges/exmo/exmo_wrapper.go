@@ -420,17 +420,17 @@ func (e *EXMO) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (e *EXMO) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (e *EXMO) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	hist, err := e.GetWalletHistory(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, 0, len(hist.History))
+	resp := make([]exchange.FundingHistory, 0, len(hist.History))
 	for i := range hist.History {
 		if hist.History[i].Type != "deposit" {
 			continue
 		}
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			Status:     hist.History[i].Status,
 			TransferID: hist.History[i].Txid,
 			Timestamp:  hist.History[i].Timestamp,

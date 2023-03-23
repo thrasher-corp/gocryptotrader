@@ -681,7 +681,7 @@ func (o *OKCoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (o *OKCoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (o *OKCoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	accountDepositHistory, err := o.GetAccountDepositHistory(ctx, "")
 	if err != nil {
 		return nil, err
@@ -690,7 +690,7 @@ func (o *OKCoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundH
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, len(accountDepositHistory)+len(accountWithdrawlHistory))
+	resp := make([]exchange.FundingHistory, len(accountDepositHistory)+len(accountWithdrawlHistory))
 	for x := range accountDepositHistory {
 		orderStatus := ""
 		switch accountDepositHistory[x].Status {
@@ -702,7 +702,7 @@ func (o *OKCoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundH
 			orderStatus = "recharge success"
 		}
 
-		resp[x] = exchange.FundHistory{
+		resp[x] = exchange.FundingHistory{
 			Amount:       accountDepositHistory[x].Amount,
 			Currency:     accountDepositHistory[x].Currency,
 			ExchangeName: o.Name,
@@ -714,7 +714,7 @@ func (o *OKCoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundH
 	}
 
 	for i := range accountWithdrawlHistory {
-		resp[len(accountDepositHistory)+i] = exchange.FundHistory{
+		resp[len(accountDepositHistory)+i] = exchange.FundingHistory{
 			Amount:       accountWithdrawlHistory[i].Amount,
 			Currency:     accountWithdrawlHistory[i].Currency,
 			ExchangeName: o.Name,
