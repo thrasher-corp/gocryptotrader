@@ -1497,6 +1497,7 @@ func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 // submitted
 func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
+		println("ERROR HERE: %w", err)
 		return nil, err
 	}
 	response, err := g.WithdrawCurrency(ctx,
@@ -1504,8 +1505,8 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 			Amount:   withdrawRequest.Amount,
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
-		},
-	)
+			Chain:    withdrawRequest.Crypto.Chain,
+		})
 	if err != nil {
 		return nil, err
 	}

@@ -620,9 +620,9 @@ type CurrencyChain struct {
 	Chain              string `json:"chain"`
 	ChineseChainName   string `json:"name_cn"`
 	ChainName          string `json:"name_en"`
-	IsDisabled         int64  `json:"is_disabled"`
-	IsDepositDisabled  int64  `json:"is_deposit_disabled"`
-	IsWithdrawDisabled int64  `json:"is_withdraw_disabled"`
+	IsDisabled         int64  `json:"is_disabled"`          // If it is disabled. 0 means NOT being disabled
+	IsDepositDisabled  int64  `json:"is_deposit_disabled"`  // Is deposit disabled. 0 means not
+	IsWithdrawDisabled int64  `json:"is_withdraw_disabled"` // Is withdrawal disabled. 0 means not
 }
 
 // MarginCurrencyPairInfo represents margin currency pair detailed info.

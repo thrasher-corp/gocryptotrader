@@ -152,6 +152,12 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
+	cryptocurrencyChains, err := g.GetAvailableTransferChains(context.Background(), currency.BTC)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(cryptocurrencyChains) == 0 {
+		t.Fatal("no crypto currency chain available")
+	}
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    g.Name,
 		Amount:      1,
@@ -159,15 +165,13 @@ func TestWithdraw(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
-			Chain:   "BTC",
+			Chain:   cryptocurrencyChains[0],
 		},
 	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+		t.Skip(credInformationNotProvided)
 	}
-	_, err := g.WithdrawCryptocurrencyFunds(context.Background(),
-		&withdrawCryptoRequest)
-	if err != nil {
+	if _, err = g.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest); err != nil {
 		t.Errorf("%s WithdrawCryptocurrencyFunds() error: %v", g.Name, err)
 	}
 }
