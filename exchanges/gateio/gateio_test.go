@@ -1377,8 +1377,8 @@ func TestGetSingleDeliveryOrder(t *testing.T) {
 	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleBTC, "123456"); err != nil {
 		t.Errorf("%s GetSingleDeliveryOrder() error %v", g.Name, err)
 	}
-	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleUSD, "123456"); !errors.Is(err, errInvalidSettleCurrency) {
-		t.Errorf("%s GetSingleDeliveryOrder() expected %v, but found %v", g.Name, errInvalidSettleCurrency, err)
+	if _, err := g.GetSingleDeliveryOrder(context.Background(), settleUSD, "123456"); !errors.Is(err, errEmptySettleCurrency) {
+		t.Errorf("%s GetSingleDeliveryOrder() expected %v, but found %v", g.Name, errEmptySettleCurrency, err)
 	}
 }
 
@@ -1544,7 +1544,7 @@ func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdatePositionRiskLimitinDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 10); err != nil {
+	if _, err := g.UpdatePositionRiskLimitInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 10); err != nil {
 		t.Errorf("%s UpdatePositionRiskLimitinDualMode() error %v", g.Name, err)
 	}
 }
@@ -2288,6 +2288,10 @@ func TestFetchTradablePairs(t *testing.T) {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
 	_, err = g.FetchTradablePairs(context.Background(), asset.CrossMargin)
+	if err != nil {
+		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
+	}
+	_, err = g.FetchTradablePairs(context.Background(), asset.Spot)
 	if err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}

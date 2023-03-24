@@ -408,7 +408,10 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
-			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
+			if tradables[x].TradeStatus == "untradable" {
+				continue
+			}
+			p := strings.ToUpper(tradables[x].ID)
 			if !g.IsValidPairString(p) {
 				continue
 			}
