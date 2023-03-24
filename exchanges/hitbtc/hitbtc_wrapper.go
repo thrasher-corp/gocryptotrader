@@ -673,26 +673,23 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	resp, err := h.GetActiveOrderByClientOrderID(ctx, orderID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	format, err := h.GetPairFormat(assetType, true)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	pair = pair.Format(format)
 
-	if err != nil {
-		return order.Detail{}, err
-	}
 	var side order.Side
 	side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
-	return order.Detail{
+	return &order.Detail{
 		OrderID:  resp.ID,
 		Amount:   resp.Quantity,
 		Exchange: h.Name,

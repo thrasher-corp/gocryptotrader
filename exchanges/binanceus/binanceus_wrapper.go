@@ -488,7 +488,10 @@ func (bi *Binanceus) GetAccountFundingHistory(ctx context.Context) ([]exchange.F
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	withdrawals, err := bi.WithdrawalHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {
 		return nil, err
@@ -700,24 +703,23 @@ func (bi *Binanceus) CancelAllOrders(ctx context.Context, orderCancellation *ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if pair.IsEmpty() {
-		return order.Detail{}, currency.ErrCurrencyPairEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
-	var respData order.Detail
 	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
-		return respData, fmt.Errorf("invalid orderID %w", err)
+		return nil, fmt.Errorf("invalid orderID %w", err)
 	}
 	symbolValue, err := bi.FormatSymbol(pair, asset.Spot)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	if assetType != asset.Spot {
-		return respData, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 	var orderType order.Type
 	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
@@ -725,7 +727,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		OrderID: uint64(orderIDInt),
 	})
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	orderSide, err := order.StringToOrderSide(resp.Side)
 	if err != nil {
@@ -740,7 +742,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 	}
 
-	return order.Detail{
+	return &order.Detail{
 		Amount:         resp.OrigQty,
 		Exchange:       bi.Name,
 		OrderID:        strconv.FormatInt(int64(resp.OrderID), 10),

@@ -588,13 +588,13 @@ func (b *Bithumb) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if pair.IsEmpty() {
-		return order.Detail{}, currency.ErrCurrencyPairEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	orders, err := b.GetOrders(ctx, orderID, "", 0, time.Time{}, pair.Base, currency.EMPTYCODE)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	for i := range orders.Data {
 		if orders.Data[i].OrderID != orderID {
@@ -616,9 +616,9 @@ func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		} else if orders.Data[i].Type == "ask" {
 			orderDetail.Side = order.Sell
 		}
-		return orderDetail, nil
+		return &orderDetail, nil
 	}
-	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

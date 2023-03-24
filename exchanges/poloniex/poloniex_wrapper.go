@@ -675,14 +675,20 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
 	orderIDs := make([]string, 0, len(o))
 	clientOrderIDs := make([]string, 0, len(o))
 	for i := range o {
-		if o[i].ClientOrderID != "" {
+		switch {
+		case o[i].ClientOrderID != "":
 			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
-			continue
+		case o[i].OrderID != "":
+			orderIDs = append(orderIDs, o[i].OrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
 		}
-		orderIDs = append(orderIDs, o[i].OrderID)
 	}
 	cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, orderIDs, clientOrderIDs)
 	if err != nil {
@@ -725,7 +731,7 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	orderInfo := order.Detail{
 		Exchange: p.Name,
 		Pair:     pair,
@@ -733,7 +739,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 	trades, err := p.GetAuthenticatedOrderTrades(ctx, orderID)
 	if err != nil && !strings.Contains(err.Error(), "Order not found") {
-		return orderInfo, err
+		return nil, err
 	}
 
 	for i := range trades {
@@ -741,12 +747,12 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		tradeHistory.Exchange = p.Name
 		tradeHistory.Side, err = order.StringToOrderSide(trades[i].Type)
 		if err != nil {
-			return orderInfo, err
+			return nil, err
 		}
 		tradeHistory.TID = strconv.FormatInt(trades[i].GlobalTradeID, 10)
 		tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, trades[i].Date)
 		if err != nil {
-			return orderInfo, err
+			return nil, err
 		}
 		tradeHistory.Price = trades[i].Rate
 		tradeHistory.Amount = trades[i].Amount
@@ -761,9 +767,9 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			if strings.Contains(err.Error(), "Order not found") {
 				orderInfo.Status = order.Closed
 			}
-			return orderInfo, nil
+			return &orderInfo, nil
 		}
-		return orderInfo, err
+		return nil, err
 	}
 
 	if orderInfo.Status, err = order.StringToOrderStatus(resp.Status); err != nil {
@@ -777,15 +783,15 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 	orderInfo.Side, err = order.StringToOrderSide(resp.Type)
 	if err != nil {
-		return orderInfo, err
+		return nil, err
 	}
 
 	orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, resp.Date)
 	if err != nil {
-		return orderInfo, err
+		return nil, err
 	}
 
-	return orderInfo, nil
+	return &orderInfo, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

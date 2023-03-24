@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -94,7 +95,7 @@ func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	_, err := g.SpotNewOrder(context.Background(),
@@ -113,7 +114,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	_, err := g.CancelExistingOrder(context.Background(), 917591554, "btc_usdt")
@@ -126,7 +127,7 @@ func TestGetBalances(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 
 	_, err := g.GetBalances(context.Background())
@@ -339,7 +340,7 @@ func areTestAPIKeysSet() bool {
 
 func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("API keys set, canManipulateRealOrders false, skipping")
 	}
 
 	var orderSubmission = &order.Submit{
@@ -366,7 +367,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("API keys set, canManipulateRealOrders false, skipping")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
@@ -389,7 +390,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("API keys set, canManipulateRealOrders false, skipping")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
@@ -475,6 +476,13 @@ func TestWithdrawFiat(t *testing.T) {
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
+}
+
+func TestSplit(t *testing.T) {
+	t.Parallel()
+	t.Log(len(strings.Split("", "lksajdhfalskdf")))
+	t.Log(len(strings.Split("", "")))
+	t.Log(len(strings.Split("lksajdhfalskdf", "")))
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {

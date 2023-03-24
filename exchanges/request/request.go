@@ -19,7 +19,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const contextVerboseFlag verbosity = "verbose"
+const (
+	contextVerboseFlag     verbosity = "verbose"
+	UnsetRequest           AuthType  = 0
+	UnauthenticatedRequest           = iota << 1
+	AuthenticatedRequest
+)
+
+type AuthType int
 
 var (
 	// ErrRequestSystemIsNil defines and error if the request system has not
@@ -36,6 +43,7 @@ var (
 	errFailedToRetryRequest   = errors.New("failed to retry request")
 	errContextRequired        = errors.New("context is required")
 	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
+	errRequestTypeUnpopulated = errors.New("request type bool is not populated")
 )
 
 // New returns a new Requester
@@ -62,13 +70,16 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, isAuth bool) error {
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
 
 	if ctx == nil {
 		return errContextRequired
+	}
+	if requestType == UnsetRequest {
+		return errRequestTypeUnpopulated
 	}
 
 	defer r.timedLock.UnlockIfLocked()
@@ -84,7 +95,7 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 	atomic.AddInt32(&r.jobs, 1)
 	err := r.doRequest(ctx, ep, newRequest)
 	atomic.AddInt32(&r.jobs, -1)
-	if err != nil && isAuth {
+	if err != nil && requestType == AuthenticatedRequest {
 		err = common.AppendError(err, ErrAuthRequestFailed)
 	}
 	return err

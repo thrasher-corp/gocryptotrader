@@ -197,11 +197,12 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 	var path string
 	values.Set("access_key", c.APIKey)
 
-	var auth bool
+	var auth request.AuthType
 	if c.APIKeyLvl == AccountFree {
 		path = APIEndpointURL + endPoint + "?"
+		auth = request.UnauthenticatedRequest
 	} else {
-		auth = true
+		auth = request.AuthenticatedRequest
 		path = APIEndpointURLSSL + endPoint + "?"
 	}
 	path += values.Encode()

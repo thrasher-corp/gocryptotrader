@@ -2057,7 +2057,7 @@ func (b *Bitfinex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 
 	return b.SendPayload(ctx, e, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request and json
@@ -2110,7 +2110,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequestV2 sends an authenticated http request and json
@@ -2164,7 +2164,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording,
 		}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

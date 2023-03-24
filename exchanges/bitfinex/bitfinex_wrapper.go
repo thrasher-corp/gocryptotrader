@@ -845,22 +845,22 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	id, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	b.appendOptionalDelimiter(&pair)
 	var cf string
 	cf, err = b.fixCasing(pair, assetType)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	resp, err := b.GetInactiveOrders(ctx, cf, id)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	for i := range resp {
 		if resp[i].OrderID != id {
@@ -869,13 +869,13 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		var o *order.Detail
 		o, err = b.parseOrderToOrderDetail(&resp[i])
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
-		return *o, nil
+		return o, nil
 	}
 	resp, err = b.GetOpenOrders(ctx, id)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	for i := range resp {
 		if resp[i].OrderID != id {
@@ -884,11 +884,11 @@ func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		var o *order.Detail
 		o, err = b.parseOrderToOrderDetail(&resp[i])
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
-		return *o, nil
+		return o, nil
 	}
-	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

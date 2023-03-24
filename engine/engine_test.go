@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -423,6 +422,8 @@ func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBot
 			t.Fatalf("%v %v", name, err)
 		}
 	}
+
+	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
 	assetPairs := make([]assetPair, len(assets)+1)
 	for j := range assets {
 		var pairs currency.Pairs
@@ -467,28 +468,30 @@ func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBot
 			Asset: assets[j],
 		}
 	}
-	// curveball scenario
-	assetPairs[len(assetPairs)-1] = assetPair{
-		Pair:  currency.EMPTYPAIR,
-		Asset: asset.Empty,
-	}
 
 	return exch, assetPairs
 }
 
 // isUnacceptableError sentences errs to 10 years dungeon if unacceptable
-func isUnacceptableError(err error) error {
+func isUnacceptableError(t *testing.T, err error) error {
+	t.Helper()
 	for i := range acceptableErrors {
 		if errors.Is(err, acceptableErrors[i]) {
+			return nil
+		}
+	}
+	for i := range warningErrors {
+		if errors.Is(err, warningErrors[i]) {
+			t.Log(err)
 			return nil
 		}
 	}
 	return err
 }
 
-func readDataHandler(ws *stream.Websocket, wg *sync.WaitGroup) error {
+func readDataHandler(t *testing.T, ws *stream.Websocket) error {
+	t.Helper()
 	var err error
-	defer wg.Done()
 	timer := time.NewTimer(time.Second * 30)
 	for {
 		select {
@@ -499,7 +502,7 @@ func readDataHandler(ws *stream.Websocket, wg *sync.WaitGroup) error {
 			if !ok {
 				continue
 			}
-			if isUnacceptableError(dataErr) != nil {
+			if isUnacceptableError(t, dataErr) != nil {
 				err = common.AppendError(err, dataErr)
 			}
 		default:
@@ -525,21 +528,16 @@ func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange) {
 	}
 	if !ws.IsConnected() && !ws.IsConnecting() {
 		err = ws.Connect()
-		if isUnacceptableError(err) != nil {
+		if isUnacceptableError(t, err) != nil {
 			t.Fatal(err)
 		}
 	}
 	// auth functions not purpose of test
 	ws.SetCanUseAuthenticatedEndpoints(false)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func(ws *stream.Websocket, wg *sync.WaitGroup) {
-		err = readDataHandler(ws, wg)
-		if err != nil {
-			t.Error(err)
-		}
-	}(ws, &wg)
-	wg.Wait()
+	err = readDataHandler(t, ws)
+	if err != nil {
+		t.Error(err)
+	}
 	err = ws.Shutdown()
 	if err != nil {
 		t.Error(err)
@@ -550,8 +548,6 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
-
-	assetParam := reflect.TypeOf((*asset.Item)(nil)).Elem()
 
 	e := time.Now().Add(-time.Hour * 24)
 	for x := 0; x < iExchange.NumMethod(); x++ {
@@ -609,29 +605,31 @@ type MethodArgumentGenerator struct {
 	argNum          int64
 }
 
+var (
+	currencyPairParam     = reflect.TypeOf((*currency.Pair)(nil)).Elem()
+	klineParam            = reflect.TypeOf((*kline.Interval)(nil)).Elem()
+	contextParam          = reflect.TypeOf((*context.Context)(nil)).Elem()
+	timeParam             = reflect.TypeOf((*time.Time)(nil)).Elem()
+	codeParam             = reflect.TypeOf((*currency.Code)(nil)).Elem()
+	assetParam            = reflect.TypeOf((*asset.Item)(nil)).Elem()
+	currencyPairsParam    = reflect.TypeOf((*currency.Pairs)(nil)).Elem()
+	withdrawRequestParam  = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
+	stringParam           = reflect.TypeOf((*string)(nil)).Elem()
+	orderSubmitParam      = reflect.TypeOf((**order.Submit)(nil)).Elem()
+	orderModifyParam      = reflect.TypeOf((**order.Modify)(nil)).Elem()
+	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
+	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
+	getOrdersRequestParam = reflect.TypeOf((**order.GetOrdersRequest)(nil)).Elem()
+)
+
 // generateMethodArg determines the argument type and returns a pre-made
 // response, else an empty version of the type
 func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *reflect.Value {
 	t.Helper()
 	exchName := argGenerator.Exchange.GetName()
-	cpParam := reflect.TypeOf((*currency.Pair)(nil)).Elem()
-	klineParam := reflect.TypeOf((*kline.Interval)(nil)).Elem()
-	contextParam := reflect.TypeOf((*context.Context)(nil)).Elem()
-	timeParam := reflect.TypeOf((*time.Time)(nil)).Elem()
-	codeParam := reflect.TypeOf((*currency.Code)(nil)).Elem()
-	assetParam := reflect.TypeOf((*asset.Item)(nil)).Elem()
-	pairs := reflect.TypeOf((*currency.Pairs)(nil)).Elem()
-	wr := reflect.TypeOf((**withdraw.Request)(nil)).Elem()
-	stringType := reflect.TypeOf((*string)(nil)).Elem()
-	os := reflect.TypeOf((**order.Submit)(nil)).Elem()
-	om := reflect.TypeOf((**order.Modify)(nil)).Elem()
-	oc := reflect.TypeOf((**order.Cancel)(nil)).Elem()
-	occ := reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	gor := reflect.TypeOf((**order.GetOrdersRequest)(nil)).Elem()
-
 	var input reflect.Value
 	switch {
-	case argGenerator.MethodInputType.AssignableTo(stringType):
+	case argGenerator.MethodInputType.AssignableTo(stringParam):
 		switch argGenerator.MethodName {
 		case "GetDepositAddress":
 			if argGenerator.argNum == 2 {
@@ -649,7 +647,7 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 		// Need to deploy a context.Context value as nil value is not
 		// checked throughout codebase.
 		input = reflect.ValueOf(context.Background())
-	case argGenerator.MethodInputType.AssignableTo(cpParam):
+	case argGenerator.MethodInputType.AssignableTo(currencyPairParam):
 		input = reflect.ValueOf(argGenerator.AssetParams.Pair)
 	case argGenerator.MethodInputType.AssignableTo(assetParam):
 		input = reflect.ValueOf(argGenerator.AssetParams.Asset)
@@ -668,11 +666,11 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 		} else {
 			input = reflect.ValueOf(argGenerator.End)
 		}
-	case argGenerator.MethodInputType.AssignableTo(pairs):
+	case argGenerator.MethodInputType.AssignableTo(currencyPairsParam):
 		input = reflect.ValueOf(currency.Pairs{
 			argGenerator.AssetParams.Pair,
 		})
-	case argGenerator.MethodInputType.AssignableTo(wr):
+	case argGenerator.MethodInputType.AssignableTo(withdrawRequestParam):
 		req := &withdraw.Request{
 			Exchange:      exchName,
 			Description:   "1337",
@@ -736,7 +734,7 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 			}
 		}
 		input = reflect.ValueOf(req)
-	case argGenerator.MethodInputType.AssignableTo(os):
+	case argGenerator.MethodInputType.AssignableTo(orderSubmitParam):
 		input = reflect.ValueOf(&order.Submit{
 			Exchange:          exchName,
 			Type:              order.Limit,
@@ -749,7 +747,7 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
 		})
-	case argGenerator.MethodInputType.AssignableTo(om):
+	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
 			Exchange:          exchName,
 			Type:              order.Limit,
@@ -762,29 +760,27 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 			OrderID:           "1337",
 			ImmediateOrCancel: true,
 		})
-	case argGenerator.MethodInputType.AssignableTo(oc):
+	case argGenerator.MethodInputType.AssignableTo(orderCancelParam):
 		input = reflect.ValueOf(&order.Cancel{
-			Exchange:      exchName,
-			Type:          order.Limit,
-			Side:          order.Buy,
-			Pair:          argGenerator.AssetParams.Pair,
-			AssetType:     argGenerator.AssetParams.Asset,
-			ClientOrderID: "13371337",
-			OrderID:       "1337",
+			Exchange:  exchName,
+			Type:      order.Limit,
+			Side:      order.Buy,
+			Pair:      argGenerator.AssetParams.Pair,
+			AssetType: argGenerator.AssetParams.Asset,
+			OrderID:   "1337",
 		})
-	case argGenerator.MethodInputType.AssignableTo(occ):
+	case argGenerator.MethodInputType.AssignableTo(orderCancelsParam):
 		input = reflect.ValueOf([]order.Cancel{
 			{
-				Exchange:      exchName,
-				Type:          order.Market,
-				Side:          order.Buy,
-				Pair:          argGenerator.AssetParams.Pair,
-				AssetType:     argGenerator.AssetParams.Asset,
-				ClientOrderID: "13371337",
-				OrderID:       "1337",
+				Exchange:  exchName,
+				Type:      order.Market,
+				Side:      order.Buy,
+				Pair:      argGenerator.AssetParams.Pair,
+				AssetType: argGenerator.AssetParams.Asset,
+				OrderID:   "1337",
 			},
 		})
-	case argGenerator.MethodInputType.AssignableTo(gor):
+	case argGenerator.MethodInputType.AssignableTo(getOrdersRequestParam):
 		input = reflect.ValueOf(&order.GetOrdersRequest{
 			Type:      order.AnyType,
 			Side:      order.AnySide,
@@ -819,7 +815,7 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 				t.Errorf("%s type assertion failure for %v", methodName, incoming)
 				continue
 			}
-			if isUnacceptableError(err) != nil {
+			if isUnacceptableError(t, err) != nil {
 				literalInputs := make([]interface{}, len(methodValues))
 				for j := range methodValues {
 					literalInputs[j] = methodValues[j].Interface()
@@ -880,6 +876,7 @@ var unsupportedExchangeNames = []string{
 	"itbit",    // itbit has no way of retrieving pair data
 }
 
+// acceptable errors do not throw test errors, see below for why
 var acceptableErrors = []error{
 	common.ErrFunctionNotSupported,   // Shows API cannot perform function and developer has recognised this
 	asset.ErrNotSupported,            // Shows that valid and invalid asset types are handled
@@ -889,6 +886,12 @@ var acceptableErrors = []error{
 	currency.ErrCurrencyNotSupported, // Ensures a standard error is used for when a particular currency/pair is not supported by an exchange
 	currency.ErrCurrencyNotFound,     // Semi-randomly selected currency pairs may not be found at an endpoint, so long as this is returned it is okay
 	asset.ErrNotEnabled,              // Allows distinction when checking for supported versus enabled
+}
+
+// warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
+// that the implementation is in error
+var warningErrors = []error{
+	kline.ErrNoTimeSeriesDataToConvert, // No data returned for a candle isn't worth failing the test suite over necessarily
 }
 
 // getPairFromPairs prioritises more normal pairs for an increased

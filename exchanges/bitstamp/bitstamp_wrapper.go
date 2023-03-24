@@ -620,14 +620,14 @@ func (b *Bitstamp) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	iOID, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	o, err := b.GetOrderStatus(ctx, iOID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	th := make([]order.TradeHistory, len(o.Transactions))
@@ -639,11 +639,12 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Amount: o.Transactions[i].BTC,
 		}
 	}
-	return order.Detail{
+	return &order.Detail{
 		Amount:  o.Amount,
 		Price:   o.Price,
 		OrderID: o.ID,
 		Date:    o.DateTime,
+		Trades:  th,
 	}, nil
 }
 

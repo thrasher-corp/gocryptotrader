@@ -336,7 +336,7 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 	}
 	return g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
@@ -446,7 +446,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	err = g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = strings.NewReader(param)
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

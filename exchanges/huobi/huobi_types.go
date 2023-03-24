@@ -487,14 +487,14 @@ type SwapMarketsData struct {
 
 // KlineItem stores a kline item
 type KlineItem struct {
-	ID     int64   `json:"id"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Amount float64 `json:"amount"`
-	Volume float64 `json:"vol"`
-	Count  int     `json:"count"`
+	IDTimestamp int64   `json:"id"`
+	Open        float64 `json:"open"`
+	Close       float64 `json:"close"`
+	Low         float64 `json:"low"`
+	High        float64 `json:"high"`
+	Amount      float64 `json:"amount"`
+	Volume      float64 `json:"vol"`
+	Count       int     `json:"count"`
 }
 
 // CancelOpenOrdersBatch stores open order batch response data

@@ -89,7 +89,7 @@ type OrderManagement interface {
 	CancelOrder(ctx context.Context, o *order.Cancel) error
 	CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error)
 	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
-	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
+	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
 	GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error)
 }

@@ -614,11 +614,11 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders(ctx, "")
 	if err != nil {
-		return orderDetail, err
+		return nil, err
 	}
 
 	if assetType == asset.Empty {
@@ -627,7 +627,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 	format, err := g.GetPairFormat(assetType, false)
 	if err != nil {
-		return orderDetail, err
+		return nil, err
 	}
 
 	for x := range orders.Orders {
@@ -647,16 +647,16 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		orderDetail.Pair, err = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
 			format.Delimiter)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		if strings.EqualFold(orders.Orders[x].Type, order.Ask.String()) {
 			orderDetail.Side = order.Ask
 		} else if strings.EqualFold(orders.Orders[x].Type, order.Bid.String()) {
 			orderDetail.Side = order.Buy
 		}
-		return orderDetail, nil
+		return &orderDetail, nil
 	}
-	return orderDetail, fmt.Errorf("no order found with id %v", orderID)
+	return nil, fmt.Errorf("no order found with id %v", orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

@@ -75,7 +75,7 @@ func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	arg := SpotNewOrderRequestParams{
@@ -94,7 +94,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	err := z.CancelExistingOrder(context.Background(), 20180629145864850, testCurrency)
@@ -1107,7 +1107,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := z.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
@@ -1118,7 +1118,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := z.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if err != nil {

@@ -1092,7 +1092,7 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

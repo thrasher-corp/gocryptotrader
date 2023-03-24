@@ -649,17 +649,17 @@ func (b *Bittrex) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	orderData, err := b.GetOrder(ctx, orderID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	return b.ConstructOrderDetail(&orderData)
 }
 
 // ConstructOrderDetail constructs an order detail item from the underlying data
-func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, error) {
+func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (*order.Detail, error) {
 	immediateOrCancel := false
 	if orderData.TimeInForce == string(ImmediateOrCancel) {
 		immediateOrCancel = true
@@ -667,7 +667,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	orderPair, err := currency.NewPairDelimiter(orderData.MarketSymbol,
 		format.Delimiter)
@@ -704,7 +704,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		}
 	}
 
-	resp := order.Detail{
+	return &order.Detail{
 		ImmediateOrCancel: immediateOrCancel,
 		Amount:            orderData.Quantity,
 		ExecutedAmount:    orderData.FillQuantity,
@@ -716,8 +716,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		Type:              orderType,
 		Pair:              orderPair,
 		Status:            orderStatus,
-	}
-	return resp, nil
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

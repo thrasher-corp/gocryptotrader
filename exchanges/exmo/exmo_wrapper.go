@@ -595,8 +595,8 @@ func (e *EXMO) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Canc
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrFunctionNotSupported
+func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

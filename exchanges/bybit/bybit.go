@@ -643,7 +643,7 @@ func (by *Bybit) BatchFastCancelOrder(ctx context.Context, symbol, side, orderTy
 func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (bool, error) {
 	params := url.Values{}
 	if len(orderIDs) == 0 {
-		return false, common.ErrNilPointer
+		return false, errEmptyOrderIDs
 	}
 	params.Set("orderIds", strings.Join(orderIDs, ","))
 
@@ -805,7 +805,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -886,7 +886,7 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

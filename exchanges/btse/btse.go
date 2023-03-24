@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -136,11 +135,6 @@ func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Tim
 
 // GetOHLCV retrieve and return OHLCV candle data for requested symbol
 func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
-	switch a {
-	case asset.Spot, asset.Futures:
-	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
-	}
 	var o OHLCV
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -453,7 +447,7 @@ func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, end
 	}
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
@@ -531,7 +525,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 			HTTPRecording: b.HTTPRecording,
 		}, nil
 	}
-	return b.SendPayload(ctx, f, newRequest, true)
+	return b.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

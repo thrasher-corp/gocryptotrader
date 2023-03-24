@@ -318,7 +318,7 @@ func TestTransferAccountBalance(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() && !mockTests {
-		t.Skip()
+		t.Skip("API keys unset for live test, skipping")
 	}
 
 	err := b.TransferAccountBalance(context.Background(),
@@ -467,7 +467,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Spot})
 	if err == nil {
@@ -794,7 +794,7 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
@@ -805,7 +805,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {

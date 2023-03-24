@@ -86,14 +86,14 @@ type obItem struct {
 type FKlineData struct {
 	Ch   string `json:"ch"`
 	Data []struct {
-		Volume float64 `json:"vol"`
-		Close  float64 `json:"close"`
-		Count  float64 `json:"count"`
-		High   float64 `json:"high"`
-		ID     int64   `json:"id"`
-		Low    float64 `json:"low"`
-		Open   float64 `json:"open"`
-		Amount float64 `json:"amount"`
+		Volume      float64 `json:"vol"`
+		Close       float64 `json:"close"`
+		Count       float64 `json:"count"`
+		High        float64 `json:"high"`
+		IDTimestamp int64   `json:"id"`
+		Low         float64 `json:"low"`
+		Open        float64 `json:"open"`
+		Amount      float64 `json:"amount"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }

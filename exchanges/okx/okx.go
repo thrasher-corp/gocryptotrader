@@ -4201,6 +4201,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
+	requestType := request.AuthType(request.UnauthenticatedRequest)
+	if authenticated {
+		requestType = request.AuthenticatedRequest
+	}
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
 		utcTime := time.Now().UTC().Format(time.RFC3339)
@@ -4245,7 +4249,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-	err = ok.SendPayload(ctx, f, newRequest, authenticated)
+	err = ok.SendPayload(ctx, f, newRequest, requestType)
 	if err != nil {
 		return err
 	}

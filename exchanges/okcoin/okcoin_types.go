@@ -13,7 +13,7 @@ var (
 	errNoAccountDepositAddress             = errors.New("no account deposit address")
 	errIncorrectCandleDataLength           = errors.New("incorrect candles data length")
 	errOnlyOneAssetTypePerBatch            = errors.New("can only cancel one asset type in a batch command")
-	errOneCurrencyPairRequired             = errors.New("can only cancel one asset type in a batch command")
+	errOneCurrencyPairRequired             = errors.New("currency pair is required to cancel batch orders")
 	errOnlyOrderIDsORClientOrderIDsAllowed = errors.New("only order ids or client order ids allowed, not both")
 )
 

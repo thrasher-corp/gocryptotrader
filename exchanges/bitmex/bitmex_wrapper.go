@@ -800,6 +800,9 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
 	var orderIDs, clientIDs []string
 	for i := range o {
 		switch {
@@ -851,12 +854,12 @@ func (b *Bitmex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	resp, err := b.GetOrders(ctx, &OrdersRequest{
 		Filter: `{"orderID":"` + orderID + `"}`,
 	})
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	for i := range resp {
 		if resp[i].OrderID != orderID {
@@ -865,14 +868,14 @@ func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		var orderStatus order.Status
 		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		var oType order.Type
 		oType, err = b.getOrderType(resp[i].OrdType)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
-		return order.Detail{
+		return &order.Detail{
 			Date:            resp[i].Timestamp,
 			Price:           resp[i].Price,
 			Amount:          resp[i].OrderQty,
@@ -887,7 +890,7 @@ func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			AssetType:       assetType,
 		}, nil
 	}
-	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

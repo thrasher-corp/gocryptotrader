@@ -319,7 +319,7 @@ func (e *EXMO) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path 
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -364,7 +364,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.
 			HTTPDebugging: e.HTTPDebugging,
 			HTTPRecording: e.HTTPRecording,
 		}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

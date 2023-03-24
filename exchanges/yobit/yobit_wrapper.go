@@ -513,45 +513,45 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 }
 
 // GetOrderInfo returns order information based on order ID
-func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	iOID, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	format, err := y.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	resp, err := y.GetOrderInformation(ctx, iOID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
-	for id := range resp {
+	for id, orderInfo := range resp {
 		if id != orderID {
 			continue
 		}
 		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(resp[id].Pair, format.Delimiter)
+		symbol, err = currency.NewPairDelimiter(orderInfo.Pair, format.Delimiter)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		var side order.Side
-		side, err = order.StringToOrderSide(resp[id].Type)
+		side, err = order.StringToOrderSide(orderInfo.Type)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
-		return order.Detail{
+		return &order.Detail{
 			OrderID:  id,
-			Amount:   resp[id].Amount,
-			Price:    resp[id].Rate,
+			Amount:   orderInfo.Amount,
+			Price:    orderInfo.Rate,
 			Side:     side,
-			Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
+			Date:     time.Unix(int64(orderInfo.TimestampCreated), 0),
 			Pair:     symbol,
 			Exchange: y.Name,
 		}, nil
 	}
-	return order.Detail{}, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

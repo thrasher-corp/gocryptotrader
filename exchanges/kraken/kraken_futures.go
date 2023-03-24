@@ -350,7 +350,7 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 		}, nil
 	}
 
-	err = k.SendPayload(ctx, request.Unset, newRequest, true)
+	err = k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

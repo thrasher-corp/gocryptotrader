@@ -923,6 +923,12 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
+	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return nil, err
+	}
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	rFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
@@ -1232,22 +1238,22 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	var respData order.Detail
 	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	switch assetType {
 	case asset.Spot:
 		resp, err := b.QueryOrder(ctx, pair, "", orderIDInt)
 		if err != nil {
-			return respData, err
+			return nil, err
 		}
 		var side order.Side
 		side, err = order.StringToOrderSide(resp.Side)
 		if err != nil {
-			return respData, err
+			return nil, err
 		}
 		status, err := order.StringToOrderStatus(resp.Status)
 		if err != nil {
@@ -1258,7 +1264,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			orderType = order.Market
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp.OrigQty,
 			Exchange:       b.Name,
 			OrderID:        strconv.FormatInt(resp.OrderID, 10),
@@ -1277,7 +1283,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	case asset.CoinMarginedFutures:
 		orderData, err := b.FuturesOpenOrderData(ctx, pair, orderID, "")
 		if err != nil {
-			return respData, err
+			return nil, err
 		}
 		var feeBuilder exchange.FeeBuilder
 		feeBuilder.Amount = orderData.ExecutedQuantity
@@ -1285,7 +1291,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		feeBuilder.Pair = pair
 		fee, err := b.GetFee(ctx, &feeBuilder)
 		if err != nil {
-			return respData, err
+			return nil, err
 		}
 		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
 		respData.Amount = orderData.OriginalQuantity
@@ -1306,7 +1312,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	case asset.USDTMarginedFutures:
 		orderData, err := b.UGetOrderData(ctx, pair, orderID, "")
 		if err != nil {
-			return respData, err
+			return nil, err
 		}
 		var feeBuilder exchange.FeeBuilder
 		feeBuilder.Amount = orderData.ExecutedQuantity
@@ -1314,7 +1320,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		feeBuilder.Pair = pair
 		fee, err := b.GetFee(ctx, &feeBuilder)
 		if err != nil {
-			return respData, err
+			return nil, err
 		}
 		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
 		respData.Amount = orderData.OriginalQuantity
@@ -1333,9 +1339,9 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Date = orderData.Time
 		respData.LastUpdated = orderData.UpdateTime
 	default:
-		return respData, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return respData, nil
+	return &respData, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

@@ -152,7 +152,9 @@ func TestGetOrder(t *testing.T) {
 }
 
 func TestCancelExistingOrder(t *testing.T) {
-	t.Skip()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping")
+	}
 	err := i.CancelExistingOrder(context.Background(), "1337", "1337order")
 	if err == nil {
 		t.Error("CancelOrder() Expected error")

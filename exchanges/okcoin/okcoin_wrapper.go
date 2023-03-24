@@ -438,6 +438,9 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(orders) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
 	orderIDs := make([]string, 0, len(orders))
 	clientOrderIDs := make([]string, 0, len(orders))
 	var a asset.Item
@@ -458,11 +461,14 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (
 		if !cp.Equal(orders[i].Pair) {
 			return nil, errOneCurrencyPairRequired
 		}
-		if orders[i].ClientOrderID != "" {
+		switch {
+		case orders[i].ClientOrderID != "":
 			clientOrderIDs = append(clientOrderIDs, orders[i].ClientOrderID)
-			continue
+		case orders[i].OrderID != "":
+			orderIDs = append(orderIDs, orders[i].OrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
 		}
-		orderIDs = append(orderIDs, orders[i].OrderID)
 	}
 	if len(orderIDs) > 0 && len(clientOrderIDs) > 0 {
 		return nil, errOnlyOrderIDsORClientOrderIDsAllowed
@@ -836,25 +842,24 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 }
 
 // GetOrderInfo returns order information based on order ID
-func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var resp order.Detail
+func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if assetType != asset.Spot {
-		return resp, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 
 	mOrder, err := o.GetSpotOrder(ctx, &GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	format, err := o.GetPairFormat(assetType, false)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	p, err := currency.NewPairDelimiter(mOrder.InstrumentID, format.Delimiter)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	status, err := order.StringToOrderStatus(mOrder.Status)
@@ -866,7 +871,7 @@ func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 	}
-	resp = order.Detail{
+	return &order.Detail{
 		Amount:         mOrder.Size,
 		Pair:           p,
 		Exchange:       o.Name,
@@ -874,8 +879,7 @@ func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		ExecutedAmount: mOrder.FilledSize,
 		Status:         status,
 		Side:           side,
-	}
-	return resp, nil
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

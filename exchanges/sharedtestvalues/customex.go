@@ -204,8 +204,8 @@ func (c *CustomEx) CancelAllOrders(ctx context.Context, orders *order.Cancel) (o
 }
 
 // GetOrderInfo is a mock method for CustomEx
-func (c *CustomEx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	return order.Detail{}, nil
+func (c *CustomEx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	return nil, nil
 }
 
 // GetDepositAddress is a mock method for CustomEx

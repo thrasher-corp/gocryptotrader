@@ -842,7 +842,7 @@ func (b *Bitmex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -908,7 +908,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			HTTPRecording: b.HTTPRecording,
 		}, nil
 	}
-	err = b.SendPayload(ctx, request.Auth, newRequest, true)
+	err = b.SendPayload(ctx, request.Auth, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

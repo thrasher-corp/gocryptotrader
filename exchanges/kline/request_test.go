@@ -203,8 +203,8 @@ func TestRequest_ProcessResponse(t *testing.T) {
 
 	r = &Request{}
 	_, err = r.ProcessResponse(nil)
-	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
+	if !errors.Is(err, ErrNoTimeSeriesDataToConvert) {
+		t.Fatalf("received: '%v', but expected '%v'", err, ErrNoTimeSeriesDataToConvert)
 	}
 
 	// no conversion
@@ -333,8 +333,8 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 
 	rExt = &ExtendedRequest{}
 	_, err = rExt.ProcessResponse(nil)
-	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
+	if !errors.Is(err, ErrNoTimeSeriesDataToConvert) {
+		t.Fatalf("received: '%v', but expected '%v'", err, ErrNoTimeSeriesDataToConvert)
 	}
 
 	// no conversion

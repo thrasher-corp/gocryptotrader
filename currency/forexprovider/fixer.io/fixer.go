@@ -225,13 +225,14 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 	}
 	v.Set("access_key", f.APIKey)
 
-	var auth bool
+	var auth request.AuthType
 	var path string
 	if f.APIKeyLvl == fixerAPIFree {
 		path = fixerAPI + endpoint + "?" + v.Encode()
+		auth = request.UnauthenticatedRequest
 	} else {
 		path = fixerAPISSL + endpoint + "?" + v.Encode()
-		auth = true
+		auth = request.AuthenticatedRequest
 	}
 	item := &request.Item{
 		Method:  http.MethodGet,

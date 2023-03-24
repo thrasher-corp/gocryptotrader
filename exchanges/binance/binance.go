@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Binance is the overarching type across the Binance package
@@ -292,7 +291,6 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			err := b.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				log.Warn(log.ExchangeSys, err.Error())
 				return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 			}
 		}
@@ -747,7 +745,7 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -776,7 +774,7 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -824,7 +822,7 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1117,7 +1115,7 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return "", err
 	}
@@ -1157,7 +1155,7 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // FetchSpotExchangeLimits fetches spot order execution limits

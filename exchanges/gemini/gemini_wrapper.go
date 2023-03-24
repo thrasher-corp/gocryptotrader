@@ -495,7 +495,10 @@ func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundi
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return nil, err
+	}
 	transfers, err := g.Transfers(ctx, c, time.Time{}, 50, "", false)
 	if err != nil {
 		return nil, err
@@ -669,19 +672,19 @@ func (g *Gemini) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	iOID, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	resp, err := g.GetOrderStatus(ctx, iOID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	cp, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	var orderType order.Type
 	if resp.Type == "exchange limit" {
@@ -692,9 +695,9 @@ func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 	var side order.Side
 	side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
-	return order.Detail{
+	return &order.Detail{
 		OrderID:         strconv.FormatInt(resp.OrderID, 10),
 		Amount:          resp.OriginalAmount,
 		RemainingAmount: resp.RemainingAmount,

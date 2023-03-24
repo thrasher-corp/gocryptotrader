@@ -491,7 +491,7 @@ type WalletActivityResponse struct {
 	Withdrawals []WalletWithdrawals `json:"withdrawals"`
 }
 
-// WalletDeposits holds wallet depsoti info
+// WalletDeposits holds wallet deposit info
 type WalletDeposits struct {
 	DepositNumber int64         `json:"depositNumber"`
 	Currency      currency.Code `json:"currency"`

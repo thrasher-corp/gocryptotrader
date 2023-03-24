@@ -566,7 +566,7 @@ func (a *Alphapoint) SendHTTPRequest(ctx context.Context, ep exchange.URL, metho
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -616,5 +616,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }

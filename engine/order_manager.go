@@ -334,7 +334,7 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 		return order.Detail{}, err
 	}
 
-	upsertResponse, err := m.orderStore.upsert(&result)
+	upsertResponse, err := m.orderStore.upsert(result)
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -839,7 +839,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 		return err
 	}
 	fetchedOrder.LastUpdated = time.Now()
-	_, err = m.UpsertOrder(&fetchedOrder)
+	_, err = m.UpsertOrder(fetchedOrder)
 	return err
 }
 

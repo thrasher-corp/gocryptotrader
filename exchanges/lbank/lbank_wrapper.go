@@ -600,11 +600,11 @@ func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Can
 }
 
 // GetOrderInfo returns order information based on order ID
-func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	for key, val := range orderIDs {
@@ -614,12 +614,12 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			}
 			tempResp, err := l.QueryOrder(ctx, key, orderID)
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
 			resp.Exchange = l.Name
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
-				return order.Detail{}, err
+				return nil, err
 			}
 
 			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
@@ -642,7 +642,7 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			}
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

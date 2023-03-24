@@ -666,11 +666,21 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	orderIds := make([]string, len(o))
-	for i := range o {
-		orderIds[i] = o[i].OrderID
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
 	}
-	batchResp, err := b.CancelBatch(ctx, orderIds)
+	ids := make([]string, len(o))
+	for i := range o {
+		switch {
+		case o[i].ClientOrderID != "":
+			return nil, order.ErrClientOrderIDNotSupported
+		case o[i].OrderID != "":
+			ids = append(ids, o[i].OrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
+		}
+	}
+	batchResp, err := b.CancelBatch(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -718,16 +728,16 @@ func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (orde
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	var resp order.Detail
 	o, err := b.FetchOrder(ctx, orderID)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	p, err := currency.NewPairFromString(o.MarketID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	resp.Exchange = b.Name
@@ -773,7 +783,7 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	default:
 		resp.Status = order.UnknownStatus
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

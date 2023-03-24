@@ -256,7 +256,7 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		quote := m[x].Quote
 		if a == asset.Futures {
 			symSplit := strings.Split(m[x].Symbol, m[x].Base)
-			if len(symSplit) == 1 {
+			if len(symSplit) <= 1 {
 				continue
 			}
 			quote = symSplit[1]
@@ -649,20 +649,20 @@ func orderIntToType(i int) order.Type {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	o, err := b.GetOrders(ctx, "", orderID, "")
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	var od order.Detail
 	if len(o) == 0 {
-		return od, errors.New("no orders found")
+		return nil, errors.New("no orders found")
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	for i := range o {
@@ -703,8 +703,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 			false,
 			"", orderID)
 		if err != nil {
-			return od,
-				fmt.Errorf("unable to get order fills for orderID %s", orderID)
+			return nil, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
 		for i := range th {
@@ -716,7 +715,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 			var orderSide order.Side
 			orderSide, err = order.StringToOrderSide(th[i].Side)
 			if err != nil {
-				return order.Detail{}, err
+				return nil, err
 			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
@@ -729,7 +728,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 			})
 		}
 	}
-	return od, nil
+	return &od, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1004,6 +1003,11 @@ func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	switch a {
+	case asset.Spot, asset.Futures:
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	req, err := b.GetKlineRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
@@ -1040,6 +1044,11 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	switch a {
+	case asset.Spot, asset.Futures:
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err

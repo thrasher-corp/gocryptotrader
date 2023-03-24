@@ -491,9 +491,8 @@ func (i *ItBit) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (i *ItBit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (i *ItBit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

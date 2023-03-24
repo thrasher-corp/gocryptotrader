@@ -849,7 +849,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
@@ -866,7 +866,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
 		Type:      order.AnyType,
@@ -972,7 +972,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.ModifyOrder(
 		context.Background(),
@@ -1787,6 +1787,7 @@ func TestPopulateAcceptableMethods(t *testing.T) {
 	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("%+v", acceptableMethods)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
@@ -1830,7 +1831,7 @@ func TestAccetableMethodStore(t *testing.T) {
 func TestOrderUpdate(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	_, err := b.OrderUpdate(context.Background(), "1234", "", "", 1, 1, 1)
@@ -1842,7 +1843,7 @@ func TestOrderUpdate(t *testing.T) {
 func TestGetInactiveOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.GetInactiveOrders(context.Background(), "tBTCUSD")
 	if err != nil {
@@ -1858,7 +1859,7 @@ func TestGetInactiveOrders(t *testing.T) {
 func TestCancelMultipleOrdersV2(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.CancelMultipleOrdersV2(context.Background(), 1337, 0, 0, time.Time{}, false)
 	if err != nil {

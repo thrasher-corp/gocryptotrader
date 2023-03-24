@@ -742,12 +742,15 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (c *COINUT) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
 	req := make([]CancelOrders, 0, len(o))
 	for i := range o {
-		if o[i].ClientOrderID != "" {
-			return nil, fmt.Errorf("%w only orderid suppoerted", common.ErrFunctionNotSupported)
-		}
-		if o[i].OrderID != "" {
+		switch {
+		case o[i].ClientOrderID != "":
+			return nil, order.ErrClientOrderIDNotSupported
+		case o[i].OrderID != "":
 			currencyID := c.instrumentMap.LookupID(o[i].Pair.String())
 			oid, err := strconv.ParseInt(o[i].OrderID, 10, 64)
 			if err != nil {
@@ -757,6 +760,8 @@ func (c *COINUT) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*orde
 				InstrumentID: currencyID,
 				OrderID:      oid,
 			})
+		default:
+			return nil, order.ErrOrderIDNotSet
 		}
 	}
 	results, err := c.CancelOrders(ctx, req)
@@ -859,8 +864,8 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrFunctionNotSupported
+func (c *COINUT) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

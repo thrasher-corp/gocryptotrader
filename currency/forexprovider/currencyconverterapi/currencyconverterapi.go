@@ -151,13 +151,14 @@ func (c *CurrencyConverter) GetCountries() (map[string]CountryItem, error) {
 // upgrades request to SSL.
 func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	var path string
-	var auth bool
+	var auth request.AuthType
 	if c.APIKey == "" || c.APIKey == defaultAPIKey {
 		path = fmt.Sprintf("%s%s/%s?", APIEndpointFreeURL, APIEndpointVersion, endPoint)
-		auth = true
+		auth = request.AuthenticatedRequest
 	} else {
 		path = fmt.Sprintf("%s%s%s?", APIEndpointURL, APIEndpointVersion, endPoint)
 		values.Set("apiKey", c.APIKey)
+		auth = request.UnauthenticatedRequest
 	}
 
 	path += values.Encode()

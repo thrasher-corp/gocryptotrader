@@ -908,7 +908,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 }
 
 // GetOrderInfo returns information on a current open order
-func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
@@ -917,12 +917,12 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 				Trades: true,
 			}, orderID)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 
 		orderInfo, ok := resp[orderID]
 		if !ok {
-			return orderDetail, fmt.Errorf("order %s not found in response", orderID)
+			return nil, fmt.Errorf("order %s not found in response", orderID)
 		}
 
 		if !assetType.IsValid() {
@@ -931,12 +931,12 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 		avail, err := k.GetAvailablePairs(assetType)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 
 		format, err := k.GetPairFormat(assetType, true)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 
 		var trades []order.TradeHistory
@@ -947,7 +947,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 		side, err := order.StringToOrderSide(orderInfo.Description.Type)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		status, err := order.StringToOrderStatus(orderInfo.Status)
 		if err != nil {
@@ -955,14 +955,14 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 
 		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
 			avail,
 			format)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 
 		price := orderInfo.Price
@@ -990,7 +990,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.Futures:
 		orderInfo, err := k.FuturesGetFills(ctx, time.Time{})
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		for y := range orderInfo.Fills {
 			if orderInfo.Fills[y].OrderID != orderID {
@@ -998,19 +998,19 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			}
 			pair, err := currency.NewPairFromString(orderInfo.Fills[y].Symbol)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			oSide, err := compatibleOrderSide(orderInfo.Fills[y].Side)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			fillOrderType, err := compatibleFillOrderType(orderInfo.Fills[y].FillType)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			timeVar, err := time.Parse(krakenFormat, orderInfo.Fills[y].FillTime)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			orderDetail = order.Detail{
 				OrderID:  orderID,
@@ -1024,9 +1024,9 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			}
 		}
 	default:
-		return order.Detail{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return orderDetail, nil
+	return &orderDetail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

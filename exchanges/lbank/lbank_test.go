@@ -636,7 +636,7 @@ func TestGetServerTime(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := l.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {

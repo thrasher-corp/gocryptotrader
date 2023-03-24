@@ -1510,12 +1510,6 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 // GetKlineRequest returns a helper for the fetching of candle/kline data for
 // a single request within a pre-determined time window.
 func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Request, error) {
-	if pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	if !a.IsValid() {
-		return nil, asset.ErrNotSupported
-	}
 
 	// NOTE: This allows for checking that the required kline interval is
 	// supported by the exchange and/or can be constructed from lower time frame
@@ -1534,11 +1528,6 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 			count,
 			b.Features.Enabled.Kline.ResultLimit,
 			kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	err = b.ValidateKline(pair, a, exchangeInterval)
-	if err != nil {
-		return nil, err
 	}
 
 	formatted, err := b.FormatExchangeCurrency(pair, a)

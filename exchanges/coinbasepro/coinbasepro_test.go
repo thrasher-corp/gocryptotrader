@@ -1073,7 +1073,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestGetTransfers(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := c.GetTransfers(context.Background(), "", "", 100, time.Time{}, time.Time{})
 	if err != nil {

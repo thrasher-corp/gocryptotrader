@@ -1136,24 +1136,29 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (by *Bybit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	orderIDs := make([]string, 0, len(o))
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+	ids := make([]string, 0, len(o))
 	for i := range o {
-		if o[i].ClientOrderID != "" {
-			return nil, fmt.Errorf("%w order ids only", common.ErrFunctionNotSupported)
-		}
-		if o[i].OrderID != "" {
-			orderIDs = append(orderIDs, o[i].OrderID)
+		switch {
+		case o[i].ClientOrderID != "":
+			return nil, order.ErrClientOrderIDNotSupported
+		case o[i].OrderID != "":
+			ids = append(ids, o[i].OrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	cancelledOrders, err := by.BatchCancelOrderByIDs(ctx, orderIDs)
+	cancelledOrders, err := by.BatchCancelOrderByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
-	for i := range orderIDs {
-		resp.Status[orderIDs[i]] = strconv.FormatBool(cancelledOrders)
+	for i := range ids {
+		resp.Status[ids[i]] = strconv.FormatBool(cancelledOrders)
 	}
 	return resp, nil
 }
@@ -1243,15 +1248,15 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 }
 
 // GetOrderInfo returns order information based on order ID
-func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	switch assetType {
 	case asset.Spot:
 		resp, err := by.QueryOrder(ctx, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp.Quantity,
 			Exchange:       by.Name,
 			OrderID:        resp.OrderID,
@@ -1271,14 +1276,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.CoinMarginedFutures:
 		resp, err := by.GetActiveRealtimeCoinOrders(ctx, pair, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,
 			OrderID:        resp[0].OrderID,
@@ -1298,14 +1303,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.USDTMarginedFutures:
 		resp, err := by.GetActiveUSDTRealtimeOrders(ctx, pair, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,
 			OrderID:        resp[0].OrderID,
@@ -1325,14 +1330,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.Futures:
 		resp, err := by.GetActiveRealtimeOrders(ctx, pair, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,
 			OrderID:        resp[0].OrderID,
@@ -1352,14 +1357,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.USDCMarginedFutures:
 		resp, err := by.GetActiveUSDCOrder(ctx, pair, "PERPETUAL", orderID, "", "", "", "", 0)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,
 			OrderID:        resp[0].ID,
@@ -1376,7 +1381,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}, nil
 
 	default:
-		return order.Detail{}, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 }
 

@@ -284,7 +284,7 @@ func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 	return y.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -331,7 +331,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 			HTTPDebugging: y.HTTPDebugging,
 			HTTPRecording: y.HTTPRecording,
 		}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

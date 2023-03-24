@@ -1239,7 +1239,7 @@ func TestGetActionFromString(t *testing.T) {
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetAccountFundingHistory(context.Background())
 	if err != nil {
@@ -1250,7 +1250,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
@@ -1261,7 +1261,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
@@ -1272,7 +1272,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
 		{

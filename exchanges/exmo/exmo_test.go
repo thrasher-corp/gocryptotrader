@@ -108,7 +108,7 @@ func TestGetCurrency(t *testing.T) {
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := e.GetUserInfo(context.Background())
 	if err != nil {
@@ -119,7 +119,7 @@ func TestGetUserInfo(t *testing.T) {
 func TestGetRequiredAmount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := e.GetRequiredAmount(context.Background(), "BTC_USD", 100)
 	if err != nil {

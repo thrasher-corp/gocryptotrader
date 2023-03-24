@@ -476,42 +476,23 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHi
 	}
 
 	for x := range currs {
-		totalPages := int64(1)
-		for y := int64(0); y < totalPages; y++ {
-			withdrawals, err := z.GetWithdrawalRecords(ctx, &WalletRecordsRequest{
-				Currency:  currs[x],
-				PageIndex: y,
+		var resp []exchange.WithdrawalHistory
+		resp, err = z.GetWithdrawalsHistory(ctx, currs[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for y := range resp {
+			records = append(records, exchange.FundingHistory{
+				ExchangeName:    z.GetName(),
+				Status:          resp[y].Status,
+				TransferID:      resp[y].TransferID,
+				Timestamp:       resp[y].Timestamp,
+				Currency:        resp[y].Currency,
+				Amount:          resp[y].Amount,
+				CryptoToAddress: resp[y].CryptoToAddress,
+				Fee:             resp[y].Fee,
+				TransferType:    resp[y].TransferType,
 			})
-			if err != nil {
-				return nil, err
-			}
-			totalPages = withdrawals.Total
-			for i := range withdrawals.List {
-				var status string
-				switch withdrawals.List[i].Status {
-				case 0:
-					status = "submitted"
-				case 1:
-					status = "failed"
-				case 2:
-					status = "successful"
-				case 3:
-					status = "cancelled"
-				case 5:
-					status = "confirmed"
-				}
-				records = append(records, exchange.FundingHistory{
-					ExchangeName:    z.GetName(),
-					Status:          status,
-					TransferID:      strconv.FormatInt(withdrawals.List[i].ID, 10),
-					Timestamp:       time.Unix(withdrawals.List[i].SubmitTime, 0),
-					Currency:        currs[i].String(),
-					Amount:          withdrawals.List[i].Amount,
-					CryptoToAddress: withdrawals.List[i].ToAddress,
-					Fee:             withdrawals.List[i].Fees,
-					TransferType:    "withdrawal",
-				})
-			}
 		}
 	}
 
@@ -758,14 +739,14 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if err := z.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	resp, err := z.GetSingleOrder(ctx, orderID, "", pair)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	side := order.Sell
 	if resp.Type == 1 {
@@ -780,7 +761,7 @@ func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pai
 	case 3:
 		status = order.Pending
 	}
-	return order.Detail{
+	return &order.Detail{
 		Price:           resp.Price,
 		Amount:          resp.TotalAmount,
 		ExecutedAmount:  resp.TradeAmount,

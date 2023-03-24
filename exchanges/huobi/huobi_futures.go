@@ -1188,7 +1188,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}, nil
 	}
 
-	err = h.SendPayload(ctx, request.Unset, newRequest, true)
+	err = h.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

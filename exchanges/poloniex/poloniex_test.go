@@ -297,7 +297,7 @@ func TestGetOrderStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.mock != mockTests {
-				t.Skip()
+				t.Skip("mock mismatch, skipping")
 			}
 
 			_, err := p.GetAuthenticatedOrderStatus(context.Background(),
@@ -353,7 +353,7 @@ func TestGetOrderTrades(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.mock != mockTests {
-				t.Skip()
+				t.Skip("mock mismatch, skipping")
 			}
 
 			_, err := p.GetAuthenticatedOrderTrades(context.Background(), tt.orderID)
@@ -1077,7 +1077,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 func TestWalletActivity(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := p.WalletActivity(context.Background(), time.Now().Add(-time.Minute), time.Now(), "")
 	if err != nil {
@@ -1088,7 +1088,7 @@ func TestWalletActivity(t *testing.T) {
 func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := p.CancelMultipleOrdersByIDs(context.Background(), []string{"1234"}, []string{"5678"})
 	if err != nil {
@@ -1099,7 +1099,7 @@ func TestCancelMultipleOrdersByIDs(t *testing.T) {
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := p.GetAccountFundingHistory(context.Background())
 	if err != nil {
@@ -1110,7 +1110,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := p.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
@@ -1121,7 +1121,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip()
+		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := p.CancelBatchOrders(context.Background(), []order.Cancel{
 		{

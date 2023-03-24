@@ -60,12 +60,12 @@ func (f omfExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.I
 
 // GetOrderInfo overrides testExchange's get order function
 // to do the bare minimum required with no API calls or credentials required
-func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	switch orderID {
 	case "":
-		return order.Detail{}, errors.New("")
+		return nil, errors.New("")
 	case "Order1-unknown-to-active":
-		return order.Detail{
+		return &order.Detail{
 			Exchange:    testExchange,
 			Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
 			AssetType:   asset.Spot,
@@ -76,7 +76,7 @@ func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair curr
 			OrderID:     "Order1-unknown-to-active",
 		}, nil
 	case "Order2-active-to-inactive":
-		return order.Detail{
+		return &order.Detail{
 			Exchange:    testExchange,
 			Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
 			AssetType:   asset.Spot,
@@ -88,7 +88,7 @@ func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		}, nil
 	}
 
-	return order.Detail{
+	return &order.Detail{
 		Exchange:  testExchange,
 		OrderID:   orderID,
 		Pair:      pair,

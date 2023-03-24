@@ -310,7 +310,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 
 			for i := range instruments {
 				if instruments[i].ExpTime.Before(time.Now()) || instruments[i].ListTime.After(time.Now()) {
-					fmt.Printf("%v %v %v", instruments[i].InstrumentID, instruments[i].ExpTime, instruments[i].ListTime)
 					continue
 				}
 				insts = append(insts, instruments[i])
@@ -892,10 +891,11 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	if len(o) > 20 {
 		return nil, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
 	} else if len(o) == 0 {
-		return nil, fmt.Errorf("%w, must have at least 1 cancel order", errNoOrderParameterPassed)
+		return nil, fmt.Errorf("%w, must have at least 1 cancel order", order.ErrCancelOrderIsNil)
 	}
 	cancelOrderParams := make([]CancelOrderRequestParam, len(o))
 	var err error
+	var format currency.PairFormat
 	for x := range o {
 		ord := o[x]
 		err = ord.Validate(ord.StandardCancel())
@@ -905,9 +905,9 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ok.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
-		var instrumentID string
-		var format currency.PairFormat
 		format, err = ok.GetPairFormat(ord.AssetType, false)
+
+		var instrumentID string
 		if err != nil {
 			return nil, err
 		}
@@ -918,12 +918,11 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if err != nil {
 			return nil, err
 		}
-		req := CancelOrderRequestParam{
+		cancelOrderParams[x] = CancelOrderRequestParam{
 			InstrumentID:          instrumentID,
 			OrderID:               ord.OrderID,
 			ClientSupplierOrderID: ord.ClientOrderID,
 		}
-		cancelOrderParams[x] = req
 	}
 	var canceledOrders []OrderData
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -1048,11 +1047,10 @@ ordersLoop:
 }
 
 // GetOrderInfo returns order information based on order ID
-func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var respData order.Detail
+func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	format, err := ok.GetPairFormat(assetType, false)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 
 	instrumentID := format.Format(pair)
@@ -1061,18 +1059,18 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		OrderID:      orderID,
 	})
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	status, err := order.StringToOrderStatus(orderDetail.State)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	orderType, err := ok.OrderTypeFromString(orderDetail.OrderType)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 
-	return order.Detail{
+	return &order.Detail{
 		Amount:         orderDetail.Size.Float64(),
 		Exchange:       ok.Name,
 		OrderID:        orderDetail.OrderID,
@@ -1087,7 +1085,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		ExecutedAmount: orderDetail.RebateAmount.Float64(),
 		Date:           orderDetail.CreationTime,
 		LastUpdated:    orderDetail.UpdateTime,
-	}, err
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

@@ -1377,7 +1377,7 @@ func TestQueryOrder(t *testing.T) {
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.OpenOrders(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
@@ -1700,7 +1700,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.mock != mockTests {
-				t.Skip()
+				t.Skip("mock mismatch, skipping")
 			}
 			result, err := b.GetAggregatedTrades(context.Background(), tt.args)
 			if err != nil {

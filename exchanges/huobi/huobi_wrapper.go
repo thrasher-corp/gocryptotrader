@@ -1121,14 +1121,20 @@ func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (h *HUOBI) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
 	ids := make([]string, 0, len(o))
 	cIDs := make([]string, 0, len(o))
 	for i := range o {
-		if o[i].ClientOrderID != "" {
-			cIDs = append(cIDs, o[i].ClientOrderID)
-			continue
+		switch {
+		case o[i].ClientOrderID != "":
+			cIDs = append(cIDs, o[i].ClientID)
+		case o[i].OrderID != "":
+			ids = append(ids, o[i].OrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
 		}
-		ids = append(ids, o[i].OrderID)
 	}
 
 	cancelledOrders, err := h.CancelOrderBatch(ctx, ids, cIDs)
@@ -1243,7 +1249,7 @@ func (h *HUOBI) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
@@ -1251,26 +1257,26 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := h.wsGetOrderDetails(ctx, orderID)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			respData = &resp.Data
 		} else {
 			oID, err := strconv.ParseInt(orderID, 10, 64)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			resp, err := h.GetOrder(ctx, oID)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			respData = &resp
 		}
 		if respData.ID == 0 {
-			return orderDetail, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
+			return nil, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
 		}
 		var responseID = strconv.FormatInt(respData.ID, 10)
 		if responseID != orderID {
-			return orderDetail, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " +
+			return nil, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " +
 				orderID + " Received: " + responseID)
 		}
 		typeDetails := strings.Split(respData.Type, "-")
@@ -1283,7 +1289,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 					Err:      err,
 				}
 			} else {
-				return orderDetail, err
+				return nil, err
 			}
 		}
 		orderType, err := order.StringToOrderType(typeDetails[1])
@@ -1295,7 +1301,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 					Err:      err,
 				}
 			} else {
-				return orderDetail, err
+				return nil, err
 			}
 		}
 		orderStatus, err := order.StringToOrderStatus(respData.State)
@@ -1307,14 +1313,14 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 					Err:      err,
 				}
 			} else {
-				return orderDetail, err
+				return nil, err
 			}
 		}
 		var p currency.Pair
 		var a asset.Item
 		p, a, err = h.GetRequestFormattedPairAndAssetType(respData.Symbol)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		orderDetail = order.Detail{
 			Exchange:       h.Name,
@@ -1334,13 +1340,13 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	case asset.CoinMarginedFutures:
 		orderInfo, err := h.GetSwapOrderInfo(ctx, pair, orderID, "")
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		var orderVars OrderVars
 		for x := range orderInfo.Data {
 			orderVars, err = compatibleVars(orderInfo.Data[x].Direction, orderInfo.Data[x].OrderPriceType, orderInfo.Data[x].Status)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 			maker := true
 			if orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly {
@@ -1360,17 +1366,17 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	case asset.Futures:
 		fPair, err := h.FormatSymbol(pair, asset.Futures)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		orderInfo, err := h.FGetOrderInfo(ctx, fPair, orderID, "")
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		var orderVars OrderVars
 		for x := range orderInfo.Data {
 			orderVars, err = compatibleVars(orderInfo.Data[x].Direction, orderInfo.Data[x].OrderPriceType, orderInfo.Data[x].Status)
 			if err != nil {
-				return orderDetail, err
+				return nil, err
 			}
 
 			orderDetail.Trades = append(orderDetail.Trades, order.TradeHistory{
@@ -1385,9 +1391,9 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			})
 		}
 	default:
-		return order.Detail{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return orderDetail, nil
+	return &orderDetail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1880,7 +1886,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		}
 
 		for x := range candles {
-			timestamp := time.Unix(candles[x].ID, 0)
+			timestamp := time.Unix(candles[x].IDTimestamp, 0)
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1899,7 +1905,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].ID, 0)
+			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1918,7 +1924,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].ID, 0)
+			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1955,7 +1961,7 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 				return nil, err
 			}
 			for x := range candles.Data {
-				timestamp := time.Unix(candles.Data[x].ID, 0)
+				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
@@ -1977,7 +1983,7 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 				return nil, err
 			}
 			for x := range candles.Data {
-				timestamp := time.Unix(candles.Data[x].ID, 0)
+				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}

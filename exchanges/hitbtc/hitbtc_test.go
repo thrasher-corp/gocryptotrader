@@ -1055,7 +1055,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestGetActiveOrderByClientOrderID(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := h.GetActiveOrderByClientOrderID(context.Background(), "1234")
 	if err != nil {
@@ -1066,7 +1066,7 @@ func TestGetActiveOrderByClientOrderID(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := h.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {

@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -298,7 +297,6 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 			err := bi.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				log.Warn(log.ExchangeSys, err.Error())
 				return resp, err
 			}
 		}
@@ -1792,7 +1790,7 @@ func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, pa
 	}
 	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -1820,7 +1818,7 @@ func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.U
 
 	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -1864,7 +1862,7 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 			Verbose:       bi.Verbose,
 			HTTPDebugging: bi.HTTPDebugging,
 			HTTPRecording: bi.HTTPRecording}, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1914,7 +1912,7 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	err = bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return "", err
 	}
@@ -1958,7 +1956,7 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }
 
 // CloseUserDataStream Close out a user data stream.
@@ -1994,5 +1992,5 @@ func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 
 	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 }

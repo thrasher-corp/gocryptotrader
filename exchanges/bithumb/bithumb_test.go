@@ -108,7 +108,7 @@ func TestGetOrderBook(t *testing.T) {
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetTransactionHistory(context.Background(), testCurrency)
 	if err != nil {
@@ -119,7 +119,7 @@ func TestGetTransactionHistory(t *testing.T) {
 func TestGetAccountInformation(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetAccountInformation(context.Background(),
 		testCurrency,
@@ -132,7 +132,7 @@ func TestGetAccountInformation(t *testing.T) {
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 
 	_, err := b.GetAccountBalance(context.Background(), testCurrency)
@@ -144,7 +144,7 @@ func TestGetAccountBalance(t *testing.T) {
 func TestGetWalletAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetWalletAddress(context.Background(), currency.BTC)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestGetWalletAddress(t *testing.T) {
 func TestGetLastTransaction(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetLastTransaction(context.Background())
 	if err == nil {
@@ -166,7 +166,7 @@ func TestGetLastTransaction(t *testing.T) {
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetOrders(context.Background(),
 		"1337", order.Bid.Lower(), 100, time.Time{}, currency.BTC, currency.KRW)
@@ -178,7 +178,7 @@ func TestGetOrders(t *testing.T) {
 func TestGetUserTransactions(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetUserTransactions(context.Background(), 0, 0, 0, currency.EMPTYCODE, currency.EMPTYCODE)
 	if err != nil {
@@ -201,7 +201,7 @@ func TestPlaceTrade(t *testing.T) {
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetOrderDetails(context.Background(),
 		"1337", order.Bid.Lower(), testCurrency)
@@ -413,7 +413,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
@@ -780,7 +780,7 @@ func TestUpdateCurrencyStates(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
@@ -791,7 +791,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if err != nil {
@@ -802,7 +802,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {

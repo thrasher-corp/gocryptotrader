@@ -422,7 +422,7 @@ func (z *ZB) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, 
 
 	return z.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	}, false)
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -469,7 +469,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 		}, nil
 	}
 
-	err = z.SendPayload(ctx, f, newRequest, true)
+	err = z.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
