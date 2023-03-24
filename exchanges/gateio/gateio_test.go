@@ -1515,7 +1515,11 @@ func TestRetrivePositionDetailInDualMode(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip(credInformationNotProvided)
 	}
-	if _, err := g.RetrivePositionDetailInDualMode(context.Background(), settleBTC, currency.NewPair(currency.USDT, currency.BTC)); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = g.RetrivePositionDetailInDualMode(context.Background(), settle, futuresTradablePair); err != nil {
 		t.Errorf("%s RetrivePositionDetailInDualMode() error %v", g.Name, err)
 	}
 }
@@ -1525,7 +1529,11 @@ func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdatePositionMarginInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0.001, "dual_long"); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = g.UpdatePositionMarginInDualMode(context.Background(), settle, futuresTradablePair, 0.001, "dual_long"); err != nil {
 		t.Errorf("%s UpdatePositionMarginInDualMode() error %v", g.Name, err)
 	}
 }
@@ -1534,7 +1542,11 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdatePositionLeverageInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 0.001, 0.001); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = g.UpdatePositionLeverageInDualMode(context.Background(), settle, futuresTradablePair, 0.001, 0.001); err != nil {
 		t.Errorf("%s UpdatePositionLeverageInDualMode() error %v", g.Name, err)
 	}
 }
@@ -1544,7 +1556,11 @@ func TestUpdatePositionRiskLimitinDualMode(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
-	if _, err := g.UpdatePositionRiskLimitInDualMode(context.Background(), settleUSDT, currency.NewPair(currency.BTC, currency.USDT), 10); err != nil {
+	settle, err := g.getSettlementFromCurrency(futuresTradablePair, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = g.UpdatePositionRiskLimitInDualMode(context.Background(), settle, futuresTradablePair, 10); err != nil {
 		t.Errorf("%s UpdatePositionRiskLimitinDualMode() error %v", g.Name, err)
 	}
 }

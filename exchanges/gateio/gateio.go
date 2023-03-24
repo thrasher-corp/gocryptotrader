@@ -2278,7 +2278,7 @@ func (g *Gateio) UpdatePositionMarginInDualMode(ctx context.Context, settle stri
 	params.Set("dual_side", dualSide)
 	var response []Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL,
-		http.MethodGet,
+		http.MethodPost,
 		"futures/"+settle+"/dual_comp/positions/"+contract.String()+"/margin",
 		params, nil, &response)
 }
@@ -2300,7 +2300,7 @@ func (g *Gateio) UpdatePositionLeverageInDualMode(ctx context.Context, settle st
 		params.Set("cross_leverage_limit", strconv.FormatFloat(crossLeverageLimit, 'f', -1, 64))
 	}
 	var response *Position
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodGet, "futures/"+settle+"/dual_comp/positions/"+contract.String()+"/leverage", params, nil, &response)
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost, "futures/"+settle+"/dual_comp/positions/"+contract.String()+"/leverage", params, nil, &response)
 }
 
 // UpdatePositionRiskLimitInDualMode update position risk limit in dual mode
@@ -2318,7 +2318,7 @@ func (g *Gateio) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle s
 	params.Set("risk_limit", strconv.FormatFloat(riskLimit, 'f', -1, 64))
 	var response []Position
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodGet,
+		exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
 		"futures/"+settle+"/dual_comp/positions/"+contract.String()+"/risk_limit", params,
 		nil, &response)
 }
