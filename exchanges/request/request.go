@@ -209,7 +209,15 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 					attempt)
 			}
 
-			time.Sleep(delay)
+			if delay > 0 {
+				delayer := time.NewTimer(delay)
+				select {
+				case <-delayer.C:
+					delayer.Stop()
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
 			continue
 		}
 
