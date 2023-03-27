@@ -574,7 +574,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			"",
 			false)
 	default:
-		err = errors.New("order type not supported")
+		err = fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
 	if err != nil {
 		return nil, err
@@ -609,7 +609,7 @@ func (c *CoinbasePro) CancelAllOrders(ctx context.Context, _ *order.Cancel) (ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	genOrderDetail, errGo := c.GetOrder(ctx, orderID)
 	if errGo != nil {
 		return nil, fmt.Errorf("error retrieving order %s : %w", orderID, errGo)
@@ -755,7 +755,7 @@ func (c *CoinbasePro) GetFeeByType(ctx context.Context, feeBuilder *exchange.Fee
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -817,7 +817,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

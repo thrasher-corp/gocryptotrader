@@ -534,7 +534,7 @@ func (i *ItBit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -599,7 +599,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

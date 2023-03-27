@@ -846,6 +846,13 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 
 // GetOrderInfo returns order information based on order ID
 func (b *Bitfinex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	id, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
 		return nil, err
@@ -908,7 +915,7 @@ func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accou
 
 	methods := acceptableMethods.lookup(c)
 	if len(methods) == 0 {
-		return nil, errors.New("unsupported currency")
+		return nil, currency.ErrCurrencyNotSupported
 	}
 	method := methods[0]
 	if len(methods) > 1 && chain != "" {
@@ -1028,7 +1035,7 @@ func (b *Bitfinex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1053,7 +1060,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

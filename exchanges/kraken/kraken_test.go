@@ -862,7 +862,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     currency.Pairs{pair},
@@ -878,7 +878,7 @@ func TestGetActiveOrders(t *testing.T) {
 // TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,

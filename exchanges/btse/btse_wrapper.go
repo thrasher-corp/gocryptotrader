@@ -649,7 +649,7 @@ func orderIntToType(i int) order.Type {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	o, err := b.GetOrders(ctx, "", orderID, "")
 	if err != nil {
 		return nil, err
@@ -801,7 +801,7 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdr
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -918,7 +918,7 @@ func matchType(input int, required order.Type) bool {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err

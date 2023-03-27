@@ -614,7 +614,11 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if err := g.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders(ctx, "")
 	if err != nil {
@@ -728,7 +732,7 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -838,7 +842,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

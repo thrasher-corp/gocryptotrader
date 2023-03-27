@@ -247,7 +247,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.XRP, currency.USDT)},
 		AssetType: asset.Spot,
@@ -266,7 +266,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.Buy,
 		AssetType: asset.Spot,

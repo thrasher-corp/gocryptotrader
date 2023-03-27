@@ -600,7 +600,7 @@ func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Can
 }
 
 // GetOrderInfo returns order information based on order ID
-func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID(ctx)
 	if err != nil {
@@ -684,7 +684,7 @@ func (l *Lbank) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withd
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -748,7 +748,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 
 // GetOrderHistory retrieves account order information *
 // Can Limit response to specific order status
-func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err

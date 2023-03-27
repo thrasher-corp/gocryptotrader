@@ -1192,7 +1192,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			baseVolume = response.Data[i].VolCcy24H.Float64()
 			quoteVolume = response.Data[i].Vol24H.Float64()
 		default:
-			return fmt.Errorf("%w, asset type %s is not supported", errInvalidInstrumentType, a.String())
+			return fmt.Errorf("%w %s ", asset.ErrNotSupported, a)
 		}
 		tickData := &ticker.Price{
 			ExchangeName: ok.Name,

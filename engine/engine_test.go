@@ -361,7 +361,6 @@ func TestAllExchangeWrappers(t *testing.T) {
 
 func TestAllExchangeWebsockets(t *testing.T) {
 	t.Parallel()
-	t.Skip("testing while PR is open")
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../testdata/configtest.json", true)
 	if err != nil {
@@ -619,7 +618,7 @@ var (
 	orderModifyParam      = reflect.TypeOf((**order.Modify)(nil)).Elem()
 	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
 	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	getOrdersRequestParam = reflect.TypeOf((**order.GetOrdersRequest)(nil)).Elem()
+	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -781,12 +780,12 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 			},
 		})
 	case argGenerator.MethodInputType.AssignableTo(getOrdersRequestParam):
-		input = reflect.ValueOf(&order.GetOrdersRequest{
-			Type:      order.AnyType,
-			Side:      order.AnySide,
-			OrderID:   "1337",
-			AssetType: argGenerator.AssetParams.Asset,
-			Pairs:     currency.Pairs{argGenerator.AssetParams.Pair},
+		input = reflect.ValueOf(&order.MultiOrderRequest{
+			Type:        order.AnyType,
+			Side:        order.AnySide,
+			FromOrderID: "1337",
+			AssetType:   argGenerator.AssetParams.Asset,
+			Pairs:       currency.Pairs{argGenerator.AssetParams.Pair},
 		})
 	default:
 		input = reflect.Zero(argGenerator.MethodInputType)
@@ -802,11 +801,6 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 	t.Helper()
 	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 	outputs := methodToCall.Call(methodValues)
-	if methodToCall.Type().NumIn() == 0 {
-		// Some empty functions will reset the exchange struct to defaults,
-		// so turn off verbosity.
-		exch.GetBase().Verbose = false
-	}
 	for i := range outputs {
 		incoming := outputs[i].Interface()
 		if reflect.TypeOf(incoming) == errType {

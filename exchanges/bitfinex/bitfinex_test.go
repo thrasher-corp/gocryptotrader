@@ -851,7 +851,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API Keys unset, skipping")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -868,7 +868,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API Keys unset, skipping")
 	}
-	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	_, err := b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1787,7 +1787,6 @@ func TestPopulateAcceptableMethods(t *testing.T) {
 	if err := b.PopulateAcceptableMethods(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%+v", acceptableMethods)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {

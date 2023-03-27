@@ -1048,6 +1048,13 @@ ordersLoop:
 
 // GetOrderInfo returns order information based on order ID
 func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	format, err := ok.GetPairFormat(assetType, false)
 	if err != nil {
 		return nil, err
@@ -1159,7 +1166,7 @@ func (ok *Okx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdra
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1263,7 +1270,7 @@ allOrders:
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
-func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}

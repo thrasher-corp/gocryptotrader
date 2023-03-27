@@ -428,7 +428,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	var input order.GetOrdersRequest
+	var input order.MultiOrderRequest
 	input.Side = order.Buy
 	input.AssetType = asset.Spot
 	input.Type = order.AnyType
@@ -444,7 +444,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	var input order.GetOrdersRequest
+	var input order.MultiOrderRequest
 	input.Side = order.Buy
 	input.AssetType = asset.Spot
 	input.Type = order.AnyType

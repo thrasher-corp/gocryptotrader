@@ -693,7 +693,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{cancellAllOrdersResponse}),
 		})
 
-		var r15 order.Detail
+		var r15 *order.Detail
 		r15, err = e.GetOrderInfo(context.TODO(), config.OrderSubmission.OrderID, p, assetTypes[i])
 		msg = ""
 		if err != nil {
@@ -707,7 +707,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r15}),
 		})
 
-		historyRequest := order.GetOrdersRequest{
+		historyRequest := order.MultiOrderRequest{
 			Type:      testOrderType,
 			Side:      testOrderSide,
 			Pairs:     []currency.Pair{p},
@@ -729,7 +729,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{getOrderHistoryResponse}),
 		})
 
-		orderRequest := order.GetOrdersRequest{
+		orderRequest := order.MultiOrderRequest{
 			Type:      testOrderType,
 			Side:      testOrderSide,
 			Pairs:     []currency.Pair{p},

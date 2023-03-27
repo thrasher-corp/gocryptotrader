@@ -681,7 +681,7 @@ func (e *EXMO) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -720,7 +720,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

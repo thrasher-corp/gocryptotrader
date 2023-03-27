@@ -649,7 +649,7 @@ func (b *Bittrex) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	orderData, err := b.GetOrder(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -766,7 +766,7 @@ func (b *Bittrex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -838,7 +838,7 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

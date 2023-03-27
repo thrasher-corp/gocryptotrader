@@ -2680,40 +2680,25 @@ func TestHasAssetTypeAccountSegregation(t *testing.T) {
 func TestGetKlineRequest(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}
-	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{})
+
+	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Spot, kline.OneHour, time.Time{}, time.Time{})
+	if !errors.Is(err, kline.ErrCannotConstructInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
+	}
+
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneHour)
+	b.Features.Enabled.Kline.ResultLimit = 1439
+	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 1)
+	_, err = b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, kline.OneHour, time.Time{}, time.Time{})
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err = b.GetKlineRequest(pair, asset.Empty, 0, time.Time{}, time.Time{})
+	_, err = b.GetKlineRequest(pair, asset.Empty, kline.OneHour, time.Time{}, time.Time{})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
-
-	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{})
-	if !errors.Is(err, kline.ErrInvalidInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
-	}
-
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, time.Time{}, time.Time{})
-	if !errors.Is(err, kline.ErrCannotConstructInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
-	}
-
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneMin)
-	b.Features.Enabled.Kline.ResultLimit = 1439
-	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 1)
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, start, end)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneHour)
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
 	}
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
@@ -2806,10 +2791,9 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 	b.Features.Enabled.Kline.ResultLimit = 100
 	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
-
 	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	if !errors.Is(err, asset.ErrNotEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
 	}
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{

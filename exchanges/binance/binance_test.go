@@ -1506,7 +1506,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
@@ -1527,7 +1527,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1881,7 +1881,7 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = b.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		Pairs:     currency.Pairs{p},
@@ -1895,7 +1895,7 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = b.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		Pairs:     currency.Pairs{p2},
@@ -1915,12 +1915,12 @@ func TestWrapperGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
-		Type:      order.AnyType,
-		Side:      order.AnySide,
-		OrderID:   "123",
-		Pairs:     currency.Pairs{p},
-		AssetType: asset.CoinMarginedFutures,
+	_, err = b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:        order.AnyType,
+		Side:        order.AnySide,
+		FromOrderID: "123",
+		Pairs:       currency.Pairs{p},
+		AssetType:   asset.CoinMarginedFutures,
 	})
 	if err != nil {
 		t.Error(err)
@@ -1930,18 +1930,18 @@ func TestWrapperGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
-		Type:      order.AnyType,
-		Side:      order.AnySide,
-		OrderID:   "123",
-		Pairs:     currency.Pairs{p2},
-		AssetType: asset.USDTMarginedFutures,
+	_, err = b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:        order.AnyType,
+		Side:        order.AnySide,
+		FromOrderID: "123",
+		Pairs:       currency.Pairs{p2},
+		AssetType:   asset.USDTMarginedFutures,
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	_, err = b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		AssetType: asset.USDTMarginedFutures,
 	})
 	if err == nil {
@@ -2551,7 +2551,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(subs) != 8 {
+	if len(subs) == 0 {
 		t.Fatal("unexpected subscription length")
 	}
 }

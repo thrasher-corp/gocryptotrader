@@ -3,6 +3,7 @@ package alphapoint
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -333,7 +334,7 @@ func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair curr
 			}
 		}
 	}
-	return 0, errors.New("order not found")
+	return 0, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -375,7 +376,7 @@ func (a *Alphapoint) GetFeeByType(_ *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -414,7 +415,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

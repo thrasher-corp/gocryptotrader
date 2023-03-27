@@ -675,7 +675,7 @@ func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*
 		case o[i].ClientOrderID != "":
 			return nil, order.ErrClientOrderIDNotSupported
 		case o[i].OrderID != "":
-			ids = append(ids, o[i].OrderID)
+			ids[i] = o[i].OrderID
 		default:
 			return nil, order.ErrOrderIDNotSet
 		}
@@ -728,7 +728,7 @@ func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (orde
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	var resp order.Detail
 	o, err := b.FetchOrder(ctx, orderID)
 	if err != nil {
@@ -865,7 +865,7 @@ func (b *BTCMarkets) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeB
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -938,7 +938,7 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

@@ -445,7 +445,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Pairs: []currency.Pair{
 			{
 				Delimiter: "-",
@@ -474,7 +474,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,

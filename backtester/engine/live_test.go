@@ -283,8 +283,8 @@ func TestAppendDataSource(t *testing.T) {
 
 	setup.pair = currency.NewPair(currency.BTC, currency.USDT)
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, kline.ErrUnsetInterval) {
-		t.Errorf("received '%v' expected '%v'", err, kline.ErrUnsetInterval)
+	if !errors.Is(err, kline.ErrInvalidInterval) {
+		t.Errorf("received '%v' expected '%v'", err, kline.ErrInvalidInterval)
 	}
 
 	setup.interval = kline.OneDay

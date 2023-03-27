@@ -396,7 +396,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.Sell,
 		AssetType: asset.Spot,
@@ -415,7 +415,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API Keys unset, skipping")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,

@@ -620,7 +620,7 @@ func (b *Bitstamp) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	iOID, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
 		return nil, err
@@ -747,7 +747,7 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -812,7 +812,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

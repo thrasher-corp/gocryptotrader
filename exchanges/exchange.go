@@ -466,7 +466,7 @@ func (b *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.
 	if pairs.Contains(p, false) {
 		return nil
 	}
-	return errors.New("pair not supported")
+	return fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, p)
 }
 
 // FormatExchangeCurrencies returns a string containing
@@ -1149,22 +1149,18 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 // ValidateKline confirms that the requested pair, asset & interval are
 // supported and/or enabled by the requested exchange.
 func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
-	var errorList []string
+	var err error
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
-		errorList = append(errorList, fmt.Sprintf("[%s] asset not enabled", a))
+		err = common.AppendError(err, fmt.Errorf("%w %v", asset.ErrNotEnabled, a))
 	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		errorList = append(errorList, fmt.Sprintf("[%s] pair not enabled", pair))
+		err = common.AppendError(err, fmt.Errorf("%w %v", currency.ErrPairNotContainedInAvailablePairs, pair))
 	}
 
 	if !b.klineIntervalEnabled(interval) {
-		errorList = append(errorList, fmt.Sprintf("[%s] interval not supported", interval))
+		err = common.AppendError(err, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval))
 	}
 
-	if len(errorList) > 0 {
-		return fmt.Errorf("%w: %v", kline.ErrValidatingParams, strings.Join(errorList, ", "))
-	}
-
-	return nil
+	return err
 }
 
 // AddTradesToBuffer is a helper function that will only
@@ -1510,7 +1506,6 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 // GetKlineRequest returns a helper for the fetching of candle/kline data for
 // a single request within a pre-determined time window.
 func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Request, error) {
-
 	// NOTE: This allows for checking that the required kline interval is
 	// supported by the exchange and/or can be constructed from lower time frame
 	// intervals.

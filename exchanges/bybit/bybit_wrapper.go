@@ -1249,6 +1249,13 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 
 // GetOrderInfo returns order information based on order ID
 func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := by.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	switch assetType {
 	case asset.Spot:
 		resp, err := by.QueryOrder(ctx, orderID, "")
@@ -1453,7 +1460,7 @@ func (by *Bybit) WithdrawFiatFundsToInternationalBank(ctx context.Context, withd
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1610,7 +1617,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1618,7 +1625,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
-		resp, err := by.GetPastOrders(ctx, "", req.OrderID, 0, req.StartTime, req.EndTime)
+		resp, err := by.GetPastOrders(ctx, "", req.FromOrderID, 0, req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1736,7 +1743,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	case asset.USDCMarginedFutures:
-		resp, err := by.GetUSDCOrderHistory(ctx, currency.EMPTYPAIR, "PERPETUAL", req.OrderID, "", "", "", "", 0)
+		resp, err := by.GetUSDCOrderHistory(ctx, currency.EMPTYPAIR, "PERPETUAL", "", "", "", "", "", 0)
 		if err != nil {
 			return nil, err
 		}

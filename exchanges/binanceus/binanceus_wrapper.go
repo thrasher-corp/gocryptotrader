@@ -710,6 +710,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
+
 	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid orderID %w", err)
@@ -800,7 +801,7 @@ func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, w
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -871,7 +872,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
-func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// An endpoint like /api/v3/allOrders does not exist in the binance us
 	// so This end point is left unimplemented
 	return nil, common.ErrFunctionNotSupported

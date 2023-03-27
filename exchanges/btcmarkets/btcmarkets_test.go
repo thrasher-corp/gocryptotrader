@@ -537,7 +537,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 
-	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	_, err := b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Side:      order.Buy,
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
@@ -580,7 +580,7 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err := b.GetActiveOrders(context.Background(),
-		&order.GetOrdersRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+		&order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	if err != nil {
 		t.Fatal(err)
 	}

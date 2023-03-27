@@ -1123,7 +1123,7 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 
 // Validate checks internal struct requirements and returns filter requirement
 // options for wrapper standardization procedures.
-func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
+func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {
 		return ErrGetOrdersRequestIsNil
 	}
@@ -1151,7 +1151,7 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 }
 
 // Filter reduces slice by optional fields
-func (g *GetOrdersRequest) Filter(exch string, orders []Detail) FilteredOrders {
+func (g *MultiOrderRequest) Filter(exch string, orders []Detail) FilteredOrders {
 	filtered := make([]Detail, len(orders))
 	copy(filtered, orders)
 	FilterOrdersByPairs(&filtered, g.Pairs)

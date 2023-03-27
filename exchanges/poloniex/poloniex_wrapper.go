@@ -731,7 +731,11 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
 	orderInfo := order.Detail{
 		Exchange: p.Name,
 		Pair:     pair,
@@ -908,7 +912,7 @@ func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -964,7 +968,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

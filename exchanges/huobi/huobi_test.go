@@ -790,7 +790,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	getOrdersRequest := order.GetOrdersRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 		AssetType: asset.Spot,
@@ -2017,7 +2017,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},

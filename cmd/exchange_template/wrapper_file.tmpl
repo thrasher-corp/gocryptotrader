@@ -385,7 +385,7 @@ func ({{.Variable}} *{{.CapitalName}}) FetchAccountInfo(ctx context.Context, ass
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func ({{.Variable}} *{{.CapitalName}}) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -504,7 +504,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(ctx 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -513,7 +513,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(ctx context.Context, getO
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }

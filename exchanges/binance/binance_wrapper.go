@@ -1239,6 +1239,13 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 
 // GetOrderInfo returns information on a current open order
 func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	var respData order.Detail
 	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
 	if err != nil {
@@ -1406,7 +1413,7 @@ func (b *Binance) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1528,7 +1535,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1599,7 +1606,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			var orderHistory []FuturesOrderData
 			var err error
 			switch {
-			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.OrderID == "":
+			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.FromOrderID == "":
 				if req.EndTime.Before(req.StartTime) {
 					return nil, errors.New("endTime cannot be before startTime")
 				}
@@ -1611,8 +1618,8 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				if err != nil {
 					return nil, err
 				}
-			case req.OrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
-				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
+			case req.FromOrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
+				fromID, err := strconv.ParseInt(req.FromOrderID, 10, 64)
 				if err != nil {
 					return nil, err
 				}
@@ -1657,7 +1664,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			var orderHistory []UFuturesOrderData
 			var err error
 			switch {
-			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.OrderID == "":
+			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.FromOrderID == "":
 				if req.EndTime.Before(req.StartTime) {
 					return nil, errors.New("endTime cannot be before startTime")
 				}
@@ -1669,8 +1676,8 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				if err != nil {
 					return nil, err
 				}
-			case req.OrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
-				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
+			case req.FromOrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
+				fromID, err := strconv.ParseInt(req.FromOrderID, 10, 64)
 				if err != nil {
 					return nil, err
 				}

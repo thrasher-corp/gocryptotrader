@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -299,7 +298,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -314,7 +313,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -476,13 +475,6 @@ func TestWithdrawFiat(t *testing.T) {
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
-}
-
-func TestSplit(t *testing.T) {
-	t.Parallel()
-	t.Log(len(strings.Split("", "lksajdhfalskdf")))
-	t.Log(len(strings.Split("", "")))
-	t.Log(len(strings.Split("lksajdhfalskdf", "")))
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {

@@ -20,12 +20,17 @@ import (
 )
 
 const (
-	contextVerboseFlag     verbosity = "verbose"
-	UnsetRequest           AuthType  = 0
-	UnauthenticatedRequest           = iota << 1
+	// UnsetRequest is an unset request authentication level
+	UnsetRequest AuthType = 0
+	// UnauthenticatedRequest denotes a request with no credentials
+	UnauthenticatedRequest = iota << 1
+	// AuthenticatedRequest denotes a request using API credentials
 	AuthenticatedRequest
+
+	contextVerboseFlag verbosity = "verbose"
 )
 
+// AuthType helps distinguish the purpose of a HTTP request
 type AuthType int
 
 var (

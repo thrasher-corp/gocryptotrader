@@ -1250,6 +1250,13 @@ func (h *HUOBI) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 
 // GetOrderInfo returns order information based on order ID
 func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := h.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
@@ -1465,7 +1472,7 @@ func (h *HUOBI) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1654,7 +1661,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

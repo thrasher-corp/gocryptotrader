@@ -957,7 +957,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		return nil, err
 	}
 
-	request := &order.GetOrdersRequest{
+	request := &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{cp},
 		AssetType: a,
 		Type:      order.AnyType,
@@ -1983,7 +1983,7 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 			return nil, err
 		}
 		if !assetTypes.Contains(a) {
-			return nil, fmt.Errorf("specified asset %s is not supported by exchange", a)
+			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 		}
 	}
 

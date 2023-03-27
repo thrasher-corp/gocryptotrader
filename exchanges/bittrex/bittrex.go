@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -217,7 +218,7 @@ func (b *Bittrex) GetHistoricalCandles(ctx context.Context, marketName, candleIn
 		// Retrieve full year
 		start = fmt.Sprintf("%d", year)
 	default:
-		return resp, fmt.Errorf("invalid interval %v, not supported", candleInterval)
+		return resp, fmt.Errorf("%w %v", kline.ErrUnsupportedInterval, candleInterval)
 	}
 
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getHistoricalCandles, marketName, candleType, candleInterval, start), &resp, nil)

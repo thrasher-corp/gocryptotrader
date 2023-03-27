@@ -460,13 +460,13 @@ func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wi
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitflyer) GetActiveOrders(_ context.Context, _ *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitflyer) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitflyer) GetOrderHistory(_ context.Context, _ *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitflyer) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

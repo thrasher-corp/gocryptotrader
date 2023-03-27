@@ -842,9 +842,12 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 }
 
 // GetOrderInfo returns order information based on order ID
-func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	}
+	if err := o.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
 	}
 
 	mOrder, err := o.GetSpotOrder(ctx, &GetSpotOrderRequest{OrderID: orderID})
@@ -990,7 +993,7 @@ func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1046,7 +1049,7 @@ func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKCoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (o *OKCoin) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

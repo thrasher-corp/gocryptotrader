@@ -197,8 +197,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	if cancel.AssetType.String() != "" && !exch.GetAssetTypes(false).Contains(cancel.AssetType) {
-		err = errors.New("order asset type not supported by exchange")
-		return err
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, cancel.AssetType)
 	}
 
 	log.Debugf(log.OrderMgr, "Cancelling order ID %v [%+v]",
@@ -670,7 +669,7 @@ func (m *OrderManager) processOrders() {
 			orders := m.orderStore.getActiveOrders(filter)
 			order.FilterOrdersByPairs(&orders, pairs)
 			var result []order.Detail
-			result, err = exchanges[x].GetActiveOrders(context.TODO(), &order.GetOrdersRequest{
+			result, err = exchanges[x].GetActiveOrders(context.TODO(), &order.MultiOrderRequest{
 				Side:      order.AnySide,
 				Type:      order.AnyType,
 				Pairs:     pairs,

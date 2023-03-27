@@ -2236,7 +2236,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.Limit,
 		Pairs:     currency.Pairs{pair, currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
 		AssetType: asset.Spot,
@@ -2252,7 +2252,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,

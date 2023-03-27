@@ -255,17 +255,19 @@ type TradeHistory struct {
 	Total       float64
 }
 
-// GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
-type GetOrdersRequest struct {
-	Type      Type
-	Side      Side
-	StartTime time.Time
-	EndTime   time.Time
-	OrderID   string
+// MultiOrderRequest used for GetOrderHistory and GetOpenOrders wrapper functions
+type MultiOrderRequest struct {
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
 	Pairs     currency.Pairs
 	AssetType asset.Item
+	Type      Type
+	Side      Side
+	StartTime time.Time
+	EndTime   time.Time
+	// FromOrderID for some APIs require order history searching
+	// from a specific orderID rather than via timestamps
+	FromOrderID string
 }
 
 // Status defines order status types
@@ -370,5 +372,5 @@ type ClassificationError struct {
 
 // FilteredOrders defines orders that have been filtered at the wrapper level
 // forcing required filter operations when calling method Filter() on
-// GetOrdersRequest.
+// MultiOrderRequest.
 type FilteredOrders []Detail

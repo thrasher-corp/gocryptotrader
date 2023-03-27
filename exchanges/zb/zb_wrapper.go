@@ -442,7 +442,8 @@ func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHi
 	for x := range currs {
 		totalPages := int64(1)
 		for y := int64(0); y < totalPages; y++ {
-			deposits, err := z.GetDepositRecords(ctx, &WalletRecordsRequest{
+			var deposits *DepositRecordsResponse
+			deposits, err = z.GetDepositRecords(ctx, &WalletRecordsRequest{
 				Currency:  currs[x],
 				PageIndex: y,
 			})
@@ -740,6 +741,9 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 
 // GetOrderInfo returns order information based on order ID
 func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	if err := z.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
@@ -853,7 +857,7 @@ func (z *ZB) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (z *ZB) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -920,7 +924,7 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (z *ZB) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
