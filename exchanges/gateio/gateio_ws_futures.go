@@ -64,6 +64,7 @@ var futuresAssetType = asset.Futures
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (g *Gateio) WsFuturesConnect() error {
+	fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -202,10 +203,7 @@ func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []s
 			if err = json.Unmarshal(respByte, &resp); err != nil {
 				errs = common.AppendError(errs, err)
 			} else {
-				if resp.Result != nil && resp.Result.Status != "success" {
-					errs = common.AppendError(errs, fmt.Errorf("%s websocket connection: timeout waiting for response with and subscription: %v", g.Name, val[k].Channel))
-					continue
-				} else if resp.Error != nil && resp.Error.Code != 0 {
+				if resp.Error != nil && resp.Error.Code != 0 {
 					errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val[k].Event, val[k].Channel, resp.Error.Code, resp.Error.Message))
 					continue
 				}
@@ -237,30 +235,64 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []stre
 		timestamp := time.Now()
 		var params []string
 		params = []string{channelsToSubscribe[i].Currency.String()}
-		if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == futuresOrdersChannel ||
-			channelsToSubscribe[i].Channel == futuresUserTradesChannel ||
-			channelsToSubscribe[i].Channel == futuresLiquidatesChannel ||
-			channelsToSubscribe[i].Channel == futuresAutoDeleveragesChannel ||
-			channelsToSubscribe[i].Channel == futuresAutoPositionCloseChannel ||
-			channelsToSubscribe[i].Channel == futuresBalancesChannel ||
-			channelsToSubscribe[i].Channel == futuresReduceRiskLimitsChannel ||
-			channelsToSubscribe[i].Channel == futuresPositionsChannel ||
-			channelsToSubscribe[i].Channel == futuresAutoOrdersChannel) {
-			value, ok := channelsToSubscribe[i].Params["user"].(string)
-			if ok {
-				params = append(
-					[]string{value},
-					params...)
+		if g.Websocket.CanUseAuthenticatedEndpoints() {
+			switch channelsToSubscribe[i].Channel {
+			case futuresOrdersChannel, futuresUserTradesChannel,
+				futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
+				futuresAutoPositionCloseChannel, futuresBalancesChannel,
+				futuresReduceRiskLimitsChannel, futuresPositionsChannel,
+				futuresAutoOrdersChannel:
+				value, ok := channelsToSubscribe[i].Params["user"].(string)
+				if ok {
+					params = append(
+						[]string{value},
+						params...)
+				}
+				var sigTemp string
+				sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+				if err != nil {
+					return [2][]WsInput{}, err
+				}
+				auth = &WsAuthInput{
+					Method: "api_key",
+					Key:    creds.Key,
+					Sign:   sigTemp,
+				}
 			}
-			sigTemp, err := g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+		}
+		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
+		if okay {
+			var frequencyString string
+			frequencyString, err = g.GetIntervalString(frequency)
 			if err != nil {
-				return [2][]WsInput{}, err
+				return payloads, err
 			}
-			auth = &WsAuthInput{
-				Method: "api_key",
-				Key:    creds.Key,
-				Sign:   sigTemp,
+			params = append(params, frequencyString)
+		}
+		interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+		if okay {
+			var intervalString string
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return payloads, err
 			}
+			if channelsToSubscribe[i].Channel == optionsContractCandlesticksChannel {
+				params = append([]string{intervalString}, params...)
+			} else {
+				params = append(params, intervalString)
+			}
+		}
+		levelString, okay := channelsToSubscribe[i].Params["level"].(string)
+		if okay {
+			params = append(params, levelString)
+		}
+		limitString, okay := channelsToSubscribe[i].Params["limit"].(string)
+		if okay {
+			params = append(params, limitString)
+		}
+		accuracy, okay := channelsToSubscribe[i].Params["accuracy"].(string)
+		if okay {
+			params = append(params, accuracy)
 		}
 		if strings.HasPrefix(channelsToSubscribe[i].Currency.Quote.Upper().String(), "USDT") {
 			payloads[0] = append(payloads[0], WsInput{
@@ -415,6 +447,20 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte) error {
 		assetType = asset.Options
 	} else {
 		assetType = futuresAssetType
+	}
+	if !fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName] {
+		orderbooks, err := g.FetchOrderbook(context.Background(), pair, assetType)
+		if err != nil {
+			return err
+		}
+		if orderbooks.LastUpdateID < update.FirstUpdatedID || orderbooks.LastUpdateID > update.LastUpdatedID {
+			return nil
+		}
+		err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
+		if err != nil {
+			return err
+		}
+		fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName] = true
 	}
 	updates := orderbook.Update{
 		UpdateTime: time.UnixMilli(update.TimestampInMs),

@@ -32,8 +32,11 @@ var defaultDeliveryFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
+var fetchedFuturesCurrencyPairSnapshotOrderbook map[string]bool
+
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
 func (g *Gateio) WsDeliveryFuturesConnect() error {
+	fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}

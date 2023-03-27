@@ -57,8 +57,11 @@ var defaultSubscriptions = []string{
 	spotOrderbookUpdateChannel,
 }
 
+var fetchedCurrencyPairSnapshotOrderbook map[string]bool
+
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
+	fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -288,7 +291,7 @@ func (g *Gateio) processTicker(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &ticker.Price{
+	tickerPrice := ticker.Price{
 		ExchangeName: g.Name,
 		Volume:       tickerData.BaseVolume,
 		QuoteVolume:  tickerData.QuoteVolume,
@@ -300,6 +303,20 @@ func (g *Gateio) processTicker(data []byte) error {
 		AssetType:    asset.Spot,
 		Pair:         currencyPair,
 		LastUpdated:  time.Unix(response.Time, 0),
+	}
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
+	if assetPairEnabled[asset.Spot] {
+		g.Websocket.DataHandler <- tickerPrice
+	}
+	if assetPairEnabled[asset.Margin] {
+		marginTicker := tickerPrice
+		marginTicker.AssetType = asset.Margin
+		g.Websocket.DataHandler <- marginTicker
+	}
+	if assetPairEnabled[asset.CrossMargin] {
+		crossMarginTicker := tickerPrice
+		crossMarginTicker.AssetType = asset.CrossMargin
+		g.Websocket.DataHandler <- crossMarginTicker
 	}
 	return nil
 }
@@ -320,7 +337,7 @@ func (g *Gateio) processTrades(data []byte) error {
 	if err != nil {
 		return err
 	}
-	return trade.AddTradesToBuffer(g.Name, trade.Data{
+	spotTradeData := trade.Data{
 		Timestamp:    time.UnixMicro(int64(tradeData.CreateTimeMs * 1e3)), // the timestamp data is coming as a floating number.
 		CurrencyPair: currencyPair,
 		AssetType:    asset.Spot,
@@ -329,7 +346,32 @@ func (g *Gateio) processTrades(data []byte) error {
 		Amount:       tradeData.Amount,
 		Side:         side,
 		TID:          strconv.FormatInt(tradeData.ID, 10),
-	})
+	}
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
+	if assetPairEnabled[asset.Spot] {
+		err = trade.AddTradesToBuffer(g.Name, spotTradeData)
+		if err != nil {
+			return err
+		}
+		g.Websocket.DataHandler <- []trade.Data{spotTradeData}
+	}
+	if assetPairEnabled[asset.Margin] {
+		marginTradeData := spotTradeData
+		marginTradeData.AssetType = asset.Margin
+		err = trade.AddTradesToBuffer(g.Name, marginTradeData)
+		if err != nil {
+			return err
+		}
+	}
+	if assetPairEnabled[asset.CrossMargin] {
+		crossMarginTradeData := spotTradeData
+		crossMarginTradeData.AssetType = asset.CrossMargin
+		err = trade.AddTradesToBuffer(g.Name, crossMarginTradeData)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *Gateio) processCandlestick(data []byte) error {
@@ -348,7 +390,7 @@ func (g *Gateio) processCandlestick(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- stream.KlineData{
+	spotCandlestick := stream.KlineData{
 		Pair:       currencyPair,
 		AssetType:  asset.Spot,
 		Exchange:   g.Name,
@@ -359,6 +401,20 @@ func (g *Gateio) processCandlestick(data []byte) error {
 		HighPrice:  candleData.HighestPrice,
 		LowPrice:   candleData.LowestPrice,
 		Volume:     candleData.TotalVolume,
+	}
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
+	if assetPairEnabled[asset.Spot] {
+		g.Websocket.DataHandler <- spotCandlestick
+	}
+	if assetPairEnabled[asset.Margin] {
+		marginCandlestick := spotCandlestick
+		marginCandlestick.AssetType = asset.Margin
+		g.Websocket.DataHandler <- marginCandlestick
+	}
+	if assetPairEnabled[asset.CrossMargin] {
+		crossMarginCandlestick := spotCandlestick
+		crossMarginCandlestick.AssetType = asset.CrossMargin
+		g.Websocket.DataHandler <- crossMarginCandlestick
 	}
 	return nil
 }
@@ -387,19 +443,41 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 	if err != nil {
 		return err
 	}
-	updates := orderbook.Update{
-		UpdateTime: update.UpdateTimeMs.Time(),
-		Pair:       pair,
-		Asset:      asset.Spot,
-	}
-	updates.Bids = make([]orderbook.Item, len(update.Bids))
-	updates.Asks = make([]orderbook.Item, len(update.Asks))
-	for x := range updates.Asks {
-		price, err := strconv.ParseFloat(update.Asks[x][0], 64)
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(pair)
+	if !fetchedCurrencyPairSnapshotOrderbook[update.CurrencyPair] {
+		var orderbooks *orderbook.Base
+		orderbooks, err = g.FetchOrderbook(context.Background(), pair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(update.Asks[x][1], 64)
+		if orderbooks.LastUpdateID < update.FirstOrderbookUpdatedID || orderbooks.LastUpdateID > update.LastOrderbookUpdatedID {
+			return nil
+		}
+		for _, assetType := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin} {
+			if !assetPairEnabled[assetType] {
+				continue
+			}
+			err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
+			if err != nil {
+				return err
+			}
+		}
+		fetchedCurrencyPairSnapshotOrderbook[update.CurrencyPair] = true
+	}
+	updates := orderbook.Update{
+		UpdateTime: update.UpdateTimeMs.Time(),
+		Pair:       pair,
+	}
+	updates.Bids = make([]orderbook.Item, len(update.Bids))
+	updates.Asks = make([]orderbook.Item, len(update.Asks))
+	var price float64
+	var amount float64
+	for x := range updates.Asks {
+		price, err = strconv.ParseFloat(update.Asks[x][0], 64)
+		if err != nil {
+			return err
+		}
+		amount, err = strconv.ParseFloat(update.Asks[x][1], 64)
 		if err != nil {
 			return err
 		}
@@ -409,11 +487,11 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 		}
 	}
 	for x := range updates.Bids {
-		price, err := strconv.ParseFloat(update.Bids[x][0], 64)
+		price, err = strconv.ParseFloat(update.Bids[x][0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(update.Bids[x][1], 64)
+		amount, err = strconv.ParseFloat(update.Bids[x][1], 64)
 		if err != nil {
 			return err
 		}
@@ -425,7 +503,30 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
 		return nil
 	}
-	return g.Websocket.Orderbook.Update(&updates)
+	if assetPairEnabled[asset.Spot] {
+		updates.Asset = asset.Spot
+		err = g.Websocket.Orderbook.Update(&updates)
+		if err != nil {
+			return err
+		}
+	}
+	if assetPairEnabled[asset.Margin] {
+		marginUpdates := updates
+		marginUpdates.Asset = asset.Margin
+		err = g.Websocket.Orderbook.Update(&marginUpdates)
+		if err != nil {
+			return err
+		}
+	}
+	if assetPairEnabled[asset.CrossMargin] {
+		crossMarginUpdate := updates
+		crossMarginUpdate.Asset = asset.CrossMargin
+		err = g.Websocket.Orderbook.Update(&crossMarginUpdate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *Gateio) processOrderbookSnapshot(data []byte) error {
@@ -440,21 +541,24 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 	if err != nil {
 		return err
 	}
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(pair)
 	bases := orderbook.Base{
-		Asset:           asset.Spot,
 		Exchange:        g.Name,
 		Pair:            pair,
+		Asset:           asset.Spot,
 		LastUpdated:     snapshot.UpdateTimeMs.Time(),
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
 	bases.Bids = make([]orderbook.Item, len(snapshot.Bids))
 	bases.Asks = make([]orderbook.Item, len(snapshot.Asks))
+	var price float64
+	var amount float64
 	for x := range bases.Asks {
-		price, err := strconv.ParseFloat(snapshot.Asks[x][0], 64)
+		price, err = strconv.ParseFloat(snapshot.Asks[x][0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(snapshot.Asks[x][1], 64)
+		amount, err = strconv.ParseFloat(snapshot.Asks[x][1], 64)
 		if err != nil {
 			return err
 		}
@@ -464,11 +568,11 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 		}
 	}
 	for x := range bases.Bids {
-		price, err := strconv.ParseFloat(snapshot.Bids[x][0], 64)
+		price, err = strconv.ParseFloat(snapshot.Bids[x][0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(snapshot.Bids[x][1], 64)
+		amount, err = strconv.ParseFloat(snapshot.Bids[x][1], 64)
 		if err != nil {
 			return err
 		}
@@ -477,7 +581,29 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 			Price:  price,
 		}
 	}
-	return g.Websocket.Orderbook.LoadSnapshot(&bases)
+	if assetPairEnabled[asset.Spot] {
+		err = g.Websocket.Orderbook.LoadSnapshot(&bases)
+		if err != nil {
+			return err
+		}
+	}
+	if assetPairEnabled[asset.Margin] {
+		marginBases := bases
+		marginBases.Asset = asset.Margin
+		err = g.Websocket.Orderbook.LoadSnapshot(&marginBases)
+		if err != nil {
+			return err
+		}
+	}
+	if assetPairEnabled[asset.CrossMargin] {
+		crossMarginBases := bases
+		crossMarginBases.Asset = asset.CrossMargin
+		err = g.Websocket.Orderbook.LoadSnapshot(&crossMarginBases)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *Gateio) processSpotOrders(data []byte) error {
@@ -680,18 +806,27 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	}
 	var subscriptions []stream.ChannelSubscription
 	var pairs []currency.Pair
-	var err error
+	var crossMarginPairs, spotPairs currency.Pairs
+	marginPairs, err := g.GetEnabledPairs(asset.Margin)
+	if err != nil {
+		return nil, err
+	}
+	crossMarginPairs, err = g.GetEnabledPairs(asset.CrossMargin)
+	if err != nil {
+		return nil, err
+	}
+	spotPairs, err = g.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
 	for i := range channelsToSubscribe {
 		switch channelsToSubscribe[i] {
 		case marginBalancesChannel:
-			pairs, err = g.GetEnabledPairs(asset.Margin)
+			pairs = marginPairs
 		case crossMarginBalanceChannel:
-			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
+			pairs = crossMarginPairs
 		default:
-			pairs, err = g.GetAvailablePairs(asset.Spot)
-		}
-		if err != nil {
-			return nil, err
+			pairs = spotPairs
 		}
 		for j := range pairs {
 			params := make(map[string]interface{})
@@ -954,4 +1089,21 @@ func (g *Gateio) Subscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return g.handleSubscription("unsubscribe", channelsToUnsubscribe)
+}
+
+func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
+	assetTypes := g.CurrencyPairs.GetAssetTypes(false)
+	assetPairEnabled := make(map[asset.Item]bool)
+	for _, assetType := range assetTypes {
+		if g.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			assetPairEnabled[assetType] = false
+			continue
+		}
+		if cps, err := g.CurrencyPairs.GetPairs(assetType, true); err != nil || !cps.Contains(cp, true) {
+			assetPairEnabled[assetType] = false
+			continue
+		}
+		assetPairEnabled[assetType] = true
+	}
+	return assetPairEnabled
 }

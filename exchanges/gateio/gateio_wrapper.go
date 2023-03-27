@@ -149,10 +149,6 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = g.DisableAssetWebsocketSupport(asset.CrossMargin)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -673,35 +669,37 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return nil, err
 	}
+	var orderbookNew *Orderbook
+	switch a {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		orderbookNew, err = g.GetOrderbook(ctx, p.String(), "", 0, true)
+	case asset.Futures:
+		var settle string
+		settle, err = g.getSettlementFromCurrency(p, true)
+		if err != nil {
+			return nil, err
+		}
+		orderbookNew, err = g.GetFuturesOrderbook(ctx, settle, p.String(), "", 0, true)
+	case asset.DeliveryFutures:
+		var settle string
+		settle, err = g.getSettlementFromCurrency(p.Upper(), false)
+		if err != nil {
+			return nil, err
+		}
+		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", p, 0, true)
+	case asset.Options:
+		orderbookNew, err = g.GetOptionsOrderbook(ctx, p, "", 0, true)
+	}
+	if err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        g.Name,
 		Asset:           a,
 		VerifyOrderbook: g.CanVerifyOrderbook,
 		Pair:            p.Upper(),
-	}
-	var orderbookNew *Orderbook
-	switch a {
-	case asset.Spot, asset.Margin, asset.CrossMargin:
-		orderbookNew, err = g.GetOrderbook(ctx, book.Pair.String(), "", 0, true)
-	case asset.Futures:
-		var settle string
-		settle, err = g.getSettlementFromCurrency(book.Pair, true)
-		if err != nil {
-			return nil, err
-		}
-		orderbookNew, err = g.GetFuturesOrderbook(ctx, settle, book.Pair.Upper().String(), "", 0, true)
-	case asset.DeliveryFutures:
-		var settle string
-		settle, err = g.getSettlementFromCurrency(book.Pair, false)
-		if err != nil {
-			return nil, err
-		}
-		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", book.Pair, 0, true)
-	case asset.Options:
-		orderbookNew, err = g.GetOptionsOrderbook(ctx, book.Pair, "", 0, true)
-	}
-	if err != nil {
-		return book, err
+		LastUpdateID:    orderbookNew.ID,
+		LastUpdated:     orderbookNew.Update,
 	}
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {

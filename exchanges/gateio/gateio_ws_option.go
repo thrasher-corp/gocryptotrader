@@ -121,7 +121,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 				params["interval"] = kline.FiveMin
 			case optionsOrderbookUpdateChannel:
 				params["interval"] = kline.ThousandMilliseconds
-				params["level"] = 20
+				params["level"] = "20"
 			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
 			if err != nil {
