@@ -1500,7 +1500,7 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 
 // GetKlineRequest returns a helper for the fetching of candle/kline data for
 // a single request within a pre-determined time window.
-func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Request, error) {
+func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time, setTimeWindow bool) (*kline.Request, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1516,9 +1516,22 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	// NOTE: This check is here to make sure a client is notified that using
-	// this functionality will result in error if the total candles cannot be
+	// NOTE: The checks below make sure a client is notified that using this
+	// functionality will result in error if the total candles cannot be
 	// theoretically retrieved.
+	if setTimeWindow {
+		// setTimeWindow means that the end point has a fixed candle return
+		// amount from time.Now(). e.g. 300 hourly candles, so start time cannot
+		// be more than 300 hours into the past.
+		count := kline.TotalCandlesPerInterval(start, time.Now(), exchangeInterval)
+		if count > int64(b.Features.Enabled.Kline.ResultLimit) {
+			return nil, fmt.Errorf("candles count exceeded: %d endpoint has a set candle limit return: %d from time.Now(), candle data will be incomplete %w",
+				count,
+				b.Features.Enabled.Kline.ResultLimit,
+				kline.ErrRequestExceedsExchangeLimits)
+		}
+	}
+
 	if count := kline.TotalCandlesPerInterval(start, end, exchangeInterval); count >
 		int64(b.Features.Enabled.Kline.ResultLimit) {
 		return nil, fmt.Errorf("candles count: %d, max limit: %d %w",

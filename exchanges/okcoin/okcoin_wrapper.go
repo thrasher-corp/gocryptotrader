@@ -1021,7 +1021,7 @@ func (o *OKCoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := o.GetKlineRequest(pair, a, interval, start, end)
+	req, err := o.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}

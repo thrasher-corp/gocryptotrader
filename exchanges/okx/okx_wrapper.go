@@ -1365,7 +1365,7 @@ func (ok *Okx) ValidateCredentials(ctx context.Context, assetType asset.Item) er
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := ok.GetKlineRequest(pair, a, interval, start, end)
+	req, err := ok.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}

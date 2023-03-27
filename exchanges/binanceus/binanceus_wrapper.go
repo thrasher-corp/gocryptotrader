@@ -869,7 +869,7 @@ func (bi *Binanceus) ValidateCredentials(ctx context.Context, assetType asset.It
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := bi.GetKlineRequest(pair, a, interval, start, end)
+	req, err := bi.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}

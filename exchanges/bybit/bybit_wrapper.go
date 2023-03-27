@@ -1834,7 +1834,7 @@ func (by *Bybit) FormatExchangeKlineIntervalFutures(ctx context.Context, interva
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := by.GetKlineRequest(pair, a, interval, start, end)
+	req, err := by.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
