@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var fetchedInstrumentOrderbook map[string]bool
 var fetchedFuturesSnapshotOrderbook map[string]bool
 
 const (
@@ -115,7 +114,6 @@ func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-	fetchedInstrumentOrderbook = map[string]bool{}
 	fetchedFuturesSnapshotOrderbook = map[string]bool{}
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
@@ -767,55 +765,6 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	candlestickData.AssetType = asset.Margin
 	ku.Websocket.DataHandler <- candlestickData
 	return nil
-}
-
-func (ku *Kucoin) processOrderbookSnapShot(respData []byte, instrument string) error {
-	response := WsLevel2Orderbook{}
-	err := json.Unmarshal(respData, &response)
-	if err != nil {
-		return err
-	}
-	pair, err := currency.NewPairFromString(instrument)
-	if err != nil {
-		return err
-	}
-	snapShot := orderbook.Base{
-		LastUpdated: response.TimeMS.Time(),
-		Pair:        pair,
-		Asset:       asset.Spot,
-		Exchange:    ku.Name,
-	}
-	for x := range response.Asks {
-		item := orderbook.Item{}
-		item.Price, err = strconv.ParseFloat(response.Asks[x][0], 64)
-		if err != nil {
-			return err
-		}
-		item.Amount, err = strconv.ParseFloat(response.Asks[x][1], 64)
-		if err != nil {
-			return err
-		}
-		snapShot.Asks = append(snapShot.Asks, item)
-	}
-	for x := range response.Bids {
-		item := orderbook.Item{}
-		item.Price, err = strconv.ParseFloat(response.Bids[x][0], 64)
-		if err != nil {
-			return err
-		}
-		item.Amount, err = strconv.ParseFloat(response.Bids[x][1], 64)
-		if err != nil {
-			return err
-		}
-		snapShot.Bids = append(snapShot.Bids, item)
-	}
-	marginSnapShot := snapShot
-	marginSnapShot.Asset = asset.Margin
-	err = ku.Websocket.Orderbook.LoadSnapshot(&snapShot)
-	if err != nil {
-		return err
-	}
-	return ku.Websocket.Orderbook.LoadSnapshot(&marginSnapShot)
 }
 
 func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) error {

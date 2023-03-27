@@ -229,8 +229,6 @@ func TestGetMarginAccount(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetMarginAccount(context.Background())
 	if err != nil {
@@ -242,8 +240,6 @@ func TestGetMarginRiskLimit(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetMarginRiskLimit(context.Background(), "cross")
 	if err != nil {
@@ -260,8 +256,6 @@ func TestPostBorrowOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.PostBorrowOrder(context.Background(), "USDT", "FOK", "", 10, 0)
 	if err != nil {
@@ -386,8 +380,6 @@ func TestGetLendHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetLendHistory(context.Background(), "")
 	if err != nil {
@@ -403,8 +395,6 @@ func TestGetUnsettleLendOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 
 	_, err := ku.GetUnsettleLendOrder(context.Background(), "")
@@ -422,8 +412,6 @@ func TestGetSettleLendOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetSettleLendOrder(context.Background(), "")
 	if err != nil {
@@ -440,8 +428,6 @@ func TestGetAccountLendRecord(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetAccountLendRecord(context.Background(), "")
 	if err != nil {
@@ -457,8 +443,6 @@ func TestGetLendingMarketData(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetLendingMarketData(context.Background(), "BTC", 0)
 	if err != nil {
@@ -474,8 +458,6 @@ func TestGetMarginTradeData(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetMarginTradeData(context.Background(), "BTC")
 	if err != nil {
@@ -487,8 +469,6 @@ func TestGetIsolatedMarginPairConfig(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetIsolatedMarginPairConfig(context.Background())
 	if err != nil {
@@ -500,8 +480,6 @@ func TestGetIsolatedMarginAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetIsolatedMarginAccountInfo(context.Background(), "")
 	if err != nil {
@@ -517,8 +495,6 @@ func TestGetSingleIsolatedMarginAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetSingleIsolatedMarginAccountInfo(context.Background(), "BTC-USDT")
 	if err != nil {
@@ -530,8 +506,6 @@ func TestInitiateIsolateMarginBorrowing(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.InitiateIsolatedMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
 	if err != nil {
@@ -543,8 +517,6 @@ func TestGetIsolatedOutstandingRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetIsolatedOutstandingRepaymentRecords(context.Background(), "", "", 0, 0)
 	if err != nil {
@@ -560,8 +532,6 @@ func TestGetIsolatedMarginRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	_, err := ku.GetIsolatedMarginRepaymentRecords(context.Background(), "", "", 0, 0)
 	if err != nil {
@@ -577,8 +547,6 @@ func TestInitiateIsolatedMarginQuickRepayment(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	err := ku.InitiateIsolatedMarginQuickRepayment(context.Background(), "BTC-USDT", "USDT", "RECENTLY_EXPIRE_FIRST", 10)
 	if err != nil {
@@ -590,8 +558,6 @@ func TestInitiateIsolatedMarginSingleRepayment(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	err := ku.InitiateIsolatedMarginSingleRepayment(context.Background(), "BTC-USDT", "USDT", "628c570f7818320001d52b69", 10)
 	if err != nil {
@@ -638,8 +604,6 @@ func TestPostMarginOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	// default order type is limit and margin mode is cross
 	_, err := ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", 1000, 0.1, 0, 0, 0, true, false, false, false)
@@ -1450,8 +1414,6 @@ func TestSetAutoDepositMargin(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
-	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil {
-		t.Skipf(assetNotEnabled, asset.Margin)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
 		_, err := ku.SetAutoDepositMargin(context.Background(), "ADAUSDTM", true)

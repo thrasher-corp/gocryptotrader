@@ -129,7 +129,7 @@ func (ku *Kucoin) SetDefaults() {
 					kline.OneDay,
 					kline.OneWeek,
 				),
-				ResultLimit: 200,
+				ResultLimit: 1500,
 			},
 		},
 	}
@@ -1264,7 +1264,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	switch a {
 	case asset.Futures:
 		var candles []FuturesKline
-		candles, err := ku.GetFuturesKline(ctx, int64(interval.Duration().Minutes()), req.RequestFormatted.String(), start, end)
+		candles, err := ku.GetFuturesKline(ctx, int64(interval.Duration().Minutes()), req.RequestFormatted.String(), req.Start, req.End)
 		if err != nil {
 			return nil, err
 		}
@@ -1285,7 +1285,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			return nil, err
 		}
 		var candles []Kline
-		candles, err = ku.GetKlines(ctx, req.RequestFormatted.String(), intervalString, start, end)
+		candles, err = ku.GetKlines(ctx, req.RequestFormatted.String(), intervalString, req.Start, req.End)
 		if err != nil {
 			return nil, err
 		}
