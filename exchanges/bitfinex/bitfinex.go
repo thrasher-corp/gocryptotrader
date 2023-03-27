@@ -1542,7 +1542,7 @@ func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOr
 		req["cid"] = orderID
 	}
 	if !clientOrderIDDate.IsZero() {
-		req["cid_date"] = clientOrderIDDate.Format(time.DateOnly)
+		req["cid_date"] = clientOrderIDDate.Format("2006-01-02")
 	}
 	if groupOrderID > 0 {
 		req["gid"] = groupOrderID
