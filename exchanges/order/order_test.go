@@ -263,6 +263,14 @@ func TestOrderSides(t *testing.T) {
 	}
 }
 
+func TestTitle(t *testing.T) {
+	t.Parallel()
+	typeroo := Limit
+	if "Limit" != typeroo.Title() {
+		t.Errorf("expected 'Limit' received '%v'", typeroo.Title())
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 
