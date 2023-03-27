@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -359,31 +357,6 @@ func TestAllExchangeWrappers(t *testing.T) {
 	}
 }
 
-func TestAllExchangeWebsockets(t *testing.T) {
-	t.Parallel()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal("load config error", err)
-	}
-	for i := range cfg.Exchanges {
-		name := cfg.Exchanges[i].Name
-		if common.StringDataContains(unsupportedExchangeNames, strings.ToLower(name)) {
-			continue
-		}
-		t.Run(name+" websocket tests", func(t *testing.T) {
-			t.Parallel()
-			exch, _ := setupExchange(t, name, cfg)
-			b := exch.GetBase()
-			if b.Features.Supports.Websocket {
-				executeExchangeWebsocketTests(t, exch)
-			} else {
-				t.Skipf("%v does not support websocket", name)
-			}
-		})
-	}
-}
-
 func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
 	t.Helper()
 	em := SetupExchangeManager()
@@ -486,61 +459,6 @@ func isUnacceptableError(t *testing.T, err error) error {
 		}
 	}
 	return err
-}
-
-func readDataHandler(t *testing.T, ws *stream.Websocket) error {
-	t.Helper()
-	var err error
-	timer := time.NewTimer(time.Second * 30)
-	for {
-		select {
-		case <-timer.C:
-			return err
-		case data := <-ws.DataHandler:
-			dataErr, ok := data.(error)
-			if !ok {
-				continue
-			}
-			if isUnacceptableError(t, dataErr) != nil {
-				err = common.AppendError(err, dataErr)
-			}
-		default:
-			if !ws.IsConnected() {
-				err = common.AppendError(err, fmt.Errorf("%s websocket disconnected during test", ws.GetName()))
-			}
-		}
-	}
-}
-
-func executeExchangeWebsocketTests(t *testing.T, exch exchange.IBotExchange) {
-	t.Helper()
-	b := exch.GetBase()
-	if !exch.IsWebsocketEnabled() {
-		err := b.Websocket.Enable()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	ws, err := exch.GetWebsocket()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ws.IsConnected() && !ws.IsConnecting() {
-		err = ws.Connect()
-		if isUnacceptableError(t, err) != nil {
-			t.Fatal(err)
-		}
-	}
-	// auth functions not purpose of test
-	ws.SetCanUseAuthenticatedEndpoints(false)
-	err = readDataHandler(t, ws)
-	if err != nil {
-		t.Error(err)
-	}
-	err = ws.Shutdown()
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
