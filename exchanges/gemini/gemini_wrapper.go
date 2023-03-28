@@ -806,9 +806,9 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	return req.Filter(g.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (g *Gemini) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (g *Gemini) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
 }

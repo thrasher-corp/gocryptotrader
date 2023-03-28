@@ -842,9 +842,9 @@ func (h *HitBTC) AuthenticateWebsocket(ctx context.Context) error {
 	return h.wsLogin(ctx)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (h *HitBTC) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (h *HitBTC) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := h.UpdateAccountInfo(ctx, assetType)
 	return h.CheckTransientError(err)
 }

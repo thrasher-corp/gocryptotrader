@@ -689,9 +689,9 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 	return req.Filter(y.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (y *Yobit) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (y *Yobit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := y.UpdateAccountInfo(ctx, assetType)
 	return y.CheckTransientError(err)
 }

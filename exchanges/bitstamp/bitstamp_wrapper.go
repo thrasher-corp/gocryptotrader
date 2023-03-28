@@ -846,9 +846,9 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 	return req.Filter(b.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitstamp) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *Bitstamp) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }

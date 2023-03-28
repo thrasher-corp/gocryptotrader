@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -12,6 +13,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -25,6 +28,10 @@ import (
 // GetDefaultConfig returns a default exchange config for Alphapoint
 func (a *Alphapoint) GetDefaultConfig() (*config.Exchange, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+func (a *Alphapoint) Start(_ *sync.WaitGroup) error {
+	return common.ErrNotYetImplemented
 }
 
 // SetDefaults sets current default settings
@@ -78,6 +85,10 @@ func (a *Alphapoint) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+}
+
+func (a *Alphapoint) Setup(_ *config.Exchange) error {
+	return common.ErrFunctionNotSupported
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -145,7 +156,7 @@ func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (a *Alphapoint) UpdateTickers(assetType asset.Item) error {
+func (a *Alphapoint) UpdateTickers(_ context.Context, assetType asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -241,7 +252,7 @@ func (a *Alphapoint) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (a *Alphapoint) GetRecentTrades(_ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+func (a *Alphapoint) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -276,8 +287,8 @@ func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyOrder(_ *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrNotYetImplemented
+func (a *Alphapoint) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -308,35 +319,25 @@ func (a *Alphapoint) CancelAllOrders(ctx context.Context, orderCancellation *ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
-	orders, err := a.GetOrders(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	for x := range orders {
-		for y := range orders[x].OpenOrders {
-			if strconv.Itoa(orders[x].OpenOrders[y].ServerOrderID) == orderID {
-				return orders[x].OpenOrders[y].QtyRemaining, nil
-			}
-		}
-	}
-	return 0, errors.New("order not found")
+func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+	return order.Detail{}, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (string, error) {
+func (a *Alphapoint) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	addresses, err := a.GetDepositAddresses(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for x := range addresses {
 		if addresses[x].Name == cryptocurrency.String() {
-			return addresses[x].DepositAddress, nil
+			return &deposit.Address{
+				Address: addresses[x].DepositAddress,
+			}, nil
 		}
 	}
-	return "", errors.New("associated currency address not found")
+	return nil, errors.New("associated currency address not found")
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -352,12 +353,12 @@ func (a *Alphapoint) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (a *Alphapoint) GetFeeByType(_ *exchange.FeeBuilder) (float64, error) {
+func (a *Alphapoint) GetFeeByType(ctx context.Context, _ *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrFunctionNotSupported
 }
 
@@ -439,9 +440,17 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 	return req.Filter(a.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (a *Alphapoint) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (a *Alphapoint) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := a.UpdateAccountInfo(ctx, assetType)
 	return a.CheckTransientError(err)
+}
+
+func (a *Alphapoint) GetHistoricCandles(ctx context.Context, pair currency.Pair, ai asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+func (a *Alphapoint) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, ai asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
 }

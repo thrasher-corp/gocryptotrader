@@ -518,8 +518,8 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(ctx context.Context, feeBuil
 	return 0, common.ErrNotYetImplemented
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+func ({{.Variable}} *{{.CapitalName}}) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := {{.Variable}}.UpdateAccountInfo(ctx, assetType)
 	return {{.Variable}}.CheckTransientError(err)
 }

@@ -73,7 +73,18 @@ type IBotExchange interface {
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*account.Credentials, error)
-	ValidateCredentials(ctx context.Context, a asset.Item) error
+
+	// ValidateAPICredentials function validates the the API keys by sending a
+	// an authenticated REST request. See exchange specific wrapper
+	// implementation.
+	ValidateAPICredentials(ctx context.Context, a asset.Item) error
+	// VerifyAPICredentials determines if the credentials supplied have unset
+	// required values. See exchanges/credentials.go Base method for
+	// implementation.
+	VerifyAPICredentials(creds *account.Credentials) error
+	// GetDefaultCredentials returns the exchange.Base api credentials loaded by
+	// config.json. See exchanges/credentials.go Base method for implementation.
+	GetDefaultCredentials() *account.Credentials
 
 	FunctionalityChecker
 	AccountManagement

@@ -861,8 +861,8 @@ func (bi *Binanceus) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeB
 	return bi.GetFee(ctx, feeBuilder)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (bi *Binanceus) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+func (bi *Binanceus) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := bi.UpdateAccountInfo(ctx, assetType)
 	return bi.CheckTransientError(err)
 }
