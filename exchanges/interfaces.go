@@ -74,9 +74,8 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*account.Credentials, error)
 
-	// ValidateAPICredentials function validates the the API keys by sending a
-	// an authenticated REST request. See exchange specific wrapper
-	// implementation.
+	// ValidateAPICredentials function validates the API keys by sending an
+	// authenticated REST request. See exchange specific wrapper implementation.
 	ValidateAPICredentials(ctx context.Context, a asset.Item) error
 	// VerifyAPICredentials determines if the credentials supplied have unset
 	// required values. See exchanges/credentials.go Base method for

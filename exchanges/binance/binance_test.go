@@ -1767,6 +1767,7 @@ func TestGetAccountInfo(t *testing.T) {
 	for i := range items {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
+			t.Parallel()
 			_, err := b.UpdateAccountInfo(context.Background(), assetType)
 			if err != nil {
 				t.Error(err)
@@ -1954,7 +1955,6 @@ func TestDepositHistory(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipCredentialsSetCantManipulate(t, b, canManipulateRealOrders)
-
 	}
 	_, err := b.DepositHistory(context.Background(), currency.ETH, "", time.Time{}, time.Time{}, 0, 10000)
 	switch {

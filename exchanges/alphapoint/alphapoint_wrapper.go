@@ -30,6 +30,7 @@ func (a *Alphapoint) GetDefaultConfig() (*config.Exchange, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// Start starts the Aplhapoint go routine
 func (a *Alphapoint) Start(_ *sync.WaitGroup) error {
 	return common.ErrNotYetImplemented
 }
@@ -87,6 +88,7 @@ func (a *Alphapoint) SetDefaults() {
 	}
 }
 
+// Setup takes in the supplied exchange configuration details and sets params
 func (a *Alphapoint) Setup(_ *config.Exchange) error {
 	return common.ErrFunctionNotSupported
 }
@@ -447,10 +449,13 @@ func (a *Alphapoint) ValidateAPICredentials(ctx context.Context, assetType asset
 	return a.CheckTransientError(err)
 }
 
+// GetHistoricCandles returns candles between a time period for a set time interval
 func (a *Alphapoint) GetHistoricCandles(ctx context.Context, pair currency.Pair, ai asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetHistoricCandlesExtended returns candles between a time period for a set
+// time interval
 func (a *Alphapoint) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, ai asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
