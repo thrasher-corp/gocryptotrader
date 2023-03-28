@@ -187,10 +187,26 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = d.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricCandles(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
 }
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Hour*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour*10), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

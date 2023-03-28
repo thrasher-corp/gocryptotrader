@@ -38,30 +38,30 @@ const (
 	volatilityIndexChannel                 = "deribit_volatility_index"
 	estimatedExpirationPriceChannel        = "estimated_expiration_price"
 	incrementalTickerChannel               = "incremental_ticker"
-	instrumentStateChannel                 = "instrument.state" // %s.%s represents kind.currency
+	instrumentStateChannel                 = "instrument.state"
 	markPriceOptionsChannel                = "markprice.options"
-	perpetualChannel                       = "perpetual." // %s.%s instrument_name.interval
+	perpetualChannel                       = "perpetual."
 	platformStateChannel                   = "platform_state"
 	platformStatePublicMethodsStateChannel = "platform_state.public_methods_state"
-	quoteChannel                           = "quote" // %s representing instrument_name
+	quoteChannel                           = "quote"
 	requestForQuoteChannel                 = "rfq"
-	tickerChannel                          = "ticker." // %s.%s instrument_name.interval
-	tradesChannel                          = "trades." // %s.%s instrument_name.interval
-	tradesWithKindChannel                  = "trades"  // %s.%s.%s kind.currency.interval
+	tickerChannel                          = "ticker."
+	tradesChannel                          = "trades."
+	tradesWithKindChannel                  = "trades"
 
 	// private websocket channels
 	userAccessLogChannel                             = "user.access_log"
-	userChangesInstrumentsChannel                    = "user.changes." // %s.%s instrument_name.interval
-	userChangesCurrencyChannel                       = "user.changes"  // %s.%s kind.currency.interval
+	userChangesInstrumentsChannel                    = "user.changes."
+	userChangesCurrencyChannel                       = "user.changes"
 	userLockChannel                                  = "user.lock"
 	userMMPTriggerChannel                            = "user.mmp_trigger"
 	rawUserOrdersChannel                             = "user.orders.%s.raw"
-	userOrdersWithIntervalChannel                    = "user.orders."          // %s.%s represents instrument_name.interval
-	rawUsersOrdersKindCurrencyChannel                = "user.orders.%s.%s.raw" // %s.%s represents kind.currency
-	rawUsersOrdersWithKindCurrencyAndIntervalChannel = "user.orders"           // %s.%s.%s represents kind.currency.interval
+	userOrdersWithIntervalChannel                    = "user.orders."
+	rawUsersOrdersKindCurrencyChannel                = "user.orders.%s.%s.raw"
+	rawUsersOrdersWithKindCurrencyAndIntervalChannel = "user.orders"
 	userPortfolioChannel                             = "user.portfolio"
-	userTradesChannelByInstrument                    = "user.trades." // %s.%s instrument_name.interval
-	userTradesByKindCurrencyAndIntervalChannel       = "user.trades"  // %s.%s.%s represents kind.currency.interval
+	userTradesChannelByInstrument                    = "user.trades."
+	userTradesByKindCurrencyAndIntervalChannel       = "user.trades"
 )
 
 var defaultSubscriptions = []string{
