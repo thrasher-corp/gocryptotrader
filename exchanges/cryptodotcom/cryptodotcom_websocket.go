@@ -278,7 +278,6 @@ func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions []st
 		if err != nil {
 			return err
 		}
-		time.Sleep(time.Second)
 	}
 	return nil
 }

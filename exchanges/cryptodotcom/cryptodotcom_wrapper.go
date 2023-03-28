@@ -124,7 +124,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 					kline.TwoWeek,
 					kline.OneMonth,
 				),
-				ResultLimit: 200,
+				ResultLimit: 300,
 			},
 		},
 	}
@@ -1073,12 +1073,6 @@ func calculateTradingFee(feeBuilder *exchange.FeeBuilder) float64 {
 		}
 		return 0
 	}
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-func (cr *Cryptodotcom) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := cr.UpdateAccountInfo(ctx, assetType)
-	return cr.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
