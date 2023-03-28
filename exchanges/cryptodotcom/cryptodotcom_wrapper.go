@@ -1103,3 +1103,9 @@ func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pa
 func (cr *Cryptodotcom) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// ValidateCredentials validates current credentials used for wrapper
+func (cr *Cryptodotcom) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := cr.UpdateAccountInfo(ctx, assetType)
+	return cr.CheckTransientError(err)
+}
