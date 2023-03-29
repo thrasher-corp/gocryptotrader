@@ -467,7 +467,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Spot})
 	if err == nil {

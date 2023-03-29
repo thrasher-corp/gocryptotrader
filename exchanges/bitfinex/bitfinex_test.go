@@ -972,7 +972,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.ModifyOrder(
 		context.Background(),
@@ -1830,7 +1830,7 @@ func TestAccetableMethodStore(t *testing.T) {
 func TestOrderUpdate(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	_, err := b.OrderUpdate(context.Background(), "1234", "", "", 1, 1, 1)
@@ -1842,7 +1842,7 @@ func TestOrderUpdate(t *testing.T) {
 func TestGetInactiveOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.GetInactiveOrders(context.Background(), "tBTCUSD")
 	if err != nil {
@@ -1858,7 +1858,7 @@ func TestGetInactiveOrders(t *testing.T) {
 func TestCancelMultipleOrdersV2(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.CancelMultipleOrdersV2(context.Background(), 1337, 0, 0, time.Time{}, false)
 	if err != nil {

@@ -1272,7 +1272,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
 		{

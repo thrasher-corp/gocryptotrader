@@ -75,7 +75,7 @@ func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	arg := SpotNewOrderRequestParams{
@@ -94,7 +94,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	err := z.CancelExistingOrder(context.Background(), 20180629145864850, testCurrency)

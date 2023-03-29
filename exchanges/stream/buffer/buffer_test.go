@@ -1106,6 +1106,9 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+	if len(ob.Asks) == 0 || len(ob.Bids) == 0 {
+		t.Fatal("expected a valid orderbook")
+	}
 
 	update := ob.Asks[0]
 	update.Amount = 1337

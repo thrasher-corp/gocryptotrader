@@ -94,7 +94,7 @@ func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	_, err := g.SpotNewOrder(context.Background(),
@@ -113,7 +113,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 
 	_, err := g.CancelExistingOrder(context.Background(), 917591554, "btc_usdt")

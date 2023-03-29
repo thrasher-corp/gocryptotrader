@@ -1792,7 +1792,7 @@ func TestWrapperGetServerTime(t *testing.T) {
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := h.GetAccounts(context.Background())
 	if err != nil {
@@ -1832,7 +1832,7 @@ func TestGetAggregatedBalance(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	cp, err := currency.NewPairFromString(testSymbol)
 	if err != nil {
@@ -1855,7 +1855,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := h.CancelExistingOrder(context.Background(), 1337)
 	if err == nil {
@@ -1866,7 +1866,7 @@ func TestCancelExistingOrder(t *testing.T) {
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := h.GetOrder(context.Background(), 1337)
 	if err != nil {
@@ -1908,7 +1908,7 @@ func TestGetMarginAccountBalance(t *testing.T) {
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := h.CancelWithdraw(context.Background(), 1337)
 	if err == nil {
@@ -2803,7 +2803,7 @@ func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 func TestCancelOrderBatch(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := h.CancelOrderBatch(context.Background(), []string{"1234"}, nil)
 	if err != nil {
@@ -2814,7 +2814,7 @@ func TestCancelOrderBatch(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("APIi keys unset or canManipulateRealOrders is false, skipping")
+		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
 	}
 	_, err := h.CancelBatchOrders(context.Background(), []order.Cancel{
 		{

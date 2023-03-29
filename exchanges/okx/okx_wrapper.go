@@ -905,7 +905,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ok.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
-		format, err = ok.GetPairFormat(ord.AssetType, false)
+		format, err = ok.GetPairFormat(ord.AssetType, true)
 
 		var instrumentID string
 		if err != nil {

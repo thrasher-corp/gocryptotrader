@@ -31,7 +31,7 @@ const (
 )
 
 // AuthType helps distinguish the purpose of a HTTP request
-type AuthType int
+type AuthType uint8
 
 var (
 	// ErrRequestSystemIsNil defines and error if the request system has not
