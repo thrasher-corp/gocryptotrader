@@ -351,16 +351,21 @@ func TestAllExchangeWrappers(t *testing.T) {
 			if common.StringDataContains(unsupportedExchangeNames, name) {
 				t.Skipf("skipping unsupported exchange %v", name)
 			}
+			ctx := context.Background()
 			if isCITest == "true" && common.StringDataContains(blockedCIExchanges, name) {
-				t.Skipf("cannot execute tests for %v on via continuous integration tests, skipping", name)
+				// rather than skipping tests where execution is blocked, provide an expired
+				// context, so no executions can take place
+				var cancelFn context.CancelFunc
+				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
+				cancelFn()
 			}
-			exch, assetPairs := setupExchange(t, name, cfg)
-			executeExchangeWrapperTests(t, exch, assetPairs)
+			exch, assetPairs := setupExchange(t, ctx, name, cfg)
+			executeExchangeWrapperTests(t, ctx, exch, assetPairs)
 		})
 	}
 }
 
-func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
+func setupExchange(t *testing.T, ctx context.Context, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
 	t.Helper()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(name)
@@ -382,8 +387,8 @@ func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBot
 		t.Fatalf("%v %v", name, err)
 	}
 
-	err = exch.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
+	err = exch.UpdateTradablePairs(ctx, true)
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("%v %v", name, err)
 	}
 	b := exch.GetBase()
@@ -399,7 +404,7 @@ func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBot
 	}
 
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
-	assetPairs := make([]assetPair, len(assets)+1)
+	assetPairs := make([]assetPair, 0, len(assets)+1)
 	for j := range assets {
 		var pairs currency.Pairs
 		pairs, err = b.CurrencyPairs.GetPairs(assets[j], true)
@@ -414,7 +419,7 @@ func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBot
 			}
 			p, err = getPairFromPairs(t, pairs)
 			if err != nil {
-				t.Fatalf("%v getPairFromPairs %v %v", name, err, assets[j])
+				continue
 			}
 			p, err = b.FormatExchangeCurrency(p, assets[j])
 			if err != nil {
@@ -438,11 +443,12 @@ func setupExchange(t *testing.T, name string, cfg *config.Config) (exchange.IBot
 		if err != nil {
 			t.Fatalf("%v %v", name, err)
 		}
-		assetPairs[j] = assetPair{
+		assetPairs = append(assetPairs, assetPair{
 			Pair:  p,
 			Asset: assets[j],
-		}
+		})
 	}
+	assetPairs = append(assetPairs, assetPair{})
 
 	return exch, assetPairs
 }
@@ -464,7 +470,7 @@ func isUnacceptableError(t *testing.T, err error) error {
 	return err
 }
 
-func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
+func executeExchangeWrapperTests(t *testing.T, ctx context.Context, exch exchange.IBotExchange, assetParams []assetPair) {
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
@@ -494,14 +500,14 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 			inputs := make([]reflect.Value, method.Type().NumIn())
 			argGenerator := &MethodArgumentGenerator{
 				Exchange:    exch,
-				AssetParams: &assetParams[y],
+				AssetParams: assetParams[y],
 				MethodName:  methodName,
 				Start:       s,
 				End:         e,
 			}
 			for z := 0; z < method.Type().NumIn(); z++ {
 				argGenerator.MethodInputType = method.Type().In(z)
-				generatedArg := generateMethodArg(t, argGenerator)
+				generatedArg := generateMethodArg(t, ctx, argGenerator)
 				inputs[z] = *generatedArg
 			}
 			t.Run(methodName+"-"+assetParams[y].Asset.String()+"-"+assetParams[y].Pair.String(), func(t *testing.T) {
@@ -516,7 +522,7 @@ func executeExchangeWrapperTests(t *testing.T, exch exchange.IBotExchange, asset
 // an IBotExchange method
 type MethodArgumentGenerator struct {
 	Exchange        exchange.IBotExchange
-	AssetParams     *assetPair
+	AssetParams     assetPair
 	MethodInputType reflect.Type
 	MethodName      string
 	Start           time.Time
@@ -544,7 +550,7 @@ var (
 
 // generateMethodArg determines the argument type and returns a pre-made
 // response, else an empty version of the type
-func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *reflect.Value {
+func generateMethodArg(t *testing.T, ctx context.Context, argGenerator *MethodArgumentGenerator) *reflect.Value {
 	t.Helper()
 	exchName := argGenerator.Exchange.GetName()
 	var input reflect.Value
@@ -566,7 +572,7 @@ func generateMethodArg(t *testing.T, argGenerator *MethodArgumentGenerator) *ref
 	case argGenerator.MethodInputType.Implements(contextParam):
 		// Need to deploy a context.Context value as nil value is not
 		// checked throughout codebase.
-		input = reflect.ValueOf(context.Background())
+		input = reflect.ValueOf(ctx)
 	case argGenerator.MethodInputType.AssignableTo(currencyPairParam):
 		input = reflect.ValueOf(argGenerator.AssetParams.Pair)
 	case argGenerator.MethodInputType.AssignableTo(assetParam):

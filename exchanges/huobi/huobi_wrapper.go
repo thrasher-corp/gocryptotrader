@@ -1962,8 +1962,13 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		return nil, common.ErrFunctionNotSupported
 	case asset.Futures:
 		for i := range req.RangeHolder.Ranges {
+			// handling Huobi timezone retrieval differences
+			startDate := req.RangeHolder.Ranges[i].Start.Time.Add(-time.Hour * 16)
+			endDate := req.RangeHolder.Ranges[i].End.Time.Add(-time.Hour * 16)
+			// if size, from, to are all populated, only size is considered
+			size := int64(-1)
 			var candles FKlineData
-			candles, err = h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), 1200, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time)
+			candles, err = h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, startDate, endDate)
 			if err != nil {
 				return nil, err
 			}
@@ -1984,8 +1989,13 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		}
 	case asset.CoinMarginedFutures:
 		for i := range req.RangeHolder.Ranges {
+			// handling Huobi timezone retrieval differences
+			startDate := req.RangeHolder.Ranges[i].Start.Time.Add(-time.Hour * 16)
+			endDate := req.RangeHolder.Ranges[i].End.Time.Add(-time.Hour * 16)
+			// if size, from, to are all populated, only size is considered
+			size := int64(-1)
 			var candles SwapKlineData
-			candles, err = h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), 1200, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time)
+			candles, err = h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, startDate, endDate)
 			if err != nil {
 				return nil, err
 			}

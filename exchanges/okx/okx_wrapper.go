@@ -277,19 +277,19 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	if !ok.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	var insts []Instrument
+	var instruments []Instrument
 	var err error
 	switch a {
 	case asset.Spot:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeSpot,
 		})
 	case asset.Futures:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeFutures,
 		})
 	case asset.PerpetualSwap:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeSwap,
 		})
 	case asset.Options:
@@ -299,8 +299,8 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 			return nil, err
 		}
 		for x := range underlyings {
-			var instruments []Instrument
-			instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			var options []Instrument
+			options, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 				InstrumentType: okxInstTypeOption,
 				Underlying:     underlyings[x],
 			})
@@ -308,27 +308,31 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 				return nil, err
 			}
 
-			for i := range instruments {
-				if instruments[i].ExpTime.Before(time.Now()) || instruments[i].ListTime.After(time.Now()) {
+			for i := range options {
+				if options[i].ExpTime.Before(time.Now()) || options[i].ListTime.After(time.Now()) {
 					continue
 				}
-				insts = append(insts, instruments[i])
+				instruments = append(instruments, options[i])
 			}
 		}
+		if len(instruments) == 0 {
+			// there are no options at all at present and that's okay
+			return nil, nil
+		}
 	case asset.Margin:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeMargin,
 		})
 	}
 	if err != nil {
 		return nil, err
 	}
-	if len(insts) == 0 {
-		return nil, errNoInstrumentFound
+	if len(instruments) == 0 {
+		return nil, fmt.Errorf("%w for %v", errNoInstrumentFound, a)
 	}
-	pairs := make([]currency.Pair, len(insts))
-	for x := range insts {
-		pairs[x], err = currency.NewPairFromString(insts[x].InstrumentID)
+	pairs := make([]currency.Pair, len(instruments))
+	for x := range instruments {
+		pairs[x], err = currency.NewPairFromString(instruments[x].InstrumentID)
 		if err != nil {
 			return nil, err
 		}

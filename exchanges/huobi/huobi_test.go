@@ -1634,6 +1634,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
+	h.Verbose = true
 	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.Futures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
 	if err != nil {
 		t.Error(err)

@@ -137,19 +137,18 @@ func (h *HUOBI) GetSwapKlineData(ctx context.Context, code currency.Pair, period
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
-	if size == 1 || size > 2000 {
-		return resp, fmt.Errorf("invalid size")
-	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
-	params.Set("size", strconv.FormatInt(size, 10))
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	path := common.EncodeURLValues(huobiKLineData, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)

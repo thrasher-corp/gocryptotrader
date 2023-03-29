@@ -228,16 +228,15 @@ func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period 
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	path := common.EncodeURLValues(fContractKline, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
