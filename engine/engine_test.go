@@ -343,15 +343,18 @@ func TestAllExchangeWrappers(t *testing.T) {
 	if err != nil {
 		t.Fatal("load config error", err)
 	}
+	isCITest := os.Getenv("CI_TEST")
 	for i := range cfg.Exchanges {
-		name := cfg.Exchanges[i].Name
-		if common.StringDataContains(unsupportedExchangeNames, strings.ToLower(name)) {
-			continue
-		}
-
-		exch, assetPairs := setupExchange(t, name, cfg)
+		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
 			t.Parallel()
+			if common.StringDataContains(unsupportedExchangeNames, name) {
+				t.Skipf("skipping unsupported exchange %v", name)
+			}
+			if isCITest == "true" && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("cannot execute tests for %v on via continuous integration tests, skipping", name)
+			}
+			exch, assetPairs := setupExchange(t, name, cfg)
 			executeExchangeWrapperTests(t, exch, assetPairs)
 		})
 	}
@@ -786,6 +789,10 @@ var unsupportedExchangeNames = []string{
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
 	"itbit",    // itbit has no way of retrieving pair data
+}
+
+var blockedCIExchanges = []string{
+	"binance", // binance API is banned from executing within the US where github Actions is ran
 }
 
 // acceptable errors do not throw test errors, see below for why
