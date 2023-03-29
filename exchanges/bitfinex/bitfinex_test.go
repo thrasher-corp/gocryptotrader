@@ -273,7 +273,9 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandles(context.Background(), "fUST", "1D", time.Now().Add(-time.Hour*4).Round(time.Hour).UnixMilli(), time.Now().Round(time.Hour).UnixMilli(), 10000, true)
+	e := time.Now().Add(-time.Hour * 2).Truncate(time.Hour)
+	s := e.Add(-time.Hour * 4)
+	_, err := b.GetCandles(context.Background(), "fUST", "1D", s.UnixMilli(), e.UnixMilli(), 10000, true)
 	if err != nil {
 		t.Fatal(err)
 	}

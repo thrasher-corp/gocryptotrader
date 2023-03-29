@@ -359,13 +359,13 @@ func TestAllExchangeWrappers(t *testing.T) {
 				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
 				cancelFn()
 			}
-			exch, assetPairs := setupExchange(t, ctx, name, cfg)
-			executeExchangeWrapperTests(t, ctx, exch, assetPairs)
+			exch, assetPairs := setupExchange(ctx, t, name, cfg)
+			executeExchangeWrapperTests(ctx, t, exch, assetPairs)
 		})
 	}
 }
 
-func setupExchange(t *testing.T, ctx context.Context, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
+func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
 	t.Helper()
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(name)
@@ -470,7 +470,7 @@ func isUnacceptableError(t *testing.T, err error) error {
 	return err
 }
 
-func executeExchangeWrapperTests(t *testing.T, ctx context.Context, exch exchange.IBotExchange, assetParams []assetPair) {
+func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
@@ -507,7 +507,7 @@ func executeExchangeWrapperTests(t *testing.T, ctx context.Context, exch exchang
 			}
 			for z := 0; z < method.Type().NumIn(); z++ {
 				argGenerator.MethodInputType = method.Type().In(z)
-				generatedArg := generateMethodArg(t, ctx, argGenerator)
+				generatedArg := generateMethodArg(ctx, t, argGenerator)
 				inputs[z] = *generatedArg
 			}
 			t.Run(methodName+"-"+assetParams[y].Asset.String()+"-"+assetParams[y].Pair.String(), func(t *testing.T) {
@@ -550,7 +550,7 @@ var (
 
 // generateMethodArg determines the argument type and returns a pre-made
 // response, else an empty version of the type
-func generateMethodArg(t *testing.T, ctx context.Context, argGenerator *MethodArgumentGenerator) *reflect.Value {
+func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodArgumentGenerator) *reflect.Value {
 	t.Helper()
 	exchName := argGenerator.Exchange.GetName()
 	var input reflect.Value
