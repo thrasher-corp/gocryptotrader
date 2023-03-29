@@ -53,9 +53,5 @@ func TestInterface(t *testing.T) {
 	}
 }
 
-func areTestAPIKeysSet() bool {
-	return {{.Variable}}.ValidateAPICredentials({{.Variable}}.GetDefaultCredentials()) == nil
-}
-
 // Implement tests for API endpoints below
 {{end}}
