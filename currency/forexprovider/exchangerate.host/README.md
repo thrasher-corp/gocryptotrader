@@ -1,4 +1,4 @@
-# GoCryptoTrader package Exchangerate.Host
+# GoCryptoTrader package Exchangerate.host
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
