@@ -1631,7 +1631,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Error(err)
 	}
 	err = h.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
-	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
 	h.Verbose = true
@@ -1645,7 +1645,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Error(err)
 	}
 	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, pairs[0])
-	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
 	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
