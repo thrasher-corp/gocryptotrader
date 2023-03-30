@@ -160,7 +160,7 @@ func TestGetBestBidAskPrice(t *testing.T) {
 
 func TestCreatePostOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.CreatePostOrder(context.Background(), &PlaceOrderRequest{
 		Symbol:      "BTCUSDT",
@@ -177,7 +177,7 @@ func TestCreatePostOrder(t *testing.T) {
 
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders) // Note: here !canManipulateRealOrders added as we don't have orderID
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders) // Note: here !canManipulateRealOrders added as we don't have orderID
 
 	_, err := b.QueryOrder(context.Background(), "0", "")
 	if err != nil {
@@ -187,7 +187,7 @@ func TestQueryOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.CancelExistingOrder(context.Background(), "", "")
 	if err != nil {
@@ -197,7 +197,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestBatchCancelOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.BatchCancelOrder(context.Background(), "", "Buy", "")
 	if err != nil {
@@ -207,7 +207,7 @@ func TestBatchCancelOrder(t *testing.T) {
 
 func TestFastCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.FastCancelExistingOrder(context.Background(), "BTCUSDT", "889208273689997824", "")
 	if err != nil {
@@ -222,7 +222,7 @@ func TestFastCancelExistingOrder(t *testing.T) {
 
 func TestBatchFastCancelOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.BatchFastCancelOrder(context.Background(), "BTCUSDT", "Buy", "")
 	if err != nil {
@@ -237,7 +237,7 @@ func TestBatchFastCancelOrder(t *testing.T) {
 
 func TestBatchCancelOrderByIDs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.BatchCancelOrderByIDs(context.Background(), []string{"889208273689997824", "889208273689997825"})
 	if err != nil {
@@ -247,7 +247,7 @@ func TestBatchCancelOrderByIDs(t *testing.T) {
 
 func TestListOpenOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.ListOpenOrders(context.Background(), "BTCUSDT", "", 0)
 	if err != nil {
@@ -257,7 +257,7 @@ func TestListOpenOrders(t *testing.T) {
 
 func TestGetPastOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetPastOrders(context.Background(), "BTCUSDT", "", 0, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
@@ -267,7 +267,7 @@ func TestGetPastOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetTradeHistory(context.Background(), 0, "", "", "", "", time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
@@ -277,7 +277,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetWalletBalance(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetWalletBalance(context.Background())
 	if err != nil {
@@ -295,7 +295,7 @@ func TestGetSpotServerTime(t *testing.T) {
 
 func TestGetDepositAddressForCurrency(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetDepositAddressForCurrency(context.Background(), currency.BTC.String())
 	if err != nil {
@@ -305,7 +305,7 @@ func TestGetDepositAddressForCurrency(t *testing.T) {
 
 func TestWithdrawFund(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.WithdrawFund(context.Background(), currency.ETH.String(), currency.ETH.String(), "0xEA13A385BcB74e631AAF1B424d7a01c61bF27Fe0", "", "10")
 	if err != nil && err.Error() != "Withdraw address chain or destination tag are not equal" {
@@ -743,7 +743,7 @@ func TestGetAnnouncement(t *testing.T) {
 
 func TestCreateCoinFuturesOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -758,7 +758,7 @@ func TestCreateCoinFuturesOrder(t *testing.T) {
 
 func TestGetActiveCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -778,7 +778,7 @@ func TestGetActiveCoinFuturesOrders(t *testing.T) {
 
 func TestCancelActiveCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -793,7 +793,7 @@ func TestCancelActiveCoinFuturesOrders(t *testing.T) {
 
 func TestCancelAllActiveCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -808,7 +808,7 @@ func TestCancelAllActiveCoinFuturesOrders(t *testing.T) {
 
 func TestReplaceActiveCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -823,7 +823,7 @@ func TestReplaceActiveCoinFuturesOrders(t *testing.T) {
 
 func TestGetActiveRealtimeCoinOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -838,7 +838,7 @@ func TestGetActiveRealtimeCoinOrders(t *testing.T) {
 
 func TestCreateConditionalCoinFuturesOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -853,7 +853,7 @@ func TestCreateConditionalCoinFuturesOrder(t *testing.T) {
 
 func TestGetConditionalCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -868,7 +868,7 @@ func TestGetConditionalCoinFuturesOrders(t *testing.T) {
 
 func TestCancelConditionalCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -883,7 +883,7 @@ func TestCancelConditionalCoinFuturesOrders(t *testing.T) {
 
 func TestCancelAllConditionalCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -898,7 +898,7 @@ func TestCancelAllConditionalCoinFuturesOrders(t *testing.T) {
 
 func TestReplaceConditionalCoinFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -913,7 +913,7 @@ func TestReplaceConditionalCoinFuturesOrders(t *testing.T) {
 
 func TestGetConditionalRealtimeCoinOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -928,7 +928,7 @@ func TestGetConditionalRealtimeCoinOrders(t *testing.T) {
 
 func TestGetCoinPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -943,7 +943,7 @@ func TestGetCoinPositions(t *testing.T) {
 
 func TestSetCoinMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -958,7 +958,7 @@ func TestSetCoinMargin(t *testing.T) {
 
 func TestSetCoinTradingAndStop(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -973,7 +973,7 @@ func TestSetCoinTradingAndStop(t *testing.T) {
 
 func TestSetCoinLeverage(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -988,7 +988,7 @@ func TestSetCoinLeverage(t *testing.T) {
 
 func TestGetCoinTradeRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1003,7 +1003,7 @@ func TestGetCoinTradeRecords(t *testing.T) {
 
 func TestGetClosedCoinTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1018,7 +1018,7 @@ func TestGetClosedCoinTrades(t *testing.T) {
 
 func TestChangeCoinMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1033,7 +1033,7 @@ func TestChangeCoinMode(t *testing.T) {
 
 func TestChangeCoinMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1048,7 +1048,7 @@ func TestChangeCoinMargin(t *testing.T) {
 
 func TestGetTradingFeeRate(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1063,7 +1063,7 @@ func TestGetTradingFeeRate(t *testing.T) {
 
 func TestSetCoinRiskLimit(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1078,7 +1078,7 @@ func TestSetCoinRiskLimit(t *testing.T) {
 
 func TestGetCoinLastFundingFee(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1093,7 +1093,7 @@ func TestGetCoinLastFundingFee(t *testing.T) {
 
 func TestGetCoinPredictedFundingRate(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1108,7 +1108,7 @@ func TestGetCoinPredictedFundingRate(t *testing.T) {
 
 func TestGetAPIKeyInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetAPIKeyInfo(context.Background())
 	if err != nil {
@@ -1118,7 +1118,7 @@ func TestGetAPIKeyInfo(t *testing.T) {
 
 func TestGetLCPInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1133,7 +1133,7 @@ func TestGetLCPInfo(t *testing.T) {
 
 func TestGetFutureWalletBalance(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetFutureWalletBalance(context.Background(), "BTC")
 	if err != nil {
@@ -1143,7 +1143,7 @@ func TestGetFutureWalletBalance(t *testing.T) {
 
 func TestGetWalletFundRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetWalletFundRecords(context.Background(), "2021-09-11", "2021-10-09", "ETH", "", "", 0, 0)
 	if err != nil {
@@ -1153,7 +1153,7 @@ func TestGetWalletFundRecords(t *testing.T) {
 
 func TestGetWalletWithdrawalRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetWalletWithdrawalRecords(context.Background(), "2021-09-11", "2021-10-09", "", currency.ETH, 0, 0)
 	if err != nil {
@@ -1163,7 +1163,7 @@ func TestGetWalletWithdrawalRecords(t *testing.T) {
 
 func TestGetAssetExchangeRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetAssetExchangeRecords(context.Background(), "", 0, 0)
 	if err != nil {
@@ -1270,7 +1270,7 @@ func TestGetUSDTRiskLimit(t *testing.T) {
 
 func TestCreateUSDTFuturesOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1285,7 +1285,7 @@ func TestCreateUSDTFuturesOrder(t *testing.T) {
 
 func TestGetActiveUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1304,7 +1304,7 @@ func TestGetActiveUSDTFuturesOrders(t *testing.T) {
 
 func TestCancelActiveUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1319,7 +1319,7 @@ func TestCancelActiveUSDTFuturesOrders(t *testing.T) {
 
 func TestCancelAllActiveUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1334,7 +1334,7 @@ func TestCancelAllActiveUSDTFuturesOrders(t *testing.T) {
 
 func TestReplaceActiveUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1349,7 +1349,7 @@ func TestReplaceActiveUSDTFuturesOrders(t *testing.T) {
 
 func TestGetActiveUSDTRealtimeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1363,7 +1363,7 @@ func TestGetActiveUSDTRealtimeOrders(t *testing.T) {
 
 func TestCreateConditionalUSDTFuturesOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1378,7 +1378,7 @@ func TestCreateConditionalUSDTFuturesOrder(t *testing.T) {
 
 func TestGetConditionalUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1392,7 +1392,7 @@ func TestGetConditionalUSDTFuturesOrders(t *testing.T) {
 
 func TestCancelConditionalUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1407,7 +1407,7 @@ func TestCancelConditionalUSDTFuturesOrders(t *testing.T) {
 
 func TestCancelAllConditionalUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1422,7 +1422,7 @@ func TestCancelAllConditionalUSDTFuturesOrders(t *testing.T) {
 
 func TestReplaceConditionalUSDTFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1437,7 +1437,7 @@ func TestReplaceConditionalUSDTFuturesOrders(t *testing.T) {
 
 func TestGetConditionalUSDTRealtimeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1462,7 +1462,7 @@ func TestGetConditionalUSDTRealtimeOrders(t *testing.T) {
 
 func TestGetUSDTPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1481,7 +1481,7 @@ func TestGetUSDTPositions(t *testing.T) {
 
 func TestSetAutoAddMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1496,7 +1496,7 @@ func TestSetAutoAddMargin(t *testing.T) {
 
 func TestChangeUSDTMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1511,7 +1511,7 @@ func TestChangeUSDTMargin(t *testing.T) {
 
 func TestSwitchPositionMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1526,7 +1526,7 @@ func TestSwitchPositionMode(t *testing.T) {
 
 func TestChangeUSDTMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1541,7 +1541,7 @@ func TestChangeUSDTMode(t *testing.T) {
 
 func TestSetUSDTMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1556,7 +1556,7 @@ func TestSetUSDTMargin(t *testing.T) {
 
 func TestSetUSDTLeverage(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1571,7 +1571,7 @@ func TestSetUSDTLeverage(t *testing.T) {
 
 func TestSetUSDTTradingAndStop(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1586,7 +1586,7 @@ func TestSetUSDTTradingAndStop(t *testing.T) {
 
 func TestGetUSDTTradeRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1600,7 +1600,7 @@ func TestGetUSDTTradeRecords(t *testing.T) {
 
 func TestGetClosedUSDTTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1614,7 +1614,7 @@ func TestGetClosedUSDTTrades(t *testing.T) {
 
 func TestSetUSDTRiskLimit(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -1629,7 +1629,7 @@ func TestSetUSDTRiskLimit(t *testing.T) {
 
 func TestGetPredictedUSDTFundingRate(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1643,7 +1643,7 @@ func TestGetPredictedUSDTFundingRate(t *testing.T) {
 
 func TestGetLastUSDTFundingFee(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1659,7 +1659,7 @@ func TestGetLastUSDTFundingFee(t *testing.T) {
 
 func TestCreateFuturesOrderr(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1674,7 +1674,7 @@ func TestCreateFuturesOrderr(t *testing.T) {
 
 func TestGetActiveFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
 		t.Fatal(err)
@@ -1693,7 +1693,7 @@ func TestGetActiveFuturesOrders(t *testing.T) {
 
 func TestCancelActiveFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1708,7 +1708,7 @@ func TestCancelActiveFuturesOrders(t *testing.T) {
 
 func TestCancelAllActiveFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1723,7 +1723,7 @@ func TestCancelAllActiveFuturesOrders(t *testing.T) {
 
 func TestReplaceActiveFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1738,7 +1738,7 @@ func TestReplaceActiveFuturesOrders(t *testing.T) {
 
 func TestGetActiveRealtimeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
 		t.Fatal(err)
@@ -1752,7 +1752,7 @@ func TestGetActiveRealtimeOrders(t *testing.T) {
 
 func TestCreateConditionalFuturesOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1767,7 +1767,7 @@ func TestCreateConditionalFuturesOrder(t *testing.T) {
 
 func TestGetConditionalFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
 		t.Fatal(err)
@@ -1781,7 +1781,7 @@ func TestGetConditionalFuturesOrders(t *testing.T) {
 
 func TestCancelConditionalFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1796,7 +1796,7 @@ func TestCancelConditionalFuturesOrders(t *testing.T) {
 
 func TestCancelAllConditionalFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1811,7 +1811,7 @@ func TestCancelAllConditionalFuturesOrders(t *testing.T) {
 
 func TestReplaceConditionalFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1826,7 +1826,7 @@ func TestReplaceConditionalFuturesOrders(t *testing.T) {
 
 func TestGetConditionalRealtimeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
 		t.Fatal(err)
@@ -1840,7 +1840,7 @@ func TestGetConditionalRealtimeOrders(t *testing.T) {
 
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
 		t.Fatal(err)
@@ -1854,7 +1854,7 @@ func TestGetPositions(t *testing.T) {
 
 func TestSetMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1869,7 +1869,7 @@ func TestSetMargin(t *testing.T) {
 
 func TestSetTradingAndStop(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1884,7 +1884,7 @@ func TestSetTradingAndStop(t *testing.T) {
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1899,7 +1899,7 @@ func TestSetLeverage(t *testing.T) {
 
 func TestChangePositionMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1914,7 +1914,7 @@ func TestChangePositionMode(t *testing.T) {
 
 func TestChangeMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1929,7 +1929,7 @@ func TestChangeMode(t *testing.T) {
 
 func TestChangeMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -1944,7 +1944,7 @@ func TestChangeMargin(t *testing.T) {
 
 func TestGetTradeRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
 		t.Fatal(err)
@@ -1958,7 +1958,7 @@ func TestGetTradeRecords(t *testing.T) {
 
 func TestGetClosedTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
 		t.Fatal(err)
@@ -1972,7 +1972,7 @@ func TestGetClosedTrades(t *testing.T) {
 
 func TestSetRiskLimit(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCUSDZ22")
 	if err != nil {
@@ -2312,7 +2312,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestFetchAccountInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
@@ -2342,7 +2342,7 @@ func TestFetchAccountInfo(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	var oSpot = &order.Submit{
 		Exchange: "Bybit",
@@ -2446,7 +2446,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{
 		Exchange: "Bybit",
@@ -2468,7 +2468,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	err := b.CancelOrder(context.Background(), &order.Cancel{
 		Exchange:  "Bybit",
@@ -2545,7 +2545,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.CancelAllOrders(context.Background(),
 		&order.Cancel{AssetType: asset.Spot})
@@ -2614,7 +2614,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -2669,7 +2669,7 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -2754,7 +2754,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
@@ -2839,7 +2839,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.CoinMarginedFutures)
 	if err != nil {
@@ -2868,7 +2868,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetDepositAddress(context.Background(), currency.USDT, "", currency.ETH.String())
 	if err != nil {
@@ -2878,7 +2878,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
@@ -2888,7 +2888,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Exchange: "Bybit",
@@ -3056,7 +3056,7 @@ func TestGetUSDCLatestTrades(t *testing.T) {
 
 func TestPlaceUSDCOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3076,7 +3076,7 @@ func TestPlaceUSDCOrder(t *testing.T) {
 
 func TestModifyUSDCOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3091,7 +3091,7 @@ func TestModifyUSDCOrder(t *testing.T) {
 
 func TestCancelUSDCOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3106,7 +3106,7 @@ func TestCancelUSDCOrder(t *testing.T) {
 
 func TestCancelAllActiveUSDCOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3121,7 +3121,7 @@ func TestCancelAllActiveUSDCOrder(t *testing.T) {
 
 func TestGetActiveUSDCOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3136,7 +3136,7 @@ func TestGetActiveUSDCOrder(t *testing.T) {
 
 func TestGetUSDCOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3151,7 +3151,7 @@ func TestGetUSDCOrderHistory(t *testing.T) {
 
 func TestGetUSDCTradeHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3166,7 +3166,7 @@ func TestGetUSDCTradeHistory(t *testing.T) {
 
 func TestGetUSDCTransactionLog(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetUSDCTransactionLog(context.Background(), time.Time{}, time.Time{}, "TRADE", "", "", "", 0)
 	if err != nil {
@@ -3176,7 +3176,7 @@ func TestGetUSDCTransactionLog(t *testing.T) {
 
 func TestGetUSDCWalletBalance(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetUSDCWalletBalance(context.Background())
 	if err != nil && err.Error() != "System error. Please try again later." {
@@ -3186,7 +3186,7 @@ func TestGetUSDCWalletBalance(t *testing.T) {
 
 func TestGetUSDCAssetInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetUSDCAssetInfo(context.Background(), "")
 	if err != nil {
@@ -3201,7 +3201,7 @@ func TestGetUSDCAssetInfo(t *testing.T) {
 
 func TestGetUSDCMarginInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetUSDCMarginInfo(context.Background())
 	if err != nil {
@@ -3211,7 +3211,7 @@ func TestGetUSDCMarginInfo(t *testing.T) {
 
 func TestGetUSDCPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3226,7 +3226,7 @@ func TestGetUSDCPositions(t *testing.T) {
 
 func TestSetUSDCLeverage(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3241,7 +3241,7 @@ func TestSetUSDCLeverage(t *testing.T) {
 
 func TestGetUSDCSettlementHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3269,7 +3269,7 @@ func TestGetUSDCRiskLimit(t *testing.T) {
 
 func TestSetUSDCRiskLimit(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
@@ -3297,7 +3297,7 @@ func TestGetUSDCLastFundingRate(t *testing.T) {
 
 func TestGetUSDCPredictedFundingRate(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {

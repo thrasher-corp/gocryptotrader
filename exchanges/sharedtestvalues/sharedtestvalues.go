@@ -24,9 +24,9 @@ const (
 	MockTesting = "Mock testing framework in use for %s exchange on REST endpoints only"
 	LiveTesting = "Mock testing bypassed; live testing of REST endpoints in use for %s exchange"
 
-	warningSkip             = "Skipping function test"
+	warningSkip             = "Skipping test"
 	warningKeys             = "API test keys have not been set"
-	warningManipulateOrders = "can manipulate real orders has been set to false"
+	warningManipulateOrders = "variable `canManipulateRealOrders` is false"
 	warningHowTo            = "these values can be set at the top of the test file."
 )
 
@@ -56,22 +56,26 @@ func NewTestWebsocket() *stream.Websocket {
 	}
 }
 
-// SkipUnsetCredentials is a test helper function checking if the authenticated function
-// can perform the required test.
-func SkipUnsetCredentials(t *testing.T, exch exchange.IBotExchange, canManipulateOrders ...bool) {
+// SkipTestIfCredentialsUnset is a test helper function checking if the
+// authenticated function can perform the required test.
+func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canManipulateOrders ...bool) {
 	t.Helper()
 
-	areTestAPIKeysSet := AreAPIkeysSet(exch)
+	if len(canManipulateOrders) > 1 {
+		t.Fatal("more than one canManipulateOrders boolean value has been supplied, please remove")
+	}
+
+	areTestAPICredentialsSet := AreAPICredentialsSet(exch)
 	supportsManipulatingOrders := len(canManipulateOrders) > 0
 	allowedToManipulateOrders := supportsManipulatingOrders && canManipulateOrders[0]
 
-	if areTestAPIKeysSet && !supportsManipulatingOrders ||
-		areTestAPIKeysSet && allowedToManipulateOrders {
+	if areTestAPICredentialsSet && !supportsManipulatingOrders ||
+		areTestAPICredentialsSet && allowedToManipulateOrders {
 		return
 	}
 
 	message := []string{warningSkip}
-	if !areTestAPIKeysSet {
+	if !areTestAPICredentialsSet {
 		message = append(message, warningKeys)
 	}
 
@@ -82,13 +86,13 @@ func SkipUnsetCredentials(t *testing.T, exch exchange.IBotExchange, canManipulat
 	t.Skip(strings.Join(message, ", "))
 }
 
-// SkipCredentialsSetCantManipulate will only skip if the credentials are set
+// SkipTestIfCannotManipulateOrders will only skip if the credentials are set
 // correctly and can manipulate orders is set to false. It will continue normal
 // operations if credentials are not set, giving better code coverage.
-func SkipCredentialsSetCantManipulate(t *testing.T, exch exchange.IBotExchange, canManipulateOrders bool) {
+func SkipTestIfCannotManipulateOrders(t *testing.T, exch exchange.IBotExchange, canManipulateOrders bool) {
 	t.Helper()
 
-	if !AreAPIkeysSet(exch) || canManipulateOrders {
+	if !AreAPICredentialsSet(exch) || canManipulateOrders {
 		return
 	}
 
@@ -96,7 +100,7 @@ func SkipCredentialsSetCantManipulate(t *testing.T, exch exchange.IBotExchange, 
 	t.Skip(strings.Join(message, ", "))
 }
 
-// AreAPIkeysSet returns if the API keys are set.
-func AreAPIkeysSet(exch exchange.IBotExchange) bool {
+// AreAPICredentialsSet returns if the API credentials are set.
+func AreAPICredentialsSet(exch exchange.IBotExchange) bool {
 	return exch.VerifyAPICredentials(exch.GetDefaultCredentials()) == nil
 }

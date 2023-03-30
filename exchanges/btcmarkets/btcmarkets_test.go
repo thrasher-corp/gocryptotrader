@@ -160,7 +160,7 @@ func TestWrapperGetServerTime(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAccountBalance(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -169,7 +169,7 @@ func TestGetAccountBalance(t *testing.T) {
 
 func TestGetTradingFees(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetTradingFees(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -178,7 +178,7 @@ func TestGetTradingFees(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetTradeHistory(context.Background(), ETHAUD, "", -1, -1, -1)
 	if err != nil {
 		t.Error(err)
@@ -195,7 +195,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetTradeByID(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetTradeByID(context.Background(), "4712043732")
 	if err != nil {
 		t.Error(err)
@@ -231,7 +231,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
 	}
 
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err = b.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  b.Name,
@@ -250,7 +250,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.NewOrder(context.Background(), 100, 1, 0, 0, BTCAUD, limit, bidSide, "", "", "", true)
 	if err != nil {
 		t.Error(err)
@@ -259,7 +259,7 @@ func TestNewOrder(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetOrders(context.Background(), "", -1, -1, 2, false)
 	if err != nil {
 		t.Error(err)
@@ -272,7 +272,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestCancelOpenOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	temp := []string{BTCAUD, LTCAUD}
 	_, err := b.CancelAllOpenOrdersByPairs(context.Background(), temp)
@@ -288,7 +288,7 @@ func TestCancelOpenOrders(t *testing.T) {
 
 func TestFetchOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.FetchOrder(context.Background(), "4477045999")
 	if err != nil {
@@ -302,7 +302,7 @@ func TestFetchOrder(t *testing.T) {
 
 func TestRemoveOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.RemoveOrder(context.Background(), "")
 	if err != nil {
@@ -312,7 +312,7 @@ func TestRemoveOrder(t *testing.T) {
 
 func TestListWithdrawals(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.ListWithdrawals(context.Background(), -1, -1, -1)
 	if err != nil {
@@ -322,7 +322,7 @@ func TestListWithdrawals(t *testing.T) {
 
 func TestGetWithdrawal(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetWithdrawal(context.Background(), "4477381751")
 	if err != nil {
@@ -332,7 +332,7 @@ func TestGetWithdrawal(t *testing.T) {
 
 func TestListDeposits(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.ListDeposits(context.Background(), -1, -1, -1)
 	if err != nil {
@@ -342,7 +342,7 @@ func TestListDeposits(t *testing.T) {
 
 func TestGetDeposit(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetDeposit(context.Background(), "4476769607")
 	if err != nil {
@@ -352,7 +352,7 @@ func TestGetDeposit(t *testing.T) {
 
 func TestListTransfers(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.ListTransfers(context.Background(), -1, -1, -1)
 	if err != nil {
@@ -362,7 +362,7 @@ func TestListTransfers(t *testing.T) {
 
 func TestGetTransfer(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetTransfer(context.Background(), "4476769607")
 	if err != nil {
@@ -376,7 +376,7 @@ func TestGetTransfer(t *testing.T) {
 
 func TestFetchDepositAddress(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.FetchDepositAddress(context.Background(), currency.XRP, -1, -1, -1)
 	if err != nil {
@@ -398,7 +398,7 @@ func TestGetWithdrawalFees(t *testing.T) {
 
 func TestListAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.ListAssets(context.Background())
 	if err != nil {
@@ -408,7 +408,7 @@ func TestListAssets(t *testing.T) {
 
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetTransactions(context.Background(), "", -1, -1, -1)
 	if err != nil {
@@ -418,7 +418,7 @@ func TestGetTransactions(t *testing.T) {
 
 func TestCreateNewReport(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.CreateNewReport(context.Background(), "TransactionReport", "json")
 	if err != nil {
@@ -428,7 +428,7 @@ func TestCreateNewReport(t *testing.T) {
 
 func TestGetReport(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetReport(context.Background(), "1kv38epne5v7lek9f18m60idg6")
 	if err != nil {
@@ -438,7 +438,7 @@ func TestGetReport(t *testing.T) {
 
 func TestRequestWithdaw(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err := b.RequestWithdraw(context.Background(), "BTC", 1, "sdjflajdslfjld", "", "", "", "")
 	if err == nil {
@@ -448,7 +448,7 @@ func TestRequestWithdaw(t *testing.T) {
 
 func TestBatchPlaceCancelOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	var temp []PlaceBatch
 	o := PlaceBatch{
@@ -466,7 +466,7 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 
 func TestGetBatchTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	temp := []string{"4477045999", "4477381751", "4476769607"}
 	_, err := b.GetBatchTrades(context.Background(), temp)
@@ -477,7 +477,7 @@ func TestGetBatchTrades(t *testing.T) {
 
 func TestCancelBatch(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	temp := []string{"4477045999", "4477381751", "4477381751"}
 	_, err := b.CancelBatch(context.Background(), temp)
@@ -488,7 +488,7 @@ func TestCancelBatch(t *testing.T) {
 
 func TestFetchAccountInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
@@ -498,7 +498,7 @@ func TestFetchAccountInfo(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
 		Side:      order.Buy,
@@ -538,7 +538,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipUnsetCredentials(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetActiveOrders(context.Background(),
 		&order.GetOrdersRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
@@ -1015,7 +1015,7 @@ func TestReplaceOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errIDRequired)
 	}
 
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err = b.ReplaceOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
 	if !errors.Is(err, nil) {
@@ -1030,7 +1030,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrPairIsEmpty)
 	}
 
-	sharedtestvalues.SkipUnsetCredentials(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	mo, err := b.ModifyOrder(context.Background(), &order.Modify{
 		Pair:          currency.NewPair(currency.BTC, currency.AUD),
