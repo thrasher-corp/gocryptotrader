@@ -315,10 +315,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 				instruments = append(instruments, options[i])
 			}
 		}
-		if len(instruments) == 0 {
-			// there are no options at all at present and that's okay
-			return nil, nil
-		}
 	case asset.Margin:
 		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeMargin,
@@ -326,9 +322,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	}
 	if err != nil {
 		return nil, err
-	}
-	if len(instruments) == 0 {
-		return nil, fmt.Errorf("%w for %v", errNoInstrumentFound, a)
 	}
 	pairs := make([]currency.Pair, len(instruments))
 	for x := range instruments {

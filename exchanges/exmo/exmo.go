@@ -128,7 +128,6 @@ func (e *EXMO) CancelExistingOrder(ctx context.Context, orderID int64) error {
 	}
 	var resp response
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderCancel, v, &resp)
-
 }
 
 // GetOpenOrders returns the users open orders
@@ -168,7 +167,6 @@ func (e *EXMO) GetCancelledOrders(ctx context.Context, offset, limit string) ([]
 	}
 
 	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoCancelledOrders, v, &result)
-
 }
 
 // GetOrderTrades returns a history of order trade details for the specific orderID
