@@ -900,7 +900,7 @@ type PortfolioMargin struct {
 
 // AccessLog represents access log information.
 type AccessLog struct {
-	RecordsTotal int               `json:"records_total"`
+	RecordsTotal int64             `json:"records_total"`
 	Data         []AccessLogDetail `json:"data"`
 }
 
@@ -1035,7 +1035,7 @@ type wsOrderbook struct {
 	Type           string              `json:"type"`
 	Timestamp      deribitMilliSecTime `json:"timestamp"`
 	InstrumentName string              `json:"instrument_name"`
-	ChangeID       int                 `json:"change_id"`
+	ChangeID       int64               `json:"change_id"`
 	Bids           [][]interface{}     `json:"bids"`
 	Asks           [][]interface{}     `json:"asks"`
 }
@@ -1090,7 +1090,7 @@ type wsVolatilityIndex struct {
 
 // wsEstimatedExpirationPrice represents push data of ending price for given index.
 type wsEstimatedExpirationPrice struct {
-	Seconds     int     `json:"seconds"`
+	Seconds     int64   `json:"seconds"`
 	Price       float64 `json:"price"`
 	IsEstimated bool    `json:"is_estimated"`
 }
@@ -1217,7 +1217,7 @@ type wsRequestForQuote struct {
 
 // wsTrade represents trades for an instrument.
 type wsTrade struct {
-	TradeSequence  int                 `json:"trade_seq"`
+	TradeSequence  int64               `json:"trade_seq"`
 	TradeID        string              `json:"trade_id"`
 	Timestamp      deribitMilliSecTime `json:"timestamp"`
 	TickDirection  float64             `json:"tick_direction"`
