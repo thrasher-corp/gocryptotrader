@@ -601,26 +601,26 @@ func (c *CoinbasePro) CancelAllOrders(ctx context.Context, _ *order.Cancel) (ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	genOrderDetail, err := c.GetOrder(ctx, orderID)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving order %s : %w", orderID, err)
+		return order.Detail{}, fmt.Errorf("error retrieving order %s : %w", orderID, err)
 	}
 	orderStatus, err := order.StringToOrderStatus(genOrderDetail.Status)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing order status: %w", err)
+		return order.Detail{}, fmt.Errorf("error parsing order status: %w", err)
 	}
 	orderType, err := order.StringToOrderType(genOrderDetail.Type)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing order type: %w", err)
+		return order.Detail{}, fmt.Errorf("error parsing order type: %w", err)
 	}
 	orderSide, err := order.StringToOrderSide(genOrderDetail.Side)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing order side: %w", err)
+		return order.Detail{}, fmt.Errorf("error parsing order side: %w", err)
 	}
 	pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
 	if err != nil {
-		return nil, fmt.Errorf("error parsing order side: %w", err)
+		return order.Detail{}, fmt.Errorf("error parsing order side: %w", err)
 	}
 
 	response := order.Detail{
@@ -639,13 +639,13 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ curren
 	}
 	fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving the order fills: %w", err)
+		return order.Detail{}, fmt.Errorf("error retrieving the order fills: %w", err)
 	}
 	for i := range fillResponse {
 		var fillSide order.Side
 		fillSide, err = order.StringToOrderSide(fillResponse[i].Side)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing order Side: %w", err)
+			return order.Detail{}, fmt.Errorf("error parsing fill Side: %w", err)
 		}
 		response.Trades = append(response.Trades, order.TradeHistory{
 			Timestamp: fillResponse[i].CreatedAt,
