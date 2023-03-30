@@ -419,6 +419,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 			}
 			p, err = getPairFromPairs(t, pairs)
 			if err != nil {
+				// if there aren't pairs to grab, don't test asset
 				continue
 			}
 			p, err = b.FormatExchangeCurrency(p, assets[j])
@@ -432,7 +433,8 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		} else {
 			p, err = getPairFromPairs(t, pairs)
 			if err != nil {
-				t.Fatalf("%v getPairFromPairs %v %v", name, err, assets[j])
+				// if there aren't pairs to grab, don't test asset
+				continue
 			}
 		}
 		p, err = b.FormatExchangeCurrency(p, assets[j])
