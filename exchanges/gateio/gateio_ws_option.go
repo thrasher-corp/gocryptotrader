@@ -3,6 +3,7 @@ package gateio
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,8 +60,11 @@ var defaultOptionsSubscriptions = []string{
 	optionsOrderbookUpdateChannel,
 }
 
+var fetchedOptionsCurrencyPairSnapshotOrderbook map[string]bool
+
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
 func (g *Gateio) WsOptionsConnect() error {
+	fetchedOptionsCurrencyPairSnapshotOrderbook = make(map[string]bool)
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -86,7 +90,7 @@ func (g *Gateio) WsOptionsConnect() error {
 		return err
 	}
 	g.Websocket.Wg.Add(1)
-	go g.wsReadConnData()
+	go g.wsReadOptionsConnData()
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
@@ -135,6 +139,84 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 		}
 	}
 	return subscriptions, nil
+}
+
+// wsReadOptionsConnData receives and passes on websocket messages for processing
+func (g *Gateio) wsReadOptionsConnData() {
+	defer g.Websocket.Wg.Done()
+	for {
+		resp := g.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		err := g.wsHandleOptionsData(resp.Raw)
+		if err != nil {
+			g.Websocket.DataHandler <- err
+		}
+	}
+}
+
+func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
+	var result WsResponse
+	var eventResponse WsEventResponse
+	err := json.Unmarshal(respRaw, &eventResponse)
+	if err == nil &&
+		(eventResponse.Result != nil || eventResponse.Error != nil) &&
+		(eventResponse.Event == "subscribe" || eventResponse.Event == "unsubscribe") {
+		if !g.Websocket.Match.IncomingWithData(eventResponse.ID, respRaw) {
+			return fmt.Errorf("couldn't match subscription message with ID: %d", eventResponse.ID)
+		}
+		return nil
+	}
+	err = json.Unmarshal(respRaw, &result)
+	if err != nil {
+		return err
+	}
+	switch result.Channel {
+	case optionsContractTickersChannel:
+		return g.processOptionsContractTickers(respRaw)
+	case optionsUnderlyingTickersChannel:
+		return g.processOptionsUnderlyingTicker(respRaw)
+	case optionsTradesChannel,
+		optionsUnderlyingTradesChannel:
+		return g.processOptionsTradesPushData(respRaw)
+	case optionsUnderlyingPriceChannel:
+		return g.processOptionsUnderlyingPricePushData(respRaw)
+	case optionsMarkPriceChannel:
+		return g.processOptionsMarkPrice(respRaw)
+	case optionsSettlementChannel:
+		return g.processOptionsSettlementPushData(respRaw)
+	case optionsContractsChannel:
+		return g.processOptionsContractPushData(respRaw)
+	case optionsContractCandlesticksChannel,
+		optionsUnderlyingCandlesticksChannel:
+		return g.processOptionsCandlestickPushData(respRaw)
+	case optionsOrderbookChannel:
+		return g.processOptionsOrderbookSnapshotPushData(result.Event, respRaw)
+	case optionsOrderbookTickerChannel:
+		return g.processOrderbookTickerPushData(respRaw)
+	case optionsOrderbookUpdateChannel:
+		return g.processFuturesAndOptionsOrderbookUpdate(respRaw)
+	case optionsOrdersChannel:
+		return g.processOptionsOrderPushData(respRaw)
+	case optionsUserTradesChannel:
+		return g.processOptionsUserTradesPushData(respRaw)
+	case optionsLiquidatesChannel:
+		return g.processOptionsLiquidatesPushData(respRaw)
+	case optionsUserSettlementChannel:
+		return g.processOptionsUsersPersonalSettlementsPushData(respRaw)
+	case optionsPositionCloseChannel:
+		return g.processPositionCloseData(respRaw)
+	case optionsBalancesChannel:
+		return g.processBalancePushData(respRaw)
+	case optionsPositionsChannel:
+		return g.processOptionsPositionPushData(respRaw)
+	default:
+		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: g.Name + stream.UnhandledMessage + string(respRaw),
+		}
+		return errors.New(stream.UnhandledMessage)
+	}
 }
 
 func (g *Gateio) processOptionsContractTickers(data []byte) error {
@@ -271,7 +353,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].NameOfSubscription, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
-			return errors.New("malformed futures candlestick websocket push data")
+			return errors.New("malformed options candlestick websocket push data")
 		}
 		currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 		if err != nil {

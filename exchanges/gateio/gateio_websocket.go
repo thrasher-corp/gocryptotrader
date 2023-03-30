@@ -54,7 +54,6 @@ var defaultSubscriptions = []string{
 	spotCandlesticksChannel,
 	spotTradesChannel,
 	spotOrderbookChannel,
-	spotOrderbookUpdateChannel,
 }
 
 var fetchedCurrencyPairSnapshotOrderbook map[string]bool
@@ -201,76 +200,6 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		return g.processCrossMarginBalance(respRaw)
 	case crossMarginLoanChannel:
 		return g.processCrossMarginLoans(respRaw)
-	case futuresTickersChannel:
-		return g.processFuturesTickers(respRaw)
-	case futuresTradesChannel:
-		return g.processFuturesTrades(respRaw)
-	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(result.Event, respRaw)
-	case futuresOrderbookTickerChannel:
-		return g.processFuturesOrderbookTicker(respRaw)
-	case futuresOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(respRaw)
-	case futuresCandlesticksChannel:
-		return g.processFuturesCandlesticks(respRaw)
-	case futuresOrdersChannel:
-		return g.processFuturesOrdersPushData(respRaw)
-	case futuresUserTradesChannel:
-		return g.procesFuturesUserTrades(respRaw)
-	case futuresLiquidatesChannel:
-		return g.processFuturesLiquidatesNotification(respRaw)
-	case futuresAutoDeleveragesChannel:
-		return g.processFuturesAutoDeleveragesNotification(respRaw)
-	case futuresAutoPositionCloseChannel:
-		return g.processPositionCloseData(respRaw)
-	case futuresBalancesChannel:
-		return g.processBalancePushData(respRaw)
-	case futuresReduceRiskLimitsChannel:
-		return g.processFuturesReduceRiskLimitNotification(respRaw)
-	case futuresPositionsChannel:
-		return g.processFuturesPositionsNotification(respRaw)
-	case futuresAutoOrdersChannel:
-		return g.processFuturesAutoOrderPushData(respRaw)
-
-		//  Options push data handlers
-	case optionsContractTickersChannel:
-		return g.processOptionsContractTickers(respRaw)
-	case optionsUnderlyingTickersChannel:
-		return g.processOptionsUnderlyingTicker(respRaw)
-	case optionsTradesChannel,
-		optionsUnderlyingTradesChannel:
-		return g.processOptionsTradesPushData(respRaw)
-	case optionsUnderlyingPriceChannel:
-		return g.processOptionsUnderlyingPricePushData(respRaw)
-	case optionsMarkPriceChannel:
-		return g.processOptionsMarkPrice(respRaw)
-	case optionsSettlementChannel:
-		return g.processOptionsSettlementPushData(respRaw)
-	case optionsContractsChannel:
-		return g.processOptionsContractPushData(respRaw)
-	case optionsContractCandlesticksChannel,
-		optionsUnderlyingCandlesticksChannel:
-		return g.processOptionsCandlestickPushData(respRaw)
-	case optionsOrderbookChannel:
-		return g.processOptionsOrderbookSnapshotPushData(result.Event, respRaw)
-	case optionsOrderbookTickerChannel:
-		return g.processOrderbookTickerPushData(respRaw)
-	case optionsOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(respRaw)
-	case optionsOrdersChannel:
-		return g.processOptionsOrderPushData(respRaw)
-	case optionsUserTradesChannel:
-		return g.processOptionsUserTradesPushData(respRaw)
-	case optionsLiquidatesChannel:
-		return g.processOptionsLiquidatesPushData(respRaw)
-	case optionsUserSettlementChannel:
-		return g.processOptionsUsersPersonalSettlementsPushData(respRaw)
-	case optionsPositionCloseChannel:
-		return g.processPositionCloseData(respRaw)
-	case optionsBalancesChannel:
-		return g.processBalancePushData(respRaw)
-	case optionsPositionsChannel:
-		return g.processOptionsPositionPushData(respRaw)
 	default:
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
@@ -306,17 +235,17 @@ func (g *Gateio) processTicker(data []byte) error {
 	}
 	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
 	if assetPairEnabled[asset.Spot] {
-		g.Websocket.DataHandler <- tickerPrice
+		g.Websocket.DataHandler <- &tickerPrice
 	}
 	if assetPairEnabled[asset.Margin] {
 		marginTicker := tickerPrice
 		marginTicker.AssetType = asset.Margin
-		g.Websocket.DataHandler <- marginTicker
+		g.Websocket.DataHandler <- &marginTicker
 	}
 	if assetPairEnabled[asset.CrossMargin] {
 		crossMarginTicker := tickerPrice
 		crossMarginTicker.AssetType = asset.CrossMargin
-		g.Websocket.DataHandler <- crossMarginTicker
+		g.Websocket.DataHandler <- &crossMarginTicker
 	}
 	return nil
 }
@@ -353,7 +282,6 @@ func (g *Gateio) processTrades(data []byte) error {
 		if err != nil {
 			return err
 		}
-		g.Websocket.DataHandler <- []trade.Data{spotTradeData}
 	}
 	if assetPairEnabled[asset.Margin] {
 		marginTradeData := spotTradeData
@@ -457,7 +385,9 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 			if !assetPairEnabled[assetType] {
 				continue
 			}
-			err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
+			assetOrderbook := *orderbooks
+			assetOrderbook.Asset = assetType
+			err = g.Websocket.Orderbook.LoadSnapshot(&assetOrderbook)
 			if err != nil {
 				return err
 			}
@@ -547,6 +477,7 @@ func (g *Gateio) processOrderbookSnapshot(data []byte) error {
 		Pair:            pair,
 		Asset:           asset.Spot,
 		LastUpdated:     snapshot.UpdateTimeMs.Time(),
+		LastUpdateID:    snapshot.LastUpdateID,
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
 	bases.Bids = make([]orderbook.Item, len(snapshot.Bids))

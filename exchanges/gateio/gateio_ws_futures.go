@@ -97,8 +97,8 @@ func (g *Gateio) WsFuturesConnect() error {
 		return err
 	}
 	g.Websocket.Wg.Add(3)
-	go g.wsFunnelConnectionData(g.Websocket.Conn)
-	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
+	go g.wsFunnelFuturesConnectionData(g.Websocket.Conn)
+	go g.wsFunnelFuturesConnectionData(g.Websocket.AuthConn)
 	go g.wsReadData()
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
@@ -121,7 +121,7 @@ func (g *Gateio) WsFuturesConnect() error {
 		Message:     pingMessage,
 	})
 	g.Websocket.Wg.Add(1)
-	go g.wsReadData()
+	go g.wsReadFuturesData()
 	return nil
 }
 
@@ -169,14 +169,111 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 	return subscriptions, nil
 }
 
-// FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+// OptionsAndFuturesSubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) OptionsAndFuturesSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return g.handleFuturesSubscription("subscribe", channelsToUnsubscribe)
 }
 
-// FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+// OptionsAndFuturesUnsubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) OptionsAndFuturesUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return g.handleFuturesSubscription("unsubscribe", channelsToUnsubscribe)
+}
+
+// wsReadFuturesData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
+func (g *Gateio) wsReadFuturesData() {
+	defer g.Websocket.Wg.Done()
+	for {
+		select {
+		case <-g.Websocket.ShutdownC:
+			select {
+			case resp := <-responseStream:
+				err := g.wsHandleFuturesData(resp.Raw)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-responseStream:
+			err := g.wsHandleFuturesData(resp.Raw)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
+// wsFunnelFuturesConnectionData receives data from multiple connection and pass the data
+// to wsRead through a channel responseStream
+func (g *Gateio) wsFunnelFuturesConnectionData(ws stream.Connection) {
+	defer g.Websocket.Wg.Done()
+	for {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		responseStream <- stream.Response{Raw: resp.Raw}
+	}
+}
+
+func (g *Gateio) wsHandleFuturesData(respRaw []byte) error {
+	var result WsResponse
+	var eventResponse WsEventResponse
+	err := json.Unmarshal(respRaw, &eventResponse)
+	if err == nil &&
+		(eventResponse.Result != nil || eventResponse.Error != nil) &&
+		(eventResponse.Event == "subscribe" || eventResponse.Event == "unsubscribe") {
+		if !g.Websocket.Match.IncomingWithData(eventResponse.ID, respRaw) {
+			return fmt.Errorf("couldn't match subscription message with ID: %d", eventResponse.ID)
+		}
+		return nil
+	}
+	err = json.Unmarshal(respRaw, &result)
+	if err != nil {
+		return err
+	}
+	switch result.Channel {
+	// Futures push datas.
+	case futuresTickersChannel:
+		return g.processFuturesTickers(respRaw)
+	case futuresTradesChannel:
+		return g.processFuturesTrades(respRaw)
+	case futuresOrderbookChannel:
+		return g.processFuturesOrderbookSnapshot(result.Event, respRaw)
+	case futuresOrderbookTickerChannel:
+		return g.processFuturesOrderbookTicker(respRaw)
+	case futuresOrderbookUpdateChannel:
+		return g.processFuturesAndOptionsOrderbookUpdate(respRaw)
+	case futuresCandlesticksChannel:
+		return g.processFuturesCandlesticks(respRaw)
+	case futuresOrdersChannel:
+		return g.processFuturesOrdersPushData(respRaw)
+	case futuresUserTradesChannel:
+		return g.procesFuturesUserTrades(respRaw)
+	case futuresLiquidatesChannel:
+		return g.processFuturesLiquidatesNotification(respRaw)
+	case futuresAutoDeleveragesChannel:
+		return g.processFuturesAutoDeleveragesNotification(respRaw)
+	case futuresAutoPositionCloseChannel:
+		return g.processPositionCloseData(respRaw)
+	case futuresBalancesChannel:
+		return g.processBalancePushData(respRaw)
+	case futuresReduceRiskLimitsChannel:
+		return g.processFuturesReduceRiskLimitNotification(respRaw)
+	case futuresPositionsChannel:
+		return g.processFuturesPositionsNotification(respRaw)
+	case futuresAutoOrdersChannel:
+		return g.processFuturesAutoOrderPushData(respRaw)
+	default:
+		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: g.Name + stream.UnhandledMessage + string(respRaw),
+		}
+		return errors.New(stream.UnhandledMessage)
+	}
 }
 
 // handleFuturesSubscription sends a websocket message to receive data from the channel
@@ -276,9 +373,16 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []stre
 			if err != nil {
 				return payloads, err
 			}
-			if channelsToSubscribe[i].Channel == optionsContractCandlesticksChannel {
+			switch channelsToSubscribe[i].Channel {
+			case optionsContractCandlesticksChannel:
 				params = append([]string{intervalString}, params...)
-			} else {
+			case optionsUnderlyingCandlesticksChannel:
+				uly, err := g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
+				if err != nil {
+					return payloads, err
+				}
+				params = []string{intervalString, uly.String()}
+			default:
 				params = append(params, intervalString)
 			}
 		}
@@ -448,7 +552,8 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte) error {
 	} else {
 		assetType = futuresAssetType
 	}
-	if !fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName] {
+	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[update.ContractName]) ||
+		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName]) {
 		orderbooks, err := g.FetchOrderbook(context.Background(), pair, assetType)
 		if err != nil {
 			return err
@@ -460,7 +565,11 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte) error {
 		if err != nil {
 			return err
 		}
-		fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName] = true
+		if assetType == asset.Options {
+			fetchedOptionsCurrencyPairSnapshotOrderbook[update.ContractName] = true
+		} else {
+			fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName] = true
+		}
 	}
 	updates := orderbook.Update{
 		UpdateTime: time.UnixMilli(update.TimestampInMs),
