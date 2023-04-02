@@ -64,12 +64,12 @@ func getTime() (start, end time.Time) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	err := b.Start(nil)
+	err := b.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
-	err = b.Start(&testWg)
+	err = b.Start(context.Background(), &testWg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2665,7 +2665,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	// cannot run in parallel due to inspecting the DataHandler result
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
 	// this is a buy BTC order, normally commission is charged in BTC, vice versa.
-	expRes := order.Detail{
+	expectedResult := order.Detail{
 		Price:                52789.1,
 		Amount:               0.00028400,
 		AverageExecutedPrice: 0,
@@ -2699,8 +2699,8 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	res := <-b.Websocket.DataHandler
 	switch r := res.(type) {
 	case *order.Detail:
-		if !reflect.DeepEqual(expRes, *r) {
-			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expRes, *r)
+		if !reflect.DeepEqual(expectedResult, *r) {
+			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
 		}
 	default:
 		t.Fatalf("expected type order.Detail, found %T", res)

@@ -36,7 +36,7 @@ const wsRateLimitMillisecond = 1000
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bithumb) GetDefaultConfig() (*config.Exchange, error) {
+func (b *Bithumb) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
@@ -49,7 +49,7 @@ func (b *Bithumb) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(context.TODO(), true)
+		err = b.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -195,25 +195,25 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bithumb go routine
-func (b *Bithumb) Start(wg *sync.WaitGroup) error {
+func (b *Bithumb) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		b.Run()
+		b.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Bithumb wrapper
-func (b *Bithumb) Run() {
+func (b *Bithumb) Run(ctx context.Context) {
 	if b.Verbose {
 		b.PrintEnabledPairs()
 	}
 
-	err := b.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
+	err := b.UpdateOrderExecutionLimits(ctx, asset.Empty)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to set exchange order execution limits. Err: %v",
@@ -225,7 +225,7 @@ func (b *Bithumb) Run() {
 		return
 	}
 
-	err = b.UpdateTradablePairs(context.TODO(), false)
+	err = b.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}

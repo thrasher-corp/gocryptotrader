@@ -325,7 +325,7 @@ func (g *Gemini) WithdrawCrypto(ctx context.Context, address, currency string, a
 }
 
 // PostHeartbeat sends a maintenance heartbeat to the exchange for all heartbeat
-// maintaned sessions
+// maintained sessions
 func (g *Gemini) PostHeartbeat(ctx context.Context) (string, error) {
 	type Response struct {
 		Result  string `json:"result"`

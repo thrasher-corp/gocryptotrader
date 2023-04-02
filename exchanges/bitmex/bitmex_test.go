@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 	}
 
 	var testWg sync.WaitGroup
-	err = b.Start(&testWg)
+	err = b.Start(context.Background(), &testWg)
 	if err != nil {
 		log.Fatal(err)
 	}

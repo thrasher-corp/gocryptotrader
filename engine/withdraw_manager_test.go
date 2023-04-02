@@ -26,7 +26,7 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	em := SetupExchangeManager()
 	b := new(bybit.Bybit)
 	b.SetDefaults()
-	cfg, err := b.GetDefaultConfig()
+	cfg, err := b.GetDefaultConfig(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
