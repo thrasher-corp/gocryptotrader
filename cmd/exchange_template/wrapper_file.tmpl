@@ -27,7 +27,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.Exchange, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	{{.Variable}}.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = {{.Variable}}.Name
@@ -37,7 +37,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.Exchange, err
 	{{.Variable}}.SetupDefaults(exchCfg)
 
 	if {{.Variable}}.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := {{.Variable}}.UpdateTradablePairs(context.TODO(), true)
+		err := {{.Variable}}.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -181,20 +181,20 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the {{.CapitalName}} go routine
-func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) error {
+func ({{.Variable}} *{{.CapitalName}}) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		{{.Variable}}.Run()
+		{{.Variable}}.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the {{.CapitalName}} wrapper
-func ({{.Variable}} *{{.CapitalName}}) Run() {
+func ({{.Variable}} *{{.CapitalName}}) Run(ctx context.Context) {
 	if {{.Variable}}.Verbose {
 	{{ if .WS }} log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -207,7 +207,7 @@ func ({{.Variable}} *{{.CapitalName}}) Run() {
 		return
 	}
 
-	err := {{.Variable}}.UpdateTradablePairs(context.TODO(), false)
+	err := {{.Variable}}.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

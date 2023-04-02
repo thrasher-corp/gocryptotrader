@@ -29,7 +29,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitstamp) GetDefaultConfig() (*config.Exchange, error) {
+func (b *Bitstamp) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
@@ -41,7 +41,7 @@ func (b *Bitstamp) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(context.TODO(), true)
+		err = b.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -192,20 +192,20 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bitstamp go routine
-func (b *Bitstamp) Start(wg *sync.WaitGroup) error {
+func (b *Bitstamp) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		b.Run()
+		b.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Bitstamp wrapper
-func (b *Bitstamp) Run() {
+func (b *Bitstamp) Run(ctx context.Context) {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -270,7 +270,7 @@ func (b *Bitstamp) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := b.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
