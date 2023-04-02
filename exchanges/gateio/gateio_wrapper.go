@@ -236,7 +236,6 @@ func (g *Gateio) Run(ctx context.Context) {
 	if !g.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err := g.UpdateTradablePairs(context.TODO(), forceUpdate)
 	err := g.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)

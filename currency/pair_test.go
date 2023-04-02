@@ -518,18 +518,13 @@ func TestNewPairFromString(t *testing.T) {
 		"SOL-FS-30DEC22_28OCT22":    {Base: NewCode("SOL"), Delimiter: DashDelimiter, Quote: NewCode("FS-30DEC22_28OCT22")},
 	}
 	for key, expectedPair := range pairMap {
-		key := key
-		expectedPair := expectedPair
-		t.Run(key, func(t *testing.T) {
-			t.Parallel()
-			pair, err = NewPairFromString(key)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !pair.Equal(expectedPair) {
-				t.Errorf("Pair(): %s was not equal to expected value: %s", pair.String(), expectedPair.String())
-			}
-		})
+		pair, err = NewPairFromString(key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !pair.Equal(expectedPair) {
+			t.Errorf("Pair(): %s was not equal to expected value: %s", pair.String(), expectedPair.String())
+		}
 	}
 }
 
