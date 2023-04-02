@@ -28,7 +28,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (i *ItBit) GetDefaultConfig() (*config.Exchange, error) {
+func (i *ItBit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	i.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = i.Name
@@ -41,7 +41,7 @@ func (i *ItBit) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if i.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = i.UpdateTradablePairs(context.TODO(), true)
+		err = i.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -116,20 +116,20 @@ func (i *ItBit) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the ItBit go routine
-func (i *ItBit) Start(wg *sync.WaitGroup) error {
+func (i *ItBit) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		i.Run()
+		i.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the ItBit wrapper
-func (i *ItBit) Run() {
+func (i *ItBit) Run(ctx context.Context) {
 	if i.Verbose {
 		i.PrintEnabledPairs()
 	}

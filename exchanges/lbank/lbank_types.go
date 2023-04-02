@@ -24,7 +24,7 @@ type TickerResponse struct {
 	Ticker    Ticker        `json:"ticker"`
 }
 
-// MarketDepthResponse stores arrays for asks, bids and a timestamp for a currecy pair
+// MarketDepthResponse stores arrays for asks, bids and a timestamp for a currency pair
 type MarketDepthResponse struct {
 	ErrCapture `json:",omitempty"`
 	Data       struct {

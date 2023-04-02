@@ -30,7 +30,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (by *Bybit) GetDefaultConfig() (*config.Exchange, error) {
+func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	by.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = by.Name
@@ -43,7 +43,7 @@ func (by *Bybit) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if by.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := by.UpdateTradablePairs(context.TODO(), true)
+		err := by.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -247,20 +247,20 @@ func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
 }
 
 // Start starts the Bybit go routine
-func (by *Bybit) Start(wg *sync.WaitGroup) error {
+func (by *Bybit) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		by.Run()
+		by.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Bybit wrapper
-func (by *Bybit) Run() {
+func (by *Bybit) Run(ctx context.Context) {
 	if by.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -273,7 +273,7 @@ func (by *Bybit) Run() {
 		return
 	}
 
-	err := by.UpdateTradablePairs(context.TODO(), false)
+	err := by.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

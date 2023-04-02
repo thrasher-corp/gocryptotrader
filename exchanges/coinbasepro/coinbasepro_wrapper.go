@@ -30,7 +30,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *CoinbasePro) GetDefaultConfig() (*config.Exchange, error) {
+func (c *CoinbasePro) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	c.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
@@ -43,7 +43,7 @@ func (c *CoinbasePro) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = c.UpdateTradablePairs(context.TODO(), true)
+		err = c.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -196,20 +196,20 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the coinbasepro go routine
-func (c *CoinbasePro) Start(wg *sync.WaitGroup) error {
+func (c *CoinbasePro) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		c.Run()
+		c.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the coinbasepro wrapper
-func (c *CoinbasePro) Run() {
+func (c *CoinbasePro) Run(ctx context.Context) {
 	if c.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
@@ -277,7 +277,7 @@ func (c *CoinbasePro) Run() {
 		return
 	}
 
-	err := c.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := c.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
@@ -601,50 +601,51 @@ func (c *CoinbasePro) CancelAllOrders(ctx context.Context, _ *order.Cancel) (ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	genOrderDetail, errGo := c.GetOrder(ctx, orderID)
-	if errGo != nil {
-		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", orderID, errGo)
+func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+	genOrderDetail, err := c.GetOrder(ctx, orderID)
+	if err != nil {
+		return order.Detail{}, fmt.Errorf("error retrieving order %s : %w", orderID, err)
 	}
-	os, errOs := order.StringToOrderStatus(genOrderDetail.Status)
-	if errOs != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order status: %s", errOs)
+	orderStatus, err := order.StringToOrderStatus(genOrderDetail.Status)
+	if err != nil {
+		return order.Detail{}, fmt.Errorf("error parsing order status: %w", err)
 	}
-	tt, errOt := order.StringToOrderType(genOrderDetail.Type)
-	if errOt != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOt)
+	orderType, err := order.StringToOrderType(genOrderDetail.Type)
+	if err != nil {
+		return order.Detail{}, fmt.Errorf("error parsing order type: %w", err)
 	}
-	ss, errOss := order.StringToOrderSide(genOrderDetail.Side)
-	if errOss != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errOss)
+	orderSide, err := order.StringToOrderSide(genOrderDetail.Side)
+	if err != nil {
+		return order.Detail{}, fmt.Errorf("error parsing order side: %w", err)
 	}
-	p, errP := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
-	if errP != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errP)
+	pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
+	if err != nil {
+		return order.Detail{}, fmt.Errorf("error parsing order side: %w", err)
 	}
 
 	response := order.Detail{
 		Exchange:        c.GetName(),
 		OrderID:         genOrderDetail.ID,
-		Pair:            p,
-		Side:            ss,
-		Type:            tt,
+		Pair:            pair,
+		Side:            orderSide,
+		Type:            orderType,
 		Date:            genOrderDetail.DoneAt,
-		Status:          os,
+		Status:          orderStatus,
 		Price:           genOrderDetail.Price,
 		Amount:          genOrderDetail.Size,
 		ExecutedAmount:  genOrderDetail.FilledSize,
 		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
 		Fee:             genOrderDetail.FillFees,
 	}
-	fillResponse, errGF := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
-	if errGF != nil {
-		return response, fmt.Errorf("error retrieving the order fills: %s", errGF)
+	fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
+	if err != nil {
+		return order.Detail{}, fmt.Errorf("error retrieving the order fills: %w", err)
 	}
 	for i := range fillResponse {
-		trSi, errTSi := order.StringToOrderSide(fillResponse[i].Side)
-		if errTSi != nil {
-			return response, fmt.Errorf("error parsing order Side: %s", errTSi)
+		var fillSide order.Side
+		fillSide, err = order.StringToOrderSide(fillResponse[i].Side)
+		if err != nil {
+			return order.Detail{}, fmt.Errorf("error parsing fill Side: %w", err)
 		}
 		response.Trades = append(response.Trades, order.TradeHistory{
 			Timestamp: fillResponse[i].CreatedAt,
@@ -652,8 +653,8 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 			Price:     fillResponse[i].Price,
 			Amount:    fillResponse[i].Size,
 			Exchange:  c.GetName(),
-			Type:      tt,
-			Side:      trSi,
+			Type:      orderType,
+			Side:      fillSide,
 			Fee:       fillResponse[i].Fee,
 		})
 	}
