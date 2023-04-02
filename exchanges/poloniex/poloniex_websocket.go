@@ -57,7 +57,7 @@ func (p *Poloniex) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := p.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
 func (p *Poloniex) wsReadData() {
 	defer p.Websocket.Wg.Done()
 	for {
-		resp := p.Websocket.Conn.ReadMessage()
+		resp := p.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -563,7 +563,7 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue channels
 			}
-			p.Websocket.AddSuccessfulSubscriptions(sub[i])
+			p.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(sub[i])
 			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			sub[i].Channel):
@@ -572,13 +572,13 @@ channels:
 			subscriptionRequest.Channel = sub[i].Currency.String()
 		}
 
-		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+		err := p.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
 
-		p.Websocket.AddSuccessfulSubscriptions(sub[i])
+		p.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(sub[i])
 	}
 	if errs != nil {
 		return errs
@@ -610,7 +610,7 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue channels
 			}
-			p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])
+			p.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(unsub[i])
 			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			unsub[i].Channel):
@@ -618,12 +618,12 @@ channels:
 		default:
 			unsubscriptionRequest.Channel = unsub[i].Currency.String()
 		}
-		err := p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
+		err := p.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unsubscriptionRequest)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])
+		p.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(unsub[i])
 	}
 	if errs != nil {
 		return errs
@@ -646,7 +646,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key, command string) error {
 		Key:     key,
 		Payload: nonce,
 	}
-	return p.Websocket.Conn.SendJSONMessage(request)
+	return p.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(request)
 }
 
 func (p *Poloniex) processAccountMarginPosition(notification []interface{}) error {

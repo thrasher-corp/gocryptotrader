@@ -43,7 +43,7 @@ func (c *COINUT) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (c *COINUT) wsReadData() {
 	defer c.Websocket.Wg.Done()
 
 	for {
-		resp := c.Websocket.Conn.ReadMessage()
+		resp := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -497,7 +497,7 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 		SecurityType: strings.ToUpper(asset.Spot.String()),
 		Nonce:        getNonce(),
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(request.Nonce, request)
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.Nonce, request)
 	if err != nil {
 		return list, err
 	}
@@ -630,12 +630,12 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			Subscribe:    true,
 			Nonce:        getNonce(),
 		}
-		err = c.Websocket.Conn.SendJSONMessage(subscribe)
+		err = c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subscribe)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		c.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -659,7 +659,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 			Subscribe:    false,
 			Nonce:        getNonce(),
 		}
-		resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce,
+		resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(subscribe.Nonce,
 			subscribe)
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -682,7 +682,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 				channelToUnsubscribe[i].Channel))
 			continue
 		}
-		c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
+		c.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
 	}
 	return errs
 }
@@ -719,7 +719,7 @@ func (c *COINUT) wsAuthenticate(ctx context.Context) error {
 		Timestamp: timestamp,
 	}
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(loginRequest.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(loginRequest.Nonce,
 		loginRequest)
 	if err != nil {
 		return err
@@ -740,7 +740,7 @@ func (c *COINUT) wsGetAccountBalance() (*UserBalance, error) {
 		Request: "user_balance",
 		Nonce:   getNonce(),
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(accBalance.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(accBalance.Nonce,
 		accBalance)
 	if err != nil {
 		return nil, err
@@ -777,7 +777,7 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	if o.OrderID > 0 {
 		orderSubmissionRequest.OrderID = o.OrderID
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(orderSubmissionRequest.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(orderSubmissionRequest.Nonce,
 		orderSubmissionRequest)
 	if err != nil {
 		return nil, err
@@ -821,7 +821,7 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 
 	orderRequest.Nonce = getNonce()
 	orderRequest.Request = "new_orders"
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(orderRequest.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(orderRequest.Nonce,
 		orderRequest)
 	if err != nil {
 		errs = append(errs, err)
@@ -858,7 +858,7 @@ func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error)
 	openOrdersRequest.Nonce = getNonce()
 	openOrdersRequest.InstrumentID = c.instrumentMap.LookupID(curr)
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(openOrdersRequest.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(openOrdersRequest.Nonce,
 		openOrdersRequest)
 	if err != nil {
 		return response, err
@@ -892,7 +892,7 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOr
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = getNonce()
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(cancellationRequest.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(cancellationRequest.Nonce,
 		cancellationRequest)
 	if err != nil {
 		return response, err
@@ -934,7 +934,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 
 	cancelOrderRequest.Request = "cancel_orders"
 	cancelOrderRequest.Nonce = getNonce()
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(cancelOrderRequest.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(cancelOrderRequest.Nonce,
 		cancelOrderRequest)
 	if err != nil {
 		return response, err
@@ -965,7 +965,7 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTrad
 	request.Start = start
 	request.Limit = limit
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(request.Nonce,
+	resp, err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.Nonce,
 		request)
 	if err != nil {
 		return response, err

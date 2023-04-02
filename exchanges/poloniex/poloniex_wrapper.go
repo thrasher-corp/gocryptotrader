@@ -157,7 +157,7 @@ func (p *Poloniex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	p.Websocket = stream.New()
+	p.Websocket = stream.NewWrapper()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -183,16 +183,9 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = p.Websocket.Setup(&stream.WebsocketSetup{
+	err = p.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             poloniexWebsocketAddress,
-		RunningURL:             wsRunningURL,
-		Connector:              p.WsConnect,
-		Subscriber:             p.Subscribe,
-		Unsubscriber:           p.Unsubscribe,
-		GenerateSubscriptions:  p.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &p.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -202,7 +195,16 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	p.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            poloniexWebsocketAddress,
+		RunningURL:            wsRunningURL,
+		Connector:             p.WsConnect,
+		Subscriber:            p.Subscribe,
+		Unsubscriber:          p.Unsubscribe,
+		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+	})
+	return p.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

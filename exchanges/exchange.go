@@ -1062,7 +1062,7 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Base) GetWebsocket() (*stream.Websocket, error) {
+func (b *Base) GetWebsocket() (*stream.WrapperWebsocket, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}

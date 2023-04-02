@@ -33,7 +33,7 @@ func (c *CoinbasePro) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (c *CoinbasePro) wsReadData() {
 	defer c.Websocket.Wg.Done()
 
 	for {
-		resp := c.Websocket.Conn.ReadMessage()
+		resp := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -448,11 +448,11 @@ subscriptions:
 			subscribe.Timestamp = n
 		}
 	}
-	err = c.Websocket.Conn.SendJSONMessage(subscribe)
+	err = c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subscribe)
 	if err != nil {
 		return err
 	}
-	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	c.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
@@ -479,10 +479,10 @@ unsubscriptions:
 			Name: channelsToUnsubscribe[i].Channel,
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(unsubscribe)
+	err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unsubscribe)
 	if err != nil {
 		return err
 	}
-	c.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	c.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }

@@ -138,7 +138,7 @@ func (b *Bittrex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWrapper()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -165,16 +165,9 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 	}
 
 	// Websocket details setup below
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
-		RunningURL:             wsRunningEndpoint,
-		Connector:              b.WsConnect,                    // Connector function outlined above.
-		Subscriber:             b.Subscribe,                    // Subscriber function outlined above.
-		Unsubscriber:           b.Unsubscribe,                  // Unsubscriber function outlined above.
-		GenerateSubscriptions:  b.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -183,8 +176,17 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
+		RunningURL:            wsRunningEndpoint,
+		Connector:             b.WsConnect,                    // Connector function outlined above.
+		Subscriber:            b.Subscribe,                    // Subscriber function outlined above.
+		Unsubscriber:          b.Unsubscribe,                  // Unsubscriber function outlined above.
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
+		AssetType:             asset.Spot,
+	})
 	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimit,

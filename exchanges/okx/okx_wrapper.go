@@ -171,7 +171,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.New()
+	ok.Websocket = stream.NewWrapper()
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -196,16 +196,9 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = ok.Websocket.Setup(&stream.WebsocketSetup{
+	err = ok.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             okxAPIWebsocketPublicURL,
-		RunningURL:             wsRunningEndpoint,
-		Connector:              ok.WsConnect,
-		Subscriber:             ok.Subscribe,
-		Unsubscriber:           ok.Unsubscribe,
-		GenerateSubscriptions:  ok.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &ok.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
@@ -214,7 +207,16 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	ok.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            okxAPIWebsocketPublicURL,
+		RunningURL:            wsRunningEndpoint,
+		Connector:             ok.WsConnect,
+		Subscriber:            ok.Subscribe,
+		Unsubscriber:          ok.Unsubscribe,
+		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+	})
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
@@ -223,7 +225,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ok.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
@@ -785,7 +787,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			orderRequest.PositionSide = positionSideShort
 		}
 	}
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
 		if err != nil {
 			return nil, err
@@ -828,7 +830,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		OrderID:               action.OrderID,
 		ClientSuppliedOrderID: action.ClientOrderID,
 	}
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsAmendOrder(&amendRequest)
 	} else {
 		_, err = ok.AmendOrder(ctx, &amendRequest)
@@ -860,7 +862,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		OrderID:               ord.OrderID,
 		ClientSupplierOrderID: ord.ClientOrderID,
 	}
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsCancelOrder(req)
 	} else {
 		_, err = ok.CancelSingleOrder(ctx, req)
@@ -908,7 +910,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		cancelOrderParams = append(cancelOrderParams, req)
 	}
 	var canceledOrders []OrderData
-	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		canceledOrders, err = ok.WsCancelMultipleOrder(cancelOrderParams)
 	} else {
 		canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
@@ -996,14 +998,14 @@ ordersLoop:
 	for b := 0; b < loop; b++ {
 		var response []OrderData
 		if len(remaining) > 20 {
-			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 				response, err = ok.WsCancelMultipleOrder(remaining[:20])
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining[:20])
 			}
 			remaining = remaining[20:]
 		} else {
-			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 				response, err = ok.WsCancelMultipleOrder(remaining)
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining)

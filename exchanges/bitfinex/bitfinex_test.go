@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitfinex Setup() init error")
 	}
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	// b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bfxConfig)
 	if err != nil {
 		log.Fatal("Bitfinex setup error", err)
@@ -1069,11 +1069,11 @@ func TestGetDepositAddress(t *testing.T) {
 
 func setupWs() {
 	var dialer websocket.Dialer
-	err := b.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	go b.wsReadData(b.Websocket.AuthConn)
+	go b.wsReadData(b.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn)
 	go b.WsDataHandler()
 }
 

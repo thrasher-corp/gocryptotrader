@@ -96,12 +96,12 @@ func (b *Bittrex) WsConnect() error {
 		return err
 	}
 
-	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	// Can set up custom ping handler per websocket connection.
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       bittrexWebsocketTimer,
 	})
@@ -175,7 +175,7 @@ func (b *Bittrex) WsAuth(ctx context.Context) error {
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       authenticate,
-		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
+		InvocationID: b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
 	}
 
 	arguments := make([]string, 0)
@@ -190,7 +190,7 @@ func (b *Bittrex) WsAuth(ctx context.Context) error {
 		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
+	respRaw, err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
@@ -271,7 +271,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       subscribe,
-		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
+		InvocationID: b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
 	}
 
 	channels := make([]string, len(channelsToSubscribe))
@@ -289,7 +289,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 	if b.Verbose {
 		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
 	}
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
+	respRaw, err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 			errs = common.AppendError(errs, errors.New("unable to subscribe to "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
-		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
@@ -330,7 +330,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       unsubscribe,
-		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
+		InvocationID: b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
 	}
 
 	channels := make([]string, len(channelsToUnsubscribe))
@@ -348,7 +348,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 	if b.Verbose {
 		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
 	}
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
+	respRaw, err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
@@ -363,7 +363,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 			errs = common.AppendError(errs, errors.New("unable to unsubscribe from "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
-		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
@@ -374,10 +374,10 @@ func (b *Bittrex) wsReadData() {
 
 	for {
 		select {
-		case <-b.Websocket.ShutdownC:
+		case <-b.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			return
 		default:
-			resp := b.Websocket.Conn.ReadMessage()
+			resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 			if resp.Raw == nil {
 				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", b.Name)
 				return

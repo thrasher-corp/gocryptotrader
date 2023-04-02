@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	coinutCfg.API.AuthenticatedWebsocketSupport = true
 	coinutCfg.API.Credentials.Key = apiKey
 	coinutCfg.API.Credentials.ClientID = clientID
-	c.Websocket = sharedtestvalues.NewTestWebsocket()
+	c.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = c.Setup(coinutCfg)
 	if err != nil {
 		log.Fatal("Coinut setup error", err)
@@ -75,7 +75,7 @@ func setupWSTestAuth(t *testing.T) {
 	}
 
 	var dialer websocket.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

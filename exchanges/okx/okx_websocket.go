@@ -209,19 +209,19 @@ func (ok *Okx) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := ok.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(2)
-	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
+	go ok.wsFunnelConnectionData(ok.Websocket.AssetTypeWebsockets[asset.Spot].Conn)
 	go ok.WsReadData()
 	go ok.WsResponseMultiplexer.Run()
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	ok.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PingMessage,
 		Delay:             time.Second * 10,
@@ -243,13 +243,13 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
 	}
-	err := ok.Websocket.AuthConn.Dial(dialer, http.Header{})
+	err := ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsFunnelConnectionData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	go ok.wsFunnelConnectionData(ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn)
+	ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PingMessage,
 		Delay:             time.Second * 5,
@@ -280,7 +280,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
@@ -452,14 +452,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
+				err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(authRequests)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+					ok.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channels...)
 				} else {
-					ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					ok.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channels...)
 				}
 				authChannels = []stream.ChannelSubscription{}
 				authRequests.Arguments = []SubscriptionInfo{}
@@ -474,14 +474,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(request)
+				err = ok.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(request)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+					ok.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channels...)
 				} else {
-					ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					ok.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channels...)
 				}
 				channels = []stream.ChannelSubscription{}
 				request.Arguments = []SubscriptionInfo{}
@@ -490,14 +490,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		}
 	}
 	if len(request.Arguments) > 0 {
-		err = ok.Websocket.Conn.SendJSONMessage(request)
+		err = ok.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(request)
 		if err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
+		err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(authRequests)
 		if err != nil {
 			return err
 		}
@@ -508,10 +508,10 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+		ok.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		ok.Websocket.AddSuccessfulSubscriptions(channels...)
+		ok.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channels...)
 	}
 	return nil
 }
@@ -521,7 +521,7 @@ func (ok *Okx) WsReadData() {
 	defer ok.Websocket.Wg.Done()
 	for {
 		select {
-		case <-ok.Websocket.ShutdownC:
+		case <-ok.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			select {
 			case resp := <-responseStream:
 				err := ok.WsHandleData(resp.Raw)
@@ -1290,7 +1290,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		Arguments: []PlaceOrderRequestParam{*arg},
 		Operation: okxOpOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1349,7 +1349,7 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 		Arguments: args,
 		Operation: okxOpBatchOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1419,7 +1419,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		Arguments: []CancelOrderRequestParam{arg},
 		Operation: okxOpCancelOrder,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1479,7 +1479,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		Arguments: args,
 		Operation: okxOpBatchCancelOrders,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1555,7 +1555,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		Operation: okxOpAmendOrder,
 		Arguments: []AmendOrderRequestParams{*arg},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1617,7 +1617,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		Operation: okxOpBatchAmendOrders,
 		Arguments: args,
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1763,7 +1763,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.Conn.SendJSONMessage(input)
+	return ok.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(input)
 }
 
 // Private Channel Websocket methods
@@ -1834,7 +1834,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.AuthConn.SendJSONMessage(input)
+	return ok.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(input)
 }
 
 // WsAccountSubscription retrieve account information. Data will be pushed when triggered by

@@ -179,7 +179,7 @@ func (b *Bitfinex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWrapper()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -205,16 +205,9 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             publicBitfinexWebsocketEndpoint,
-		RunningURL:             wsEndpoint,
-		Connector:              b.WsConnect,
-		Subscriber:             b.Subscribe,
-		Unsubscriber:           b.Unsubscribe,
-		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
@@ -222,8 +215,16 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            publicBitfinexWebsocketEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+	})
+	err = b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  publicBitfinexWebsocketEndpoint,
@@ -232,7 +233,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
@@ -647,9 +648,9 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 
 	var orderID string
 	status := order.New
-	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
-			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
+			CustomID: b.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(false),
 			Type:     o.Type.String(),
 			Symbol:   fpair.String(),
 			Amount:   o.Amount,
@@ -692,7 +693,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if !b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if !b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrNotYetImplemented
 	}
 
@@ -730,7 +731,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelOrder(orderIDInt)
 	} else {
 		_, err = b.CancelExistingOrder(ctx, orderIDInt)
@@ -746,7 +747,7 @@ func (b *Bitfinex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (ord
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
-	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelAllOrders()
 	} else {
 		_, err = b.CancelAllExistingOrders(ctx)

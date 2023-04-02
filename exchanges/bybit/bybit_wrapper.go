@@ -174,7 +174,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = stream.New()
+	by.Websocket = stream.NewWrapper()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -203,17 +203,9 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	err = by.Websocket.Setup(
-		&stream.WebsocketSetup{
+		&stream.WebsocketWrapperSetup{
 			ExchangeConfig:         exch,
-			DefaultURL:             bybitWSBaseURL + wsSpotPublicTopicV2,
-			RunningURL:             wsRunningEndpoint,
-			RunningURLAuth:         bybitWSBaseURL + wsSpotPrivate,
-			Connector:              by.WsConnect,
-			Subscriber:             by.Subscribe,
-			Unsubscriber:           by.Unsubscribe,
-			GenerateSubscriptions:  by.GenerateDefaultSubscriptions,
 			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-			Features:               &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
@@ -223,8 +215,18 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	by.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
+		RunningURL:            wsRunningEndpoint,
+		RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
+		Connector:             by.WsConnect,
+		Subscriber:            by.Subscribe,
+		Unsubscriber:          by.Unsubscribe,
+		GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+	})
 
-	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -233,7 +235,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  bybitWSBaseURL + wsSpotPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

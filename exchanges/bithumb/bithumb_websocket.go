@@ -35,7 +35,7 @@ func (b *Bithumb) WsConnect() error {
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w",
 			b.Name,
@@ -55,10 +55,10 @@ func (b *Bithumb) wsReadData() {
 
 	for {
 		select {
-		case <-b.Websocket.ShutdownC:
+		case <-b.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			return
 		default:
-			resp := b.Websocket.Conn.ReadMessage()
+			resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}
@@ -212,11 +212,11 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	}
 
 	for _, s := range subs {
-		err := b.Websocket.Conn.SendJSONMessage(s)
+		err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(s)
 		if err != nil {
 			return err
 		}
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }

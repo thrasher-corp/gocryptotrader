@@ -30,7 +30,7 @@ func (b *Bitstamp) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (b *Bitstamp) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -215,12 +215,12 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 				Channel: channelsToSubscribe[i].Channel,
 			},
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(req)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
@@ -235,12 +235,12 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 				Channel: channelsToUnsubscribe[i].Channel,
 			},
 		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+		err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(req)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }

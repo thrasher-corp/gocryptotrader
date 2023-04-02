@@ -41,7 +41,7 @@ func (b *BTCMarkets) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (b *BTCMarkets) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -399,10 +399,10 @@ func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
 		payload.Timestamp = signTime
 	}
 
-	if err := b.Websocket.Conn.SendJSONMessage(payload); err != nil {
+	if err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload); err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(subs...)
+	b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(subs...)
 	return nil
 }
 
@@ -425,11 +425,11 @@ func (b *BTCMarkets) Unsubscribe(subs []stream.ChannelSubscription) error {
 		payload.MarketIDs = append(payload.MarketIDs, pair)
 	}
 
-	err := b.Websocket.Conn.SendJSONMessage(payload)
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(subs...)
+	b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(subs...)
 	return nil
 }
 

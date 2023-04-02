@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
@@ -53,16 +52,6 @@ type testResponse struct {
 }
 
 var defaultSetup = &WebsocketSetup{
-	ExchangeConfig: &config.Exchange{
-		Features: &config.FeaturesConfig{
-			Enabled: config.FeaturesEnabledConfig{Websocket: true},
-		},
-		API: config.APIConfig{
-			AuthenticatedWebsocketSupport: true,
-		},
-		WebsocketTrafficTimeout: time.Second * 5,
-		Name:                    "exchangeName",
-	},
 	DefaultURL:   "testDefaultURL",
 	RunningURL:   "wss://testRunningURL",
 	Connector:    func() error { return nil },
@@ -76,7 +65,6 @@ var defaultSetup = &WebsocketSetup{
 			{Channel: "TestSub4"},
 		}, nil
 	},
-	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
 }
 
 type dodgyConnection struct {
@@ -119,43 +107,6 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
 	}
 
-	websocketSetup.ExchangeConfig = &config.Exchange{}
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errExchangeConfigNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigNameUnset)
-	}
-	websocketSetup.ExchangeConfig.Name = "testname"
-
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketFeaturesIsUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketFeaturesIsUnset)
-	}
-
-	websocketSetup.Features = &protocol.Features{}
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errConfigFeaturesIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigFeaturesIsNil)
-	}
-
-	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketConnectorUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketConnectorUnset)
-	}
-
-	websocketSetup.Connector = func() error { return nil }
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketSubscriberUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriberUnset)
-	}
-
-	websocketSetup.Subscriber = func([]ChannelSubscription) error { return nil }
-	websocketSetup.Features.Unsubscribe = true
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketUnsubscriberUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketUnsubscriberUnset)
-	}
-
 	websocketSetup.Unsubscriber = func([]ChannelSubscription) error { return nil }
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errWebsocketSubscriptionsGeneratorUnset) {
@@ -191,12 +142,6 @@ func TestSetup(t *testing.T) {
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errInvalidTrafficTimeout) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidTrafficTimeout)
-	}
-
-	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
 
@@ -333,12 +278,12 @@ func TestWebsocket(t *testing.T) {
 	t.Parallel()
 	wsInit := Websocket{}
 	err := wsInit.Setup(&WebsocketSetup{
-		ExchangeConfig: &config.Exchange{
-			Features: &config.FeaturesConfig{
-				Enabled: config.FeaturesEnabledConfig{Websocket: true},
-			},
-			Name: "test",
-		},
+		// ExchangeConfig: &config.Exchange{
+		// 	Features: &config.FeaturesConfig{
+		// 		Enabled: config.FeaturesEnabledConfig{Websocket: true},
+		// 	},
+		// 	Name: "test",
+		// },
 	})
 	if !errors.Is(err, errWebsocketAlreadyInitialised) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)

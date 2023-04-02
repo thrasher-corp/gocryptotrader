@@ -35,7 +35,7 @@ func (z *ZB) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := z.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (z *ZB) WsConnect() error {
 func (z *ZB) wsReadData() {
 	defer z.Websocket.Wg.Done()
 	for {
-		resp := z.Websocket.Conn.ReadMessage()
+		resp := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -305,12 +305,12 @@ func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 			Event:   zWebsocketAddChannel,
 			Channel: channelsToSubscribe[i].Channel,
 		}
-		err := z.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+		err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		z.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		z.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -366,13 +366,13 @@ func (z *ZB) wsAddSubUser(ctx context.Context, username, password string) (*WsGe
 	request.Channel = "addSubUser"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = creds.Key
-	request.No = z.Websocket.Conn.GenerateMessageID(true)
+	request.No = z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true)
 
 	request.Sign, err = z.wsGenerateSignature(creds.Secret, request)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -409,14 +409,14 @@ func (z *ZB) wsGetSubUserList(ctx context.Context) (*WsGetSubUserListResponse, e
 	request.Channel = "getSubUserList"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = creds.Key
-	request.No = z.Websocket.Conn.GenerateMessageID(true)
+	request.No = z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true)
 
 	request.Sign, err = z.wsGenerateSignature(creds.Secret, request)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -450,7 +450,7 @@ func (z *ZB) wsDoTransferFunds(ctx context.Context, pair currency.Code, amount f
 		Currency:     pair,
 		FromUserName: fromUserName,
 		ToUserName:   toUserName,
-		No:           z.Websocket.Conn.GenerateMessageID(true),
+		No:           z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 	}
 	request.Channel = "doTransferFunds"
 	request.Event = zWebsocketAddChannel
@@ -460,7 +460,7 @@ func (z *ZB) wsDoTransferFunds(ctx context.Context, pair currency.Code, amount f
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +494,7 @@ func (z *ZB) wsCreateSubUserKey(ctx context.Context, assetPerm, entrustPerm, lev
 		KeyName:     keyName,
 		LeverPerm:   leverPerm,
 		MoneyPerm:   moneyPerm,
-		No:          z.Websocket.Conn.GenerateMessageID(true),
+		No:          z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 		ToUserID:    toUserID,
 	}
 	request.Channel = "createSubUserKey"
@@ -506,7 +506,7 @@ func (z *ZB) wsCreateSubUserKey(ctx context.Context, assetPerm, entrustPerm, lev
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -538,7 +538,7 @@ func (z *ZB) wsSubmitOrder(ctx context.Context, pair currency.Pair, amount, pric
 		Amount:    amount,
 		Price:     price,
 		TradeType: tradeType,
-		No:        z.Websocket.Conn.GenerateMessageID(true),
+		No:        z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 	}
 	request.Channel = pair.String() + "_order"
 	request.Event = zWebsocketAddChannel
@@ -548,7 +548,7 @@ func (z *ZB) wsSubmitOrder(ctx context.Context, pair currency.Pair, amount, pric
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -579,7 +579,7 @@ func (z *ZB) wsCancelOrder(ctx context.Context, pair currency.Pair, orderID int6
 
 	request := WsCancelOrderRequest{
 		ID: orderID,
-		No: z.Websocket.Conn.GenerateMessageID(true),
+		No: z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 	}
 	request.Channel = pair.String() + "_cancelorder"
 	request.Event = zWebsocketAddChannel
@@ -590,7 +590,7 @@ func (z *ZB) wsCancelOrder(ctx context.Context, pair currency.Pair, orderID int6
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -620,7 +620,7 @@ func (z *ZB) wsGetOrder(ctx context.Context, pair currency.Pair, orderID int64) 
 	}
 	request := WsGetOrderRequest{
 		ID: orderID,
-		No: z.Websocket.Conn.GenerateMessageID(true),
+		No: z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 	}
 	request.Channel = pair.String() + "_getorder"
 	request.Event = zWebsocketAddChannel
@@ -630,7 +630,7 @@ func (z *ZB) wsGetOrder(ctx context.Context, pair currency.Pair, orderID int64) 
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -662,7 +662,7 @@ func (z *ZB) wsGetOrders(ctx context.Context, pair currency.Pair, pageIndex, tra
 	request := WsGetOrdersRequest{
 		PageIndex: pageIndex,
 		TradeType: tradeType,
-		No:        z.Websocket.Conn.GenerateMessageID(true),
+		No:        z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 	}
 	request.Channel = pair.String() + "_getorders"
 	request.Event = zWebsocketAddChannel
@@ -673,7 +673,7 @@ func (z *ZB) wsGetOrders(ctx context.Context, pair currency.Pair, pageIndex, tra
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -705,7 +705,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(ctx context.Context, pair currency.Pair,
 	request := WsGetOrdersIgnoreTradeTypeRequest{
 		PageIndex: pageIndex,
 		PageSize:  pageSize,
-		No:        z.Websocket.Conn.GenerateMessageID(true),
+		No:        z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 	}
 	request.Channel = pair.String() + "_getordersignoretradetype"
 	request.Event = zWebsocketAddChannel
@@ -715,7 +715,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(ctx context.Context, pair currency.Pair,
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
@@ -748,7 +748,7 @@ func (z *ZB) wsGetAccountInfoRequest(ctx context.Context) (*WsGetAccountInfoResp
 		Channel:   "getaccountinfo",
 		Event:     zWebsocketAddChannel,
 		Accesskey: creds.Key,
-		No:        z.Websocket.Conn.GenerateMessageID(true),
+		No:        z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(true),
 	}
 
 	request.Sign, err = z.wsGenerateSignature(creds.Secret, request)
@@ -756,7 +756,7 @@ func (z *ZB) wsGetAccountInfoRequest(ctx context.Context) (*WsGetAccountInfoResp
 		return nil, err
 	}
 
-	resp, err := z.Websocket.Conn.SendMessageReturnResponse(request.No, request)
+	resp, err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}

@@ -196,7 +196,7 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 		defer b.Websocket.Wg.Done()
 		for {
 			select {
-			case <-b.Websocket.ShutdownC:
+			case <-b.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 				for {
 					select {
 					case <-b.obm.jobs:

@@ -42,14 +42,14 @@ func (g *Gemini) WsConnect() error {
 	}
 
 	var dialer websocket.Dialer
-	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
 	g.Websocket.Wg.Add(2)
 	go g.wsReadData()
-	go g.wsFunnelConnectionData(g.Websocket.Conn)
+	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.Spot].Conn)
 
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		err := g.WsAuth(context.TODO(), &dialer)
@@ -122,12 +122,12 @@ func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		Type:          "subscribe",
 		Subscriptions: subs,
 	}
-	err = g.Websocket.Conn.SendJSONMessage(wsSub)
+	err = g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(wsSub)
 	if err != nil {
 		return err
 	}
 
-	g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	g.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
@@ -166,12 +166,12 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		Type:          "unsubscribe",
 		Subscriptions: subs,
 	}
-	err = g.Websocket.Conn.SendJSONMessage(wsSub)
+	err = g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(wsSub)
 	if err != nil {
 		return err
 	}
 
-	g.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	g.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 
@@ -213,11 +213,11 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = g.Websocket.AuthConn.Dial(dialer, headers)
+	err = g.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(dialer, headers)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
-	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
+	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn)
 	return nil
 }
 
@@ -238,7 +238,7 @@ func (g *Gemini) wsReadData() {
 	defer g.Websocket.Wg.Done()
 	for {
 		select {
-		case <-g.Websocket.ShutdownC:
+		case <-g.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			select {
 			case resp := <-comms:
 				err := g.wsHandleData(resp.Raw)

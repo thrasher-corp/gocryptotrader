@@ -31,7 +31,7 @@ func (o *OKCoin) WsConnect() error {
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
-	err := o.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 			base64,
 		},
 	}
-	_, err = o.Websocket.Conn.SendMessageReturnResponse("login", request)
+	_, err = o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse("login", request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -95,7 +95,7 @@ func (o *OKCoin) WsReadData() {
 	defer o.Websocket.Wg.Done()
 
 	for {
-		resp := o.Websocket.Conn.ReadMessage()
+		resp := o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -439,7 +439,7 @@ func (o *OKCoin) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) err
 			Currency: c,
 			Asset:    a,
 		}
-		err := o.Websocket.ResubscribeToChannel(channelToResubscribe)
+		err := o.Websocket.AssetTypeWebsockets[asset.Spot].ResubscribeToChannel(channelToResubscribe)
 		if err != nil {
 			return fmt.Errorf("%s resubscribe to orderbook error %s", o.Name, err)
 		}
@@ -697,15 +697,15 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 			// commit last payload.
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
-			err = o.Websocket.Conn.SendJSONMessage(request)
+			err = o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(request)
 			if err != nil {
 				return err
 			}
 
 			if operation == "unsubscribe" {
-				o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+				o.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channels...)
 			} else {
-				o.Websocket.AddSuccessfulSubscriptions(channels...)
+				o.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channels...)
 			}
 
 			// Drop prior unsubs and chunked payload args on successful unsubscription
@@ -719,15 +719,15 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 	}
 
 	// Commit left overs to payload
-	err := o.Websocket.Conn.SendJSONMessage(request)
+	err := o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
 
 	if operation == "unsubscribe" {
-		o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+		o.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channels...)
 	} else {
-		o.Websocket.AddSuccessfulSubscriptions(channels...)
+		o.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channels...)
 	}
 	return nil
 }

@@ -70,12 +70,12 @@ func (b *Bitmex) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	resp := b.Websocket.Conn.ReadMessage()
+	resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 	if resp.Raw == nil {
 		return errors.New("connection closed")
 	}
@@ -119,7 +119,7 @@ func (b *Bitmex) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -634,11 +634,11 @@ func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		subscriber.Arguments = append(subscriber.Arguments,
 			channelsToSubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(subscriber)
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subscriber)
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
@@ -651,11 +651,11 @@ func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		unsubscriber.Arguments = append(unsubscriber.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(unsubscriber)
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unsubscriber)
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 
@@ -680,7 +680,7 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, creds.Key, timestamp,
 		signature)
-	err = b.Websocket.Conn.SendJSONMessage(sendAuth)
+	err = b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

@@ -3,6 +3,7 @@ package sharedtestvalues
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -45,5 +46,18 @@ func NewTestWebsocket() *stream.Websocket {
 		Subscribe:         make(chan []stream.ChannelSubscription, 10),
 		Unsubscribe:       make(chan []stream.ChannelSubscription, 10),
 		Match:             stream.NewMatch(),
+	}
+}
+
+// NewTestWrapperWebsocket returns a test websocket object
+func NewTestWrapperWebsocket() *stream.WrapperWebsocket {
+	return &stream.WrapperWebsocket{
+		Init:                true,
+		DataHandler:         make(chan interface{}, WebsocketChannelOverrideCapacity),
+		ToRoutine:           make(chan interface{}, 1000),
+		TrafficAlert:        make(chan struct{}),
+		ReadMessageErrors:   make(chan error),
+		AssetTypeWebsockets: make(map[asset.Item]*stream.Websocket),
+		Match:               stream.NewMatch(),
 	}
 }

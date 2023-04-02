@@ -32,6 +32,9 @@ var defaultDeliveryFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
+// deliveryFuturesResponseStream a channel thought which the data coming from the two websocket connection will go through.
+var deliveryFuturesResponseStream = make(chan stream.Response)
+
 var fetchedFuturesCurrencyPairSnapshotOrderbook map[string]bool
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
@@ -50,11 +53,11 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  deliveryRealBTCTradingURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
@@ -64,20 +67,20 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	g.Websocket.Wg.Add(3)
-	go g.wsFunnelConnectionData(g.Websocket.Conn)
-	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
+	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn)
+	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].AuthConn)
 	go g.wsReadData()
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      g.Websocket.Conn.GenerateMessageID(false),
+		ID:      g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn.GenerateMessageID(false),
 		Time:    time.Now().Unix(),
 		Channel: futuresPingChannel,
 	})
@@ -86,12 +89,13 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	}
 	g.Websocket.Wg.Add(1)
 	go g.wsReadData()
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
 		Message:     pingMessage,
 	})
+	println("Delivery Futures Connected!")
 	return nil
 }
 
@@ -132,8 +136,50 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.Channel
 				Channel:  channelsToSubscribe[i],
 				Currency: fpair.Upper(),
 				Params:   params,
+				Asset:    asset.DeliveryFutures,
 			})
 		}
 	}
 	return subscriptions, nil
+}
+
+// wsReadDeliveryFuturesData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
+func (g *Gateio) wsReadDeliveryFuturesData() {
+	defer g.Websocket.Wg.Done()
+	for {
+		select {
+		case <-g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].ShutdownC:
+			select {
+			case resp := <-deliveryFuturesResponseStream:
+				err := g.wsHandleFuturesData(resp.Raw)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-deliveryFuturesResponseStream:
+			err := g.wsHandleFuturesData(resp.Raw)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
+// wsFunnelDeliveryFuturesConnectionData receives data from multiple connection and pass the data
+// to wsRead through a channel responseStream
+func (g *Gateio) wsFunnelDeliveryFuturesConnectionData(ws stream.Connection) {
+	defer g.Websocket.Wg.Done()
+	for {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		deliveryFuturesResponseStream <- stream.Response{Raw: resp.Raw}
+	}
 }

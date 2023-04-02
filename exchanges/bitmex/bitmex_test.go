@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	bitmexConfig.API.AuthenticatedWebsocketSupport = true
 	bitmexConfig.API.Credentials.Key = apiKey
 	bitmexConfig.API.Credentials.Secret = apiSecret
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	// b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bitmexConfig)
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
@@ -850,7 +850,7 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

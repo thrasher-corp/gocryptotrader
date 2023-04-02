@@ -146,7 +146,7 @@ func (m *websocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) error {
+func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.WrapperWebsocket) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}

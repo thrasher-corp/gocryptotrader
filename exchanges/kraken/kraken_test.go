@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -53,7 +52,7 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.AuthenticatedSupport = true
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
-	k.Websocket = sharedtestvalues.NewTestWebsocket()
+	// k.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -1203,11 +1202,11 @@ func setupWsTests(t *testing.T) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := k.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1218,8 +1217,8 @@ func setupWsTests(t *testing.T) {
 	}
 	authToken = token
 	comms := make(chan stream.Response)
-	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
-	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
+	go k.wsFunnelConnectionData(k.Websocket.AssetTypeWebsockets[asset.Spot].Conn, comms)
+	go k.wsFunnelConnectionData(k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn, comms)
 	go k.wsReadData(comms)
 	go func() {
 		err := k.wsPingHandler()

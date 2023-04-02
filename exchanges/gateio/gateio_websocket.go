@@ -69,19 +69,19 @@ func (g *Gateio) WsConnect() error {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      g.Websocket.Conn.GenerateMessageID(false),
+		ID:      g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
 		Time:    time.Now().Unix(),
 		Channel: spotPingChannel,
 	})
 	if err != nil {
 		return err
 	}
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
@@ -89,6 +89,7 @@ func (g *Gateio) WsConnect() error {
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
+	println("Spot Connected!")
 	return nil
 }
 
@@ -105,7 +106,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 func (g *Gateio) wsReadConnData() {
 	defer g.Websocket.Wg.Done()
 	for {
-		resp := g.Websocket.Conn.ReadMessage()
+		resp := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -121,7 +122,7 @@ func (g *Gateio) wsReadData() {
 	defer g.Websocket.Wg.Done()
 	for {
 		select {
-		case <-g.Websocket.ShutdownC:
+		case <-g.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			select {
 			case resp := <-responseStream:
 				err := g.wsHandleData(resp.Raw)
@@ -158,6 +159,7 @@ func (g *Gateio) wsFunnelConnectionData(ws stream.Connection) {
 }
 
 func (g *Gateio) wsHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)
@@ -779,6 +781,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 				Channel:  channelsToSubscribe[i],
 				Currency: fpair.Upper(),
 				Params:   params,
+				Asset:    asset.Spot,
 			})
 		}
 	}
@@ -791,9 +794,10 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 	if err != nil {
 		return err
 	}
+	println("Payloads generated: ", len(payloads))
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -807,12 +811,13 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				g.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				g.Websocket.RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
+				g.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
 			}
 		}
 	}
+	fmt.Printf("\n\n\n\n\n\n Subscriptions end: %v\n\n\n", errs)
 	return errs
 }
 
@@ -1001,7 +1006,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			params = append(params, intervalString)
 		}
 		payloads[i] = WsInput{
-			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			ID:      g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,

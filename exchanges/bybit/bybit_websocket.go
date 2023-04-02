@@ -49,18 +49,18 @@ func (by *Bybit) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op":"ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(by.Websocket.Conn)
+	go by.wsReadData(by.Websocket.AssetTypeWebsockets[asset.Spot].Conn)
 	if by.IsWebsocketAuthenticationSupported() {
 		err = by.WsAuth(context.TODO())
 		if err != nil {
@@ -77,19 +77,19 @@ func (by *Bybit) WsConnect() error {
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth(ctx context.Context) error {
 	var dialer websocket.Dialer
-	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err := by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	by.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op":"ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(by.Websocket.AuthConn)
+	go by.wsReadData(by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn)
 
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
@@ -110,7 +110,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return by.Websocket.AuthConn.SendJSONMessage(req)
+	return by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(req)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -138,12 +138,12 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 				IsBinary: true,
 			}
 		}
-		err = by.Websocket.Conn.SendJSONMessage(subReq)
+		err = by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subReq)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		by.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
@@ -165,12 +165,12 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		unSub.Parameters = WsParams{
 			Symbol: formattedPair.String(),
 		}
-		err = by.Websocket.Conn.SendJSONMessage(unSub)
+		err = by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		by.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
@@ -230,7 +230,7 @@ func (by *Bybit) WsDataHandler() {
 	defer by.Websocket.Wg.Done()
 	for {
 		select {
-		case <-by.Websocket.ShutdownC:
+		case <-by.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			return
 		case resp := <-comms:
 			err := by.wsHandleData(resp.Raw)

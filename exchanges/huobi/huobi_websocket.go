@@ -93,12 +93,12 @@ func (h *HUOBI) WsConnect() error {
 }
 
 func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
-	err := h.Websocket.Conn.Dial(dialer, http.Header{})
+	err := h.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	h.Websocket.Wg.Add(1)
-	go h.wsFunnelConnectionData(h.Websocket.Conn, wsMarketURL)
+	go h.wsFunnelConnectionData(h.Websocket.AssetTypeWebsockets[asset.Spot].Conn, wsMarketURL)
 	return nil
 }
 
@@ -107,13 +107,13 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
 			h.Name)
 	}
-	err := h.Websocket.AuthConn.Dial(dialer, http.Header{})
+	err := h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
 	h.Websocket.Wg.Add(1)
-	go h.wsFunnelConnectionData(h.Websocket.AuthConn, wsAccountsOrdersURL)
+	go h.wsFunnelConnectionData(h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn, wsAccountsOrdersURL)
 	return nil
 }
 
@@ -135,7 +135,7 @@ func (h *HUOBI) wsReadData() {
 	defer h.Websocket.Wg.Done()
 	for {
 		select {
-		case <-h.Websocket.ShutdownC:
+		case <-h.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			select {
 			case resp := <-comms:
 				err := h.wsHandleData(resp.Raw)
@@ -224,7 +224,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			OP: "pong",
 			TS: init.TS,
 		}
-		err := h.Websocket.AuthConn.SendJSONMessage(authPing)
+		err := h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(authPing)
 		if err != nil {
 			log.Error(log.ExchangeSys, err)
 		}
@@ -444,7 +444,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 }
 
 func (h *HUOBI) sendPingResponse(pong int64) {
-	err := h.Websocket.Conn.SendJSONMessage(WsPong{Pong: pong})
+	err := h.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(WsPong{Pong: pong})
 	if err != nil {
 		log.Error(log.ExchangeSys, err)
 	}
@@ -565,17 +565,17 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+			h.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 			continue
 		}
-		err := h.Websocket.Conn.SendJSONMessage(WsRequest{
+		err := h.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(WsRequest{
 			Subscribe: channelsToSubscribe[i].Channel,
 		})
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		h.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -605,17 +605,17 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			h.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+			h.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 			continue
 		}
-		err := h.Websocket.Conn.SendJSONMessage(WsRequest{
+		err := h.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(WsRequest{
 			Unsubscribe: channelsToUnsubscribe[i].Channel,
 		})
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		h.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		h.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -658,7 +658,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 		return err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
-	err = h.Websocket.AuthConn.SendJSONMessage(request)
+	err = h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -683,7 +683,7 @@ func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, 
 		return err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
-	return h.Websocket.AuthConn.SendJSONMessage(request)
+	return h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(request)
 }
 
 func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
@@ -709,8 +709,8 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 		return nil, err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	request.ClientID = h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
@@ -760,9 +760,9 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 		return nil, err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	request.ClientID = h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(true)
 
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	resp, err := h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
@@ -803,8 +803,8 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 		return nil, err
 	}
 	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
+	request.ClientID = h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}

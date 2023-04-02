@@ -162,7 +162,7 @@ func (bi *Binanceus) SetDefaults() {
 			"%s setting default endpoints error %v",
 			bi.Name, err)
 	}
-	bi.Websocket = stream.New()
+	bi.Websocket = stream.NewWrapper()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -188,16 +188,9 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = bi.Websocket.Setup(&stream.WebsocketSetup{
+	err = bi.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             binanceusDefaultWebsocketURL,
-		RunningURL:             ePoint,
-		Connector:              bi.WsConnect,
-		Subscriber:             bi.Subscribe,
-		Unsubscriber:           bi.Unsubscribe,
-		GenerateSubscriptions:  bi.GenerateSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &bi.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -208,7 +201,17 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	bi.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            binanceusDefaultWebsocketURL,
+		RunningURL:            ePoint,
+		Connector:             bi.WsConnect,
+		Subscriber:            bi.Subscribe,
+		Unsubscriber:          bi.Unsubscribe,
+		GenerateSubscriptions: bi.GenerateSubscriptions,
+		AssetType:             asset.Spot,
+	})
+
+	return bi.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMilliseconds,

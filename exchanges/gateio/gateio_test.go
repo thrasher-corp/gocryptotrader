@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 	gConf.API.AuthenticatedWebsocketSupport = true
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
-	g.Websocket = sharedtestvalues.NewTestWebsocket()
+	g.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -3474,5 +3474,13 @@ func TestSettlement(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := g.WsConnect()
+	if err != nil {
+		t.Error(err)
 	}
 }

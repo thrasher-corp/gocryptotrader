@@ -28,6 +28,7 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	testCurrency            = "btc_usdt"
+	mockTests               = false
 )
 
 var z ZB
@@ -49,7 +50,7 @@ func setupWsAuth(t *testing.T) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := z.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := z.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

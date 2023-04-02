@@ -45,7 +45,7 @@ func TestWsHandleData(t *testing.T) {
 					},
 				},
 			},
-			Websocket: &stream.Websocket{
+			Websocket: &stream.WrapperWebsocket{
 				Wg:          new(sync.WaitGroup),
 				DataHandler: make(chan interface{}, 1),
 			},

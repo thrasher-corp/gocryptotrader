@@ -154,7 +154,7 @@ func (o *OKCoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	o.Websocket = stream.New()
+	o.Websocket = stream.NewWrapper()
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -179,22 +179,25 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = o.Websocket.Setup(&stream.WebsocketSetup{
+	err = o.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             wsEndpoint,
-		RunningURL:             wsEndpoint,
-		Connector:              o.WsConnect,
-		Subscriber:             o.Subscribe,
-		Unsubscriber:           o.Unsubscribe,
-		GenerateSubscriptions:  o.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
-	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	o.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            wsEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             o.WsConnect,
+		Subscriber:            o.Subscribe,
+		Unsubscriber:          o.Unsubscribe,
+		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+	})
+
+	return o.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            okcoinWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

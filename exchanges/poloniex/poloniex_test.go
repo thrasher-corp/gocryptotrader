@@ -563,7 +563,7 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := p.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

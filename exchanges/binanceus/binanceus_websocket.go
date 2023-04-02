@@ -68,7 +68,7 @@ func (bi *Binanceus) WsConnect() error {
 			}
 		}
 	}
-	err = bi.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = bi.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			bi.Name,
@@ -80,7 +80,7 @@ func (bi *Binanceus) WsConnect() error {
 		go bi.KeepAuthKeyAlive()
 	}
 
-	bi.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	bi.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -108,7 +108,7 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
-		case <-bi.Websocket.ShutdownC:
+		case <-bi.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			ticks.Stop()
 			return
 		case <-ticks.C:
@@ -127,7 +127,7 @@ func (bi *Binanceus) wsReadData() {
 	defer bi.Websocket.Wg.Done()
 
 	for {
-		resp := bi.Websocket.Conn.ReadMessage()
+		resp := bi.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -575,7 +575,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload)
 			if err != nil {
 				return err
 			}
@@ -583,12 +583,12 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload)
 		if err != nil {
 			return err
 		}
 	}
-	bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	bi.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
@@ -600,7 +600,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscript
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := bi.Websocket.Conn.SendJSONMessage(payload)
+			err := bi.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload)
 			if err != nil {
 				return err
 			}
@@ -608,12 +608,12 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscript
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := bi.Websocket.Conn.SendJSONMessage(payload)
+		err := bi.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload)
 		if err != nil {
 			return err
 		}
 	}
-	bi.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	bi.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 
@@ -648,7 +648,7 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 		defer bi.Websocket.Wg.Done()
 		for {
 			select {
-			case <-bi.Websocket.ShutdownC:
+			case <-bi.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 				for {
 					select {
 					case <-bi.obm.jobs:

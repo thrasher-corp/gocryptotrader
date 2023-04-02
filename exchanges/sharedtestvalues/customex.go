@@ -299,7 +299,7 @@ func (c *CustomEx) EnableRateLimiter() error {
 }
 
 // GetWebsocket is a mock method for CustomEx
-func (c *CustomEx) GetWebsocket() (*stream.Websocket, error) {
+func (c *CustomEx) GetWebsocket() (*stream.WrapperWebsocket, error) {
 	return nil, nil
 }
 

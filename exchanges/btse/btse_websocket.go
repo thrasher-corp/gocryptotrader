@@ -32,11 +32,11 @@ func (b *BTSE) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
@@ -77,7 +77,7 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 		Operation: "authKeyExpires",
 		Arguments: []string{creds.Key, nonce, sign},
 	}
-	return b.Websocket.Conn.SendJSONMessage(req)
+	return b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(req)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -106,7 +106,7 @@ func (b *BTSE) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -386,11 +386,11 @@ func (b *BTSE) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error
 	for i := range channelsToSubscribe {
 		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(sub)
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(sub)
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
@@ -402,10 +402,10 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 		unSub.Arguments = append(unSub.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(unSub)
+	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unSub)
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }

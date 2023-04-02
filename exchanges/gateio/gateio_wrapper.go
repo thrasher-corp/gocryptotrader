@@ -30,6 +30,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var spotWebsocket, futuresWebsocket, deliveryFuturesWebsocket, optionsWebsocket *stream.Websocket
+
 // GetDefaultConfig returns a default exchange config
 func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
 	g.SetDefaults()
@@ -145,18 +147,22 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = g.DisableAssetWebsocketSupport(asset.Futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = g.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
+	// err = g.DisableAssetWebsocketSupport(asset.Futures)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = g.DisableAssetWebsocketSupport(asset.CrossMargin)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
+	// err = g.DisableAssetWebsocketSupport(asset.Options)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
 	g.API.Endpoints = g.NewEndpoints()
 	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
@@ -167,7 +173,7 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	g.Websocket = stream.New()
+	g.Websocket = stream.NewWrapper()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -187,32 +193,124 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
+	subscriptionFilter := func(cs []stream.ChannelSubscription, a asset.Item) ([]stream.ChannelSubscription, error) {
+		subscriptions := []stream.ChannelSubscription{}
+		for x := range cs {
+			if cs[x].Asset == a {
+				subscriptions = append(subscriptions, cs[x])
+			}
+		}
+		return subscriptions, nil
+	}
 	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
+	err = g.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             gateioWebsocketEndpoint,
-		RunningURL:             wsRunningURL,
-		Connector:              g.WsConnect,
-		Subscriber:             g.Subscribe,
-		Unsubscriber:           g.Unsubscribe,
-		GenerateSubscriptions:  g.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		Features:               &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	spotWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            gateioWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsConnect,
+		Subscriber:            g.Subscribe,
+		Unsubscriber:          g.Unsubscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+		SubscriptionFilter:    subscriptionFilter,
+	})
+	if err != nil {
+		fmt.Printf("Error 01: %v", err)
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  gateioWebsocketEndpoint,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
+	if err != nil {
+		fmt.Printf("Error 1: %v", err)
+		return err
+	}
+	futuresWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            gateioWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsFuturesConnect,
+		Subscriber:            g.OptionsAndFuturesSubscribe,
+		Unsubscriber:          g.OptionsAndFuturesUnsubscribe,
+		GenerateSubscriptions: g.GenerateFuturesDefaultSubscriptions,
+		AssetType:             asset.Futures,
+		SubscriptionFilter:    subscriptionFilter,
+	})
+	if err != nil {
+		fmt.Printf("Error 00: %v", err)
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.Futures].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  gateioWebsocketEndpoint,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		fmt.Printf("Error 0: %v", err)
+		return err
+	}
+	deliveryFuturesWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            gateioWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsDeliveryFuturesConnect,
+		Subscriber:            g.OptionsAndFuturesSubscribe,
+		Unsubscriber:          g.OptionsAndFuturesUnsubscribe,
+		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
+		AssetType:             asset.DeliveryFutures,
+		SubscriptionFilter:    subscriptionFilter,
+	})
+	if err != nil {
+		fmt.Printf("Error 02: %v", err)
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  gateioWebsocketEndpoint,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		fmt.Printf("Error 2: %v", err)
+		return err
+	}
+	optionsWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            gateioWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsOptionsConnect,
+		Subscriber:            g.OptionsAndFuturesSubscribe,
+		Unsubscriber:          g.OptionsAndFuturesUnsubscribe,
+		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
+		AssetType:             asset.Options,
+		SubscriptionFilter:    subscriptionFilter,
+	})
+	if err != nil {
+		fmt.Printf("Error 03: %v", err)
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  gateioWebsocketEndpoint,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		fmt.Printf("Error 3: %v", err)
+		return err
+	}
+	return nil
 }
 
 // Start starts the GateIO go routine

@@ -44,6 +44,9 @@ var (
 	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errClosedConnection                     = errors.New("use of closed network connection")
+	errDisconnectedConnectionShutdown       = errors.New("cannot shutdown a disconnected websocket")
+	errReconnectingConnectionShutdown       = errors.New("cannot shutdown, in the process of reconnection")
+	errWebsocketSubscriptionFilterUnset     = errors.New("websocket subscription filter function not set")
 )
 
 var globalReporter Reporter
@@ -82,26 +85,6 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
-	if s.ExchangeConfig == nil {
-		return errExchangeConfigIsNil
-	}
-
-	if s.ExchangeConfig.Name == "" {
-		return errExchangeConfigNameUnset
-	}
-	w.exchangeName = s.ExchangeConfig.Name
-	w.verbose = s.ExchangeConfig.Verbose
-
-	if s.Features == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketFeaturesIsUnset)
-	}
-	w.features = s.Features
-
-	if s.ExchangeConfig.Features == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errConfigFeaturesIsNil)
-	}
-	w.enabled = s.ExchangeConfig.Features.Enabled.Websocket
-
 	if s.Connector == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
 	}
@@ -115,17 +98,16 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if w.features.Unsubscribe && s.Unsubscriber == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketUnsubscriberUnset)
 	}
-	w.connectionMonitorDelay = s.ConnectionMonitorDelay
-	if w.connectionMonitorDelay <= 0 {
-		w.connectionMonitorDelay = config.DefaultConnectionMonitorDelay
-	}
 	w.Unsubscriber = s.Unsubscriber
 
 	if s.GenerateSubscriptions == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketSubscriptionsGeneratorUnset)
+		return fmt.Errorf("%s %v %w", w.exchangeName, s.AssetType, errWebsocketSubscriptionsGeneratorUnset)
 	}
 	w.GenerateSubs = s.GenerateSubscriptions
-
+	if s.SubscriptionFilter == nil {
+		return fmt.Errorf("%s %v %w", w.exchangeName, s.AssetType, errWebsocketSubscriptionFilterUnset)
+	}
+	w.SubscriptionFilter = s.SubscriptionFilter
 	if s.DefaultURL == "" {
 		return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
 	}
@@ -145,24 +127,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		}
 	}
 
-	if s.ExchangeConfig.WebsocketTrafficTimeout < time.Second {
-		return fmt.Errorf("%s %w cannot be less than %s",
-			w.exchangeName,
-			errInvalidTrafficTimeout,
-			time.Second)
-	}
-	w.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
-
 	w.ShutdownC = make(chan struct{})
 	w.Wg = new(sync.WaitGroup)
-	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
-
-	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.DataHandler); err != nil {
-		return err
-	}
-
-	w.Trade.Setup(w.exchangeName, s.TradeFeed, w.DataHandler)
-	w.Fills.Setup(s.FillsFeed, w.DataHandler)
 	return nil
 }
 
@@ -190,10 +156,6 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	connectionURL := w.GetWebsocketURL()
 	if c.URL != "" {
 		connectionURL = c.URL
-	}
-
-	if c.ConnectionLevelReporter == nil {
-		c.ConnectionLevelReporter = w.ExchangeLevelReporter
 	}
 
 	if c.ConnectionLevelReporter == nil {
@@ -266,7 +228,6 @@ func (w *Websocket) Connect() error {
 			w.GetName(),
 			err)
 	}
-
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
 		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
@@ -423,13 +384,13 @@ func (w *Websocket) Shutdown() error {
 	defer w.m.Unlock()
 
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket: cannot shutdown a disconnected websocket",
-			w.exchangeName)
+		return fmt.Errorf("%v websocket: %w",
+			w.exchangeName, errDisconnectedConnectionShutdown)
 	}
 
 	if w.IsConnecting() {
-		return fmt.Errorf("%v websocket: cannot shutdown, in the process of reconnection",
-			w.exchangeName)
+		return fmt.Errorf("%v websocket: %w",
+			w.exchangeName, errReconnectingConnectionShutdown)
 	}
 
 	if w.verbose {

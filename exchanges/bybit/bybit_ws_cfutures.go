@@ -61,7 +61,7 @@ func (by *Bybit) WsCoinConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (by *Bybit) WsCoinConnect() error {
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
 		Message:     pingMsg,
 		MessageType: websocket.PingMessage,
 		Delay:       bybitWebsocketTimer,
@@ -116,7 +116,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return by.Websocket.Conn.SendJSONMessage(req)
+	return by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(req)
 }
 
 // SubscribeCoin sends a websocket message to receive data from the channel
@@ -127,12 +127,12 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 		sub.Topic = subscribe
 
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
-		err := by.Websocket.Conn.SendJSONMessage(sub)
+		err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		by.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -161,12 +161,12 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 			continue
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
-		err = by.Websocket.Conn.SendJSONMessage(unSub)
+		err = by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		by.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
@@ -178,10 +178,10 @@ func (by *Bybit) wsCoinReadData() {
 
 	for {
 		select {
-		case <-by.Websocket.ShutdownC:
+		case <-by.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
 			return
 		default:
-			resp := by.Websocket.Conn.ReadMessage()
+			resp := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}

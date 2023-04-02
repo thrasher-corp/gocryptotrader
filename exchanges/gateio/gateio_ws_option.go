@@ -77,12 +77,12 @@ func (g *Gateio) WsOptionsConnect() error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = g.Websocket.AssetTypeWebsockets[asset.Options].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      g.Websocket.Conn.GenerateMessageID(false),
+		ID:      g.Websocket.AssetTypeWebsockets[asset.Options].Conn.GenerateMessageID(false),
 		Time:    time.Now().Unix(),
 		Channel: optionsPingChannel,
 	})
@@ -91,12 +91,13 @@ func (g *Gateio) WsOptionsConnect() error {
 	}
 	g.Websocket.Wg.Add(1)
 	go g.wsReadOptionsConnData()
-	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	g.Websocket.AssetTypeWebsockets[asset.Options].Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
 		Message:     pingMessage,
 	})
+	println("Options Connected!")
 	return nil
 }
 
@@ -135,6 +136,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 				Channel:  channelsToSubscribe[i],
 				Currency: fpair.Upper(),
 				Params:   params,
+				Asset:    asset.Options,
 			})
 		}
 	}
@@ -145,7 +147,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 func (g *Gateio) wsReadOptionsConnData() {
 	defer g.Websocket.Wg.Done()
 	for {
-		resp := g.Websocket.Conn.ReadMessage()
+		resp := g.Websocket.AssetTypeWebsockets[asset.Options].Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}

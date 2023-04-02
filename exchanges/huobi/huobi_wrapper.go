@@ -177,7 +177,7 @@ func (h *HUOBI) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	h.Websocket = stream.New()
+	h.Websocket = stream.NewWrapper()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -203,22 +203,25 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
+	err = h.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
-		DefaultURL:             wsMarketURL,
-		RunningURL:             wsRunningURL,
-		Connector:              h.WsConnect,
-		Subscriber:             h.Subscribe,
-		Unsubscriber:           h.Unsubscribe,
-		GenerateSubscriptions:  h.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	h.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            wsMarketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             h.WsConnect,
+		Subscriber:            h.Subscribe,
+		Unsubscriber:          h.Unsubscribe,
+		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		AssetType:             asset.Spot,
+	})
+
+	err = h.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -227,7 +230,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return h.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -629,7 +632,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	info.Exchange = h.Name
 	switch assetType {
 	case asset.Spot:
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if h.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := h.wsGetAccountsList(ctx)
 			if err != nil {
 				return info, err
@@ -1136,7 +1139,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	switch assetType {
 	case asset.Spot:
 		var respData *OrderInfo
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if h.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := h.wsGetOrderDetails(ctx, orderID)
 			if err != nil {
 				return orderDetail, err
@@ -1356,7 +1359,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if h.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
 			for i := range req.Pairs {
 				resp, err := h.wsGetOrdersList(ctx, -1, req.Pairs[i])
 				if err != nil {
