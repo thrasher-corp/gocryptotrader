@@ -109,8 +109,11 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 
 			if input.Implements(contextParam) {
 				// Need to deploy a context.Context value as nil value is not
-				// checked throughout codebase.
-				inputs[y] = reflect.ValueOf(context.Background())
+				// checked throughout codebase. Cancelled to minimise external
+				// calls and speed up operation.
+				cancelled, cancelfn := context.WithTimeout(context.Background(), 0)
+				cancelfn()
+				inputs[y] = reflect.ValueOf(cancelled)
 				continue
 			}
 			inputs[y] = reflect.Zero(input)

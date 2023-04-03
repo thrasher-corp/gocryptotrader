@@ -31,7 +31,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
+func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	g.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = g.Name
@@ -44,7 +44,7 @@ func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = g.UpdateTradablePairs(context.TODO(), true)
+		err = g.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -193,20 +193,20 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the GateIO go routine
-func (g *Gateio) Start(wg *sync.WaitGroup) error {
+func (g *Gateio) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		g.Run()
+		g.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the GateIO wrapper
-func (g *Gateio) Run() {
+func (g *Gateio) Run(ctx context.Context) {
 	if g.Verbose {
 		g.PrintEnabledPairs()
 	}
@@ -215,7 +215,7 @@ func (g *Gateio) Run() {
 		return
 	}
 
-	err := g.UpdateTradablePairs(context.TODO(), false)
+	err := g.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)
 	}

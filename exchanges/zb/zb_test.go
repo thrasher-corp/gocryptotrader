@@ -59,12 +59,12 @@ func setupWsAuth(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	err := z.Start(nil)
+	err := z.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
-	err = z.Start(&testWg)
+	err = z.Start(context.Background(), &testWg)
 	if err != nil {
 		t.Fatal(err)
 	}

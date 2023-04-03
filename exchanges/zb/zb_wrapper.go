@@ -30,7 +30,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (z *ZB) GetDefaultConfig() (*config.Exchange, error) {
+func (z *ZB) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	z.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = z.Name
@@ -43,7 +43,7 @@ func (z *ZB) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if z.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = z.UpdateTradablePairs(context.TODO(), true)
+		err = z.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -193,20 +193,20 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the ZB go routine
-func (z *ZB) Start(wg *sync.WaitGroup) error {
+func (z *ZB) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		z.Run()
+		z.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the ZB wrapper
-func (z *ZB) Run() {
+func (z *ZB) Run(ctx context.Context) {
 	if z.Verbose {
 		z.PrintEnabledPairs()
 	}
@@ -215,7 +215,7 @@ func (z *ZB) Run() {
 		return
 	}
 
-	err := z.UpdateTradablePairs(context.TODO(), false)
+	err := z.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", z.Name, err)
 	}
