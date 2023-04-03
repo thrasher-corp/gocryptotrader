@@ -1576,13 +1576,13 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	startTime := time.Now().Add(-time.Hour * 1)
-	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
+	_, err = h.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1595,7 +1595,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
-	_, err = h.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
+	_, err = h.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1608,9 +1608,22 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
-	_, err = h.GetHistoricCandles(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
+	_, err = h.GetHistoricCandles(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestHandleHuobiCandleTimeTranslation(t *testing.T) {
+	t.Parallel()
+	tt := time.Unix(1680192000, 0)
+	tt1 := handleHuobiCandleTimeTranslation(tt, kline.OneHour)
+	tt2 := handleHuobiCandleTimeTranslation(tt, kline.OneDay)
+	if !tt.Equal(tt1) {
+		t.Error("expected equal times")
+	}
+	if tt.Equal(tt2) {
+		t.Errorf("received '%v' expected '%v", tt, tt2)
 	}
 }
 
@@ -1620,8 +1633,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	startTime := time.Now().Add(-time.Hour * 1)
-	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Error(err)
 	}
@@ -1634,8 +1647,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
-	h.Verbose = true
-	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.Futures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// demonstrate that adjusting time doesn't wreck non-day intervals
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.Futures, kline.OneHour, endTime.AddDate(0, 0, -1), endTime)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1648,7 +1666,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
-	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneDay, startTime.AddDate(0, 0, -7), time.Now())
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = h.GetHistoricCandlesExtended(context.Background(), pairs[0], asset.CoinMarginedFutures, kline.OneHour, endTime.AddDate(0, 0, -1), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
