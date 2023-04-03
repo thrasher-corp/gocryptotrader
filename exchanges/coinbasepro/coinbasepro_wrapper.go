@@ -30,7 +30,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (c *CoinbasePro) GetDefaultConfig() (*config.Exchange, error) {
+func (c *CoinbasePro) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	c.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
@@ -43,7 +43,7 @@ func (c *CoinbasePro) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = c.UpdateTradablePairs(context.TODO(), true)
+		err = c.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -196,20 +196,20 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the coinbasepro go routine
-func (c *CoinbasePro) Start(wg *sync.WaitGroup) error {
+func (c *CoinbasePro) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		c.Run()
+		c.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the coinbasepro wrapper
-func (c *CoinbasePro) Run() {
+func (c *CoinbasePro) Run(ctx context.Context) {
 	if c.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
@@ -277,7 +277,7 @@ func (c *CoinbasePro) Run() {
 		return
 	}
 
-	err := c.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := c.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}

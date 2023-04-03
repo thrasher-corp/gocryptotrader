@@ -31,7 +31,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (h *HitBTC) GetDefaultConfig() (*config.Exchange, error) {
+func (h *HitBTC) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	h.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = h.Name
@@ -44,7 +44,7 @@ func (h *HitBTC) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(context.TODO(), true)
+		err = h.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -199,20 +199,20 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the HitBTC go routine
-func (h *HitBTC) Start(wg *sync.WaitGroup) error {
+func (h *HitBTC) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		h.Run()
+		h.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the HitBTC wrapper
-func (h *HitBTC) Run() {
+func (h *HitBTC) Run(ctx context.Context) {
 	if h.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.Name, common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
 		h.PrintEnabledPairs()
@@ -273,7 +273,7 @@ func (h *HitBTC) Run() {
 		return
 	}
 
-	err := h.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := h.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

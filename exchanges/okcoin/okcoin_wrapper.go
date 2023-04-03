@@ -29,7 +29,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
+func (o *OKCoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	o.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = o.Name
@@ -42,7 +42,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(context.TODO(), true)
+		err = o.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -202,20 +202,20 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the OKCoin go routine
-func (o *OKCoin) Start(wg *sync.WaitGroup) error {
+func (o *OKCoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		o.Run()
+		o.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the OKCoin wrapper
-func (o *OKCoin) Run() {
+func (o *OKCoin) Run(ctx context.Context) {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -285,7 +285,7 @@ func (o *OKCoin) Run() {
 		return
 	}
 
-	err = o.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err = o.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

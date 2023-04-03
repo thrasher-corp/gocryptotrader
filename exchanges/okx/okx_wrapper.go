@@ -36,7 +36,7 @@ const (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
+func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	ok.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = ok.Name
@@ -49,7 +49,7 @@ func (ok *Okx) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := ok.UpdateTradablePairs(context.TODO(), false)
+		err := ok.UpdateTradablePairs(ctx, false)
 		if err != nil {
 			return nil, err
 		}
@@ -233,20 +233,20 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Okx go routine
-func (ok *Okx) Start(wg *sync.WaitGroup) error {
+func (ok *Okx) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		ok.Run()
+		ok.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Okx wrapper
-func (ok *Okx) Run() {
+func (ok *Okx) Run(ctx context.Context) {
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -258,7 +258,7 @@ func (ok *Okx) Run() {
 	if !ok.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err := ok.UpdateTradablePairs(context.TODO(), false)
+	err := ok.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

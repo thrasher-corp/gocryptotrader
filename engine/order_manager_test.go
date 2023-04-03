@@ -265,7 +265,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	}
 	exch.SetDefaults()
 
-	cfg, err := exch.GetDefaultConfig()
+	cfg, err := exch.GetDefaultConfig(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
@@ -34,7 +35,7 @@ func main() {
 	cfgs := make([]config.Exchange, 0, len(exchanges))
 	for x := range exchanges {
 		var cfg *config.Exchange
-		cfg, err = exchanges[x].GetDefaultConfig()
+		cfg, err = exchanges[x].GetDefaultConfig(context.Background())
 		if err != nil {
 			log.Printf("Failed to get exchanges default config. Err: %s", err)
 			continue

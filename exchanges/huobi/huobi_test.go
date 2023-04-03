@@ -94,12 +94,12 @@ func setupWsTests(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	err := h.Start(nil)
+	err := h.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
-	err = h.Start(&testWg)
+	err = h.Start(context.Background(), &testWg)
 	if err != nil {
 		t.Error(err)
 	}

@@ -28,7 +28,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (l *Lbank) GetDefaultConfig() (*config.Exchange, error) {
+func (l *Lbank) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	l.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = l.Name
@@ -41,7 +41,7 @@ func (l *Lbank) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = l.UpdateTradablePairs(context.TODO(), true)
+		err = l.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -149,20 +149,20 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Lbank go routine
-func (l *Lbank) Start(wg *sync.WaitGroup) error {
+func (l *Lbank) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		l.Run()
+		l.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Lbank wrapper
-func (l *Lbank) Run() {
+func (l *Lbank) Run(ctx context.Context) {
 	if l.Verbose {
 		l.PrintEnabledPairs()
 	}
@@ -171,7 +171,7 @@ func (l *Lbank) Run() {
 		return
 	}
 
-	err := l.UpdateTradablePairs(context.TODO(), false)
+	err := l.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
