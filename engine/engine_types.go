@@ -72,6 +72,7 @@ type Settings struct {
 	TradeBufferProcessingInterval       time.Duration
 	RequestMaxRetryAttempts             int
 	AlertSystemPreAllocationCommsBuffer int // See exchanges/alert.go
+	ExchangeShutdownTimeout             time.Duration
 
 	// Global HTTP related settings
 	GlobalHTTPTimeout   time.Duration

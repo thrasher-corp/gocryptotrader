@@ -222,13 +222,13 @@ func TestNewCustomExchangeByName(t *testing.T) {
 func TestExchangeManagerShutdown(t *testing.T) {
 	t.Parallel()
 	var m *ExchangeManager
-	err := m.Shutdown()
+	err := m.Shutdown(-1)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
 	}
 
 	m = NewExchangeManager()
-	err = m.Shutdown()
+	err = m.Shutdown(-1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -241,7 +241,7 @@ func TestExchangeManagerShutdown(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = m.Shutdown()
+	err = m.Shutdown(-1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

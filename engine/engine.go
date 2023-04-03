@@ -713,7 +713,7 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	err := bot.ExchangeManager.Shutdown()
+	err := bot.ExchangeManager.Shutdown(bot.Settings.ExchangeShutdownTimeout)
 	if err != nil {
 		gctlog.Errorf(gctlog.Global, "Exchange manager unable to stop. Error: %v", err)
 	}

@@ -218,13 +218,13 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 }
 
 // Shutdown shuts down all exchanges and unloads them
-func (m *ExchangeManager) Shutdown() error {
+func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 	if m == nil {
 		return fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 
 	var mtx sync.Mutex
-	timer := time.NewTimer(time.Second * 10)
+	timer := time.NewTimer(shutdownTimeout)
 	var wg sync.WaitGroup
 
 	m.mtx.Lock()
