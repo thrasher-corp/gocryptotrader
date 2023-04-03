@@ -1531,7 +1531,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	// NOTE: The checks below make sure a client is notified that using this
+	// NOTE: The checks below makes sure a client is notified that using this
 	// functionality will result in error if the total candles cannot be
 	// theoretically retrieved.
 	if fixedAPICandleLength {
