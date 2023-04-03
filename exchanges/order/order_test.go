@@ -1450,9 +1450,9 @@ func TestMatchFilter(t *testing.T) {
 	}
 
 	tests := map[int]struct {
-		f      Filter
-		o      Detail
-		expRes bool
+		f              Filter
+		o              Detail
+		expectedResult bool
 	}{
 		0:  {filters[1], orders[1], true},
 		1:  {filters[1], orders[0], false},
@@ -1495,7 +1495,7 @@ func TestMatchFilter(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range tests {
-		if tt.o.MatchFilter(&tt.f) != tt.expRes {
+		if tt.o.MatchFilter(&tt.f) != tt.expectedResult {
 			t.Errorf("tests[%v] failed", num)
 		}
 	}
@@ -1510,8 +1510,8 @@ func TestIsActive(t *testing.T) {
 	}
 
 	amountTests := map[int]struct {
-		o      Detail
-		expRes bool
+		o              Detail
+		expectedResult bool
 	}{
 		0: {orders[0], false},
 		1: {orders[1], true},
@@ -1520,14 +1520,14 @@ func TestIsActive(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range amountTests {
-		if tt.o.IsActive() != tt.expRes {
+		if tt.o.IsActive() != tt.expectedResult {
 			t.Errorf("amountTests[%v] failed", num)
 		}
 	}
 
 	statusTests := map[int]struct {
-		o      Detail
-		expRes bool
+		o              Detail
+		expectedResult bool
 	}{
 		// For now force inactive on any status
 		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
@@ -1552,7 +1552,7 @@ func TestIsActive(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range statusTests {
-		if tt.o.IsActive() != tt.expRes {
+		if tt.o.IsActive() != tt.expectedResult {
 			t.Fatalf("statusTests[%v] failed", num)
 		}
 	}
@@ -1579,8 +1579,8 @@ func TestIsInactive(t *testing.T) {
 	}
 
 	amountTests := map[int]struct {
-		o      Detail
-		expRes bool
+		o              Detail
+		expectedResult bool
 	}{
 		0: {orders[0], true},
 		1: {orders[1], false},
@@ -1589,14 +1589,14 @@ func TestIsInactive(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range amountTests {
-		if tt.o.IsInactive() != tt.expRes {
+		if tt.o.IsInactive() != tt.expectedResult {
 			t.Errorf("amountTests[%v] failed", num)
 		}
 	}
 
 	statusTests := map[int]struct {
-		o      Detail
-		expRes bool
+		o              Detail
+		expectedResult bool
 	}{
 		// For now force inactive on any status
 		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, true},
@@ -1621,7 +1621,7 @@ func TestIsInactive(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range statusTests {
-		if tt.o.IsInactive() != tt.expRes {
+		if tt.o.IsInactive() != tt.expectedResult {
 			t.Errorf("statusTests[%v] failed", num)
 		}
 	}
@@ -1641,8 +1641,8 @@ func BenchmarkIsInactive(b *testing.B) {
 func TestIsOrderPlaced(t *testing.T) {
 	t.Parallel()
 	statusTests := map[int]struct {
-		o      Detail
-		expRes bool
+		o              Detail
+		expectedResult bool
 	}{
 		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
 		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
@@ -1669,7 +1669,7 @@ func TestIsOrderPlaced(t *testing.T) {
 		tt := tt
 		t.Run(fmt.Sprintf("TEST CASE: %d", num), func(t *testing.T) {
 			t.Parallel()
-			if tt.o.WasOrderPlaced() != tt.expRes {
+			if tt.o.WasOrderPlaced() != tt.expectedResult {
 				t.Errorf("statusTests[%v] failed", num)
 			}
 		})

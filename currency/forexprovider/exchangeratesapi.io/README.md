@@ -1,4 +1,4 @@
-# GoCryptoTrader package Exchangeratesapi.Io
+# GoCryptoTrader package Exchangeratesapi.io
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 

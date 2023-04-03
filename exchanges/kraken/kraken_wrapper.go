@@ -32,7 +32,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig() (*config.Exchange, error) {
+func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	k.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = k.Name
@@ -45,7 +45,7 @@ func (k *Kraken) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = k.UpdateTradablePairs(context.TODO(), true)
+		err = k.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -254,20 +254,20 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Kraken go routine
-func (k *Kraken) Start(wg *sync.WaitGroup) error {
+func (k *Kraken) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		k.Run()
+		k.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Kraken wrapper
-func (k *Kraken) Run() {
+func (k *Kraken) Run(ctx context.Context) {
 	if k.Verbose {
 		k.PrintEnabledPairs()
 	}
@@ -331,7 +331,7 @@ func (k *Kraken) Run() {
 		return
 	}
 
-	err := k.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := k.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

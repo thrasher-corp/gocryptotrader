@@ -31,7 +31,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (p *Poloniex) GetDefaultConfig() (*config.Exchange, error) {
+func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	p.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = p.Name
@@ -44,7 +44,7 @@ func (p *Poloniex) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = p.UpdateTradablePairs(context.TODO(), true)
+		err = p.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -209,20 +209,20 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Poloniex go routine
-func (p *Poloniex) Start(wg *sync.WaitGroup) error {
+func (p *Poloniex) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		p.Run()
+		p.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Poloniex wrapper
-func (p *Poloniex) Run() {
+func (p *Poloniex) Run(ctx context.Context) {
 	if p.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s (url: %s).\n",
@@ -254,7 +254,7 @@ func (p *Poloniex) Run() {
 		return
 	}
 
-	err = p.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err = p.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
