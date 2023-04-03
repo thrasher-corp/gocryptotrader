@@ -30,7 +30,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (h *HUOBI) GetDefaultConfig() (*config.Exchange, error) {
+func (h *HUOBI) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	h.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = h.Name
@@ -43,7 +43,7 @@ func (h *HUOBI) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(context.TODO(), true)
+		err = h.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -237,20 +237,20 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the HUOBI go routine
-func (h *HUOBI) Start(wg *sync.WaitGroup) error {
+func (h *HUOBI) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		h.Run()
+		h.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the HUOBI wrapper
-func (h *HUOBI) Run() {
+func (h *HUOBI) Run(ctx context.Context) {
 	if h.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s (url: %s).\n",
@@ -328,7 +328,7 @@ func (h *HUOBI) Run() {
 		return
 	}
 
-	err = h.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err = h.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

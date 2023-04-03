@@ -29,7 +29,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (e *EXMO) GetDefaultConfig() (*config.Exchange, error) {
+func (e *EXMO) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	e.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = e.Name
@@ -42,7 +42,7 @@ func (e *EXMO) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = e.UpdateTradablePairs(context.TODO(), true)
+		err = e.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -138,20 +138,20 @@ func (e *EXMO) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the EXMO go routine
-func (e *EXMO) Start(wg *sync.WaitGroup) error {
+func (e *EXMO) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		e.Run()
+		e.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the EXMO wrapper
-func (e *EXMO) Run() {
+func (e *EXMO) Run(ctx context.Context) {
 	if e.Verbose {
 		e.PrintEnabledPairs()
 	}
@@ -160,7 +160,7 @@ func (e *EXMO) Run() {
 		return
 	}
 
-	err := e.UpdateTradablePairs(context.TODO(), false)
+	err := e.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", e.Name, err)
 	}

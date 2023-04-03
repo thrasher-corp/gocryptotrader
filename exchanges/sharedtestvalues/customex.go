@@ -31,7 +31,7 @@ func (c *CustomEx) Setup(exch *config.Exchange) error {
 }
 
 // Start is a mock method for CustomEx
-func (c *CustomEx) Start(wg *sync.WaitGroup) error {
+func (c *CustomEx) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
@@ -264,7 +264,7 @@ func (c *CustomEx) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 }
 
 // GetDefaultConfig is a mock method for CustomEx
-func (c *CustomEx) GetDefaultConfig() (*config.Exchange, error) {
+func (c *CustomEx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	return nil, nil
 }
 

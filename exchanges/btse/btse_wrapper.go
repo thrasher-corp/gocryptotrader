@@ -31,7 +31,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *BTSE) GetDefaultConfig() (*config.Exchange, error) {
+func (b *BTSE) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
@@ -44,7 +44,7 @@ func (b *BTSE) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(context.TODO(), true)
+		err = b.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -211,20 +211,20 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the BTSE go routine
-func (b *BTSE) Start(wg *sync.WaitGroup) error {
+func (b *BTSE) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		b.Run()
+		b.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the BTSE wrapper
-func (b *BTSE) Run() {
+func (b *BTSE) Run(ctx context.Context) {
 	if b.Verbose {
 		b.PrintEnabledPairs()
 	}
@@ -233,7 +233,7 @@ func (b *BTSE) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(context.TODO(), false)
+	err := b.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s Failed to update tradable pairs. Error: %s", b.Name, err)

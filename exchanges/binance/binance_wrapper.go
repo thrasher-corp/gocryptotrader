@@ -31,7 +31,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Binance) GetDefaultConfig() (*config.Exchange, error) {
+func (b *Binance) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
@@ -44,7 +44,7 @@ func (b *Binance) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(context.TODO(), true)
+		err = b.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -258,20 +258,20 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Binance go routine
-func (b *Binance) Start(wg *sync.WaitGroup) error {
+func (b *Binance) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		b.Run()
+		b.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Binance wrapper
-func (b *Binance) Run() {
+func (b *Binance) Run(ctx context.Context) {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
@@ -284,7 +284,7 @@ func (b *Binance) Run() {
 	forceUpdate := false
 	a := b.GetAssetTypes(true)
 	for x := range a {
-		if err := b.UpdateOrderExecutionLimits(context.TODO(), a[x]); err != nil {
+		if err := b.UpdateOrderExecutionLimits(ctx, a[x]); err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to set exchange order execution limits. Err: %v",
 				b.Name,
@@ -343,7 +343,7 @@ func (b *Binance) Run() {
 		return
 	}
 
-	if err := b.UpdateTradablePairs(context.TODO(), forceUpdate); err != nil {
+	if err := b.UpdateTradablePairs(ctx, forceUpdate); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,

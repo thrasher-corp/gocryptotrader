@@ -32,7 +32,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitmex) GetDefaultConfig() (*config.Exchange, error) {
+func (b *Bitmex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
@@ -45,7 +45,7 @@ func (b *Bitmex) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(context.TODO(), true)
+		err = b.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -207,20 +207,20 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bitmex go routine
-func (b *Bitmex) Start(wg *sync.WaitGroup) error {
+func (b *Bitmex) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		b.Run()
+		b.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Bitmex wrapper
-func (b *Bitmex) Run() {
+func (b *Bitmex) Run(ctx context.Context) {
 	if b.Verbose {
 		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
@@ -238,7 +238,7 @@ func (b *Bitmex) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(context.TODO(), false)
+	err := b.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}

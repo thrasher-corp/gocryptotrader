@@ -30,7 +30,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (g *Gemini) GetDefaultConfig() (*config.Exchange, error) {
+func (g *Gemini) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	g.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = g.Name
@@ -43,7 +43,7 @@ func (g *Gemini) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := g.UpdateTradablePairs(context.TODO(), true)
+		err := g.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -192,20 +192,20 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Gemini go routine
-func (g *Gemini) Start(wg *sync.WaitGroup) error {
+func (g *Gemini) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		g.Run()
+		g.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Gemini wrapper
-func (g *Gemini) Run() {
+func (g *Gemini) Run(ctx context.Context) {
 	if g.Verbose {
 		g.PrintEnabledPairs()
 	}
@@ -263,7 +263,7 @@ func (g *Gemini) Run() {
 	if !g.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
-	err := g.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := g.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

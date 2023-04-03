@@ -31,7 +31,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (bi *Binanceus) GetDefaultConfig() (*config.Exchange, error) {
+func (bi *Binanceus) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	bi.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = bi.Name
@@ -44,7 +44,7 @@ func (bi *Binanceus) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if bi.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := bi.UpdateTradablePairs(context.TODO(), true)
+		err := bi.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -216,20 +216,20 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Binanceus go routine
-func (bi *Binanceus) Start(wg *sync.WaitGroup) error {
+func (bi *Binanceus) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		bi.Run()
+		bi.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Binanceus wrapper
-func (bi *Binanceus) Run() {
+func (bi *Binanceus) Run(ctx context.Context) {
 	if bi.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -242,7 +242,7 @@ func (bi *Binanceus) Run() {
 		return
 	}
 
-	err := bi.UpdateTradablePairs(context.TODO(), false)
+	err := bi.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

@@ -29,7 +29,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (y *Yobit) GetDefaultConfig() (*config.Exchange, error) {
+func (y *Yobit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	y.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = y.Name
@@ -42,7 +42,7 @@ func (y *Yobit) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if y.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = y.UpdateTradablePairs(context.TODO(), true)
+		err = y.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -126,20 +126,20 @@ func (y *Yobit) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the WEX go routine
-func (y *Yobit) Start(wg *sync.WaitGroup) error {
+func (y *Yobit) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		y.Run()
+		y.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Yobit wrapper
-func (y *Yobit) Run() {
+func (y *Yobit) Run(ctx context.Context) {
 	if y.Verbose {
 		y.PrintEnabledPairs()
 	}
@@ -148,7 +148,7 @@ func (y *Yobit) Run() {
 		return
 	}
 
-	err := y.UpdateTradablePairs(context.TODO(), false)
+	err := y.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
