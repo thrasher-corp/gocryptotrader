@@ -25,7 +25,7 @@ var (
 	errInvalidResultInterface    = errors.New("result interface has to be pointer")
 	errInvalidSubAccountName     = errors.New("invalid sub-account name")
 	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
-	errNoValidResponseFromServer = errors.New("no valud response from server")
+	errNoValidResponseFromServer = errors.New("no valid response from server")
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
 
