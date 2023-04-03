@@ -1,6 +1,7 @@
 package gct
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -36,7 +37,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	exch.SetDefaults()
-	cfg, err := exch.GetDefaultConfig()
+	cfg, err := exch.GetDefaultConfig(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
