@@ -6,6 +6,7 @@
 package binance
 
 import (
+	"context"
 	"log"
 	"os"
 	"sync"
@@ -63,7 +64,7 @@ func TestMain(m *testing.M) {
 	log.Printf(sharedtestvalues.MockTesting, b.Name)
 
 	var testWg sync.WaitGroup
-	err = b.Start(&testWg)
+	err = b.Start(context.Background(), &testWg)
 	if err != nil {
 		log.Fatal(err)
 	}
