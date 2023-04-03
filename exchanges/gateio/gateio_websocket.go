@@ -770,6 +770,11 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			case spotOrderbookUpdateChannel:
 				params["interval"] = kline.ThousandMilliseconds
 			}
+			if spotTradesChannel == channelsToSubscribe[i] {
+				if !g.IsSaveTradeDataEnabled() {
+					continue
+				}
+			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Spot)
 			if err != nil {
 				return nil, err
@@ -1023,18 +1028,15 @@ func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
-	assetTypes := g.CurrencyPairs.GetAssetTypes(false)
-	assetPairEnabled := make(map[asset.Item]bool)
-	for _, assetType := range assetTypes {
-		if g.CurrencyPairs.IsAssetEnabled(assetType) != nil {
-			assetPairEnabled[assetType] = false
+	assetTypes := g.CurrencyPairs.GetAssetTypes(true)
+	// we need this all asset types on the map even if their value is false
+	assetPairEnabled := map[asset.Item]bool{asset.Spot: false, asset.Options: false, asset.Futures: false, asset.CrossMargin: false, asset.Margin: false, asset.DeliveryFutures: false}
+	for i := range assetTypes {
+		pairs, err := g.GetEnabledPairs(assetTypes[i])
+		if err != nil {
 			continue
 		}
-		if cps, err := g.CurrencyPairs.GetPairs(assetType, true); err != nil || !cps.Contains(cp, true) {
-			assetPairEnabled[assetType] = false
-			continue
-		}
-		assetPairEnabled[assetType] = true
+		assetPairEnabled[assetTypes[i]] = pairs.Contains(cp, true)
 	}
 	return assetPairEnabled
 }
