@@ -29,7 +29,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (d *Deribit) GetDefaultConfig() (*config.Exchange, error) {
+func (d *Deribit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	d.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = d.Name
@@ -40,7 +40,7 @@ func (d *Deribit) GetDefaultConfig() (*config.Exchange, error) {
 		return nil, err
 	}
 	if d.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := d.UpdateTradablePairs(context.Background(), true)
+		err := d.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -181,7 +181,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Deribit go routine
-func (d *Deribit) Start(wg *sync.WaitGroup) error {
+func (d *Deribit) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return common.ErrNilPointer
 	}

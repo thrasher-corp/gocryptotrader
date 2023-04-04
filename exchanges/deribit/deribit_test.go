@@ -81,12 +81,12 @@ func TestMain(m *testing.M) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	err := d.Start(nil)
+	err := d.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
-	err = d.Start(&testWg)
+	err = d.Start(context.Background(), &testWg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,22 +191,22 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandles(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	_, err = d.GetHistoricCandles(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
 }
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour*10), time.Now())
+	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.ThreeHour, time.Now().Add(-time.Hour*10), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Hour*10), time.Now())
+	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.ThreeHour, time.Now().Add(-time.Hour*10), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour*10), time.Now())
+	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

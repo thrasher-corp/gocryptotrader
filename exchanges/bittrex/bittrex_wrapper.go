@@ -29,7 +29,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bittrex) GetDefaultConfig() (*config.Exchange, error) {
+func (b *Bittrex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
@@ -42,7 +42,7 @@ func (b *Bittrex) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(context.TODO(), true)
+		err = b.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -193,20 +193,20 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bittrex go routine
-func (b *Bittrex) Start(wg *sync.WaitGroup) error {
+func (b *Bittrex) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		b.Run()
+		b.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Bittrex wrapper
-func (b *Bittrex) Run() {
+func (b *Bittrex) Run(ctx context.Context) {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -219,7 +219,7 @@ func (b *Bittrex) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(context.TODO(), false)
+	err := b.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

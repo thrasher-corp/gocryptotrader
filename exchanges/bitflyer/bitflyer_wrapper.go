@@ -28,7 +28,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (b *Bitflyer) GetDefaultConfig() (*config.Exchange, error) {
+func (b *Bitflyer) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
@@ -41,7 +41,7 @@ func (b *Bitflyer) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(context.TODO(), true)
+		err = b.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -123,20 +123,20 @@ func (b *Bitflyer) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bitflyer go routine
-func (b *Bitflyer) Start(wg *sync.WaitGroup) error {
+func (b *Bitflyer) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		b.Run()
+		b.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Bitflyer wrapper
-func (b *Bitflyer) Run() {
+func (b *Bitflyer) Run(ctx context.Context) {
 	if b.Verbose {
 		b.PrintEnabledPairs()
 	}
@@ -145,7 +145,7 @@ func (b *Bitflyer) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(context.TODO(), false)
+	err := b.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
