@@ -413,9 +413,10 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 	return sliceSlice
 }
 
-// SplitOnUpperCase splits string on finding upper case. This will also stop
-// splitting if there is multiple upper cases found. HTTP
-func SplitOnUpperCase(s string) string {
+// AddPaddingOnUpperCase adds padding to string when finding upper case. If
+// there are multiple upper case items like `ThisIsHTTPExample`, it will only
+// pad between like this `This Is HTTP Example`.
+func AddPaddingOnUpperCase(s string) string {
 	if s == "" {
 		return ""
 	}
@@ -431,14 +432,12 @@ func SplitOnUpperCase(s string) string {
 				result = append(result, s[left:x])
 				left = x
 			}
-		} else {
-			if x > 1 && unicode.IsUpper(rune(s[x-1])) {
-				if s[left:x-1] == "" {
-					continue
-				}
-				result = append(result, s[left:x-1])
-				left = x - 1
+		} else if x > 1 && unicode.IsUpper(rune(s[x-1])) {
+			if s[left:x-1] == "" {
+				continue
 			}
+			result = append(result, s[left:x-1])
+			left = x - 1
 		}
 	}
 	result = append(result, s[left:])

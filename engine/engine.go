@@ -279,12 +279,14 @@ func (s *Settings) PrintLoadedSettings() {
 		}
 
 		fieldName := field.Type().Name()
-		gctlog.Debugln(gctlog.Global, "- "+common.SplitOnUpperCase(fieldName)+":")
+		gctlog.Debugln(gctlog.Global, "- "+common.AddPaddingOnUpperCase(fieldName)+":")
 		for y := 0; y < field.NumField(); y++ {
 			indvSetting := field.Field(y)
 			indvName := field.Type().Field(y).Name
-
-			gctlog.Debugln(gctlog.Global, "\t", common.SplitOnUpperCase(indvName), ":", indvSetting)
+			if indvSetting.Kind() == reflect.String && indvSetting.IsZero() {
+				indvSetting = reflect.ValueOf("Undefined")
+			}
+			gctlog.Debugln(gctlog.Global, "\t", common.AddPaddingOnUpperCase(indvName)+":", indvSetting)
 		}
 	}
 	gctlog.Debugln(gctlog.Global)

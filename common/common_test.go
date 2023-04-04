@@ -583,7 +583,7 @@ func TestSplitStringSliceByLimit(t *testing.T) {
 	}
 }
 
-func TestSplitOnUpperCase(t *testing.T) {
+func TestAddPaddingOnUpperCase(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -608,7 +608,7 @@ func TestSplitOnUpperCase(t *testing.T) {
 	}
 
 	for x := range testCases {
-		if received := SplitOnUpperCase(testCases[x].Supplied); received != testCases[x].Expected {
+		if received := AddPaddingOnUpperCase(testCases[x].Supplied); received != testCases[x].Expected {
 			t.Fatalf("received '%v' but expected '%v'", received, testCases[x].Expected)
 		}
 	}

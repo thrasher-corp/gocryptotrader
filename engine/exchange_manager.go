@@ -223,6 +223,10 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 		return fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 
+	if shutdownTimeout < 0 {
+		shutdownTimeout = 0
+	}
+
 	var lockout sync.Mutex
 	timer := time.NewTimer(shutdownTimeout)
 	var wg sync.WaitGroup
@@ -258,7 +262,7 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 		// Possible deadlock in a number of operating exchanges.
 		lockout.Lock()
 		for name := range m.exchanges {
-			log.Warnf(log.ExchangeSys, "%s has failed to shutdown in a timely fashion, please review.\n", name)
+			log.Warnf(log.ExchangeSys, "%s has failed to shutdown within %s, please review.\n", name, shutdownTimeout)
 		}
 		lockout.Unlock()
 	case <-ch:
