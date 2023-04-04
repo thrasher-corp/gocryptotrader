@@ -222,6 +222,9 @@ func (dy *DYDX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 	pairs := make(currency.Pairs, len(instruments.Markets))
 	count := 0
 	for key := range instruments.Markets {
+		if instruments.Markets[key].Status == "OFFLINE" {
+			continue
+		}
 		cp, err := currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err
