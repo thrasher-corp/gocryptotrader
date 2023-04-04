@@ -223,16 +223,14 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 		return fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 
-	var mtx sync.Mutex
+	var lockout sync.Mutex
 	timer := time.NewTimer(shutdownTimeout)
 	var wg sync.WaitGroup
 
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	// loopSegregation relieves race between map lookup and delete.
-	var loopSegregation sync.WaitGroup
-	loopSegregation.Add(1)
+	lockout.Lock()
 	for _, exch := range m.exchanges {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, mtx *sync.Mutex, exch exchange.IBotExchange) {
@@ -240,15 +238,14 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s failed to shutdown %v.\n", exch.GetName(), err)
 			} else {
-				loopSegregation.Wait()
 				mtx.Lock()
 				delete(m.exchanges, strings.ToLower(exch.GetName()))
 				mtx.Unlock()
 			}
 			wg.Done()
-		}(&wg, &mtx, exch)
+		}(&wg, &lockout, exch)
 	}
-	loopSegregation.Done()
+	lockout.Unlock()
 
 	ch := make(chan struct{})
 	go func(wg *sync.WaitGroup, finish chan<- struct{}) {
@@ -259,18 +256,18 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 	select {
 	case <-timer.C:
 		// Possible deadlock in a number of operating exchanges.
-		mtx.Lock()
+		lockout.Lock()
 		for name := range m.exchanges {
 			log.Warnf(log.ExchangeSys, "%s has failed to shutdown in a timely fashion, please review.\n", name)
 		}
-		mtx.Unlock()
+		lockout.Unlock()
 	case <-ch:
 		// Every exchange has finished their shutdown call.
-		mtx.Lock()
+		lockout.Lock()
 		for name := range m.exchanges {
 			log.Errorf(log.ExchangeSys, "%s has failed to shutdown due to error, please review.\n", name)
 		}
-		mtx.Unlock()
+		lockout.Unlock()
 	}
 	return nil
 }
