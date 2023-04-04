@@ -28,7 +28,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (dy *DYDX) GetDefaultConfig() (*config.Exchange, error) {
+func (dy *DYDX) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	dy.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = dy.Name
@@ -41,7 +41,7 @@ func (dy *DYDX) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if dy.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := dy.UpdateTradablePairs(context.TODO(), true)
+		err := dy.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +175,7 @@ func (dy *DYDX) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Dydx go routine
-func (dy *DYDX) Start(wg *sync.WaitGroup) error {
+func (dy *DYDX) Start(_ context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
@@ -369,7 +369,7 @@ func (dy *DYDX) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (dy *DYDX) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (dy *DYDX) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
 	acc, err := dy.GetAccounts(ctx)
 	if err != nil {
 		return account.Holdings{}, err
@@ -444,7 +444,7 @@ func (dy *DYDX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (dy *DYDX) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (dy *DYDX) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	if !dy.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset %v not supported", a)
 	}
@@ -588,7 +588,7 @@ func (dy *DYDX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (dy *DYDX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (dy *DYDX) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -646,7 +646,7 @@ func (dy *DYDX) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (o
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (dy *DYDX) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (dy *DYDX) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
 }
 
@@ -697,7 +697,7 @@ func (dy *DYDX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (dy *DYDX) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
+func (dy *DYDX) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -731,13 +731,13 @@ func (dy *DYDX) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (dy *DYDX) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (dy *DYDX) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (dy *DYDX) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (dy *DYDX) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -929,12 +929,12 @@ func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (dy *DYDX) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (dy *DYDX) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
-func (dy *DYDX) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+func (dy *DYDX) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	serverTime, err := dy.GetAPIServerTime(ctx)
 	if err != nil {
 		return time.Time{}, err

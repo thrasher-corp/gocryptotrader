@@ -73,12 +73,12 @@ func TestMain(m *testing.M) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	err := ok.Start(nil)
+	err := ok.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
-	err = ok.Start(&testWg)
+	err = ok.Start(context.Background(), &testWg)
 	if err != nil {
 		t.Fatal(err)
 	}
