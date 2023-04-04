@@ -30,7 +30,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (ku *Kucoin) GetDefaultConfig() (*config.Exchange, error) {
+func (ku *Kucoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	ku.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = ku.Name
@@ -38,7 +38,7 @@ func (ku *Kucoin) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg.BaseCurrencies = ku.BaseCurrencies
 
 	if ku.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := ku.UpdateTradablePairs(context.TODO(), true)
+		err := ku.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -203,7 +203,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Kucoin go routine
-func (ku *Kucoin) Start(wg *sync.WaitGroup) error {
+func (ku *Kucoin) Start(_ context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
