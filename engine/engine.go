@@ -888,11 +888,11 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	}
 
 	if wg != nil {
-		return exch.Start(wg)
+		return exch.Start(context.TODO(), wg)
 	}
 
 	tempWG := sync.WaitGroup{}
-	err = exch.Start(&tempWG)
+	err = exch.Start(context.TODO(), &tempWG)
 	if err != nil {
 		return err
 	}

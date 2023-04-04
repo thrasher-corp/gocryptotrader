@@ -28,7 +28,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (cr *Cryptodotcom) GetDefaultConfig() (*config.Exchange, error) {
+func (cr *Cryptodotcom) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	cr.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = cr.Name
@@ -39,7 +39,7 @@ func (cr *Cryptodotcom) GetDefaultConfig() (*config.Exchange, error) {
 		return nil, err
 	}
 	if cr.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := cr.UpdateTradablePairs(context.TODO(), true)
+		err := cr.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +200,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Cryptodotcom go routine
-func (cr *Cryptodotcom) Start(wg *sync.WaitGroup) error {
+func (cr *Cryptodotcom) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}

@@ -68,12 +68,12 @@ func areTestAPIKeysSet() bool {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	err := b.Start(nil)
+	err := b.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
-	err = b.Start(&testWg)
+	err = b.Start(context.Background(), &testWg)
 	if err != nil {
 		t.Fatal(err)
 	}
