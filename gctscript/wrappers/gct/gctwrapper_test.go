@@ -19,10 +19,12 @@ import (
 
 func TestMain(m *testing.M) {
 	settings := engine.Settings{
-		ConfigFile:                  filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun:                true,
-		DataDir:                     filepath.Join("..", "..", "..", "testdata", "gocryptotrader"),
-		EnableDepositAddressManager: true,
+		CoreSettings: engine.CoreSettings{
+			EnableDryRun:                true,
+			EnableDepositAddressManager: true,
+		},
+		ConfigFile: filepath.Join("..", "..", "..", "testdata", "configtest.json"),
+		DataDir:    filepath.Join("..", "..", "..", "testdata", "gocryptotrader"),
 	}
 	var err error
 	engine.Bot, err = engine.NewFromSettings(&settings, nil)

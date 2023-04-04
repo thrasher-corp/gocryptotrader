@@ -32,7 +32,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			name: "test file",
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
-				EnableDryRun: true,
+				CoreSettings: CoreSettings{EnableDryRun: true},
 			},
 			want:    &empty,
 			wantErr: false,
@@ -43,7 +43,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
 				DataDir:      somePath,
-				EnableDryRun: true,
+				CoreSettings: CoreSettings{EnableDryRun: true},
 			},
 			want:    &somePath,
 			wantErr: false,
@@ -79,7 +79,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	tempDir := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		EnableDryRun: true,
+		CoreSettings: CoreSettings{EnableDryRun: true},
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -110,7 +110,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	tempDir2 := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		EnableDryRun: true,
+		CoreSettings: CoreSettings{EnableDryRun: true},
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -120,7 +120,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		EnableDryRun: true,
+		CoreSettings: CoreSettings{EnableDryRun: true},
 		DataDir:      tempDir2,
 	}, nil)
 	if err != nil {
@@ -328,4 +328,13 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+}
+
+func TestSettingsPrint(t *testing.T) {
+	t.Parallel()
+	var s *Settings
+	s.PrintLoadedSettings()
+
+	s = &Settings{}
+	s.PrintLoadedSettings()
 }

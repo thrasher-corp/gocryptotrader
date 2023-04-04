@@ -141,7 +141,8 @@ func main() {
 
 	gctscript.Setup()
 
-	engine.PrintSettings(&engine.Bot.Settings)
+	engine.Bot.Settings.PrintLoadedSettings()
+
 	if err = engine.Bot.Start(); err != nil {
 		errClose := gctlog.CloseLogger()
 		if errClose != nil {

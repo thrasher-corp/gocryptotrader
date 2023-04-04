@@ -34,8 +34,8 @@ const (
 
 var (
 	settings = engine.Settings{
+		CoreSettings: engine.CoreSettings{EnableDryRun: true},
 		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
 		DataDir:      filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
 	}
 	exchangeTest = Exchange{}

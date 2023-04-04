@@ -1057,7 +1057,7 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 		ps.Available = nil
 	}
 	return &Engine{
-		Settings: Settings{Verbose: true},
+		Settings: Settings{CoreSettings: CoreSettings{Verbose: true}},
 		Config: &config.Config{
 			Exchanges: []config.Exchange{
 				{
