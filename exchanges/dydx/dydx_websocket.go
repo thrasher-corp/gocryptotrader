@@ -197,7 +197,7 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 		}
 		pairs, err := dy.GetEnabledPairs(asset.Spot)
 		if err != nil {
-			return nil
+			return err
 		}
 		for key := range market.Markets {
 			pair, err := currency.NewPairFromString(key)
