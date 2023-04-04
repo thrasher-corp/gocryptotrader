@@ -237,7 +237,7 @@ var Exchanges = []string{
 	"btse",
 	"coinbasepro",
 	"coinut",
-	'dydx",
+	"dydx",
 	"exmo",
 	"ftx", // <-------- new exchange
 	"gateio",

@@ -101,7 +101,7 @@ type InstrumentDatas struct {
 		StepSize                         string    `json:"stepSize"`
 		TickSize                         float64   `json:"tickSize,string"`
 		IndexPrice                       float64   `json:"indexPrice,string"`
-		OraclePrice                      string    `json:"oraclePrice"`
+		OraclePrice                      float64   `json:"oraclePrice,string"`
 		PriceChange24H                   float64   `json:"priceChange24H,string"`
 		NextFundingRate                  string    `json:"nextFundingRate"`
 		NextFundingAt                    time.Time `json:"nextFundingAt"`
@@ -375,7 +375,7 @@ type PublicProfile struct {
 // WsInput represents a websocket input
 type WsInput struct {
 	Type    string `json:"type"`
-	Channel string `json:"channel"`
+	Channel string `json:"channel,omitempty"`
 	ID      string `json:"id,omitempty"`
 
 	// for authenticated channel subscription
@@ -388,13 +388,13 @@ type WsInput struct {
 
 // WsResponse represents a websocket response.
 type WsResponse struct {
-	Type         string          `json:"type"`
-	ConnectionID string          `json:"connection_id"`
-	MessageID    int64           `json:"message_id"`
-	Channel      string          `json:"channel"`
-	ID           string          `json:"id"`
-	Contents     json.RawMessage `json:"contents"`
-	Transfers    json.RawMessage `json:"transfers"`
+	Type         string          `json:"type,omitempty"`
+	ConnectionID string          `json:"connection_id,omitempty"`
+	MessageID    int64           `json:"message_id,omitempty"`
+	Channel      string          `json:"channel,omitempty"`
+	ID           string          `json:"id,omitempty"`
+	Contents     json.RawMessage `json:"contents,omitempty"`
+	Transfers    json.RawMessage `json:"transfers,omitempty"`
 }
 
 // OnboardingResponse represents an onboarding detail.

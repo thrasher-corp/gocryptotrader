@@ -48,11 +48,6 @@ func (dy *DYDX) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	dy.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		Message:     []byte(`pong`),
-		MessageType: websocket.TextMessage,
-		Delay:       time.Second * 5,
-	})
 	if dy.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", dy.Name)
 	}
@@ -78,11 +73,16 @@ func (dy *DYDX) wsReadData() {
 	}
 }
 
+var websocketMarketTickerPushDataCounter = false
+
 func (dy *DYDX) wsHandleData(respRaw []byte) error {
 	var resp WsResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
+	}
+	if resp.Type == "connected" {
+		return nil
 	}
 	switch resp.Channel {
 	case accountsChannel:
@@ -183,29 +183,52 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 		return trade.AddTradesToBuffer(dy.Name, trades...)
 	case marketsChannel:
 		var market InstrumentDatas
-		err := json.Unmarshal(resp.Contents, &market)
-		if err != nil {
-			return err
+		if !websocketMarketTickerPushDataCounter {
+			err := json.Unmarshal(resp.Contents, &market)
+			if err != nil {
+				return err
+			}
+			websocketMarketTickerPushDataCounter = true
+		} else {
+			err := json.Unmarshal(resp.Contents, &market.Markets)
+			if err != nil {
+				return err
+			}
 		}
-		tickers := make([]ticker.Price, len(market.Markets))
-		count := 0
-		for key, value := range market.Markets {
+		pairs, err := dy.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil
+		}
+		for key := range market.Markets {
 			pair, err := currency.NewPairFromString(key)
 			if err != nil {
 				return err
 			}
-			tickers[count] = ticker.Price{
-				ExchangeName: dy.Name,
-				Ask:          value.IndexPrice,
-				Pair:         pair,
-				AssetType:    asset.Spot,
-				Open:         market.Markets[key].PriceChange24H,
-				Volume:       market.Markets[key].Volume24H,
+			if !pairs.Contains(pair, true) {
+				continue
 			}
-			count++
+			var tickerPrice *ticker.Price
+			if market.Markets[key].Volume24H != 0 {
+				tickerPrice = &ticker.Price{
+					ExchangeName: dy.Name,
+					Last:         market.Markets[key].IndexPrice,
+					Pair:         pair,
+					AssetType:    asset.Spot,
+					Open:         market.Markets[key].PriceChange24H,
+					QuoteVolume:  market.Markets[key].Volume24H,
+				}
+				if market.Markets[key].OraclePrice != 0 {
+					tickerPrice.Volume = market.Markets[key].Volume24H / market.Markets[key].OraclePrice
+				}
+			} else {
+				tickerPrice, err = ticker.GetTicker(dy.Name, pair, asset.Spot)
+				if err != nil {
+					return err
+				}
+				tickerPrice.Last = market.Markets[key].IndexPrice
+			}
+			dy.Websocket.DataHandler <- tickerPrice
 		}
-		dy.Websocket.DataHandler <- tickers
-	case "connected":
 	default:
 		dy.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: dy.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
@@ -273,7 +296,7 @@ func (dy *DYDX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, er
 		return nil, err
 	}
 	for x := range channels {
-		if channels[x] == accountsChannel {
+		if channels[x] == accountsChannel || channels[x] == marketsChannel {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[x],
 			})
