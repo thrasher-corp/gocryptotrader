@@ -56,7 +56,7 @@ func NewBacktester() (*BackTest, error) {
 	if err != nil {
 		return nil, err
 	}
-	bt.exchangeManager = engine.SetupExchangeManager()
+	bt.exchangeManager = engine.NewExchangeManager()
 
 	return bt, nil
 }
@@ -169,7 +169,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 						return err
 					}
 				}
-				bt.exchangeManager.Add(exch)
+				err = bt.exchangeManager.Add(exch)
+				if err != nil {
+					return err
+				}
 			} else {
 				return err
 			}
@@ -827,9 +830,14 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		}
 	case cfg.DataSettings.LiveData != nil:
 		if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(cfg.DataSettings.Interval) {
-			return nil, fmt.Errorf("%w don't trade live on custom candle interval of %v", gctkline.ErrCannotConstructInterval, cfg.DataSettings.Interval)
+			return nil, fmt.Errorf("%w don't trade live on custom candle interval of %v",
+				gctkline.ErrCannotConstructInterval,
+				cfg.DataSettings.Interval)
 		}
-		bt.exchangeManager.Add(exch)
+		err = bt.exchangeManager.Add(exch)
+		if err != nil {
+			return nil, err
+		}
 		err = bt.LiveDataHandler.AppendDataSource(&liveDataSourceSetup{
 			exchange:                  exch,
 			interval:                  cfg.DataSettings.Interval,

@@ -100,9 +100,10 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
 	defer func() {
 		er := bi.CloseUserDataStream(context.Background())
-		log.Errorf(log.WebsocketMgr,
-			"%s closing user data stream error %v",
-			bi.Name, er)
+		if er != nil {
+			log.Errorf(log.WebsocketMgr, "%s closing user data stream error %v",
+				bi.Name, er)
+		}
 	}()
 	// Looping in 30 Minutes and updating the listenKey
 	ticks := time.NewTicker(time.Minute * 30)

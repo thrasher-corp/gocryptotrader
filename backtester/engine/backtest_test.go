@@ -319,7 +319,7 @@ func TestLoadDataLive(t *testing.T) {
 		Funding:         &funding.FundManager{},
 		DataHolder:      &data.HandlerHolder{},
 		Statistic:       &fakeStats{},
-		exchangeManager: engine.SetupExchangeManager(),
+		exchangeManager: engine.NewExchangeManager(),
 		shutdown:        make(chan struct{}),
 	}
 
@@ -1091,13 +1091,16 @@ func TestProcessFillEvent(t *testing.T) {
 	ev := &fill.Fill{
 		Base: de.Base,
 	}
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -1198,13 +1201,16 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	ev := &fill.Fill{
 		Base: de.Base,
 	}
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)

@@ -27,6 +27,7 @@ type IBotExchange interface {
 	Setup(exch *config.Exchange) error
 	Start(ctx context.Context, wg *sync.WaitGroup) error
 	SetDefaults()
+	Shutdown() error
 	GetName() string
 	SetEnabled(bool)
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)

@@ -44,7 +44,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			name: "test file",
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
-				EnableDryRun: true,
+				CoreSettings: CoreSettings{EnableDryRun: true},
 			},
 			want:    &empty,
 			wantErr: false,
@@ -55,7 +55,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
 				DataDir:      somePath,
-				EnableDryRun: true,
+				CoreSettings: CoreSettings{EnableDryRun: true},
 			},
 			want:    &somePath,
 			wantErr: false,
@@ -91,7 +91,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	tempDir := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		EnableDryRun: true,
+		CoreSettings: CoreSettings{EnableDryRun: true},
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -122,7 +122,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	tempDir2 := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		EnableDryRun: true,
+		CoreSettings: CoreSettings{EnableDryRun: true},
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -132,7 +132,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		EnableDryRun: true,
+		CoreSettings: CoreSettings{EnableDryRun: true},
 		DataDir:      tempDir2,
 	}, nil)
 	if err != nil {
@@ -158,14 +158,17 @@ func TestGetExchangeByName(t *testing.T) {
 		t.Errorf("received: %v expected: %v", err, ErrNilSubsystem)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	e := &Engine{ExchangeManager: em}
 
 	if !exch.IsEnabled() {
@@ -192,14 +195,17 @@ func TestGetExchangeByName(t *testing.T) {
 
 func TestUnloadExchange(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
 	exch.SetEnabled(true)
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	e := &Engine{ExchangeManager: em,
 		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}
@@ -215,15 +221,15 @@ func TestUnloadExchange(t *testing.T) {
 	}
 
 	err = e.UnloadExchange(testExchange)
-	if !errors.Is(err, ErrNoExchangesLoaded) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNoExchangesLoaded)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("error '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
 	t.Parallel()
 	bot := &Engine{
-		ExchangeManager: SetupExchangeManager(),
+		ExchangeManager: NewExchangeManager(),
 		Settings:        Settings{},
 		Config: &config.Config{
 			Exchanges: []config.Exchange{
@@ -367,7 +373,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 
 func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
 	t.Helper()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(name)
 	if err != nil {
 		t.Fatalf("%v %v", name, err)
@@ -879,4 +885,13 @@ func disruptFormatting(t *testing.T, p currency.Pair) (currency.Pair, error) {
 		Quote:     p.Quote.Lower(),
 		Delimiter: "-TEST-DELIM-",
 	}, nil
+}
+
+func TestSettingsPrint(t *testing.T) {
+	t.Parallel()
+	var s *Settings
+	s.PrintLoadedSettings()
+
+	s = &Settings{}
+	s.PrintLoadedSettings()
 }

@@ -31,17 +31,17 @@ func TestSetupDataHistoryManager(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), nil, nil)
+	_, err = SetupDataHistoryManager(NewExchangeManager(), nil, nil)
 	if !errors.Is(err, errNilDatabaseConnectionManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilDatabaseConnectionManager)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, nil)
+	_, err = SetupDataHistoryManager(NewExchangeManager(), &DatabaseConnectionManager{}, nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = SetupDataHistoryManager(SetupExchangeManager(), &DatabaseConnectionManager{}, &config.DataHistoryManager{})
+	_, err = SetupDataHistoryManager(NewExchangeManager(), &DatabaseConnectionManager{}, &config.DataHistoryManager{})
 	if !errors.Is(err, database.ErrNilInstance) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrNilInstance)
 	}
@@ -60,7 +60,7 @@ func TestSetupDataHistoryManager(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	m, err := SetupDataHistoryManager(SetupExchangeManager(), dbCM, &config.DataHistoryManager{})
+	m, err := SetupDataHistoryManager(NewExchangeManager(), dbCM, &config.DataHistoryManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -655,7 +655,7 @@ func TestCompareJobsToData(t *testing.T) {
 	}
 }
 
-func TestRunJob(t *testing.T) {
+func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition caused by the DataHistoryJob and it's a big change to fix.
 	t.Parallel()
 	tt := time.Now().Truncate(kline.OneHour.Duration())
 	testCases := []*DataHistoryJob{
@@ -731,7 +731,6 @@ func TestRunJob(t *testing.T) {
 	for x := range testCases {
 		test := testCases[x]
 		t.Run(test.Nickname, func(t *testing.T) {
-			t.Parallel()
 			err := m.UpsertJob(test, false)
 			if !errors.Is(err, nil) {
 				t.Errorf("error '%v', expected '%v'", err, nil)
@@ -912,7 +911,7 @@ func TestConverters(t *testing.T) {
 // test helper functions
 func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJob) {
 	t.Helper()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
@@ -926,7 +925,10 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		Available:    currency.Pairs{cp, cp2},
 		Enabled:      currency.Pairs{cp, cp2},
 		AssetEnabled: convert.BoolPtr(true)}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	exch2, err := em.NewExchangeByName("Binance")
 	if !errors.Is(err, nil) {
@@ -943,7 +945,11 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 
-	em.Add(exch2)
+	err = em.Add(exch2)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	j := &datahistoryjob.DataHistoryJob{
 		ID:               jobID,
 		Nickname:         "datahistoryjob",
@@ -968,16 +974,14 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	}
 	m := &DataHistoryManager{
 		databaseConnectionInstance: &dataBaseConnection{},
-		jobDB: dataHistoryJobService{
-			job: j,
-		},
-		jobResultDB:         dataHistoryJobResultService{},
-		started:             1,
-		exchangeManager:     em,
-		candleLoader:        dataHistoryCandleLoader,
-		interval:            time.NewTicker(time.Minute),
-		verbose:             true,
-		maxResultInsertions: defaultMaxResultInsertions,
+		jobDB:                      &dataHistoryJobService{job: j},
+		jobResultDB:                dataHistoryJobResultService{},
+		started:                    1,
+		exchangeManager:            em,
+		candleLoader:               dataHistoryCandleLoader,
+		interval:                   time.NewTicker(time.Minute),
+		verbose:                    true,
+		maxResultInsertions:        defaultMaxResultInsertions,
 	}
 	return m, j
 }
@@ -1017,7 +1021,7 @@ func TestProcessCandleData(t *testing.T) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -1073,7 +1077,7 @@ func TestProcessTradeData(t *testing.T) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -1192,7 +1196,7 @@ func TestValidateCandles(t *testing.T) {
 		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
 	}
 
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
