@@ -14,7 +14,7 @@ func TestSetupPortfolioManager(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNilExchangeManager)
 	}
 
-	m, err := setupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -29,7 +29,7 @@ func TestIsPortfolioManagerRunning(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	m, err := setupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -54,7 +54,7 @@ func TestPortfolioManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 
-	m, err = setupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -83,7 +83,7 @@ func TestPortfolioManagerStop(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, subsystem.ErrNil)
 	}
 
-	m, err = setupPortfolioManager(SetupExchangeManager(), 0, nil)
+	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -103,13 +103,16 @@ func TestPortfolioManagerStop(t *testing.T) {
 }
 
 func TestProcessPortfolio(t *testing.T) {
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
 	if !errors.Is(err, nil) {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	m, err := setupPortfolioManager(em, 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

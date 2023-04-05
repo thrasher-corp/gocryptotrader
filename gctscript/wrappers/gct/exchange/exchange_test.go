@@ -34,8 +34,8 @@ const (
 
 var (
 	settings = engine.Settings{
+		CoreSettings: engine.CoreSettings{EnableDryRun: true},
 		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
 		DataDir:      filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
 	}
 	exchangeTest = Exchange{}
@@ -201,7 +201,7 @@ func setupEngine() (err error) {
 		return err
 	}
 
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	engine.Bot.ExchangeManager = em
 
 	return engine.Bot.LoadExchange(exchName, nil)
