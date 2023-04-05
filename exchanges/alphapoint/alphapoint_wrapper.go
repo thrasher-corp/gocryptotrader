@@ -31,7 +31,7 @@ func (a *Alphapoint) GetDefaultConfig(ctx context.Context) (*config.Exchange, er
 }
 
 // Start starts the Aplhapoint go routine
-func (a *Alphapoint) Start(_ *sync.WaitGroup) error {
+func (a *Alphapoint) Start(_ context.Context, _ *sync.WaitGroup) error {
 	return common.ErrNotYetImplemented
 }
 
