@@ -86,6 +86,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
+	_, err := g.CancelAllOrders(context.Background(), nil)
+	if err != nil {
+		t.Error(err)
+	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
@@ -93,7 +97,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		Pair:          optionsTradablePair,
 		AssetType:     asset.Options,
 	}
-	_, err := g.CancelAllOrders(context.Background(), orderCancellation)
+	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
 	if err != nil {
 		t.Error(err)
 	}

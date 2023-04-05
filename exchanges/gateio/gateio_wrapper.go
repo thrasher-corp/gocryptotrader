@@ -689,6 +689,8 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", p, 0, true)
 	case asset.Options:
 		orderbookNew, err = g.GetOptionsOrderbook(ctx, p, "", 0, true)
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return nil, err
@@ -844,7 +846,7 @@ func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gateio) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (g *Gateio) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1287,6 +1289,9 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
+	if err := o.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = map[string]string{}
 	switch o.AssetType {
