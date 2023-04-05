@@ -63,6 +63,7 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Huobi.Pro | Yes | Yes | |
 | ItBit | No | No | |
 | Kraken | Yes | Yes | Front-end and API don't match total available transfer chains |
+| Kucoin |  Yes | Yes | |
 | Lbank | No | No | |
 | OKCoin International | No | No | Requires API update to version 5 |
 | Okx | Yes | Yes | |
