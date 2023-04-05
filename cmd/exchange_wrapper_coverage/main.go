@@ -21,12 +21,14 @@ func main() {
 	}
 
 	engine.Bot.Settings = engine.Settings{
-		DisableExchangeAutoPairUpdates: true,
-		EnableDryRun:                   true,
+		CoreSettings: engine.CoreSettings{EnableDryRun: true},
+		ExchangeTuningSettings: engine.ExchangeTuningSettings{
+			DisableExchangeAutoPairUpdates: true,
+		},
 	}
 
 	engine.Bot.Config.PurgeExchangeAPICredentials()
-	engine.Bot.ExchangeManager = engine.SetupExchangeManager()
+	engine.Bot.ExchangeManager = engine.NewExchangeManager()
 
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
@@ -109,8 +111,11 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 
 			if input.Implements(contextParam) {
 				// Need to deploy a context.Context value as nil value is not
-				// checked throughout codebase.
-				inputs[y] = reflect.ValueOf(context.Background())
+				// checked throughout codebase. Cancelled to minimise external
+				// calls and speed up operation.
+				cancelled, cancelfn := context.WithTimeout(context.Background(), 0)
+				cancelfn()
+				inputs[y] = reflect.ValueOf(cancelled)
 				continue
 			}
 			inputs[y] = reflect.Zero(input)

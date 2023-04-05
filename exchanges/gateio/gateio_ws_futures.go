@@ -180,7 +180,7 @@ func (g *Gateio) OptionsAndFuturesUnsubscribe(channelsToUnsubscribe []stream.Cha
 	return g.handleFuturesSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
-// wsReadFuturesData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
+// wsReadFuturesData read coming messages thought the websocket connection and pass the data to wsHandleFuturesData for further process.
 func (g *Gateio) wsReadFuturesData() {
 	defer g.Websocket.Wg.Done()
 	for {

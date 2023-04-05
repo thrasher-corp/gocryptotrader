@@ -36,7 +36,6 @@ func (w *WrapperWebsocket) Connect() error {
 	defer w.m.Unlock()
 
 	if !w.IsEnabled() {
-		println(WebsocketNotEnabled)
 		return errors.New(WebsocketNotEnabled)
 	}
 	if w.IsConnecting() {
@@ -66,7 +65,6 @@ func (w *WrapperWebsocket) Connect() error {
 
 // FlushChannels ...
 func (w *WrapperWebsocket) FlushChannels() error {
-	println("Flushing channels...")
 	var err error
 	for x := range w.AssetTypeWebsockets {
 		err = w.AssetTypeWebsockets[x].FlushChannels()
@@ -77,7 +75,7 @@ func (w *WrapperWebsocket) FlushChannels() error {
 	return nil
 }
 
-// GetSubscriptions ...
+// GetSubscriptions calls
 func (w *WrapperWebsocket) GetSubscriptions() []ChannelSubscription {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()

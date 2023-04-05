@@ -52,7 +52,6 @@ const (
 var defaultSubscriptions = []string{
 	spotTickerChannel,
 	spotCandlesticksChannel,
-	spotTradesChannel,
 	spotOrderbookChannel,
 }
 
@@ -89,7 +88,6 @@ func (g *Gateio) WsConnect() error {
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
-	println("Spot Connected!")
 	return nil
 }
 
@@ -794,7 +792,6 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 	if err != nil {
 		return err
 	}
-	println("Payloads generated: ", len(payloads))
 	var errs error
 	for k := range payloads {
 		result, err := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
@@ -817,7 +814,6 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 			}
 		}
 	}
-	fmt.Printf("\n\n\n\n\n\n Subscriptions end: %v\n\n\n", errs)
 	return errs
 }
 

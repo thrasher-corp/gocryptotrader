@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -114,7 +115,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("failed to create script manager. Err: %w", err)
 	}
 
-	b.ExchangeManager = SetupExchangeManager()
+	b.ExchangeManager = NewExchangeManager()
 
 	validateSettings(&b, settings, flagSet)
 
@@ -263,76 +264,31 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	}
 }
 
-// PrintSettings returns the engine settings
-func PrintSettings(s *Settings) {
+// PrintLoadedSettings logs loaded settings.
+func (s *Settings) PrintLoadedSettings() {
+	if s == nil {
+		return
+	}
 	gctlog.Debugln(gctlog.Global)
 	gctlog.Debugf(gctlog.Global, "ENGINE SETTINGS")
-	gctlog.Debugf(gctlog.Global, "- CORE SETTINGS:")
-	gctlog.Debugf(gctlog.Global, "\t Verbose mode: %v", s.Verbose)
-	gctlog.Debugf(gctlog.Global, "\t Enable dry run mode: %v", s.EnableDryRun)
-	gctlog.Debugf(gctlog.Global, "\t Enable all exchanges: %v", s.EnableAllExchanges)
-	gctlog.Debugf(gctlog.Global, "\t Enable all pairs: %v", s.EnableAllPairs)
-	gctlog.Debugf(gctlog.Global, "\t Enable CoinMarketCap analysis: %v", s.EnableCoinmarketcapAnalysis)
-	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
-	gctlog.Debugf(gctlog.Global, "\t Enable data history manager: %v", s.EnableDataHistoryManager)
-	gctlog.Debugf(gctlog.Global, "\t Enable currency state manager: %v", s.EnableCurrencyStateManager)
-	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
-	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
-	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
-	gctlog.Debugf(gctlog.Global, "\t Enable gRPC shutdown of bot instance: %v", s.EnableGRPCShutdown)
-	gctlog.Debugf(gctlog.Global, "\t Enable websocket RPC: %v", s.EnableWebsocketRPC)
-	gctlog.Debugf(gctlog.Global, "\t Enable deprecated RPC: %v", s.EnableDeprecatedRPC)
-	gctlog.Debugf(gctlog.Global, "\t Enable comms relayer: %v", s.EnableCommsRelayer)
-	gctlog.Debugf(gctlog.Global, "\t Enable event manager: %v", s.EnableEventManager)
-	gctlog.Debugf(gctlog.Global, "\t Event manager sleep delay: %v", s.EventManagerDelay)
-	gctlog.Debugf(gctlog.Global, "\t Enable order manager: %v", s.EnableOrderManager)
-	gctlog.Debugf(gctlog.Global, "\t Enable exchange sync manager: %v", s.EnableExchangeSyncManager)
-	gctlog.Debugf(gctlog.Global, "\t Enable deposit address manager: %v\n", s.EnableDepositAddressManager)
-	gctlog.Debugf(gctlog.Global, "\t Enable websocket routine: %v\n", s.EnableWebsocketRoutine)
-	gctlog.Debugf(gctlog.Global, "\t Enable NTP client: %v", s.EnableNTPClient)
-	gctlog.Debugf(gctlog.Global, "\t Enable Database manager: %v", s.EnableDatabaseManager)
-	gctlog.Debugf(gctlog.Global, "\t Enable dispatcher: %v", s.EnableDispatcher)
-	gctlog.Debugf(gctlog.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
-	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
-	gctlog.Debugf(gctlog.Global, "\t Futures PNL tracking: %v", s.EnableFuturesTracking)
-	gctlog.Debugf(gctlog.Global, "- EXCHANGE SYNCER SETTINGS:\n")
-	gctlog.Debugf(gctlog.Global, "\t Exchange sync continuously: %v\n", s.SyncContinuously)
-	gctlog.Debugf(gctlog.Global, "\t Exchange sync workers count: %v\n", s.SyncWorkersCount)
-	gctlog.Debugf(gctlog.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
-	gctlog.Debugf(gctlog.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
-	gctlog.Debugf(gctlog.Global, "\t Enable trade syncing: %v\n", s.EnableTradeSyncing)
-	gctlog.Debugf(gctlog.Global, "\t Exchange REST sync timeout: %v\n", s.SyncTimeoutREST)
-	gctlog.Debugf(gctlog.Global, "\t Exchange Websocket sync timeout: %v\n", s.SyncTimeoutWebsocket)
-	gctlog.Debugf(gctlog.Global, "- FOREX SETTINGS:")
-	gctlog.Debugf(gctlog.Global, "\t Enable Currency Converter: %v", s.EnableCurrencyConverter)
-	gctlog.Debugf(gctlog.Global, "\t Enable Currency Layer: %v", s.EnableCurrencyLayer)
-	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRatesAPI.io: %v", s.EnableExchangeRates)
-	gctlog.Debugf(gctlog.Global, "\t Enable Fixer: %v", s.EnableFixer)
-	gctlog.Debugf(gctlog.Global, "\t Enable OpenExchangeRates: %v", s.EnableOpenExchangeRates)
-	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRateHost: %v", s.EnableExchangeRateHost)
-	gctlog.Debugf(gctlog.Global, "- EXCHANGE SETTINGS:")
-	gctlog.Debugf(gctlog.Global, "\t Enable exchange auto pair updates: %v", s.EnableExchangeAutoPairUpdates)
-	gctlog.Debugf(gctlog.Global, "\t Disable all exchange auto pair updates: %v", s.DisableExchangeAutoPairUpdates)
-	gctlog.Debugf(gctlog.Global, "\t Enable exchange websocket support: %v", s.EnableExchangeWebsocketSupport)
-	gctlog.Debugf(gctlog.Global, "\t Enable exchange verbose mode: %v", s.EnableExchangeVerbose)
-	gctlog.Debugf(gctlog.Global, "\t Enable exchange HTTP rate limiter: %v", s.EnableExchangeHTTPRateLimiter)
-	gctlog.Debugf(gctlog.Global, "\t Enable exchange HTTP debugging: %v", s.EnableExchangeHTTPDebugging)
-	gctlog.Debugf(gctlog.Global, "\t Max HTTP request jobs: %v", s.MaxHTTPRequestJobsLimit)
-	gctlog.Debugf(gctlog.Global, "\t HTTP request max retry attempts: %v", s.RequestMaxRetryAttempts)
-	gctlog.Debugf(gctlog.Global, "\t Trade buffer processing interval: %v", s.TradeBufferProcessingInterval)
-	gctlog.Debugf(gctlog.Global, "\t Alert communications channel pre-allocation buffer size: %v", s.AlertSystemPreAllocationCommsBuffer)
-	gctlog.Debugf(gctlog.Global, "\t HTTP timeout: %v", s.HTTPTimeout)
-	gctlog.Debugf(gctlog.Global, "\t HTTP user agent: %v", s.HTTPUserAgent)
-	gctlog.Debugf(gctlog.Global, "- GCTSCRIPT SETTINGS: ")
-	gctlog.Debugf(gctlog.Global, "\t Enable GCTScript manager: %v", s.EnableGCTScriptManager)
-	gctlog.Debugf(gctlog.Global, "\t GCTScript max virtual machines: %v", s.MaxVirtualMachines)
-	gctlog.Debugf(gctlog.Global, "- WITHDRAW SETTINGS: ")
-	gctlog.Debugf(gctlog.Global, "\t Withdraw Cache size: %v", s.WithdrawCacheSize)
-	gctlog.Debugf(gctlog.Global, "- COMMON SETTINGS:")
-	gctlog.Debugf(gctlog.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
-	gctlog.Debugf(gctlog.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)
-	gctlog.Debugf(gctlog.Global, "\t Global HTTP proxy: %v", s.GlobalHTTPProxy)
+	settings := reflect.ValueOf(*s)
+	for x := 0; x < settings.NumField(); x++ {
+		field := settings.Field(x)
+		if field.Kind() != reflect.Struct {
+			continue
+		}
 
+		fieldName := field.Type().Name()
+		gctlog.Debugln(gctlog.Global, "- "+common.AddPaddingOnUpperCase(fieldName)+":")
+		for y := 0; y < field.NumField(); y++ {
+			indvSetting := field.Field(y)
+			indvName := field.Type().Field(y).Name
+			if indvSetting.Kind() == reflect.String && indvSetting.IsZero() {
+				indvSetting = reflect.ValueOf("Undefined")
+			}
+			gctlog.Debugln(gctlog.Global, "\t", common.AddPaddingOnUpperCase(indvName)+":", indvSetting)
+		}
+	}
 	gctlog.Debugln(gctlog.Global)
 }
 
@@ -713,12 +669,18 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	if err := currency.ShutdownStorageUpdater(); err != nil {
+	err := bot.ExchangeManager.Shutdown(bot.Settings.ExchangeShutdownTimeout)
+	if err != nil {
+		gctlog.Errorf(gctlog.Global, "Exchange manager unable to stop. Error: %v", err)
+	}
+
+	err = currency.ShutdownStorageUpdater()
+	if err != nil {
 		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
 	}
 
 	if !bot.Settings.EnableDryRun {
-		err := bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
+		err = bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
 		if err != nil {
 			gctlog.Errorln(gctlog.Global, "Unable to save config.")
 		} else {
@@ -860,7 +822,11 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		return err
 	}
 
-	bot.ExchangeManager.Add(exch)
+	err = bot.ExchangeManager.Add(exch)
+	if err != nil {
+		return err
+	}
+
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
@@ -888,11 +854,11 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	}
 
 	if wg != nil {
-		return exch.Start(wg)
+		return exch.Start(context.TODO(), wg)
 	}
 
 	tempWG := sync.WaitGroup{}
-	err = exch.Start(&tempWG)
+	err = exch.Start(context.TODO(), &tempWG)
 	if err != nil {
 		return err
 	}

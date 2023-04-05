@@ -22,10 +22,10 @@ const (
 
 func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManager) {
 	t.Helper()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	b := new(bybit.Bybit)
 	b.SetDefaults()
-	cfg, err := b.GetDefaultConfig()
+	cfg, err := b.GetDefaultConfig(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,10 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	if err != nil {
 		t.Fatal(err)
 	}
-	em.Add(b)
+	err = em.Add(b)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	pm, err := setupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
 	if err != nil {
 		t.Fatal(err)

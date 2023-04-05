@@ -57,18 +57,19 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
 	}
-	g.Run()
+	g.Run(context.Background())
 	getFirstTradablePairOfAssets()
 	os.Exit(m.Run())
 }
 
 func TestStart(t *testing.T) {
-	err := g.Start(nil)
+	t.Parallel()
+	err := g.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
 	}
 	var testWg sync.WaitGroup
-	err = g.Start(&testWg)
+	err = g.Start(context.Background(), &testWg)
 	if err != nil {
 		t.Fatal(err)
 	}

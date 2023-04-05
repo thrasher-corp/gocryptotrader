@@ -97,7 +97,6 @@ func (g *Gateio) WsOptionsConnect() error {
 		MessageType: websocket.PingMessage,
 		Message:     pingMessage,
 	})
-	println("Options Connected!")
 	return nil
 }
 

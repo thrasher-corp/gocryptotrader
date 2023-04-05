@@ -95,7 +95,6 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 		MessageType: websocket.PingMessage,
 		Message:     pingMessage,
 	})
-	println("Delivery Futures Connected!")
 	return nil
 }
 

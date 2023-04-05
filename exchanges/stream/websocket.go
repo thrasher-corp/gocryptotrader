@@ -26,6 +26,8 @@ const (
 var (
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
+	// ErrNotConnected defines an error when websocket is not connected
+	ErrNotConnected = errors.New("websocket is not connected")
 
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
@@ -384,10 +386,12 @@ func (w *Websocket) Shutdown() error {
 	defer w.m.Unlock()
 
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket: %w",
-			w.exchangeName, errDisconnectedConnectionShutdown)
+		return fmt.Errorf("%v websocket: cannot shutdown %w",
+			w.exchangeName,
+			ErrNotConnected)
 	}
 
+	// TODO: Interrupt connection and or close connection when it is re-established.
 	if w.IsConnecting() {
 		return fmt.Errorf("%v websocket: %w",
 			w.exchangeName, errReconnectingConnectionShutdown)

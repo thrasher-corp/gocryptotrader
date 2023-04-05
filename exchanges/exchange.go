@@ -1578,3 +1578,15 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 
 	return &kline.ExtendedRequest{Request: r, RangeHolder: dates}, nil
 }
+
+// Shutdown closes active websocket connections if available and then cleans up
+// a REST requester instance.
+func (b *Base) Shutdown() error {
+	if b.Websocket != nil {
+		err := b.Websocket.Shutdown()
+		if err != nil && !errors.Is(err, stream.ErrNotConnected) {
+			return err
+		}
+	}
+	return b.Requester.Shutdown()
+}

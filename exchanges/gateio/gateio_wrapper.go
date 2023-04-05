@@ -33,7 +33,7 @@ import (
 var spotWebsocket, futuresWebsocket, deliveryFuturesWebsocket, optionsWebsocket *stream.Websocket
 
 // GetDefaultConfig returns a default exchange config
-func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
+func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	g.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = g.Name
@@ -46,7 +46,7 @@ func (g *Gateio) GetDefaultConfig() (*config.Exchange, error) {
 	}
 
 	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = g.UpdateTradablePairs(context.TODO(), forceUpdate)
+		err = g.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -225,7 +225,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		SubscriptionFilter:    subscriptionFilter,
 	})
 	if err != nil {
-		fmt.Printf("Error 01: %v", err)
 		return err
 	}
 	err = g.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
@@ -235,7 +234,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
-		fmt.Printf("Error 1: %v", err)
 		return err
 	}
 	futuresWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
@@ -249,7 +247,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		SubscriptionFilter:    subscriptionFilter,
 	})
 	if err != nil {
-		fmt.Printf("Error 00: %v", err)
 		return err
 	}
 	err = g.Websocket.AssetTypeWebsockets[asset.Futures].SetupNewConnection(stream.ConnectionSetup{
@@ -259,7 +256,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
-		fmt.Printf("Error 0: %v", err)
 		return err
 	}
 	deliveryFuturesWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
@@ -273,7 +269,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		SubscriptionFilter:    subscriptionFilter,
 	})
 	if err != nil {
-		fmt.Printf("Error 02: %v", err)
 		return err
 	}
 	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
@@ -283,7 +278,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
-		fmt.Printf("Error 2: %v", err)
 		return err
 	}
 	optionsWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
@@ -297,7 +291,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		SubscriptionFilter:    subscriptionFilter,
 	})
 	if err != nil {
-		fmt.Printf("Error 03: %v", err)
 		return err
 	}
 	err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
@@ -307,34 +300,34 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
-		fmt.Printf("Error 3: %v", err)
 		return err
 	}
 	return nil
 }
 
 // Start starts the GateIO go routine
-func (g *Gateio) Start(wg *sync.WaitGroup) error {
+func (g *Gateio) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		g.Run()
+		g.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the GateIO wrapper
-func (g *Gateio) Run() {
+func (g *Gateio) Run(ctx context.Context) {
 	if g.Verbose {
 		g.PrintEnabledPairs()
 	}
 	if !g.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err := g.UpdateTradablePairs(context.TODO(), forceUpdate)
+
+	err := g.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)
 	}
