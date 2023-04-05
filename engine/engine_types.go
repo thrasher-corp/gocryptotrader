@@ -5,7 +5,11 @@ import (
 	"time"
 )
 
-// Settings stores engine params
+// Settings stores engine params. Please define a settings struct for automatic
+// display of instance settings. For example, if you define a struct named
+// ManagerSettings, it will be displayed as a subheading "Manager Settings"
+// and individual field names such as 'EnableManager' will be displayed
+// as "Enable Manager: true/false".
 type Settings struct {
 	ConfigFile            string
 	DataDir               string
@@ -14,7 +18,19 @@ type Settings struct {
 	GoMaxProcs            int
 	CheckParamInteraction bool
 
-	// Core Settings
+	CoreSettings
+	ExchangeSyncerSettings
+	ForexSettings
+	ExchangeTuningSettings
+	GCTScriptSettings
+	WithdrawSettings
+
+	// Main shutdown channel
+	Shutdown chan struct{}
+}
+
+// CoreSettings defines settings related to core engine operations
+type CoreSettings struct {
 	EnableDryRun                bool
 	EnableAllExchanges          bool
 	EnableAllPairs              bool
@@ -41,8 +57,13 @@ type Settings struct {
 	EventManagerDelay           time.Duration
 	EnableFuturesTracking       bool
 	Verbose                     bool
+	EnableDispatcher            bool
+	DispatchMaxWorkerAmount     int
+	DispatchJobsLimit           int
+}
 
-	// Exchange syncer settings
+// ExchangeSyncerSettings defines settings for the exchange pair synchronisation
+type ExchangeSyncerSettings struct {
 	EnableTickerSyncing    bool
 	EnableOrderbookSyncing bool
 	EnableTradeSyncing     bool
@@ -50,16 +71,20 @@ type Settings struct {
 	SyncContinuously       bool
 	SyncTimeoutREST        time.Duration
 	SyncTimeoutWebsocket   time.Duration
+}
 
-	// Forex settings
+// ForexSettings defines settings related to the foreign exchange services
+type ForexSettings struct {
 	EnableCurrencyConverter bool
 	EnableCurrencyLayer     bool
 	EnableExchangeRates     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
 	EnableExchangeRateHost  bool
+}
 
-	// Exchange tuning settings
+// ExchangeTuningSettings defines settings related to an exchange
+type ExchangeTuningSettings struct {
 	EnableExchangeHTTPRateLimiter       bool
 	EnableExchangeHTTPDebugging         bool
 	EnableExchangeVerbose               bool
@@ -72,30 +97,23 @@ type Settings struct {
 	TradeBufferProcessingInterval       time.Duration
 	RequestMaxRetryAttempts             int
 	AlertSystemPreAllocationCommsBuffer int // See exchanges/alert.go
+	ExchangeShutdownTimeout             time.Duration
+	HTTPTimeout                         time.Duration
+	HTTPUserAgent                       string
+	HTTPProxy                           string
+	GlobalHTTPTimeout                   time.Duration
+	GlobalHTTPUserAgent                 string
+	GlobalHTTPProxy                     string
+}
 
-	// Global HTTP related settings
-	GlobalHTTPTimeout   time.Duration
-	GlobalHTTPUserAgent string
-	GlobalHTTPProxy     string
-
-	// Exchange HTTP related settings
-	HTTPTimeout   time.Duration
-	HTTPUserAgent string
-	HTTPProxy     string
-
-	// Dispatch system settings
-	EnableDispatcher        bool
-	DispatchMaxWorkerAmount int
-	DispatchJobsLimit       int
-
-	// GCTscript settings
+// GCTScriptSettings defines settings related to the GCTScript virtual machine
+type GCTScriptSettings struct {
 	MaxVirtualMachines uint
+}
 
-	// Withdraw settings
+// WithdrawSettings defines settings related to Withdrawing cryptocurrency
+type WithdrawSettings struct {
 	WithdrawCacheSize uint64
-
-	// Main shutdown channel
-	Shutdown chan struct{}
 }
 
 const (
