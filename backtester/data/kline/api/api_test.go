@@ -18,7 +18,7 @@ const testExchange = "binanceus"
 
 func TestLoadCandles(t *testing.T) {
 	t.Parallel()
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestLoadCandles(t *testing.T) {
 
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
