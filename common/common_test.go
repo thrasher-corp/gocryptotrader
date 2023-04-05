@@ -583,6 +583,37 @@ func TestSplitStringSliceByLimit(t *testing.T) {
 	}
 }
 
+func TestAddPaddingOnUpperCase(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		Supplied string
+		Expected string
+	}{
+		{
+			// empty
+		},
+		{
+			Supplied: "ExpectedHTTPRainbow",
+			Expected: "Expected HTTP Rainbow",
+		},
+		{
+			Supplied: "SmellyCatSmellsBad",
+			Expected: "Smelly Cat Smells Bad",
+		},
+		{
+			Supplied: "Gronk",
+			Expected: "Gronk",
+		},
+	}
+
+	for x := range testCases {
+		if received := AddPaddingOnUpperCase(testCases[x].Supplied); received != testCases[x].Expected {
+			t.Fatalf("received '%v' but expected '%v'", received, testCases[x].Expected)
+		}
+	}
+}
+
 func TestInArray(t *testing.T) {
 	t.Parallel()
 	InArray(nil, nil)

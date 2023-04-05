@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -410,6 +411,37 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 		sliceSlice = append(sliceSlice, in)
 	}
 	return sliceSlice
+}
+
+// AddPaddingOnUpperCase adds padding to a string when detecting an upper case letter. If
+// there are multiple upper case items like `ThisIsHTTPExample`, it will only
+// pad between like this `This Is HTTP Example`.
+func AddPaddingOnUpperCase(s string) string {
+	if s == "" {
+		return ""
+	}
+	var result []string
+	left := 0
+	for x := 0; x < len(s); x++ {
+		if x == 0 {
+			continue
+		}
+
+		if unicode.IsUpper(rune(s[x])) {
+			if !unicode.IsUpper(rune(s[x-1])) {
+				result = append(result, s[left:x])
+				left = x
+			}
+		} else if x > 1 && unicode.IsUpper(rune(s[x-1])) {
+			if s[left:x-1] == "" {
+				continue
+			}
+			result = append(result, s[left:x-1])
+			left = x - 1
+		}
+	}
+	result = append(result, s[left:])
+	return strings.Join(result, " ")
 }
 
 // InArray checks if _val_ belongs to _array_
