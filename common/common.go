@@ -413,7 +413,7 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 	return sliceSlice
 }
 
-// AddPaddingOnUpperCase adds padding to string when finding upper case. If
+// AddPaddingOnUpperCase adds padding to a string when detecting an upper case letter. If
 // there are multiple upper case items like `ThisIsHTTPExample`, it will only
 // pad between like this `This Is HTTP Example`.
 func AddPaddingOnUpperCase(s string) string {
