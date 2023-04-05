@@ -198,12 +198,13 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 	}()
 }
 
-func (w *WebsocketConnection) setConnectedStatus(b bool) {
+// setConnectedStatus sets connection status if changed it will return true.
+// TODO: Swap out these atomic switches and opt for sync.RWMutex.
+func (w *WebsocketConnection) setConnectedStatus(b bool) bool {
 	if b {
-		atomic.StoreInt32(&w.connected, 1)
-		return
+		return atomic.SwapInt32(&w.connected, 1) == 0
 	}
-	atomic.StoreInt32(&w.connected, 0)
+	return atomic.SwapInt32(&w.connected, 0) == 1
 }
 
 // IsConnected exposes websocket connection status
@@ -216,16 +217,22 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if isDisconnectionError(err) {
-			w.setConnectedStatus(false)
-			select {
-			case w.readMessageErrors <- err:
-			default:
-				// bypass if there is no receiver, as this stops it returning
-				// when shutdown is called.
-				log.Warnf(log.WebsocketMgr,
-					"%s failed to relay error: %v",
-					w.ExchangeName,
-					err)
+			if w.setConnectedStatus(false) {
+				// NOTE: When w.setConnectedStatus() returns true the underlying
+				// state was changed and this infers that the connection was
+				// externally closed and an error is reported else Shutdown()
+				// method on WebsocketConnection type has been called and can
+				// be skipped.
+				select {
+				case w.readMessageErrors <- err:
+				default:
+					// bypass if there is no receiver, as this stops it returning
+					// when shutdown is called.
+					log.Warnf(log.WebsocketMgr,
+						"%s failed to relay error: %v",
+						w.ExchangeName,
+						err)
+				}
 			}
 		}
 		return Response{}
@@ -315,6 +322,7 @@ func (w *WebsocketConnection) Shutdown() error {
 	if w == nil || w.Connection == nil {
 		return nil
 	}
+	w.setConnectedStatus(false)
 	return w.Connection.UnderlyingConn().Close()
 }
 

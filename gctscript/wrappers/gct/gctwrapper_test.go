@@ -19,10 +19,12 @@ import (
 
 func TestMain(m *testing.M) {
 	settings := engine.Settings{
-		ConfigFile:                  filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun:                true,
-		DataDir:                     filepath.Join("..", "..", "..", "testdata", "gocryptotrader"),
-		EnableDepositAddressManager: true,
+		CoreSettings: engine.CoreSettings{
+			EnableDryRun:                true,
+			EnableDepositAddressManager: true,
+		},
+		ConfigFile: filepath.Join("..", "..", "..", "testdata", "configtest.json"),
+		DataDir:    filepath.Join("..", "..", "..", "testdata", "gocryptotrader"),
 	}
 	var err error
 	engine.Bot, err = engine.NewFromSettings(&settings, nil)
@@ -30,7 +32,7 @@ func TestMain(m *testing.M) {
 		log.Print(err)
 		os.Exit(1)
 	}
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(exch.Value)
 	if err != nil {
 		log.Print(err)
@@ -45,7 +47,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		log.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	engine.Bot.ExchangeManager = em
 	engine.Bot.WithdrawManager, err = engine.SetupWithdrawManager(em, nil, true)
 	if err != nil {
