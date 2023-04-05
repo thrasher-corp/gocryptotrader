@@ -21,7 +21,7 @@ func TestLoadCandles(t *testing.T) {
 	interval := gctkline.OneHour
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestLoadTrades(t *testing.T) {
 	interval := gctkline.OneMin
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)

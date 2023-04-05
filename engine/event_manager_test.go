@@ -107,7 +107,7 @@ func TestEventManagerStop(t *testing.T) {
 
 func TestEventManagerAdd(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -129,7 +129,10 @@ func TestEventManagerAdd(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	_, err = m.Add(testExchange, "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
 	if !errors.Is(err, errInvalidItem) {
 		t.Errorf("error '%v', expected '%v'", err, errInvalidItem)
@@ -159,7 +162,7 @@ func TestEventManagerAdd(t *testing.T) {
 
 func TestEventManagerRemove(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -185,7 +188,10 @@ func TestEventManagerRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	id, err := m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -198,7 +204,7 @@ func TestEventManagerRemove(t *testing.T) {
 
 func TestGetEventCounter(t *testing.T) {
 	t.Parallel()
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -226,7 +232,10 @@ func TestGetEventCounter(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -239,7 +248,7 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestCheckEventCondition(t *testing.T) {
-	em := SetupExchangeManager()
+	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -272,7 +281,10 @@ func TestCheckEventCondition(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

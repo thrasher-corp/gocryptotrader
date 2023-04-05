@@ -30,7 +30,7 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errExchangeManagerRequired)
 	}
 
-	em := engine.SetupExchangeManager()
+	em := engine.NewExchangeManager()
 	_, err = CreateUSDTrackingPairs([]TrackingPair{{Exchange: eName}}, em)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, engine.ErrExchangeNotFound)
@@ -61,7 +61,10 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	eba.Enabled = eba.Enabled.Add(cp3)
 	eba.AssetEnabled = convert.BoolPtr(true)
 
-	em.Add(exch)
+	err = em.Add(exch)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 	resp, err := CreateUSDTrackingPairs([]TrackingPair{s1}, em)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
