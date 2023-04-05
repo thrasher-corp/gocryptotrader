@@ -43,12 +43,14 @@ func main() {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
 	engine.Bot = bot
-	bot.ExchangeManager = engine.SetupExchangeManager()
+	bot.ExchangeManager = engine.NewExchangeManager()
 
 	bot.Settings = engine.Settings{
-		DisableExchangeAutoPairUpdates: true,
-		Verbose:                        verboseOverride,
-		EnableExchangeHTTPRateLimiter:  true,
+		CoreSettings: engine.CoreSettings{Verbose: verboseOverride},
+		ExchangeTuningSettings: engine.ExchangeTuningSettings{
+			DisableExchangeAutoPairUpdates: true,
+			EnableExchangeHTTPRateLimiter:  true,
+		},
 	}
 
 	log.Println("Loading config...")

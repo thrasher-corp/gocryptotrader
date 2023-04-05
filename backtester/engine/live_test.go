@@ -33,7 +33,7 @@ func TestSetupLiveDataHandler(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	bt.exchangeManager = engine.SetupExchangeManager()
+	bt.exchangeManager = engine.NewExchangeManager()
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)

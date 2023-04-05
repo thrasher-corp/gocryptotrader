@@ -21,12 +21,14 @@ func main() {
 	}
 
 	engine.Bot.Settings = engine.Settings{
-		DisableExchangeAutoPairUpdates: true,
-		EnableDryRun:                   true,
+		CoreSettings: engine.CoreSettings{EnableDryRun: true},
+		ExchangeTuningSettings: engine.ExchangeTuningSettings{
+			DisableExchangeAutoPairUpdates: true,
+		},
 	}
 
 	engine.Bot.Config.PurgeExchangeAPICredentials()
-	engine.Bot.ExchangeManager = engine.SetupExchangeManager()
+	engine.Bot.ExchangeManager = engine.NewExchangeManager()
 
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
