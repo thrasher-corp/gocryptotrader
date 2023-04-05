@@ -59,7 +59,7 @@ func CreateTestBot(t *testing.T) *Engine {
 		},
 	}
 	bot := &Engine{
-		ExchangeManager: SetupExchangeManager(),
+		ExchangeManager: NewExchangeManager(),
 		Config: &config.Config{Exchanges: []config.Exchange{
 			{
 				Name:                    testExchange,
@@ -1057,7 +1057,7 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 		ps.Available = nil
 	}
 	return &Engine{
-		Settings: Settings{Verbose: true},
+		Settings: Settings{CoreSettings: CoreSettings{Verbose: true}},
 		Config: &config.Config{
 			Exchanges: []config.Exchange{
 				{
@@ -1189,7 +1189,10 @@ func TestGetExchangeNames(t *testing.T) {
 		}
 		if exch != nil {
 			exch.SetDefaults()
-			bot.ExchangeManager.Add(exch)
+			err = bot.ExchangeManager.Add(exch)
+			if !errors.Is(err, nil) {
+				t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+			}
 		}
 	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {
