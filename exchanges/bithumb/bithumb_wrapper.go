@@ -115,17 +115,22 @@ func (b *Bithumb) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.TenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.TenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					// NOTE: The supported time intervals below are returned
+					// offset to the Asia/Seoul time zone. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. Therefore the below intervals
+					// are constructed from hourly candles.
+					// kline.SixHour,
+					// kline.TwelveHour,
+					// kline.OneDay,
 				),
-				ResultLimit: 1500,
+				GlobalResultLimit: 1500,
 			},
 		},
 	}

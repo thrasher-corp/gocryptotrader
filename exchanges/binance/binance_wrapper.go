@@ -167,23 +167,23 @@ func (b *Binance) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.EightHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.ThreeDay,
-					kline.OneWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.EightHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -1701,7 +1701,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		Symbol:    req.Pair,
 		StartTime: req.Start,
 		EndTime:   req.End,
-		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+		Limit:     int(req.RequestLimit),
 	})
 	if err != nil {
 		return nil, err
@@ -1741,7 +1741,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			Symbol:    req.Pair,
 			StartTime: req.RangeHolder.Ranges[x].Start.Time,
 			EndTime:   req.RangeHolder.Ranges[x].End.Time,
-			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+			Limit:     int(req.RequestLimit),
 		})
 		if err != nil {
 			return nil, err

@@ -3,6 +3,7 @@ package bithumb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -53,7 +54,7 @@ func TestMain(m *testing.M) {
 
 	err = b.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
-		log.Fatal("Bithumb Setup() init error")
+		log.Fatal("Bithumb Setup() init error", err)
 	}
 
 	os.Exit(m.Run())
@@ -618,10 +619,13 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().AddDate(0, 0, -1)
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, startTime, time.Now())
+	b.Verbose = true
+	bro, err := b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.TwelveHour, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	fmt.Printf("%+v\n", bro)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {

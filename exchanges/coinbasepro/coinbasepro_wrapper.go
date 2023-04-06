@@ -118,14 +118,14 @@ func (c *CoinbasePro) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.OneHour,
-					kline.SixHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
 				),
-				ResultLimit: 300,
+				GlobalResultLimit: 300,
 			},
 		},
 	}

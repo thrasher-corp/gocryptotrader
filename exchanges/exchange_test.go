@@ -1948,7 +1948,7 @@ func TestBase_ValidateKline(t *testing.T) {
 		Features: Features{
 			Enabled: FeaturesEnabled{
 				Kline: kline.ExchangeCapabilitiesEnabled{
-					Intervals: kline.DeployExchangeIntervals(kline.OneMin),
+					Intervals: kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin}),
 				},
 			},
 		},
@@ -2715,8 +2715,8 @@ func TestGetKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
 	}
 
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneMin)
-	b.Features.Enabled.Kline.ResultLimit = 1439
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
+	b.Features.Enabled.Kline.GlobalResultLimit = 1439
 	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, errAssetRequestFormatIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
@@ -2749,7 +2749,7 @@ func TestGetKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
 	}
 
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneHour)
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneHour})
 	r, err := b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2852,8 +2852,8 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
 	}
 
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneMin)
-	b.Features.Enabled.Kline.ResultLimit = 100
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
+	b.Features.Enabled.Kline.GlobalResultLimit = 100
 	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
 

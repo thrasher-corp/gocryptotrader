@@ -93,19 +93,19 @@ func (l *Lbank) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.FourHour,
-					kline.EightHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.EightHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 2000,
+				GlobalResultLimit: 2000,
 			},
 		},
 	}
@@ -896,7 +896,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 
 	data, err := l.GetKlines(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+		strconv.FormatInt(req.RequestLimit, 10),
 		l.FormatExchangeKlineInterval(req.ExchangeInterval),
 		strconv.FormatInt(req.Start.Unix(), 10))
 	if err != nil {
@@ -929,7 +929,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+			strconv.FormatInt(req.RequestLimit, 10),
 			l.FormatExchangeKlineInterval(req.ExchangeInterval),
 			strconv.FormatInt(req.RangeHolder.Ranges[x].Start.Ticks, 10))
 		if err != nil {

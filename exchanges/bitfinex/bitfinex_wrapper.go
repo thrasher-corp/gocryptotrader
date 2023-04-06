@@ -147,20 +147,20 @@ func (b *Bitfinex) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.ThreeHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.TwoWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.ThreeHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.TwoWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 10000,
+				GlobalResultLimit: 10000,
 			},
 		},
 	}
@@ -1099,7 +1099,8 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		b.FormatExchangeKlineInterval(req.ExchangeInterval),
 		req.Start.UnixMilli(),
 		req.End.UnixMilli(),
-		b.Features.Enabled.Kline.ResultLimit, true)
+		uint32(req.RequestLimit),
+		true)
 	if err != nil {
 		return nil, err
 	}
@@ -1138,7 +1139,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
 			req.RangeHolder.Ranges[x].Start.Ticks*1000,
 			req.RangeHolder.Ranges[x].End.Ticks*1000,
-			b.Features.Enabled.Kline.ResultLimit,
+			uint32(req.RequestLimit),
 			true)
 		if err != nil {
 			return nil, err

@@ -111,12 +111,13 @@ func (b *Bittrex) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.OneHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.OneMin, Capacity: 1440}, // 1m interval: candles for 1 day (0:00 - 23:59)
+					kline.IntervalCapacity{Interval: kline.FiveMin, Capacity: 288}, // 5m interval: candles for 1 day (0:00 - 23:55)
+					kline.IntervalCapacity{Interval: kline.OneHour, Capacity: 744}, // 1 hour interval: candles for 31 days (0:00 - 23:00)
+					kline.IntervalCapacity{Interval: kline.OneDay, Capacity: 366},  // 1 day interval: candles for 366 days
 				),
-				ResultLimit: 1000,
+				// // ResultLimit: 288, // Based off worst case scenario of 5min interval max return in getHistoricCandles.
+				// ResultLimit: 1000, // Based off worst case scenario of 5min interval max return in getHistoricCandles.
 			},
 		},
 	}
@@ -1010,6 +1011,13 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		ohlcData = append(ohlcData, historicData...)
 	}
 	if getRecent {
+		// This is a workaround so we don't get candle padding between
+		// historical and recent.
+		_, err = b.GetKlineRequest(pair, a, interval, start, end, true)
+		if err != nil {
+			return nil, err
+		}
+
 		var recentData []CandleData
 		recentData, err = b.GetRecentCandles(ctx,
 			req.RequestFormatted.String(),

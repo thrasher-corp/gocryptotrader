@@ -145,18 +145,23 @@ func (h *HUOBI) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.FourHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
-					kline.OneYear,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					// NOTE: The supported time intervals below are returned
+					// offset to the Asia/Shanghai time zone. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. Therefore the below intervals
+					// are constructed from hourly candles.
+					// kline.FourHour,
+					// kline.OneDay,
+					// kline.OneWeek,
+					// kline.OneMonth,
+					// kline.OneYear,
 				),
-				ResultLimit: 2000,
+				GlobalResultLimit: 2000,
 			},
 		},
 	}
@@ -1758,6 +1763,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
 		Symbol: req.Pair,
+		Size:   int(req.RequestLimit),
 	})
 	if err != nil {
 		return nil, err

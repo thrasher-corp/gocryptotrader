@@ -116,18 +116,18 @@ func (h *HitBTC) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.FourHour,
-					kline.OneDay,
-					kline.SevenDay,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.SevenDay},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -872,7 +872,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 	data, err := h.GetCandles(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
+		strconv.FormatInt(req.RequestLimit, 10),
 		h.FormatExchangeKlineInterval(req.ExchangeInterval),
 		req.Start,
 		req.End)
@@ -906,7 +906,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
+			strconv.FormatInt(req.RequestLimit, 10),
 			h.FormatExchangeKlineInterval(req.ExchangeInterval),
 			req.RangeHolder.Ranges[y].Start.Time,
 			req.RangeHolder.Ranges[y].End.Time)
