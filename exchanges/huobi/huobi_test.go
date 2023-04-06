@@ -1614,19 +1614,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestHandleHuobiCandleTimeTranslation(t *testing.T) {
-	t.Parallel()
-	tt := time.Unix(1680192000, 0)
-	tt1 := handleHuobiCandleTimeTranslation(tt, kline.OneHour)
-	tt2 := handleHuobiCandleTimeTranslation(tt, kline.OneDay)
-	if !tt.Equal(tt1) {
-		t.Error("expected equal times")
-	}
-	if tt.Equal(tt2) {
-		t.Errorf("received '%v' expected '%v", tt, tt2)
-	}
-}
-
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC-USDT")

@@ -151,10 +151,6 @@ func (h *HUOBI) SetDefaults() {
 					kline.ThirtyMin,
 					kline.OneHour,
 					kline.FourHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
-					kline.OneYear,
 				),
 				ResultLimit: 2000,
 			},
@@ -1894,7 +1890,6 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 
 		for x := range candles {
 			timestamp := time.Unix(candles[x].IDTimestamp, 0)
-			timestamp = handleHuobiCandleTimeTranslation(timestamp, interval)
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1908,18 +1903,14 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			})
 		}
 	case asset.Futures:
-		// adjust request processed times to Huobi-Happy-times
-		singaporeanAdjustedStart := handleHuobiCandleTimeTranslation(req.Start, interval)
-		singaporeanAdjustedEnd := handleHuobiCandleTimeTranslation(req.End, interval)
 		// if size, from, to are all populated, only size is considered
 		size := int64(-1)
-		candles, err := h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, singaporeanAdjustedStart, singaporeanAdjustedEnd)
+		candles, err := h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End)
 		if err != nil {
 			return nil, err
 		}
 		for x := range candles.Data {
 			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
-			timestamp = handleHuobiCandleTimeTranslation(timestamp, interval)
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1933,18 +1924,14 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			})
 		}
 	case asset.CoinMarginedFutures:
-		// adjust request processed times to Huobi-Happy-times
-		singaporeanAdjustedStart := handleHuobiCandleTimeTranslation(req.Start, interval)
-		singaporeanAdjustedEnd := handleHuobiCandleTimeTranslation(req.End, interval)
 		// if size, from, to are all populated, only size is considered
 		size := int64(-1)
-		candles, err := h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, singaporeanAdjustedStart, singaporeanAdjustedEnd)
+		candles, err := h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End)
 		if err != nil {
 			return nil, err
 		}
 		for x := range candles.Data {
 			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
-			timestamp = handleHuobiCandleTimeTranslation(timestamp, interval)
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1962,15 +1949,6 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	return req.ProcessResponse(timeSeries)
 }
 
-// handleHuobiCandleTimeTranslation huobi has a specific time in mind for its
-// daily kline generation, so we adjust the time to allow it
-func handleHuobiCandleTimeTranslation(t time.Time, interval kline.Interval) time.Time {
-	if interval != kline.OneDay {
-		return t
-	}
-	return t.UTC().Add(time.Hour * 8)
-}
-
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := h.GetKlineExtendedRequest(pair, a, interval, start, end)
@@ -1984,20 +1962,16 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		return nil, common.ErrFunctionNotSupported
 	case asset.Futures:
 		for i := range req.RangeHolder.Ranges {
-			// adjust request processed times to Huobi-Happy-times
-			singaporeanAdjustedStart := handleHuobiCandleTimeTranslation(req.RangeHolder.Ranges[i].Start.Time, interval)
-			singaporeanAdjustedEnd := handleHuobiCandleTimeTranslation(req.RangeHolder.Ranges[i].End.Time, interval)
 			// if size, from, to are all populated, only size is considered
 			size := int64(-1)
 			var candles FKlineData
-			candles, err = h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, singaporeanAdjustedStart, singaporeanAdjustedEnd)
+			candles, err = h.FGetKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time)
 			if err != nil {
 				return nil, err
 			}
 			for x := range candles.Data {
 				// align response data
 				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0).UTC()
-				timestamp = handleHuobiCandleTimeTranslation(timestamp, interval)
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
@@ -2013,20 +1987,16 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		}
 	case asset.CoinMarginedFutures:
 		for i := range req.RangeHolder.Ranges {
-			// adjust request processed times to Huobi-Happy-times
-			singaporeanAdjustedStart := handleHuobiCandleTimeTranslation(req.RangeHolder.Ranges[i].Start.Time, interval)
-			singaporeanAdjustedEnd := handleHuobiCandleTimeTranslation(req.RangeHolder.Ranges[i].End.Time, interval)
 			// if size, from, to are all populated, only size is considered
 			size := int64(-1)
 			var candles SwapKlineData
-			candles, err = h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, singaporeanAdjustedStart, singaporeanAdjustedEnd)
+			candles, err = h.GetSwapKlineData(ctx, req.Pair, h.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time)
 			if err != nil {
 				return nil, err
 			}
 			for x := range candles.Data {
 				// align response data
 				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
-				timestamp = handleHuobiCandleTimeTranslation(timestamp, interval)
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
