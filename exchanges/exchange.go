@@ -1548,7 +1548,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 
 		if count > int64(limit) {
 			boundary := tn.Add(-exchangeInterval.Duration() * time.Duration(limit))
-			errMsg := fmt.Sprintf("candle count exceeded: %d. The endpoint has a set candle limit return of %d candles from the request time until %v. Candle data will be incomplete:",
+			errMsg := fmt.Sprintf("candle count exceeded: %d. The endpoint has a set candle limit return of %d candles from the request time until %v. Candle data will be incomplete",
 				count,
 				limit,
 				boundary.Format(common.SimpleTimeFormat))
