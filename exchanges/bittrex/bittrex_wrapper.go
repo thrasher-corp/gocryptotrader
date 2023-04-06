@@ -116,8 +116,6 @@ func (b *Bittrex) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneHour, Capacity: 744}, // 1 hour interval: candles for 31 days (0:00 - 23:00)
 					kline.IntervalCapacity{Interval: kline.OneDay, Capacity: 366},  // 1 day interval: candles for 366 days
 				),
-				// // ResultLimit: 288, // Based off worst case scenario of 5min interval max return in getHistoricCandles.
-				// ResultLimit: 1000, // Based off worst case scenario of 5min interval max return in getHistoricCandles.
 			},
 		},
 	}

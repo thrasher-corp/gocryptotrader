@@ -1540,9 +1540,6 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	// functionality will result in error if the total candles cannot be
 	// theoretically retrieved.
 	if fixedAPICandleLength {
-		// TODO: Update b.Features.Enabled.Kline.ResultLimit to be based off
-		// each individual kline interval because there are some differences
-		// depending on exchange.
 		tn := time.Now().Truncate(exchangeInterval.Duration()).UTC()
 		count := kline.TotalCandlesPerInterval(req.Start, tn, exchangeInterval)
 
