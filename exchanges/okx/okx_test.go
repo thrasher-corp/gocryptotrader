@@ -1084,7 +1084,7 @@ func TestGetAssetBillsDetails(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err := ok.GetAssetBillsDetails(context.Background(), "", "", "", time.Time{}, time.Time{}, 0, 1)
+	_, err := ok.GetAssetBillsDetails(context.Background(), "", "", time.Time{}, time.Time{}, 0, 1)
 	if err != nil {
 		t.Error("Okx GetAssetBillsDetail() error", err)
 	}

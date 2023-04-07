@@ -1855,7 +1855,7 @@ func (ok *Okx) BalanceAndPositionSubscription(operation, uid string) error {
 }
 
 // WsOrderChannel for subscribing for orders.
-func (ok *Okx) WsOrderChannel(operation string, assetType asset.Item, pair currency.Pair, instrumentID string) error {
+func (ok *Okx) WsOrderChannel(operation string, assetType asset.Item, pair currency.Pair, _ string) error {
 	return ok.wsAuthChannelSubscription(operation, okxChannelOrders, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
 }
 
