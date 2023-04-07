@@ -69,9 +69,9 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 		return err
 	}
 	g.Websocket.Wg.Add(3)
+	go g.wsReadFuturesData()
 	go g.wsFunnelConnectionData(g.Websocket.Conn)
 	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
-	go g.wsReadData()
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
@@ -84,8 +84,6 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(1)
-	go g.wsReadData()
 	g.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,

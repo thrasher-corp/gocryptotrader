@@ -97,9 +97,9 @@ func (g *Gateio) WsFuturesConnect() error {
 		return err
 	}
 	g.Websocket.Wg.Add(3)
+	go g.wsReadFuturesData()
 	go g.wsFunnelFuturesConnectionData(g.Websocket.Conn)
 	go g.wsFunnelFuturesConnectionData(g.Websocket.AuthConn)
-	go g.wsReadData()
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
@@ -120,8 +120,6 @@ func (g *Gateio) WsFuturesConnect() error {
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 	})
-	g.Websocket.Wg.Add(1)
-	go g.wsReadFuturesData()
 	return nil
 }
 
