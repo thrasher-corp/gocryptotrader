@@ -72,9 +72,9 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 		return err
 	}
 	g.Websocket.Wg.Add(3)
-	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn)
-	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].AuthConn)
-	go g.wsReadData()
+	go g.wsReadFuturesData()
+	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.Futures].Conn)
+	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.Futures].AuthConn)
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
@@ -87,9 +87,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(1)
-	go g.wsReadData()
-	g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn.SetupPingHandler(stream.PingHandler{
+	g.Websocket.AssetTypeWebsockets[asset.Futures].Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
