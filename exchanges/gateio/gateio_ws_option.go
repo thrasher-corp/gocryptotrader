@@ -101,11 +101,7 @@ func (g *Gateio) WsOptionsConnect() error {
 		MessageType: websocket.PingMessage,
 		Message:     pingMessage,
 	})
-	subscriptions, err := g.GenerateOptionsDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return g.FuturesSubscribe(subscriptions)
+	return nil
 }
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
@@ -345,7 +341,6 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 }
 
 func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
-	println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)

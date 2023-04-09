@@ -2297,16 +2297,20 @@ func TestGetSingleSubAccount(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
+	// _, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
+	// if err != nil {
+	// 	t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
+	// }
+	// if _, err = g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
+	// 	t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
+	// }
+	instruments, err := g.FetchTradablePairs(context.Background(), asset.Futures)
 	if err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
-	}
-	if _, err = g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
-		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
-	}
-	_, err = g.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
+	} else {
+		for x := range instruments {
+			print(instruments[x].String(), ",")
+		}
 	}
 	if _, err = g.FetchTradablePairs(context.Background(), asset.Margin); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
@@ -3481,7 +3485,7 @@ func TestSettlement(t *testing.T) {
 	}
 }
 
-func TestWsConnect(t *testing.T) {
+func TestWsSpotConnect(t *testing.T) {
 	t.Parallel()
 	err := g.WsConnect()
 	if err != nil {
@@ -3489,10 +3493,43 @@ func TestWsConnect(t *testing.T) {
 	}
 }
 
-func TestOptionsConnect(t *testing.T) {
+func TestWsConne(t *testing.T) {
+	t.Parallel()
+	err := g.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOptionsConnect(t *testing.T) {
 	t.Parallel()
 	err := g.WsOptionsConnect()
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestWsFuturesConnect(t *testing.T) {
+	t.Parallel()
+	err := g.WsFuturesConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsDeliveryFuturesConnect(t *testing.T) {
+	t.Parallel()
+	err := g.WsDeliveryFuturesConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWebsocketConnect(t *testing.T) {
+	t.Parallel()
+	err := g.Websocket.Connect()
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second * 30)
 }

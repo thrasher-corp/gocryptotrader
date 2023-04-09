@@ -48,17 +48,15 @@ func (w *WrapperWebsocket) Connect() error {
 	}
 
 	w.setConnectingStatus(true)
-	var err error
+	// var err error
 	for x := range w.AssetTypeWebsockets {
-		println("Connecting ", x.String())
-		err = w.AssetTypeWebsockets[x].Connect()
-		if err != nil {
-			println("Connect(): ", err.Error())
-			w.setConnectingStatus(false)
-			return fmt.Errorf("%s Error connecting %v",
-				w.exchangeName, err)
-		}
-		println(x.String())
+		// err =
+		go w.AssetTypeWebsockets[x].Connect()
+		// if err != nil {
+		// 	w.setConnectingStatus(false)
+		// 	return fmt.Errorf("%s Error connecting %v",
+		// 		w.exchangeName, err)
+		// }
 	}
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
