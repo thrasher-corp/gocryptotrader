@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -32,6 +31,9 @@ var defaultDeliveryFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
+// responseDeliveryFuturesStream a channel thought which the data coming from the two websocket connection will go through.
+var responseDeliveryFuturesStream = make(chan stream.Response)
+
 var fetchedFuturesCurrencyPairSnapshotOrderbook map[string]bool
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
@@ -44,7 +46,6 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	futuresAssetType = asset.DeliveryFutures
 	var dialer websocket.Dialer
 	err = g.Websocket.SetWebsocketURL(deliveryRealUSDTTradingURL, false, true)
 	if err != nil {
@@ -69,11 +70,11 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 		return err
 	}
 	g.Websocket.Wg.Add(3)
-	go g.wsReadFuturesData()
-	go g.wsFunnelConnectionData(g.Websocket.Conn)
-	go g.wsFunnelConnectionData(g.Websocket.AuthConn)
+	go g.wsReadDeliveryFuturesData()
+	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.Conn)
+	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AuthConn)
 	if g.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
+		log.Debugf(log.ExchangeSys, "successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -91,6 +92,47 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 		Message:     pingMessage,
 	})
 	return nil
+}
+
+// wsReadFuturesData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
+func (g *Gateio) wsReadDeliveryFuturesData() {
+	defer g.Websocket.Wg.Done()
+	for {
+		select {
+		case <-g.Websocket.ShutdownC:
+			select {
+			case resp := <-responseDeliveryFuturesStream:
+				err := g.wsHandleFuturesData(resp.Raw, asset.DeliveryFutures)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-responseDeliveryFuturesStream:
+			err := g.wsHandleFuturesData(resp.Raw, asset.DeliveryFutures)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
+// wsFunnelDeliveryFuturesConnectionData receives data from multiple connection and pass the data
+// to wsRead through a channel responseStream
+func (g *Gateio) wsFunnelDeliveryFuturesConnectionData(ws stream.Connection) {
+	defer g.Websocket.Wg.Done()
+	for {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		responseDeliveryFuturesStream <- stream.Response{Raw: resp.Raw}
+	}
 }
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
@@ -116,10 +158,11 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.Channel
 	for i := range channelsToSubscribe {
 		for j := range pairs {
 			params := make(map[string]interface{})
-			if strings.EqualFold(channelsToSubscribe[i], futuresOrderbookChannel) {
+			switch channelsToSubscribe[i] {
+			case futuresOrderbookChannel:
 				params["limit"] = 20
 				params["interval"] = "0"
-			} else if strings.EqualFold(channelsToSubscribe[i], futuresCandlesticksChannel) {
+			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
 			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)

@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -113,47 +112,6 @@ func (g *Gateio) wsReadConnData() {
 		if err != nil {
 			g.Websocket.DataHandler <- err
 		}
-	}
-}
-
-// wsReadData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
-func (g *Gateio) wsReadData() {
-	defer g.Websocket.Wg.Done()
-	for {
-		select {
-		case <-g.Websocket.ShutdownC:
-			select {
-			case resp := <-responseStream:
-				err := g.wsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case g.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
-					}
-				}
-			default:
-			}
-			return
-		case resp := <-responseStream:
-			err := g.wsHandleData(resp.Raw)
-			if err != nil {
-				g.Websocket.DataHandler <- err
-			}
-		}
-	}
-}
-
-// wsFunnelConnectionData receives data from multiple connection and pass the data
-// to wsRead through a channel responseStream
-func (g *Gateio) wsFunnelConnectionData(ws stream.Connection) {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		responseStream <- stream.Response{Raw: resp.Raw}
 	}
 }
 
