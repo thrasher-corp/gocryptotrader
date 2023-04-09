@@ -1154,7 +1154,7 @@ type WithdrawalStatus struct {
 
 // FuturesSubAccountBalance represents sub account balance for specific sub account and several currencies
 type FuturesSubAccountBalance struct {
-	UserID    string `json:"uid"`
+	UserID    int64 `json:"uid,string"`
 	Available struct {
 		Total                     float64 `json:"total,string"`
 		UnrealisedProfitAndLoss   string  `json:"unrealised_pnl"`
