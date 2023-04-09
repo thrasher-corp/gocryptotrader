@@ -220,11 +220,11 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	futuresWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
+		DefaultURL:            futuresWebsocketUsdtURL,
+		RunningURL:            futuresWebsocketUsdtURL,
 		Connector:             g.WsFuturesConnect,
-		Subscriber:            g.OptionsAndFuturesSubscribe,
-		Unsubscriber:          g.OptionsAndFuturesUnsubscribe,
+		Subscriber:            g.FuturesSubscribe,
+		Unsubscriber:          g.FuturesUnsubscribe,
 		GenerateSubscriptions: g.GenerateFuturesDefaultSubscriptions,
 		AssetType:             asset.Futures,
 		SubscriptionFilter:    subscriptionFilter,
@@ -233,7 +233,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = g.Websocket.AssetTypeWebsockets[asset.Futures].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
+		URL:                  futuresWebsocketUsdtURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -241,12 +241,22 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	err = g.Websocket.AssetTypeWebsockets[asset.Futures].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  futuresWebsocketBtcURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Authenticated:        true,
+	})
+	if err != nil {
+		return err
+	}
 	deliveryFuturesWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
+		DefaultURL:            deliveryRealUSDTTradingURL,
+		RunningURL:            deliveryRealUSDTTradingURL,
 		Connector:             g.WsDeliveryFuturesConnect,
-		Subscriber:            g.OptionsAndFuturesSubscribe,
-		Unsubscriber:          g.OptionsAndFuturesUnsubscribe,
+		Subscriber:            g.FuturesSubscribe,
+		Unsubscriber:          g.FuturesUnsubscribe,
 		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
 		AssetType:             asset.DeliveryFutures,
 		SubscriptionFilter:    subscriptionFilter,
@@ -255,37 +265,44 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
+		URL:                  deliveryRealUSDTTradingURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  deliveryRealBTCTradingURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Authenticated:        true,
 	})
 	if err != nil {
 		return err
 	}
 	optionsWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
+		DefaultURL:            optionsWebsocketURL,
+		RunningURL:            optionsWebsocketURL,
 		Connector:             g.WsOptionsConnect,
-		Subscriber:            g.OptionsAndFuturesSubscribe,
-		Unsubscriber:          g.OptionsAndFuturesUnsubscribe,
+		Subscriber:            g.OptionsSubscribe,
+		Unsubscriber:          g.OptionsUnsubscribe,
 		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
-		AssetType:             asset.Options,
 		SubscriptionFilter:    subscriptionFilter,
+		AssetType:             asset.Options,
 	})
 	if err != nil {
 		return err
 	}
 	err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
+		URL:                  optionsWebsocketURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Start starts the GateIO go routine

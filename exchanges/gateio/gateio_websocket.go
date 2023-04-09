@@ -88,6 +88,7 @@ func (g *Gateio) WsConnect() error {
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
+	println("Spot connected!!!")
 	return nil
 }
 
@@ -799,25 +800,26 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		// result,
+		err := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payloads[k]) //SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if payloads[k].Event == "subscribe" {
-				g.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[k])
-			} else {
-				g.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
-			}
-		}
+		// var resp WsEventResponse
+		// if err = json.Unmarshal(result, &resp); err != nil {
+		// 	errs = common.AppendError(errs, err)
+		// } else {
+		// 	if resp.Error != nil && resp.Error.Code != 0 {
+		// 		errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
+		// 		continue
+		// 	}
+		// 	if payloads[k].Event == "subscribe" {
+		// 		g.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[k])
+		// 	} else {
+		// 		g.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
+		// 	}
+		// }
 	}
 	return errs
 }

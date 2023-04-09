@@ -220,6 +220,7 @@ func (g *Gateio) wsFunnelFuturesConnectionData(ws stream.Connection) {
 }
 
 func (g *Gateio) wsHandleFuturesData(respRaw []byte) error {
+	println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)
@@ -282,29 +283,31 @@ func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []s
 		return err
 	}
 	var errs error
-	var respByte []byte
+	// var respByte []byte
 	// con represents the websocket connection. 0 - for usdt settle and 1 - for btc settle connections.
 	for con, val := range payloads {
 		for k := range val {
 			if con == 0 {
-				respByte, err = g.Websocket.AssetTypeWebsockets[asset.Futures].Conn.SendMessageReturnResponse(val[k].ID, val[k])
+				// respByte,
+				err = g.Websocket.AssetTypeWebsockets[asset.Futures].Conn.SendJSONMessage(val[k]) //SendMessageReturnResponse(val[k].ID, val[k])
 			} else {
-				respByte, err = g.Websocket.AssetTypeWebsockets[asset.Futures].AuthConn.SendMessageReturnResponse(val[k].ID, val[k])
+				// respByte,
+				err = g.Websocket.AssetTypeWebsockets[asset.Futures].AuthConn.SendJSONMessage(val[k]) //SendMessageReturnResponse(val[k].ID, val[k])
 			}
 			if err != nil {
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			var resp WsEventResponse
-			if err = json.Unmarshal(respByte, &resp); err != nil {
-				errs = common.AppendError(errs, err)
-			} else {
-				if resp.Error != nil && resp.Error.Code != 0 {
-					errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val[k].Event, val[k].Channel, resp.Error.Code, resp.Error.Message))
-					continue
-				}
-				g.Websocket.AssetTypeWebsockets[asset.Futures].AddSuccessfulSubscriptions(channelsToSubscribe[k])
-			}
+			// var resp WsEventResponse
+			// if err = json.Unmarshal(respByte, &resp); err != nil {
+			// 	errs = common.AppendError(errs, err)
+			// } else {
+			// 	if resp.Error != nil && resp.Error.Code != 0 {
+			// 		errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val[k].Event, val[k].Channel, resp.Error.Code, resp.Error.Message))
+			// 		continue
+			// 	}
+			// 	g.Websocket.AssetTypeWebsockets[asset.Futures].AddSuccessfulSubscriptions(channelsToSubscribe[k])
+			// }
 		}
 	}
 	if errs != nil {

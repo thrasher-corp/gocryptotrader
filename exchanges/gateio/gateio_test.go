@@ -3488,3 +3488,11 @@ func TestWsConnect(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestOptionsConnect(t *testing.T) {
+	t.Parallel()
+	err := g.WsOptionsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}

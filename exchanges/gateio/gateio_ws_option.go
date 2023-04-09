@@ -101,7 +101,11 @@ func (g *Gateio) WsOptionsConnect() error {
 		MessageType: websocket.PingMessage,
 		Message:     pingMessage,
 	})
-	return nil
+	subscriptions, err := g.GenerateOptionsDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return g.FuturesSubscribe(subscriptions)
 }
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
@@ -273,7 +277,7 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stre
 				params...)
 		}
 		payloads[i] = WsInput{
-			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			ID:      g.Websocket.AssetTypeWebsockets[asset.Options].Conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -317,7 +321,7 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := g.Websocket.AssetTypeWebsockets[asset.Options].Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -331,9 +335,9 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				g.Websocket.AssetTypeWebsockets[asset.Options].AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				g.Websocket.RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
+				g.Websocket.AssetTypeWebsockets[asset.Options].RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
 			}
 		}
 	}
@@ -341,6 +345,7 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 }
 
 func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
+	println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)

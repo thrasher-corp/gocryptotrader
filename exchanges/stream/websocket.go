@@ -214,7 +214,9 @@ func (w *Websocket) Connect() error {
 	w.setConnectingStatus(true)
 
 	err := w.connector()
+	println("here4")
 	if err != nil {
+		println("4", err.Error())
 		w.setConnectingStatus(false)
 		return fmt.Errorf("%v Error connecting %s",
 			w.exchangeName, err)
@@ -222,22 +224,28 @@ func (w *Websocket) Connect() error {
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
 	w.setInit(true)
-
+	println("here3")
 	err = w.connectionMonitor()
 	if err != nil {
+		println("3", err.Error())
 		log.Errorf(log.WebsocketMgr,
 			"%s cannot start websocket connection monitor %v",
 			w.GetName(),
 			err)
 	}
+	println("here2")
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
+		println("2", err.Error())
 		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 	}
+	println("here1")
 	err = w.Subscriber(subs)
 	if err != nil {
+		println("1", err.Error())
 		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 	}
+	println("here 0")
 	return nil
 }
 
@@ -292,6 +300,7 @@ func (w *Websocket) dataMonitor() {
 			case d := <-w.DataHandler:
 				select {
 				case w.ToRoutine <- d:
+					fmt.Printf("The data %v", d)
 				case <-w.ShutdownC:
 					return
 				default:

@@ -73,8 +73,8 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	}
 	g.Websocket.Wg.Add(3)
 	go g.wsReadFuturesData()
-	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.Futures].Conn)
-	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.Futures].AuthConn)
+	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn)
+	go g.wsFunnelConnectionData(g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].AuthConn)
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
