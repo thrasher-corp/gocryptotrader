@@ -167,13 +167,13 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 	return subscriptions, nil
 }
 
-// OptionsAndFuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) OptionsAndFuturesSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+// FuturesSubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) FuturesSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return g.handleFuturesSubscription("subscribe", channelsToUnsubscribe)
 }
 
-// OptionsAndFuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) OptionsAndFuturesUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+// FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
+func (g *Gateio) FuturesUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return g.handleFuturesSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
@@ -371,18 +371,7 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []stre
 			if err != nil {
 				return payloads, err
 			}
-			switch channelsToSubscribe[i].Channel {
-			case optionsContractCandlesticksChannel:
-				params = append([]string{intervalString}, params...)
-			case optionsUnderlyingCandlesticksChannel:
-				uly, err := g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
-				if err != nil {
-					return payloads, err
-				}
-				params = []string{intervalString, uly.String()}
-			default:
-				params = append(params, intervalString)
-			}
+			params = append(params, intervalString)
 		}
 		levelString, okay := channelsToSubscribe[i].Params["level"].(string)
 		if okay {

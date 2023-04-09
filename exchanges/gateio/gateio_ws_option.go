@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +11,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -19,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -103,12 +107,29 @@ func (g *Gateio) WsOptionsConnect() error {
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
 func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	channelsToSubscribe := defaultOptionsSubscriptions
+	var userID int64
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe,
-			optionsUserTradesChannel,
-			optionsBalancesChannel,
-		)
+		var err error
+		_, err = g.GetCredentials(context.TODO())
+		if err != nil {
+			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			goto getEnabledPairs
+		}
+		response, err := g.GetSubAccountBalances(context.Background(), "")
+		if err != nil {
+			return nil, err
+		}
+		if len(response) != 0 {
+			channelsToSubscribe = append(channelsToSubscribe,
+				optionsUserTradesChannel,
+				optionsBalancesChannel,
+			)
+			userID = response[0].UserID
+		} else if g.Verbose {
+			log.Error(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
+		}
 	}
+getEnabledPairs:
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := g.GetEnabledPairs(asset.Options)
 	if err != nil {
@@ -126,6 +147,17 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 			case optionsOrderbookUpdateChannel:
 				params["interval"] = kline.ThousandMilliseconds
 				params["level"] = "20"
+			case optionsOrdersChannel,
+				optionsUserTradesChannel,
+				optionsLiquidatesChannel,
+				optionsUserSettlementChannel,
+				optionsPositionCloseChannel,
+				optionsBalancesChannel,
+				optionsPositionsChannel:
+				if userID == 0 {
+					continue
+				}
+				params["user_id"] = userID
 			}
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
 			if err != nil {
@@ -141,6 +173,116 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 	return subscriptions, nil
 }
 
+func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([]WsInput, error) {
+	if len(channelsToSubscribe) == 0 {
+		return nil, errors.New("cannot generate payload, no channels supplied")
+	}
+	var err error
+	var intervalString string
+	payloads := make([]WsInput, len(channelsToSubscribe))
+	for i := range channelsToSubscribe {
+		var auth *WsAuthInput
+		timestamp := time.Now()
+		var params []string
+		switch channelsToSubscribe[i].Channel {
+		case optionsUnderlyingTickersChannel,
+			optionsUnderlyingTradesChannel,
+			optionsUnderlyingPriceChannel,
+			optionsUnderlyingCandlesticksChannel:
+			var uly currency.Pair
+			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, uly.String())
+		case optionsBalancesChannel:
+			// options.balance channel does not require underlying or contract
+		default:
+			channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
+			params = append(params, channelsToSubscribe[i].Currency.String())
+		}
+		switch channelsToSubscribe[i].Channel {
+		case optionsOrderbookChannel:
+			accuracy, ok := channelsToSubscribe[i].Params["accuracy"].(string)
+			if !ok {
+				return nil, fmt.Errorf("%w, invalid options orderbook accuracy", orderbook.ErrOrderbookInvalid)
+			}
+			level, ok := channelsToSubscribe[i].Params["level"].(string)
+			if !ok {
+				return nil, fmt.Errorf("%w, invalid options orderbook level", orderbook.ErrOrderbookInvalid)
+			}
+			params = append(
+				params,
+				level,
+				accuracy,
+			)
+		case optionsUserTradesChannel,
+			optionsBalancesChannel,
+			optionsOrdersChannel,
+			optionsLiquidatesChannel,
+			optionsUserSettlementChannel,
+			optionsPositionCloseChannel,
+			optionsPositionsChannel:
+			userID, ok := channelsToSubscribe[i].Params["user_id"].(int64)
+			if !ok {
+				continue
+			}
+			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
+			var creds *account.Credentials
+			creds, err = g.GetCredentials(context.Background())
+			if err != nil {
+				return nil, err
+			}
+			var sigTemp string
+			sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp)
+			if err != nil {
+				return nil, err
+			}
+			auth = &WsAuthInput{
+				Method: "api_key",
+				Key:    creds.Key,
+				Sign:   sigTemp,
+			}
+		case optionsOrderbookUpdateChannel:
+			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !ok {
+				return nil, fmt.Errorf("%w, missing options orderbook interval", orderbook.ErrOrderbookInvalid)
+			}
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
+			params = append(params,
+				intervalString)
+			if value, ok := channelsToSubscribe[i].Params["level"].(int); ok {
+				params = append(params, strconv.Itoa(value))
+			}
+		case optionsContractCandlesticksChannel,
+			optionsUnderlyingCandlesticksChannel:
+			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
+			if !ok {
+				return nil, errors.New("missing options underlying candlesticks interval")
+			}
+			intervalString, err = g.GetIntervalString(interval)
+			if err != nil {
+				return nil, err
+			}
+			params = append(
+				[]string{intervalString},
+				params...)
+		}
+		payloads[i] = WsInput{
+			ID:      g.Websocket.Conn.GenerateMessageID(false),
+			Event:   event,
+			Channel: channelsToSubscribe[i].Channel,
+			Payload: params,
+			Auth:    auth,
+			Time:    timestamp.Unix(),
+		}
+	}
+	return payloads, nil
+}
+
 // wsReadOptionsConnData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadOptionsConnData() {
 	defer g.Websocket.Wg.Done()
@@ -154,6 +296,47 @@ func (g *Gateio) wsReadOptionsConnData() {
 			g.Websocket.DataHandler <- err
 		}
 	}
+}
+
+// OptionsSubscribe sends a websocket message to stop receiving data for asset type options
+func (g *Gateio) OptionsSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	return g.handleOptionsSubscription("subscribe", channelsToUnsubscribe)
+}
+
+// OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
+func (g *Gateio) OptionsUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	return g.handleOptionsSubscription("unsubscribe", channelsToUnsubscribe)
+}
+
+// handleOptionsSubscription sends a websocket message to receive data from the channel
+func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+	payloads, err := g.generateOptionsPayload(event, channelsToSubscribe)
+	if err != nil {
+		return err
+	}
+	var errs error
+	for k := range payloads {
+		result, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		var resp WsEventResponse
+		if err = json.Unmarshal(result, &resp); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			if resp.Error != nil && resp.Error.Code != 0 {
+				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s asset type: options error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
+				continue
+			}
+			if payloads[k].Event == "subscribe" {
+				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+			} else {
+				g.Websocket.RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
+			}
+		}
+	}
+	return errs
 }
 
 func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {

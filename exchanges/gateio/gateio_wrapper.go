@@ -49,7 +49,6 @@ func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 			return nil, err
 		}
 	}
-
 	return exchCfg, nil
 }
 

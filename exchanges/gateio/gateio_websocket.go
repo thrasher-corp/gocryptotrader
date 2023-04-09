@@ -838,24 +838,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 	for i := range channelsToSubscribe {
 		var auth *WsAuthInput
 		timestamp := time.Now()
-		var params []string
-		switch channelsToSubscribe[i].Channel {
-		case optionsUnderlyingTickersChannel,
-			optionsUnderlyingTradesChannel,
-			optionsUnderlyingPriceChannel,
-			optionsUnderlyingCandlesticksChannel:
-			var uly currency.Pair
-			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
-			if err != nil {
-				return nil, err
-			}
-			params = append(params, uly.String())
-		case optionsBalancesChannel:
-			// options.balance channel does not require underlying or contract
-		default:
-			channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
-			params = append(params, channelsToSubscribe[i].Currency.String())
-		}
+		channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
+		params := []string{channelsToSubscribe[i].Currency.String()}
 		switch channelsToSubscribe[i].Channel {
 		case spotOrderbookChannel:
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
@@ -874,84 +858,6 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 				strconv.Itoa(level),
 				intervalString,
 			)
-		case futuresOrderbookChannel:
-			limit, ok := channelsToSubscribe[i].Params["limit"].(int)
-			if !ok {
-				return nil, fmt.Errorf("%w, invalid futures orderbook limit", orderbook.ErrOrderbookInvalid)
-			}
-			interval, ok := channelsToSubscribe[i].Params["interval"].(string)
-			if !ok {
-				return nil, fmt.Errorf("%w, missing futures orderbook interval", orderbook.ErrOrderbookInvalid)
-			}
-			params = append(params,
-				strconv.Itoa(limit), interval)
-		case optionsOrderbookChannel:
-			accuracy, ok := channelsToSubscribe[i].Params["accuracy"].(string)
-			if !ok {
-				return nil, fmt.Errorf("%w, invalid options orderbook accuracy", orderbook.ErrOrderbookInvalid)
-			}
-			level, ok := channelsToSubscribe[i].Params["level"].(string)
-			if !ok {
-				return nil, fmt.Errorf("%w, invalid options orderbook level", orderbook.ErrOrderbookInvalid)
-			}
-			params = append(
-				params,
-				level,
-				accuracy,
-			)
-		case futuresOrderbookUpdateChannel:
-			interval, ok := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
-			if !ok {
-				return nil, fmt.Errorf("%w, missing frequency for futures orderbook update", orderbook.ErrOrderbookInvalid)
-			}
-			intervalString, err = g.GetIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(
-				params,
-				intervalString)
-			if value, ok := channelsToSubscribe[i].Params["level"].(string); ok {
-				params = append(params, value)
-			}
-		case optionsOrderbookUpdateChannel:
-			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !ok {
-				return nil, fmt.Errorf("%w, missing options orderbook interval", orderbook.ErrOrderbookInvalid)
-			}
-			intervalString, err = g.GetIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(params,
-				intervalString)
-			if value, ok := channelsToSubscribe[i].Params["level"].(int); ok {
-				params = append(params, strconv.Itoa(value))
-			}
-		case futuresCandlesticksChannel:
-			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !ok {
-				return nil, errors.New("missing futures candlesticks interval")
-			}
-			intervalString, err = g.GetIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(
-				[]string{intervalString},
-				params...)
-		case optionsContractCandlesticksChannel, optionsUnderlyingCandlesticksChannel:
-			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !ok {
-				return nil, errors.New("missing options underlying candlesticks interval")
-			}
-			intervalString, err = g.GetIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(
-				[]string{intervalString},
-				params...)
 		case spotCandlesticksChannel:
 			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if !ok {
@@ -965,19 +871,16 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 				[]string{intervalString},
 				params...)
 		}
-		if g.Websocket.CanUseAuthenticatedEndpoints() && (channelsToSubscribe[i].Channel == spotUserTradesChannel ||
-			channelsToSubscribe[i].Channel == spotBalancesChannel ||
-			channelsToSubscribe[i].Channel == marginBalancesChannel ||
-			channelsToSubscribe[i].Channel == spotFundingBalanceChannel ||
-			channelsToSubscribe[i].Channel == crossMarginBalanceChannel ||
-			channelsToSubscribe[i].Channel == crossMarginLoanChannel ||
-			channelsToSubscribe[i].Channel == optionsOrdersChannel ||
-			channelsToSubscribe[i].Channel == optionsUserTradesChannel ||
-			channelsToSubscribe[i].Channel == optionsLiquidatesChannel ||
-			channelsToSubscribe[i].Channel == optionsUserSettlementChannel ||
-			channelsToSubscribe[i].Channel == optionsPositionCloseChannel ||
-			channelsToSubscribe[i].Channel == optionsBalancesChannel ||
-			channelsToSubscribe[i].Channel == optionsPositionsChannel) {
+		switch channelsToSubscribe[i].Channel {
+		case spotUserTradesChannel,
+			spotBalancesChannel,
+			marginBalancesChannel,
+			spotFundingBalanceChannel,
+			crossMarginBalanceChannel,
+			crossMarginLoanChannel:
+			if !g.Websocket.CanUseAuthenticatedEndpoints() {
+				continue
+			}
 			value, ok := channelsToSubscribe[i].Params["user"].(string)
 			if ok {
 				params = append(
@@ -994,7 +897,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 				Key:    creds.Key,
 				Sign:   sigTemp,
 			}
-		} else if channelsToSubscribe[i].Channel == spotOrderbookUpdateChannel {
+		case spotOrderbookUpdateChannel:
 			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if !ok {
 				return nil, errors.New("missing spot orderbook interval")
