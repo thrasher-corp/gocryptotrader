@@ -385,7 +385,7 @@ func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(respRaw)
+		return g.processFuturesAndOptionsOrderbookUpdate(respRaw, asset.Options)
 	case optionsOrdersChannel:
 		return g.processOptionsOrderPushData(respRaw)
 	case optionsUserTradesChannel:
@@ -397,7 +397,7 @@ func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
 	case optionsPositionCloseChannel:
 		return g.processPositionCloseData(respRaw)
 	case optionsBalancesChannel:
-		return g.processBalancePushData(respRaw)
+		return g.processBalancePushData(respRaw, asset.Options)
 	case optionsPositionsChannel:
 		return g.processOptionsPositionPushData(respRaw)
 	default:

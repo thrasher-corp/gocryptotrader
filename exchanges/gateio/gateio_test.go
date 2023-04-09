@@ -2951,7 +2951,7 @@ const wsFuturesTickerPushDataJSON = `{"time": 1541659086,	"channel": "futures.ti
 
 func TestFuturesTicker(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesTickerPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesTickerPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket push data error: %v", g.Name, err)
 	}
 }
@@ -2960,7 +2960,7 @@ const wsFuturesTradesPushDataJSON = `{"channel": "futures.trades","event": "upda
 
 func TestFuturesTrades(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesTradesPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesTradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket push data error: %v", g.Name, err)
 	}
 }
@@ -2971,7 +2971,7 @@ const (
 
 func TestOrderbookData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesOrderbookTickerJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesOrderbookTickerJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket orderbook ticker push data error: %v", g.Name, err)
 	}
 }
@@ -2980,7 +2980,7 @@ const wsFuturesOrderPushDataJSON = `{	"channel": "futures.orders",	"event": "upd
 
 func TestFuturesOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesOrderPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesOrderPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures order push data error: %v", g.Name, err)
 	}
 }
@@ -2989,7 +2989,7 @@ const wsFuturesUsertradesPushDataJSON = `{"time": 1543205083,	"channel": "future
 
 func TestFuturesUserTrades(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesUsertradesPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesUsertradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures user trades push data error: %v", g.Name, err)
 	}
 }
@@ -2998,7 +2998,7 @@ const wsFuturesLiquidationPushDataJSON = `{"channel": "futures.liquidates",	"eve
 
 func TestFuturesLiquidationPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesLiquidationPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesLiquidationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures liquidation push data error: %v", g.Name, err)
 	}
 }
@@ -3007,7 +3007,7 @@ const wsFuturesAutoDelevergesNotification = `{"channel": "futures.auto_deleverag
 
 func TestFuturesAutoDeleverges(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesAutoDelevergesNotification)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesAutoDelevergesNotification), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures auto deleverge push data error: %v", g.Name, err)
 	}
 }
@@ -3016,7 +3016,7 @@ const wsFuturesPositionClosePushDataJSON = ` {"channel": "futures.position_close
 
 func TestPositionClosePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesPositionClosePushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesPositionClosePushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures position close push data error: %v", g.Name, err)
 	}
 }
@@ -3025,7 +3025,7 @@ const wsFuturesBalanceNotificationPushDataJSON = `{"channel": "futures.balances"
 
 func TestFuturesBalanceNotification(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesBalanceNotificationPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesBalanceNotificationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures balance notification push data error: %v", g.Name, err)
 	}
 }
@@ -3034,7 +3034,7 @@ const wsFuturesReduceRiskLimitNotificationPushDataJSON = `{"time": 1551858330,	"
 
 func TestFuturesReduceRiskLimitPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesReduceRiskLimitNotificationPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesReduceRiskLimitNotificationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures reduce risk limit notification push data error: %v", g.Name, err)
 	}
 }
@@ -3043,7 +3043,7 @@ const wsFuturesPositionsNotificationPushDataJSON = `{"time": 1588212926,"channel
 
 func TestFuturesPositionsNotification(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesPositionsNotificationPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesPositionsNotificationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures positions change notification push data error: %v", g.Name, err)
 	}
 }
@@ -3052,7 +3052,7 @@ const wsFuturesAutoOrdersPushDataJSON = `{"time": 1596798126,"channel": "futures
 
 func TestFuturesAutoOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.wsHandleFuturesData([]byte(wsFuturesAutoOrdersPushDataJSON)); err != nil {
+	if err := g.wsHandleFuturesData([]byte(wsFuturesAutoOrdersPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures auto orders push data error: %v", g.Name, err)
 	}
 }
@@ -3240,11 +3240,11 @@ const (
 
 func TestFuturesOrderbookPushData(t *testing.T) {
 	t.Parallel()
-	err := g.wsHandleFuturesData([]byte(futuresOrderbookPushData))
+	err := g.wsHandleFuturesData([]byte(futuresOrderbookPushData), asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	err = g.wsHandleFuturesData([]byte(futuresOrderbookUpdatePushData))
+	err = g.wsHandleFuturesData([]byte(futuresOrderbookUpdatePushData), asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3254,7 +3254,7 @@ const futuresCandlesticksPushData = `{"time": 1678469467, "time_ms": 16784694679
 
 func TestFuturesCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	err := g.wsHandleFuturesData([]byte(futuresCandlesticksPushData))
+	err := g.wsHandleFuturesData([]byte(futuresCandlesticksPushData), asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
