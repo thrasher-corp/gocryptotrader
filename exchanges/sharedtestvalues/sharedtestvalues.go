@@ -69,8 +69,8 @@ func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canMan
 	supportsManipulatingOrders := len(canManipulateOrders) > 0
 	allowedToManipulateOrders := supportsManipulatingOrders && canManipulateOrders[0]
 
-	if areTestAPICredentialsSet && !supportsManipulatingOrders ||
-		areTestAPICredentialsSet && allowedToManipulateOrders {
+	if (areTestAPICredentialsSet && !supportsManipulatingOrders) ||
+		(areTestAPICredentialsSet && allowedToManipulateOrders) {
 		return
 	}
 
