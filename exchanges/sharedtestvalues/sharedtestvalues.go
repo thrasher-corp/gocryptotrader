@@ -96,8 +96,7 @@ func SkipTestIfCannotManipulateOrders(t *testing.T, exch exchange.IBotExchange, 
 		return
 	}
 
-	message := []string{warningSkip, warningManipulateOrders}
-	t.Skip(strings.Join(message, ", "))
+	t.Skip(warningSkip +", " + warningManipulateOrders)
 }
 
 // AreAPICredentialsSet returns if the API credentials are set.
