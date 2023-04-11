@@ -118,7 +118,7 @@ func TestAreCredentialsValid(t *testing.T) {
 	}
 }
 
-func TestValidateAPICredentials(t *testing.T) {
+func TestVerifyAPICredentials(t *testing.T) {
 	t.Parallel()
 
 	type tester struct {
