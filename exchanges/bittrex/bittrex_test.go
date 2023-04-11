@@ -697,6 +697,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
 	pair, err := currency.NewPairFromString("btc-usdt")
 	if err != nil {
 		t.Fatal(err)
@@ -708,9 +709,31 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	end = time.Now()
+	start = end.AddDate(0, -12, 0)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	end = time.Now()
+	start = end.AddDate(0, 0, -30)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	end = time.Now()
+	start = end.AddDate(0, 0, -1).Add(time.Minute * 5)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
 	pair, err := currency.NewPairFromString("btc-usdt")
 	if err != nil {
 		t.Fatal(err)

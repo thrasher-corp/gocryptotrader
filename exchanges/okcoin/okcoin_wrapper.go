@@ -125,18 +125,18 @@ func (o *OKCoin) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.FifteenMin},
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/Shanghai time zone. This may lead to
 					// issues with candle quality and conversion as the
 					// intervals may be broken up. Therefore the below intervals
 					// are constructed from hourly candles.
-					// kline.TwoHour,
-					// kline.FourHour,
-					// kline.SixHour,
-					// kline.TwelveHour,
-					// kline.OneDay,
-					// kline.ThreeDay,
-					// kline.OneWeek,
+					// kline.IntervalCapacity{Interval: kline.SixHour},
+					// kline.IntervalCapacity{Interval: kline.TwelveHour},
+					// kline.IntervalCapacity{Interval: kline.OneDay},
+					// kline.IntervalCapacity{Interval: kline.ThreeDay},
+					// kline.IntervalCapacity{Interval: kline.OneWeek},
 				),
 				GlobalResultLimit: 1440,
 			},

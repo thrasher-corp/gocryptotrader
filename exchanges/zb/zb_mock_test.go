@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -42,24 +41,24 @@ func TestMain(m *testing.M) {
 		log.Fatal("ZB setup error", err)
 	}
 
-	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
+	// serverDetails, newClient, err := mock.NewVCRServer(mockfile)
+	// if err != nil {
+	// 	log.Fatalf("Mock server error %s", err)
+	// }
 
-	err = z.SetHTTPClient(newClient)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-	endpoints := z.API.Endpoints.GetURLMap()
-	for k := range endpoints {
-		err = z.API.Endpoints.SetRunning(k, serverDetails)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	log.Printf(sharedtestvalues.MockTesting,
-		z.Name)
+	// err = z.SetHTTPClient(newClient)
+	// if err != nil {
+	// 	log.Fatalf("Mock server error %s", err)
+	// }
+	// endpoints := z.API.Endpoints.GetURLMap()
+	// for k := range endpoints {
+	// 	err = z.API.Endpoints.SetRunning(k, serverDetails)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }
+	// log.Printf(sharedtestvalues.MockTesting,
+	// 	z.Name)
 
 	os.Exit(m.Run())
 }

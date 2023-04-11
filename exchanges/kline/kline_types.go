@@ -78,6 +78,7 @@ var (
 	errExchangeCapabilitiesEnabledIsNil = errors.New("exchange capabilities enabled is nil")
 	errCannotFetchIntervalLimit         = errors.New("cannot fetch interval limit")
 	errIntervalNotSupported             = errors.New("interval not supported")
+	errCandleOpenTimeIsNotUTCAligned    = errors.New("candle open time is not UTC aligned")
 
 	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 

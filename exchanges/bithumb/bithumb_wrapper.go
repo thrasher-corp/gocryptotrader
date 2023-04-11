@@ -121,14 +121,14 @@ func (b *Bithumb) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.TenMin},
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/Seoul time zone. This may lead to
 					// issues with candle quality and conversion as the
 					// intervals may be broken up. Therefore the below intervals
 					// are constructed from hourly candles.
-					// kline.SixHour,
-					// kline.TwelveHour,
-					// kline.OneDay,
+					// kline.IntervalCapacity{Interval: kline.SixHour},
+					// kline.IntervalCapacity{Interval: kline.OneDay},
 				),
 				GlobalResultLimit: 1500,
 			},

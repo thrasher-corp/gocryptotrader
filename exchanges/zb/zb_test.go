@@ -889,6 +889,10 @@ func TestGetSpotKline(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip("mock testing is not supported for this function")
+	}
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
 		t.Fatal(err)
@@ -897,12 +901,13 @@ func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now()
 	_, err = z.GetHistoricCandles(context.Background(), currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
-	if err != nil && !mockTests { // Cannot match mock test data as the end point start and end times are not fixed.
+	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
 		t.Fatal(err)

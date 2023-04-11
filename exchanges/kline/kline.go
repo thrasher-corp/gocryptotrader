@@ -172,12 +172,18 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 	padded := make([]Candle, segments)
 	var target int
 	for x := range padded {
-		if target >= len(k.Candles) || !k.Candles[target].Time.Equal(start) {
+		if target >= len(k.Candles) {
+			padded[x].Time = start
+		} else if !k.Candles[target].Time.Equal(start) {
+			if k.Candles[target].Time.Before(start) {
+				return fmt.Errorf("%w when it should be %s truncated at a %s interval", errCandleOpenTimeIsNotUTCAligned, start.Add(k.Interval.Duration()), k.Interval)
+			}
 			padded[x].Time = start
 		} else {
 			padded[x] = k.Candles[target]
 			target++
 		}
+
 		start = start.Add(k.Interval.Duration())
 	}
 
@@ -353,44 +359,32 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 
 	var target int
 	for x := range k.Candles {
-		if k.Candles[x].Open == 0 &&
-			k.Candles[x].High == 0 &&
-			k.Candles[x].Low == 0 &&
-			k.Candles[x].Close == 0 &&
-			k.Candles[x].Volume == 0 {
-			// This candle is padding, there is nothing to apply to the new
-			// interval candle. We can skip this candle and move on to the next.
-			if (x+1)%oldIntervalsPerNewCandle == 0 {
-				// Note: Below checks the length of the proceeding slice so we can
-				// break instantly if we cannot make an entire candle. e.g. 60 min
-				// candles in an hour candle and we have 59 minute candles left.
-				// This entire procession is cleaved.
-				if len(k.Candles[x:])-1 < oldIntervalsPerNewCandle {
-					break
-				}
-				target++
+		if k.Candles[x].Open != 0 &&
+			k.Candles[x].High != 0 &&
+			k.Candles[x].Low != 0 &&
+			k.Candles[x].Close != 0 &&
+			k.Candles[x].Volume != 0 {
+			if candles[target].Time.IsZero() {
+				candles[target].Time = k.Candles[x].Time
 			}
-			continue
-		}
 
-		if candles[target].Time.IsZero() {
-			candles[target].Time = k.Candles[x].Time
-		}
+			if candles[target].Open == 0 {
+				candles[target].Open = k.Candles[x].Open
+			}
 
-		if candles[target].Open == 0 {
-			candles[target].Open = k.Candles[x].Open
-		}
+			if k.Candles[x].High > candles[target].High {
+				candles[target].High = k.Candles[x].High
+			}
 
-		if k.Candles[x].High > candles[target].High {
-			candles[target].High = k.Candles[x].High
-		}
+			if candles[target].Low == 0 || k.Candles[x].Low < candles[target].Low {
+				candles[target].Low = k.Candles[x].Low
+			}
 
-		if candles[target].Low == 0 || k.Candles[x].Low < candles[target].Low {
-			candles[target].Low = k.Candles[x].Low
-		}
-
-		candles[target].Volume += k.Candles[x].Volume
-		candles[target].Close = k.Candles[x].Close
+			candles[target].Volume += k.Candles[x].Volume
+			candles[target].Close = k.Candles[x].Close
+		} // Else this candle is padding or has zero values, there is nothing to
+		// apply to the new interval candle as this will distort higher	order
+		// candle. We can skip this candle and move on to the next one.
 
 		if (x+1)%oldIntervalsPerNewCandle == 0 {
 			// Note: Below checks the length of the proceeding slice so we can
@@ -654,7 +648,7 @@ func (e *ExchangeCapabilitiesEnabled) GetIntervalResultLimit(interval Interval) 
 
 	val, ok := e.Intervals.supported[interval]
 	if !ok {
-		return 0, errIntervalNotSupported
+		return 0, fmt.Errorf("[%s] %w", interval, errIntervalNotSupported)
 	}
 
 	if val > 0 {
@@ -662,7 +656,7 @@ func (e *ExchangeCapabilitiesEnabled) GetIntervalResultLimit(interval Interval) 
 	}
 
 	if e.GlobalResultLimit == 0 {
-		return 0, errCannotFetchIntervalLimit
+		return 0, fmt.Errorf("%w there is no global result limit set", errCannotFetchIntervalLimit)
 	}
 
 	return int64(e.GlobalResultLimit), nil

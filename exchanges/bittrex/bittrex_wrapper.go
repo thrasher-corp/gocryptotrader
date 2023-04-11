@@ -28,6 +28,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var (
+	oneDay   = time.Hour * 24
+	oneMonth = oneDay * 31
+	oneYear  = oneDay * 366
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bittrex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
@@ -963,7 +969,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, errors.New("invalid interval")
 	}
 
-	year, month, day := req.Start.Date()
+	year, month, day := req.End.Date()
 	curYear, curMonth, curDay := time.Now().Date()
 
 	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
@@ -971,21 +977,21 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	switch req.ExchangeInterval {
 	case kline.OneMin, kline.FiveMin:
-		if time.Since(req.Start) > 24*time.Hour {
+		if time.Since(req.Start) > oneDay {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth && day >= curDay {
 			getRecent = true
 		}
 	case kline.OneHour:
-		if time.Since(req.Start) > 31*24*time.Hour {
+		if time.Since(req.Start) > oneMonth {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth {
 			getRecent = true
 		}
 	case kline.OneDay:
-		if time.Since(req.Start) > 366*24*time.Hour {
+		if time.Since(req.Start) > oneYear {
 			getHistoric = true
 		}
 		if year >= curYear {
@@ -993,8 +999,13 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 	}
 
+	if !getHistoric && !getRecent {
+		return nil, errors.New("start end time range cannot get historic or recent candles")
+	}
+
 	var ohlcData []CandleData
 	if getHistoric {
+		fmt.Println("HISTORIC")
 		var historicData []CandleData
 		historicData, err = b.GetHistoricalCandles(ctx,
 			req.RequestFormatted.String(),
@@ -1007,7 +1018,10 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			return nil, err
 		}
 		ohlcData = append(ohlcData, historicData...)
+	} else {
+		fmt.Println("Not historic")
 	}
+
 	if getRecent {
 		// This is a workaround so we don't get candle padding between
 		// historical and recent.
@@ -1015,6 +1029,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("RECENT!")
 
 		var recentData []CandleData
 		recentData, err = b.GetRecentCandles(ctx,
@@ -1025,6 +1040,8 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			return nil, err
 		}
 		ohlcData = append(ohlcData, recentData...)
+	} else {
+		fmt.Println("NOT RECENT")
 	}
 
 	timeSeries := make([]kline.Candle, 0, len(ohlcData))

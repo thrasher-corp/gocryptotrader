@@ -150,16 +150,16 @@ func (h *HUOBI) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.FifteenMin},
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.OneYear},
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/Shanghai time zone. This may lead to
 					// issues with candle quality and conversion as the
 					// intervals may be broken up. Therefore the below intervals
 					// are constructed from hourly candles.
-					// kline.FourHour,
-					// kline.OneDay,
-					// kline.OneWeek,
-					// kline.OneMonth,
-					// kline.OneYear,
+					// kline.IntervalCapacity{Interval: kline.OneDay},
+					// kline.IntervalCapacity{Interval: kline.OneWeek},
+					// kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
 				GlobalResultLimit: 2000,
 			},

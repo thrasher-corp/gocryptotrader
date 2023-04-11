@@ -3,7 +3,6 @@ package bithumb
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -618,14 +617,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().AddDate(0, 0, -1)
-	b.Verbose = true
-	bro, err := b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.TwelveHour, startTime, time.Now())
+	startTime := time.Now().AddDate(0, -24, 0)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	fmt.Printf("%+v\n", bro)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {

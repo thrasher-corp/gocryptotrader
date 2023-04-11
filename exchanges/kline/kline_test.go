@@ -1033,6 +1033,18 @@ func TestConvertToNewInterval(t *testing.T) {
 			Close:  5555,
 			Volume: 2520,
 		},
+		{
+			Time: tn.AddDate(0, 0, 6),
+			// Empty end padding
+		},
+		{
+			Time: tn.AddDate(0, 0, 7),
+			// Empty end padding
+		},
+		{
+			Time: tn.AddDate(0, 0, 8),
+			// Empty end padding
+		},
 	}
 
 	_, err = old.ConvertToNewInterval(newInterval)
@@ -1040,7 +1052,7 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCandleDataNotPadded)
 	}
 
-	err = old.addPadding(tn, tn.AddDate(0, 0, 6), false)
+	err = old.addPadding(tn, tn.AddDate(0, 0, 9), false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1050,8 +1062,8 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	if len(newCandle.Candles) != 2 {
-		t.Errorf("received '%v' expected '%v'", len(newCandle.Candles), 2)
+	if len(newCandle.Candles) != 3 {
+		t.Errorf("received '%v' expected '%v'", len(newCandle.Candles), 3)
 	}
 }
 
