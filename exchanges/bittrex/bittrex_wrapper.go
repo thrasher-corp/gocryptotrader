@@ -1005,7 +1005,6 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	var ohlcData []CandleData
 	if getHistoric {
-		fmt.Println("HISTORIC")
 		var historicData []CandleData
 		historicData, err = b.GetHistoricalCandles(ctx,
 			req.RequestFormatted.String(),
@@ -1018,8 +1017,6 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			return nil, err
 		}
 		ohlcData = append(ohlcData, historicData...)
-	} else {
-		fmt.Println("Not historic")
 	}
 
 	if getRecent {
@@ -1029,7 +1026,6 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("RECENT!")
 
 		var recentData []CandleData
 		recentData, err = b.GetRecentCandles(ctx,
@@ -1040,8 +1036,6 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			return nil, err
 		}
 		ohlcData = append(ohlcData, recentData...)
-	} else {
-		fmt.Println("NOT RECENT")
 	}
 
 	timeSeries := make([]kline.Candle, 0, len(ohlcData))
