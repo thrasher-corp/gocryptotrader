@@ -850,17 +850,30 @@ func (h *HitBTC) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) string {
+func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) (string, error) {
 	switch in {
-	case kline.OneMin, kline.ThreeMin,
-		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
-		return "M" + in.Short()[:len(in.Short())-1]
+	case kline.OneMin:
+		return "M1", nil
+	case kline.ThreeMin:
+		return "M3", nil
+	case kline.FiveMin:
+		return "M5", nil
+	case kline.FifteenMin:
+		return "M15", nil
+	case kline.ThirtyMin:
+		return "M30", nil
+	case kline.OneHour:
+		return "H1", nil
+	case kline.FourHour:
+		return "H4", nil
 	case kline.OneDay:
-		return "D1"
-	case kline.SevenDay:
-		return "D7"
+		return "D1", nil
+	case kline.OneWeek:
+		return "D7", nil
+	case kline.OneMonth:
+		return "1M", nil
 	}
-	return ""
+	return "", errors.New("invalid interval")
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
@@ -870,10 +883,15 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		return nil, err
 	}
 
+	klineInt, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
+	if err != nil {
+		return nil, err
+	}
+
 	data, err := h.GetCandles(ctx,
 		req.RequestFormatted.String(),
 		strconv.FormatInt(req.RequestLimit, 10),
-		h.FormatExchangeKlineInterval(req.ExchangeInterval),
+		klineInt,
 		req.Start,
 		req.End)
 	if err != nil {
@@ -901,13 +919,18 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return nil, err
 	}
 
+	klineInt, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
+	if err != nil {
+		return nil, err
+	}
+
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for y := range req.RangeHolder.Ranges {
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
 			req.RequestFormatted.String(),
 			strconv.FormatInt(req.RequestLimit, 10),
-			h.FormatExchangeKlineInterval(req.ExchangeInterval),
+			klineInt,
 			req.RangeHolder.Ranges[y].Start.Time,
 			req.RangeHolder.Ranges[y].End.Time)
 		if err != nil {

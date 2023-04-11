@@ -1120,6 +1120,37 @@ func TestAddPadding(t *testing.T) {
 
 	k.Candles = []Candle{
 		{
+			Time:   tn.Add(time.Millisecond),
+			Open:   1337,
+			High:   1339,
+			Low:    1336,
+			Close:  1338,
+			Volume: 1337,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 1).Add(time.Millisecond),
+			Open:   1338,
+			High:   2000,
+			Low:    1332,
+			Close:  1696,
+			Volume: 6420,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 2).Add(time.Millisecond),
+			Open:   1696,
+			High:   1998,
+			Low:    1337,
+			Close:  6969,
+			Volume: 2520,
+		}}
+
+	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
+	if !errors.Is(err, errCandleOpenTimeIsNotUTCAligned) {
+		t.Fatalf("received '%v' expected '%v'", err, errCandleOpenTimeIsNotUTCAligned)
+	}
+
+	k.Candles = []Candle{
+		{
 			Time:   tn,
 			Open:   1337,
 			High:   1339,

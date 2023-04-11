@@ -163,27 +163,24 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 		return errCannotEstablishTimeWindow
 	}
 
-	segments := int(window / k.Interval.Duration())
-	if segments == len(k.Candles) {
-		return nil
-	}
-
-	// TODO: Add check to see if candle is dropped due to time window.
-	padded := make([]Candle, segments)
+	padded := make([]Candle, int(window/k.Interval.Duration()))
 	var target int
 	for x := range padded {
-		if target >= len(k.Candles) {
+		switch {
+		case target >= len(k.Candles):
 			padded[x].Time = start
-		} else if !k.Candles[target].Time.Equal(start) {
+		case !k.Candles[target].Time.Equal(start):
 			if k.Candles[target].Time.Before(start) {
-				return fmt.Errorf("%w when it should be %s truncated at a %s interval", errCandleOpenTimeIsNotUTCAligned, start.Add(k.Interval.Duration()), k.Interval)
+				return fmt.Errorf("%w when it should be %s truncated at a %s interval",
+					errCandleOpenTimeIsNotUTCAligned,
+					start.Add(k.Interval.Duration()),
+					k.Interval)
 			}
 			padded[x].Time = start
-		} else {
+		default:
 			padded[x] = k.Candles[target]
 			target++
 		}
-
 		start = start.Add(k.Interval.Duration())
 	}
 

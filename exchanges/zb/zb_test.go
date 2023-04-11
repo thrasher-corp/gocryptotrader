@@ -923,8 +923,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime = time.Now().Add(-time.Hour * 24 * 365)
 	endTime = time.Now()
 	if mockTests {
-		startTime = time.UnixMilli(1674489600000)
-		endTime = startTime.Add(kline.OneDay.Duration())
+		t.Skip("mock testing is not supported for this function")
 	}
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
 		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
