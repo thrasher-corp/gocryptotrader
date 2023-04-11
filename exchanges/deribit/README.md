@@ -57,7 +57,7 @@ for i := range bot.Exchanges {
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := c.FetchTicker()
+tick, err := d.FetchTicker()
 if err != nil {
 	// Handle error
 }

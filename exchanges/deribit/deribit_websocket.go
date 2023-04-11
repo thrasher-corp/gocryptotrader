@@ -71,6 +71,8 @@ var defaultSubscriptions = []string{
 	tradesWithKindChannel,
 }
 
+var index_enums = []string{"ada_usd", "algo_usd", "avax_usd", "bch_usd", "bnb_usd", "btc_usd", "doge_usd", "dot_usd", "eth_usd", "link_usd", "ltc_usd", "luna_usd", "matic_usd", "near_usd", "shib_usd", "sol_usd", "trx_usd", "uni_usd", "usdc_usd", "xrp_usd", "ada_usdc", "bch_usdc", "algo_usdc", "avax_usdc", "btc_usdc", "doge_usdc", "dot_usdc", "bch_usdc", "bnb_usdc", "eth_usdc", "link_usdc", "ltc_usdc", "luna_usdc", "matic_usdc", "near_usdc", "shib_usdc", "sol_usdc", "trx_usdc", "uni_usdc", "xrp_usdc", "btcdvol_usdc", "ethdvol_usdc"}
+
 var (
 	pingMessage = WsSubscriptionInput{
 		ID:             2,
@@ -107,11 +109,7 @@ func (d *Deribit) WsConnect() error {
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	err = d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
-	if err != nil {
-		return err
-	}
-	return nil
+	return d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -235,7 +233,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	case "perpetual":
 		perpetualInterest := &wsPerpetualInterest{}
 		return d.processData(respRaw, perpetualInterest)
-	case "platform_state":
+	case platformStateChannel:
 		platformState := &wsPlatformState{}
 		return d.processData(respRaw, platformState)
 	case "quote": // Quote ticker information.
@@ -824,40 +822,56 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			userTradesByKindCurrencyAndIntervalChannel,
 		)
 	}
-	for y := range assets {
-		pairs, err := d.GetEnabledPairs(assets[y])
+	var err error
+	assetPairs := make(map[asset.Item][]currency.Pair, len(assets))
+	for _, a := range assets {
+		assetPairs[a], err = d.GetEnabledPairs(a)
 		if err != nil {
 			return nil, err
 		}
-		if len(pairs) > 10 {
-			pairs = pairs[:5]
+		if len(assetPairs[a]) > 5 {
+			assetPairs[a] = assetPairs[a][:5]
 		}
-		for z := range pairs {
-			for x := range subscriptionChannels {
-				switch subscriptionChannels[x] {
-				// Public channels
-				case chartTradesChannel:
+	}
+	if err != nil {
+		return nil, err
+	}
+	for x := range subscriptionChannels {
+		switch subscriptionChannels[x] {
+		case chartTradesChannel:
+			for _, a := range assets {
+				for z := range assetPairs[a] {
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  chartTradesChannel,
-							Currency: pairs[z],
+							Channel:  subscriptionChannels[x],
+							Currency: assetPairs[a][z],
 							Params: map[string]interface{}{
 								"resolution": "1",
 							},
 						})
-				case incrementalTickerChannel:
+				}
+			}
+		case incrementalTickerChannel,
+			quoteChannel,
+			rawUserOrdersChannel:
+			for _, a := range assets {
+				for z := range assetPairs[a] {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  incrementalTickerChannel,
-						Currency: pairs[z],
+						Channel:  subscriptionChannels[x],
+						Currency: assetPairs[a][z],
 					})
-				case orderbookChannel:
-					if pairs[z].Quote.Upper().String() != "PERPETUAL" {
+				}
+			}
+		case orderbookChannel:
+			for _, a := range assets {
+				for z := range assetPairs[a] {
+					if assetPairs[a][z].Quote.Upper().String() != "PERPETUAL" {
 						continue
 					}
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  orderbookChannel,
-							Currency: pairs[z],
+							Channel:  subscriptionChannels[x],
+							Currency: assetPairs[a][z],
 							Params: map[string]interface{}{
 								// if needed, group and depth of orderbook can be passed as follow "group":    "250", "depth":    "20",
 								"interval": "100ms",
@@ -867,78 +881,149 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 					if d.Websocket.CanUseAuthenticatedEndpoints() {
 						subscriptions = append(subscriptions, stream.ChannelSubscription{
 							Channel:  orderbookChannel,
-							Currency: pairs[z],
+							Currency: assetPairs[a][z],
 							Params: map[string]interface{}{
 								"interval": "raw",
 							},
 						})
 					}
-				case tickerChannel:
-					if pairs[z].Quote.Upper().String() == "PERPETUAL" {
+				}
+			}
+		case tickerChannel,
+			tradesChannel:
+			for _, a := range assets {
+				for z := range assetPairs[a] {
+					if assetPairs[a][z].Quote.Upper().String() != "PERPETUAL" {
 						continue
 					}
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  tickerChannel,
-							Currency: pairs[z],
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
-						})
-				case tradesChannel:
-					if pairs[z].Quote.Upper().String() != "PERPETUAL" {
-						continue
-					}
-					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
-							Channel:  tradesChannel,
-							Currency: pairs[z],
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
-						})
-					// Private channels
-				case rawUsersOrdersKindCurrencyChannel:
-					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
-							Channel:  rawUsersOrdersKindCurrencyChannel,
-							Currency: pairs[z],
-							Asset:    assets[y],
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
-						})
-				case tradesWithKindChannel:
-					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
-							Channel:  tradesWithKindChannel,
-							Currency: pairs[z],
-							Asset:    assets[y],
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
-						})
-				case rawUsersOrdersWithKindCurrencyAndIntervalChannel:
-					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
-							Channel:  rawUsersOrdersWithKindCurrencyAndIntervalChannel,
-							Currency: pairs[z],
-							Asset:    assets[y],
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
-						})
-				case userTradesByKindCurrencyAndIntervalChannel:
-					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
-							Channel:  userTradesByKindCurrencyAndIntervalChannel,
-							Currency: pairs[z],
-							Asset:    assets[y],
+							Channel:  subscriptionChannels[x],
+							Currency: assetPairs[a][z],
 							Params: map[string]interface{}{
 								"interval": "100ms",
 							},
 						})
 				}
+			}
+		case perpetualChannel,
+			userChangesInstrumentsChannel,
+			userTradesChannelByInstrument:
+			for _, a := range assets {
+				for z := range assetPairs[a] {
+					subscriptions = append(subscriptions,
+						stream.ChannelSubscription{
+							Channel:  subscriptionChannels[x],
+							Currency: assetPairs[a][z],
+							Params: map[string]interface{}{
+								"interval": "100ms",
+							},
+						})
+				}
+			}
+		case instrumentStateChannel,
+			rawUsersOrdersKindCurrencyChannel:
+			for _, a := range assets {
+				currencyPairsName := make(map[currency.Code]bool, 2*len(assetPairs[a]))
+				var okay bool
+				for _, a := range assets {
+					for z := range assetPairs[a] {
+						if okay = currencyPairsName[assetPairs[a][z].Base]; !okay {
+							subscriptions = append(subscriptions, stream.ChannelSubscription{
+								Channel:  subscriptionChannels[x],
+								Asset:    a,
+								Currency: currency.Pair{Base: assetPairs[a][z].Base},
+							})
+							currencyPairsName[assetPairs[a][z].Base] = true
+						}
+						if okay = currencyPairsName[assetPairs[a][z].Quote]; !okay {
+							subscriptions = append(subscriptions, stream.ChannelSubscription{
+								Channel:  subscriptionChannels[x],
+								Asset:    a,
+								Currency: currency.Pair{Base: assetPairs[a][z].Quote},
+							})
+							currencyPairsName[assetPairs[a][z].Quote] = true
+						}
+					}
+				}
+			}
+		case userChangesCurrencyChannel,
+			userOrdersWithIntervalChannel,
+			rawUsersOrdersWithKindCurrencyAndIntervalChannel,
+			userTradesByKindCurrencyAndIntervalChannel,
+			tradesWithKindChannel:
+			for _, a := range assets {
+				currencyPairsName := make(map[currency.Code]bool, 2*len(assetPairs[a]))
+				var okay bool
+				for z := range assetPairs[a] {
+					if okay = currencyPairsName[assetPairs[a][z].Base]; !okay {
+						subscriptions = append(subscriptions, stream.ChannelSubscription{
+							Channel:  subscriptionChannels[x],
+							Asset:    a,
+							Currency: currency.Pair{Base: assetPairs[a][z].Base},
+							Params: map[string]interface{}{
+								"interval": "100ms",
+							},
+						})
+						currencyPairsName[assetPairs[a][z].Base] = true
+					}
+					if okay = currencyPairsName[assetPairs[a][z].Quote]; !okay {
+						subscriptions = append(subscriptions, stream.ChannelSubscription{
+							Channel:  subscriptionChannels[x],
+							Asset:    a,
+							Currency: currency.Pair{Base: assetPairs[a][z].Quote},
+							Params: map[string]interface{}{
+								"interval": "100ms",
+							},
+						})
+						currencyPairsName[assetPairs[a][z].Quote] = true
+					}
+				}
+			}
+		case requestForQuoteChannel,
+			userMMPTriggerChannel,
+			userPortfolioChannel:
+			for _, a := range assets {
+				currencyPairsName := make(map[currency.Code]bool, 2*len(assetPairs[a]))
+				var okay bool
+				for z := range assetPairs[a] {
+					if okay = currencyPairsName[assetPairs[a][z].Base]; !okay {
+						subscriptions = append(subscriptions, stream.ChannelSubscription{
+							Channel:  subscriptionChannels[x],
+							Currency: currency.Pair{Base: assetPairs[a][z].Base},
+						})
+						currencyPairsName[assetPairs[a][z].Base] = true
+					}
+					if okay = currencyPairsName[assetPairs[a][z].Quote]; !okay {
+						subscriptions = append(subscriptions, stream.ChannelSubscription{
+							Channel:  subscriptionChannels[x],
+							Currency: currency.Pair{Base: assetPairs[a][z].Quote},
+						})
+						currencyPairsName[assetPairs[a][z].Quote] = true
+					}
+				}
+			}
+		case announcementsChannel,
+			userAccessLogChannel,
+			platformStateChannel,
+			userLockChannel,
+			platformStatePublicMethodsStateChannel:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: subscriptionChannels[x],
+			})
+		case priceIndexChannel,
+			priceRankingChannel,
+			priceStatisticsChannel,
+			volatilityIndexChannel,
+			markPriceOptionsChannel,
+			estimatedExpirationPriceChannel:
+			for i := range index_enums {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel: subscriptionChannels[x],
+					Params: map[string]interface{}{
+						"index_name": index_enums[i],
+					},
+				})
 			}
 		}
 	}
@@ -954,18 +1039,12 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			Method:         "public/" + operation,
 			Params:         map[string][]string{},
 		}
-		if d.Websocket.CanUseAuthenticatedEndpoints() &&
-			(subscription.Method == userAccessLogChannel ||
-				subscription.Method == userChangesInstrumentsChannel ||
-				subscription.Method == userChangesCurrencyChannel ||
-				subscription.Method == userLockChannel ||
-				subscription.Method == userMMPTriggerChannel ||
-				subscription.Method == rawUserOrdersChannel ||
-				subscription.Method == userOrdersWithIntervalChannel ||
-				subscription.Method == rawUsersOrdersKindCurrencyChannel ||
-				subscription.Method == userPortfolioChannel ||
-				subscription.Method == userTradesChannelByInstrument ||
-				subscription.Method == userTradesByKindCurrencyAndIntervalChannel) {
+		switch subscs[x].Channel {
+		case userAccessLogChannel, userChangesInstrumentsChannel, userChangesCurrencyChannel, userLockChannel, userMMPTriggerChannel, rawUserOrdersChannel,
+			userOrdersWithIntervalChannel, rawUsersOrdersKindCurrencyChannel, userPortfolioChannel, userTradesChannelByInstrument, userTradesByKindCurrencyAndIntervalChannel:
+			if !d.Websocket.CanUseAuthenticatedEndpoints() {
+				continue
+			}
 			subscription.Method = "private/" + operation
 		}
 		switch subscs[x].Channel {
@@ -1050,8 +1129,8 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 		case tradesChannel,
 			userChangesInstrumentsChannel,
 			userOrdersWithIntervalChannel,
-			perpetualChannel,
 			tickerChannel,
+			perpetualChannel,
 			userTradesChannelByInstrument:
 			if subscs[x].Currency.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty

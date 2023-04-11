@@ -75,7 +75,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("%v, generating sample tradable pairs", err)
 	}
-	setupWs()
+	// setupWs()
 	os.Exit(m.Run())
 }
 
