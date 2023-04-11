@@ -27,7 +27,7 @@ func (w *WrapperWebsocket) IsEnabled() bool {
 	return w.enabled
 }
 
-// Connect ...
+// Connect connects to all websocket connections
 func (w *WrapperWebsocket) Connect() error {
 	if len(w.AssetTypeWebsockets) == 0 {
 		return ErrNoAssetTypeConnection
@@ -48,15 +48,15 @@ func (w *WrapperWebsocket) Connect() error {
 	}
 
 	w.setConnectingStatus(true)
-	// var err error
+	var err error
 	for x := range w.AssetTypeWebsockets {
-		// err =
-		go w.AssetTypeWebsockets[x].Connect()
-		// if err != nil {
-		// 	w.setConnectingStatus(false)
-		// 	return fmt.Errorf("%s Error connecting %v",
-		// 		w.exchangeName, err)
-		// }
+		println(x.String())
+		err = w.AssetTypeWebsockets[x].Connect()
+		if err != nil {
+			w.setConnectingStatus(false)
+			return fmt.Errorf("%s Error connecting %v",
+				w.exchangeName, err)
+		}
 	}
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
