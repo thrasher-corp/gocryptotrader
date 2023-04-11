@@ -258,7 +258,7 @@ func (ku *Kucoin) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 }
 
 // GetFuturesServiceStatus get service status
-func (ku *Kucoin) GetFuturesServiceStatus(ctx context.Context, symbol string) (*FuturesServiceStatus, error) {
+func (ku *Kucoin) GetFuturesServiceStatus(ctx context.Context, _ string) (*FuturesServiceStatus, error) {
 	var resp *FuturesServiceStatus
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, kucoinFuturesServiceStatus, &resp)
 }

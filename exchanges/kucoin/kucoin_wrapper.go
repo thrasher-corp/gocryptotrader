@@ -718,12 +718,15 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (ku *Kucoin) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (ku *Kucoin) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
 func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if ord == nil {
+		return common.ErrNilPointer
+	}
 	err := ku.CurrencyPairs.IsAssetEnabled(ord.AssetType)
 	if err != nil {
 		return err
@@ -756,12 +759,15 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (ku *Kucoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
+func (ku *Kucoin) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if orderCancellation == nil {
+		return order.CancelAllResponse{}, common.ErrNilPointer
+	}
 	if err := ku.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -888,7 +894,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, accountID, chain string) (*deposit.Address, error) {
+func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
 	ad, err := ku.GetDepositAddressesV2(ctx, c.Upper().String())
 	if err != nil {
 		fad, err := ku.GetFuturesDepositAddress(ctx, c.String())
@@ -931,18 +937,21 @@ func (ku *Kucoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (ku *Kucoin) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ku *Kucoin) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (ku *Kucoin) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ku *Kucoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
 func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	if getOrdersRequest == nil {
+		return nil, common.ErrNilPointer
+	}
 	err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType)
 	if err != nil {
 		return nil, err
@@ -1077,6 +1086,9 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+	if getOrdersRequest == nil {
+		return nil, common.ErrNilPointer
+	}
 	err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType)
 	if err != nil {
 		return nil, err
