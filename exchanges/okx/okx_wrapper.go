@@ -325,7 +325,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	}
 	pairs := make([]currency.Pair, len(instruments))
 	for x := range instruments {
-		pairs[x], err = currency.NewPairFromString(instruments[x].InstrumentID)
+		pairs[x], err = currency.NewPairDelimiter(instruments[x].InstrumentID, ok.CurrencyPairs.ConfigFormat.Delimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -339,11 +339,15 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 	for i := range assetTypes {
 		pairs, err := ok.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
-			return err
+			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
+		}
+		if len(pairs) == 0 && assetTypes[i] == asset.Options {
+			// OKx doesn't always have options available and that's ok
+			continue
 		}
 		err = ok.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
 		}
 	}
 	return nil
