@@ -760,7 +760,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 	}
 
 	enabledPairs = enabledPairs[:target]
-	if len(enabledPairs) == 0 {
+	if len(enabledPairs) == 0 && len(incoming) > 0 {
 		// NOTE: If enabled pairs are not populated for any reason.
 		var randomPair currency.Pair
 		randomPair, err = incoming.GetRandomPair()

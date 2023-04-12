@@ -853,16 +853,31 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	if wg != nil {
-		return exch.Start(context.TODO(), wg)
+	var waitForCompletion bool
+	if wg == nil {
+		wg = &sync.WaitGroup{}
+		waitForCompletion = true
 	}
-
-	tempWG := sync.WaitGroup{}
-	err = exch.Start(context.TODO(), &tempWG)
+	err = exch.Start(context.TODO(), wg)
 	if err != nil {
 		return err
 	}
-	tempWG.Wait()
+	if waitForCompletion {
+		wg.Wait()
+	}
+	for i := range base.CurrencyPairs.Pairs {
+		if len(base.CurrencyPairs.Pairs[i].Enabled) == 0 && len(base.CurrencyPairs.Pairs[i].Available) > 0 {
+			// in the event of no pairs available in config && UpdateTradablePairs adds pairs
+			// enable a random pair from the available pairs
+			var rp currency.Pair
+			rp, err = base.CurrencyPairs.Pairs[i].Available.GetRandomPair()
+			if err != nil {
+				return err
+			}
+			base.CurrencyPairs.Pairs[i].Enabled = base.CurrencyPairs.Pairs[i].Enabled.Add(rp)
+			return nil
+		}
+	}
 	return nil
 }
 

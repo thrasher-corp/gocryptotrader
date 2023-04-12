@@ -508,6 +508,10 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			if err != nil {
 				return err
 			}
+			if len(availPairs) == 0 {
+				// the other assets may have currency pairs
+				continue
+			}
 
 			var rPair currency.Pair
 			rPair, err = availPairs.GetRandomPair()

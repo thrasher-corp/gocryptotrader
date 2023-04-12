@@ -341,10 +341,6 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 		if err != nil {
 			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
 		}
-		if len(pairs) == 0 && assetTypes[i] == asset.Options {
-			// OKx doesn't always have options available and that's ok
-			continue
-		}
 		err = ok.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
 		if err != nil {
 			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
