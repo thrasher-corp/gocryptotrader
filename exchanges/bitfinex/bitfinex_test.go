@@ -1085,7 +1085,7 @@ func TestWsAuth(t *testing.T) {
 	runAuth(t)
 }
 
-func runAuth(t *testing.T) {
+func runAuth(t *testing.T) { //nolint
 	t.Helper()
 	setupWs()
 	if err := b.WsSendAuth(context.Background()); err != nil {

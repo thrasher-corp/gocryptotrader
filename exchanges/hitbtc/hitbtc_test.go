@@ -467,7 +467,7 @@ func TestGetDepositAddress(t *testing.T) {
 		}
 	}
 }
-func setupWsAuth(t *testing.T) {
+func setupWsAuth(t *testing.T) { //nolint
 	t.Helper()
 	if wsSetupRan {
 		return

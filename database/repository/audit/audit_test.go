@@ -99,7 +99,7 @@ func TestAudit(t *testing.T) {
 	}
 }
 
-func writeAudit(t *testing.T) {
+func writeAudit(t *testing.T) { //nolint
 	t.Helper()
 	var wg sync.WaitGroup
 
@@ -116,7 +116,7 @@ func writeAudit(t *testing.T) {
 	wg.Wait()
 }
 
-func readHelper(t *testing.T) {
+func readHelper(t *testing.T) { //nolint
 	t.Helper()
 
 	_, err := GetEvent(time.Now().Add(-time.Hour*60), time.Now(), "asc", 1)

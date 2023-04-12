@@ -47,7 +47,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 
 	ch := make(chan interface{})
 	go func(<-chan interface{}) { // reader
-		for range ch {
+		for range ch { //nolint
 		}
 	}(ch)
 	holder = &Orderbook{

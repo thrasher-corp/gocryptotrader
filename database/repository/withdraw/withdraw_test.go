@@ -153,7 +153,7 @@ func seedWithdrawData() {
 		Event(resp)
 	}
 }
-func withdrawHelper(t *testing.T) {
+func withdrawHelper(t *testing.T) { //nolint
 	t.Helper()
 	seedWithdrawData()
 

@@ -37,7 +37,7 @@ func areTestAPIKeysSet() bool {
 	return z.ValidateAPICredentials(z.GetDefaultCredentials()) == nil
 }
 
-func setupWsAuth(t *testing.T) {
+func setupWsAuth(t *testing.T) { //nolint
 	t.Helper()
 	if wsSetupRan {
 		return

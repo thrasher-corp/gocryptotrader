@@ -13,7 +13,7 @@ var f Fixer
 
 var isSetup bool
 
-func setup(t *testing.T) {
+func setup(t *testing.T) { //nolint
 	t.Helper()
 	if !isSetup {
 		err := f.Setup(base.Settings{})

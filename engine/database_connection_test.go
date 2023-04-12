@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
-func CreateDatabase(t *testing.T) {
+func CreateDatabase(t *testing.T) { //nolint
 	t.Helper()
 	// fun workarounds to globals ruining testing
 	database.DB.DataPath = t.TempDir()

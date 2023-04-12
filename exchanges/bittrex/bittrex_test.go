@@ -604,7 +604,7 @@ func TestModifyOrder(t *testing.T) {
 	}
 }
 
-func WithdrawCryptocurrencyFunds(t *testing.T) {
+func WithdrawCryptocurrencyFunds(t *testing.T) { //nolint
 	t.Helper()
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    b.Name,
