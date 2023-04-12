@@ -873,7 +873,7 @@ func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) (string, error) 
 	case kline.OneMonth:
 		return "1M", nil
 	}
-	return "", errors.New("invalid interval")
+	return "", fmt.Errorf("%w %v", kline.ErrInvalidInterval, in)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
