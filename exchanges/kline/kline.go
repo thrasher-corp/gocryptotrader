@@ -356,6 +356,9 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 
 	var target int
 	for x := range k.Candles {
+                // If this check does not pass, this candle has zero values or is padding.
+		// It has nothing to apply to the new interval candle as it will distort
+		// candle data.
 		if k.Candles[x].Open != 0 &&
 			k.Candles[x].High != 0 &&
 			k.Candles[x].Low != 0 &&
