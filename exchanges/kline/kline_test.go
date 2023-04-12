@@ -1120,7 +1120,7 @@ func TestAddPadding(t *testing.T) {
 
 	k.Candles = []Candle{
 		{
-			Time:   tn.Add(time.Millisecond),
+			Time:   tn.Add(time.Hour * 8),
 			Open:   1337,
 			High:   1339,
 			Low:    1336,
@@ -1128,7 +1128,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 1337,
 		},
 		{
-			Time:   tn.AddDate(0, 0, 1).Add(time.Millisecond),
+			Time:   tn.AddDate(0, 0, 1).Add(time.Hour * 8),
 			Open:   1338,
 			High:   2000,
 			Low:    1332,
@@ -1136,7 +1136,7 @@ func TestAddPadding(t *testing.T) {
 			Volume: 6420,
 		},
 		{
-			Time:   tn.AddDate(0, 0, 2).Add(time.Millisecond),
+			Time:   tn.AddDate(0, 0, 2).Add(time.Hour * 8),
 			Open:   1696,
 			High:   1998,
 			Low:    1337,
