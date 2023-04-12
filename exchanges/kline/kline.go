@@ -187,8 +187,15 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 	// NOTE: This checks if the end time exceeds time.Now() and we are capturing
 	// a partially created candle. This will only delete an element if it is
 	// empty.
-	if purgeOnPartial && padded[len(padded)-1].Volume == 0 {
-		padded = padded[:len(padded)-1]
+	if purgeOnPartial {
+		lastElement := padded[len(padded)-1]
+		if lastElement.Volume == 0 &&
+			lastElement.Open == 0 &&
+			lastElement.High == 0 &&
+			lastElement.Low == 0 &&
+			lastElement.Close == 0 {
+			padded = padded[:len(padded)-1]
+		}
 	}
 	k.Candles = padded
 	return nil
