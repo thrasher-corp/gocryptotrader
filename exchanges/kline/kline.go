@@ -356,7 +356,7 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 
 	var target int
 	for x := range k.Candles {
-                // If this check does not pass, this candle has zero values or is padding.
+		// If this check does not pass, this candle has zero values or is padding.
 		// It has nothing to apply to the new interval candle as it will distort
 		// candle data.
 		if k.Candles[x].Open != 0 &&
@@ -382,9 +382,7 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 
 			candles[target].Volume += k.Candles[x].Volume
 			candles[target].Close = k.Candles[x].Close
-		} // Else this candle is padding or has zero values, there is nothing to
-		// apply to the new interval candle as this will distort higher	order
-		// candle. We can skip this candle and move on to the next one.
+		}
 
 		if (x+1)%oldIntervalsPerNewCandle == 0 {
 			// Note: Below checks the length of the proceeding slice so we can

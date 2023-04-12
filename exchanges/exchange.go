@@ -1540,16 +1540,27 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	// functionality will result in error if the total candles cannot be
 	// theoretically retrieved.
 	if fixedAPICandleLength {
-		tn := time.Now().Truncate(exchangeInterval.Duration()).UTC()
-		count := kline.TotalCandlesPerInterval(req.Start, tn, exchangeInterval)
+		origCount := kline.TotalCandlesPerInterval(req.Start, req.End, interval)
+		modifiedCount := kline.TotalCandlesPerInterval(req.Start, time.Now(), exchangeInterval)
 
-		if count > limit {
-			boundary := tn.Add(-exchangeInterval.Duration() * time.Duration(limit))
-			errMsg := fmt.Sprintf("candle count exceeded: %d. The endpoint has a set candle limit return of %d candles from the request time until %v. Candle data will be incomplete",
-				count,
+		if modifiedCount > limit {
+			errMsg := fmt.Sprintf("for %v %v candles between %v-%v. ",
+				origCount,
+				interval,
+				start.Format(common.SimpleTimeFormatWithTimezone),
+				end.Format(common.SimpleTimeFormatWithTimezone))
+			if interval != exchangeInterval {
+				errMsg += fmt.Sprintf("Request converts to %v %v candles. ",
+					modifiedCount,
+					exchangeInterval)
+			}
+			boundary := time.Now().Add(-exchangeInterval.Duration() * time.Duration(limit))
+			return nil, fmt.Errorf("%w %v, exceeding the limit of %v %v candles up to %v. Please reduce timeframe or use GetHistoricCandlesExtended",
+				kline.ErrRequestExceedsExchangeLimits,
+				errMsg,
 				limit,
-				boundary.Format(common.SimpleTimeFormat))
-			return nil, fmt.Errorf("%s %w", errMsg, kline.ErrRequestExceedsExchangeLimits)
+				exchangeInterval,
+				boundary.Format(common.SimpleTimeFormatWithTimezone))
 		}
 	} else if count := kline.TotalCandlesPerInterval(req.Start, req.End, exchangeInterval); count > limit {
 		return nil, fmt.Errorf("candle count exceeded: %d. The endpoint has a set candle limit return of %d candles. Candle data will be incomplete: %w",

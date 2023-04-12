@@ -883,7 +883,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		return nil, err
 	}
 
-	klineInt, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
+	formattedInterval, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -891,7 +891,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	data, err := h.GetCandles(ctx,
 		req.RequestFormatted.String(),
 		strconv.FormatInt(req.RequestLimit, 10),
-		klineInt,
+		formattedInterval,
 		req.Start,
 		req.End)
 	if err != nil {
@@ -919,7 +919,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return nil, err
 	}
 
-	klineInt, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
+	formattedInterval, err := h.FormatExchangeKlineInterval(req.ExchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -930,7 +930,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		data, err = h.GetCandles(ctx,
 			req.RequestFormatted.String(),
 			strconv.FormatInt(req.RequestLimit, 10),
-			klineInt,
+			formattedInterval,
 			req.RangeHolder.Ranges[y].Start.Time,
 			req.RangeHolder.Ranges[y].End.Time)
 		if err != nil {

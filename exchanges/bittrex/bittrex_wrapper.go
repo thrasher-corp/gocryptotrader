@@ -966,91 +966,32 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	candleInterval := b.FormatExchangeKlineInterval(req.ExchangeInterval)
 	if candleInterval == "notfound" {
-		return nil, errors.New("invalid interval")
+		return nil, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval)
+	}
+	historicData, err := b.GetHistoricalCandles(ctx,
+		req.RequestFormatted.String(),
+		b.FormatExchangeKlineInterval(req.ExchangeInterval),
+		"TRADE",
+		start.Year(),
+		int(start.Month()),
+		start.Day())
+	if err != nil {
+		return nil, err
 	}
 
-	year, month, day := req.End.Date()
-	curYear, curMonth, curDay := time.Now().Date()
-
-	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
-	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
-
-	switch req.ExchangeInterval {
-	case kline.OneMin, kline.FiveMin:
-		if time.Since(req.Start) > oneDay {
-			getHistoric = true
-		}
-		if year >= curYear && month >= curMonth && day >= curDay {
-			getRecent = true
-		}
-	case kline.OneHour:
-		if time.Since(req.Start) > oneMonth {
-			getHistoric = true
-		}
-		if year >= curYear && month >= curMonth {
-			getRecent = true
-		}
-	case kline.OneDay:
-		if time.Since(req.Start) > oneYear {
-			getHistoric = true
-		}
-		if year >= curYear {
-			getRecent = true
-		}
-	}
-
-	if !getHistoric && !getRecent {
-		return nil, errors.New("start end time range cannot get historic or recent candles")
-	}
-
-	var ohlcData []CandleData
-	if getHistoric {
-		var historicData []CandleData
-		historicData, err = b.GetHistoricalCandles(ctx,
-			req.RequestFormatted.String(),
-			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			"TRADE",
-			year,
-			int(month),
-			day)
-		if err != nil {
-			return nil, err
-		}
-		ohlcData = append(ohlcData, historicData...)
-	}
-
-	if getRecent {
-		// This is a workaround so we don't get candle padding between
-		// historical and recent.
-		_, err = b.GetKlineRequest(pair, a, interval, start, end, true)
-		if err != nil {
-			return nil, err
-		}
-
-		var recentData []CandleData
-		recentData, err = b.GetRecentCandles(ctx,
-			req.RequestFormatted.String(),
-			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			"TRADE")
-		if err != nil {
-			return nil, err
-		}
-		ohlcData = append(ohlcData, recentData...)
-	}
-
-	timeSeries := make([]kline.Candle, 0, len(ohlcData))
-	for x := range ohlcData {
-		if ohlcData[x].StartsAt.Before(req.Start) ||
-			ohlcData[x].StartsAt.After(req.End) {
+	timeSeries := make([]kline.Candle, 0, len(historicData))
+	for x := range historicData {
+		if historicData[x].StartsAt.Before(req.Start) ||
+			historicData[x].StartsAt.After(req.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
-			Time:   ohlcData[x].StartsAt,
-			Open:   ohlcData[x].Open,
-			High:   ohlcData[x].High,
-			Low:    ohlcData[x].Low,
-			Close:  ohlcData[x].Close,
-			Volume: ohlcData[x].Volume,
+			Time:   historicData[x].StartsAt,
+			Open:   historicData[x].Open,
+			High:   historicData[x].High,
+			Low:    historicData[x].Low,
+			Close:  historicData[x].Close,
+			Volume: historicData[x].Volume,
 		})
 	}
 	return req.ProcessResponse(timeSeries)
