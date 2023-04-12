@@ -28,12 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var (
-	oneDay   = time.Hour * 24
-	oneMonth = oneDay * 31
-	oneYear  = oneDay * 366
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *Bittrex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
