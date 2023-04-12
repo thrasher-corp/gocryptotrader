@@ -1007,7 +1007,7 @@ func (d *Deribit) WSRetrieveAccessLog(offset, count int64) (*AccessLog, error) {
 }
 
 // WSRetrieveAffiliateProgramInfo retrieves the affiliate program info through the websocket connection.
-func (d *Deribit) WSRetrieveAffiliateProgramInfo(id int64) (*AffiliateProgramInfo, error) {
+func (d *Deribit) WSRetrieveAffiliateProgramInfo() (*AffiliateProgramInfo, error) {
 	var resp *AffiliateProgramInfo
 	return resp, d.SendWSRequest(request.Unset, getAffiliateProgramInfo, nil, &resp, true)
 }

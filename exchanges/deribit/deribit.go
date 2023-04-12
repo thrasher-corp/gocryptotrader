@@ -443,7 +443,7 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy, kind, startI
 }
 
 // GetLastTradesByCurrencyAndTime gets last trades for requested currency and time intervals
-func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*PublicTradesData, error) {
+func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy, kind, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
 	}
@@ -496,7 +496,7 @@ func (d *Deribit) GetLastTradesByInstrument(ctx context.Context, instrument, sta
 }
 
 // GetLastTradesByInstrumentAndTime gets last trades for requested instrument requested and time intervals
-func (d *Deribit) GetLastTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*PublicTradesData, error) {
+func (d *Deribit) GetLastTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
 	if instrument == "" {
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
 	}
@@ -1887,7 +1887,7 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy, kind, startI
 }
 
 // GetUserTradesByCurrencyAndTime sends a request to fetch user trades sorted by currency and time
-func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*UserTradesData, error) {
+func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
 	}
@@ -1941,7 +1941,7 @@ func (d *Deribit) GetUserTradesByInstrument(ctx context.Context, instrument, sor
 }
 
 // GetUserTradesByInstrumentAndTime sends a request to fetch user trades sorted by instrument and time
-func (d *Deribit) GetUserTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*UserTradesData, error) {
+func (d *Deribit) GetUserTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
 	if instrument == "" {
 		return nil, errInvalidInstrumentName
 	}

@@ -181,7 +181,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Deribit go routine
-func (d *Deribit) Start(ctx context.Context, wg *sync.WaitGroup) error {
+func (d *Deribit) Start(_ context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return common.ErrNilPointer
 	}
@@ -260,7 +260,7 @@ func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (d *Deribit) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (d *Deribit) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -382,7 +382,7 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.
 	resp.Accounts = make([]account.SubAccount, len(currencies))
 	for x := range currencies {
 		var data *AccountSummaryData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			data, err = d.WSRetrieveAccountSummary(currencies[x].Currency, false)
 		} else {
 			data, err = d.GetAccountSummary(ctx, currencies[x].Currency, false)
@@ -429,7 +429,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	var resp []exchange.FundHistory
 	for x := range currencies {
 		var deposits *DepositsData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			deposits, err = d.WSRetrieveDeposits(currencies[x].Currency, 100, 0)
 		} else {
 			deposits, err = d.GetDeposits(ctx, currencies[x].Currency, 100, 0)
@@ -450,7 +450,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			})
 		}
 		var withdrawalData *WithdrawalsData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			withdrawalData, err = d.WSRetrieveWithdrawals(currencies[x].Currency, 100, 0)
 		} else {
 			withdrawalData, err = d.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
@@ -492,7 +492,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 			continue
 		}
 		var withdrawalData *WithdrawalsData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			withdrawalData, err = d.WSRetrieveWithdrawals(currencies[x].Currency, 100, 0)
 		} else {
 			withdrawalData, err = d.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
@@ -571,7 +571,11 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	var tradesData *PublicTradesData
 	var hasMore = true
 	for hasMore {
-		tradesData, err = d.GetLastTradesByInstrumentAndTime(ctx, fmtPair.String(), "asc", 100, false, timestampStart, timestampEnd)
+		if d.Websocket.IsConnected() {
+			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(fmtPair.String(), "asc", 100, true, timestampStart, timestampEnd)
+		} else {
+			tradesData, err = d.GetLastTradesByInstrumentAndTime(ctx, fmtPair.String(), "asc", 100, timestampStart, timestampEnd)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -638,7 +642,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	switch {
 	case s.Side.IsLong():
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			data, err = d.WSSubmitBuy(reqParams)
 		} else {
 			data, err = d.SubmitBuy(ctx, reqParams)
@@ -649,7 +653,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		orderID = data.Order.OrderID
 	case s.Side.IsShort():
 		var data *PrivateTradeData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			data, err = d.WSSubmitSell(reqParams)
 		} else {
 			data, err = d.SubmitSell(ctx, reqParams)
@@ -678,23 +682,20 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	}
 	var modify *PrivateTradeData
 	var err error
-	switch action.AssetType {
-	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		reqParam := &OrderBuyAndSellParams{
-			TriggerPrice: action.TriggerPrice,
-			PostOnly:     action.PostOnly,
-			Amount:       action.Amount,
-			OrderID:      action.OrderID,
-			Price:        action.Price,
-		}
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			modify, err = d.WSSubmitEdit(reqParam)
-		} else {
-			modify, err = d.SubmitEdit(ctx, reqParam)
-		}
-		if err != nil {
-			return nil, err
-		}
+	reqParam := &OrderBuyAndSellParams{
+		TriggerPrice: action.TriggerPrice,
+		PostOnly:     action.PostOnly,
+		Amount:       action.Amount,
+		OrderID:      action.OrderID,
+		Price:        action.Price,
+	}
+	if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		modify, err = d.WSSubmitEdit(reqParam)
+	} else {
+		modify, err = d.SubmitEdit(ctx, reqParam)
+	}
+	if err != nil {
+		return nil, err
 	}
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {
@@ -712,7 +713,7 @@ func (d *Deribit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	switch ord.AssetType {
 	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			_, err = d.WSSubmitCancel(ord.OrderID)
 		} else {
 			_, err = d.SubmitCancel(ctx, ord.OrderID)
@@ -734,7 +735,7 @@ func (d *Deribit) CancelBatchOrders(ctx context.Context, orders []order.Cancel) 
 	for x := range orders {
 		if orders[x].AssetType.IsValid() {
 			var err error
-			if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				_, err = d.WSSubmitCancel(orders[x].OrderID)
 			} else {
 				_, err = d.SubmitCancel(ctx, orders[x].OrderID)
@@ -770,7 +771,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	default:
 		return order.CancelAllResponse{}, fmt.Errorf("%s: orderType %v is not valid", d.Name, orderCancellation.Type)
 	}
-	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		cancelData, err = d.WSSubmitCancelAllByInstrument(pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
 	} else {
 		cancelData, err = d.SubmitCancelAllByInstrument(ctx, pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
@@ -789,7 +790,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	}
 	var orderInfo *OrderData
 	var err error
-	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		orderInfo, err = d.WSRetrievesOrderState(orderID)
 	} else {
 		orderInfo, err = d.GetOrderState(ctx, orderID)
@@ -834,10 +835,10 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error) {
+func (d *Deribit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	var addressData *DepositAddressData
 	var err error
-	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		addressData, err = d.WSRetrieveCurrentDepositAddress(cryptocurrency.String())
 	} else {
 		addressData, err = d.GetCurrentDepositAddress(ctx, cryptocurrency.String())
@@ -859,7 +860,7 @@ func (d *Deribit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 		return nil, err
 	}
 	var withdrawData *WithdrawData
-	if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		withdrawData, err = d.WSSubmitWithdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, "", withdrawRequest.Amount)
 	} else {
 		withdrawData, err = d.SubmitWithdraw(ctx, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, "", withdrawRequest.Amount)
@@ -874,12 +875,12 @@ func (d *Deribit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (d *Deribit) WithdrawFiatFunds(ctx context.Context, request *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (d *Deribit) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
-func (d *Deribit) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (d *Deribit) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -908,7 +909,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 			oTypeString = getOrdersRequest.Type.Lower()
 		}
 		var ordersData []OrderData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			ordersData, err = d.WSRetrieveOpenOrdersByInstrument(fmtPair.String(), oTypeString)
 		} else {
 			ordersData, err = d.GetOpenOrdersByInstrument(ctx, fmtPair.String(), oTypeString)
@@ -973,7 +974,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.G
 			return nil, err
 		}
 		var ordersData []OrderData
-		if d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			ordersData, err = d.WSRetrieveOrderHistoryByInstrument(fmtPair.String(), 100, 0, true, true)
 		} else {
 			ordersData, err = d.GetOrderHistoryByInstrument(ctx, fmtPair.String(), 100, 0, true, true)
