@@ -309,7 +309,11 @@ func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-	return g.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = g.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return g.EnsureOnePairEnabled()
 }
 
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the

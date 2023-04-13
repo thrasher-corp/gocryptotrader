@@ -346,7 +346,7 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
 		}
 	}
-	return nil
+	return ok.EnsureOnePairEnabled()
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

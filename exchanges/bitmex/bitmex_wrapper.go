@@ -337,7 +337,6 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 // them in the exchanges config
 func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := b.GetAssetTypes(false)
-
 	for x := range assets {
 		pairs, err := b.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
@@ -349,7 +348,7 @@ func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 			return err
 		}
 	}
-	return nil
+	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

@@ -185,7 +185,11 @@ func (y *Yobit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	if err != nil {
 		return err
 	}
-	return y.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = y.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return y.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

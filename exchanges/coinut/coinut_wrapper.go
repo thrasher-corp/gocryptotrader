@@ -298,7 +298,11 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-	return c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return c.EnsureOnePairEnabled()
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

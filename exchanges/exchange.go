@@ -636,6 +636,36 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 	return b.Config.CurrencyPairs.StorePairs(assetType, pairs, enabled)
 }
 
+// EnsureOnePairEnabled not all assets have pairs, eg options
+// search for an asset that does and enable one if none are enabled
+// error if no currency pairs found for an entire exchange
+func (b *Base) EnsureOnePairEnabled() error {
+	for i := range b.CurrencyPairs.Pairs {
+		if b.CurrencyPairs.Pairs[i].AssetEnabled == nil ||
+			!*b.CurrencyPairs.Pairs[i].AssetEnabled ||
+			len(b.CurrencyPairs.Pairs[i].Available) == 0 {
+			continue
+		}
+		if len(b.CurrencyPairs.Pairs[i].Enabled) > 0 {
+			return nil
+		}
+	}
+	for i := range b.CurrencyPairs.Pairs {
+		if b.CurrencyPairs.Pairs[i].AssetEnabled == nil ||
+			!*b.CurrencyPairs.Pairs[i].AssetEnabled ||
+			len(b.CurrencyPairs.Pairs[i].Available) == 0 {
+			continue
+		}
+		rp, err := b.CurrencyPairs.Pairs[i].Available.GetRandomPair()
+		if err != nil {
+			return err
+		}
+		b.CurrencyPairs.Pairs[i].Enabled = b.CurrencyPairs.Pairs[i].Enabled.Add(rp)
+		return nil
+	}
+	return currency.ErrCurrencyPairsEmpty
+}
+
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
