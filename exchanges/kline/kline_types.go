@@ -142,12 +142,16 @@ type ExchangeCapabilitiesSupported struct {
 
 // ExchangeCapabilitiesEnabled all kline related exchange enabled options
 type ExchangeCapabilitiesEnabled struct {
+	// Interval defines whether the exchange supports interval kline requests.
 	Intervals ExchangeIntervals
 	// GlobalResultLimit is the maximum amount of candles that can be returned
 	// across all intervals. This is used to determine if a request will exceed
 	// the exchange limits. Indivudal interval limits are stored in the
 	// ExchangeIntervals struct. If this is set to 0, it will be ignored.
 	GlobalResultLimit uint32
+	// MaxHistoricalTimeWindow is the maximum amount of time that can be
+	// requested for historical data. If this is set to 0, it will be ignored.
+	MaxHistoricalTimeWindow time.Duration
 }
 
 // ExchangeIntervals stores the supported intervals in an optimized lookup table

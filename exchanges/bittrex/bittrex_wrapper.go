@@ -116,6 +116,7 @@ func (b *Bittrex) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneHour, Capacity: 744}, // 1 hour interval: candles for 31 days (0:00 - 23:00)
 					kline.IntervalCapacity{Interval: kline.OneDay, Capacity: 366},  // 1 day interval: candles for 366 days
 				),
+				MaxHistoricalTimeWindow: time.Hour * 24 * 366,
 			},
 		},
 	}
@@ -944,6 +945,12 @@ func (b *Bittrex) FormatExchangeKlineInterval(in kline.Interval) string {
 	}
 }
 
+var (
+	oneDay   = time.Hour * 24
+	oneMonth = oneDay * 31
+	oneYear  = oneDay * 366
+)
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 // Candles set size returned by Bittrex depends on interval length:
 // - 1m interval: candles for 1 day (0:00 - 23:59)
@@ -958,22 +965,60 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 
+	year, month, day := req.End.Date()
+	curYear, curMonth, curDay := time.Now().Date()
+
 	candleInterval := b.FormatExchangeKlineInterval(req.ExchangeInterval)
 	if candleInterval == "notfound" {
 		return nil, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval)
 	}
-	historicData, err := b.GetHistoricalCandles(ctx,
-		req.RequestFormatted.String(),
-		b.FormatExchangeKlineInterval(req.ExchangeInterval),
-		"TRADE",
-		start.Year(),
-		int(start.Month()),
-		start.Day())
-	if err != nil {
-		return nil, err
+
+	var getHistoric, getRecent bool
+
+	switch req.ExchangeInterval {
+	case kline.OneMin, kline.FiveMin:
+		if time.Since(req.Start) > oneDay {
+			getHistoric = true
+		}
+		if year >= curYear && month >= curMonth && day >= curDay {
+			getRecent = true
+		}
+	case kline.OneHour:
+		if time.Since(req.Start) > oneMonth {
+			getHistoric = true
+		}
+		if year >= curYear && month >= curMonth {
+			getRecent = true
+		}
+	case kline.OneDay:
+		if time.Since(req.Start) > oneYear {
+			getHistoric = true
+		}
+		if year >= curYear {
+			getRecent = true
+		}
 	}
 
-	timeSeries := make([]kline.Candle, 0, len(historicData))
+	if !getHistoric && !getRecent {
+		return nil, errors.New("start end time range cannot get historic or recent candles")
+	}
+
+	var candleData []CandleData
+
+	if getHistoric {
+		historicData, err := b.GetHistoricalCandles(ctx,
+			req.RequestFormatted.String(),
+			b.FormatExchangeKlineInterval(req.ExchangeInterval),
+			"TRADE",
+			start.Year(),
+			int(start.Month()),
+			start.Day())
+		if err != nil {
+			return nil, err
+		}
+		candleData = append(candleData, historicData...)
+	}
+
 	for x := range historicData {
 		if historicData[x].StartsAt.Before(req.Start) ||
 			historicData[x].StartsAt.After(req.End) {

@@ -151,7 +151,7 @@ func (ok *Okx) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.SixMonth},
 					kline.IntervalCapacity{Interval: kline.OneYear},
 				),
-				GlobalResultLimit: 300,
+				GlobalResultLimit: 100, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
 			},
 		},
 	}
@@ -363,8 +363,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
-	var baseVolume float64
-	var quoteVolume float64
+	var baseVolume, quoteVolume float64
 	switch a {
 	case asset.Spot, asset.Margin:
 		baseVolume = mdata.Vol24H.Float64()

@@ -50,6 +50,7 @@ var (
 	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
 	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
+	errMaxHistoricalTimeWindowExceeded   = errors.New("max historical time window exceeded")
 )
 
 // SetRequester sets the instance of the requester
@@ -1539,9 +1540,21 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	// NOTE: The checks below makes sure a client is notified that using this
 	// functionality will result in error if the total candles cannot be
 	// theoretically retrieved.
+
+	// if b.Features.Enabled.Kline.MaxHistoricalTimeWindow > 0 {
+	// 	if req.Start.Before(time.Now().Add(-b.Features.Enabled.Kline.MaxHistoricalTimeWindow)) {
+	// 		return nil, fmt.Errorf("%w %v %v candles. Please reduce timeframe or use GetHistoricCandlesExtended",
+	// 			errMaxHistoricalTimeWindowExceeded,
+	// 			b.Features.Enabled.Kline.MaxHistoricalTimeWindow,
+	// 			interval)
+	// 	}
+	// }
+
 	if fixedAPICandleLength {
 		origCount := kline.TotalCandlesPerInterval(req.Start, req.End, interval)
+		fmt.Println(origCount)
 		modifiedCount := kline.TotalCandlesPerInterval(req.Start, time.Now(), exchangeInterval)
+		fmt.Println(modifiedCount)
 
 		if modifiedCount > limit {
 			errMsg := fmt.Sprintf("for %v %v candles between %v-%v. ",
