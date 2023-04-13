@@ -99,7 +99,8 @@ func TestAudit(t *testing.T) {
 	}
 }
 
-func writeAudit(t *testing.T) { //nolint
+//nolint:gocritic // Only used as a testing helper function in this package
+func writeAudit(t *testing.T) {
 	t.Helper()
 	var wg sync.WaitGroup
 
@@ -116,7 +117,8 @@ func writeAudit(t *testing.T) { //nolint
 	wg.Wait()
 }
 
-func readHelper(t *testing.T) { //nolint
+//nolint:gocritic // Only used as a testing helper function in this package
+func readHelper(t *testing.T) {
 	t.Helper()
 
 	_, err := GetEvent(time.Now().Add(-time.Hour*60), time.Now(), "asc", 1)

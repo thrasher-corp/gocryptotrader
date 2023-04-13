@@ -37,7 +37,8 @@ func areTestAPIKeysSet() bool {
 	return z.ValidateAPICredentials(z.GetDefaultCredentials()) == nil
 }
 
-func setupWsAuth(t *testing.T) { //nolint
+//nolint:gocritic // Only used as a testing helper function in this package
+func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {
 		return
