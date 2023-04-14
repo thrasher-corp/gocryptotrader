@@ -1026,7 +1026,7 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		candleData = append(candleData, recentData...)
 	}
 
-	var timeSeries []kline.Candle
+	timeSeries := make([]kline.Candle, 0, len(candleData))
 	for x := range candleData {
 		if candleData[x].StartsAt.Before(req.Start) || candleData[x].StartsAt.After(req.End) {
 			continue
