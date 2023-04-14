@@ -988,7 +988,7 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 		req, err := b.OHLCV(ctx,
 			req.RequestFormatted.String(),
 			req.Start,
-			req.End,
+			req.End.Add(-time.Duration(req.ExchangeInterval.Duration())), // End time is inclusive so we need to subtract the interval.
 			intervalInt)
 		if err != nil {
 			return nil, err

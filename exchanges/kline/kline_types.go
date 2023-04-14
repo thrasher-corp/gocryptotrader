@@ -149,9 +149,6 @@ type ExchangeCapabilitiesEnabled struct {
 	// the exchange limits. Indivudal interval limits are stored in the
 	// ExchangeIntervals struct. If this is set to 0, it will be ignored.
 	GlobalResultLimit uint32
-	// MaxHistoricalTimeWindow is the maximum amount of time that can be
-	// requested for historical data. If this is set to 0, it will be ignored.
-	MaxHistoricalTimeWindow time.Duration
 }
 
 // ExchangeIntervals stores the supported intervals in an optimized lookup table

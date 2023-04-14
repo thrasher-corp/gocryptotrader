@@ -3,7 +3,6 @@ package bittrex
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -704,41 +703,33 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	start := time.Date(2022, 12, 31, 1, 1, 1, 1, time.UTC)
-	timeWindow := time.Since(start)
-
-	fmt.Println(timeWindow.Hours() / 24)
-	// start := time.Now().AddDate(-1, 0, 0)
-
-	// start := time.Unix(1546300800, 0)
-	// end := start.AddDate(0, 12, 0)
-	wow, err := b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, time.Now())
+	start := time.Unix(1546300800, 0)
+	end := start.AddDate(0, 12, 0)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Printf("%+v\n", wow)
+	end = time.Now()
+	start = end.AddDate(0, -12, 0)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// end = time.Now()
-	// start = end.AddDate(0, -12, 0)
-	// _, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	end = time.Now()
+	start = end.AddDate(0, 0, -30)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// end = time.Now()
-	// start = end.AddDate(0, 0, -30)
-	// _, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, end)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// end = time.Now()
-	// start = end.AddDate(0, 0, -1).Add(time.Minute * 5)
-	// _, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	end = time.Now()
+	start = end.AddDate(0, 0, -1).Add(time.Minute * 5)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {

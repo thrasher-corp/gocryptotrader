@@ -99,11 +99,17 @@ func (l *Lbank) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
 					kline.IntervalCapacity{Interval: kline.FourHour},
-					kline.IntervalCapacity{Interval: kline.EightHour},
-					kline.IntervalCapacity{Interval: kline.TwelveHour},
-					kline.IntervalCapacity{Interval: kline.OneDay},
-					kline.IntervalCapacity{Interval: kline.OneWeek},
-					kline.IntervalCapacity{Interval: kline.OneMonth},
+
+					// NOTE: The supported time intervals below are returned
+					// offset to the Asia/HongKong time zone. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. Therefore the below intervals
+					// are constructed from hourly -> 4 hourly candles.
+					// kline.IntervalCapacity{Interval: kline.EightHour}, // The docs suggest this is supported but it isn't.
+					// kline.IntervalCapacity{Interval: kline.TwelveHour}, // The docs suggest this is supported but it isn't.
+					// kline.IntervalCapacity{Interval: kline.OneDay},
+					// kline.IntervalCapacity{Interval: kline.OneWeek},
+					// kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
 				GlobalResultLimit: 2000,
 			},
