@@ -50,7 +50,6 @@ var (
 	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
 	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
-	errMaxHistoricalTimeWindowExceeded   = errors.New("max historical time window exceeded")
 )
 
 // SetRequester sets the instance of the requester
