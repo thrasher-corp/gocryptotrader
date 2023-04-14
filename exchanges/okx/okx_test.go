@@ -2303,7 +2303,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	startTime := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2021, 9, 15, 0, 0, 0, 0, time.UTC)
+	endTime := startTime.AddDate(0, 0, 100)
 	_, err := ok.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)

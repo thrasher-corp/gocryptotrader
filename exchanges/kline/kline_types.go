@@ -142,7 +142,7 @@ type ExchangeCapabilitiesSupported struct {
 
 // ExchangeCapabilitiesEnabled all kline related exchange enabled options
 type ExchangeCapabilitiesEnabled struct {
-	// Interval defines whether the exchange supports interval kline requests.
+	// Intervals defines whether the exchange supports interval kline requests.
 	Intervals ExchangeIntervals
 	// GlobalResultLimit is the maximum amount of candles that can be returned
 	// across all intervals. This is used to determine if a request will exceed
