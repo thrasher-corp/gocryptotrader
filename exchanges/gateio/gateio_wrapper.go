@@ -257,6 +257,9 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	var tickerData *ticker.Price
 	switch a {
 	case asset.Margin, asset.Spot, asset.CrossMargin:
+		if a != asset.Spot && !g.checkInstrumentAvailabilityInSpot(fPair) {
+			return nil, errors.New("instrument does not have ticker data")
+		}
 		var tickerNew *Ticker
 		tickerNew, err = g.GetTicker(ctx, fPair.String(), "")
 		if err != nil {
@@ -671,6 +674,9 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	var orderbookNew *Orderbook
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
+		if a != asset.Spot && !g.checkInstrumentAvailabilityInSpot(p) {
+			return nil, errors.New("instrument does not have orderbook data")
+		}
 		orderbookNew, err = g.GetOrderbook(ctx, p.String(), "", 0, true)
 	case asset.Futures:
 		var settle string
@@ -1953,4 +1959,14 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
+}
+
+// checkInstrumentAvailabilityInSpot checks whether the instrument is available in the spot exchange
+// if so we can use the instrument to retrive orderbook and ticker information using the spot endpoints.
+func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) bool {
+	availables, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		return false
+	}
+	return availables.Contains(instrument, true)
 }
