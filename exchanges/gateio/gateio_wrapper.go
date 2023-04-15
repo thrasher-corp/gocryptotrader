@@ -185,15 +185,15 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		}
 		return subscriptions, nil
 	}
-	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
 	err = g.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		Features:               &g.Features.Supports.WebsocketCapabilities,
 	})
+	if err != nil {
+		return err
+	}
+	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -251,57 +251,57 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	// deliveryFuturesWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
-	// 	DefaultURL:            deliveryRealUSDTTradingURL,
-	// 	RunningURL:            deliveryRealUSDTTradingURL,
-	// 	Connector:             g.WsDeliveryFuturesConnect,
-	// 	Subscriber:            g.FuturesSubscribe,
-	// 	Unsubscriber:          g.FuturesUnsubscribe,
-	// 	GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
-	// 	AssetType:             asset.DeliveryFutures,
-	// 	SubscriptionFilter:    subscriptionFilter,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-	// err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
-	// 	URL:                  deliveryRealUSDTTradingURL,
-	// 	RateLimit:            gateioWebsocketRateLimit,
-	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-	// err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
-	// 	URL:                  deliveryRealBTCTradingURL,
-	// 	RateLimit:            gateioWebsocketRateLimit,
-	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// 	Authenticated:        true,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-	// optionsWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
-	// 	DefaultURL:            optionsWebsocketURL,
-	// 	RunningURL:            optionsWebsocketURL,
-	// 	Connector:             g.WsOptionsConnect,
-	// 	Subscriber:            g.OptionsSubscribe,
-	// 	Unsubscriber:          g.OptionsUnsubscribe,
-	// 	GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
-	// 	SubscriptionFilter:    subscriptionFilter,
-	// 	AssetType:             asset.Options,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-	// err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
-	// 	URL:                  optionsWebsocketURL,
-	// 	RateLimit:            gateioWebsocketRateLimit,
-	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// })
+	deliveryFuturesWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            deliveryRealUSDTTradingURL,
+		RunningURL:            deliveryRealUSDTTradingURL,
+		Connector:             g.WsDeliveryFuturesConnect,
+		Subscriber:            g.FuturesSubscribe,
+		Unsubscriber:          g.FuturesUnsubscribe,
+		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
+		AssetType:             asset.DeliveryFutures,
+		SubscriptionFilter:    subscriptionFilter,
+	})
+	if err != nil {
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  deliveryRealUSDTTradingURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  deliveryRealBTCTradingURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Authenticated:        true,
+	})
+	if err != nil {
+		return err
+	}
+	optionsWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		DefaultURL:            optionsWebsocketURL,
+		RunningURL:            optionsWebsocketURL,
+		Connector:             g.WsOptionsConnect,
+		Subscriber:            g.OptionsSubscribe,
+		Unsubscriber:          g.OptionsUnsubscribe,
+		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
+		SubscriptionFilter:    subscriptionFilter,
+		AssetType:             asset.Options,
+	})
+	if err != nil {
+		return err
+	}
+	err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  optionsWebsocketURL,
+		RateLimit:            gateioWebsocketRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 	return err
 }
 
@@ -348,10 +348,8 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	var tickerData *ticker.Price
 	switch a {
 	case asset.Margin, asset.Spot, asset.CrossMargin:
-		if a != asset.Spot {
-			if !g.checkInstrumentAvailabilityInSpot(fPair) {
-				return nil, errors.New("no ticker data available for instrument")
-			}
+		if a != asset.Spot && !g.checkInstrumentAvailabilityInSpot(fPair) {
+			return nil, errors.New("instrument does not have ticker data")
 		}
 		var tickerNew *Ticker
 		tickerNew, err = g.GetTicker(ctx, fPair.String(), "")
@@ -767,6 +765,9 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	var orderbookNew *Orderbook
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
+		if a != asset.Spot && !g.checkInstrumentAvailabilityInSpot(p) {
+			return nil, errors.New("instrument does not have orderbook data")
+		}
 		orderbookNew, err = g.GetOrderbook(ctx, p.String(), "", 0, true)
 	case asset.Futures:
 		var settle string
