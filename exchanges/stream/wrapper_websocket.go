@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -46,17 +47,18 @@ func (w *WrapperWebsocket) Connect() error {
 		return fmt.Errorf("%v Websocket already connected",
 			w.exchangeName)
 	}
-
+	var errs error
 	w.setConnectingStatus(true)
 	var err error
 	for x := range w.AssetTypeWebsockets {
 		println(x.String())
 		err = w.AssetTypeWebsockets[x].Connect()
 		if err != nil {
-			w.setConnectingStatus(false)
-			return fmt.Errorf("%s Error connecting %v",
-				w.exchangeName, err)
+			errs = common.AppendError(errs, err)
 		}
+	}
+	if errs != nil {
+		return errs
 	}
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)

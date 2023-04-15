@@ -251,57 +251,57 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	deliveryFuturesWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
-		DefaultURL:            deliveryRealUSDTTradingURL,
-		RunningURL:            deliveryRealUSDTTradingURL,
-		Connector:             g.WsDeliveryFuturesConnect,
-		Subscriber:            g.FuturesSubscribe,
-		Unsubscriber:          g.FuturesUnsubscribe,
-		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
-		AssetType:             asset.DeliveryFutures,
-		SubscriptionFilter:    subscriptionFilter,
-	})
-	if err != nil {
-		return err
-	}
-	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  deliveryRealUSDTTradingURL,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
-	if err != nil {
-		return err
-	}
-	err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  deliveryRealBTCTradingURL,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-	})
-	if err != nil {
-		return err
-	}
-	optionsWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
-		DefaultURL:            optionsWebsocketURL,
-		RunningURL:            optionsWebsocketURL,
-		Connector:             g.WsOptionsConnect,
-		Subscriber:            g.OptionsSubscribe,
-		Unsubscriber:          g.OptionsUnsubscribe,
-		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
-		SubscriptionFilter:    subscriptionFilter,
-		AssetType:             asset.Options,
-	})
-	if err != nil {
-		return err
-	}
-	err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  optionsWebsocketURL,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	// deliveryFuturesWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	// 	DefaultURL:            deliveryRealUSDTTradingURL,
+	// 	RunningURL:            deliveryRealUSDTTradingURL,
+	// 	Connector:             g.WsDeliveryFuturesConnect,
+	// 	Subscriber:            g.FuturesSubscribe,
+	// 	Unsubscriber:          g.FuturesUnsubscribe,
+	// 	GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
+	// 	AssetType:             asset.DeliveryFutures,
+	// 	SubscriptionFilter:    subscriptionFilter,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
+	// err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:                  deliveryRealUSDTTradingURL,
+	// 	RateLimit:            gateioWebsocketRateLimit,
+	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
+	// err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:                  deliveryRealBTCTradingURL,
+	// 	RateLimit:            gateioWebsocketRateLimit,
+	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	// 	Authenticated:        true,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
+	// optionsWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	// 	DefaultURL:            optionsWebsocketURL,
+	// 	RunningURL:            optionsWebsocketURL,
+	// 	Connector:             g.WsOptionsConnect,
+	// 	Subscriber:            g.OptionsSubscribe,
+	// 	Unsubscriber:          g.OptionsUnsubscribe,
+	// 	GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
+	// 	SubscriptionFilter:    subscriptionFilter,
+	// 	AssetType:             asset.Options,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
+	// err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:                  optionsWebsocketURL,
+	// 	RateLimit:            gateioWebsocketRateLimit,
+	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	// })
 	return err
 }
 
@@ -348,6 +348,11 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	var tickerData *ticker.Price
 	switch a {
 	case asset.Margin, asset.Spot, asset.CrossMargin:
+		if a != asset.Spot {
+			if !g.checkInstrumentAvailabilityInSpot(fPair) {
+				return nil, errors.New("no ticker data available for instrument")
+			}
+		}
 		var tickerNew *Ticker
 		tickerNew, err = g.GetTicker(ctx, fPair.String(), "")
 		if err != nil {
@@ -2044,4 +2049,14 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
+}
+
+// checkInstrumentAvailabilityInSpot checks whether the instrument is available in the spot exchange
+// if so we can use the instrument to retrive orderbook and ticker information using the spot endpoints.
+func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) bool {
+	availables, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		return false
+	}
+	return availables.Contains(instrument, true)
 }

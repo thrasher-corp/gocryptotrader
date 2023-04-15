@@ -341,6 +341,7 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 }
 
 func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
+	// println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)

@@ -85,7 +85,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.AssetTypeWebsockets[asset.Futures].Conn.SetupPingHandler(stream.PingHandler{
+	g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 5,
 		MessageType: websocket.PingMessage,
@@ -94,7 +94,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	return nil
 }
 
-// wsReadFuturesData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
+// wsReadDeliveryFuturesData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
 func (g *Gateio) wsReadDeliveryFuturesData() {
 	defer g.Websocket.Wg.Done()
 	for {

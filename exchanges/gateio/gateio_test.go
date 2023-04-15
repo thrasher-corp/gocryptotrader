@@ -3525,10 +3525,10 @@ func TestWsDeliveryFuturesConnect(t *testing.T) {
 	}
 }
 
-// func TestWebsocketConnect(t *testing.T) {
-// 	t.Parallel()
-// 	err := g.Websocket.Connect()
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestWebsocketConnect(t *testing.T) {
+	t.Parallel()
+	err := g.Websocket.Connect()
+	if err != nil {
+		t.Error(err)
+	}
+}

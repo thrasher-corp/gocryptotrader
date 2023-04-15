@@ -218,6 +218,7 @@ func (g *Gateio) wsFunnelFuturesConnectionData(ws stream.Connection) {
 }
 
 func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error {
+	// println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)

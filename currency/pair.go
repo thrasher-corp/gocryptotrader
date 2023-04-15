@@ -84,6 +84,12 @@ func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 // NewPairFromString converts currency string into a new CurrencyPair
 // with or without delimiter
 func NewPairFromString(currencyPair string) (Pair, error) {
+	if len(currencyPair) < 3 {
+		return EMPTYPAIR,
+			fmt.Errorf("%w from %s string too short to be a currency pair",
+				errCannotCreatePair,
+				currencyPair)
+	}
 	var delimiter string
 	pairStrings := []string{currencyPair}
 	for x := range delimiters {
@@ -100,12 +106,6 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 	}
 	if delimiter != "" {
 		return Pair{Base: NewCode(pairStrings[0]), Delimiter: delimiter, Quote: NewCode(pairStrings[1])}, nil
-	}
-	if len(currencyPair) < 3 {
-		return EMPTYPAIR,
-			fmt.Errorf("%w from %s string too short to be a currency pair",
-				errCannotCreatePair,
-				currencyPair)
 	}
 	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
 }
