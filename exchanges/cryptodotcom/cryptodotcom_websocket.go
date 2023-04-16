@@ -317,6 +317,7 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error {
+	println(string(respRaw))
 	var resp *SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
