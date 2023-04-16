@@ -61,7 +61,7 @@ func (by *Bybit) WsCoinConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err := by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (by *Bybit) WsCoinConnect() error {
 	if err != nil {
 		return err
 	}
-	by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
+	by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].Conn.SetupPingHandler(stream.PingHandler{
 		Message:     pingMsg,
 		MessageType: websocket.PingMessage,
 		Delay:       bybitWebsocketTimer,
@@ -85,10 +85,9 @@ func (by *Bybit) WsCoinConnect() error {
 		err = by.WsCoinAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
-			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-
 	by.Websocket.Wg.Add(1)
 	go by.WsDataHandler()
 	return nil
@@ -116,7 +115,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(req)
+	return by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].Conn.SendJSONMessage(req)
 }
 
 // SubscribeCoin sends a websocket message to receive data from the channel

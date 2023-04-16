@@ -71,7 +71,7 @@ func (g *Gateio) WsFuturesConnect() error {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(futuresWebsocketUsdtURL, false, true)
+	err = g.Websocket.AssetTypeWebsockets[asset.Futures].SetWebsocketURL(futuresWebsocketUsdtURL, false, true)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,6 @@ func (g *Gateio) wsFunnelFuturesConnectionData(ws stream.Connection) {
 }
 
 func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error {
-	// println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)
@@ -307,7 +306,7 @@ func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []s
 		}
 	}
 	if errs != nil {
-		return errs
+		return fmt.Errorf(" %v %w", asset.Futures, errs)
 	}
 	return nil
 }

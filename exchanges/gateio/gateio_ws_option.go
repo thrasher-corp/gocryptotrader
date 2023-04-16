@@ -77,7 +77,7 @@ func (g *Gateio) WsOptionsConnect() error {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(optionsWebsocketURL, false, true)
+	err = g.Websocket.AssetTypeWebsockets[asset.Options].SetWebsocketURL(optionsWebsocketURL, false, true)
 	if err != nil {
 		return err
 	}
@@ -337,11 +337,13 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 			}
 		}
 	}
+	if err != nil {
+		return fmt.Errorf("%v %w", asset.Options, errs)
+	}
 	return errs
 }
 
 func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
-	// println(string(respRaw))
 	var result WsResponse
 	var eventResponse WsEventResponse
 	err := json.Unmarshal(respRaw, &eventResponse)

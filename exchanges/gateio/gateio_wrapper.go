@@ -255,8 +255,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		DefaultURL:            deliveryRealUSDTTradingURL,
 		RunningURL:            deliveryRealUSDTTradingURL,
 		Connector:             g.WsDeliveryFuturesConnect,
-		Subscriber:            g.FuturesSubscribe,
-		Unsubscriber:          g.FuturesUnsubscribe,
+		Subscriber:            g.DeliveryFuturesSubscribe,
+		Unsubscriber:          g.DeliveryFuturesUnsubscribe,
 		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
 		AssetType:             asset.DeliveryFutures,
 		SubscriptionFilter:    subscriptionFilter,
@@ -296,13 +296,12 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
+	return g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  optionsWebsocketURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-	return err
 }
 
 // Start starts the GateIO go routine

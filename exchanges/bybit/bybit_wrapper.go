@@ -225,21 +225,10 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: by.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
-
-	err = by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
-	if err != nil {
-		return err
-	}
-
-	return by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  bybitWSBaseURL + wsSpotPrivate,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
 	})
 }
 

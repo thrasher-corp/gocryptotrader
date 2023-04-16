@@ -28,7 +28,6 @@ type WrapperWebsocket struct {
 	m                            sync.Mutex
 	connectionMutex              sync.RWMutex
 	subscriptionMutex            sync.Mutex
-	subscriptions                []ChannelSubscription
 	DataHandler                  chan interface{}
 	ToRoutine                    chan interface{}
 	Match                        *Match

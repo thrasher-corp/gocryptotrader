@@ -16,12 +16,12 @@ var (
 	ErrNoAssetTypeConnection = errors.New("no websocket instance found for asset type")
 )
 
-// GetName ...
+// GetName returns exchange name
 func (w *WrapperWebsocket) GetName() string {
 	return w.exchangeName
 }
 
-// IsEnabled ...
+// IsEnabled returns status of enable
 func (w *WrapperWebsocket) IsEnabled() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
@@ -48,10 +48,9 @@ func (w *WrapperWebsocket) Connect() error {
 			w.exchangeName)
 	}
 	var errs error
-	w.setConnectingStatus(true)
 	var err error
+	w.setConnectingStatus(true)
 	for x := range w.AssetTypeWebsockets {
-		println(x.String())
 		err = w.AssetTypeWebsockets[x].Connect()
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -66,27 +65,31 @@ func (w *WrapperWebsocket) Connect() error {
 	return nil
 }
 
-// FlushChannels ...
+// FlushChannels flushes channel subscriptions when there is a pair/asset change
 func (w *WrapperWebsocket) FlushChannels() error {
-	var err error
+	var errs error
 	for x := range w.AssetTypeWebsockets {
-		err = w.AssetTypeWebsockets[x].FlushChannels()
+		err := w.AssetTypeWebsockets[x].FlushChannels()
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
-// GetSubscriptions calls
+// GetSubscriptions returns a copied list of subscriptions of all asset type websocket connections
+// and is a private member that cannot be manipulated
 func (w *WrapperWebsocket) GetSubscriptions() []ChannelSubscription {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
-	// 3- index slicing
-	return append(w.subscriptions[:0:0], w.subscriptions...)
+	subscriptions := []ChannelSubscription{}
+	for x := range w.AssetTypeWebsockets {
+		subscriptions = append(subscriptions, w.AssetTypeWebsockets[x].GetSubscriptions()...)
+	}
+	return subscriptions
 }
 
-// SubscribeToChannels ...
+// SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *WrapperWebsocket) SubscribeToChannels(channels []ChannelSubscription) error {
 	var err error
 	var filteredChannels []ChannelSubscription
@@ -103,7 +106,7 @@ func (w *WrapperWebsocket) SubscribeToChannels(channels []ChannelSubscription) e
 	return nil
 }
 
-// GetAssetWebsocket ...
+// GetAssetWebsocket returns a websocket connection for an asset type
 func (w *WrapperWebsocket) GetAssetWebsocket(assetType asset.Item) (*Websocket, error) {
 	websocket, okay := w.AssetTypeWebsockets[assetType]
 	if !okay {
@@ -243,7 +246,6 @@ func (w *WrapperWebsocket) Shutdown() error {
 	}
 	// flush any subscriptions from last connection if needed
 	w.subscriptionMutex.Lock()
-	w.subscriptions = nil
 	w.subscriptionMutex.Unlock()
 
 	w.setConnectedStatus(false)
@@ -334,7 +336,7 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 	if s.Subscriber == nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketSubscriberUnset)
 	}
-	if /*w.features.Unsubscribe &&*/ s.Unsubscriber == nil {
+	if s.Unsubscriber == nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketUnsubscriberUnset)
 	}
 	connectionMonitorDelay := wr.connectionMonitorDelay
@@ -369,7 +371,7 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 		GenerateSubs:           s.GenerateSubscriptions,
 		Subscriber:             s.Subscriber,
 		Unsubscriber:           s.Unsubscriber,
-		Wg:                     new(sync.WaitGroup),
+		Wg:                     wr.Wg,
 		ToRoutine:              wr.ToRoutine,
 		TrafficAlert:           wr.TrafficAlert,
 		ReadMessageErrors:      wr.ReadMessageErrors,
