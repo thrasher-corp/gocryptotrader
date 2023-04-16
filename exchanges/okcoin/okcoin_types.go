@@ -1810,3 +1810,49 @@ func (o *OKCoin) SetErrorDefaults() {
 		"35061": errors.New("invalid instrument_id"),
 	}
 }
+
+// ---------------------------------------------- New --------------------------------------------------
+
+// SystemStatus represents system status
+type SystemStatus struct {
+	Title       string `json:"title"`
+	State       string `json:"state"`
+	Begin       string `json:"begin"`
+	End         string `json:"end"`
+	Href        string `json:"href"`
+	ServiceType string `json:"serviceType"`
+	System      string `json:"system"`
+	ScheDesc    string `json:"scheDesc"`
+}
+
+// Instrument represents an instrument in an open contract.
+type Instrument struct {
+	Alias          string    `json:"alias"`
+	BaseCurrency   string    `json:"baseCcy"`
+	Category       string    `json:"category"`
+	CtMult         string    `json:"ctMult"`
+	CtType         string    `json:"ctType"`
+	CtVal          string    `json:"ctVal"`
+	CtValCurrency  string    `json:"ctValCcy"`
+	ExpTime        string    `json:"expTime"`
+	InstFamily     string    `json:"instFamily"`
+	InstrumentID   string    `json:"instId"`
+	InstrumentType string    `json:"instType"`
+	Leverage       string    `json:"lever"`
+	ListTime       time.Time `json:"listTime"`
+	LotSize        float64   `json:"lotSz,string"`
+	MaxIcebergSz   string    `json:"maxIcebergSz"`
+	MaxLimitSize   float64   `json:"maxLmtSz,string"`
+	MaxMarketSize  float64   `json:"maxMktSz,string"`
+	MaxStopSize    float64   `json:"maxStopSz,string"`
+	MaxTwapSize    float64   `json:"maxTwapSz,string"`
+	MaxTriggerSize float64   `json:"maxTriggerSz,string"`
+	MinSize        float64   `json:"minSz,string"`
+	QuoteCurrency  string    `json:"quoteCcy"`
+	OptionType     string    `json:"optType"`
+	SettleCurrency string    `json:"settleCcy"`
+	State          string    `json:"state"`
+	StrikePrice    string    `json:"stk"`
+	TickSize       float64   `json:"tickSz,string"`
+	Underlying     float64   `json:"uly,string"`
+}
