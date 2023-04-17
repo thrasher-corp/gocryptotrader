@@ -582,7 +582,7 @@ allTrades:
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     p.Name,
-				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+				TID:          tradeData[i].TradeID,
 				CurrencyPair: pair,
 				AssetType:    assetType,
 				Side:         side,

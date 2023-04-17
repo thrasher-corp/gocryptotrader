@@ -412,7 +412,8 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.String() {
 		return fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
 	}
-	if arg.TradeMode != TradeModeCross &&
+	if arg.TradeMode != "" &&
+		arg.TradeMode != TradeModeCross &&
 		arg.TradeMode != TradeModeIsolated &&
 		arg.TradeMode != TradeModeCash {
 		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
@@ -4294,10 +4295,12 @@ func GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 	switch strings.ToUpper(instrumentType) {
 	case okxInstTypeSwap, okxInstTypeContract:
 		return asset.PerpetualSwap, nil
+	case okxInstTypeSpot:
+		return asset.Spot, nil
 	case okxInstTypeANY:
 		return asset.Empty, nil
 	default:
-		return asset.New(instrumentType)
+		return asset.Empty, fmt.Errorf("%w %v", asset.ErrNotSupported, instrumentType)
 	}
 }
 
