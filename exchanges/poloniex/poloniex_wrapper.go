@@ -365,8 +365,8 @@ func (p *Poloniex) FetchOrderbook(ctx context.Context, currencyPair currency.Pai
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	if c.IsEmpty() {
+func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := p.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
@@ -374,7 +374,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 	}
 	callingBook := &orderbook.Base{
 		Exchange:        p.Name,
-		Pair:            c,
+		Pair:            pair,
 		Asset:           assetType,
 		VerifyOrderbook: p.CanVerifyOrderbook,
 	}
@@ -388,20 +388,23 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 		return callingBook, err
 	}
 	for i := range enabledPairs {
+		pFmt, err := p.GetPairFormat(assetType, true)
+		if err != nil {
+			return nil, err
+		}
+		fP := enabledPairs[i].Format(pFmt)
+		data, ok := orderbookNew.Data[fP.Base.String()+fP.Delimiter+fP.Quote.String()]
+		if !ok {
+			data, ok = orderbookNew.Data[fP.Quote.String()+fP.Delimiter+fP.Base.String()]
+			if !ok {
+				continue
+			}
+		}
 		book := &orderbook.Base{
 			Exchange:        p.Name,
 			Pair:            enabledPairs[i],
 			Asset:           assetType,
 			VerifyOrderbook: p.CanVerifyOrderbook,
-		}
-
-		fPair, err := p.FormatExchangeCurrency(enabledPairs[i], assetType)
-		if err != nil {
-			return book, err
-		}
-		data, ok := orderbookNew.Data[fPair.String()]
-		if !ok {
-			continue
 		}
 
 		book.Bids = make(orderbook.Items, len(data.Bids))
@@ -424,7 +427,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 			return book, err
 		}
 	}
-	return orderbook.Get(p.Name, c, assetType)
+	return orderbook.Get(p.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -757,7 +760,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		tradeHistory.TID = strconv.FormatInt(trades[i].GlobalTradeID, 10)
+		tradeHistory.TID = trades[i].GlobalTradeID
 		tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, trades[i].Date)
 		if err != nil {
 			return nil, err

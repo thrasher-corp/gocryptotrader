@@ -45,6 +45,7 @@ const (
 	futuresInstruments  = "/api/v3/instruments"
 	futuresTradeHistory = "/api/v3/history"
 	futuresCandles      = "charts/v1/"
+	futuresPublicTrades = "history/v2/market/"
 
 	futuresSendOrder         = "/api/v3/sendorder"
 	futuresCancelOrder       = "/api/v3/cancelorder"
@@ -730,6 +731,84 @@ var (
 	// KrakenRequestParamsTimeIOC IOC
 	KrakenRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )
+
+// FuturesPublicTrades returns public trade data
+// a terrible type for parsing data
+type FuturesPublicTrades struct {
+	ContinuationToken string `json:"continuationToken"`
+	Elements          []struct {
+		ExecutionEvent struct {
+			OuterExecutionHolder struct {
+				Execution struct {
+					LimitFilled bool `json:"limitFilled"`
+					MakerOrder  struct {
+						AccountUid          string  `json:"accountUid"`
+						ClientId            string  `json:"clientId"`
+						Direction           string  `json:"direction"`
+						Filled              string  `json:"filled"`
+						LastUpdateTimestamp int64   `json:"lastUpdateTimestamp"`
+						LimitPrice          float64 `json:"limitPrice,string"`
+						OrderType           string  `json:"orderType"`
+						Quantity            float64 `json:"quantity,string"`
+						ReduceOnly          bool    `json:"reduceOnly"`
+						SpotData            string  `json:"spotData"`
+						Timestamp           int64   `json:"timestamp"`
+						Tradeable           string  `json:"tradeable"`
+						Uid                 string  `json:"uid"`
+					} `json:"makerOrder"`
+					MakerOrderData struct {
+						Fee          string `json:"fee"`
+						PositionSize string `json:"positionSize"`
+					} `json:"makerOrderData"`
+					MarkPrice     string `json:"markPrice"`
+					OldTakerOrder struct {
+						AccountUid          string `json:"accountUid"`
+						ClientId            string `json:"clientId"`
+						Direction           string `json:"direction"`
+						Filled              string `json:"filled"`
+						LastUpdateTimestamp int64  `json:"lastUpdateTimestamp"`
+						LimitPrice          string `json:"limitPrice"`
+						OrderType           string `json:"orderType"`
+						Quantity            string `json:"quantity"`
+						ReduceOnly          bool   `json:"reduceOnly"`
+						SpotData            string `json:"spotData"`
+						Timestamp           int64  `json:"timestamp"`
+						Tradeable           string `json:"tradeable"`
+						Uid                 string `json:"uid"`
+					} `json:"oldTakerOrder"`
+					Price      string `json:"price"`
+					Quantity   string `json:"quantity"`
+					TakerOrder struct {
+						AccountUid          string `json:"accountUid"`
+						ClientId            string `json:"clientId"`
+						Direction           string `json:"direction"`
+						Filled              string `json:"filled"`
+						LastUpdateTimestamp int64  `json:"lastUpdateTimestamp"`
+						LimitPrice          string `json:"limitPrice"`
+						OrderType           string `json:"orderType"`
+						Quantity            string `json:"quantity"`
+						ReduceOnly          bool   `json:"reduceOnly"`
+						SpotData            string `json:"spotData"`
+						Timestamp           int64  `json:"timestamp"`
+						Tradeable           string `json:"tradeable"`
+						Uid                 string `json:"uid"`
+					} `json:"takerOrder"`
+					TakerOrderData struct {
+						Fee          string `json:"fee"`
+						PositionSize string `json:"positionSize"`
+					} `json:"takerOrderData"`
+					Timestamp int64  `json:"timestamp"`
+					Uid       string `json:"uid"`
+					UsdValue  string `json:"usdValue"`
+				} `json:"execution"`
+				TakerReducedQuantity string `json:"takerReducedQuantity"`
+			} `json:"execution"`
+		} `json:"event"`
+		Timestamp int64  `json:"timestamp"`
+		Uid       string `json:"uid"`
+	} `json:"elements"`
+	Len int64 `json:"len"`
+}
 
 // FuturesCandles is the response when requesting futures candles
 type FuturesCandles struct {

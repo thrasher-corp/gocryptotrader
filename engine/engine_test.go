@@ -371,6 +371,52 @@ func TestAllExchangeWrappers(t *testing.T) {
 	}
 }
 
+func getExchangeCredentials(exchangeName string) config.APICredentialsConfig {
+	var resp config.APICredentialsConfig
+	switch exchangeName {
+	case "lbank":
+		// these are just random keys, they are not valid
+		resp.Key = `MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3R2vuz3cpQUbCX0TgYZL
+TiLSxUXdrvVEIyoqQyxNf+9fmHLEBrsO1s1msIKvWg24gdbLWXQ6NBCygO8OvZpm
++lfXD4MRv/0PxxIAkaD6Iplhv+qbae8nJkYQOpDJF3bPC9LCKfchCnRpZoGqkHgS
+GqOBU13UDZ8BM1SaOLVBzcmE/iJCLPQPORNSzfLSb8TC+woe0AcaDmF9KjIzXPd0
+Slacp1ZgZ+yIi1B5/akwxu6sGzHov6weXj/v9K8nUhL9+oPMd8FNzZ+z3viHY0fm
+yWiHBywwlh4LgzrjGTUdUk9msjSr2rwjTdCp268A8ECC1fChvhdJfO3lYVj8ltDb
+OQIDAQAB`
+		resp.Secret = `MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDdHa+7PdylBRsJ
+fROBhktOItLFRd2u9UQjKipDLE1/71+YcsQGuw7WzWawgq9aDbiB1stZdDo0ELKA
+7w69mmb6V9cPgxG//Q/HEgCRoPoimWG/6ptp7ycmRhA6kMkXds8L0sIp9yEKdGlm
+gaqQeBIao4FTXdQNnwEzVJo4tUHNyYT+IkIs9A85E1LN8tJvxML7Ch7QBxoOYX0q
+MjNc93RKVpynVmBn7IiLUHn9qTDG7qwbMei/rB5eP+/0rydSEv36g8x3wU3Nn7Pe
++IdjR+bJaIcHLDCWHguDOuMZNR1ST2ayNKvavCNN0KnbrwDwQILV8KG+F0l87eVh
+WPyW0Ns5AgMBAAECggEAdBs7hJmWO7yzlsbrsC7BajUU8eue3VkCv2hLqtwfkdcz
+HkzdLB+bSiWvD25//0yHHv6X5tAGJALEiLl+xwbFnhzz27xaXLLYTxLf45hg4Dwk
+PO9HTlf6+bj+mpIeVcjYLYAs3nZbDi9UjTP3SUcTUpOavBjf2YstyTNai/55oEF/
+x+ulzP/OISVhKrk5iiSKgjB4KyFpQnBWyluTmnlNS17/T/k6FkECQFgNpzbUmHTH
+Yq+s0I9fGXMMvsNnnoJjX6ALe9fkMjY6ijeA45plDeBZp+5J8uGOKV+/iTCNzm5o
+wrQKPz335+tTZgsDdKLUFA9Rwmkcpn4PShOtnR6aZQKBgQD9tzFlomqt/mSWbHAV
+Gfjog9snlvgEWBIUjfP5Ow79rbz0cGcL3GAexwKK1dwNmMHDx+fu4uVAIf0dM5aT
+xfdp/I4OTkxOFcIupu+L4gmz1vY32pFLPQYbp+9oOAMy4thUFb5o/Dsq2g65e2BC
++gNALEWxPuhNYbI7c0cu5Y7AJwKBgQDfG1ovhNlETJO+oli25csayRwgm/qll4fH
+sOnYospQiJ3ka0WjPT6NY8m2anWDp7+/guIwq+xXVF6wQNxNZc+6/MgNJo2R3XG5
+FKPH5FYgI52Zv6VN1AUhdfInDpKQXQ8vWO6HV+/uJmHeZK2+D6nycN4dL2h7ElK/
+sCthmNtFnwKBgQDCGdaGpLzspAScOBV/b0FH0Shmn07bM+2RIBCYiaAsXzCB6URM
+hKpcoW/Ge1pAZK9IcrVzws4URGx6XK9EGl3wDbE4LJqf2nGWc0wsPh+iIEB59pLV
+drgnjFDR8Jgx4+4QVho4A0/Ytr4xFLxOQSsfez9OHIxoNue+J7E7pY+SXQKBgBTT
+0tl4x2eO1oQHV8zLKui3OX750K5AtRY5N7tXhxd5iXPXZ8rTXtGILT5wNcQylr3k
+FAWDJy8H20cM5wP6qyfDjVFc9f5V89XZTWjNshSR/pZpw56+WjRDdHWc8KW1akN7
+Q9kypl1PC/fc4jNJ9w2A59tFn7VNgpgOdB5KTL31AoGBAN3BIjKXzoOJnVGL3bja
+SYC2m+JcRn/mVO7I5Hop8GDoWXPFAnPNx1YKSpRLM/EV+ukUJsOV/LTPb7BsXMsJ
+IY9SZceJS6glsxt+blFxGEpypyv13xW+jeCrPjlxQX2TNbL0KwHqvm1zMnM9bss/
+Rsd80LrBCVI8ctzrvYRFSugC`
+	default:
+		resp.Key = "realKey"
+		resp.Secret = "YXBpU2VjcmV0" // base64 encoded "apiSecret"
+		resp.ClientID = "realClientID"
+	}
+	return resp
+}
+
 func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.Config) (exchange.IBotExchange, []assetPair) {
 	t.Helper()
 	em := NewExchangeManager()
@@ -385,9 +431,8 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	}
 	exch.SetDefaults()
 	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.Credentials.Key = "realKey"
-	exchCfg.API.Credentials.Secret = "realSecret"
-	exchCfg.API.Credentials.ClientID = "realClientID"
+	exchCfg.API.Credentials = getExchangeCredentials(name)
+
 	err = exch.Setup(exchCfg)
 	if err != nil {
 		t.Fatalf("%v %v", name, err)
@@ -413,35 +458,18 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	assetPairs := make([]assetPair, 0, len(assets)+1)
 	for j := range assets {
 		var pairs currency.Pairs
-		pairs, err = b.CurrencyPairs.GetPairs(assets[j], true)
+		pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
 		if err != nil {
 			t.Fatalf("%v %v", name, err)
 		}
 		var p currency.Pair
-		if len(pairs) == 0 {
-			pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
-			if err != nil {
-				t.Fatalf("%v GetPairs %v %v", name, err, assets[j])
-			}
-			p, err = getPairFromPairs(t, pairs)
-			if err != nil {
-				// if there aren't pairs to grab, don't test asset
-				continue
-			}
-			p, err = b.FormatExchangeCurrency(p, assets[j])
-			if err != nil {
-				t.Fatalf("%v FormatExchangeCurrency %v %v", name, err, assets[j])
-			}
-			err = b.CurrencyPairs.EnablePair(assets[j], p)
-			if err != nil {
-				t.Fatalf("%v EnablePair %v %v", name, err, assets[j])
-			}
-		} else {
-			p, err = getPairFromPairs(t, pairs)
-			if err != nil {
-				// if there aren't pairs to grab, don't test asset
-				continue
-			}
+		p, err = getPairFromPairs(t, pairs)
+		if err != nil {
+			t.Fatalf("%v %v", name, err)
+		}
+		err = b.CurrencyPairs.EnablePair(assets[j], p)
+		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
+			t.Fatalf("%v %v", name, err)
 		}
 		p, err = b.FormatExchangeCurrency(p, assets[j])
 		if err != nil {
@@ -502,7 +530,8 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 		s := time.Now().Add(-time.Hour * 24 * 7).Truncate(time.Hour)
 		if methodName == "GetHistoricTrades" {
 			// limit trade history
-			s = time.Now().Add(-time.Minute * 5)
+			e = time.Now()
+			s = e.Add(-time.Minute * 5)
 		}
 		for y := 0; y <= assetLen; y++ {
 			inputs := make([]reflect.Value, method.Type().NumIn())
@@ -554,6 +583,7 @@ var (
 	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
 	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
 	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
+	feeBuilderParam       = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -581,6 +611,13 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 		// Need to deploy a context.Context value as nil value is not
 		// checked throughout codebase.
 		input = reflect.ValueOf(ctx)
+	case argGenerator.MethodInputType.AssignableTo(feeBuilderParam):
+		input = reflect.ValueOf(&exchange.FeeBuilder{
+			FeeType:       exchange.OfflineTradeFee,
+			Amount:        1337,
+			PurchasePrice: 1337,
+			Pair:          argGenerator.AssetParams.Pair,
+		})
 	case argGenerator.MethodInputType.AssignableTo(currencyPairParam):
 		input = reflect.ValueOf(argGenerator.AssetParams.Pair)
 	case argGenerator.MethodInputType.AssignableTo(assetParam):
@@ -601,9 +638,14 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			input = reflect.ValueOf(argGenerator.End)
 		}
 	case argGenerator.MethodInputType.AssignableTo(currencyPairsParam):
-		input = reflect.ValueOf(currency.Pairs{
-			argGenerator.AssetParams.Pair,
-		})
+		b := argGenerator.Exchange.GetBase()
+		if argGenerator.AssetParams.Asset != asset.Empty {
+			input = reflect.ValueOf(b.CurrencyPairs.Pairs[argGenerator.AssetParams.Asset].Available)
+		} else {
+			input = reflect.ValueOf(currency.Pairs{
+				argGenerator.AssetParams.Pair,
+			})
+		}
 	case argGenerator.MethodInputType.AssignableTo(withdrawRequestParam):
 		req := &withdraw.Request{
 			Exchange:      exchName,
@@ -734,25 +776,21 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 // and determine if the error is friendly
 func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues []reflect.Value, methodName string, exch exchange.IBotExchange) {
 	t.Helper()
-	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 	outputs := methodToCall.Call(methodValues)
 	for i := range outputs {
-		incoming := outputs[i].Interface()
-		if reflect.TypeOf(incoming) == errType {
-			err, ok := incoming.(error)
-			if !ok {
-				t.Errorf("%s type assertion failure for %v", methodName, incoming)
-				continue
-			}
-			if isUnacceptableError(t, err) != nil {
-				literalInputs := make([]interface{}, len(methodValues))
-				for j := range methodValues {
-					literalInputs[j] = methodValues[j].Interface()
-				}
-				t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
-			}
-			break
+		outputInterface := outputs[i].Interface()
+		err, ok := outputInterface.(error)
+		if !ok {
+			continue
 		}
+		if isUnacceptableError(t, err) != nil {
+			literalInputs := make([]interface{}, len(methodValues))
+			for j := range methodValues {
+				literalInputs[j] = methodValues[j].Interface()
+			}
+			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
+		}
+		break
 	}
 }
 
@@ -766,10 +804,11 @@ type assetPair struct {
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
 var excludedMethodNames = map[string]struct{}{
-	"Setup":                            {}, // Is run via test setup
-	"Start":                            {}, // Is run via test setup
-	"SetDefaults":                      {}, // Is run via test setup
-	"UpdateTradablePairs":              {}, // Is run via test setup
+	"Setup":               {}, // Is run via test setup
+	"Start":               {}, // Is run via test setup
+	"SetDefaults":         {}, // Is run via test setup
+	"UpdateTradablePairs": {}, // Is run via test setup
+	//"SetPairs":                         {}, // Prevents setting pairs erroneously
 	"GetDefaultConfig":                 {}, // Is run via test setup
 	"FetchTradablePairs":               {}, // Is run via test setup
 	"GetCollateralCurrencyForContract": {}, // Not widely supported/implemented futures endpoint
@@ -811,14 +850,15 @@ var blockedCIExchanges = []string{
 
 // acceptable errors do not throw test errors, see below for why
 var acceptableErrors = []error{
-	common.ErrFunctionNotSupported,   // Shows API cannot perform function and developer has recognised this
-	asset.ErrNotSupported,            // Shows that valid and invalid asset types are handled
-	request.ErrAuthRequestFailed,     // We must set authenticated requests properly in order to understand and better handle auth failures
-	order.ErrUnsupportedOrderType,    // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
-	currency.ErrCurrencyPairEmpty,    // Demonstrates handling of EMPTYPAIR scenario and returns the correct error
-	currency.ErrCurrencyNotSupported, // Ensures a standard error is used for when a particular currency/pair is not supported by an exchange
-	currency.ErrCurrencyNotFound,     // Semi-randomly selected currency pairs may not be found at an endpoint, so long as this is returned it is okay
-	asset.ErrNotEnabled,              // Allows distinction when checking for supported versus enabled
+	common.ErrFunctionNotSupported,       // Shows API cannot perform function and developer has recognised this
+	asset.ErrNotSupported,                // Shows that valid and invalid asset types are handled
+	request.ErrAuthRequestFailed,         // We must set authenticated requests properly in order to understand and better handle auth failures
+	order.ErrUnsupportedOrderType,        // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
+	currency.ErrCurrencyPairEmpty,        // Demonstrates handling of EMPTYPAIR scenario and returns the correct error
+	currency.ErrCurrencyNotSupported,     // Ensures a standard error is used for when a particular currency/pair is not supported by an exchange
+	currency.ErrCurrencyNotFound,         // Semi-randomly selected currency pairs may not be found at an endpoint, so long as this is returned it is okay
+	asset.ErrNotEnabled,                  // Allows distinction when checking for supported versus enabled
+	request.ErrRateLimiterAlreadyEnabled, // If the rate limiter is already enabled, it is not an error
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
@@ -832,12 +872,12 @@ var warningErrors = []error{
 func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 	t.Helper()
 	for i := range p {
-		if p[i].Base.Equal(currency.BTC) {
+		if p[i].Base.Equal(currency.ETH) {
 			return p[i], nil
 		}
 	}
 	for i := range p {
-		if p[i].Base.Equal(currency.ETH) {
+		if p[i].Base.Equal(currency.BTC) {
 			return p[i], nil
 		}
 	}

@@ -582,7 +582,7 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 			}
 		}
 	default:
-		return book, fmt.Errorf("invalid assetType: %v", assetType)
+		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	err = book.Process()
 	if err != nil {
@@ -693,26 +693,59 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	tradeData, err := k.GetTrades(ctx, p)
+	var err error
+	p, err = k.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]trade.Data, len(tradeData))
-	for i := range tradeData {
-		side := order.Buy
-		if tradeData[i].BuyOrSell == "s" {
-			side = order.Sell
+	var resp []trade.Data
+	switch assetType {
+	case asset.Spot:
+		var tradeData []RecentTrades
+		tradeData, err = k.GetTrades(ctx, p)
+		if err != nil {
+			return nil, err
 		}
-		resp[i] = trade.Data{
-			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
-			Exchange:     k.Name,
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Side:         side,
-			Price:        tradeData[i].Price,
-			Amount:       tradeData[i].Volume,
-			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+		for i := range tradeData {
+			side := order.Buy
+			if tradeData[i].BuyOrSell == "s" {
+				side = order.Sell
+			}
+			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+				Exchange:     k.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Volume,
+				Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+			})
 		}
+	case asset.Futures:
+		var tradeData *FuturesPublicTrades
+		tradeData, err = k.GetFuturesTrades(ctx, p, time.Time{}, time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData.Elements {
+			side := order.Buy
+			if tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Direction == "Sell" {
+				side = order.Sell
+			}
+			resp = append(resp, trade.Data{
+				TID:          tradeData.Elements[i].Uid,
+				Exchange:     k.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.LimitPrice,
+				Amount:       tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Quantity,
+				Timestamp:    time.UnixMilli(tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Timestamp),
+			})
+		}
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 
 	err = k.AddTradesToBuffer(resp...)

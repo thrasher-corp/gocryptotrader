@@ -74,7 +74,6 @@ const (
 	bitfinexTrades          = "trades/"
 	bitfinexOrderbook       = "book/"
 	bitfinexHistoryShort    = "hist"
-	bitfinexStatistics      = "stats1/"
 	bitfinexCandles         = "candles/trade"
 	bitfinexKeyPermissions  = "key_info"
 	bitfinexMarginInfo      = "margin_infos"
@@ -1469,8 +1468,7 @@ func (b *Bitfinex) NewOrder(ctx context.Context, currencyPair, orderType string,
 
 // OrderUpdate will send an update signal for an existing order
 // and attempt to modify it
-func (b *Bitfinex) OrderUpdate(ctx context.Context, orderID, groupID, clientOrderID string, amount, price, leverage float64) (interface{}, error) {
-	response := Order{}
+func (b *Bitfinex) OrderUpdate(ctx context.Context, orderID, groupID, clientOrderID string, amount, price, leverage float64) (*Order, error) {
 	req := make(map[string]interface{})
 	if orderID != "" {
 		req["id"] = orderID
@@ -1486,7 +1484,8 @@ func (b *Bitfinex) OrderUpdate(ctx context.Context, orderID, groupID, clientOrde
 	if leverage > 1 {
 		req["lev"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 	}
-	return response, b.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
+	response := Order{}
+	return &response, b.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexOrderUpdate,
 		req,
 		&response,

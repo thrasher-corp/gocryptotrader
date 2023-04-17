@@ -2077,11 +2077,21 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BCHEUR")
+	cp, err := currency.NewPairFromString("BCHEUR")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = k.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	_, err = k.GetRecentTrades(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp, err = currency.NewPairFromStrings("PI", "BCHUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	cp.Delimiter = "_"
+	_, err = k.GetRecentTrades(context.Background(), cp, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2161,6 +2171,24 @@ func TestGetCharts(t *testing.T) {
 
 	end := time.UnixMilli(resp.Candles[0].Time)
 	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesTrades(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	cp.Delimiter = "_"
+	_, err = k.GetFuturesTrades(context.Background(), cp, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = k.GetFuturesTrades(context.Background(), cp, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

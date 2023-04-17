@@ -853,20 +853,11 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	var waitForCompletion bool
 	if wg == nil {
 		wg = &sync.WaitGroup{}
-		waitForCompletion = true
+		defer wg.Wait()
 	}
-	err = exch.Start(context.TODO(), wg)
-	if err != nil {
-		return err
-	}
-	if waitForCompletion {
-		wg.Wait()
-	}
-
-	return nil
+	return exch.Start(context.TODO(), wg)
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {

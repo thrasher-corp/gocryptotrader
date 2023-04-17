@@ -58,8 +58,8 @@ type Orderbook struct {
 
 // TradeHistory holds trade history data
 type TradeHistory struct {
-	GlobalTradeID int64   `json:"globalTradeID"`
-	TradeID       int64   `json:"tradeID"`
+	GlobalTradeID string  `json:"globalTradeID"`
+	TradeID       string  `json:"tradeID"`
 	Date          string  `json:"date"`
 	Type          string  `json:"type"`
 	Rate          float64 `json:"rate,string"`
@@ -89,8 +89,8 @@ type OrderStatusData struct {
 // OrderTrade holds order trade data
 type OrderTrade struct {
 	Status        string  `json:"status"`
-	GlobalTradeID int64   `json:"globalTradeID"`
-	TradeID       int64   `json:"tradeID"`
+	GlobalTradeID string  `json:"globalTradeID"`
+	TradeID       string  `json:"tradeID"`
 	CurrencyPair  string  `json:"currencyPair"`
 	Type          string  `json:"type"`
 	Rate          float64 `json:"rate,string"`

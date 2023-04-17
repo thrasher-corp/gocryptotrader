@@ -500,7 +500,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 			HTTPRecording: f.HTTPRecording,
 		}
 		return item, nil
-	}, true)
+	}, request.AuthenticatedRequest)
 
 	endpoint := request.Unset // Used in conjunction with the rate limiting 
 	// system defined in the exchange package to slow down outbound requests

@@ -1054,13 +1054,19 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		if errCap.Error != nil {
 			switch e := errCap.Error.(type) {
 			case []string:
-				return errors.New(e[0])
-			case string:
-				return errors.New(e)
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e[0])
+			case []interface{}, interface{}, string:
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e)
+			default:
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
 		}
 	}
-	return json.Unmarshal(interim, result)
+	err = json.Unmarshal(interim, result)
+	if err != nil {
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
+	}
+	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction
