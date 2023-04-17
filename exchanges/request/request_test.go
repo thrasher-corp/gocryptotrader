@@ -205,7 +205,7 @@ type GlobalLimitTest struct {
 
 var errEndpointLimitNotFound = errors.New("endpoint limit not found")
 
-func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) (*rate.Limiter, int, error) {
+func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) (*rate.Limiter, Tokens, error) {
 	switch e {
 	case Auth:
 		if g.Auth == nil {

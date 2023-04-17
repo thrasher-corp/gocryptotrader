@@ -35,7 +35,7 @@ type BasicLimit struct {
 }
 
 // Limit executes a single rate limit set by NewRateLimit
-func (b *BasicLimit) Limit(ctx context.Context, _ EndpointLimit) (*rate.Limiter, int, error) {
+func (b *BasicLimit) Limit(ctx context.Context, _ EndpointLimit) (*rate.Limiter, Tokens, error) {
 	return b.r, 1, nil
 }
 
@@ -43,11 +43,14 @@ func (b *BasicLimit) Limit(ctx context.Context, _ EndpointLimit) (*rate.Limiter,
 // New is called.
 type EndpointLimit uint16
 
+// Tokens defines the number of tokens to be consumed.
+type Tokens uint8
+
 // Limiter interface groups rate limit functionality defined in the REST
 // wrapper for extended rate limiting configuration i.e. Shells of rate
 // limits with a global rate for sub rates.
 type Limiter interface {
-	Limit(context.Context, EndpointLimit) (*rate.Limiter, int, error)
+	Limit(context.Context, EndpointLimit) (*rate.Limiter, Tokens, error)
 }
 
 // NewRateLimit creates a new RateLimit based of time interval and how many
@@ -95,7 +98,7 @@ func (r *Requester) initiateRateLimit(ctx context.Context, e EndpointLimit) erro
 
 	var finalDelay time.Duration
 	var reservations = make([]*rate.Reservation, tokens)
-	for i := 0; i < tokens; i++ {
+	for i := Tokens(0); i < tokens; i++ {
 		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
 		// which would otherwise allow the rate limit to be exceeded over short periods
 		reservations[i] = rateLimiter.Reserve()

@@ -28,7 +28,7 @@ type RateLimit struct {
 }
 
 // Limit limits the outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, request.Tokens, error) {
 	switch f {
 	case request.Auth:
 		return r.Auth, 1, nil

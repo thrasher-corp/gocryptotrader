@@ -529,7 +529,7 @@ const (
 )
 
 // Limit executes rate limiting for Okx exchange given the context and EndpointLimit
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, request.Tokens, error) {
 	switch f {
 	case placeOrderEPL:
 		return r.PlaceOrder, 1, nil

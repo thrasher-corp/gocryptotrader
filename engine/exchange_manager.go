@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -259,6 +260,7 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 
 	select {
 	case <-timer.C:
+		runtime.Breakpoint()
 		// Possible deadlock in a number of operating exchanges.
 		lockout.Lock()
 		for name := range m.exchanges {

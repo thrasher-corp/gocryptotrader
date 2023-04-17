@@ -30,7 +30,7 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, int, error) {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) (*rate.Limiter, request.Tokens, error) {
 	// TODO: Authenticated endpoints cannot be tested.
 	switch f {
 	case request.Auth:
