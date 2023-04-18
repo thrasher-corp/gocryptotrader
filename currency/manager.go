@@ -244,6 +244,38 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	return nil
 }
 
+// IsAssetPairEnabled checks if a pair is enabled for an asset type
+func (p *PairsManager) IsAssetPairEnabled(a asset.Item, pair Pair) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	if pair.IsEmpty() {
+		return ErrCurrencyPairEmpty
+	}
+
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	pairStore, err := p.getPairStoreRequiresLock(a)
+	if err != nil {
+		return err
+	}
+
+	if pairStore.AssetEnabled == nil {
+		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
+	}
+
+	if !*pairStore.AssetEnabled {
+		return fmt.Errorf("%s %w", a, asset.ErrNotEnabled)
+	}
+
+	if pairStore.Enabled.Contains(pair, true) {
+		return nil
+	}
+	return fmt.Errorf("%s %w", pair, ErrPairNotFound)
+}
+
 // IsAssetEnabled checks to see if an asset is enabled
 func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	if !a.IsValid() {

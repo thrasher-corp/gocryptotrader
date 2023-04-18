@@ -67,16 +67,11 @@ func (ok *Okx) SetDefaults() {
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
-
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
+	pairFormat := &currency.PairFormat{
+		Delimiter: currency.DashDelimiter,
+		Uppercase: true,
 	}
-
-	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin)
+	err := ok.SetGlobalPairsManager(pairFormat, pairFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -292,6 +287,10 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
 			InstrumentType: okxInstTypeSwap,
 		})
+	case asset.Margin:
+		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			InstrumentType: okxInstTypeMargin,
+		})
 	case asset.Options:
 		var underlyings []string
 		underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
@@ -315,10 +314,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 				instruments = append(instruments, options[i])
 			}
 		}
-	case asset.Margin:
-		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeMargin,
-		})
 	}
 	if err != nil {
 		return nil, err

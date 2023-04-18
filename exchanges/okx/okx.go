@@ -277,6 +277,7 @@ var (
 	errMissingResponseBody                           = errors.New("error missing response body")
 	errMissingValidWithdrawalID                      = errors.New("missing valid withdrawal id")
 	errNoValidResponseFromServer                     = errors.New("no valid response from server")
+	errInstrumentTypeRequired                        = errors.New("instrument type required")
 	errInvalidInstrumentType                         = errors.New("invalid instrument type")
 	errMissingValidGreeksType                        = errors.New("missing valid greeks type")
 	errMissingIsolatedMarginTradingSetting           = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
@@ -1146,7 +1147,7 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 			args[x].InstrumentType != okxInstTypeSpot &&
 			args[x].InstrumentType != okxInstTypeFutures &&
 			args[x].InstrumentType != okxInstTypeOption {
-			return nil, errInvalidInstrumentType
+			return nil, fmt.Errorf("%w received %v", errInvalidInstrumentType, args[x].InstrumentType)
 		}
 		if len(args[x].Data) == 0 {
 			return nil, errMissingMakerInstrumentSettings
@@ -2176,10 +2177,10 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 // GetTradeFee query trade fee rate of various instrument types and instrument ids.
 func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying string) ([]TradeFeeRate, error) {
 	params := url.Values{}
-	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
-		return nil, errInvalidInstrumentType
+		return nil, errInstrumentTypeRequired
 	}
+	instrumentType = strings.ToUpper(instrumentType)
 	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -2259,7 +2260,7 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType != okxInstTypeMargin &&
 		arg.InstrumentType != okxInstTypeContract {
-		return nil, fmt.Errorf("%w, only margin and contract instrument types are allowed", errInvalidInstrumentType)
+		return nil, fmt.Errorf("%w, received '%v' only margin and contract instrument types are allowed", errInvalidInstrumentType, arg.InstrumentType)
 	}
 	var resp []IsolatedMode
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, accountSetIsolatedMode, &arg, &resp, true)
@@ -2365,7 +2366,7 @@ func (ok *Okx) GetGreeks(ctx context.Context, currency string) ([]GreeksItem, er
 func (ok *Okx) GetPMLimitation(ctx context.Context, instrumentType, underlying string) ([]PMLimitationResponse, error) {
 	params := url.Values{}
 	if instrumentType == "" {
-		return nil, errInvalidInstrumentType
+		return nil, errInstrumentTypeRequired
 	}
 	if underlying == "" {
 		return nil, errInvalidUnderlying
@@ -3055,9 +3056,9 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 
 // GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
 func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
-	codes := strings.Split(instrumentID, currency.DashDelimiter)
+	codes := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
 	if len(codes) >= 2 {
-		instrumentID = codes[0] + currency.DashDelimiter + strings.Join(codes[1:], currency.DashDelimiter)
+		instrumentID = codes[0] + ok.CurrencyPairs.RequestFormat.Delimiter + strings.Join(codes[1:], ok.CurrencyPairs.RequestFormat.Delimiter)
 	}
 	return currency.NewPairFromString(instrumentID)
 }
@@ -3730,7 +3731,7 @@ func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error)
 func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType string, begin, end time.Time, period kline.Interval) ([]TakerVolume, error) {
 	params := url.Values{}
 	if instrumentType == "" {
-		return nil, errInvalidInstrumentType
+		return nil, errInstrumentTypeRequired
 	}
 	params.Set("instType", strings.ToUpper(instrumentType))
 	interval := ok.GetIntervalEnum(period, false)
@@ -4291,44 +4292,73 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 }
 
 // GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string.
-func GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
+func GetAssetTypeFromInstrumentType(instrumentType string) asset.Item {
 	switch strings.ToUpper(instrumentType) {
 	case okxInstTypeSwap, okxInstTypeContract:
-		return asset.PerpetualSwap, nil
+		return asset.PerpetualSwap
 	case okxInstTypeSpot:
-		return asset.Spot, nil
-	case okxInstTypeANY:
-		return asset.Empty, nil
-	default:
-		return asset.Empty, fmt.Errorf("%w %v", asset.ErrNotSupported, instrumentType)
+		return asset.Spot
+	case okxInstTypeMargin:
+		return asset.Margin
+	case okxInstTypeFutures:
+		return asset.Futures
+	case okxInstTypeOption:
+		return asset.Options
 	}
+	return asset.Empty
 }
 
-// GuessAssetTypeFromInstrumentID returns or guesses the instrument id.
-func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, error) {
-	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
-		return asset.PerpetualSwap, nil
+// GetAssetsFromInstrumentTypeOrID parses an instrument type and instrument ID and returns a list of assets
+// that the currency pair is associated with.
+func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([]asset.Item, error) {
+	if instType != "" {
+		a := GetAssetTypeFromInstrumentType(instType)
+		if a != asset.Empty {
+			return []asset.Item{a}, nil
+		}
 	}
-	count := strings.Count(instrumentID, currency.DashDelimiter)
+	if instrumentID == "" {
+		return nil, fmt.Errorf("%w instrumentID", errEmptyArgument)
+	}
+	splitSymbol := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	if len(splitSymbol) <= 1 {
+		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
+	}
+	pair, err := currency.NewPairDelimiter(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	if err != nil {
+		return nil, err
+	}
 	switch {
-	case count >= 3:
-		return asset.Options, nil
-	case count == 2:
-		return asset.Futures, nil
-	default:
-		pair, err := currency.NewPairFromString(instrumentID)
-		if err != nil {
-			return asset.Empty, err
+	case len(splitSymbol) == 2:
+		resp := make([]asset.Item, 0, 2)
+		if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Spot, pair); err == nil {
+			resp = append(resp, asset.Spot)
 		}
-		pairs, err := ok.GetEnabledPairs(asset.Margin)
-		if err != nil {
-			return asset.Empty, err
+		if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Margin, pair); err == nil {
+			resp = append(resp, asset.Margin)
 		}
-		for x := range pairs {
-			if pairs[x].Equal(pair) {
-				return asset.Margin, nil
+		if len(resp) > 0 {
+			return resp, nil
+		}
+	case len(splitSymbol) > 2:
+		resp := make([]asset.Item, 1)
+		switch splitSymbol[len(splitSymbol)-1] {
+		case "SWAP", "swap":
+			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.PerpetualSwap, pair); err == nil {
+				resp[0] = asset.PerpetualSwap
+				return resp, nil
+			}
+		case "C", "P", "c", "p":
+			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Options, pair); err == nil {
+				resp[0] = asset.Options
+				return resp, nil
+			}
+		default:
+			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Futures, pair); err == nil {
+				resp[0] = asset.Futures
+				return resp, nil
 			}
 		}
-		return asset.Spot, nil
 	}
+	return nil, fmt.Errorf("%w or currency not enabled %v", asset.ErrNotSupported, instrumentID)
 }

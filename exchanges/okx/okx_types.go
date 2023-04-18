@@ -67,23 +67,22 @@ const (
 
 // TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {
-	InstrumentType asset.Item        `json:"instType"`
-	InstrumentID   string            `json:"instId"`
-	LastTradePrice okxNumericalValue `json:"last"`
-	LastTradeSize  okxNumericalValue `json:"lastSz"`
-	BestAskPrice   okxNumericalValue `json:"askPx"`
-	BestAskSize    okxNumericalValue `json:"askSz"`
-	BidPrice       okxNumericalValue `json:"bidPx"`
-	BidSize        okxNumericalValue `json:"bidSz"`
-	Open24H        okxNumericalValue `json:"open24h"`
-	High24H        okxNumericalValue `json:"high24h"`
-	Low24H         okxNumericalValue `json:"low24h"`
-	VolCcy24H      okxNumericalValue `json:"volCcy24h"`
-	Vol24H         okxNumericalValue `json:"vol24h"`
-
-	OpenPriceInUTC0          string           `json:"sodUtc0"`
-	OpenPriceInUTC8          string           `json:"sodUtc8"`
-	TickerDataGenerationTime okxUnixMilliTime `json:"ts"`
+	InstrumentType           string            `json:"instType"`
+	InstrumentID             string            `json:"instId"`
+	LastTradePrice           okxNumericalValue `json:"last"`
+	LastTradeSize            okxNumericalValue `json:"lastSz"`
+	BestAskPrice             okxNumericalValue `json:"askPx"`
+	BestAskSize              okxNumericalValue `json:"askSz"`
+	BidPrice                 okxNumericalValue `json:"bidPx"`
+	BidSize                  okxNumericalValue `json:"bidSz"`
+	Open24H                  okxNumericalValue `json:"open24h"`
+	High24H                  okxNumericalValue `json:"high24h"`
+	Low24H                   okxNumericalValue `json:"low24h"`
+	VolCcy24H                okxNumericalValue `json:"volCcy24h"`
+	Vol24H                   okxNumericalValue `json:"vol24h"`
+	OpenPriceInUTC0          string            `json:"sodUtc0"`
+	OpenPriceInUTC8          string            `json:"sodUtc8"`
+	TickerDataGenerationTime okxUnixMilliTime  `json:"ts"`
 }
 
 // IndexTicker represents Index ticker data.
@@ -274,7 +273,7 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract.
 type Instrument struct {
-	InstrumentType                  asset.Item        `json:"instType"`
+	InstrumentType                  string            `json:"instType"`
 	InstrumentID                    string            `json:"instId"`
 	Underlying                      string            `json:"uly"`
 	Category                        string            `json:"category"`
@@ -318,7 +317,7 @@ type DeliveryHistory struct {
 
 // OpenInterest Retrieve the total open interest for contracts on OKX.
 type OpenInterest struct {
-	InstrumentType       asset.Item       `json:"instType"`
+	InstrumentType       string           `json:"instType"`
 	InstrumentID         string           `json:"instId"`
 	OpenInterest         float64          `json:"oi,string"`
 	OpenInterestCurrency float64          `json:"oiCcy,string"`
@@ -330,14 +329,14 @@ type FundingRateResponse struct {
 	FundingRate     okxNumericalValue `json:"fundingRate"`
 	FundingTime     okxUnixMilliTime  `json:"fundingTime"`
 	InstrumentID    string            `json:"instId"`
-	InstrumentType  asset.Item        `json:"instType"`
+	InstrumentType  string            `json:"instType"`
 	NextFundingRate okxNumericalValue `json:"nextFundingRate"`
 	NextFundingTime okxUnixMilliTime  `json:"nextFundingTime"`
 }
 
 // LimitPriceResponse hold an information for
 type LimitPriceResponse struct {
-	InstrumentType asset.Item       `json:"instType"`
+	InstrumentType string           `json:"instType"`
 	InstID         string           `json:"instId"`
 	BuyLimit       float64          `json:"buyLmt,string"`
 	SellLimit      float64          `json:"sellLmt,string"`
@@ -346,7 +345,7 @@ type LimitPriceResponse struct {
 
 // OptionMarketDataResponse holds response data for option market data
 type OptionMarketDataResponse struct {
-	InstrumentType asset.Item       `json:"instType"`
+	InstrumentType string           `json:"instType"`
 	InstrumentID   string           `json:"instId"`
 	Underlying     string           `json:"uly"`
 	Delta          float64          `json:"delta,string"`
@@ -368,7 +367,7 @@ type OptionMarketDataResponse struct {
 
 // DeliveryEstimatedPrice holds an estimated delivery or exercise price response.
 type DeliveryEstimatedPrice struct {
-	InstrumentType         asset.Item       `json:"instType"`
+	InstrumentType         string           `json:"instType"`
 	InstrumentID           string           `json:"instId"`
 	EstimatedDeliveryPrice string           `json:"settlePx"`
 	Timestamp              okxUnixMilliTime `json:"ts"`
@@ -412,7 +411,7 @@ type LiquidationOrderRequestParams struct {
 type LiquidationOrder struct {
 	Details        []LiquidationOrderDetailItem `json:"details"`
 	InstrumentID   string                       `json:"instId"`
-	InstrumentType asset.Item                   `json:"instType"`
+	InstrumentType string                       `json:"instType"`
 	TotalLoss      string                       `json:"totalLoss"`
 	Underlying     string                       `json:"uly"`
 }
@@ -430,7 +429,7 @@ type LiquidationOrderDetailItem struct {
 
 // MarkPrice represents a mark price information for a single instrument id
 type MarkPrice struct {
-	InstrumentType asset.Item       `json:"instType"`
+	InstrumentType string           `json:"instType"`
 	InstrumentID   string           `json:"instId"`
 	MarkPrice      string           `json:"markPx"`
 	Timestamp      okxUnixMilliTime `json:"ts"`
@@ -588,7 +587,6 @@ type PlaceOrderRequestParam struct {
 	Price                 float64    `json:"px,string,omitempty"`
 	ReduceOnly            bool       `json:"reduceOnly,string,omitempty"`
 	QuantityType          string     `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
-
 	// Added in the websocket requests
 	BanAmend   bool             `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
 	ExpiryTime okxUnixMilliTime `json:"expTime,omitempty"`
@@ -648,7 +646,7 @@ type OrderDetailRequestParam struct {
 
 // OrderDetail returns a order detail information
 type OrderDetail struct {
-	InstrumentType             asset.Item        `json:"instType"`
+	InstrumentType             string            `json:"instType"`
 	InstrumentID               string            `json:"instId"`
 	Currency                   string            `json:"ccy"`
 	OrderID                    string            `json:"ordId"`
@@ -720,7 +718,7 @@ type PendingOrderItem struct {
 	LastFilledSize             okxNumericalValue `json:"fillSz"`
 	FillTime                   string            `json:"fillTime"`
 	InstrumentID               string            `json:"instId"`
-	InstrumentType             asset.Item        `json:"instType"`
+	InstrumentType             string            `json:"instType"`
 	Leverage                   okxNumericalValue `json:"lever"`
 	OrderID                    string            `json:"ordId"`
 	OrderType                  string            `json:"ordType"`
@@ -762,7 +760,7 @@ type TransactionDetailRequestParams struct {
 
 // TransactionDetail holds ecently-filled transaction detail data.
 type TransactionDetail struct {
-	InstrumentType        asset.Item       `json:"instType"`
+	InstrumentType        string           `json:"instType"`
 	InstrumentID          string           `json:"instId"`
 	TradeID               string           `json:"tradeId"`
 	OrderID               string           `json:"ordId"`
@@ -846,7 +844,7 @@ type AlgoOrderCancelParams struct {
 
 // AlgoOrderResponse holds algo order information.
 type AlgoOrderResponse struct {
-	InstrumentType             asset.Item       `json:"instType"`
+	InstrumentType             string           `json:"instType"`
 	InstrumentID               string           `json:"instId"`
 	OrderID                    string           `json:"ordId"`
 	Currency                   string           `json:"ccy"`
@@ -1257,7 +1255,7 @@ type AccountPosition struct {
 	GammaPA                      string           `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
 	InitialMarginRequirement     string           `json:"imr"`     // Initial margin requirement, only applicable to cross.
 	InstrumentID                 string           `json:"instId"`
-	InstrumentType               asset.Item       `json:"instType"`
+	InstrumentType               string           `json:"instType"`
 	Interest                     string           `json:"interest"`
 	USDPrice                     string           `json:"usdPx"`
 	LastTradePrice               string           `json:"last"`
@@ -1297,7 +1295,7 @@ type AccountPositionHistory struct {
 	CloseAveragePrice  float64          `json:"closeAvgPx,string,omitempty"`
 	CloseTotalPosition float64          `json:"closeTotalPos,string,omitempty"`
 	InstrumentID       string           `json:"instId"`
-	InstrumentType     asset.Item       `json:"instType"`
+	InstrumentType     string           `json:"instType"`
 	Leverage           string           `json:"lever"`
 	ManagementMode     string           `json:"mgnMode"`
 	OpenAveragePrice   string           `json:"openAvgPx"`
@@ -1321,18 +1319,18 @@ type AccountBalanceData struct {
 
 // PositionData holds account position data.
 type PositionData struct {
-	BaseBal          string     `json:"baseBal"`
-	Currency         string     `json:"ccy"`
-	InstrumentID     string     `json:"instId"`
-	InstrumentType   asset.Item `json:"instType"`
-	ManagementMode   string     `json:"mgnMode"`
-	NotionalCurrency string     `json:"notionalCcy"`
-	NotionalUsd      string     `json:"notionalUsd"`
-	Position         string     `json:"pos"`
-	PositionedCcy    string     `json:"posCcy"`
-	PositionedID     string     `json:"posId"`
-	PositionedSide   string     `json:"posSide"`
-	QuoteBalance     string     `json:"quoteBal"`
+	BaseBal          string `json:"baseBal"`
+	Currency         string `json:"ccy"`
+	InstrumentID     string `json:"instId"`
+	InstrumentType   string `json:"instType"`
+	ManagementMode   string `json:"mgnMode"`
+	NotionalCurrency string `json:"notionalCcy"`
+	NotionalUsd      string `json:"notionalUsd"`
+	Position         string `json:"pos"`
+	PositionedCcy    string `json:"posCcy"`
+	PositionedID     string `json:"posId"`
+	PositionedSide   string `json:"posSide"`
+	QuoteBalance     string `json:"quoteBal"`
 }
 
 // AccountAndPositionRisk holds information.
@@ -1368,7 +1366,7 @@ type BillsDetailResponse struct {
 	Fee                        string           `json:"fee"`      // Fee Negative number represents the user transaction fee charged by the platform. Positive number represents rebate.
 	From                       string           `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
 	InstrumentID               string           `json:"instId"`
-	InstrumentType             asset.Item       `json:"instType"`
+	InstrumentType             string           `json:"instType"`
 	MarginMode                 string           `json:"mgnMode"`
 	Notes                      string           `json:"notes"` // notes When bill type is not transfer, the field returns "".
 	OrderID                    string           `json:"ordId"`
@@ -1476,7 +1474,7 @@ type TradeFeeRate struct {
 	Category         string           `json:"category"`
 	DeliveryFeeRate  string           `json:"delivery"`
 	Exercise         string           `json:"exercise"`
-	InstrumentType   asset.Item       `json:"instType"`
+	InstrumentType   string           `json:"instType"`
 	FeeRateLevel     string           `json:"level"`
 	FeeRateMaker     string           `json:"maker"`
 	FeeRateMakerUSDT string           `json:"makerU"`
@@ -1608,14 +1606,14 @@ type PositionBuilderResponse struct {
 
 // PositionBuilderData represent a position item.
 type PositionBuilderData struct {
-	Delta              string     `json:"delta"`
-	Gamma              string     `json:"gamma"`
-	InstrumentID       string     `json:"instId"`
-	InstrumentType     asset.Item `json:"instType"`
-	NotionalUsd        string     `json:"notionalUsd"` // Quantity of positions usd
-	QuantityOfPosition string     `json:"pos"`         // Quantity of positions
-	Theta              string     `json:"theta"`       // Sensitivity of option price to remaining maturity
-	Vega               string     `json:"vega"`        // Sensitivity of option price to implied volatility
+	Delta              string `json:"delta"`
+	Gamma              string `json:"gamma"`
+	InstrumentID       string `json:"instId"`
+	InstrumentType     string `json:"instType"`
+	NotionalUsd        string `json:"notionalUsd"` // Quantity of positions usd
+	QuantityOfPosition string `json:"pos"`         // Quantity of positions
+	Theta              string `json:"theta"`       // Sensitivity of option price to remaining maturity
+	Vega               string `json:"vega"`        // Sensitivity of option price to implied volatility
 }
 
 // GreeksItem represents greeks response
@@ -2006,7 +2004,7 @@ type GridAlgoOrderResponse struct {
 	GridQuantity              string           `json:"gridNum"`
 	GridProfit                string           `json:"gridProfit"`
 	InstrumentID              string           `json:"instId"`
-	InstrumentType            asset.Item       `json:"instType"`
+	InstrumentType            string           `json:"instType"`
 	Investment                string           `json:"investment"`
 	Leverage                  string           `json:"lever"`
 	EstimatedLiquidationPrice string           `json:"liqPx"`
@@ -2063,7 +2061,7 @@ type GridAlgoSuborder struct {
 	GridQuantity        string           `json:"gridNum"`
 	GridProfit          string           `json:"gridProfit"`
 	InstrumentID        string           `json:"instId"`
-	InstrumentType      asset.Item       `json:"instType"`
+	InstrumentType      string           `json:"instType"`
 	Investment          string           `json:"investment"`
 	Leverage            string           `json:"lever"`
 	LiquidationPx       string           `json:"liqPx"`
@@ -2099,7 +2097,7 @@ type AlgoOrderPosition struct {
 	Currency                     string           `json:"ccy"`
 	InitialMarginRequirement     string           `json:"imr"`
 	InstrumentID                 string           `json:"instId"`
-	InstrumentType               asset.Item       `json:"instType"`
+	InstrumentType               string           `json:"instType"`
 	LastTradedPrice              string           `json:"last"`
 	Leverage                     string           `json:"lever"`
 	LiquidationPrice             string           `json:"liqPx"`
@@ -2139,7 +2137,7 @@ type SystemStatusResponse struct {
 
 // BlockTicker holds block trading information.
 type BlockTicker struct {
-	InstrumentType           asset.Item       `json:"instType"`
+	InstrumentType           string           `json:"instType"`
 	InstrumentID             string           `json:"instId"`
 	TradingVolumeInCCY24Hour float64          `json:"volCcy24h,string"`
 	TradingVolumeInUSD24Hour float64          `json:"vol24h,string"`
