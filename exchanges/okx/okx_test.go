@@ -3278,5 +3278,4 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	if !found {
 		t.Errorf("received %v expected %v", assets, asset.Spot)
 	}
-
 }

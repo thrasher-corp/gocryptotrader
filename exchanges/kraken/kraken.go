@@ -1055,7 +1055,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			switch e := errCap.Error.(type) {
 			case []string:
 				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e[0])
-			case []interface{}, interface{}, string:
+			case string, []interface{}, interface{}:
 				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e)
 			default:
 				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
