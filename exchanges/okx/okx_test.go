@@ -3213,10 +3213,10 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		t.Error(err)
 	}
 	if len(assets) != 1 {
-		t.Errorf("recieved %v expected %v", len(assets), 1)
+		t.Errorf("received %v expected %v", len(assets), 1)
 	}
 	if assets[0] != asset.Spot {
-		t.Errorf("recieved %v expected %v", assets[0], asset.Spot)
+		t.Errorf("received %v expected %v", assets[0], asset.Spot)
 	}
 
 	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0].String())
@@ -3224,10 +3224,10 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		t.Error(err)
 	}
 	if len(assets) != 1 {
-		t.Errorf("recieved %v expected %v", len(assets), 1)
+		t.Errorf("received %v expected %v", len(assets), 1)
 	}
 	if assets[0] != asset.Futures {
-		t.Errorf("recieved %v expected %v", assets[0], asset.Futures)
+		t.Errorf("received %v expected %v", assets[0], asset.Futures)
 	}
 
 	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0].String())
@@ -3235,10 +3235,10 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		t.Error(err)
 	}
 	if len(assets) != 1 {
-		t.Errorf("recieved %v expected %v", len(assets), 1)
+		t.Errorf("received %v expected %v", len(assets), 1)
 	}
 	if assets[0] != asset.PerpetualSwap {
-		t.Errorf("recieved %v expected %v", assets[0], asset.PerpetualSwap)
+		t.Errorf("received %v expected %v", assets[0], asset.PerpetualSwap)
 	}
 
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test")
@@ -3262,7 +3262,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("recieved %v expected %v", assets, asset.Margin)
+		t.Errorf("received %v expected %v", assets, asset.Margin)
 	}
 
 	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Spot].Enabled[0].String())
@@ -3276,7 +3276,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("recieved %v expected %v", assets, asset.Spot)
+		t.Errorf("received %v expected %v", assets, asset.Spot)
 	}
 
 }
