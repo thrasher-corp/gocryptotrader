@@ -3484,3 +3484,11 @@ func TestSettlement(t *testing.T) {
 		})
 	}
 }
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := g.Websocket.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
