@@ -1078,19 +1078,13 @@ func (b *Base) SupportsWebsocket() bool {
 // IsWebsocketEnabled returns whether or not the exchange has its
 // websocket client enabled
 func (b *Base) IsWebsocketEnabled() bool {
-	if b.Websocket == nil {
-		return false
-	}
-	return b.Websocket.IsEnabled()
+	return b.Websocket != nil && b.Websocket.IsEnabled()
 }
 
 // FlushWebsocketChannels refreshes websocket channel subscriptions based on
 // websocket features. Used in the event of a pair/asset or subscription change.
 func (b *Base) FlushWebsocketChannels() error {
-	if b.Websocket == nil {
-		return nil
-	}
-	return b.Websocket.FlushChannels()
+	return b.Websocket != nil && b.Websocket.FlushChannels()
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

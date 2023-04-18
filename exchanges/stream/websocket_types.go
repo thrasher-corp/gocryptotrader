@@ -26,25 +26,21 @@ const (
 // wrapper for routine processing
 type Websocket struct {
 	canUseAuthenticatedEndpoints bool
-	enabled                      bool
-	Init                         bool
-	connected                    bool
-	connecting                   bool
-	verbose                      bool
-	connectionMonitorRunning     bool
-	trafficMonitorRunning        bool
-	dataMonitorRunning           bool
-	trafficTimeout               time.Duration
-	connectionMonitorDelay       time.Duration
-	proxyAddr                    string
-	defaultURL                   string
-	defaultURLAuth               string
-	runningURL                   string
-	runningURLAuth               string
-	exchangeName                 string
-	m                            sync.Mutex
-	connectionMutex              sync.RWMutex
-	connector                    func() error
+
+	ConnectionStatus
+
+	verbose                bool
+	trafficTimeout         time.Duration
+	connectionMonitorDelay time.Duration
+	proxyAddr              string
+	defaultURL             string
+	defaultURLAuth         string
+	runningURL             string
+	runningURLAuth         string
+	exchangeName           string
+	m                      sync.Mutex
+	connectionMute         sync.RWMutex
+	connector              func() error
 
 	subscriptionMutex sync.Mutex
 	subscriptions     []ChannelSubscription

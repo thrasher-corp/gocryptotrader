@@ -29,7 +29,7 @@ var (
 	// ErrNotConnected defines an error when websocket is not connected
 	ErrNotConnected = errors.New("websocket is not connected")
 
-	errAlreadyRunning                       = errors.New("connection monitor is already running")
+	// errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
@@ -59,7 +59,7 @@ func SetupGlobalReporter(r Reporter) {
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
-		Init:              true,
+		ConnectionStatus:  ConnectionStatus{Init: true},
 		DataHandler:       make(chan interface{}),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
 		TrafficAlert:      make(chan struct{}),
@@ -80,7 +80,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errWebsocketSetupIsNil
 	}
 
-	if !w.Init {
+	if !w.ConnectionStatus.IsInit() {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
@@ -102,7 +102,11 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if s.ExchangeConfig.Features == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errConfigFeaturesIsNil)
 	}
-	w.enabled = s.ExchangeConfig.Features.Enabled.Websocket
+
+	err := w.ConnectionStatus.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
+	if err != nil && !errors.Is(err, ErrProtocolAlreadyDisabled) {
+		return fmt.Errorf("%s %w", w.exchangeName, err)
+	}
 
 	if s.Connector == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
@@ -135,7 +139,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if s.RunningURL == "" {
 		return fmt.Errorf("%s websocket %w", w.exchangeName, errRunningURLIsEmpty)
 	}
-	err := w.SetWebsocketURL(s.RunningURL, false, false)
+	err = w.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
 		return fmt.Errorf("%s %w", w.exchangeName, err)
 	}
@@ -235,39 +239,40 @@ func (w *Websocket) Connect() error {
 	w.m.Lock()
 	defer w.m.Unlock()
 
-	if !w.IsEnabled() {
-		return errors.New(WebsocketNotEnabled)
-	}
-	if w.IsConnecting() {
-		return fmt.Errorf("%v Websocket already attempting to connect",
-			w.exchangeName)
-	}
-	if w.IsConnected() {
-		return fmt.Errorf("%v Websocket already connected",
-			w.exchangeName)
+	err := w.ConnectionStatus.attemptConnection()
+	if err != nil {
+		return err
 	}
 
+	// TODO: SHIFT
 	w.dataMonitor()
 	w.trafficMonitor()
-	w.setConnectingStatus(true)
 
-	err := w.connector()
+	err = w.connector()
 	if err != nil {
-		w.setConnectingStatus(false)
-		return fmt.Errorf("%v Error connecting %s",
-			w.exchangeName, err)
+		return fmt.Errorf("%v Error connecting %w", w.exchangeName, w.ConnectionStatus.connectionFailed(err))
 	}
-	w.setConnectedStatus(true)
-	w.setConnectingStatus(false)
-	w.setInit(true)
 
-	err = w.connectionMonitor()
+	err = w.ConnectionStatus.connectionEstablished()
 	if err != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s cannot start websocket connection monitor %v",
-			w.GetName(),
-			err)
+		return err
 	}
+
+	// w.setInit(true) // MAYBE NOT NEEDED?
+
+	if !w.ConnectionStatus.checkAndSetMonitorRunning() {
+		w.ConnectionStatus.mtx.RLock()
+		delay := w.connectionMonitorDelay
+		w.ConnectionStatus.mtx.RUnlock()
+		go w.connectionMonitor(delay)
+	}
+	// err = w.connectionMonitor() // TODO: SHIFT?
+	// if err != nil {
+	// 	log.Errorf(log.WebsocketMgr,
+	// 		"%s cannot start websocket connection monitor %v",
+	// 		w.GetName(),
+	// 		err)
+	// }
 
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
@@ -280,26 +285,20 @@ func (w *Websocket) Connect() error {
 	return nil
 }
 
+// TODO: CHECK WHERE THIS IS BEING USED?
 // Disable disables the exchange websocket protocol
 func (w *Websocket) Disable() error {
-	if !w.IsEnabled() {
-		return fmt.Errorf("websocket is already disabled for exchange %s",
-			w.exchangeName)
-	}
-
-	w.setEnabled(false)
-	return nil
+	return w.ConnectionStatus.setEnabled(false)
 }
 
+// TODO: CHECK WHERE THIS IS BEING USED?
 // Enable enables the exchange websocket protocol
 func (w *Websocket) Enable() error {
-	if w.IsConnected() || w.IsEnabled() {
-		return fmt.Errorf("websocket is already enabled for exchange %s",
-			w.exchangeName)
+	err := w.ConnectionStatus.setEnabled(true)
+	if err != nil {
+		return err
 	}
-
-	w.setEnabled(true)
-	return w.Connect()
+	return w.Connect() // ATTEMPT TO CONNECT?
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -349,73 +348,64 @@ func (w *Websocket) dataMonitor() {
 }
 
 // connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor() error {
-	if w.checkAndSetMonitorRunning() {
-		return errAlreadyRunning
-	}
-	w.connectionMutex.RLock()
-	delay := w.connectionMonitorDelay
-	w.connectionMutex.RUnlock()
+func (w *Websocket) connectionMonitor(delay time.Duration) {
+	// if w.checkAndSetMonitorRunning() {
+	// 	return errAlreadyRunning
+	// }
+	// w.connectionMutex.RLock()
+	// delay := w.connectionMonitorDelay
+	// w.connectionMutex.RUnlock()
 
-	go func() {
-		timer := time.NewTimer(delay)
-		for {
+	timer := time.NewTimer(0) // Fire immediately
+	for {
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket: running connection monitor cycle\n",
+				w.exchangeName)
+		}
+		if !w.ConnectionStatus.IsEnabled() {
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr,
-					"%v websocket: running connection monitor cycle\n",
+				log.Debugf(log.WebsocketMgr, "%v websocket: connectionMonitor - websocket disabled, shutting down\n",
 					w.exchangeName)
 			}
-			if !w.IsEnabled() {
-				if w.verbose {
-					log.Debugf(log.WebsocketMgr,
-						"%v websocket: connectionMonitor - websocket disabled, shutting down\n",
-						w.exchangeName)
+			if w.ConnectionStatus.IsConnected() {
+				if err := w.Shutdown(); err != nil {
+					log.Error(log.WebsocketMgr, err)
 				}
-				if w.IsConnected() {
-					err := w.Shutdown()
-					if err != nil {
-						log.Error(log.WebsocketMgr, err)
-					}
-				}
-				if w.verbose {
-					log.Debugf(log.WebsocketMgr,
-						"%v websocket: connection monitor exiting\n",
-						w.exchangeName)
-				}
-				timer.Stop()
-				w.setConnectionMonitorRunning(false)
-				return
 			}
-			select {
-			case err := <-w.ReadMessageErrors:
-				if isDisconnectionError(err) {
-					w.setInit(false)
-					log.Warnf(log.WebsocketMgr,
-						"%v websocket has been disconnected. Reason: %v",
-						w.exchangeName, err)
-					w.setConnectedStatus(false)
-				} else {
-					// pass off non disconnect errors to datahandler to manage
-					w.DataHandler <- err
-				}
-			case <-timer.C:
-				if !w.IsConnecting() && !w.IsConnected() {
-					err := w.Connect()
-					if err != nil {
-						log.Error(log.WebsocketMgr, err)
-					}
-				}
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(delay)
+			if w.verbose {
+				log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor exiting\n",
+					w.exchangeName)
 			}
+			timer.Stop()
+			err := w.ConnectionStatus.setConnectionMonitorRunning(false)
+			if err != nil {
+				log.Error(log.WebsocketMgr, err)
+			}
+			return
 		}
-	}()
-	return nil
+		select {
+		case err := <-w.ReadMessageErrors:
+			if isDisconnectionError(err) {
+				// w.setInit(false)
+				log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v",
+					w.exchangeName, err)
+				err = w.ConnectionStatus.setConnectedStatus(false)
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
+			} else {
+				// pass off non disconnect errors to datahandler to manage
+				w.DataHandler <- err
+			}
+		case <-timer.C:
+			if !w.ConnectionStatus.IsDisconnected() {
+				if err := w.Connect(); err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
+			}
+			timer.Reset(delay)
+		}
+	}
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -424,21 +414,13 @@ func (w *Websocket) Shutdown() error {
 	w.m.Lock()
 	defer w.m.Unlock()
 
-	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket: cannot shutdown %w",
-			w.exchangeName,
-			ErrNotConnected)
-	}
-
-	// TODO: Interrupt connection and or close connection when it is re-established.
-	if w.IsConnecting() {
-		return fmt.Errorf("%v websocket: cannot shutdown, in the process of reconnection",
-			w.exchangeName)
+	err := w.ConnectionStatus.attempShutdown()
+	if err != nil {
+		return err
 	}
 
 	if w.verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket: shutting down websocket\n",
+		log.Debugf(log.WebsocketMgr, "%v websocket: shutting down websocket\n",
 			w.exchangeName)
 	}
 
@@ -464,11 +446,12 @@ func (w *Websocket) Shutdown() error {
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.ShutdownC = make(chan struct{})
-	w.setConnectedStatus(false)
-	w.setConnectingStatus(false)
+	err = w.ConnectionStatus.connectionShutdown()
+	if err != nil {
+		return err
+	}
 	if w.verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket: completed websocket shutdown\n",
+		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown\n",
 			w.exchangeName)
 	}
 	return nil
@@ -607,107 +590,6 @@ func (w *Websocket) trafficMonitor() {
 			}
 		}
 	}()
-}
-
-func (w *Websocket) setConnectedStatus(b bool) {
-	w.connectionMutex.Lock()
-	w.connected = b
-	w.connectionMutex.Unlock()
-}
-
-// IsConnected returns status of connection
-func (w *Websocket) IsConnected() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.connected
-}
-
-func (w *Websocket) setConnectingStatus(b bool) {
-	w.connectionMutex.Lock()
-	w.connecting = b
-	w.connectionMutex.Unlock()
-}
-
-// IsConnecting returns status of connecting
-func (w *Websocket) IsConnecting() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.connecting
-}
-
-func (w *Websocket) setEnabled(b bool) {
-	w.connectionMutex.Lock()
-	w.enabled = b
-	w.connectionMutex.Unlock()
-}
-
-// IsEnabled returns status of enabled
-func (w *Websocket) IsEnabled() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.enabled
-}
-
-func (w *Websocket) setInit(b bool) {
-	w.connectionMutex.Lock()
-	w.Init = b
-	w.connectionMutex.Unlock()
-}
-
-// IsInit returns status of init
-func (w *Websocket) IsInit() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.Init
-}
-
-func (w *Websocket) setTrafficMonitorRunning(b bool) {
-	w.connectionMutex.Lock()
-	w.trafficMonitorRunning = b
-	w.connectionMutex.Unlock()
-}
-
-// IsTrafficMonitorRunning returns status of the traffic monitor
-func (w *Websocket) IsTrafficMonitorRunning() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.trafficMonitorRunning
-}
-
-func (w *Websocket) checkAndSetMonitorRunning() (alreadyRunning bool) {
-	w.connectionMutex.Lock()
-	defer w.connectionMutex.Unlock()
-	if w.connectionMonitorRunning {
-		return true
-	}
-	w.connectionMonitorRunning = true
-	return false
-}
-
-func (w *Websocket) setConnectionMonitorRunning(b bool) {
-	w.connectionMutex.Lock()
-	w.connectionMonitorRunning = b
-	w.connectionMutex.Unlock()
-}
-
-// IsConnectionMonitorRunning returns status of connection monitor
-func (w *Websocket) IsConnectionMonitorRunning() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.connectionMonitorRunning
-}
-
-func (w *Websocket) setDataMonitorRunning(b bool) {
-	w.connectionMutex.Lock()
-	w.dataMonitorRunning = b
-	w.connectionMutex.Unlock()
-}
-
-// IsDataMonitorRunning returns status of data monitor
-func (w *Websocket) IsDataMonitorRunning() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.dataMonitorRunning
 }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
