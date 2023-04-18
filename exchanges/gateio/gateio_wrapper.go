@@ -1962,7 +1962,7 @@ func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // checkInstrumentAvailabilityInSpot checks whether the instrument is available in the spot exchange
-// if so we can use the instrument to retrive orderbook and ticker information using the spot endpoints.
+// if so we can use the instrument to retrieve orderbook and ticker information using the spot endpoints.
 func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) bool {
 	availables, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
 	if err != nil {
