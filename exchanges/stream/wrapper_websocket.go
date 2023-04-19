@@ -49,20 +49,99 @@ func (w *WrapperWebsocket) Connect() error {
 	}
 	var errs error
 	var err error
-	w.setConnectingStatus(true)
+
+	if !w.IsDataMonitorRunning() {
+		w.dataMonitor()
+	}
 	for x := range w.AssetTypeWebsockets {
-		err = w.AssetTypeWebsockets[x].Connect()
-		if err != nil {
-			errs = common.AppendError(errs, err)
-		}
+		w.connectedAssetTypesFlag = w.connectedAssetTypesFlag | x
+		w.Wg.Add(1)
+		go func(assetType asset.Item) {
+			defer w.Wg.Done()
+			err = w.AssetTypeWebsockets[assetType].Connect()
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%v", err)
+			}
+		}(x)
 	}
 	if errs != nil {
 		return errs
 	}
-	w.setConnectedStatus(true)
-	w.setConnectingStatus(false)
 	w.setInit(true)
 	return nil
+}
+
+func (w *WrapperWebsocket) setDataMonitorRunning(b bool) {
+	w.connectionMutex.Lock()
+	w.dataMonitorRunning = b
+	w.connectionMutex.Unlock()
+}
+
+// IsDataMonitorRunning returns status of data monitor
+func (w *WrapperWebsocket) IsDataMonitorRunning() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.dataMonitorRunning
+}
+
+// dataMonitor monitors job throughput and logs if there is a back log of data
+func (w *WrapperWebsocket) dataMonitor() {
+	if w.IsDataMonitorRunning() {
+		return
+	}
+	w.setDataMonitorRunning(true)
+	w.Wg.Add(1)
+	go func() {
+		defer func() {
+			for {
+				// Bleeds data from the websocket connection if needed
+				select {
+				case <-w.DataHandler:
+				default:
+					w.setDataMonitorRunning(false)
+					w.Wg.Done()
+					return
+				}
+			}
+		}()
+		for {
+			select {
+			case a := <-w.ShutdownC:
+				if ws, ok := w.AssetTypeWebsockets[a]; ok {
+					ws.setConnectedStatus(false)
+				}
+				if a != asset.Empty && w.connectedAssetTypesFlag&a == a {
+					w.connectedAssetTypesFlag = w.connectedAssetTypesFlag ^ a
+					if w.connectedAssetTypesFlag == asset.Empty {
+						w.setDataMonitorRunning(false)
+						return
+					}
+				}
+			case d := <-w.DataHandler:
+				select {
+				case w.ToRoutine <- d:
+				case a := <-w.ShutdownC:
+					if ws, ok := w.AssetTypeWebsockets[a]; ok {
+						ws.setConnectedStatus(false)
+					}
+					if a != asset.Empty && w.connectedAssetTypesFlag&a == a {
+						w.connectedAssetTypesFlag = w.connectedAssetTypesFlag ^ a
+						if w.connectedAssetTypesFlag == asset.Empty {
+							w.setDataMonitorRunning(false)
+							return
+						}
+					}
+				default:
+					log.Warnf(log.WebsocketMgr,
+						"%s exchange backlog in websocket processing detected",
+						w.exchangeName)
+					select {
+					case w.ToRoutine <- d:
+					}
+				}
+			}
+		}
+	}()
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
@@ -184,11 +263,11 @@ func (w *WrapperWebsocket) Setup(s *WebsocketWrapperSetup) error {
 	w.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
-	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.DataHandler); err != nil {
+	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.ToRoutine); err != nil {
 		return err
 	}
-	w.Trade.Setup(w.exchangeName, s.TradeFeed, w.DataHandler)
-	w.Fills.Setup(s.FillsFeed, w.DataHandler)
+	w.Trade.Setup(w.exchangeName, s.TradeFeed, w.ToRoutine)
+	w.Fills.Setup(s.FillsFeed, w.ToRoutine)
 	return nil
 }
 
@@ -229,7 +308,11 @@ func (w *WrapperWebsocket) SetProxyAddress(proxyAddr string) error {
 func (w *WrapperWebsocket) IsConnected() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
-	return w.connected
+	var connected bool
+	for a := range w.AssetTypeWebsockets {
+		connected = connected || w.AssetTypeWebsockets[a].IsConnected()
+	}
+	return connected
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -237,19 +320,20 @@ func (w *WrapperWebsocket) IsConnected() bool {
 func (w *WrapperWebsocket) Shutdown() error {
 	w.m.Lock()
 	defer w.m.Unlock()
+	if w.connectedAssetTypesFlag != asset.Empty {
+		w.ShutdownC <- w.connectedAssetTypesFlag
+	}
+	var errs error
 	var err error
 	for x := range w.AssetTypeWebsockets {
 		err = w.AssetTypeWebsockets[x].Shutdown()
 		if err != nil && !errors.Is(err, errDisconnectedConnectionShutdown) {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
-	// flush any subscriptions from last connection if needed
-	w.subscriptionMutex.Lock()
-	w.subscriptionMutex.Unlock()
-
-	w.setConnectedStatus(false)
-	w.setConnectingStatus(false)
+	if errs != nil {
+		return errs
+	}
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr,
 			"%v websocket: completed websocket shutdown\n",
@@ -260,21 +344,16 @@ func (w *WrapperWebsocket) Shutdown() error {
 
 // IsConnecting returns status of connecting
 func (w *WrapperWebsocket) IsConnecting() bool {
+	if w.IsConnected() {
+		return false
+	}
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
-	return w.connecting
-}
-
-func (w *WrapperWebsocket) setConnectedStatus(b bool) {
-	w.connectionMutex.Lock()
-	w.connected = b
-	w.connectionMutex.Unlock()
-}
-
-func (w *WrapperWebsocket) setConnectingStatus(b bool) {
-	w.connectionMutex.Lock()
-	w.connecting = b
-	w.connectionMutex.Unlock()
+	var connecting bool
+	for a := range w.AssetTypeWebsockets {
+		connecting = connecting || w.AssetTypeWebsockets[a].IsConnecting()
+	}
+	return connecting
 }
 
 // IsInit returns status of init
@@ -364,14 +443,13 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 	}
 	wr.AssetTypeWebsockets[s.AssetType] = &Websocket{
 		Init:                   true,
-		DataHandler:            make(chan interface{}),
 		Subscribe:              make(chan []ChannelSubscription),
 		Unsubscribe:            make(chan []ChannelSubscription),
-		ShutdownC:              make(chan struct{}),
 		GenerateSubs:           s.GenerateSubscriptions,
 		Subscriber:             s.Subscriber,
 		Unsubscriber:           s.Unsubscriber,
 		Wg:                     wr.Wg,
+		DataHandler:            wr.DataHandler,
 		ToRoutine:              wr.ToRoutine,
 		TrafficAlert:           wr.TrafficAlert,
 		ReadMessageErrors:      wr.ReadMessageErrors,
@@ -386,6 +464,7 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 		connector:              s.Connector,
 		features:               wr.features,
 	}
+	// ShutdownC:              wr.ShutdownC,
 	err = wr.AssetTypeWebsockets[s.AssetType].SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, err)

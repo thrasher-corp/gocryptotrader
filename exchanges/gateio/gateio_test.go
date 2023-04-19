@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -52,7 +51,6 @@ func TestMain(m *testing.M) {
 	gConf.API.AuthenticatedWebsocketSupport = true
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
-	g.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -2297,20 +2295,16 @@ func TestGetSingleSubAccount(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	// _, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
-	// if err != nil {
-	// 	t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
-	// }
-	// if _, err = g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
-	// 	t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
-	// }
-	instruments, err := g.FetchTradablePairs(context.Background(), asset.Futures)
+	_, err := g.FetchTradablePairs(context.Background(), asset.DeliveryFutures)
 	if err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
-	} else {
-		for x := range instruments {
-			print(instruments[x].String(), ",")
-		}
+	}
+	if _, err = g.FetchTradablePairs(context.Background(), asset.Options); err != nil {
+		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
+	}
+	_, err = g.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
 	}
 	if _, err = g.FetchTradablePairs(context.Background(), asset.Margin); err != nil {
 		t.Errorf("%s FetchTradablePairs() error %v", g.Name, err)
@@ -3487,8 +3481,10 @@ func TestSettlement(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
+	g.Verbose = true
 	err := g.Websocket.Connect()
 	if err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second * 20)
 }

@@ -20,6 +20,7 @@ type WrapperWebsocket struct {
 	connected                    bool
 	connecting                   bool
 	verbose                      bool
+	dataMonitorRunning           bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -31,7 +32,12 @@ type WrapperWebsocket struct {
 	DataHandler                  chan interface{}
 	ToRoutine                    chan interface{}
 	Match                        *Match
+
+	// connectedAssetTypesFlag holds a list of asset type connections
+	connectedAssetTypesFlag asset.Item
 	// shutdown synchronises shutdown event across routines
+	ShutdownC chan asset.Item
+
 	Wg *sync.WaitGroup
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
@@ -64,6 +70,7 @@ func NewWrapper() *WrapperWebsocket {
 		TrafficAlert:        make(chan struct{}),
 		ReadMessageErrors:   make(chan error),
 		AssetTypeWebsockets: make(map[asset.Item]*Websocket),
+		ShutdownC:           make(chan asset.Item),
 		Match:               NewMatch(),
 	}
 }

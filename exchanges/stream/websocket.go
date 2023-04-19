@@ -209,7 +209,6 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 
-	w.dataMonitor()
 	w.trafficMonitor()
 	w.setConnectingStatus(true)
 
@@ -260,53 +259,6 @@ func (w *Websocket) Enable() error {
 
 	w.setEnabled(true)
 	return w.Connect()
-}
-
-// dataMonitor monitors job throughput and logs if there is a back log of data
-func (w *Websocket) dataMonitor() {
-	if w.IsDataMonitorRunning() {
-		return
-	}
-	w.setDataMonitorRunning(true)
-	w.Wg.Add(1)
-
-	go func() {
-		defer func() {
-			for {
-				// Bleeds data from the websocket connection if needed
-				select {
-				case <-w.DataHandler:
-				default:
-					w.setDataMonitorRunning(false)
-					w.Wg.Done()
-					return
-				}
-			}
-		}()
-
-		for {
-			select {
-			case <-w.ShutdownC:
-				return
-			case d := <-w.DataHandler:
-				select {
-				case w.ToRoutine <- d:
-					fmt.Printf("The data %v", d)
-				case <-w.ShutdownC:
-					return
-				default:
-					log.Warnf(log.WebsocketMgr,
-						"%s exchange backlog in websocket processing detected",
-						w.exchangeName)
-					select {
-					case w.ToRoutine <- d:
-					case <-w.ShutdownC:
-						return
-					}
-				}
-			}
-		}
-	}()
 }
 
 // connectionMonitor ensures that the WS keeps connecting
@@ -656,19 +608,6 @@ func (w *Websocket) IsConnectionMonitorRunning() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
 	return w.connectionMonitorRunning
-}
-
-func (w *Websocket) setDataMonitorRunning(b bool) {
-	w.connectionMutex.Lock()
-	w.dataMonitorRunning = b
-	w.connectionMutex.Unlock()
-}
-
-// IsDataMonitorRunning returns status of data monitor
-func (w *Websocket) IsDataMonitorRunning() bool {
-	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.dataMonitorRunning
 }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
