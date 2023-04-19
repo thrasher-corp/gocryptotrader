@@ -558,7 +558,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 				input = reflect.ValueOf("trading")
 			} else {
 				// Crypto Chain
-				if argGenerator.AssetParams.Pair.Base == currency.ETH {
+				if argGenerator.AssetParams.Pair.Quote.Equal(currency.ETH) {
 					input = reflect.ValueOf("ERC20")
 				} else {
 					input = reflect.ValueOf("")

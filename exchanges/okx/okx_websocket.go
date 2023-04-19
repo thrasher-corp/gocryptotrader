@@ -1000,7 +1000,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	if err != nil {
 		return err
 	}
-	trades := make([]trade.Data, len(response.Data)*len(assets))
+	trades := make([]trade.Data, 0, len(response.Data)*len(assets))
 	for i := range response.Data {
 		var pair currency.Pair
 		pair, err = ok.GetPairFromInstrumentID(response.Data[i].InstrumentID)
