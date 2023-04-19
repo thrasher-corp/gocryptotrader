@@ -29,8 +29,8 @@ type Websocket struct {
 
 	ConnectionStatus
 
-	verbose                bool
-	trafficTimeout         time.Duration
+	verbose bool
+	// trafficTimeout         time.Duration
 	connectionMonitorDelay time.Duration
 	proxyAddr              string
 	defaultURL             string
@@ -39,8 +39,7 @@ type Websocket struct {
 	runningURLAuth         string
 	exchangeName           string
 	m                      sync.Mutex
-	connectionMute         sync.RWMutex
-	connector              func() error
+	// connector              func() error
 
 	subscriptionMutex sync.Mutex
 	subscriptions     []ChannelSubscription
@@ -57,8 +56,8 @@ type Websocket struct {
 	// subscriptions functionality
 	GenerateSubs func() ([]ChannelSubscription, error)
 
-	DataHandler chan interface{}
-	ToRoutine   chan interface{}
+	DataHandler             chan interface{}
+	WebsocketRoutineManager chan interface{}
 
 	Match *Match
 
@@ -75,8 +74,8 @@ type Websocket struct {
 	// Fills is a notifier of occurring fills
 	Fills fill.Fills
 
-	// trafficAlert monitors if there is a halt in traffic throughput
-	TrafficAlert chan struct{}
+	// // trafficAlert monitors if there is a halt in traffic throughput
+	// TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and
 	// verify if its a disconnection
 	ReadMessageErrors chan error
@@ -133,7 +132,6 @@ type WebsocketConnection struct {
 
 	Match             *Match
 	ResponseMaxLimit  time.Duration
-	Traffic           chan struct{}
 	readMessageErrors chan error
 
 	Reporter Reporter

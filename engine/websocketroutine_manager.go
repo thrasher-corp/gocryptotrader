@@ -166,13 +166,13 @@ func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 			select {
 			case <-m.shutdown:
 				return
-			case data := <-ws.ToRoutine:
-				if data == nil {
+			case dataFromWebsocketConnection := <-ws.WebsocketRoutineManager:
+				if dataFromWebsocketConnection == nil {
 					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
 				}
 				m.mu.RLock()
 				for x := range m.dataHandlers {
-					err := m.dataHandlers[x](ws.GetName(), data)
+					err := m.dataHandlers[x](ws.GetName(), dataFromWebsocketConnection)
 					if err != nil {
 						log.Error(log.WebsocketMgr, err)
 					}

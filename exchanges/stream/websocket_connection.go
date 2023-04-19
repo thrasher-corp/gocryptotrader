@@ -68,7 +68,6 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 
 	var err error
 	var conStatus *http.Response
-
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
@@ -92,10 +91,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 			w.ExchangeName,
 			w.URL)
 	}
-	select {
-	case w.Traffic <- struct{}{}:
-	default:
-	}
+
 	w.setConnectedStatus(true)
 	return nil
 }
@@ -228,19 +224,13 @@ func (w *WebsocketConnection) ReadMessage() Response {
 				default:
 					// bypass if there is no receiver, as this stops it returning
 					// when shutdown is called.
-					log.Warnf(log.WebsocketMgr,
-						"%s failed to relay error: %v",
+					log.Warnf(log.WebsocketMgr, "%s failed to relay error: %v",
 						w.ExchangeName,
 						err)
 				}
 			}
 		}
 		return Response{}
-	}
-
-	select {
-	case w.Traffic <- struct{}{}:
-	default: // causes contention, just bypass if there is no receiver.
 	}
 
 	var standardMessage []byte
