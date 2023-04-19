@@ -376,12 +376,12 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(name)
 	if err != nil {
-		t.Fatalf("%v %v", name, err)
+		t.Fatalf("Cannot setup %v NewExchangeByName  %v", name, err)
 	}
 	var exchCfg *config.Exchange
 	exchCfg, err = cfg.GetExchangeConfig(name)
 	if err != nil {
-		t.Fatalf("%v %v", name, err)
+		t.Fatalf("Cannot setup %v GetExchangeConfig %v", name, err)
 	}
 	exch.SetDefaults()
 	exchCfg.API.AuthenticatedSupport = true
@@ -389,22 +389,22 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 
 	err = exch.Setup(exchCfg)
 	if err != nil {
-		t.Fatalf("%v %v", name, err)
+		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}
 
 	err = exch.UpdateTradablePairs(ctx, true)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("%v %v", name, err)
+		t.Fatalf("Cannot setup %v UpdateTradablePairs %v", name, err)
 	}
 	b := exch.GetBase()
 	assets := b.CurrencyPairs.GetAssetTypes(false)
 	if len(assets) == 0 {
-		t.Fatalf("exchange '%v' has not assets", name)
+		t.Fatalf("Cannot setup %v, exchange has no assets", name)
 	}
 	for j := range assets {
 		err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
 		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
-			t.Fatalf("%v %v", name, err)
+			t.Fatalf("Cannot setup %v SetAssetEnabled %v", name, err)
 		}
 	}
 
@@ -414,24 +414,27 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		var pairs currency.Pairs
 		pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
 		if err != nil {
-			t.Fatalf("%v %v", name, err)
+			t.Fatalf("Cannot setup %v asset %v GetPairs %v", name, assets[j], err)
 		}
 		var p currency.Pair
 		p, err = getPairFromPairs(t, pairs)
 		if err != nil {
-			t.Fatalf("%v %v", name, err)
+			if errors.Is(err, currency.ErrCurrencyPairsEmpty) {
+				continue
+			}
+			t.Fatalf("Cannot setup %v asset %v getPairFromPairs %v", name, assets[j], err)
 		}
 		err = b.CurrencyPairs.EnablePair(assets[j], p)
 		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
-			t.Fatalf("%v %v", name, err)
+			t.Fatalf("Cannot setup %v asset %v EnablePair %v", name, assets[j], err)
 		}
 		p, err = b.FormatExchangeCurrency(p, assets[j])
 		if err != nil {
-			t.Fatalf("%v %v", name, err)
+			t.Fatalf("Cannot setup %v asset %v FormatExchangeCurrency %v", name, assets[j], err)
 		}
 		p, err = disruptFormatting(t, p)
 		if err != nil {
-			t.Fatalf("%v %v", name, err)
+			t.Fatalf("Cannot setup %v asset %v disruptFormatting %v", name, assets[j], err)
 		}
 		assetPairs = append(assetPairs, assetPair{
 			Pair:  p,
@@ -817,6 +820,7 @@ var acceptableErrors = []error{
 	currency.ErrCurrencyNotFound,         // Semi-randomly selected currency pairs may not be found at an endpoint, so long as this is returned it is okay
 	asset.ErrNotEnabled,                  // Allows distinction when checking for supported versus enabled
 	request.ErrRateLimiterAlreadyEnabled, // If the rate limiter is already enabled, it is not an error
+	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
