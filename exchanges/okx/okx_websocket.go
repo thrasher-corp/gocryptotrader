@@ -858,8 +858,9 @@ func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair
 	}
 	update.Checksum = uint32(data.Checksum)
 	for i := range assets {
-		update.Asset = assets[i]
-		err = ok.Websocket.Orderbook.Update(&update)
+		ob := update
+		ob.Asset = assets[i]
+		err = ok.Websocket.Orderbook.Update(&ob)
 		if err != nil {
 			return err
 		}
@@ -1012,7 +1013,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 			return err
 		}
 		for j := range assets {
-			trades[i+j] = trade.Data{
+			trades = append(trades, trade.Data{
 				Amount:       response.Data[i].Quantity,
 				AssetType:    assets[j],
 				CurrencyPair: pair,
@@ -1021,7 +1022,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 				Timestamp:    response.Data[i].Timestamp.Time(),
 				TID:          response.Data[i].TradeID,
 				Price:        response.Data[i].Price,
-			}
+			})
 		}
 	}
 	return trade.AddTradesToBuffer(ok.Name, trades...)
