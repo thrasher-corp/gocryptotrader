@@ -39,6 +39,10 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	if okCoinAPIVersion == "/v3/" {
+		// v3 API has been deprecated
+		return
+	}
 	o.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)

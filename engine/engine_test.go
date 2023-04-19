@@ -465,7 +465,6 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
 
-	e := time.Now().Add(-time.Hour * 24)
 	for x := 0; x < iExchange.NumMethod(); x++ {
 		methodName := iExchange.Method(x).Name
 		if _, ok := excludedMethodNames[methodName]; ok {
@@ -481,7 +480,8 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			}
 		}
 
-		s := time.Now().Add(-time.Hour * 24 * 7).Truncate(time.Hour)
+		e := time.Now().Add(-time.Hour * 24).Truncate(time.Hour)
+		s := e.Add(-time.Hour * 24 * 5)
 		if methodName == "GetHistoricTrades" {
 			// limit trade history
 			e = time.Now()
@@ -555,7 +555,11 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 				input = reflect.ValueOf("trading")
 			} else {
 				// Crypto Chain
-				input = reflect.ValueOf("")
+				if argGenerator.AssetParams.Pair.Base == currency.ETH {
+					input = reflect.ValueOf("ERC20")
+				} else {
+					input = reflect.ValueOf("")
+				}
 			}
 		default:
 			// OrderID

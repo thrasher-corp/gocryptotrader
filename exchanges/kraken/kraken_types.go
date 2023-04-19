@@ -742,8 +742,8 @@ type FuturesPublicTrades struct {
 				Execution struct {
 					LimitFilled bool `json:"limitFilled"`
 					MakerOrder  struct {
-						AccountUid          string  `json:"accountUid"`
-						ClientId            string  `json:"clientId"`
+						AccountUID          string  `json:"accountUid"`
+						ClientID            string  `json:"clientId"`
 						Direction           string  `json:"direction"`
 						Filled              string  `json:"filled"`
 						LastUpdateTimestamp int64   `json:"lastUpdateTimestamp"`
@@ -754,7 +754,7 @@ type FuturesPublicTrades struct {
 						SpotData            string  `json:"spotData"`
 						Timestamp           int64   `json:"timestamp"`
 						Tradeable           string  `json:"tradeable"`
-						Uid                 string  `json:"uid"`
+						UID                 string  `json:"uid"`
 					} `json:"makerOrder"`
 					MakerOrderData struct {
 						Fee          string `json:"fee"`
@@ -762,8 +762,8 @@ type FuturesPublicTrades struct {
 					} `json:"makerOrderData"`
 					MarkPrice     string `json:"markPrice"`
 					OldTakerOrder struct {
-						AccountUid          string `json:"accountUid"`
-						ClientId            string `json:"clientId"`
+						AccountUID          string `json:"accountUid"`
+						ClientID            string `json:"clientId"`
 						Direction           string `json:"direction"`
 						Filled              string `json:"filled"`
 						LastUpdateTimestamp int64  `json:"lastUpdateTimestamp"`
@@ -774,13 +774,13 @@ type FuturesPublicTrades struct {
 						SpotData            string `json:"spotData"`
 						Timestamp           int64  `json:"timestamp"`
 						Tradeable           string `json:"tradeable"`
-						Uid                 string `json:"uid"`
+						UID                 string `json:"uid"`
 					} `json:"oldTakerOrder"`
 					Price      string `json:"price"`
 					Quantity   string `json:"quantity"`
 					TakerOrder struct {
-						AccountUid          string `json:"accountUid"`
-						ClientId            string `json:"clientId"`
+						AccountUID          string `json:"accountUid"`
+						ClientID            string `json:"clientId"`
 						Direction           string `json:"direction"`
 						Filled              string `json:"filled"`
 						LastUpdateTimestamp int64  `json:"lastUpdateTimestamp"`
@@ -791,21 +791,21 @@ type FuturesPublicTrades struct {
 						SpotData            string `json:"spotData"`
 						Timestamp           int64  `json:"timestamp"`
 						Tradeable           string `json:"tradeable"`
-						Uid                 string `json:"uid"`
+						UID                 string `json:"uid"`
 					} `json:"takerOrder"`
 					TakerOrderData struct {
 						Fee          string `json:"fee"`
 						PositionSize string `json:"positionSize"`
 					} `json:"takerOrderData"`
 					Timestamp int64  `json:"timestamp"`
-					Uid       string `json:"uid"`
+					UID       string `json:"uid"`
 					UsdValue  string `json:"usdValue"`
 				} `json:"execution"`
 				TakerReducedQuantity string `json:"takerReducedQuantity"`
 			} `json:"execution"`
 		} `json:"event"`
 		Timestamp int64  `json:"timestamp"`
-		Uid       string `json:"uid"`
+		UID       string `json:"uid"`
 	} `json:"elements"`
 	Len int64 `json:"len"`
 }

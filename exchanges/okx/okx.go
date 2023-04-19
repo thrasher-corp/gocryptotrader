@@ -4360,5 +4360,5 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 			}
 		}
 	}
-	return nil, fmt.Errorf("%w or currency not enabled %v", asset.ErrNotSupported, instrumentID)
+	return nil, fmt.Errorf("%w '%v' or currency not enabled '%v'", asset.ErrNotSupported, instType, instrumentID)
 }

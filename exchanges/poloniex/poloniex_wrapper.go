@@ -1019,7 +1019,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 
 			detail := order.Detail{
-				OrderID:              strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+				OrderID:              resp.Data[key][i].GlobalTradeID,
 				Side:                 orderSide,
 				Amount:               resp.Data[key][i].Amount,
 				ExecutedAmount:       resp.Data[key][i].Amount,

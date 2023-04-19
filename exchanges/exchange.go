@@ -624,16 +624,17 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 	if err != nil {
 		return err
 	}
-
+	cPairs := make(currency.Pairs, len(pairs))
+	copy(cPairs, pairs)
 	for x := range pairs {
-		pairs[x] = pairs[x].Format(pairFmt)
+		cPairs[x] = pairs[x].Format(pairFmt)
 	}
 
-	err = b.CurrencyPairs.StorePairs(assetType, pairs, enabled)
+	err = b.CurrencyPairs.StorePairs(assetType, cPairs, enabled)
 	if err != nil {
 		return err
 	}
-	return b.Config.CurrencyPairs.StorePairs(assetType, pairs, enabled)
+	return b.Config.CurrencyPairs.StorePairs(assetType, cPairs, enabled)
 }
 
 // EnsureOnePairEnabled not all assets have pairs, eg options

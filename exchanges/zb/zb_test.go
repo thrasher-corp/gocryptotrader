@@ -884,6 +884,10 @@ func TestGetSpotKline(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip("skipping test, mock response cannot be implemented")
+	}
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
 		t.Fatal(err)
@@ -891,10 +895,6 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now()
-	if mockTests {
-		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
-	}
 
 	// Current endpoint is dead.
 	_, err = z.GetHistoricCandles(context.Background(),
@@ -905,6 +905,10 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip("skipping test, mock response cannot be implemented")
+	}
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
 		t.Fatal(err)
@@ -919,10 +923,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 	startTime = time.Now().Add(-time.Hour * 24 * 365)
 	endTime = time.Now()
-	if mockTests {
-		startTime = time.UnixMilli(1674489600000)
-		endTime = startTime.Add(kline.OneDay.Duration())
-	}
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
 		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {

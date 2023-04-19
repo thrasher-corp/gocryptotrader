@@ -27,6 +27,7 @@ var (
 
 	errPairStoreIsNil  = errors.New("pair store is nil")
 	errPairFormatIsNil = errors.New("pair format is nil")
+	errAssetNotFound   = errors.New("asset type not found")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -244,7 +245,7 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	return nil
 }
 
-// IsAssetPairEnabled checks if a pair is enabled for an asset type
+// IsAssetPairEnabled checks if a pair is enabled for an enabled asset type
 func (p *PairsManager) IsAssetPairEnabled(a asset.Item, pair Pair) error {
 	if !a.IsValid() {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
@@ -265,15 +266,14 @@ func (p *PairsManager) IsAssetPairEnabled(a asset.Item, pair Pair) error {
 	if pairStore.AssetEnabled == nil {
 		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
 	}
-
 	if !*pairStore.AssetEnabled {
 		return fmt.Errorf("%s %w", a, asset.ErrNotEnabled)
 	}
-
-	if pairStore.Enabled.Contains(pair, true) {
-		return nil
+	if !pairStore.Enabled.Contains(pair, true) {
+		return fmt.Errorf("%s %w", pair, ErrPairNotFound)
 	}
-	return fmt.Errorf("%s %w", pair, ErrPairNotFound)
+
+	return nil
 }
 
 // IsAssetEnabled checks to see if an asset is enabled
@@ -336,7 +336,7 @@ func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error
 
 	pairStore, ok := p.Pairs[a]
 	if !ok {
-		return nil, errors.New("asset type not found")
+		return nil, fmt.Errorf("%w %v", errAssetNotFound, a)
 	}
 
 	if pairStore == nil {

@@ -212,8 +212,8 @@ type OpenOrdersResponse struct {
 
 // AuthenticatedTradeHistory holds client trade history information
 type AuthenticatedTradeHistory struct {
-	GlobalTradeID int64   `json:"globalTradeID"`
-	TradeID       int64   `json:"tradeID,string"`
+	GlobalTradeID string  `json:"globalTradeID"`
+	TradeID       string  `json:"tradeID"`
 	Date          string  `json:"date"`
 	Rate          float64 `json:"rate,string"`
 	Amount        float64 `json:"amount,string"`

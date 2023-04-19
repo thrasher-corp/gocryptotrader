@@ -734,7 +734,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				side = order.Sell
 			}
 			resp = append(resp, trade.Data{
-				TID:          tradeData.Elements[i].Uid,
+				TID:          tradeData.Elements[i].UID,
 				Exchange:     k.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
