@@ -84,7 +84,9 @@ func (g *Gateio) WsConnect() error {
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
-	return nil
+	subscriptions, _ := g.GenerateDefaultSubscriptions()
+	return g.Subscribe(subscriptions)
+	// return nil
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.Time) (string, error) {

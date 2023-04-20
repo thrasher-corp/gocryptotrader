@@ -243,7 +243,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	_, err = b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            binanceDefaultWebsocketURL,
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
@@ -252,7 +252,9 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.GenerateSubscriptions,
 		AssetType:             asset.Spot,
 	})
-
+	if err != nil {
+		return err
+	}
 	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

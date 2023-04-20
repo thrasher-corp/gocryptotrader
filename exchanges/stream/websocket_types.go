@@ -102,7 +102,6 @@ type WebsocketSetup struct {
 	Subscriber            func([]ChannelSubscription) error
 	Unsubscriber          func([]ChannelSubscription) error
 	GenerateSubscriptions func() ([]ChannelSubscription, error)
-	SubscriptionFilter    func([]ChannelSubscription, asset.Item) ([]ChannelSubscription, error)
 	AssetType             asset.Item
 }
 

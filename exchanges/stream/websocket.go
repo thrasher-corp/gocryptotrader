@@ -106,10 +106,6 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return fmt.Errorf("%s %v %w", w.exchangeName, s.AssetType, errWebsocketSubscriptionsGeneratorUnset)
 	}
 	w.GenerateSubs = s.GenerateSubscriptions
-	if s.SubscriptionFilter == nil {
-		return fmt.Errorf("%s %v %w", w.exchangeName, s.AssetType, errWebsocketSubscriptionFilterUnset)
-	}
-	w.SubscriptionFilter = s.SubscriptionFilter
 	if s.DefaultURL == "" {
 		return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
 	}

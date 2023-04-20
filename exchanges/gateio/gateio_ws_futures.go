@@ -62,8 +62,8 @@ var responseFuturesStream = make(chan stream.Response)
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (g *Gateio) WsFuturesConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+	if !g.Websocket.IsEnabled() || !g.IsEnabled() || !g.IsAssetWebsocketSupported(asset.Futures) {
+		return fmt.Errorf("%s for asset type %s", stream.WebsocketNotEnabled, asset.Futures)
 	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
 	if err != nil {

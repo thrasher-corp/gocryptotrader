@@ -425,9 +425,6 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 	if s.GenerateSubscriptions == nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketSubscriptionsGeneratorUnset)
 	}
-	if s.SubscriptionFilter == nil {
-		return nil, fmt.Errorf("%s %v %w", wr.exchangeName, s.AssetType, errWebsocketSubscriptionFilterUnset)
-	}
 	if s.DefaultURL == "" {
 		return nil, fmt.Errorf("%s websocket %w", wr.exchangeName, errDefaultURLIsEmpty)
 	}
@@ -456,7 +453,6 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 		Match:                  wr.Match,
 		trafficTimeout:         wr.trafficTimeout,
 		connectionMonitorDelay: connectionMonitorDelay,
-		SubscriptionFilter:     s.SubscriptionFilter,
 		defaultURL:             s.DefaultURL,
 		exchangeName:           wr.exchangeName,
 		verbose:                wr.verbose,

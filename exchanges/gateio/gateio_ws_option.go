@@ -68,8 +68,8 @@ var fetchedOptionsCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
 func (g *Gateio) WsOptionsConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+	if !g.Websocket.IsEnabled() || !g.IsEnabled() || !g.IsAssetWebsocketSupported(asset.Options) {
+		return fmt.Errorf("%s for asset type %s", stream.WebsocketNotEnabled, asset.Options)
 	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Options)
 	if err != nil {
