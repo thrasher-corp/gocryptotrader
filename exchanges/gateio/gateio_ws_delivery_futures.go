@@ -39,11 +39,10 @@ var defaultDeliveryFuturesSubscriptions = []string{
 // responseDeliveryFuturesStream a channel thought which the data coming from the two websocket connection will go through.
 var responseDeliveryFuturesStream = make(chan stream.Response)
 
-var fetchedFuturesCurrencyPairSnapshotOrderbook map[string]bool
+var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
 func (g *Gateio) WsDeliveryFuturesConnect() error {
-	fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}

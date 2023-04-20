@@ -55,11 +55,10 @@ var defaultSubscriptions = []string{
 	spotOrderbookChannel,
 }
 
-var fetchedCurrencyPairSnapshotOrderbook map[string]bool
+var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
-	fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
