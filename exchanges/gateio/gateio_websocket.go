@@ -785,7 +785,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(context.TODO())
 		if err != nil {
-			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			return nil, err
 		}
 	}
 	var intervalString string

@@ -225,10 +225,7 @@ func (g *Gateio) handleDeliveryFuturesSubscription(event string, channelsToSubsc
 			}
 		}
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 func (g *Gateio) generateDeliveryFuturesPayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([2][]WsInput, error) {
