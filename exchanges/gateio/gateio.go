@@ -121,7 +121,6 @@ const (
 )
 
 var (
-	errInvalidAssetType              = errors.New("invalid asset type")
 	errEmptySettlementCurrency       = errors.New("empty settlement currency")
 	errInvalidOrMissingContractParam = errors.New("invalid or empty contract")
 	errNoValidResponseFromServer     = errors.New("no valid response from server")
@@ -474,7 +473,7 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 		return nil, err
 	}
 	if len(candles) == 0 {
-		return nil, errors.New("no candlesticks available")
+		return nil, fmt.Errorf("no candlesticks available for instrument %v", currencyPair)
 	}
 	candlesticks := make([]Candlestick, len(candles))
 	for x := range candles {
@@ -847,10 +846,10 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
 	}
 	if arg.Trigger.Price < 0 {
-		return nil, fmt.Errorf("%v %s", errInvalidPrice, "invalid trigger price")
+		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", errInvalidPrice, arg.Trigger.Price)
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
-		return nil, errors.New("invalid price trigger condition or rule")
+		return nil, fmt.Errorf("invalid price trigger condition or rule '%s' but expected '>=' or '<='", arg.Trigger.Rule)
 	}
 	if arg.Trigger.Expiration <= 0 {
 		return nil, errors.New("invalid expiration(seconds to wait for the condition to be triggered before cancelling the order)")
@@ -908,7 +907,7 @@ func (g *Gateio) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair 
 	}
 	switch account {
 	case asset.Empty:
-		return nil, errInvalidAssetType
+		return nil, asset.ErrNotSupported
 	case asset.Spot:
 		params.Set("account", "normal")
 	default:
@@ -1164,10 +1163,10 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if !strings.EqualFold(arg.From, asset.Spot.String()) {
-		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", errInvalidAssetType, asset.Spot)
+		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", asset.ErrNotSupported, asset.Spot)
 	}
 	if !g.isAccountAccepted(arg.To) {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v are supported", errInvalidAssetType, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
+		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v are supported", asset.ErrNotSupported, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
 	}
 	if arg.Amount < 0 {
 		return nil, errInvalidAmount
@@ -1211,7 +1210,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 		return errInvalidAmount
 	}
 	if arg.SubAccountType != "" && arg.SubAccountType != asset.Spot.String() && arg.SubAccountType != asset.Futures.String() && arg.SubAccountType != asset.CrossMargin.String() {
-		return fmt.Errorf("%v; only %v,%v, and %v are allowed", errInvalidAssetType, asset.Spot, asset.Futures, asset.CrossMargin)
+		return fmt.Errorf("%v; only %v,%v, and %v are allowed", asset.ErrNotSupported, asset.Spot, asset.Futures, asset.CrossMargin)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }
@@ -3835,7 +3834,7 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 	pairString := strings.Replace(p.Upper().String(), currency.DashDelimiter, currency.UnderscoreDelimiter, -1)
 	ccies := strings.Split(pairString, currency.UnderscoreDelimiter)
 	if len(ccies) < 2 {
-		return currency.EMPTYPAIR, errors.New("invalid currency pair")
+		return currency.EMPTYPAIR, fmt.Errorf("invalid currency pair %v", p)
 	}
 	return currency.Pair{Base: currency.NewCode(ccies[0]), Delimiter: currency.UnderscoreDelimiter, Quote: currency.NewCode(ccies[1])}, nil
 }

@@ -85,7 +85,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip(credInformationNotProvidedOrManipulatingRealOrdersNotAllowed)
 	}
 	_, err := g.CancelAllOrders(context.Background(), nil)
-	if err != nil {
+	if !errors.Is(err, order.ErrCancelOrderIsNil) {
 		t.Error(err)
 	}
 	var orderCancellation = &order.Cancel{
@@ -100,26 +100,51 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Error(err)
 	}
 	orderCancellation.AssetType = asset.Spot
+	orderCancellation.Pair = spotTradablePair
 	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
 	if err != nil {
 		t.Error(err)
 	}
+	orderCancellation.Pair = currency.EMPTYPAIR
 	orderCancellation.AssetType = asset.Margin
 	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Error(err)
+	}
+	orderCancellation.Pair = marginTradablePair
+	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
 	if err != nil {
 		t.Error(err)
 	}
+	orderCancellation.Pair = currency.EMPTYPAIR
 	orderCancellation.AssetType = asset.CrossMargin
 	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
-	if err != nil {
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Error(err)
 	}
-	orderCancellation.AssetType = asset.Futures
+	orderCancellation.Pair = crossMarginTradablePair
 	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
 	if err != nil {
 		t.Error(err)
 	}
+	orderCancellation.Pair = currency.EMPTYPAIR
+	orderCancellation.AssetType = asset.Futures
+	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Error(err)
+	}
+	orderCancellation.Pair = futuresTradablePair
+	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
+	if err != nil {
+		t.Error(err)
+	}
+	orderCancellation.Pair = currency.EMPTYPAIR
 	orderCancellation.AssetType = asset.DeliveryFutures
+	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Error(err)
+	}
+	orderCancellation.Pair = deliveryFuturesTradablePair
 	_, err = g.CancelAllOrders(context.Background(), orderCancellation)
 	if err != nil {
 		t.Error(err)
@@ -383,7 +408,7 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 	if _, err := g.SpotClosePositionWhenCrossCurrencyDisabled(context.Background(), &ClosePositionRequestParam{
 		Amount:       0.1,
 		Price:        1234567384,
-		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		CurrencyPair: spotTradablePair,
 	}); err != nil {
 		t.Errorf("%s SpotClosePositionWhenCrossCurrencyDisabled() error %v", g.Name, err)
 	}

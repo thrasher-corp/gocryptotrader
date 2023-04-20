@@ -522,7 +522,7 @@ func TestNewPairFromString(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !pair.Equal(expectedPair) {
+		if !pair.Equal(expectedPair) || pair.Delimiter != expectedPair.Delimiter {
 			t.Errorf("Pair(): %s was not equal to expected value: %s", pair.String(), expectedPair.String())
 		}
 	}

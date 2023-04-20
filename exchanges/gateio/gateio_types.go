@@ -1987,11 +1987,6 @@ type WsEventResponse struct {
 	}
 }
 
-type wsChanReg struct {
-	ID   string
-	Chan chan *WsEventResponse
-}
-
 // WsResponse represents generalized websocket push data from the server.
 type WsResponse struct {
 	ID      int64       `json:"id"`

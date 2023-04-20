@@ -54,11 +54,10 @@ var defaultSubscriptions = []string{
 	spotOrderbookChannel,
 }
 
-var fetchedCurrencyPairSnapshotOrderbook map[string]bool
+var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
-	fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -72,8 +71,6 @@ func (g *Gateio) WsConnect() error {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(),
 		Channel: spotPingChannel,
 	})
 	if err != nil {
@@ -83,7 +80,7 @@ func (g *Gateio) WsConnect() error {
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
-		MessageType: websocket.PingMessage,
+		MessageType: websocket.TextMessage,
 	})
 	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
@@ -157,12 +154,14 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		return g.processCrossMarginBalance(respRaw)
 	case crossMarginLoanChannel:
 		return g.processCrossMarginLoans(respRaw)
+	case spotPongChannel:
 	default:
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
 		}
 		return errors.New(stream.UnhandledMessage)
 	}
+	return nil
 }
 
 func (g *Gateio) processTicker(data []byte) error {
@@ -335,9 +334,7 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 		if err != nil {
 			return err
 		}
-		if orderbooks.LastUpdateID < update.FirstOrderbookUpdatedID || orderbooks.LastUpdateID > update.LastOrderbookUpdatedID {
-			return nil
-		}
+		// TODO: handle orderbook update synchronisation
 		for _, assetType := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin} {
 			if !assetPairEnabled[assetType] {
 				continue
@@ -788,7 +785,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(context.TODO())
 		if err != nil {
-			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			return nil, err
 		}
 	}
 	var intervalString string

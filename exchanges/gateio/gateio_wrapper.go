@@ -146,6 +146,26 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = g.DisableAssetWebsocketSupport(asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = g.DisableAssetWebsocketSupport(asset.CrossMargin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = g.DisableAssetWebsocketSupport(asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = g.DisableAssetWebsocketSupport(asset.DeliveryFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = g.DisableAssetWebsocketSupport(asset.Options)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	g.API.Endpoints = g.NewEndpoints()
 	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
@@ -347,8 +367,13 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	var tickerData *ticker.Price
 	switch a {
 	case asset.Margin, asset.Spot, asset.CrossMargin:
-		if a != asset.Spot && !g.checkInstrumentAvailabilityInSpot(fPair) {
-			return nil, errors.New("instrument does not have ticker data")
+		var available bool
+		available, err = g.checkInstrumentAvailabilityInSpot(fPair)
+		if err != nil {
+			return nil, err
+		}
+		if a != asset.Spot && !available {
+			return nil, fmt.Errorf("%v instrument %v does not have ticker data", a, fPair)
 		}
 		var tickerNew *Ticker
 		tickerNew, err = g.GetTicker(ctx, fPair.String(), "")
@@ -764,8 +789,13 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	var orderbookNew *Orderbook
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		if a != asset.Spot && !g.checkInstrumentAvailabilityInSpot(p) {
-			return nil, errors.New("instrument does not have orderbook data")
+		var available bool
+		available, err = g.checkInstrumentAvailabilityInSpot(p)
+		if err != nil {
+			return nil, err
+		}
+		if a != asset.Spot && !available {
+			return nil, fmt.Errorf("%v instrument %v does not have orderbook data", a, p)
 		}
 		orderbookNew, err = g.GetOrderbook(ctx, p.String(), "", 0, true)
 	case asset.Futures:
@@ -1384,14 +1414,19 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
-	if err := o.Validate(); err != nil {
+	err := o.Validate()
+	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = map[string]string{}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		cancel, err := g.CancelMultipleSpotOpenOrders(ctx, o.Pair, o.AssetType)
+		if o.Pair.IsEmpty() {
+			return order.CancelAllResponse{}, currency.ErrCurrencyPairEmpty
+		}
+		var cancel []SpotPriceTriggeredOrder
+		cancel, err = g.CancelMultipleSpotOpenOrders(ctx, o.Pair, o.AssetType)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -1402,11 +1437,13 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 		if o.Pair.IsEmpty() {
 			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
 		}
-		settle, err := g.getSettlementFromCurrency(o.Pair, true)
+		var settle string
+		settle, err = g.getSettlementFromCurrency(o.Pair, true)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, o.Pair, o.Side.Lower(), settle)
+		var cancel []Order
+		cancel, err = g.CancelMultipleFuturesOpenOrders(ctx, o.Pair, o.Side.Lower(), settle)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -1417,11 +1454,13 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 		if o.Pair.IsEmpty() {
 			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
 		}
-		settle, err := g.getSettlementFromCurrency(o.Pair, false)
+		var settle string
+		settle, err = g.getSettlementFromCurrency(o.Pair, false)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		cancel, err := g.CancelMultipleDeliveryOrders(ctx, o.Pair, o.Side.Lower(), settle)
+		var cancel []Order
+		cancel, err = g.CancelMultipleDeliveryOrders(ctx, o.Pair, o.Side.Lower(), settle)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -1429,12 +1468,12 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[f].ID, 10)] = cancel[f].Status
 		}
 	case asset.Options:
-		if o.Pair.IsEmpty() {
-			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
-		}
-		underlying, err := g.GetUnderlyingFromCurrencyPair(o.Pair)
-		if err != nil {
-			return cancelAllOrdersResponse, err
+		var underlying currency.Pair
+		if !o.Pair.IsEmpty() {
+			underlying, err = g.GetUnderlyingFromCurrencyPair(o.Pair)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
 		}
 		cancel, err := g.CancelMultipleOptionOpenOrders(ctx, o.Pair, underlying.String(), o.Side.Lower())
 		if err != nil {
@@ -2052,11 +2091,11 @@ func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // checkInstrumentAvailabilityInSpot checks whether the instrument is available in the spot exchange
-// if so we can use the instrument to retrive orderbook and ticker information using the spot endpoints.
-func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) bool {
+// if so we can use the instrument to retrieve orderbook and ticker information using the spot endpoints.
+func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bool, error) {
 	availables, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
 	if err != nil {
-		return false
+		return false, err
 	}
-	return availables.Contains(instrument, true)
+	return availables.Contains(instrument, true), nil
 }
