@@ -558,7 +558,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 				input = reflect.ValueOf("trading")
 			} else {
 				// Crypto Chain
-				if argGenerator.AssetParams.Pair.Quote.Equal(currency.ETH) {
+				if argGenerator.AssetParams.Pair.Base.Equal(currency.ETH) {
 					input = reflect.ValueOf("ERC20")
 				} else {
 					input = reflect.ValueOf("")
@@ -589,7 +589,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 		if argGenerator.MethodName == "GetAvailableTransferChains" {
 			input = reflect.ValueOf(currency.ETH)
 		} else {
-			input = reflect.ValueOf(argGenerator.AssetParams.Pair.Quote)
+			input = reflect.ValueOf(argGenerator.AssetParams.Pair.Base)
 		}
 	case argGenerator.MethodInputType.AssignableTo(timeParam):
 		if !argGenerator.StartTimeSet {
