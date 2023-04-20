@@ -201,8 +201,8 @@ func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, 
 		mapString := make(map[string]string)
 		for key, value := range r {
 			if key == "error" {
-				if value.(string) != "" {
-					return nil, fmt.Errorf("%w %s", request.ErrAuthRequestFailed, value.(string))
+				if strVal, ok := value.(string); ok && strVal != "" {
+					return nil, fmt.Errorf("%w %s", request.ErrAuthRequestFailed, strVal)
 				}
 			}
 			mapString[key] = fmt.Sprintf("%v", value)
