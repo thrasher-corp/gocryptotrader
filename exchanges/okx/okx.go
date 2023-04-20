@@ -4341,22 +4341,18 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 			return resp, nil
 		}
 	case len(splitSymbol) > 2:
-		resp := make([]asset.Item, 1)
 		switch splitSymbol[len(splitSymbol)-1] {
 		case "SWAP", "swap":
 			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.PerpetualSwap, pair); err == nil {
-				resp[0] = asset.PerpetualSwap
-				return resp, nil
+				return []asset.Item{asset.PerpetualSwap}, nil
 			}
 		case "C", "P", "c", "p":
 			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Options, pair); err == nil {
-				resp[0] = asset.Options
-				return resp, nil
+				return []asset.Item{asset.Options}, nil
 			}
 		default:
 			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Futures, pair); err == nil {
-				resp[0] = asset.Futures
-				return resp, nil
+				return []asset.Item{asset.Futures}, nil
 			}
 		}
 	}

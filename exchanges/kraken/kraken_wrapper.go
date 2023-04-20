@@ -730,7 +730,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		}
 		for i := range tradeData.Elements {
 			side := order.Buy
-			if tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Direction == "Sell" {
+			if strings.EqualFold(tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Direction, "sell") {
 				side = order.Sell
 			}
 			resp = append(resp, trade.Data{
@@ -773,9 +773,9 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		timeInForce := KrakenRequestParamsTimeGTC
+		timeInForce := RequestParamsTimeGTC
 		if s.ImmediateOrCancel {
-			timeInForce = KrakenRequestParamsTimeIOC
+			timeInForce = RequestParamsTimeIOC
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
