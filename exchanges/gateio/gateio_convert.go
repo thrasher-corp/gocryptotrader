@@ -9,7 +9,7 @@ import (
 
 type gateioMilliSecTime int64
 
-// UnmarshalJSON decerializes json, and timestamp information.
+// UnmarshalJSON deserializes json, and timestamp information.
 func (a *gateioMilliSecTime) UnmarshalJSON(data []byte) error {
 	var value interface{}
 	err := json.Unmarshal(data, &value)
@@ -51,7 +51,7 @@ func (a *gateioMilliSecTime) Time() time.Time {
 
 type gateioTime int64
 
-// UnmarshalJSON decerializes json, and timestamp information.
+// UnmarshalJSON deserializes json, and timestamp information.
 func (a *gateioTime) UnmarshalJSON(data []byte) error {
 	var value interface{}
 	err := json.Unmarshal(data, &value)
@@ -91,7 +91,7 @@ func (a *gateioTime) Time() time.Time {
 	return time.Unix(int64(*a), 0)
 }
 
-// UnmarshalJSON decerializes json data into CurrencyPairDetail
+// UnmarshalJSON deserializes json data into CurrencyPairDetail
 func (a *CurrencyPairDetail) UnmarshalJSON(data []byte) error {
 	type Alias CurrencyPairDetail
 	chil := struct {
@@ -127,7 +127,7 @@ func (a *CurrencyPairDetail) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerializes json, and timestamp information
+// UnmarshalJSON deserializes json, and timestamp information
 func (a *Ticker) UnmarshalJSON(data []byte) error {
 	type Alias Ticker
 	child := &struct {
@@ -193,7 +193,7 @@ func (a *Ticker) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON to decerialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
+// UnmarshalJSON to deserialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
 func (a *OptionsTicker) UnmarshalJSON(data []byte) error {
 	type Alias OptionsTicker
 	chil := &struct {
@@ -257,7 +257,7 @@ func (a *OptionsTicker) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON to decerialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
+// UnmarshalJSON to deserialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
 func (a *Orderbook) UnmarshalJSON(data []byte) error {
 	type Alias Orderbook
 	type askorbid struct {
@@ -368,7 +368,7 @@ func (a *WsUserPersonalTrade) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerializes json, and timestamp information.
+// UnmarshalJSON deserializes json, and timestamp information.
 func (a *SpotOrder) UnmarshalJSON(data []byte) error {
 	type Alias SpotOrder
 	chil := &struct {
@@ -389,7 +389,7 @@ func (a *SpotOrder) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON decerializes json, and timestamp information.
+// UnmarshalJSON deserializes json, and timestamp information.
 func (a *WsSpotOrder) UnmarshalJSON(data []byte) error {
 	type Alias WsSpotOrder
 	chil := &struct {
