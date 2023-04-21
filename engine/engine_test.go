@@ -478,7 +478,14 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 		var assetLen int
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
-			if input.AssignableTo(assetParam) {
+			if input.AssignableTo(assetParam) ||
+				input.AssignableTo(orderSubmitParam) ||
+				input.AssignableTo(orderModifyParam) ||
+				input.AssignableTo(orderCancelParam) ||
+				input.AssignableTo(orderCancelsParam) ||
+				input.AssignableTo(getOrdersRequestParam) {
+				// this allows wrapper functions that support assets types
+				// to be tested with all supported assets
 				assetLen = len(assetParams) - 1
 			}
 		}
@@ -504,11 +511,35 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 				generatedArg := generateMethodArg(ctx, t, argGenerator)
 				inputs[z] = *generatedArg
 			}
-			t.Run(methodName+"-"+assetParams[y].Asset.String()+"-"+assetParams[y].Pair.String(), func(t *testing.T) {
+			assetY := assetParams[y].Asset.String()
+			pairY := assetParams[y].Pair.String()
+			t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
 				t.Parallel()
 				CallExchangeMethod(t, method, inputs, methodName, exch)
 			})
 		}
+	}
+}
+
+// CallExchangeMethod will call an exchange's method using generated arguments
+// and determine if the error is friendly
+func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues []reflect.Value, methodName string, exch exchange.IBotExchange) {
+	t.Helper()
+	outputs := methodToCall.Call(methodValues)
+	for i := range outputs {
+		outputInterface := outputs[i].Interface()
+		err, ok := outputInterface.(error)
+		if !ok {
+			continue
+		}
+		if isUnacceptableError(t, err) != nil {
+			literalInputs := make([]interface{}, len(methodValues))
+			for j := range methodValues {
+				literalInputs[j] = methodValues[j].Interface()
+			}
+			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
+		}
+		break
 	}
 }
 
@@ -526,21 +557,22 @@ type MethodArgumentGenerator struct {
 }
 
 var (
-	currencyPairParam     = reflect.TypeOf((*currency.Pair)(nil)).Elem()
-	klineParam            = reflect.TypeOf((*kline.Interval)(nil)).Elem()
-	contextParam          = reflect.TypeOf((*context.Context)(nil)).Elem()
-	timeParam             = reflect.TypeOf((*time.Time)(nil)).Elem()
-	codeParam             = reflect.TypeOf((*currency.Code)(nil)).Elem()
+	currencyPairParam    = reflect.TypeOf((*currency.Pair)(nil)).Elem()
+	klineParam           = reflect.TypeOf((*kline.Interval)(nil)).Elem()
+	contextParam         = reflect.TypeOf((*context.Context)(nil)).Elem()
+	timeParam            = reflect.TypeOf((*time.Time)(nil)).Elem()
+	codeParam            = reflect.TypeOf((*currency.Code)(nil)).Elem()
+	currencyPairsParam   = reflect.TypeOf((*currency.Pairs)(nil)).Elem()
+	withdrawRequestParam = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
+	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
+	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
+	// types with asset in params
 	assetParam            = reflect.TypeOf((*asset.Item)(nil)).Elem()
-	currencyPairsParam    = reflect.TypeOf((*currency.Pairs)(nil)).Elem()
-	withdrawRequestParam  = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
-	stringParam           = reflect.TypeOf((*string)(nil)).Elem()
 	orderSubmitParam      = reflect.TypeOf((**order.Submit)(nil)).Elem()
 	orderModifyParam      = reflect.TypeOf((**order.Modify)(nil)).Elem()
 	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
 	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
 	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
-	feeBuilderParam       = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -733,28 +765,6 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 	return &input
 }
 
-// CallExchangeMethod will call an exchange's method using generated arguments
-// and determine if the error is friendly
-func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues []reflect.Value, methodName string, exch exchange.IBotExchange) {
-	t.Helper()
-	outputs := methodToCall.Call(methodValues)
-	for i := range outputs {
-		outputInterface := outputs[i].Interface()
-		err, ok := outputInterface.(error)
-		if !ok {
-			continue
-		}
-		if isUnacceptableError(t, err) != nil {
-			literalInputs := make([]interface{}, len(methodValues))
-			for j := range methodValues {
-				literalInputs[j] = methodValues[j].Interface()
-			}
-			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
-		}
-		break
-	}
-}
-
 // assetPair holds a currency pair associated with an asset
 type assetPair struct {
 	Pair  currency.Pair
@@ -821,6 +831,7 @@ var acceptableErrors = []error{
 	asset.ErrNotEnabled,                  // Allows distinction when checking for supported versus enabled
 	request.ErrRateLimiterAlreadyEnabled, // If the rate limiter is already enabled, it is not an error
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
+	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
