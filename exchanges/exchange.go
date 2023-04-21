@@ -511,12 +511,19 @@ func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (cu
 
 // SetEnabled is a method that sets if the exchange is enabled
 func (b *Base) SetEnabled(enabled bool) {
+	b.settingsMutex.Lock()
 	b.Enabled = enabled
+	b.settingsMutex.Unlock()
 }
 
 // IsEnabled is a method that returns if the current exchange is enabled
 func (b *Base) IsEnabled() bool {
-	return b != nil && b.Enabled
+	if b == nil {
+		return false
+	}
+	b.settingsMutex.RLock()
+	defer b.settingsMutex.RUnlock()
+	return b.Enabled
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
