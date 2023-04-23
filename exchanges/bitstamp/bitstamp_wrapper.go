@@ -172,6 +172,7 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

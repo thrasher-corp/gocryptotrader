@@ -1561,7 +1561,6 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		for k, v := range channelsToSubscribe[i].Params {
 			req[k] = v
 		}
-
 		err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(req)
 		if err != nil {
 			errs = common.AppendError(errs, err)

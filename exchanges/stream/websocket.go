@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -57,77 +56,6 @@ var globalReporter Reporter
 // for all exchange requests
 func SetupGlobalReporter(r Reporter) {
 	globalReporter = r
-}
-
-// New initialises the websocket struct
-func New() *Websocket {
-	return &Websocket{
-		Init:              true,
-		DataHandler:       make(chan interface{}),
-		ToRoutine:         make(chan interface{}, defaultJobBuffer),
-		TrafficAlert:      make(chan struct{}),
-		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []ChannelSubscription),
-		Unsubscribe:       make(chan []ChannelSubscription),
-		Match:             NewMatch(),
-	}
-}
-
-// Setup sets main variables for websocket connection
-func (w *Websocket) Setup(s *WebsocketSetup) error {
-	if w == nil {
-		return errWebsocketIsNil
-	}
-
-	if s == nil {
-		return errWebsocketSetupIsNil
-	}
-
-	if !w.Init {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
-	}
-
-	if s.Connector == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
-	}
-	w.connector = s.Connector
-
-	if s.Subscriber == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketSubscriberUnset)
-	}
-	w.Subscriber = s.Subscriber
-
-	if w.features.Unsubscribe && s.Unsubscriber == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketUnsubscriberUnset)
-	}
-	w.Unsubscriber = s.Unsubscriber
-
-	if s.GenerateSubscriptions == nil {
-		return fmt.Errorf("%s %v %w", w.exchangeName, s.AssetType, errWebsocketSubscriptionsGeneratorUnset)
-	}
-	w.GenerateSubs = s.GenerateSubscriptions
-	if s.DefaultURL == "" {
-		return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
-	}
-	w.defaultURL = s.DefaultURL
-	if s.RunningURL == "" {
-		return fmt.Errorf("%s websocket %w", w.exchangeName, errRunningURLIsEmpty)
-	}
-	err := w.SetWebsocketURL(s.RunningURL, false, false)
-	if err != nil {
-		return fmt.Errorf("%s %w", w.exchangeName, err)
-	}
-
-	if s.RunningURLAuth != "" {
-		err = w.SetWebsocketURL(s.RunningURLAuth, true, false)
-		if err != nil {
-			return fmt.Errorf("%s %w", w.exchangeName, err)
-		}
-	}
-
-	w.ShutdownC = make(chan struct{})
-	w.Wg = new(sync.WaitGroup)
-	return nil
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
@@ -354,12 +282,14 @@ func (w *Websocket) Shutdown() error {
 	defer w.Orderbook.FlushBuffer()
 
 	if w.Conn != nil {
+		w.ShutdownC <- struct{}{}
 		if err := w.Conn.Shutdown(); err != nil {
 			return err
 		}
 	}
 
 	if w.AuthConn != nil {
+		w.ShutdownC <- struct{}{}
 		if err := w.AuthConn.Shutdown(); err != nil {
 			return err
 		}

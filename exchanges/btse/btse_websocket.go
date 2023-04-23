@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	btseWebsocket      = "wss://ws.btse.com/spotWS"
+	btseWebsocket      = "wss://ws.btse.com/ws/spot"
 	btseWebsocketTimer = time.Second * 57
 )
 

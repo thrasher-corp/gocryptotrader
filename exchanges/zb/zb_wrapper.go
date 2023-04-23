@@ -174,11 +174,12 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	err = z.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
-	z.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	_, err = z.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            zbWebsocketAPI,
 		RunningURL:            wsRunningURL,
 		Connector:             z.WsConnect,
@@ -186,6 +187,9 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 		Subscriber:            z.Subscribe,
 		AssetType:             asset.Spot,
 	})
+	if err != nil {
+		return err
+	}
 
 	return z.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		URL:                  z.Websocket.GetWebsocketURL(),

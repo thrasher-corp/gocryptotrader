@@ -771,3 +771,11 @@ func TestUpdateCurrencyStates(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
+
+func TestWsConne(t *testing.T) {
+	t.Parallel()
+	err := b.Websocket.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+}

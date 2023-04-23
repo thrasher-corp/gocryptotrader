@@ -188,6 +188,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
+		Features: &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

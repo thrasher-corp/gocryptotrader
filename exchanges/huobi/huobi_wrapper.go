@@ -206,6 +206,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	err = h.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

@@ -192,7 +192,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if g.IsAssetWebsocketSupported(asset.Spot) {
+	if g.IsAssetWebsocketSupported(asset.Spot) && false {
 		wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			return err
@@ -209,7 +209,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		println("here..")
 		err = g.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 			URL:                  gateioWebsocketEndpoint,
 			RateLimit:            gateioWebsocketRateLimit,
@@ -221,7 +220,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 			return err
 		}
 	}
-	if g.IsAssetWebsocketSupported(asset.Futures) {
+	if g.IsAssetWebsocketSupported(asset.Futures) && false {
 		futuresWebsocket, err = g.Websocket.AddWebsocket(&stream.WebsocketSetup{
 			DefaultURL:            futuresWebsocketUsdtURL,
 			RunningURL:            futuresWebsocketUsdtURL,

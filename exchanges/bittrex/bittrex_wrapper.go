@@ -172,6 +172,7 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},
+		Features: &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

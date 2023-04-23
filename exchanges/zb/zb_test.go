@@ -28,7 +28,6 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	testCurrency            = "btc_usdt"
-	mockTests               = false
 )
 
 var z ZB

@@ -176,11 +176,12 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 	err = b.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	_, err = b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            wsEndpoint,
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
@@ -188,7 +189,10 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.GenerateSubscriptions,
 		AssetType:             asset.Spot,
 	})
-
+	if err != nil {
+		println(". : ", err.Error(), "\n\n")
+		return err
+	}
 	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

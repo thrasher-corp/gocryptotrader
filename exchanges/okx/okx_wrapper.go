@@ -202,8 +202,8 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
+		Features: &ok.Features.Supports.WebsocketCapabilities,
 	})
-
 	if err != nil {
 		return err
 	}

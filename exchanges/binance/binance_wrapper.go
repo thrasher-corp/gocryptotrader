@@ -256,9 +256,11 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+		URL:                  binanceDefaultWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMilliseconds,
+		AssetType:            asset.Spot,
 	})
 }
 

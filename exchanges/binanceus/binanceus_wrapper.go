@@ -196,6 +196,7 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 			SortBufferByUpdateIDs: true,
 		},
 		TradeFeed: bi.Features.Enabled.TradeFeed,
+		Features:  &bi.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

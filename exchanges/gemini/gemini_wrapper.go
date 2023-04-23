@@ -162,6 +162,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 	err = g.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

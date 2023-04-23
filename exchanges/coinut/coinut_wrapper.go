@@ -159,6 +159,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},
+		Features: &c.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

@@ -211,25 +211,32 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 				SortBufferByUpdateIDs: true,
 			},
 			TradeFeed: by.Features.Enabled.TradeFeed,
+			Features:  &by.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
 	}
-	by.Websocket.AddWebsocket(&stream.WebsocketSetup{
-		DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
-		RunningURL:            wsRunningEndpoint,
-		RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
-		Connector:             by.WsConnect,
-		Subscriber:            by.Subscribe,
-		Unsubscriber:          by.Unsubscribe,
-		GenerateSubscriptions: by.GenerateDefaultSubscriptions,
-		AssetType:             asset.Spot,
-	})
-	return by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
-		URL:                  by.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	if by.IsAssetWebsocketSupported(asset.Spot) {
+		by.Websocket.AddWebsocket(&stream.WebsocketSetup{
+			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
+			RunningURL:            wsRunningEndpoint,
+			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
+			Connector:             by.WsConnect,
+			Subscriber:            by.Subscribe,
+			Unsubscriber:          by.Unsubscribe,
+			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+			AssetType:             asset.Spot,
+		})
+		err = by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+			URL:                  by.Websocket.GetWebsocketURL(),
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

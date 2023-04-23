@@ -21,7 +21,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const wsUSDTKline = "candle"
+const (
+	wsUSDTKline = "candle"
+)
 
 // WsUSDTConnect connects to a USDT websocket feed
 func (by *Bybit) WsUSDTConnect() error {
@@ -29,7 +31,7 @@ func (by *Bybit) WsUSDTConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err := by.Websocket.AssetTypeWebsockets[asset.USDTMarginedFutures].Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}

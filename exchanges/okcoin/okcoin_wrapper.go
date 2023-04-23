@@ -182,6 +182,7 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 	err = o.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

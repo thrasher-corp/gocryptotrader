@@ -46,7 +46,9 @@ func (b *Bithumb) WsConnect() error {
 	go b.wsReadData()
 
 	b.setupOrderbookManager()
-	return nil
+	subscriptions, _ := b.GenerateSubscriptions()
+	return b.Subscribe(subscriptions)
+	// return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing

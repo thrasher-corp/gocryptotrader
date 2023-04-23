@@ -222,6 +222,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		OrderbookBufferConfig:  buffer.Config{SortBuffer: true},
+		Features:               &k.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

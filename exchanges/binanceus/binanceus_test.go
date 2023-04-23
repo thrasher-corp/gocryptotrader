@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binanceus TestMain()", err)
 	}
+	bi.Websocket.Enable()
 	bi.setupOrderbookManager()
 	err = bi.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {

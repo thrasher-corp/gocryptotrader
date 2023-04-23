@@ -177,6 +177,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer: true,
 		},
+		Features: &c.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

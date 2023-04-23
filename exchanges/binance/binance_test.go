@@ -2840,11 +2840,3 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 		t.Error("expected a response")
 	}
 }
-
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := b.WsConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
-}

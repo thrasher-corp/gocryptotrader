@@ -183,6 +183,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 			UpdateIDProgression: true,
 			Checksum:            checksum,
 		},
+		Features: &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

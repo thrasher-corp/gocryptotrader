@@ -179,6 +179,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},
+		Features: &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
