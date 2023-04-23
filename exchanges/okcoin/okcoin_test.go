@@ -1353,8 +1353,6 @@ func TestFetchTradablePair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// for x := range response{
-	// }
 }
 
 func TestGetSystemStatus(t *testing.T) {
@@ -1376,5 +1374,48 @@ func TestGetSystemStatus(t *testing.T) {
 	_, err = o.GetSystemStatus(context.Background(), "pre_open")
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetSystemTime(t *testing.T) {
+	t.Parallel()
+	systemTime, err := o.GetSystemTime(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		println(systemTime.String())
+	}
+}
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetTickers(context.Background(), "SPOT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTicker(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetTicker(context.Background(), "USDT-USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderbooks(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetOrderbook(context.Background(), "BTC-USD", 200)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLiteOrderbook(t *testing.T) {
+	t.Parallel()
+	o.Verbose = true
+	_, err := o.GetOrderbookLitebook(context.Background(), "BTC-USD")
+	if err != nil {
+		t.Error(err)
 	}
 }

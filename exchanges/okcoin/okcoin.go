@@ -7,13 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -49,6 +52,14 @@ const (
 
 	// endpoints
 	systemStatus = "status"
+	systemTime   = "time"
+
+	// market endpoints
+	tickersPath       = "tickers"
+	tickerData        = "ticker"
+	getSpotOrderBooks = "books"
+	orderbookLitePath = "books-lite"
+	getSpotMarketData = "candles"
 
 	// ----------------------------------
 	marginTradingSubsection   = "margin"
@@ -59,12 +70,9 @@ const (
 	cancelBatchOrders         = "cancel_batch_orders"
 	pendingOrders             = "orders_pending"
 	trades                    = "trades"
-	tickerData                = "ticker"
 	instruments               = "instruments"
 	getAccountDepositHistory  = "deposit/history"
 	getSpotTransactionDetails = "fills"
-	getSpotOrderBook          = "book"
-	getSpotMarketData         = "candles"
 	// Account based endpoints
 	getAccountCurrencies        = "currencies"
 	getAccountWalletInformation = "wallet"
@@ -79,20 +87,25 @@ const (
 	getRepayment          = "repayment"
 )
 
+var (
+	errMissingInstrumentID = errors.New("missing instrument id")
+	errNoOrderbookData     = errors.New("no orderbook data found")
+)
+
 // ------------------------------------  New ------------------------------------------------------------
 
 // GetSpotTokenPairDetails Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
 // List trading pairs and get the trading limit, price, and more information of different trading pairs.
 func (o *OKCoin) GetInstruments(ctx context.Context, instrumentType, instrumentID string) ([]Instrument, error) {
-	params := make(map[string]interface{})
+	params := url.Values{}
 	if instrumentType != "" {
-		params["instType"] = instrumentType
+		params.Set("instType", instrumentType)
 	}
 	if instrumentID != "" {
-		params["instId"] = instrumentID
+		params.Set("instId", instrumentID)
 	}
 	var resp []Instrument
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typePublic, instruments, params, &resp, false)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typePublic, common.EncodeURLValues(instruments, params), nil, &resp, false)
 }
 
 // GetSystemStatus
@@ -100,12 +113,156 @@ func (o *OKCoin) GetInstruments(ctx context.Context, instrumentType, instrumentI
 // Generally, pre_open last about 10 minutes. There will be pre_open when the time of upgrade is too long.
 // If this parameter is not filled, the data with status scheduled, ongoing and pre_open will be returned by default
 func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) (interface{}, error) {
-	params := make(map[string]string)
+	params := url.Values{}
 	if state != "" {
-		params["state"] = state
+		params.Set("state", state)
 	}
 	var resp []SystemStatus
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeSystem, systemStatus, params, &resp, false)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeSystem, common.EncodeURLValues(systemStatus, params), nil, &resp, false)
+}
+
+// GetSystemTime retrieve API server time.
+func (o *OKCoin) GetSystemTime(ctx context.Context) (time.Time, error) {
+	timestampResponse := []struct {
+		Timestamp okcoinMilliSec `json:"ts"`
+	}{}
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typePublic, systemTime, nil, &timestampResponse, false)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return timestampResponse[0].Timestamp.Time(), nil
+}
+
+// GetTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
+func (o *OKCoin) GetTickers(ctx context.Context, instrumentType string) ([]TickerData, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []TickerData
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(tickersPath, params), nil, &resp, false)
+}
+
+// GetTicker retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
+func (o *OKCoin) GetTicker(ctx context.Context, instrumentID string) (*TickerData, error) {
+	var resp []TickerData
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, tickerData+"?instId="+instrumentID, nil, &resp, false)
+	if err != nil {
+		return nil, err
+	} else if len(resp) == 0 {
+		return nil, errors.New("instrument not found")
+	}
+	return &resp[0], nil
+}
+
+// GetOrderbook retrieve order book of the instrument.
+func (o *OKCoin) GetOrderbook(ctx context.Context, instrumentID string, sideDepth int64) (*GetOrderBookResponse, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if sideDepth > 0 {
+		params.Set("sz", strconv.FormatInt(sideDepth, 10))
+	}
+	var resp []GetOrderBookResponse
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotOrderBooks, params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	} else if len(resp) == 0 {
+		return nil, fmt.Errorf("%w for instrument %s", errNoOrderbookData, instrumentID)
+	}
+	return &resp[0], nil
+}
+
+// GetOrderbookLitebook retrieve order top 25 book of the instrument more quickly
+func (o *OKCoin) GetOrderbookLitebook(ctx context.Context, instrumentID string) (*GetOrderBookResponse, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	var resp []GetOrderBookResponse
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(orderbookLitePath, params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	} else if len(resp) == 0 {
+		return nil, fmt.Errorf("%w for instrument %s", errNoOrderbookData, instrumentID)
+	}
+	return &resp[0], nil
+}
+
+// GetCandlesticks retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
+func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, after, before time.Time, limit int64) ([]CandlestickData, error) {
+	var resp []CandlestickItemResponse
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, getSpotMarketData, nil, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	return ExtractCandlesticks(resp)
+}
+
+func intervalToString(interval kline.Interval, UTCOpeningPrice bool) (string, error) {
+	switch interval {
+	case kline.OneMin:
+		return "1m", nil
+	case kline.ThreeMin:
+		return "3m", nil
+	case kline.FiveMin:
+		return "5m", nil
+	case kline.FifteenMin:
+		return "15m", nil
+	case kline.ThirtyMin:
+		return "30m", nil
+	case kline.OneHour:
+		return "1H", nil
+	case kline.TwoHour:
+		return "2H", nil
+	case kline.FourHour:
+		return "4H", nil
+	case kline.SixHour:
+		if UTCOpeningPrice {
+			return "6Hutc", nil
+		}
+		return "6H", nil
+	case kline.TwelveHour:
+		if UTCOpeningPrice {
+			return "12Hutc", nil
+		}
+		return "12H", nil
+	case kline.OneDay:
+		if UTCOpeningPrice {
+			return "1Dutc", nil
+		}
+		return "1D", nil
+	case kline.TwoDay:
+		if UTCOpeningPrice {
+			return "2Dutc", nil
+		}
+		return "2D", nil
+	case kline.ThreeDay:
+		if UTCOpeningPrice {
+			return "3Dutc", nil
+		}
+		return "3D", nil
+	case kline.OneWeek:
+		if UTCOpeningPrice {
+			return "1Wutc", nil
+		}
+		return "1W", nil
+	case kline.OneMonth:
+		if UTCOpeningPrice {
+			return "1Mutc", nil
+		}
+		return "1M", nil
+	case kline.ThreeMonth:
+		if UTCOpeningPrice {
+			return "3Mutc", nil
+		}
+		return "3M", nil
+	default:
+		return "", kline.ErrUnsupportedInterval
+	}
 }
 
 // ------------------------------------  Old ------------------------------------------------------------
@@ -393,13 +550,6 @@ func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) (interface{}
 // 		return nil, err
 // 	}
 // 	requestURL := instruments + "/" + request.InstrumentID + "/" + getSpotOrderBook + encodedRequest
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, false)
-// }
-
-// // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.
-// func (o *OKCoin) GetSpotAllTokenPairsInformation(ctx context.Context) ([]GetSpotTokenPairsInformationResponse, error) {
-// 	requestURL := instruments + "/" + tickerData
-// 	var resp []GetSpotTokenPairsInformationResponse
 // 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tokenSubsection, requestURL, nil, &resp, false)
 // }
 
@@ -720,7 +870,7 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 			if err != nil {
 				return nil, err
 			}
-			signPath := "/" + apiPath + requestType + okCoinAPIVersion + requestPath
+			signPath := endpoint + okCoinAPIVersion + requestType + "/" + requestPath
 
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,

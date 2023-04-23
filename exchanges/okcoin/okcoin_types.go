@@ -1,7 +1,9 @@
 package okcoin
 
 import (
+	"encoding/json"
 	"errors"
+	"strconv"
 	"sync"
 	"time"
 
@@ -79,17 +81,22 @@ type MarginCurrencyData struct {
 
 // TickerData stores ticker data
 type TickerData struct {
-	InstrumentID string    `json:"instrument_id"`
-	BestAsk      float64   `json:"best_ask,string"`
-	BestBid      float64   `json:"best_bid,string"`
-	Last         float64   `json:"last,string"`
-	High24H      float64   `json:"high_24h,string"`
-	Low24H       float64   `json:"low_24h,string"`
-	Volume24H    float64   `json:"volume_24h,string"`
-	Timestamp    time.Time `json:"timestamp"`
-	LastQty      float64   `json:"last_qty,string"`
-	BestAskSize  float64   `json:"best_ask_size,string"`
-	BestBidSize  float64   `json:"best_bid_size,string"`
+	InstType        string         `json:"instType"`
+	InstrumentID    string         `json:"instId"`
+	LastTradedPrice float64        `json:"last,string"`
+	LastTradedSize  float64        `json:"lastSz,string"`
+	BestAskPrice    float64        `json:"askPx,string"`
+	BestAskSize     float64        `json:"askSz,string"`
+	BestBidPrice    float64        `json:"bidPx,string"`
+	BestBidSize     float64        `json:"bidSz,string"`
+	Open24H         float64        `json:"open24h,string"` // Open price in the past 24 hours
+	High24H         float64        `json:"high24h,string"` // Highest price in the past 24 hours
+	Low24H          float64        `json:"low24h,string"`  // Lowest price in the past 24 hours
+	VolCcy24H       string         `json:"volCcy24h"`      // 24h trading volume, with a unit of currency. The value is the quantity in quote currency.
+	Vol24H          string         `json:"vol24h"`         // 24h trading volume, with a unit of contract. The value is the quantity in base currency.
+	Timestamp       okcoinMilliSec `json:"ts"`
+	OpenPriceInUtc0 float64        `json:"sodUtc0,string"`
+	OpenPriceInUtc8 float64        `json:"sodUtc8,string"`
 }
 
 // PerpSwapFundingRates stores funding rates data
@@ -383,9 +390,9 @@ type GetOrderBookRequest struct {
 
 // GetOrderBookResponse response data
 type GetOrderBookResponse struct {
-	Timestamp time.Time  `json:"timestamp"`
-	Asks      [][]string `json:"asks"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
-	Bids      [][]string `json:"bids"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
+	Timestamp okcoinMilliSec `json:"ts"`
+	Asks      [][4]string    `json:"asks"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
+	Bids      [][4]string    `json:"bids"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
 }
 
 // GetSpotTokenPairsInformationResponse response data for GetSpotTokenPairsInformation
@@ -1827,32 +1834,99 @@ type SystemStatus struct {
 
 // Instrument represents an instrument in an open contract.
 type Instrument struct {
-	Alias          string    `json:"alias"`
-	BaseCurrency   string    `json:"baseCcy"`
-	Category       string    `json:"category"`
-	CtMult         string    `json:"ctMult"`
-	CtType         string    `json:"ctType"`
-	CtVal          string    `json:"ctVal"`
-	CtValCurrency  string    `json:"ctValCcy"`
-	ExpTime        string    `json:"expTime"`
-	InstFamily     string    `json:"instFamily"`
-	InstrumentID   string    `json:"instId"`
-	InstrumentType string    `json:"instType"`
-	Leverage       string    `json:"lever"`
-	ListTime       time.Time `json:"listTime"`
-	LotSize        float64   `json:"lotSz,string"`
-	MaxIcebergSz   string    `json:"maxIcebergSz"`
-	MaxLimitSize   float64   `json:"maxLmtSz,string"`
-	MaxMarketSize  float64   `json:"maxMktSz,string"`
-	MaxStopSize    float64   `json:"maxStopSz,string"`
-	MaxTwapSize    float64   `json:"maxTwapSz,string"`
-	MaxTriggerSize float64   `json:"maxTriggerSz,string"`
-	MinSize        float64   `json:"minSz,string"`
-	QuoteCurrency  string    `json:"quoteCcy"`
-	OptionType     string    `json:"optType"`
-	SettleCurrency string    `json:"settleCcy"`
-	State          string    `json:"state"`
-	StrikePrice    string    `json:"stk"`
-	TickSize       float64   `json:"tickSz,string"`
-	Underlying     float64   `json:"uly,string"`
+	Alias          string         `json:"alias"`
+	BaseCurrency   string         `json:"baseCcy"`
+	Category       string         `json:"category"`
+	CtMult         string         `json:"ctMult"`
+	CtType         string         `json:"ctType"`
+	CtVal          string         `json:"ctVal"`
+	CtValCurrency  string         `json:"ctValCcy"`
+	ExpTime        string         `json:"expTime"`
+	InstFamily     string         `json:"instFamily"`
+	InstrumentID   string         `json:"instId"`
+	InstrumentType string         `json:"instType"`
+	Leverage       string         `json:"lever"`
+	ListTime       okcoinMilliSec `json:"listTime"`
+	LotSize        string         `json:"lotSz"`
+	MaxIcebergSz   string         `json:"maxIcebergSz"`
+	MaxLimitSize   float64        `json:"maxLmtSz,string"`
+	MaxMarketSize  float64        `json:"maxMktSz,string"`
+	MaxStopSize    float64        `json:"maxStopSz,string"`
+	MaxTwapSize    float64        `json:"maxTwapSz,string"`
+	MaxTriggerSize float64        `json:"maxTriggerSz,string"`
+	MinSize        float64        `json:"minSz,string"`
+	QuoteCurrency  string         `json:"quoteCcy"`
+	OptionType     string         `json:"optType"`
+	SettleCurrency string         `json:"settleCcy"`
+	State          string         `json:"state"`
+	StrikePrice    string         `json:"stk"`
+	TickSize       float64        `json:"tickSz,string"`
+	Underlying     string         `json:"uly"`
+}
+
+type CandlestickItemResponse [9]string
+
+// CandlestickData represents the candlestick chart
+type CandlestickData struct {
+	Timestamp            okcoinMilliSec
+	OpenPrice            float64
+	HighestPrice         float64
+	LowestPrice          float64
+	ClosePrice           float64
+	TradingVolume        float64
+	QuoteTradingVolume   float64
+	TradingVolumeInQuote float64
+	Confirm              string
+}
+
+// ToExtract returns a CandlestickData instance from []string
+func (c *CandlestickItemResponse) ToExtract() (CandlestickData, error) {
+	var candle CandlestickData
+	err := json.Unmarshal([]byte(c[0]), &candle.Timestamp)
+	if err != nil {
+		return candle, err
+	}
+	candle.OpenPrice, err = strconv.ParseFloat(c[1], 64)
+	if err != nil {
+		return candle, err
+	}
+	candle.HighestPrice, err = strconv.ParseFloat(c[2], 64)
+	if err != nil {
+		return candle, err
+	}
+	candle.LowestPrice, err = strconv.ParseFloat(c[3], 64)
+	if err != nil {
+		return candle, err
+	}
+	candle.ClosePrice, err = strconv.ParseFloat(c[4], 64)
+	if err != nil {
+		return candle, err
+	}
+	candle.TradingVolume, err = strconv.ParseFloat(c[5], 64)
+	if err != nil {
+		return candle, err
+	}
+	candle.QuoteTradingVolume, err = strconv.ParseFloat(c[6], 64)
+	if err != nil {
+		return candle, err
+	}
+	candle.TradingVolumeInQuote, err = strconv.ParseFloat(c[7], 64)
+	if err != nil {
+		return candle, err
+	}
+	candle.Confirm = c[8]
+	return candle, nil
+}
+
+// ExtractCandlesticks retrives a list of CandlestickData
+func ExtractCandlesticks(candles []CandlestickItemResponse) ([]CandlestickData, error) {
+	candlestickData := make([]CandlestickData, len(candles))
+	var err error
+	for x := range candles {
+		candlestickData[x], err = candles[x].ToExtract()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return candlestickData, nil
 }
