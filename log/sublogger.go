@@ -10,6 +10,8 @@ var errMultiWriterHolderIsNil = errors.New("multiwriter holder is nil")
 
 // NewSubLogger allows for a new sub logger to be registered.
 func NewSubLogger(name string) (*SubLogger, error) {
+
+	fmt.Println("REGISTERED NEW SUBLOGGER", name)
 	if name == "" {
 		return nil, errEmptyLoggerName
 	}
@@ -50,5 +52,9 @@ func (sl *SubLogger) getFields() *logFields {
 	fields.error = sl.levels.Error
 	fields.name = sl.name
 	fields.output = sl.output
+	fields.instance = sl.instance
+
+	// fmt.Println(sl.name, sl.instance)
+
 	return fields
 }

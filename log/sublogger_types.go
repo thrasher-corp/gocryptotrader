@@ -35,19 +35,22 @@ var (
 // SubLogger defines a sub logger can be used externally for packages wanted to
 // leverage GCT library logger features.
 type SubLogger struct {
-	name   string
-	levels Levels
-	output *multiWriterHolder
+	name     string
+	levels   Levels
+	output   *multiWriterHolder
+	instance string
 }
 
 // logFields is used to store data in a non-global and thread-safe manner
 // so logs cannot be modified mid-log causing a data-race issue
 type logFields struct {
-	info   bool
-	warn   bool
-	debug  bool
-	error  bool
-	name   string
-	output *multiWriterHolder
-	logger Logger
+	info             bool
+	warn             bool
+	debug            bool
+	error            bool
+	name             string
+	output           *multiWriterHolder
+	logger           Logger
+	instance         string
+	structuredFields map[string]interface{}
 }

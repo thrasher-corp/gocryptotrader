@@ -174,7 +174,7 @@ func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 				for x := range m.dataHandlers {
 					err := m.dataHandlers[x](ws.GetName(), data)
 					if err != nil {
-						log.Error(log.WebsocketMgr, err)
+						log.Errorln(log.WebsocketMgr, err)
 					}
 				}
 				m.mu.RUnlock()

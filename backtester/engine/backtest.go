@@ -95,7 +95,7 @@ func (bt *BackTest) RunLive() error {
 	go func() {
 		err = bt.liveCheck()
 		if err != nil {
-			log.Error(common.LiveStrategy, err)
+			log.Errorln(common.LiveStrategy, err)
 		}
 		bt.wg.Done()
 	}()
@@ -153,7 +153,7 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 	case waitForOfflineCompletion && !liveTesting:
 		err = bt.Run()
 		if err != nil {
-			log.Error(common.Backtester, err)
+			log.Errorln(common.Backtester, err)
 		}
 		return bt.Stop()
 	case !waitForOfflineCompletion && liveTesting:
@@ -162,11 +162,11 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 		go func() {
 			err = bt.Run()
 			if err != nil {
-				log.Error(common.Backtester, err)
+				log.Errorln(common.Backtester, err)
 			}
 			err = bt.Stop()
 			if err != nil {
-				log.Error(common.Backtester, err)
+				log.Errorln(common.Backtester, err)
 			}
 		}()
 	}
@@ -237,7 +237,7 @@ func (bt *BackTest) Run() error {
 			doubleNil = false
 			err := bt.handleEvent(ev)
 			if err != nil {
-				log.Error(common.Backtester, err)
+				log.Errorln(common.Backtester, err)
 			}
 			if !bt.hasProcessedAnEvent {
 				bt.hasProcessedAnEvent = true
@@ -359,7 +359,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 			case errors.Is(err, gctorder.ErrPositionLiquidated):
 				return nil
 			default:
-				log.Error(common.Backtester, err)
+				log.Errorln(common.Backtester, err)
 			}
 		}
 		dataEvents = append(dataEvents, dataHolders[i])
@@ -524,7 +524,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	}
 	holding, err := bt.Portfolio.ViewHoldingAtTimePeriod(ev)
 	if err != nil {
-		log.Error(common.Backtester, err)
+		log.Errorln(common.Backtester, err)
 	}
 	err = bt.Statistic.AddHoldingsForTime(holding)
 	if err != nil {

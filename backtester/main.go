@@ -132,7 +132,7 @@ func main() {
 	defaultLogSettings.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
 	defaultLogSettings.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default
 	defaultLogSettings.AdvancedSettings.Headers.Error = common.CMDColours.Error + "[ERROR]" + common.CMDColours.Default
-	err = log.SetGlobalLogConfig(defaultLogSettings)
+	err = log.SetGlobalLogConfig(defaultLogSettings, "gct/backtester")
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v\n", err)
 		os.Exit(1)
@@ -235,7 +235,7 @@ func main() {
 		var stopped []*backtest.TaskSummary
 		stopped, err = runManager.StopAllTasks()
 		if err != nil {
-			log.Error(common.Backtester, err)
+			log.Errorln(common.Backtester, err)
 		}
 		for i := range stopped {
 			log.Infof(common.Backtester, "Task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
@@ -244,13 +244,13 @@ func main() {
 		var tasks []*backtest.TaskSummary
 		tasks, err = runManager.List()
 		if err != nil {
-			log.Error(common.Backtester, err)
+			log.Errorln(common.Backtester, err)
 		}
 		for i := range tasks {
 			if tasks[i].MetaData.ClosePositionsOnStop && !tasks[i].MetaData.Closed {
 				err = runManager.StopTask(tasks[i].MetaData.ID)
 				if err != nil {
-					log.Error(common.Backtester, err)
+					log.Errorln(common.Backtester, err)
 					continue
 				}
 				log.Infof(common.Backtester, "Task %v %v was stopped", tasks[i].MetaData.ID, tasks[i].MetaData.Strategy)

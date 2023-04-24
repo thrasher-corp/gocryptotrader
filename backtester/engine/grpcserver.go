@@ -86,7 +86,7 @@ func StartRPCServer(server *GRPCServer) error {
 
 	go func() {
 		if err = s.Serve(lis); err != nil {
-			log.Error(log.GRPCSys, err)
+			log.Errorln(log.GRPCSys, err)
 			return
 		}
 	}()

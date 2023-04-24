@@ -95,7 +95,7 @@ func (d *Data) GenerateReport() error {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Error(common.Report, err)
+			log.Errorln(common.Report, err)
 		}
 	}()
 

@@ -136,7 +136,7 @@ func (p *Processor) Run(wg *sync.WaitGroup) {
 		}
 		err := SaveTradesToDatabase(bufferCopy...)
 		if err != nil {
-			log.Error(log.Trade, err)
+			log.Errorln(log.Trade, err)
 		}
 	}
 }

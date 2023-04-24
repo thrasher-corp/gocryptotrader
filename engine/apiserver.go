@@ -181,7 +181,7 @@ func (m *apiServerManager) StartRESTServer() error {
 		if err != nil {
 			atomic.StoreInt32(&m.restStarted, 0)
 			if !errors.Is(err, http.ErrServerClosed) {
-				log.Error(log.APIServerMgr, err)
+				log.Errorln(log.APIServerMgr, err)
 			}
 		}
 	}()
@@ -296,7 +296,7 @@ func (m *apiServerManager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r
 func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 	_, err := fmt.Fprint(w, restIndexResponse)
 	if err != nil {
-		log.Error(log.APIServerMgr, err)
+		log.Errorln(log.APIServerMgr, err)
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -443,7 +443,7 @@ func (m *apiServerManager) StartWebsocketServer() error {
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
 			if !errors.Is(err, http.ErrServerClosed) {
-				log.Error(log.APIServerMgr, err)
+				log.Errorln(log.APIServerMgr, err)
 			}
 		}
 	}()
@@ -502,7 +502,7 @@ func (c *websocketClient) read() {
 		c.Hub.Unregister <- c
 		conErr := c.Conn.Close()
 		if conErr != nil {
-			log.Error(log.APIServerMgr, conErr)
+			log.Errorln(log.APIServerMgr, conErr)
 		}
 	}()
 
@@ -547,7 +547,7 @@ func (c *websocketClient) read() {
 				log.Warnf(log.APIServerMgr, "Websocket: request %s failed due to unauthenticated request on an authenticated API\n", evt.Event)
 				err = c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
 				if err != nil {
-					log.Error(log.APIServerMgr, err)
+					log.Errorln(log.APIServerMgr, err)
 				}
 				continue
 			}
@@ -565,7 +565,7 @@ func (c *websocketClient) write() {
 	defer func() {
 		err := c.Conn.Close()
 		if err != nil {
-			log.Error(log.APIServerMgr, err)
+			log.Errorln(log.APIServerMgr, err)
 		}
 	}()
 	for {
@@ -573,7 +573,7 @@ func (c *websocketClient) write() {
 		if !ok {
 			err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 			if err != nil {
-				log.Error(log.APIServerMgr, err)
+				log.Errorln(log.APIServerMgr, err)
 			}
 			log.Debugln(log.APIServerMgr, "websocket: hub closed the channel")
 			return
@@ -586,7 +586,7 @@ func (c *websocketClient) write() {
 		}
 		_, err = w.Write(message)
 		if err != nil {
-			log.Error(log.APIServerMgr, err)
+			log.Errorln(log.APIServerMgr, err)
 		}
 
 		// Add queued chat messages to the current websocket message
@@ -594,7 +594,7 @@ func (c *websocketClient) write() {
 		for i := 0; i < n; i++ {
 			_, err = w.Write(<-c.Send)
 			if err != nil {
-				log.Error(log.APIServerMgr, err)
+				log.Errorln(log.APIServerMgr, err)
 			}
 		}
 
@@ -661,7 +661,7 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Error(log.APIServerMgr, err)
+		log.Errorln(log.APIServerMgr, err)
 		return
 	}
 
@@ -703,7 +703,7 @@ func wsAuth(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -726,7 +726,7 @@ func wsAuth(client *websocketClient, data interface{}) error {
 	client.authFailures++
 	sendErr := client.SendWebsocketMessage(wsResp)
 	if sendErr != nil {
-		log.Error(log.APIServerMgr, sendErr)
+		log.Errorln(log.APIServerMgr, sendErr)
 	}
 	if client.authFailures >= client.maxAuthFailures {
 		log.Debugf(log.APIServerMgr,
@@ -765,7 +765,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -776,7 +776,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -786,7 +786,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -826,7 +826,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -846,7 +846,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -855,7 +855,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -886,7 +886,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -906,7 +906,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}
@@ -915,7 +915,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
 		if sendErr != nil {
-			log.Error(log.APIServerMgr, sendErr)
+			log.Errorln(log.APIServerMgr, sendErr)
 		}
 		return err
 	}

@@ -48,6 +48,10 @@ type job struct {
 	Spacer            string
 	TimestampFormat   string
 	ShowLogSystemName bool
+	Instance          string
+	StructuredFields  map[string]interface{}
+	StructuredLogging bool
+	Level             string
 	Passback          chan<- struct{}
 }
 
@@ -55,9 +59,10 @@ type job struct {
 type Config struct {
 	Enabled *bool `json:"enabled"`
 	SubLoggerConfig
-	LoggerFileConfig *loggerFileConfig `json:"fileSettings,omitempty"`
-	AdvancedSettings advancedSettings  `json:"advancedSettings"`
-	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
+	LoggerFileConfig  *loggerFileConfig `json:"fileSettings,omitempty"`
+	AdvancedSettings  advancedSettings  `json:"advancedSettings"`
+	SubLoggers        []SubLoggerConfig `json:"subloggers,omitempty"`
+	StructuredLogging bool              `json:"structuredLogging"`
 }
 
 type advancedSettings struct {
@@ -92,9 +97,12 @@ type loggerFileConfig struct {
 type Logger struct {
 	ShowLogSystemName                                bool
 	BypassJobChannelFilledWarning                    bool
+	StructuredLogging                                bool
 	TimestampFormat                                  string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string
+	Level                                            string
+	Instance                                         string
 }
 
 // Levels flags for each sub logger type

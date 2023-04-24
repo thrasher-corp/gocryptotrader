@@ -227,7 +227,7 @@ func (s *Statistic) CalculateAllResults() error {
 					}
 					err = stats.CalculateResults(s.RiskFreeRate)
 					if err != nil {
-						log.Error(common.Statistics, err)
+						log.Errorln(common.Statistics, err)
 					}
 					stats.FinalHoldings = last.Holdings
 					stats.InitialHoldings = stats.Events[0].Holdings

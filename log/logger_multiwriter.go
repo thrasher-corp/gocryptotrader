@@ -1,6 +1,7 @@
 package log
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -28,19 +29,36 @@ func loggerWorker() {
 			continue
 		}
 		data := j.fn()
-		buffer = append(buffer, j.Header...)
-		if j.ShowLogSystemName {
-			buffer = append(buffer, j.Spacer...)
-			buffer = append(buffer, j.SlName...)
-		}
-		buffer = append(buffer, j.Spacer...)
-		if j.TimestampFormat != "" {
-			buffer = time.Now().AppendFormat(buffer, j.TimestampFormat)
-		}
-		buffer = append(buffer, j.Spacer...)
-		buffer = append(buffer, data...)
-		if data == "" || data[len(data)-1] != '\n' {
+		if j.StructuredLogging {
+			mapper := make(map[string]interface{})
+			mapper["timestamp"] = time.Now().Format(j.TimestampFormat)
+			mapper["instance"] = j.Instance
+			mapper["logsystem"] = j.SlName
+			mapper["data"] = data
+			mapper["level"] = j.Level
+			for k, v := range j.StructuredFields {
+				mapper[k] = v
+			}
+			buffer, err = json.Marshal(mapper)
+			if err != nil {
+				log.Println("log: failed to marshal structured log data:", err)
+			}
 			buffer = append(buffer, '\n')
+		} else {
+			buffer = append(buffer, j.Header...)
+			if j.ShowLogSystemName {
+				buffer = append(buffer, j.Spacer...)
+				buffer = append(buffer, j.SlName...)
+			}
+			buffer = append(buffer, j.Spacer...)
+			if j.TimestampFormat != "" {
+				buffer = time.Now().AppendFormat(buffer, j.TimestampFormat)
+			}
+			buffer = append(buffer, j.Spacer...)
+			buffer = append(buffer, data...)
+			if data == "" || data[len(data)-1] != '\n' {
+				buffer = append(buffer, '\n')
+			}
 		}
 
 		for x := range j.Writers {
@@ -63,7 +81,7 @@ type deferral func() string
 // StageLogEvent stages a new logger event in a jobs channel to be processed by
 // a worker pool. This segregates the need to process the log string and the
 // writes to the required io.Writer.
-func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat string, showLogSystemName, bypassWarning bool) {
+func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat, instance, level string, showLogSystemName, bypassWarning, structuredLog bool, fields map[string]interface{}) {
 	newJob := jobsPool.Get().(*job) //nolint:forcetypeassert // Not necessary from a pool
 	newJob.Writers = mw.writers
 	newJob.fn = fn
@@ -72,6 +90,10 @@ func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, 
 	newJob.ShowLogSystemName = showLogSystemName
 	newJob.Spacer = spacer
 	newJob.TimestampFormat = timestampFormat
+	newJob.Instance = instance
+	newJob.StructuredFields = fields
+	newJob.StructuredLogging = structuredLog
+	newJob.Level = level
 
 	select {
 	case jobsChannel <- newJob:

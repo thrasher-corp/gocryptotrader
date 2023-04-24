@@ -92,6 +92,7 @@ func SetGlobalLogConfig(incoming *Config) error {
 	globalLogConfig.Enabled = convert.BoolPtr(incoming.Enabled != nil && *incoming.Enabled)
 	globalLogConfig.LoggerFileConfig = &fileConf
 	globalLogConfig.AdvancedSettings = incoming.AdvancedSettings
+	globalLogConfig.StructuredLogging = incoming.StructuredLogging
 	return nil
 }
 
@@ -148,7 +149,7 @@ func SetupSubLoggers(s []SubLoggerConfig) error {
 }
 
 // SetupGlobalLogger setup the global loggers with the default global config values
-func SetupGlobalLogger() error {
+func SetupGlobalLogger(instance string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -171,8 +172,9 @@ func SetupGlobalLogger() error {
 		if err != nil {
 			return err
 		}
+		subLogger.instance = instance
 	}
-	logger = newLogger(globalLogConfig)
+	logger = newLogger(globalLogConfig, instance)
 	return nil
 }
 
@@ -213,9 +215,10 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 	}
 
 	temp := &SubLogger{
-		name:   strings.ToUpper(subLogger),
-		output: tempHolder,
-		levels: splitLevel("INFO|WARN|DEBUG|ERROR"),
+		name:     strings.ToUpper(subLogger),
+		output:   tempHolder,
+		levels:   splitLevel("INFO|WARN|DEBUG|ERROR"),
+		instance: logger.Instance,
 	}
 	SubLoggers[subLogger] = temp
 	return temp
