@@ -28,6 +28,7 @@ var (
 	errNoValidResponseFromServer = errors.New("no valid response from server")
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
+	errInvalidLeverage           = errors.New("invalid leverage value")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -67,6 +68,17 @@ func (k kucoinTimeMilliSec) Time() time.Time {
 		return time.Time{}
 	}
 	return time.UnixMilli(int64(k))
+}
+
+// kucoinTimeSec provides an internal conversion helper
+type kucoinTimeSec int64
+
+// Time returns a time.Time object
+func (k kucoinTimeSec) Time() time.Time {
+	if k < 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(k), 0)
 }
 
 // kucoinTimeNanoSec provides an internal conversion helper
@@ -711,9 +723,10 @@ type DepositResponse struct {
 // Deposit represents deposit address and detail and timestamp information.
 type Deposit struct {
 	baseDeposit
+	Amount    float64 `json:"amount,string"`
 	Address   string  `json:"address"`
 	Memo      string  `json:"memo"`
-	Fee       float64 `json:"fee"`
+	Fee       float64 `json:"fee,string"`
 	Remark    string  `json:"remark"`
 	CreatedAt kucoinTimeMilliSec
 	UpdatedAt kucoinTimeMilliSec
@@ -731,7 +744,8 @@ type HistoricalDepositWithdrawalResponse struct {
 // HistoricalDepositWithdrawal represents deposit and withdrawal funding item.
 type HistoricalDepositWithdrawal struct {
 	baseDeposit
-	CreatedAt kucoinTimeMilliSec `json:"createAt"`
+	Amount    float64       `json:"amount,string"`
+	CreatedAt kucoinTimeSec `json:"createAt"`
 }
 
 // WithdrawalsResponse represents a withdrawals list of items details.

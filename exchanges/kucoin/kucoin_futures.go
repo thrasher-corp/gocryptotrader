@@ -309,7 +309,7 @@ func (ku *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol,
 	stop, stopPriceType, timeInForce string, size, price, stopPrice,
 	leverage, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
 	if leverage < 0.01 {
-		return "", errors.New("leverage must be greater than 0.01")
+		return "", fmt.Errorf("%v must be greater than 0.01", errInvalidLeverage)
 	}
 	args := make(map[string]interface{})
 	if clientOID == "" {

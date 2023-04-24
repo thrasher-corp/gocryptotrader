@@ -585,8 +585,8 @@ func (ku *Kucoin) GetLendHistory(ctx context.Context, ccy string) ([]LendOrderHi
 	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetLendHistory, params), nil, &resp)
 }
 
-// GetUnsettleLendOrder gets outstanding lend order list
-func (ku *Kucoin) GetUnsettleLendOrder(ctx context.Context, ccy string) ([]UnsettleLendOrder, error) {
+// GetUnsettledLendOrder gets outstanding lend order list
+func (ku *Kucoin) GetUnsettledLendOrder(ctx context.Context, ccy string) ([]UnsettleLendOrder, error) {
 	params := url.Values{}
 	if ccy != "" {
 		params.Set("currency", ccy)
@@ -598,8 +598,8 @@ func (ku *Kucoin) GetUnsettleLendOrder(ctx context.Context, ccy string) ([]Unset
 	return resp.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetUnsettleLendOrder, params), nil, &resp)
 }
 
-// GetSettleLendOrder gets settle lend orders
-func (ku *Kucoin) GetSettleLendOrder(ctx context.Context, ccy string) ([]SettleLendOrder, error) {
+// GetSettledLendOrder gets settle lend orders
+func (ku *Kucoin) GetSettledLendOrder(ctx context.Context, ccy string) ([]SettleLendOrder, error) {
 	params := url.Values{}
 	if ccy != "" {
 		params.Set("currency", ccy)
@@ -1010,10 +1010,20 @@ func (ku *Kucoin) CancelAllOpenOrders(ctx context.Context, symbol, tradeType str
 
 // ListOrders gets the user order list
 func (ku *Kucoin) ListOrders(ctx context.Context, status, symbol, side, orderType, tradeType string, startAt, endAt time.Time) (*OrdersListResponse, error) {
-	params := url.Values{}
+	params := fillParams(symbol, side, orderType, tradeType, startAt, endAt)
 	if status != "" {
 		params.Set("status", status)
 	}
+	var resp *OrdersListResponse
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, listOrdersEPL, http.MethodGet, common.EncodeURLValues(kucoinOrders, params), nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func fillParams(symbol, side, orderType, tradeType string, startAt, endAt time.Time) url.Values {
+	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
@@ -1030,14 +1040,9 @@ func (ku *Kucoin) ListOrders(ctx context.Context, status, symbol, side, orderTyp
 		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
 	}
 	if !endAt.IsZero() {
-		params.Set("startAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
 	}
-	var resp *OrdersListResponse
-	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, listOrdersEPL, http.MethodGet, common.EncodeURLValues(kucoinOrders, params), nil, &resp)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return params
 }
 
 // GetRecentOrders get orders in the last 24 hours.
@@ -1066,27 +1071,9 @@ func (ku *Kucoin) GetOrderByClientSuppliedOrderID(ctx context.Context, clientOID
 
 // GetFills get fills
 func (ku *Kucoin) GetFills(ctx context.Context, orderID, symbol, side, orderType, tradeType string, startAt, endAt time.Time) (*ListFills, error) {
-	params := url.Values{}
+	params := fillParams(symbol, side, orderType, tradeType, startAt, endAt)
 	if orderID != "" {
 		params.Set("orderId", orderID)
-	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	if side != "" {
-		params.Set("side", side)
-	}
-	if orderType != "" {
-		params.Set("type", orderType)
-	}
-	if !startAt.IsZero() {
-		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
-	}
-	if !endAt.IsZero() {
-		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
-	}
-	if tradeType != "" {
-		params.Set("tradeType", tradeType)
 	}
 	var resp *ListFills
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, listFillsEPL, http.MethodGet, common.EncodeURLValues(kucoinGetFills, params), nil, &resp)
@@ -1219,27 +1206,9 @@ func (ku *Kucoin) GetStopOrder(ctx context.Context, orderID string) (*StopOrder,
 
 // ListStopOrders get all current untriggered stop orders
 func (ku *Kucoin) ListStopOrders(ctx context.Context, symbol, side, orderType, tradeType, orderIDs string, startAt, endAt time.Time, currentPage, pageSize int64) (*StopOrderListResponse, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	if side != "" {
-		params.Set("side", side)
-	}
-	if orderType != "" {
-		params.Set("type", orderType)
-	}
-	if tradeType != "" {
-		params.Set("tradeType", tradeType)
-	}
+	params := fillParams(symbol, side, orderType, tradeType, startAt, endAt)
 	if orderIDs != "" {
 		params.Set("orderIds", orderIDs)
-	}
-	if !startAt.IsZero() {
-		params.Set("startAt", strconv.FormatInt(startAt.Unix(), 10))
-	}
-	if !endAt.IsZero() {
-		params.Set("endAt", strconv.FormatInt(endAt.Unix(), 10))
 	}
 	if currentPage != 0 {
 		params.Set("currentPage", strconv.FormatInt(currentPage, 10))

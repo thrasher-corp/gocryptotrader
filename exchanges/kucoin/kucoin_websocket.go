@@ -1063,32 +1063,32 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				})
 			}
 		case marginLoanChannel:
-			for b := range spotPairs {
-				if !marginLoanCurrencyCheckMap[spotPairs[b].Quote] {
+			for b := range marginPairs {
+				if !marginLoanCurrencyCheckMap[marginPairs[b].Quote] {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
 						Channel:  channels[x],
-						Currency: currency.Pair{Base: spotPairs[b].Quote},
+						Currency: currency.Pair{Base: marginPairs[b].Quote},
 					})
-					marginLoanCurrencyCheckMap[spotPairs[b].Quote] = true
+					marginLoanCurrencyCheckMap[marginPairs[b].Quote] = true
 				}
-				if !marginLoanCurrencyCheckMap[spotPairs[b].Base] {
+				if !marginLoanCurrencyCheckMap[marginPairs[b].Base] {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
 						Channel:  channels[x],
-						Currency: currency.Pair{Base: spotPairs[b].Base},
+						Currency: currency.Pair{Base: marginPairs[b].Base},
 					})
-					marginLoanCurrencyCheckMap[spotPairs[b].Base] = true
+					marginLoanCurrencyCheckMap[marginPairs[b].Base] = true
 				}
 			}
 		case marginFundingbookChangeChannel:
 			currencyExist := map[currency.Code]bool{}
-			for b := range spotPairs {
-				okay := currencyExist[spotPairs[b].Base]
+			for b := range marginPairs {
+				okay := currencyExist[marginPairs[b].Base]
 				if !okay {
-					currencyExist[spotPairs[b].Base] = true
+					currencyExist[marginPairs[b].Base] = true
 				}
-				okay = currencyExist[spotPairs[b].Quote]
+				okay = currencyExist[marginPairs[b].Quote]
 				if !okay {
-					currencyExist[spotPairs[b].Quote] = true
+					currencyExist[marginPairs[b].Quote] = true
 				}
 			}
 			var currencies string

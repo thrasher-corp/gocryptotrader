@@ -39,6 +39,38 @@ func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON is custom type json unmarshaller for kucoinTimeSec
+func (k *kucoinTimeSec) UnmarshalJSON(data []byte) error {
+	var timestamp interface{}
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+	switch value := timestamp.(type) {
+	case int64:
+		*k = kucoinTimeSec(value)
+	case int:
+		*k = kucoinTimeSec(int64(value))
+	case float64:
+		*k = kucoinTimeSec(int64(value))
+	case string:
+		if value == "" {
+			// Setting the time to zero because some timestamp fields could return an empty string while there is no error
+			// So, in such cases, kucoinTimeSec returns 0 timestamp.
+			*k = kucoinTimeSec(-1)
+			return nil
+		}
+		tmsp, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return err
+		}
+		*k = kucoinTimeSec(tmsp)
+	default:
+		*k = kucoinTimeSec(0)
+	}
+	return nil
+}
+
 // UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSec
 func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
 	var timestamp interface{}

@@ -2,11 +2,10 @@ package kucoin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -268,36 +267,57 @@ func TestPostBorrowOrder(t *testing.T) {
 	}
 }
 
+const borrowOrderJSON = `{"orderId": "a2111213","currency": "USDT","size": "1.009","filled": 1.009,"matchList": [{"currency": "USDT","dailyIntRate": "0.001","size": "12.9","term": 7,"timestamp": "1544657947759","tradeId": "1212331"}],"status": "DONE"}`
+
 func TestGetBorrowOrder(t *testing.T) {
 	t.Parallel()
+	var resp *BorrowOrder
+	err := json.Unmarshal([]byte(borrowOrderJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) != nil {
 		t.Skip(spotAndMarginAssetNotEnabled)
 	}
-	_, err := ku.GetBorrowOrder(context.Background(), "orderID")
+	_, err = ku.GetBorrowOrder(context.Background(), "orderID")
 	if err != nil {
 		t.Error("GetBorrowOrder() error", err)
 	}
 }
 
+const outstandingRecordResponseJSON = `{"currentPage": 0, "pageSize": 0, "totalNum": 0, "totalPage": 0, "items": [ { "tradeId": "1231141", "currency": "USDT", "accruedInterest": "0.22121", "dailyIntRate": "0.0021", "liability": "1.32121", "maturityTime": "1544657947759", "principal": "1.22121", "repaidSize": "0", "term": 7, "createdAt": "1544657947759" } ] }`
+
 func TestGetOutstandingRecord(t *testing.T) {
 	t.Parallel()
+	var resp *OutstandingRecordResponse
+	err := json.Unmarshal([]byte(outstandingRecordResponseJSON), &resp)
+	if err != nil {
+		t.Error(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetOutstandingRecord(context.Background(), "BTC")
+	_, err = ku.GetOutstandingRecord(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetOutstandingRecord() error", err)
 	}
 }
 
+const repaidRecordJSON = `{"pageSize": 0, "totalNum": 0, "totalPage": 0, "currentPage": 0, "items": [ { "tradeId": "1231141", "currency": "USDT", "dailyIntRate": "0.0021", "interest": "0.22121", "principal": "1.22121", "repaidSize": "0", "repayTime": "1544657947759", "term": 7 } ] }`
+
 func TestGetRepaidRecord(t *testing.T) {
 	t.Parallel()
+	var resp *RepaidRecordsResponse
+	err := json.Unmarshal([]byte(repaidRecordJSON), &resp)
+	if err != nil {
+		t.Error(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetRepaidRecord(context.Background(), "BTC")
+	_, err = ku.GetRepaidRecord(context.Background(), "BTC")
 	if err != nil {
 		t.Error("GetRepaidRecord() error", err)
 	}
@@ -358,14 +378,21 @@ func TestSetAutoLend(t *testing.T) {
 	}
 }
 
+const activeOrderResponseJSON = `[ { "orderId": "5da59f5ef943c033b2b643e4", "currency": "BTC", "size": "0.51", "filledSize": "0", "dailyIntRate": "0.0001", "term": 7, "createdAt": 1571135326913 } ]`
+
 func TestGetActiveOrder(t *testing.T) {
 	t.Parallel()
+	var resp []LendOrder
+	err := json.Unmarshal([]byte(activeOrderResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) != nil {
 		t.Skip(spotAndMarginAssetNotEnabled)
 	}
-	_, err := ku.GetActiveOrder(context.Background(), "")
+	_, err = ku.GetActiveOrder(context.Background(), "")
 	if err != nil {
 		t.Error("GetActiveOrder() error", err)
 	}
@@ -391,36 +418,48 @@ func TestGetLendHistory(t *testing.T) {
 	}
 }
 
+const activeLentOrderResponseJSON = `[ { "tradeId": "5da6dba0f943c0c81f5d5db5", "currency": "BTC", "size": "0.51", "accruedInterest": "0", "repaid": "0.10999968", "dailyIntRate": "0.0001", "term": 14, "maturityTime": 1572425888958 } ]`
+
 func TestGetUnsettleLendOrder(t *testing.T) {
 	t.Parallel()
+	var resp []UnsettleLendOrder
+	err := json.Unmarshal([]byte(activeLentOrderResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
-	_, err := ku.GetUnsettleLendOrder(context.Background(), "")
+	_, err = ku.GetUnsettledLendOrder(context.Background(), "")
 	if err != nil {
-		t.Error("GetUnsettleLendOrder() error", err)
+		t.Error("GetUnsettledLendOrder() error", err)
 	}
 
-	_, err = ku.GetUnsettleLendOrder(context.Background(), "BTC")
+	_, err = ku.GetUnsettledLendOrder(context.Background(), "BTC")
 	if err != nil {
-		t.Error("GetUnsettleLendOrder() error", err)
+		t.Error("GetUnsettledLendOrder() error", err)
 	}
 }
 
+const settledLendOrderResponseJSON = `[{ "tradeId": "5da59fe6f943c033b2b6440b", "currency": "BTC", "size": "0.51", "interest": "0.00004899", "repaid": "0.510041641", "dailyIntRate": "0.0001", "term": 7, "settledAt": 1571216254767, "note": "The account of the borrowers reached a negative balance, and the system has supplemented the loss via the insurance fund. Deposit funds: 0.51." } ]`
+
 func TestGetSettleLendOrder(t *testing.T) {
 	t.Parallel()
+	var resp []SettleLendOrder
+	err := json.Unmarshal([]byte(settledLendOrderResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetSettleLendOrder(context.Background(), "")
+	_, err = ku.GetSettledLendOrder(context.Background(), "")
 	if err != nil {
-		t.Error("GetSettleLendOrder() error", err)
+		t.Error("GetSettledLendOrder() error", err)
 	}
-
-	_, err = ku.GetSettleLendOrder(context.Background(), "BTC")
+	_, err = ku.GetSettledLendOrder(context.Background(), "BTC")
 	if err != nil {
-		t.Error("GetSettleLendOrder() error", err)
+		t.Error("GetSettledLendOrder() error", err)
 	}
 }
 
@@ -687,14 +726,21 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	}
 }
 
+const ordersListResponseJSON = `{"currentPage": 1, "pageSize": 1, "totalNum": 153408, "totalPage": 153408, "items": [ { "id": "5c35c02703aa673ceec2a168", "symbol": "BTC-USDT", "opType": "DEAL", "type": "limit", "side": "buy", "price": "10", "size": "2", "funds": "0", "dealFunds": "0.166", "dealSize": "2", "fee": "0", "feeCurrency": "USDT", "stp": "", "stop": "", "stopTriggered": false, "stopPrice": "0", "timeInForce": "GTC", "postOnly": false, "hidden": false, "iceberg": false, "visibleSize": "0", "cancelAfter": 0, "channel": "IOS", "clientOid": "", "remark": "", "tags": "", "isActive": false, "cancelExist": false, "createdAt": 1547026471000, "tradeType": "TRADE" } ] }`
+
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
+	var resp *OrdersListResponse
+	err := json.Unmarshal([]byte(ordersListResponseJSON), &resp)
+	if err != nil {
+		t.Error(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) != nil && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) != nil {
 		t.Skip(spotAndMarginAssetNotEnabled)
 	}
-	_, err := ku.ListOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
+	_, err = ku.ListOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetOrders() error", err)
 	}
@@ -748,12 +794,19 @@ func TestGetFills(t *testing.T) {
 	}
 }
 
+const limitFillsResponseJSON = `[{ "counterOrderId":"5db7ee769797cf0008e3beea", "createdAt":1572335233000, "fee":"0.946357371456", "feeCurrency":"USDT", "feeRate":"0.001", "forceTaker":true, "funds":"946.357371456", "liquidity":"taker", "orderId":"5db7ee805d53620008dce1ba", "price":"9466.8", "side":"buy", "size":"0.09996592", "stop":"", "symbol":"BTC-USDT", "tradeId":"5db7ee8054c05c0008069e21", "tradeType":"MARGIN_TRADE", "type":"market" }, { "counterOrderId":"5db7ee4b5d53620008dcde8e", "createdAt":1572335207000, "fee":"0.94625", "feeCurrency":"USDT", "feeRate":"0.001", "forceTaker":true, "funds":"946.25", "liquidity":"taker", "orderId":"5db7ee675d53620008dce01e", "price":"9462.5", "side":"sell", "size":"0.1", "stop":"", "symbol":"BTC-USDT", "tradeId":"5db7ee6754c05c0008069e03", "tradeType":"MARGIN_TRADE", "type":"market" }]`
+
 func TestGetRecentFills(t *testing.T) {
 	t.Parallel()
+	var resp []Fill
+	err := json.Unmarshal([]byte(limitFillsResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetRecentFills(context.Background())
+	_, err = ku.GetRecentFills(context.Background())
 	if err != nil {
 		t.Error("GetRecentFills() error", err)
 	}
@@ -792,12 +845,19 @@ func TestCancelAllStopOrder(t *testing.T) {
 	}
 }
 
+const stopOrderResponseJSON = `{"id": "vs8hoo8q2ceshiue003b67c0", "symbol": "KCS-USDT", "userId": "60fe4956c43cbc0006562c2c", "status": "NEW", "type": "limit", "side": "buy", "price": "0.01000000000000000000", "size": "0.01000000000000000000", "funds": null, "stp": null, "timeInForce": "GTC", "cancelAfter": -1, "postOnly": false, "hidden": false, "iceberg": false, "visibleSize": null, "channel": "API", "clientOid": "40e0eb9efe6311eb8e58acde48001122", "remark": null, "tags": null, "orderTime": 1629098781127530345, "domainId": "kucoin", "tradeSource": "USER", "tradeType": "TRADE", "feeCurrency": "USDT", "takerFeeRate": "0.00200000000000000000", "makerFeeRate": "0.00200000000000000000", "createdAt": 1629098781128, "stop": "loss", "stopTriggerTime": null, "stopPrice": "10.00000000000000000000" }`
+
 func TestGetStopOrder(t *testing.T) {
 	t.Parallel()
+	var resp *StopOrder
+	err := json.Unmarshal([]byte(stopOrderResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
+	_, err = ku.GetStopOrder(context.Background(), "5bd6e9286d99522a52e458de")
 	if err != nil {
 		t.Error("GetStopOrder() error", err)
 	}
@@ -860,12 +920,19 @@ func TestGetAccount(t *testing.T) {
 	}
 }
 
+const accountLedgerResponseJSON = `{"currentPage": 1, "pageSize": 50, "totalNum": 2, "totalPage": 1, "items": [ { "id": "611a1e7c6a053300067a88d9", "currency": "USDT", "amount": "10.00059547", "fee": "0", "balance": "0", "accountType": "MAIN", "bizType": "Loans Repaid", "direction": "in", "createdAt": 1629101692950, "context": "{\"borrowerUserId\":\"601ad03e50dc810006d242ea\",\"loanRepayDetailNo\":\"611a1e7cc913d000066cf7ec\"}" }, { "id": "611a18bc6a0533000671e1bf", "currency": "USDT", "amount": "10.00059547", "fee": "0", "balance": "0", "accountType": "MAIN", "bizType": "Loans Repaid", "direction": "in", "createdAt": 1629100220843, "context": "{\"borrowerUserId\":\"5e3f4623dbf52d000800292f\",\"loanRepayDetailNo\":\"611a18bc7255c200063ea545\"}" } ] }`
+
 func TestGetAccountLedgers(t *testing.T) {
 	t.Parallel()
+	var resp *AccountLedgerResponse
+	err := json.Unmarshal([]byte(accountLedgerResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-	_, err := ku.GetAccountLedgers(context.Background(), "", "", "", time.Time{}, time.Time{})
+	_, err = ku.GetAccountLedgers(context.Background(), "", "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetAccountLedgers() error", err)
 	}
@@ -989,25 +1056,37 @@ func TestGetDepositAddressesV1(t *testing.T) {
 	}
 }
 
+const depositResponseJSON = `{"currentPage": 1, "pageSize": 50, "totalNum": 1, "totalPage": 1, "items": [ { "currency": "XRP", "chain": "xrp", "status": "SUCCESS", "address": "rNFugeoj3ZN8Wv6xhuLegUBBPXKCyWLRkB", "memo": "1919537769", "isInner": false, "amount": "20.50000000", "fee": "0.00000000", "walletTxId": "2C24A6D5B3E7D5B6AA6534025B9B107AC910309A98825BF5581E25BEC94AD83B@e8902757998fc352e6c9d8890d18a71c", "createdAt": 1666600519000, "updatedAt": 1666600549000, "remark": "Deposit" } ] }`
+
 func TestGetDepositList(t *testing.T) {
 	t.Parallel()
+	var resp DepositResponse
+	err := json.Unmarshal([]byte(depositResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
-	_, err := ku.GetDepositList(context.Background(), "", "", time.Time{}, time.Time{})
+	_, err = ku.GetDepositList(context.Background(), "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetDepositList() error", err)
 	}
 }
 
+const historicalDepositResponseJSON = `{"currentPage":1, "pageSize":1, "totalNum":9, "totalPage":9, "items":[ { "currency":"BTC", "createAt":1528536998, "amount":"0.03266638", "walletTxId":"55c643bc2c68d6f17266383ac1be9e454038864b929ae7cee0bc408cc5c869e8@12ffGWmMMD1zA1WbFm7Ho3JZ1w6NYXjpFk@234", "isInner":false, "status":"SUCCESS" } ] }`
+
 func TestGetHistoricalDepositList(t *testing.T) {
 	t.Parallel()
+	var resp *HistoricalDepositWithdrawalResponse
+	err := json.Unmarshal([]byte(historicalDepositResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() {
 		t.Skip(credentialsNotSet)
 	}
-
-	_, err := ku.GetHistoricalDepositList(context.Background(), "", "", time.Time{}, time.Time{})
+	_, err = ku.GetHistoricalDepositList(context.Background(), "", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error("GetHistoricalDepositList() error", err)
 	}
@@ -1581,14 +1660,21 @@ func TestCancelFuturesWithdrawal(t *testing.T) {
 	}
 }
 
+const transferFuturesFundsResponseJSON = `{"applyId": "620a0bbefeaa6a000110e833", "bizNo": "620a0bbefeaa6a000110e832", "payAccountType": "CONTRACT", "payTag": "DEFAULT", "remark": "", "recAccountType": "MAIN", "recTag": "DEFAULT", "recRemark": "", "recSystem": "KUCOIN", "status": "PROCESSING", "currency": "USDT", "amount": "0.001", "fee": "0", "sn": 889048787670001, "reason": "", "createdAt": 1644825534000, "updatedAt": 1644825534000 }`
+
 func TestTransferFuturesFundsToMainAccount(t *testing.T) {
 	t.Parallel()
+	var resp *TransferRes
+	err := json.Unmarshal([]byte(transferFuturesFundsResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	} else if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) != nil {
 		t.Skipf(assetNotEnabled, asset.Futures)
 	}
-	_, err := ku.TransferFuturesFundsToMainAccount(context.Background(), 1, "USDT", "MAIN")
+	_, err = ku.TransferFuturesFundsToMainAccount(context.Background(), 1, "USDT", "MAIN")
 	if err != nil {
 		t.Error("TransferFuturesFundsToMainAccount() error", err)
 	}
@@ -1861,9 +1947,6 @@ func TestGetOrderHistory(t *testing.T) {
 			Pairs:     []currency.Pair{spotTradablePair},
 			AssetType: asset.Spot,
 			Side:      order.Sell,
-		}
-		if ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType) == nil {
-			t.Skip(fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, getOrdersRequest.AssetType))
 		}
 		_, err = ku.GetOrderHistory(context.Background(), &getOrdersRequest)
 		if err != nil {
@@ -2311,6 +2394,11 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 			t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
 		}
 	}
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+		if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Margin); !errors.Is(err, asset.ErrNotSupported) {
+			t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
+		}
+	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -2389,8 +2477,8 @@ func TestSubmitOrder(t *testing.T) {
 	orderSubmission.Side = order.Buy
 	orderSubmission.AssetType = asset.Options
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-	if !strings.Contains(err.Error(), "asset type not found") {
-		t.Errorf("Kucoin SubmitOrder() expecting %s, but found %v", "asset type not found", err)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("Kucoin SubmitOrder() expecting %v, but found %v", asset.ErrNotSupported, err)
 	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
@@ -2419,7 +2507,7 @@ func TestSubmitOrder(t *testing.T) {
 		orderSubmission.AssetType = asset.Futures
 		orderSubmission.Pair = futuresTradablePair
 		_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-		if !strings.Contains(err.Error(), "leverage must be greater than 0.01") {
+		if !errors.Is(err, errInvalidLeverage) {
 			t.Errorf("Kucoin SubmitOrder() %v", err)
 		}
 		orderSubmission.Leverage = 0.01
@@ -2519,8 +2607,15 @@ func TestGeneratePayloads(t *testing.T) {
 	}
 }
 
+var subUserResponseJSON = `{"userId":"635002438793b80001dcc8b3", "uid":62356, "subName":"margin01", "status":2, "type":4, "access":"Margin", "createdAt":1666187844000, "remarks":null }`
+
 func TestCreateSubUser(t *testing.T) {
 	t.Parallel()
+	var resp *SubAccount
+	err := json.Unmarshal([]byte(subUserResponseJSON), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
@@ -2553,8 +2648,15 @@ func TestCreateSpotAPIsForSubAccount(t *testing.T) {
 	}
 }
 
+const modifySubAccountSpotAPIs = `{"subName": "AAAAAAAAAA0007", "remark": "remark", "apiKey": "630325e0e750870001829864", "apiSecret": "110f31fc-61c5-4baf-a29f-3f19a62bbf5d", "passphrase": "passphrase", "permission": "General", "ipWhitelist": "", "createdAt": 1661150688000 }`
+
 func TestModifySubAccountSpotAPIs(t *testing.T) {
 	t.Parallel()
+	var resp SpotAPISubAccount
+	err := json.Unmarshal([]byte(modifySubAccountSpotAPIs), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip(cantManipulateRealOrdersOrKeysNotSet)
 	}
@@ -2638,4 +2740,40 @@ func getFirstTradablePairOfAssets() {
 	}
 	futuresTradablePair = enabledPairs[0]
 	futuresTradablePair.Delimiter = ""
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip(credentialsNotSet)
+	}
+	var err error
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
+		_, err = ku.FetchAccountInfo(context.Background(), asset.Spot)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+		_, err = ku.FetchAccountInfo(context.Background(), asset.Margin)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
+		_, err = ku.FetchAccountInfo(context.Background(), asset.Futures)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+const positionSettlementPushDataJSON = `{"userId": "xbc453tg732eba53a88ggyt8c", "topic": "/contract/position:XBTUSDM", "subject": "position.settlement", "data": { "fundingTime": 1551770400000, "qty": 100, "markPrice": 3610.85, "fundingRate": -0.002966, "fundingFee": -296, "ts": 1547697294838004923, "settleCurrency": "XBT" } }`
+
+func TestPushPositionSettlemenPushData(t *testing.T) {
+	t.Parallel()
+	err := ku.wsHandleData([]byte(positionSettlementPushDataJSON))
+	if err != nil {
+		t.Error(err)
+	}
 }
