@@ -409,7 +409,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		return errMissingInstrumentID
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.String() {
+	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 		return fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
 	}
 	if arg.TradeMode != TradeModeCross &&
