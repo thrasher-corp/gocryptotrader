@@ -197,7 +197,7 @@ var errWriteError = errors.New("write error")
 func TestMultiWriterWrite(t *testing.T) {
 	t.Parallel()
 
-	fields := &LogFields{}
+	fields := &Fields{}
 	buff := newTestBuffer()
 
 	var err error
@@ -345,7 +345,7 @@ func TestStageNewLogEvent(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	fields := &LogFields{output: mw}
+	fields := &Fields{output: mw}
 	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", "", "", false, false, false, nil)
 
 	<-w.Finished
@@ -810,7 +810,7 @@ func TestWithFields(t *testing.T) {
 	checkCapture(t, &captured, id, "hello", "info", "TESTSTRUCTUREDLOGGING", "test")
 }
 
-func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage string, expSeverity string, expSubLogger string, expBotName string) {
+func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, expSeverity, expSubLogger, expBotName string) {
 	t.Helper()
 
 	if c.ID != expID {

@@ -29,7 +29,7 @@ func loggerWorker() {
 	var n int
 	var err error
 
-	structuredOutbound := map[Key]interface{}{}
+	structuredOutbound := ExtraFields{}
 	for j := range jobsChannel {
 		if j.Passback != nil {
 			j.Passback <- struct{}{}

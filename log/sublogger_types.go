@@ -42,9 +42,9 @@ type SubLogger struct {
 	structuredLogging bool
 }
 
-// logFields is used to store data in a non-global and thread-safe manner
+// Fields is used to store data in a non-global and thread-safe manner
 // so logs cannot be modified mid-log causing a data-race issue
-type LogFields struct {
+type Fields struct {
 	info              bool
 	warn              bool
 	debug             bool
@@ -54,5 +54,5 @@ type LogFields struct {
 	output            *multiWriterHolder
 	logger            Logger
 	botName           string
-	structuredFields  map[Key]interface{}
+	structuredFields  ExtraFields
 }

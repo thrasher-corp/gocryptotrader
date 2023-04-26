@@ -31,7 +31,7 @@ var (
 
 	// Note: Logger state within logFields will be persistent until it's garbage
 	// collected. This is a little bit more efficient.
-	logFieldsPool = &sync.Pool{New: func() interface{} { return &LogFields{logger: logger} }}
+	logFieldsPool = &sync.Pool{New: func() interface{} { return &Fields{logger: logger} }}
 
 	// LogPath system path to store log files in
 	logPath string
@@ -113,6 +113,10 @@ type Levels struct {
 type multiWriterHolder struct {
 	writers []io.Writer
 }
+
+// ExtraFields is a map of key value pairs that can be added to a structured
+// log output.
+type ExtraFields map[Key]interface{}
 
 // Key is used for structured logging fields to ensure no collisions occur.
 // Unexported keys are default fields which cannot be overwritten.

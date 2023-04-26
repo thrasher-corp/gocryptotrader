@@ -76,7 +76,7 @@ func displayError(err error) {
 }
 
 // enabled checks if the log level is enabled
-func (l *LogFields) enabled(header string) string {
+func (l *Fields) enabled(header string) string {
 	switch header {
 	case l.logger.InfoHeader:
 		if l.info {
@@ -99,7 +99,7 @@ func (l *LogFields) enabled(header string) string {
 }
 
 // stage stages a log event
-func (l *LogFields) stage(header string, deferFunc deferral) {
+func (l *Fields) stage(header string, deferFunc deferral) {
 	if l == nil {
 		return
 	}
@@ -120,19 +120,19 @@ func (l *LogFields) stage(header string, deferFunc deferral) {
 }
 
 // stageln stages a log event
-func (l *LogFields) stageln(header string, a ...interface{}) {
+func (l *Fields) stageln(header string, a ...interface{}) {
 	l.stage(header, func() string { return fmt.Sprint(a...) })
 }
 
 // stagef stages a log event
-func (l *LogFields) stagef(header, format string, a ...interface{}) {
+func (l *Fields) stagef(header, format string, a ...interface{}) {
 	l.stage(header, func() string { return fmt.Sprintf(format, a...) })
 }
 
 // WithFields allows the user to add custom fields to a structured log output
 // NOTE: If structured logging is disabled, this function will do not add
 // new fields to the log output.
-func WithFields(sl *SubLogger, structuredFields map[Key]interface{}) *LogFields {
+func WithFields(sl *SubLogger, structuredFields ExtraFields) *Fields {
 	mu.RLock()
 	defer mu.RUnlock()
 	fields := sl.getFields()
@@ -145,7 +145,7 @@ func WithFields(sl *SubLogger, structuredFields map[Key]interface{}) *LogFields 
 
 // Errorln formats using the default formats for its operands and writes to
 // standard output as an error message. A new line is automatically applied.
-func (l *LogFields) Errorln(a ...interface{}) {
+func (l *Fields) Errorln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stageln(l.logger.ErrorHeader, a...)
@@ -153,7 +153,7 @@ func (l *LogFields) Errorln(a ...interface{}) {
 
 // Errorf formats according to a format specifier and writes to standard output
 // as an error message. A new line is automatically applied.
-func (l *LogFields) Errorf(format string, a ...interface{}) {
+func (l *Fields) Errorf(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stagef(l.logger.ErrorHeader, format, a...)
@@ -161,7 +161,7 @@ func (l *LogFields) Errorf(format string, a ...interface{}) {
 
 // Warnln formats using the default formats for its operands and writes to
 // standard output as a warning message. A new line is automatically applied.
-func (l *LogFields) Warnln(a ...interface{}) {
+func (l *Fields) Warnln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stageln(l.logger.WarnHeader, a...)
@@ -169,7 +169,7 @@ func (l *LogFields) Warnln(a ...interface{}) {
 
 // Warnf formats according to a format specifier and writes to standard output
 // as a warning message. A new line is automatically applied.
-func (l *LogFields) Warnf(format string, a ...interface{}) {
+func (l *Fields) Warnf(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stagef(l.logger.WarnHeader, format, a...)
@@ -177,7 +177,7 @@ func (l *LogFields) Warnf(format string, a ...interface{}) {
 
 // Infoln formats using the default formats for its operands and writes to
 // standard output as an informational message. A new line is automatically applied.
-func (l *LogFields) Infoln(a ...interface{}) {
+func (l *Fields) Infoln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stageln(l.logger.InfoHeader, a...)
@@ -185,7 +185,7 @@ func (l *LogFields) Infoln(a ...interface{}) {
 
 // Infof formats according to a format specifier and writes to standard output
 // as an informational message. A new line is automatically applied.
-func (l *LogFields) Infof(format string, a ...interface{}) {
+func (l *Fields) Infof(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stagef(l.logger.InfoHeader, format, a...)
@@ -193,7 +193,7 @@ func (l *LogFields) Infof(format string, a ...interface{}) {
 
 // Debugln formats using the default formats for its operands and writes to
 // standard output as a debug message. A new line is automatically applied.
-func (l *LogFields) Debugln(a ...interface{}) {
+func (l *Fields) Debugln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stageln(l.logger.DebugHeader, a...)
@@ -201,7 +201,7 @@ func (l *LogFields) Debugln(a ...interface{}) {
 
 // Debugf formats according to a format specifier and writes to standard output
 // as a debug message. A new line is automatically applied.
-func (l *LogFields) Debugf(format string, a ...interface{}) {
+func (l *Fields) Debugf(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	l.stagef(l.logger.DebugHeader, format, a...)
