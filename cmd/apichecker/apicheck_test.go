@@ -24,7 +24,7 @@ var (
 
 func TestMain(m *testing.M) {
 	setTestVars()
-	err := log.SetGlobalLogConfig(log.GenDefaultSettings(), "cmd/apicheck")
+	err := log.SetGlobalLogConfig(log.GenDefaultSettings())
 	if err != nil {
 		log.Errorln(log.Global, err)
 		os.Exit(1)

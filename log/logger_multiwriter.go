@@ -10,9 +10,14 @@ import (
 )
 
 var (
-	errWriterAlreadyLoaded = errors.New("io.Writer already loaded")
-	errJobsChannelIsFull   = errors.New("logger jobs channel is filled")
-	errWriterIsNil         = errors.New("io writer is nil")
+	errWriterAlreadyLoaded     = errors.New("io.Writer already loaded")
+	errJobsChannelIsFull       = errors.New("logger jobs channel is filled")
+	errWriterIsNil             = errors.New("io writer is nil")
+	message                Key = "message"
+	timestamp              Key = "timestamp"
+	severity               Key = "severity"
+	subLoggerName          Key = "sublogger"
+	botName                Key = "botname"
 )
 
 // loggerWorker handles all work staged to be written to configured io.Writer(s)
@@ -23,23 +28,29 @@ func loggerWorker() {
 	buffer := make([]byte, 0, defaultBufferCapacity)
 	var n int
 	var err error
+
+	structuredOutbound := map[Key]interface{}{}
 	for j := range jobsChannel {
 		if j.Passback != nil {
 			j.Passback <- struct{}{}
 			continue
 		}
-		data := j.fn()
+		msg := j.fn()
 		if j.StructuredLogging {
-			mapper := make(map[string]interface{})
-			mapper["timestamp"] = time.Now().Format(j.TimestampFormat)
-			mapper["instance"] = j.Instance
-			mapper["logsystem"] = j.SlName
-			mapper["data"] = data
-			mapper["level"] = j.Level
+			structuredOutbound[message] = msg
+			structuredOutbound[timestamp] = time.Now().UnixMilli()
+			structuredOutbound[severity] = j.Severity
+			structuredOutbound[subLoggerName] = j.SubLoggerName
+			structuredOutbound[botName] = j.Instance
 			for k, v := range j.StructuredFields {
-				mapper[k] = v
+				_, ok := structuredOutbound[k]
+				if ok {
+					// Disallow overwriting of key values
+					continue
+				}
+				structuredOutbound[k] = v
 			}
-			buffer, err = json.Marshal(mapper)
+			buffer, err = json.Marshal(structuredOutbound)
 			if err != nil {
 				log.Println("log: failed to marshal structured log data:", err)
 			}
@@ -48,20 +59,22 @@ func loggerWorker() {
 			buffer = append(buffer, j.Header...)
 			if j.ShowLogSystemName {
 				buffer = append(buffer, j.Spacer...)
-				buffer = append(buffer, j.SlName...)
+				buffer = append(buffer, []byte(j.SubLoggerName)...)
 			}
 			buffer = append(buffer, j.Spacer...)
 			if j.TimestampFormat != "" {
 				buffer = time.Now().AppendFormat(buffer, j.TimestampFormat)
 			}
 			buffer = append(buffer, j.Spacer...)
-			buffer = append(buffer, data...)
-			if data == "" || data[len(data)-1] != '\n' {
+			buffer = append(buffer, msg...)
+			if msg == "" || msg[len(msg)-1] != '\n' {
 				buffer = append(buffer, '\n')
 			}
 		}
 
 		for x := range j.Writers {
+			// NOTE: byte slice is not copied, this is a pointer to the buffer.
+			// This is only safe if the buffer is not modified after this point.
 			n, err = j.Writers[x].Write(buffer)
 			if err != nil {
 				displayError(fmt.Errorf("%T %w", j.Writers[x], err))
@@ -70,6 +83,10 @@ func loggerWorker() {
 			}
 		}
 		buffer = buffer[:0] // Clean buffer
+		for k := range j.StructuredFields {
+			// Delete non-persistent structured fields
+			delete(structuredOutbound, k)
+		}
 		jobsPool.Put(j)
 	}
 }
@@ -81,19 +98,19 @@ type deferral func() string
 // StageLogEvent stages a new logger event in a jobs channel to be processed by
 // a worker pool. This segregates the need to process the log string and the
 // writes to the required io.Writer.
-func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat, instance, level string, showLogSystemName, bypassWarning, structuredLog bool, fields map[string]interface{}) {
+func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat, instance, level string, showLogSystemName, bypassWarning, structuredLog bool, fields map[Key]interface{}) {
 	newJob := jobsPool.Get().(*job) //nolint:forcetypeassert // Not necessary from a pool
 	newJob.Writers = mw.writers
 	newJob.fn = fn
 	newJob.Header = header
-	newJob.SlName = slName
+	newJob.SubLoggerName = slName
 	newJob.ShowLogSystemName = showLogSystemName
 	newJob.Spacer = spacer
 	newJob.TimestampFormat = timestampFormat
 	newJob.Instance = instance
 	newJob.StructuredFields = fields
 	newJob.StructuredLogging = structuredLog
-	newJob.Level = level
+	newJob.Severity = level
 
 	select {
 	case jobsChannel <- newJob:

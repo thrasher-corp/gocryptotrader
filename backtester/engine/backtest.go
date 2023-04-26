@@ -188,7 +188,7 @@ func (bt *BackTest) Run() error {
 			}
 			if doubleNil {
 				if bt.verbose {
-					log.Info(common.Backtester, "No new data on second check")
+					log.Infoln(common.Backtester, "No new data on second check")
 				}
 				return nil
 			}
@@ -283,7 +283,7 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 			if err != nil {
 				return err
 			}
-			log.Info(common.LiveStrategy, result)
+			log.Infoln(common.LiveStrategy, result)
 		}
 	default:
 		err = fmt.Errorf("handleEvent %w %T received, could not process",

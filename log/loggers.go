@@ -1,41 +1,24 @@
 package log
 
 import (
-	"context"
 	"fmt"
 	"log"
 )
 
-// Info takes a pointer subLogger struct and string sends to StageLogEvent
-func Info(sl *SubLogger, data string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stage(fields.logger.InfoHeader, data)
-}
-
 // Infoln takes a pointer subLogger struct and interface sends to StageLogEvent
-func Infoln(sl *SubLogger, v ...interface{}) {
+func Infoln(sl *SubLogger, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	fields := sl.getFields()
-	fields.stageln(fields.logger.InfoHeader, v...)
+	fields.stageln(fields.logger.InfoHeader, a...)
 }
 
 // Infof takes a pointer subLogger struct, string and interface formats sends to StageLogEvent
-func Infof(sl *SubLogger, data string, v ...interface{}) {
+func Infof(sl *SubLogger, format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
 	fields := sl.getFields()
-	sl.getFields().stagef(fields.logger.InfoHeader, data, v...)
-}
-
-// Debug takes a pointer subLogger struct and string sends to StageLogEvent
-func Debug(sl *SubLogger, data string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stage(fields.logger.DebugHeader, data)
+	sl.getFields().stagef(fields.logger.InfoHeader, format, a...)
 }
 
 // Debugln takes a pointer subLogger struct, string and interface sends to StageLogEvent
@@ -54,14 +37,6 @@ func Debugf(sl *SubLogger, data string, v ...interface{}) {
 	sl.getFields().stagef(fields.logger.DebugHeader, data, v...)
 }
 
-// Warn takes a pointer subLogger struct & string and sends to StageLogEvent
-func Warn(sl *SubLogger, data string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stage(fields.logger.WarnHeader, data)
-}
-
 // Warnln takes a pointer subLogger struct & interface formats and sends to StageLogEvent
 func Warnln(sl *SubLogger, v ...interface{}) {
 	mu.RLock()
@@ -76,14 +51,6 @@ func Warnf(sl *SubLogger, data string, v ...interface{}) {
 	defer mu.RUnlock()
 	fields := sl.getFields()
 	sl.getFields().stagef(fields.logger.WarnHeader, data, v...)
-}
-
-// Error takes a pointer subLogger struct & interface formats and sends to StageLogEvent
-func Error(sl *SubLogger, data string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stage(fields.logger.ErrorHeader, data)
 }
 
 // Errorln takes a pointer subLogger struct, string & interface formats and sends to StageLogEvent
@@ -132,70 +99,40 @@ func (l *logFields) enabled(header string) string {
 }
 
 // stage stages a log event
-func (l *logFields) stage(header string, data string) {
+func (l *logFields) stage(header string, deferFunc deferral) {
 	if l == nil {
 		return
 	}
 	if level := l.enabled(header); level != "" {
-		l.output.StageLogEvent(func() string { return data },
+		l.output.StageLogEvent(deferFunc,
 			header,
 			l.name,
 			l.logger.Spacer,
 			l.logger.TimestampFormat,
-			l.instance,
+			l.botName,
 			level,
 			l.logger.ShowLogSystemName,
 			l.logger.BypassJobChannelFilledWarning,
-			l.logger.StructuredLogging,
+			l.structuredLogging,
 			l.structuredFields)
 	}
 	logFieldsPool.Put(l)
 }
 
 // stageln stages a log event
-func (l *logFields) stageln(header string, data ...interface{}) {
-	if l == nil {
-		return
-	}
-	if level := l.enabled(header); level != "" {
-		l.output.StageLogEvent(func() string { return fmt.Sprint(data...) },
-			header,
-			l.name,
-			l.logger.Spacer,
-			l.logger.TimestampFormat,
-			l.instance,
-			level,
-			l.logger.ShowLogSystemName,
-			l.logger.BypassJobChannelFilledWarning,
-			l.logger.StructuredLogging,
-			l.structuredFields)
-	}
-	logFieldsPool.Put(l)
+func (l *logFields) stageln(header string, a ...interface{}) {
+	l.stage(header, func() string { return fmt.Sprint(a...) })
 }
 
 // stagef stages a log event
-func (l *logFields) stagef(header string, data string, v ...interface{}) {
-	if l == nil {
-		return
-	}
-	if level := l.enabled(header); level != "" {
-		l.output.StageLogEvent(func() string { return fmt.Sprintf(data, v...) },
-			header,
-			l.name,
-			l.logger.Spacer,
-			l.logger.TimestampFormat,
-			l.instance,
-			level,
-			l.logger.ShowLogSystemName,
-			l.logger.BypassJobChannelFilledWarning,
-			l.logger.StructuredLogging,
-			l.structuredFields)
-	}
-	logFieldsPool.Put(l)
+func (l *logFields) stagef(header string, format string, a ...interface{}) {
+	l.stage(header, func() string { return fmt.Sprintf(format, a...) })
 }
 
-// WithFields allows the user to add fields to a structured log output
-func WithFields(sl *SubLogger, structuredFields map[string]interface{}) *logFields {
+// WithFields allows the user to add custom fields to a structured log output
+// NOTE: If structured logging is disabled, this function will do not add
+// new fields to the log output.
+func WithFields(sl *SubLogger, structuredFields map[Key]interface{}) *logFields {
 	mu.RLock()
 	defer mu.RUnlock()
 	fields := sl.getFields()
@@ -206,85 +143,66 @@ func WithFields(sl *SubLogger, structuredFields map[string]interface{}) *logFiel
 	return fields
 }
 
-func (l *logFields) Error(data string) {
+// Errorln formats using the default formats for its operands and writes to
+// standard output as an error message. A new line is automatically applied.
+func (l *logFields) Errorln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stage(l.logger.ErrorHeader, data)
+	l.stageln(l.logger.ErrorHeader, a...)
 }
 
-func (l *logFields) Errorln(data ...interface{}) {
+// Errorf formats according to a format specifier and writes to standard output
+// as an error message. A new line is automatically applied.
+func (l *logFields) Errorf(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stageln(l.logger.ErrorHeader, data...)
+	l.stagef(l.logger.ErrorHeader, format, a...)
 }
 
-func (l *logFields) Errorf(data string, v ...interface{}) {
+// Warnln formats using the default formats for its operands and writes to
+// standard output as a warning message. A new line is automatically applied.
+func (l *logFields) Warnln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stagef(l.logger.ErrorHeader, data, v...)
+	l.stageln(l.logger.WarnHeader, a...)
 }
 
-func (l *logFields) Warn(data string) {
+// Warnf formats according to a format specifier and writes to standard output
+// as a warning message. A new line is automatically applied.
+func (l *logFields) Warnf(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stage(l.logger.WarnHeader, data)
+	l.stagef(l.logger.WarnHeader, format, a...)
 }
 
-func (l *logFields) Warnln(data ...interface{}) {
+// Infoln formats using the default formats for its operands and writes to
+// standard output as an informational message. A new line is automatically applied.
+func (l *logFields) Infoln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stageln(l.logger.WarnHeader, data...)
+	l.stageln(l.logger.InfoHeader, a...)
 }
 
-func (l *logFields) Warnf(data string, v ...interface{}) {
+// Infof formats according to a format specifier and writes to standard output
+// as an informational message. A new line is automatically applied.
+func (l *logFields) Infof(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stagef(l.logger.WarnHeader, data, v...)
+	l.stagef(l.logger.InfoHeader, format, a...)
 }
 
-func (l *logFields) Info(data string) {
+// Debugln formats using the default formats for its operands and writes to
+// standard output as a debug message. A new line is automatically applied.
+func (l *logFields) Debugln(a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stage(l.logger.InfoHeader, data)
+	l.stageln(l.logger.DebugHeader, a...)
 }
 
-func (l *logFields) Infoln(data ...interface{}) {
+// Debugf formats according to a format specifier and writes to standard output
+// as a debug message. A new line is automatically applied.
+func (l *logFields) Debugf(format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	l.stageln(l.logger.InfoHeader, data...)
+	l.stagef(l.logger.DebugHeader, format, a...)
 }
-
-func (l *logFields) Infof(data string, v ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
-	l.stagef(l.logger.InfoHeader, data, v...)
-}
-
-func (l *logFields) Debug(data string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	l.stage(l.logger.DebugHeader, data)
-}
-
-func (l *logFields) Debugln(data ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
-	l.stageln(l.logger.DebugHeader, data...)
-}
-
-func (l *logFields) Debugf(data string, v ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
-	l.stagef(l.logger.DebugHeader, data, v...)
-}
-
-// WithContext allows the user to add a context to a structured log output
-func WithContext(ctx context.Context, sl *SubLogger) context.Context {
-	return context.WithValue(ctx, ContextValue, sl)
-}
-
-// ContextValue is the key for the context value
-var ContextValue = contextKey("logger")
-
-// contextKey is a custom type for the context key
-type contextKey string

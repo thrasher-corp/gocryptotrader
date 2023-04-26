@@ -114,7 +114,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 func (p *Processor) Run(wg *sync.WaitGroup) {
 	wg.Done()
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
-		log.Error(log.Trade, "trade processor already started")
+		log.Errorln(log.Trade, "trade processor already started")
 		return
 	}
 	defer func() {

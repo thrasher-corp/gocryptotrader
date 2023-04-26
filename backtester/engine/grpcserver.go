@@ -133,7 +133,7 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 		}
 	}()
 
-	log.Debug(log.GRPCSys, "GRPC proxy server started!")
+	log.Debugln(log.GRPCSys, "GRPC proxy server started!")
 	return nil
 }
 

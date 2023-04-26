@@ -132,13 +132,13 @@ func main() {
 	defaultLogSettings.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
 	defaultLogSettings.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default
 	defaultLogSettings.AdvancedSettings.Headers.Error = common.CMDColours.Error + "[ERROR]" + common.CMDColours.Default
-	err = log.SetGlobalLogConfig(defaultLogSettings, "gct/backtester")
+	err = log.SetGlobalLogConfig(defaultLogSettings)
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = log.SetupGlobalLogger()
+	err = log.SetupGlobalLogger("gct/backtester")
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v\n", err)
 		os.Exit(1)
@@ -218,7 +218,7 @@ func main() {
 	runManager := backtest.NewTaskManager()
 
 	go func(c *config.BacktesterConfig) {
-		log.Info(log.GRPCSys, "Starting RPC server")
+		log.Infoln(log.GRPCSys, "Starting RPC server")
 		var s *backtest.GRPCServer
 		s, err = backtest.SetupRPCServer(c, runManager)
 		err = backtest.StartRPCServer(s)
@@ -226,7 +226,7 @@ func main() {
 			fmt.Printf("Could not start RPC server. Error: %v\n", err)
 			os.Exit(1)
 		}
-		log.Info(log.GRPCSys, "Ready to receive commands")
+		log.Infoln(log.GRPCSys, "Ready to receive commands")
 	}(btCfg)
 	interrupt := signaler.WaitForInterrupt()
 	log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)

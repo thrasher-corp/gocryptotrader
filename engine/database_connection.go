@@ -186,7 +186,7 @@ func (m *DatabaseConnectionManager) checkConnection() error {
 	}
 
 	if !m.dbConn.IsConnected() {
-		log.Info(log.DatabaseMgr, "Database connection reestablished")
+		log.Infoln(log.DatabaseMgr, "Database connection reestablished")
 		m.dbConn.SetConnected(true)
 	}
 	return nil

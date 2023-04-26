@@ -142,7 +142,7 @@ func (c *Config) CheckClientBankAccounts() {
 			err := c.BankAccounts[i].Validate()
 			if err != nil {
 				c.BankAccounts[i].Enabled = false
-				log.Warn(log.ConfigMgr, err.Error())
+				log.Warnln(log.ConfigMgr, err.Error())
 			}
 		}
 	}
@@ -1047,7 +1047,7 @@ func (c *Config) CheckBankAccountConfig() {
 			err := c.BankAccounts[x].Validate()
 			if err != nil {
 				c.BankAccounts[x].Enabled = false
-				log.Warn(log.ConfigMgr, err.Error())
+				log.Warnln(log.ConfigMgr, err.Error())
 			}
 		}
 	}

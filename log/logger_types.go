@@ -44,14 +44,14 @@ type job struct {
 	Writers           []io.Writer
 	fn                deferral
 	Header            string
-	SlName            string
+	SubLoggerName     string
 	Spacer            string
 	TimestampFormat   string
 	ShowLogSystemName bool
 	Instance          string
-	StructuredFields  map[string]interface{}
+	StructuredFields  map[Key]interface{}
 	StructuredLogging bool
-	Level             string
+	Severity          string
 	Passback          chan<- struct{}
 }
 
@@ -95,14 +95,14 @@ type loggerFileConfig struct {
 
 // Logger each instance of logger settings
 type Logger struct {
-	ShowLogSystemName                                bool
-	BypassJobChannelFilledWarning                    bool
-	StructuredLogging                                bool
+	ShowLogSystemName             bool
+	BypassJobChannelFilledWarning bool
+	// StructuredLogging                                bool
 	TimestampFormat                                  string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string
 	Level                                            string
-	Instance                                         string
+	botName                                          string
 }
 
 // Levels flags for each sub logger type
@@ -113,3 +113,7 @@ type Levels struct {
 type multiWriterHolder struct {
 	writers []io.Writer
 }
+
+// Key is used for structured logging fields to ensure no collisions occur.
+// Unexported keys are default fields which cannot be overwritten.
+type Key string

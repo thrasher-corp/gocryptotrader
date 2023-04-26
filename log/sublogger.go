@@ -10,8 +10,6 @@ var errMultiWriterHolderIsNil = errors.New("multiwriter holder is nil")
 
 // NewSubLogger allows for a new sub logger to be registered.
 func NewSubLogger(name string) (*SubLogger, error) {
-
-	fmt.Println("REGISTERED NEW SUBLOGGER", name)
 	if name == "" {
 		return nil, errEmptyLoggerName
 	}
@@ -44,7 +42,6 @@ func (sl *SubLogger) getFields() *logFields {
 	if sl == nil || globalLogConfig == nil || globalLogConfig.Enabled == nil || !*globalLogConfig.Enabled {
 		return nil
 	}
-
 	fields := logFieldsPool.Get().(*logFields) //nolint:forcetypeassert // Not necessary from a pool
 	fields.info = sl.levels.Info
 	fields.warn = sl.levels.Warn
@@ -52,9 +49,7 @@ func (sl *SubLogger) getFields() *logFields {
 	fields.error = sl.levels.Error
 	fields.name = sl.name
 	fields.output = sl.output
-	fields.instance = sl.instance
-
-	// fmt.Println(sl.name, sl.instance)
-
+	fields.botName = sl.botName
+	fields.structuredLogging = sl.structuredLogging
 	return fields
 }

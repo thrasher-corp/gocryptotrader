@@ -13,7 +13,7 @@ var (
 	ErrSubLoggerAlreadyRegistered = errors.New("sub logger already registered")
 )
 
-func newLogger(c *Config, instance string) Logger {
+func newLogger(c *Config, botName string) Logger {
 	return Logger{
 		TimestampFormat:               c.AdvancedSettings.TimeStampFormat,
 		Spacer:                        c.AdvancedSettings.Spacer,
@@ -23,8 +23,7 @@ func newLogger(c *Config, instance string) Logger {
 		DebugHeader:                   c.AdvancedSettings.Headers.Debug,
 		ShowLogSystemName:             c.AdvancedSettings.ShowLogSystemName != nil && *c.AdvancedSettings.ShowLogSystemName,
 		BypassJobChannelFilledWarning: c.AdvancedSettings.BypassJobChannelFilledWarning,
-		StructuredLogging:             c.StructuredLogging,
-		Instance:                      instance,
+		botName:                       botName,
 	}
 }
 

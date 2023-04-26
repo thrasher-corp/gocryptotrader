@@ -919,10 +919,10 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
 		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type, upsertResponse.OrderDetails.Status)
 	if upsertResponse.IsNewOrder {
-		log.Info(log.OrderMgr, msg)
+		log.Infoln(log.OrderMgr, msg)
 		return upsertResponse, nil
 	}
-	log.Debug(log.OrderMgr, msg)
+	log.Debugln(log.OrderMgr, msg)
 	return upsertResponse, nil
 }
 
