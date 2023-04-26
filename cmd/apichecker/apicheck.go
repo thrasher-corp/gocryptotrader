@@ -104,7 +104,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = log.SetupGlobalLogger("cmd/apicheck")
+	err = log.SetupGlobalLogger("cmd/apicheck", false)
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)

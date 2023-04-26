@@ -125,7 +125,7 @@ func (l *logFields) stageln(header string, a ...interface{}) {
 }
 
 // stagef stages a log event
-func (l *logFields) stagef(header string, format string, a ...interface{}) {
+func (l *logFields) stagef(header, format string, a ...interface{}) {
 	l.stage(header, func() string { return fmt.Sprintf(format, a...) })
 }
 

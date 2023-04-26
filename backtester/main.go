@@ -138,7 +138,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = log.SetupGlobalLogger("gct/backtester")
+	err = log.SetupGlobalLogger("gct/backtester", false)
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v\n", err)
 		os.Exit(1)
