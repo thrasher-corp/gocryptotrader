@@ -751,7 +751,7 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err, string(bro))
 	}
-	checkCapture(t, &captured, id, "hello", "error", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "hello", "error")
 
 	WithFields(sl, map[Key]interface{}{"id": id}).Errorf("%v", "good")
 	<-writer.Finished
@@ -759,7 +759,7 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "good", "error", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "good", "error")
 
 	WithFields(sl, map[Key]interface{}{"id": id}).Debugln("sir")
 	<-writer.Finished
@@ -767,7 +767,7 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "sir", "debug", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "sir", "debug")
 
 	WithFields(sl, map[Key]interface{}{"id": id}).Debugf("%v", "how")
 	<-writer.Finished
@@ -775,7 +775,7 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "how", "debug", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "how", "debug")
 
 	WithFields(sl, map[Key]interface{}{"id": id}).Warnln("are")
 	<-writer.Finished
@@ -783,7 +783,7 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "are", "warn", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "are", "warn")
 
 	WithFields(sl, map[Key]interface{}{"id": id}).Warnf("%v", "you")
 	<-writer.Finished
@@ -791,7 +791,7 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "you", "warn", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "you", "warn")
 
 	WithFields(sl, map[Key]interface{}{"id": id}).Infoln("today")
 	<-writer.Finished
@@ -799,7 +799,7 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "today", "info", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "today", "info")
 
 	WithFields(sl, map[Key]interface{}{"id": id}).Infof("%v", "?")
 	<-writer.Finished
@@ -807,10 +807,10 @@ func TestWithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "?", "info", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "?", "info")
 }
 
-func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, expSeverity, expSubLogger, expBotName string) {
+func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, expSeverity string) {
 	t.Helper()
 
 	if c.ID != expID {
@@ -825,11 +825,11 @@ func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, exp
 		t.Errorf("received: '%v' but expected: '%v'", c.Severity, expSeverity)
 	}
 
-	if c.SubLogger != expSubLogger {
-		t.Errorf("received: '%v' but expected: '%v'", c.SubLogger, expSubLogger)
+	if c.SubLogger != "TESTSTRUCTUREDLOGGING" {
+		t.Errorf("received: '%v' but expected: '%v'", c.SubLogger, "TESTSTRUCTUREDLOGGING")
 	}
 
-	if c.BotName != expBotName {
-		t.Errorf("received: '%v' but expected: '%v'", c.BotName, expBotName)
+	if c.BotName != "test" {
+		t.Errorf("received: '%v' but expected: '%v'", c.BotName, "test")
 	}
 }
