@@ -38,11 +38,11 @@ func (sl *SubLogger) setLevels(newLevels Levels) {
 
 // getFields returns sub logger specific fields for the potential log job.
 // Note: Calling function must have mutex lock in place.
-func (sl *SubLogger) getFields() *logFields {
+func (sl *SubLogger) getFields() *LogFields {
 	if sl == nil || globalLogConfig == nil || globalLogConfig.Enabled == nil || !*globalLogConfig.Enabled {
 		return nil
 	}
-	fields := logFieldsPool.Get().(*logFields) //nolint:forcetypeassert // Not necessary from a pool
+	fields := logFieldsPool.Get().(*LogFields) //nolint:forcetypeassert // Not necessary from a pool
 	fields.info = sl.levels.Info
 	fields.warn = sl.levels.Warn
 	fields.debug = sl.levels.Debug

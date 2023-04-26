@@ -197,7 +197,7 @@ var errWriteError = errors.New("write error")
 func TestMultiWriterWrite(t *testing.T) {
 	t.Parallel()
 
-	fields := &logFields{}
+	fields := &LogFields{}
 	buff := newTestBuffer()
 
 	var err error
@@ -345,7 +345,7 @@ func TestStageNewLogEvent(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	fields := &logFields{output: mw}
+	fields := &LogFields{output: mw}
 	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", "", "", false, false, false, nil)
 
 	<-w.Finished

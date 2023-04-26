@@ -44,7 +44,7 @@ type SubLogger struct {
 
 // logFields is used to store data in a non-global and thread-safe manner
 // so logs cannot be modified mid-log causing a data-race issue
-type logFields struct {
+type LogFields struct {
 	info              bool
 	warn              bool
 	debug             bool

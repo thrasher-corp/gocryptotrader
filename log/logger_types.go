@@ -31,7 +31,7 @@ var (
 
 	// Note: Logger state within logFields will be persistent until it's garbage
 	// collected. This is a little bit more efficient.
-	logFieldsPool = &sync.Pool{New: func() interface{} { return &logFields{logger: logger} }}
+	logFieldsPool = &sync.Pool{New: func() interface{} { return &LogFields{logger: logger} }}
 
 	// LogPath system path to store log files in
 	logPath string
