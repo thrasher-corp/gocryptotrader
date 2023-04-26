@@ -753,61 +753,61 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "hello", "error", "TESTSTRUCTUREDLOGGING", "test")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Errorf("%v", "hello")
+	WithFields(sl, map[Key]interface{}{"id": id}).Errorf("%v", "good")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "hello", "error", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "good", "error", "TESTSTRUCTUREDLOGGING", "test")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Debugln("hello")
+	WithFields(sl, map[Key]interface{}{"id": id}).Debugln("sir")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "hello", "debug", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "sir", "debug", "TESTSTRUCTUREDLOGGING", "test")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Debugf("%v", "hello")
+	WithFields(sl, map[Key]interface{}{"id": id}).Debugf("%v", "how")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "hello", "debug", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "how", "debug", "TESTSTRUCTUREDLOGGING", "test")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Warnln("hello")
+	WithFields(sl, map[Key]interface{}{"id": id}).Warnln("are")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "hello", "warn", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "are", "warn", "TESTSTRUCTUREDLOGGING", "test")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Warnf("%v", "hello")
+	WithFields(sl, map[Key]interface{}{"id": id}).Warnf("%v", "you")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "hello", "warn", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "you", "warn", "TESTSTRUCTUREDLOGGING", "test")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Infoln("hello")
+	WithFields(sl, map[Key]interface{}{"id": id}).Infoln("today")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "hello", "info", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "today", "info", "TESTSTRUCTUREDLOGGING", "test")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Infof("%v", "hello")
+	WithFields(sl, map[Key]interface{}{"id": id}).Infof("%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkCapture(t, &captured, id, "hello", "info", "TESTSTRUCTUREDLOGGING", "test")
+	checkCapture(t, &captured, id, "?", "info", "TESTSTRUCTUREDLOGGING", "test")
 }
 
 func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, expSeverity, expSubLogger, expBotName string) {
