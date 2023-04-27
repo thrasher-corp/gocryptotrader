@@ -496,12 +496,12 @@ func (b *BTCMarkets) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTCMarkets) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (b *BTCMarkets) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := b.ListWithdrawals(ctx, -1, -1, -1)
 	if err != nil {
 		return nil, err

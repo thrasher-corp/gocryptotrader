@@ -462,7 +462,7 @@ func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTSE) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (b *BTSE) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -484,7 +484,7 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) error {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (b *BTSE) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -605,7 +605,7 @@ func (b *BTSE) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *BTSE) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (b *BTSE) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1021,7 +1021,7 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	candles, err := b.GetOHLCV(ctx,
 		req.RequestFormatted.String(),
 		req.Start,
-		req.End.Add(-req.ExchangeInterval.Duration()), // End time is inclusive so we need to subtract the interval.
+		req.End.Add(-req.ExchangeInterval.Duration()), // End time is inclusive, so we need to subtract the interval.
 		intervalInt,
 		a)
 	if err != nil {

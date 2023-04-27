@@ -800,7 +800,7 @@ func (by *Bybit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (by *Bybit) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (by *Bybit) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1631,7 +1631,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 		}
 
 		for i := range resp {
-			// here, we are not using getSide because in sample response side's are in upper
+			// here, we are not using getSide because in sample response's sides are in upper
 			var side order.Side
 			side, err = order.StringToOrderSide(resp[i].Side)
 			if err != nil {
@@ -1788,7 +1788,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (by *Bybit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (by *Bybit) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float64, error) {
 	// TODO: Upgrade from v1 spot API
 	// TODO: give FeeBuilder asset property to distinguish between endpoints
 	return 0, common.ErrFunctionNotSupported

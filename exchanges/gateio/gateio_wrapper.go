@@ -467,12 +467,12 @@ func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gateio) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (g *Gateio) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (g *Gateio) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -588,7 +588,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (g *Gateio) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -953,6 +953,6 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 }
 
 // GetServerTime returns the current exchange server time.
-func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (g *Gateio) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }

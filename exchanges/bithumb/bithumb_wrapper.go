@@ -437,12 +437,12 @@ func (b *Bithumb) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bithumb) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (b *Bithumb) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	transactions, err := b.GetUserTransactions(ctx, 0, 0, 3, c, currency.EMPTYCODE)
 	if err != nil {
 		return nil, err
@@ -555,7 +555,7 @@ func (b *Bithumb) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bithumb) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (b *Bithumb) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -849,9 +849,6 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 	timeSeries := make([]kline.Candle, 0, len(candle.Data))
 	for x := range candle.Data {
-		if len(candle.Data[x]) < 6 {
-			return nil, errors.New("invalid candle length")
-		}
 		var tempCandle kline.Candle
 		if tempCandle.Time, err = convert.TimeFromUnixTimestampFloat(candle.Data[x][0]); err != nil {
 			return nil, fmt.Errorf("unable to convert timestamp: %w", err)

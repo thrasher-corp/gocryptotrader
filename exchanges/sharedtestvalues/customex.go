@@ -174,7 +174,7 @@ func (c *CustomEx) SupportsWithdrawPermissions(_ uint32) bool {
 }
 
 // GetAccountFundingHistory is a mock method for CustomEx
-func (c *CustomEx) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (c *CustomEx) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, nil
 }
 
@@ -194,7 +194,7 @@ func (c *CustomEx) CancelOrder(_ context.Context, _ *order.Cancel) error {
 }
 
 // CancelBatchOrders is a mock method for CustomEx
-func (c *CustomEx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (c *CustomEx) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, nil
 }
 
@@ -204,7 +204,7 @@ func (c *CustomEx) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo is a mock method for CustomEx
-func (c *CustomEx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (c *CustomEx) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	return nil, nil
 }
 
@@ -214,7 +214,7 @@ func (c *CustomEx) GetDepositAddress(_ context.Context, _ currency.Code, _, _ st
 }
 
 // GetOrderHistory is a mock method for CustomEx
-func (c *CustomEx) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (c *CustomEx) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, nil
 }
 
@@ -224,7 +224,7 @@ func (c *CustomEx) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ a
 }
 
 // GetActiveOrders is a mock method for CustomEx
-func (c *CustomEx) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (c *CustomEx) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return []order.Detail{}, nil
 }
 

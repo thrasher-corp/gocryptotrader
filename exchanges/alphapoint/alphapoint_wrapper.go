@@ -243,13 +243,13 @@ func (a *Alphapoint) FetchOrderbook(ctx context.Context, p currency.Pair, assetT
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *Alphapoint) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (a *Alphapoint) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (a *Alphapoint) GetWithdrawalsHistory(ctx context.Context, c currency.Code, as asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (a *Alphapoint) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -307,7 +307,7 @@ func (a *Alphapoint) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (a *Alphapoint) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (a *Alphapoint) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

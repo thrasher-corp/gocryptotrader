@@ -103,10 +103,10 @@ func (l *Lbank) SetDefaults() {
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/HongKong time zone. This may lead to
 					// issues with candle quality and conversion as the
-					// intervals may be broken up. Therefore the below intervals
+					// intervals may be broken up. The below intervals
 					// are constructed from hourly -> 4 hourly candles.
-					// kline.IntervalCapacity{Interval: kline.EightHour}, // The docs suggest this is supported but it isn't.
-					// kline.IntervalCapacity{Interval: kline.TwelveHour}, // The docs suggest this is supported but it isn't.
+					// kline.IntervalCapacity{Interval: kline.EightHour}, // The docs suggest this is supported, but it isn't.
+					// kline.IntervalCapacity{Interval: kline.TwelveHour}, // The docs suggest this is supported, but it isn't.
 					// kline.IntervalCapacity{Interval: kline.OneDay},
 					// kline.IntervalCapacity{Interval: kline.OneWeek},
 					// kline.IntervalCapacity{Interval: kline.OneMonth},
@@ -391,7 +391,7 @@ func (l *Lbank) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (l *Lbank) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (l *Lbank) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -539,12 +539,12 @@ func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (l *Lbank) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (l *Lbank) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
-func (l *Lbank) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+func (l *Lbank) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return l.GetTimestamp(ctx)
 }
 
@@ -738,7 +738,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
-			for y := int(0); y < len(getOrdersRequest.Pairs); y++ {
+			for y := 0; y < len(getOrdersRequest.Pairs); y++ {
 				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}

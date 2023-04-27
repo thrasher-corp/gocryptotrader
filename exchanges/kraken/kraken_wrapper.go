@@ -664,12 +664,12 @@ func (k *Kraken) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (k *Kraken) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (k *Kraken) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := k.WithdrawStatus(ctx, c, "")
 	if err != nil {
 		return nil, err
@@ -875,7 +875,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1210,7 +1210,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			orders = append(orders, order.Detail{
 				OrderID:         i,
 				Amount:          resp.Open[i].Volume,
-				RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
+				RemainingAmount: resp.Open[i].Volume - resp.Open[i].VolumeExecuted,
 				ExecutedAmount:  resp.Open[i].VolumeExecuted,
 				Exchange:        k.Name,
 				Date:            convert.TimeFromUnixTimestampDecimal(resp.Open[i].OpenTime),

@@ -541,7 +541,7 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *COINUT) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (c *COINUT) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -868,7 +868,7 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *COINUT) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

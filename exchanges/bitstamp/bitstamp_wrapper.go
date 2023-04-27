@@ -491,12 +491,12 @@ func (b *Bitstamp) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitstamp) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (b *Bitstamp) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := b.GetWithdrawalRequests(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -606,7 +606,7 @@ func (b *Bitstamp) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitstamp) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (b *Bitstamp) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -980,6 +980,6 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Bitstamp) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (b *Bitstamp) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }

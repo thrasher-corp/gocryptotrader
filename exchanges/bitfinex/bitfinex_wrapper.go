@@ -560,12 +560,12 @@ func (b *Bitfinex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitfinex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (b *Bitfinex) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	history, err := b.GetMovementHistory(ctx, c.String(), "", time.Date(2012, 0, 0, 0, 0, 0, 0, time.Local), time.Now(), 0)
 	if err != nil {
 		return nil, err
@@ -769,9 +769,9 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitfinex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (b *Bitfinex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	// While bitfinex supports cancelling multiple orders, it is
-	// done in a way that is not helpful for GCT and it would be better instead
+	// done in a way that is not helpful for GCT, and it would be better instead
 	// to use CancelAllOrders or CancelOrder
 	return nil, common.ErrFunctionNotSupported
 }
@@ -1230,7 +1230,7 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 		checkString[1] = 'F'
 	}
 
-	fmt, err := b.FormatExchangeCurrency(in, a)
+	cFmt, err := b.FormatExchangeCurrency(in, a)
 	if err != nil {
 		return "", err
 	}
@@ -1238,15 +1238,15 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	y := in.Base.String()
 	if (y[0] != checkString[0] && y[0] != checkString[1]) ||
 		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base == currency.TNB {
-		if fmt.Quote.IsEmpty() {
-			return string(checkString[0]) + fmt.Base.Upper().String(), nil
+		if cFmt.Quote.IsEmpty() {
+			return string(checkString[0]) + cFmt.Base.Upper().String(), nil
 		}
-		return string(checkString[0]) + fmt.Upper().String(), nil
+		return string(checkString[0]) + cFmt.Upper().String(), nil
 	}
 
-	runes := []rune(fmt.Upper().String())
-	if fmt.Quote.IsEmpty() {
-		runes = []rune(fmt.Base.Upper().String())
+	runes := []rune(cFmt.Upper().String())
+	if cFmt.Quote.IsEmpty() {
+		runes = []rune(cFmt.Base.Upper().String())
 	}
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes), nil
@@ -1272,6 +1272,6 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Bitfinex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (b *Bitfinex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }

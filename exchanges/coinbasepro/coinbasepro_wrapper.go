@@ -490,7 +490,7 @@ func (c *CoinbasePro) GetAccountFundingHistory(_ context.Context) ([]exchange.Fu
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (c *CoinbasePro) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	// while fetching withdrawal history is possible, the API response lacks any useful information
 	// like the currency withdrawn and thus is unsupported. If that position changes, use GetTransfers(...)
 	return nil, common.ErrFunctionNotSupported
@@ -601,7 +601,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (c *CoinbasePro) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

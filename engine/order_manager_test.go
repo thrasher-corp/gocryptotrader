@@ -60,7 +60,7 @@ func (f omfExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Ite
 
 // GetOrderInfo overrides testExchange's get order function
 // to do the bare minimum required with no API calls or credentials required
-func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (f omfExchange) GetOrderInfo(_ context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	switch orderID {
 	case "":
 		return nil, errors.New("")
@@ -98,7 +98,7 @@ func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetActiveOrders overrides the function used by processOrders to return 1 active order
-func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (f omfExchange) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return []order.Detail{{
 		Exchange:    testExchange,
 		Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},

@@ -188,6 +188,38 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	return nil
 }
 
+// EnsureOnePairEnabled not all assets have pairs, eg options
+// search for an asset that does and enable one if none are enabled
+// error if no currency pairs found for an entire exchange
+func (p *PairsManager) EnsureOnePairEnabled() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	for i := range p.Pairs {
+		if p.Pairs[i].AssetEnabled == nil ||
+			!*p.Pairs[i].AssetEnabled ||
+			len(p.Pairs[i].Available) == 0 {
+			continue
+		}
+		if len(p.Pairs[i].Enabled) > 0 {
+			return nil
+		}
+	}
+	for i := range p.Pairs {
+		if p.Pairs[i].AssetEnabled == nil ||
+			!*p.Pairs[i].AssetEnabled ||
+			len(p.Pairs[i].Available) == 0 {
+			continue
+		}
+		rp, err := p.Pairs[i].Available.GetRandomPair()
+		if err != nil {
+			return err
+		}
+		p.Pairs[i].Enabled = p.Pairs[i].Enabled.Add(rp)
+		return nil
+	}
+	return ErrCurrencyPairsEmpty
+}
+
 // DisablePair removes the pair from the enabled pairs list if found
 func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 	if !a.IsValid() {

@@ -570,3 +570,33 @@ func TestIsAssetPairEnabled(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
 	}
 }
+
+func TestEnsureOnePairEnabled(t *testing.T) {
+	t.Parallel()
+	pm := PairsManager{
+		Pairs: map[asset.Item]*PairStore{
+			asset.Futures: {},
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(true),
+				Available: []Pair{
+					NewPair(BTC, USDT),
+				},
+			},
+		},
+	}
+	err := pm.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(pm.Pairs[asset.Spot].Enabled) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(pm.Pairs[asset.Spot].Enabled), 1)
+	}
+
+	err = pm.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(pm.Pairs[asset.Spot].Enabled) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(pm.Pairs[asset.Spot].Enabled), 1)
+	}
+}

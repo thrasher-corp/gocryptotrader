@@ -207,7 +207,7 @@ func (b *Bitflyer) UpdateTickers(_ context.Context, _ asset.Item) error {
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Bitflyer) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+func (b *Bitflyer) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 
@@ -420,7 +420,7 @@ func (b *Bitflyer) CancelOrder(_ context.Context, _ *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitflyer) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (b *Bitflyer) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -432,7 +432,7 @@ func (b *Bitflyer) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitflyer) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (b *Bitflyer) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

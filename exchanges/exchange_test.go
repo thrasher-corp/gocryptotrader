@@ -2681,7 +2681,7 @@ func TestGetKlineRequest(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}
 
-	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{})
+	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
@@ -2692,15 +2692,12 @@ func TestGetKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
-	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{})
+	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, kline.ErrInvalidInterval) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
 	}
 
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneHour)
-	b.Features.Enabled.Kline.ResultLimit = 1439
-	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 1)
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneDay, Capacity: 1439})
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
 		Enabled:      []currency.Pair{pair},

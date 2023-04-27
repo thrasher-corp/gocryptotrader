@@ -639,7 +639,7 @@ func (b *Bitmex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Bitmex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (b *Bitmex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 

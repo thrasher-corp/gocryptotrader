@@ -17,7 +17,7 @@ var (
 	// ErrNoTimeSeriesDataToConvert is returned when no data can be processed
 	ErrNoTimeSeriesDataToConvert = errors.New("no candle data returned to process")
 
-	errNilRequest = errors.New("nil kline request")
+	errNilRequest                   = errors.New("nil kline request")
 	errInvalidSpecificEndpointLimit = errors.New("specific endpoint limit must be greater than 0")
 
 	// PartialCandle is string flag for when the most recent candle is partially

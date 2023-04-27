@@ -489,13 +489,13 @@ func (h *HitBTC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HitBTC) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (h *HitBTC) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	// TODO supported in v3 API
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (h *HitBTC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (h *HitBTC) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	// TODO supported in v3 API
 	return nil, common.ErrFunctionNotSupported
 }
@@ -644,12 +644,12 @@ func (h *HitBTC) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HitBTC) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (h *HitBTC) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
-func (h *HitBTC) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (h *HitBTC) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 

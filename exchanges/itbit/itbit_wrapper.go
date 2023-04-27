@@ -136,7 +136,7 @@ func (i *ItBit) Run(_ context.Context) {
 }
 
 // GetServerTime returns the current exchange server time.
-func (i *ItBit) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+func (i *ItBit) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 
@@ -336,12 +336,12 @@ func (i *ItBit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (i *ItBit) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (i *ItBit) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (i *ItBit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (i *ItBit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -456,7 +456,7 @@ func (i *ItBit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (i *ItBit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (i *ItBit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -491,13 +491,13 @@ func (i *ItBit) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (i *ItBit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (i *ItBit) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
 // NOTE: This has not been implemented due to the fact you need to generate a
-// specific wallet ID and they restrict the amount of deposit addresses you can
+// specific wallet ID, and they restrict the amount of deposit addresses you can
 // request limiting them to 2.
 func (i *ItBit) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
 	return nil, common.ErrNotYetImplemented
@@ -588,7 +588,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 			Side:            side,
 			Amount:          allOrders[j].Amount,
 			ExecutedAmount:  allOrders[j].AmountFilled,
-			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
+			RemainingAmount: allOrders[j].Amount - allOrders[j].AmountFilled,
 			Exchange:        i.Name,
 			Date:            orderDate,
 			Pair:            symbol,

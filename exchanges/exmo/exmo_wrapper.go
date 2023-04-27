@@ -447,7 +447,7 @@ func (e *EXMO) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	hist, err := e.GetWalletHistory(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -568,12 +568,12 @@ func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (e *EXMO) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (e *EXMO) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
-func (e *EXMO) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (e *EXMO) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 
@@ -599,7 +599,7 @@ func (e *EXMO) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Canc
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (e *EXMO) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

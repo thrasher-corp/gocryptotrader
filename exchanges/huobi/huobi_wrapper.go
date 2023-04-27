@@ -155,7 +155,7 @@ func (h *HUOBI) SetDefaults() {
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/Shanghai time zone. This may lead to
 					// issues with candle quality and conversion as the
-					// intervals may be broken up. Therefore the below intervals
+					// intervals may be broken up. The below intervals
 					// are constructed from hourly candles.
 					// kline.IntervalCapacity{Interval: kline.OneDay},
 					// kline.IntervalCapacity{Interval: kline.OneWeek},
@@ -829,7 +829,7 @@ func (h *HUOBI) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HUOBI) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (h *HUOBI) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1070,7 +1070,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		if s.ReduceOnly {
 			offset = "close"
 		}
-		order, err := h.FOrder(ctx,
+		o, err := h.FOrder(ctx,
 			s.Pair,
 			"",
 			"",
@@ -1084,7 +1084,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		if err != nil {
 			return nil, err
 		}
-		orderID = order.Data.OrderIDStr
+		orderID = o.Data.OrderIDStr
 	}
 	resp, err := s.DeriveSubmitResponse(orderID)
 	if err != nil {
@@ -1598,7 +1598,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        (orderVars.OrderType == order.PostOnly),
+						PostOnly:        orderVars.OrderType == order.PostOnly,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1640,7 +1640,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        (orderVars.OrderType == order.PostOnly),
+						PostOnly:        orderVars.OrderType == order.PostOnly,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1741,7 +1741,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        (orderVars.OrderType == order.PostOnly),
+						PostOnly:        orderVars.OrderType == order.PostOnly,
 						Leverage:        orderHistory.Data.Orders[x].LeverageRate,
 						Price:           orderHistory.Data.Orders[x].Price,
 						Amount:          orderHistory.Data.Orders[x].Volume,
@@ -1799,7 +1799,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        (orderVars.OrderType == order.PostOnly),
+						PostOnly:        orderVars.OrderType == order.PostOnly,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1892,7 +1892,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
 			Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol: req.Pair,
-			Size: int(req.RequestLimit),
+			Size:   int(req.RequestLimit),
 		})
 		if err != nil {
 			return nil, err
