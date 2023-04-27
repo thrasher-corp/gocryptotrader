@@ -202,7 +202,7 @@ func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (b *Bitflyer) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (b *Bitflyer) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 

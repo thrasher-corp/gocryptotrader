@@ -24,7 +24,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
-func (a *Alphapoint) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
+func (a *Alphapoint) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -88,7 +88,7 @@ func (a *Alphapoint) FetchTradablePairs(_ context.Context, _ asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (a *Alphapoint) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -146,7 +146,7 @@ func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (a *Alphapoint) UpdateTickers(assetType asset.Item) error {
+func (a *Alphapoint) UpdateTickers(_ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -321,7 +321,7 @@ func (a *Alphapoint) CancelAllOrders(ctx context.Context, orderCancellation *ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
+func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (float64, error) {
 	orders, err := a.GetOrders(ctx)
 	if err != nil {
 		return 0, err

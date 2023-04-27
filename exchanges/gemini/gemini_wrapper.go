@@ -367,7 +367,7 @@ func (g *Gemini) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (g *Gemini) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (g *Gemini) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 

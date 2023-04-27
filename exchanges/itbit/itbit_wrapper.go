@@ -129,7 +129,7 @@ func (i *ItBit) Start(ctx context.Context, wg *sync.WaitGroup) error {
 }
 
 // Run implements the ItBit wrapper
-func (i *ItBit) Run(ctx context.Context) {
+func (i *ItBit) Run(_ context.Context) {
 	if i.Verbose {
 		i.PrintEnabledPairs()
 	}
@@ -141,18 +141,18 @@ func (i *ItBit) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, er
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (i *ItBit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (i *ItBit) FetchTradablePairs(_ context.Context, _ asset.Item) (currency.Pairs, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (i *ItBit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (i *ItBit) UpdateTradablePairs(_ context.Context, _ bool) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (i *ItBit) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (i *ItBit) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 

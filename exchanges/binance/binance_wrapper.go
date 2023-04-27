@@ -167,23 +167,23 @@ func (b *Binance) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.EightHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.ThreeDay,
-					kline.OneWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.EightHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -1748,7 +1748,7 @@ func (b *Binance) FormatExchangeKlineInterval(interval kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequest(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1762,7 +1762,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Symbol:    req.Pair,
 			StartTime: req.Start,
 			EndTime:   req.End,
-			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+			Limit:     int(req.RequestLimit),
 		})
 		if err != nil {
 			return nil, err
@@ -1782,7 +1782,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		candles, err = b.UKlineData(ctx,
 			req.RequestFormatted,
 			b.FormatExchangeKlineInterval(interval),
-			int64(b.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start,
 			req.End)
 		if err != nil {
@@ -1803,7 +1803,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		candles, err = b.GetFuturesKlineData(ctx,
 			req.RequestFormatted,
 			b.FormatExchangeKlineInterval(interval),
-			int64(b.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start,
 			req.End)
 		if err != nil {
@@ -1843,7 +1843,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				Symbol:    req.Pair,
 				StartTime: req.RangeHolder.Ranges[x].Start.Time,
 				EndTime:   req.RangeHolder.Ranges[x].End.Time,
-				Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+				Limit:     int(req.RequestLimit),
 			})
 			if err != nil {
 				return nil, err

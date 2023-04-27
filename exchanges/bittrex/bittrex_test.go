@@ -604,6 +604,7 @@ func TestModifyOrder(t *testing.T) {
 	}
 }
 
+//nolint:gocritic // Only used as a testing helper function in this package
 func WithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Helper()
 	withdrawCryptoRequest := withdraw.Request{
@@ -697,20 +698,43 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
 	pair, err := currency.NewPairFromString("btc-usdt")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
+	end := start.AddDate(0, 12, 0)
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	end = time.Now()
+	start = end.AddDate(0, -12, 0)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	end = time.Now()
+	start = end.AddDate(0, 0, -30)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	end = time.Now()
+	start = end.AddDate(0, 0, -1).Add(time.Minute * 5)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
 	pair, err := currency.NewPairFromString("btc-usdt")
 	if err != nil {
 		t.Fatal(err)

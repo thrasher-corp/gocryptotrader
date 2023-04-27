@@ -29,11 +29,11 @@ type omfExchange struct {
 
 // CancelOrder overrides testExchange's cancel order function
 // to do the bare minimum required with no API calls or credentials required
-func (f omfExchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
+func (f omfExchange) CancelOrder(_ context.Context, _ *order.Cancel) error {
 	return nil
 }
 
-func (f omfExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (f omfExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return &ticker.Price{
 		Last:                  1337,
 		High:                  1337,
@@ -111,7 +111,7 @@ func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderR
 	}}, nil
 }
 
-func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (f omfExchange) ModifyOrder(_ context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	modResp, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	return modResp, nil
 }
 
-func (f omfExchange) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (f omfExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err

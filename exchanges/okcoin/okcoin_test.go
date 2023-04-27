@@ -1300,8 +1300,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Unix(1588636800, 0)
-	_, err = o.GetHistoricCandles(context.Background(),
-		pair, asset.Spot, kline.OneDay, startTime, time.Now())
+	endTime := startTime.Add(time.Hour * 24 * 7)
+	_, err = o.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1315,8 +1315,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	startTime := time.Unix(1588636800, 0)
-	_, err = o.GetHistoricCandlesExtended(context.Background(),
-		pair, asset.Spot, kline.OneWeek, startTime, time.Now())
+	_, err = o.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneWeek, startTime, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

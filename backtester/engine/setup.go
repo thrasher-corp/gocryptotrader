@@ -818,12 +818,19 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.APIData.InclusiveEndDate {
 			cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.EndDate.Add(cfg.DataSettings.Interval.Duration())
 		}
+
+		var limit int64
+		limit, err = b.Features.Enabled.Kline.GetIntervalResultLimit(cfg.DataSettings.Interval)
+		if err != nil {
+			return nil, err
+		}
+
 		resp, err = loadAPIData(
 			cfg,
 			exch,
 			fPair,
 			a,
-			b.Features.Enabled.Kline.ResultLimit,
+			uint32(limit),
 			dataType)
 		if err != nil {
 			return resp, err

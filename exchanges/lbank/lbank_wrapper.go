@@ -93,14 +93,25 @@ func (l *Lbank) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.FourHour,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+
+					// NOTE: The supported time intervals below are returned
+					// offset to the Asia/HongKong time zone. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. Therefore the below intervals
+					// are constructed from hourly -> 4 hourly candles.
+					// kline.IntervalCapacity{Interval: kline.EightHour}, // The docs suggest this is supported but it isn't.
+					// kline.IntervalCapacity{Interval: kline.TwelveHour}, // The docs suggest this is supported but it isn't.
+					// kline.IntervalCapacity{Interval: kline.OneDay},
+					// kline.IntervalCapacity{Interval: kline.OneWeek},
+					// kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 2000,
+				GlobalResultLimit: 2000,
 			},
 		},
 	}
@@ -173,7 +184,7 @@ func (l *Lbank) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (l *Lbank) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (l *Lbank) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	currencies, err := l.GetCurrencyPairs(ctx)
 	if err != nil {
 		return nil, err
@@ -921,14 +932,14 @@ func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := l.GetKlineRequest(pair, a, interval, start, end)
+	req, err := l.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := l.GetKlines(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+		strconv.FormatInt(req.RequestLimit, 10),
 		l.FormatExchangeKlineInterval(req.ExchangeInterval),
 		strconv.FormatInt(req.Start.Unix(), 10))
 	if err != nil {
@@ -961,7 +972,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+			strconv.FormatInt(req.RequestLimit, 10),
 			l.FormatExchangeKlineInterval(req.ExchangeInterval),
 			strconv.FormatInt(req.RangeHolder.Ranges[x].Start.Ticks, 10))
 		if err != nil {

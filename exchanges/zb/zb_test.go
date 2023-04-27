@@ -37,6 +37,7 @@ func areTestAPIKeysSet() bool {
 	return z.ValidateAPICredentials(z.GetDefaultCredentials()) == nil
 }
 
+//nolint:gocritic // Only used as a testing helper function in this package
 func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {
@@ -867,17 +868,22 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 }
 
 func TestGetSpotKline(t *testing.T) {
+	t.Parallel()
+	limit, err := z.Features.Enabled.Kline.GetIntervalResultLimit(kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
 	arg := KlinesRequestParams{
 		Symbol: testCurrency,
 		Type:   kline.OneMin.Short() + "in",
-		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
+		Size:   limit,
 	}
 	if mockTests {
 		startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 		arg.Since = startTime.UnixMilli()
 		arg.Type = "1day"
 	}
-	_, err := z.GetSpotKline(context.Background(), arg)
+	_, err = z.GetSpotKline(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB GetSpotKline: %s", err)
 	}
@@ -895,10 +901,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now()
-
-	// Current endpoint is dead.
-	_, err = z.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
+	_, err = z.GetHistoricCandles(context.Background(), currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}

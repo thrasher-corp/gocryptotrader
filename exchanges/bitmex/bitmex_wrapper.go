@@ -335,7 +335,7 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (b *Bitmex) UpdateTradablePairs(ctx context.Context, _ bool) error {
 	assets := b.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := b.FetchTradablePairs(ctx, assets[x])

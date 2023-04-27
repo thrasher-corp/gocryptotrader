@@ -116,7 +116,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-
 	_, err = h.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneHour, startTime, end)
 	if err != nil {
 		t.Fatal(err)
@@ -467,6 +466,8 @@ func TestGetDepositAddress(t *testing.T) {
 		}
 	}
 }
+
+//nolint:gocritic // Only used as a testing helper function in this package
 func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {
@@ -979,6 +980,7 @@ func TestWsTrades(t *testing.T) {
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		interval kline.Interval
@@ -1000,18 +1002,20 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			"D7",
 		},
 		{
-			"AllOther",
+			"OneMonth",
 			kline.OneMonth,
-			"",
+			"1M",
 		},
 	}
 
 	for x := range testCases {
 		test := testCases[x]
-
 		t.Run(test.name, func(t *testing.T) {
-			ret := h.FormatExchangeKlineInterval(test.interval)
-
+			t.Parallel()
+			ret, err := h.FormatExchangeKlineInterval(test.interval)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if ret != test.output {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}

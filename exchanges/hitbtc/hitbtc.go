@@ -206,7 +206,7 @@ func (h *HitBTC) GetCandles(ctx context.Context, currencyPair, limit, period str
 	}
 
 	var resp []ChartData
-	path := fmt.Sprintf("/%s/%s?%s", apiV2Candles, currencyPair, vals.Encode())
+	path := "/" + apiV2Candles + "/" + currencyPair + "?" + vals.Encode()
 	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
