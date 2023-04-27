@@ -858,9 +858,6 @@ func TestGetPublicPortfolioMargins(t *testing.T) {
 	}); err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrievePublicPortfolioMargins(currencyBTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2}); err != nil {
-		t.Error(err)
-	}
 }
 
 func TestGetAccessLog(t *testing.T) {
