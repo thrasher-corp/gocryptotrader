@@ -111,21 +111,26 @@ func (z *ZB) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.ThreeDay,
-					kline.OneWeek,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					// NOTE: The supported time intervals below are returned
+					// offset to the Asia/Shanghai time zone. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. Therefore the below intervals
+					// are constructed from hourly candles.
+					// kline.IntervalCapacity{Interval: kline.SixHour},
+					// kline.IntervalCapacity{Interval: kline.TwelveHour},
+					// kline.IntervalCapacity{Interval: kline.OneDay},
+					// kline.IntervalCapacity{Interval: kline.ThreeDay},
+					// kline.IntervalCapacity{Interval: kline.OneWeek},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -222,7 +227,7 @@ func (z *ZB) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (z *ZB) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (z *ZB) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	markets, err := z.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
@@ -426,12 +431,12 @@ func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accoun
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (z *ZB) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (z *ZB) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (z *ZB) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -562,7 +567,7 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (z *ZB) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (z *ZB) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -625,7 +630,7 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (z *ZB) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -885,7 +890,7 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := z.GetKlineRequest(pair, a, interval, start, end)
+	req, err := z.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
 	}
@@ -894,7 +899,7 @@ func (z *ZB) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset
 		Type:   z.FormatExchangeKlineInterval(req.ExchangeInterval),
 		Symbol: req.RequestFormatted.String(),
 		Since:  start.UnixMilli(),
-		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
+		Size:   req.RequestLimit,
 	})
 	if err != nil {
 		return nil, err

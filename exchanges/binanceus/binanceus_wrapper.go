@@ -124,23 +124,23 @@ func (bi *Binanceus) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.EightHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.ThreeDay,
-					kline.OneWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.EightHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -475,7 +475,7 @@ func (bi *Binanceus) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 }
 
 // GetFundingHistory returns funding history, deposits and withdrawals
-func (bi *Binanceus) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (bi *Binanceus) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -639,7 +639,7 @@ func (bi *Binanceus) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (bi *Binanceus) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
+func (bi *Binanceus) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
@@ -761,13 +761,13 @@ func (bi *Binanceus) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRe
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted. But, GCT has no concept of withdrawal via SEN
 // the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 // So, this method is not implemented.
-func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (bi *Binanceus) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // But, GCT has no concept of withdrawal via SEN the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
-func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -843,7 +843,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
-func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (bi *Binanceus) GetOrderHistory(_ context.Context, _ *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	// An endpoint like /api/v3/allOrders does not exist in the binance us
 	// so This end point is left unimplemented
 	return nil, common.ErrFunctionNotSupported
@@ -869,7 +869,7 @@ func (bi *Binanceus) ValidateCredentials(ctx context.Context, assetType asset.It
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := bi.GetKlineRequest(pair, a, interval, start, end)
+	req, err := bi.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +879,7 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 		Symbol:    req.Pair,
 		StartTime: req.Start,
 		EndTime:   req.End,
-		Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
+		Limit:     req.RequestLimit,
 	})
 	if err != nil {
 		return nil, err
@@ -914,7 +914,7 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 			Symbol:    req.Pair,
 			StartTime: req.RangeHolder.Ranges[x].Start.Time,
 			EndTime:   req.RangeHolder.Ranges[x].End.Time,
-			Limit:     int64(bi.Features.Enabled.Kline.ResultLimit),
+			Limit:     req.RequestLimit,
 		})
 		if err != nil {
 			return nil, err
