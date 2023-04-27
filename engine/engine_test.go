@@ -489,8 +489,8 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 				assetLen = len(assetParams) - 1
 			}
 		}
-
-		e := time.Now().Add(-time.Hour * 24).Truncate(time.Hour)
+		tt := time.Now()
+		e := time.Date(tt.Year(), tt.Month(), tt.Day(), 0, 0, 0, 0, time.UTC).Add(-time.Hour * 24)
 		s := e.Add(-time.Hour * 24 * 5)
 		if methodName == "GetHistoricTrades" {
 			// limit trade history
@@ -579,7 +579,7 @@ var (
 // response, else an empty version of the type
 func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodArgumentGenerator) *reflect.Value {
 	t.Helper()
-	exchName := argGenerator.Exchange.GetName()
+	exchName := strings.ToLower(argGenerator.Exchange.GetName())
 	var input reflect.Value
 	switch {
 	case argGenerator.MethodInputType.AssignableTo(stringParam):
@@ -590,7 +590,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 				input = reflect.ValueOf("trading")
 			} else {
 				// Crypto Chain
-				input = reflect.ValueOf("")
+				input = reflect.ValueOf(cryptoChainPerExchange[exchName])
 			}
 		default:
 			// OrderID
@@ -656,7 +656,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			req.Crypto = withdraw.CryptoRequest{
 				Address:    "1337",
 				AddressTag: "1337",
-				Chain:      "ERC20",
+				Chain:      cryptoChainPerExchange[exchName],
 			}
 		} else {
 			req.Type = withdraw.Fiat
@@ -811,8 +811,15 @@ var unsupportedExchangeNames = []string{
 	"okcoin international", // TODO add support for v5 and remove this entry
 }
 
+// blockedCIExchanges are exchanges that are not able to be tested on CI
 var blockedCIExchanges = []string{
 	"binance", // binance API is banned from executing within the US where github Actions is ran
+}
+
+// cryptoChainPerExchange holds the deposit address chain per exchange
+var cryptoChainPerExchange = map[string]string{
+	"binanceus": "ERC20",
+	"bybit":     "ERC20",
 }
 
 // acceptable errors do not throw test errors, see below for why
