@@ -1078,35 +1078,41 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if err != nil {
 		return nil, err
 	}
-	var tradingViewData *TVChartData
-	if d.Websocket.IsConnected() {
-		tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, start, end)
-	} else {
-		tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, start, end)
-	}
-	if err != nil {
-		return nil, err
-	}
-	checkLen := len(tradingViewData.Ticks)
-	if len(tradingViewData.Open) != checkLen ||
-		len(tradingViewData.High) != checkLen ||
-		len(tradingViewData.Low) != checkLen ||
-		len(tradingViewData.Close) != checkLen ||
-		len(tradingViewData.Volume) != checkLen {
-		return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
-	}
-	listCandles := make([]kline.Candle, len(tradingViewData.Ticks))
-	for x := range tradingViewData.Ticks {
-		listCandles[x] = kline.Candle{
-			Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
-			Open:   tradingViewData.Open[x],
-			High:   tradingViewData.High[x],
-			Low:    tradingViewData.Low[x],
-			Close:  tradingViewData.Close[x],
-			Volume: tradingViewData.Volume[x],
+	switch a {
+	case asset.Futures:
+		var tradingViewData *TVChartData
+		if d.Websocket.IsConnected() {
+			tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, start, end)
+		} else {
+			tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, start, end)
 		}
+		if err != nil {
+			return nil, err
+		}
+		checkLen := len(tradingViewData.Ticks)
+		if len(tradingViewData.Open) != checkLen ||
+			len(tradingViewData.High) != checkLen ||
+			len(tradingViewData.Low) != checkLen ||
+			len(tradingViewData.Close) != checkLen ||
+			len(tradingViewData.Volume) != checkLen {
+			return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
+		}
+		listCandles := make([]kline.Candle, len(tradingViewData.Ticks))
+		for x := range tradingViewData.Ticks {
+			listCandles[x] = kline.Candle{
+				Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
+				Open:   tradingViewData.Open[x],
+				High:   tradingViewData.High[x],
+				Low:    tradingViewData.Low[x],
+				Close:  tradingViewData.Close[x],
+				Volume: tradingViewData.Volume[x],
+			}
+		}
+		return req.ProcessResponse(listCandles)
+	case asset.OptionCombo, asset.FutureCombo, asset.Options:
+		// TODO: orderbook for asset item option_combo, future_combo, and option not supported yet
 	}
-	return req.ProcessResponse(listCandles)
+	return nil, fmt.Errorf("%w orderbook for asset type %v", asset.ErrNotSupported, a)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1118,9 +1124,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	var tradingViewData *TVChartData
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	switch a {
-	case asset.Options,
-		asset.FutureCombo,
-		asset.Futures:
+	case asset.Futures:
 		for x := range req.RangeHolder.Ranges {
 			intervalString, err := d.GetResolutionFromInterval(interval)
 			if err != nil {
@@ -1154,8 +1158,8 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 		}
 		return req.ProcessResponse(timeSeries)
-	case asset.OptionCombo:
-		// TODO: orderbook for option combo not supported yet
+	case asset.OptionCombo, asset.FutureCombo, asset.Options:
+		// TODO: orderbook for asset item option_combo, future_combo, and option not supported yet
 	}
 	return nil, fmt.Errorf("%w orderbook for asset type %v", asset.ErrNotSupported, a)
 }
