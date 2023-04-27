@@ -564,7 +564,7 @@ func (cr *Cryptodotcom) processUserTrade(resp *WsResult) error {
 }
 
 func (cr *Cryptodotcom) processUserOrderbook(resp *WsResult) error {
-	var data []UserOrderbook
+	var data []UserOrder
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
 		return err

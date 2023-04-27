@@ -98,11 +98,10 @@ func (cr *Cryptodotcom) GetInstruments(ctx context.Context) (*InstrumentList, er
 
 // GetOrderbook retches the public order book for a particular instrument and depth.
 func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, instrumentName string, depth int64) (*OrderbookDetail, error) {
-	params := url.Values{}
-	if instrumentName == "" {
-		return nil, errSymbolIsRequired
+	params, err := checkInstrumentName(instrumentName)
+	if err != nil {
+		return nil, err
 	}
-	params.Set("instrument_name", instrumentName)
 	if depth != 0 {
 		params.Set("depth", strconv.FormatInt(depth, 10))
 	}
@@ -110,13 +109,21 @@ func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, instrumentName string,
 	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicOrderbook, params), publicOrderbookRate, &resp)
 }
 
-// GetCandlestickDetail retrieves candlesticks (k-line data history) over a given period for an instrument
-func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, instrumentName string, interval kline.Interval) (*CandlestickDetail, error) {
+func checkInstrumentName(instrumentName string) (url.Values, error) {
 	if instrumentName == "" {
 		return nil, errSymbolIsRequired
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)
+	return params, nil
+}
+
+// GetCandlestickDetail retrieves candlesticks (k-line data history) over a given period for an instrument
+func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, instrumentName string, interval kline.Interval) (*CandlestickDetail, error) {
+	params, err := checkInstrumentName(instrumentName)
+	if err != nil {
+		return nil, err
+	}
 	if intervalString, err := intervalToString(interval); err == nil {
 		params.Set("timeframe", intervalString)
 	}
@@ -136,11 +143,10 @@ func (cr *Cryptodotcom) GetTicker(ctx context.Context, instrumentName string) (*
 
 // GetTrades fetches the public trades for a particular instrument.
 func (cr *Cryptodotcom) GetTrades(ctx context.Context, instrumentName string) (*TradesResponse, error) {
-	if instrumentName == "" {
-		return nil, errSymbolIsRequired
+	params, err := checkInstrumentName(instrumentName)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrumentName)
 	var resp *TradesResponse
 	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTrades, params), publicTradesRate, &resp)
 }

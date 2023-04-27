@@ -20,16 +20,6 @@ var (
 	errTriggerPriceRequired          = errors.New("trigger price is required")
 )
 
-// InstrumentsResponse represents instruments response.
-type InstrumentsResponse struct {
-	ID     int64  `json:"id"`
-	Method string `json:"method"`
-	Code   int64  `json:"code"`
-	Result struct {
-		Instruments []Instrument `json:"instruments"`
-	} `json:"result"`
-}
-
 // Instrument represents an details.
 type Instrument struct {
 	InstrumentName          string  `json:"instrument_name"`
@@ -625,8 +615,8 @@ type WsResult struct {
 	Interval       string          `json:"interval,omitempty"` // for candlestick data.
 }
 
-// UserOrderbook represents a user orderbook object.
-type UserOrderbook struct {
+// UserOrder represents a user orderbook object.
+type UserOrder struct {
 	Status                     string               `json:"status"`
 	Side                       string               `json:"side"`
 	Price                      float64              `json:"price"`
