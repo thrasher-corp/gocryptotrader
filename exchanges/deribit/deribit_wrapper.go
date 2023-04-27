@@ -102,21 +102,21 @@ func (d *Deribit) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.HundredMilliSec,
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.TenMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.ThreeHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.HundredMilliSec},
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.TenMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.ThreeHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
 				),
-				ResultLimit: 500,
+				GlobalResultLimit: 500,
 			},
 		},
 	}
@@ -1070,7 +1070,7 @@ func (d *Deribit) ValidateCredentials(ctx context.Context, assetType asset.Item)
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := d.GetKlineRequest(pair, a, interval, start, end)
+	req, err := d.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
