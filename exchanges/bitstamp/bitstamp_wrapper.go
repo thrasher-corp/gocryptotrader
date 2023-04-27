@@ -111,20 +111,20 @@ func (b *Bitstamp) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.ThreeDay,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -855,7 +855,7 @@ func (b *Bitstamp) ValidateCredentials(ctx context.Context, assetType asset.Item
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequest(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
@@ -865,7 +865,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		req.Start,
 		req.End,
 		b.FormatExchangeKlineInterval(req.ExchangeInterval),
-		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10))
+		strconv.FormatInt(req.RequestLimit, 10))
 	if err != nil {
 		return nil, err
 	}
@@ -903,7 +903,7 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			req.RangeHolder.Ranges[x].Start.Time,
 			req.RangeHolder.Ranges[x].End.Time,
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
+			strconv.FormatInt(req.RequestLimit, 10),
 		)
 		if err != nil {
 			return nil, err

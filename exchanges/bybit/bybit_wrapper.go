@@ -136,21 +136,21 @@ func (by *Bybit) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 200,
+				GlobalResultLimit: 200,
 			},
 		},
 	}
@@ -1834,7 +1834,7 @@ func (by *Bybit) FormatExchangeKlineIntervalFutures(ctx context.Context, interva
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := by.GetKlineRequest(pair, a, interval, start, end)
+	req, err := by.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1846,7 +1846,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		candles, err = by.GetKlines(ctx,
 			req.RequestFormatted.String(),
 			by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
-			int64(by.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start,
 			req.End)
 		if err != nil {
@@ -1869,7 +1869,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		candles, err = by.GetFuturesKlineData(ctx,
 			req.RequestFormatted,
 			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-			int64(by.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start)
 		if err != nil {
 			return nil, err
@@ -1891,7 +1891,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		candles, err = by.GetUSDTFuturesKlineData(ctx,
 			req.RequestFormatted,
 			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-			int64(by.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start)
 		if err != nil {
 			return nil, err
@@ -1914,7 +1914,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			req.RequestFormatted,
 			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 			req.Start,
-			int64(by.Features.Enabled.Kline.ResultLimit))
+			req.RequestLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -1951,7 +1951,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetKlines(ctx,
 				req.RequestFormatted.String(),
 				by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
-				int64(by.Features.Enabled.Kline.ResultLimit),
+				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
@@ -1973,7 +1973,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-				int64(by.Features.Enabled.Kline.ResultLimit),
+				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
@@ -1994,7 +1994,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetUSDTFuturesKlineData(ctx,
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-				int64(by.Features.Enabled.Kline.ResultLimit),
+				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
@@ -2016,7 +2016,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				req.RangeHolder.Ranges[x].Start.Time,
-				int64(by.Features.Enabled.Kline.ResultLimit))
+				req.RequestLimit)
 			if err != nil {
 				return nil, err
 			}

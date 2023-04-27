@@ -145,18 +145,23 @@ func (h *HUOBI) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.FourHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
-					kline.OneYear,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.OneYear},
+					// NOTE: The supported time intervals below are returned
+					// offset to the Asia/Shanghai time zone. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. Therefore the below intervals
+					// are constructed from hourly candles.
+					// kline.IntervalCapacity{Interval: kline.OneDay},
+					// kline.IntervalCapacity{Interval: kline.OneWeek},
+					// kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 2000,
+				GlobalResultLimit: 2000,
 			},
 		},
 	}
@@ -1745,7 +1750,7 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := h.GetKlineRequest(pair, a, interval, start, end)
+	req, err := h.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1758,6 +1763,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
 		Symbol: req.Pair,
+		Size:   int(req.RequestLimit),
 	})
 	if err != nil {
 		return nil, err

@@ -163,17 +163,21 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 		return errCannotEstablishTimeWindow
 	}
 
-	segments := int(window / k.Interval.Duration())
-	if segments == len(k.Candles) {
-		return nil
-	}
-
-	padded := make([]Candle, segments)
+	padded := make([]Candle, int(window/k.Interval.Duration()))
 	var target int
 	for x := range padded {
-		if target >= len(k.Candles) || !k.Candles[target].Time.Equal(start) {
+		switch {
+		case target >= len(k.Candles):
 			padded[x].Time = start
-		} else {
+		case !k.Candles[target].Time.Equal(start):
+			if k.Candles[target].Time.Before(start) {
+				return fmt.Errorf("%w when it should be %s truncated at a %s interval",
+					errCandleOpenTimeIsNotUTCAligned,
+					start.Add(k.Interval.Duration()),
+					k.Interval)
+			}
+			padded[x].Time = start
+		default:
 			padded[x] = k.Candles[target]
 			target++
 		}
@@ -183,8 +187,15 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 	// NOTE: This checks if the end time exceeds time.Now() and we are capturing
 	// a partially created candle. This will only delete an element if it is
 	// empty.
-	if purgeOnPartial && padded[len(padded)-1].Volume == 0 {
-		padded = padded[:len(padded)-1]
+	if purgeOnPartial {
+		lastElement := padded[len(padded)-1]
+		if lastElement.Volume == 0 &&
+			lastElement.Open == 0 &&
+			lastElement.High == 0 &&
+			lastElement.Low == 0 &&
+			lastElement.Close == 0 {
+			padded = padded[:len(padded)-1]
+		}
 	}
 	k.Candles = padded
 	return nil
@@ -349,29 +360,38 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 	if len(candles) == 0 {
 		return nil, fmt.Errorf("%w to %v no candle data", ErrInsufficientCandleData, newInterval)
 	}
+
 	var target int
 	for x := range k.Candles {
-		if candles[target].Time.IsZero() {
-			candles[target].Time = k.Candles[x].Time
-		}
+		// If this check does not pass, this candle has zero values or is padding.
+		// It has nothing to apply to the new interval candle as it will distort
+		// candle data.
+		if k.Candles[x].Open != 0 &&
+			k.Candles[x].High != 0 &&
+			k.Candles[x].Low != 0 &&
+			k.Candles[x].Close != 0 &&
+			k.Candles[x].Volume != 0 {
+			if candles[target].Time.IsZero() {
+				candles[target].Time = k.Candles[x].Time
+			}
 
-		if candles[target].Open == 0 {
-			candles[target].Open = k.Candles[x].Open
-		}
+			if candles[target].Open == 0 {
+				candles[target].Open = k.Candles[x].Open
+			}
 
-		if k.Candles[x].High > candles[target].High {
-			candles[target].High = k.Candles[x].High
-		}
+			if k.Candles[x].High > candles[target].High {
+				candles[target].High = k.Candles[x].High
+			}
 
-		if candles[target].Low == 0 || k.Candles[x].Low < candles[target].Low {
-			candles[target].Low = k.Candles[x].Low
-		}
+			if candles[target].Low == 0 || k.Candles[x].Low < candles[target].Low {
+				candles[target].Low = k.Candles[x].Low
+			}
 
-		candles[target].Volume += k.Candles[x].Volume
+			candles[target].Volume += k.Candles[x].Volume
+			candles[target].Close = k.Candles[x].Close
+		}
 
 		if (x+1)%oldIntervalsPerNewCandle == 0 {
-			candles[target].Close = k.Candles[x].Close
-			target++
 			// Note: Below checks the length of the proceeding slice so we can
 			// break instantly if we cannot make an entire candle. e.g. 60 min
 			// candles in an hour candle and we have 59 minute candles left.
@@ -379,6 +399,7 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 			if len(k.Candles[x:])-1 < oldIntervalsPerNewCandle {
 				break
 			}
+			target++
 		}
 	}
 	return &Item{
@@ -582,12 +603,12 @@ func (k *Item) EqualSource(i *Item) error {
 
 // DeployExchangeIntervals aligns and stores supported intervals for an exchange
 // for future matching.
-func DeployExchangeIntervals(enabled ...Interval) ExchangeIntervals {
-	sort.Slice(enabled, func(i, j int) bool { return enabled[i] < enabled[j] })
+func DeployExchangeIntervals(enabled ...IntervalCapacity) ExchangeIntervals {
+	sort.Slice(enabled, func(i, j int) bool { return enabled[i].Interval < enabled[j].Interval })
 
-	supported := make(map[Interval]bool)
+	supported := make(map[Interval]int64)
 	for x := range enabled {
-		supported[enabled[x]] = true
+		supported[enabled[x].Interval] = enabled[x].Capacity
 	}
 	return ExchangeIntervals{supported: supported, aligned: enabled}
 }
@@ -596,7 +617,8 @@ func DeployExchangeIntervals(enabled ...Interval) ExchangeIntervals {
 // future this might be able to be deprecated because we can construct custom
 // intervals from the supported list.
 func (e *ExchangeIntervals) ExchangeSupported(in Interval) bool {
-	return e.supported[in]
+	_, ok := e.supported[in]
+	return ok
 }
 
 // Construct fetches supported interval that can construct the required interval
@@ -606,17 +628,41 @@ func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
 		return 0, ErrInvalidInterval
 	}
 
-	if e.supported[required] {
+	if _, ok := e.supported[required]; ok {
 		// Directly supported by exchange can return.
 		return required, nil
 	}
 
 	for x := len(e.aligned) - 1; x > -1; x-- {
-		if e.aligned[x] < required && required%e.aligned[x] == 0 {
+		if e.aligned[x].Interval < required && required%e.aligned[x].Interval == 0 {
 			// Indirectly supported by exchange. Can generate required candle
 			// from this lower time frame supported candle.
-			return e.aligned[x], nil
+			return e.aligned[x].Interval, nil
 		}
 	}
 	return 0, ErrCannotConstructInterval
+}
+
+// GetIntervalResultLimit returns the maximum amount of candles that can be
+// returned for a specific interval. If the individual interval limit is not set,
+// it will be ignored and the global result limit will be returned.
+func (e *ExchangeCapabilitiesEnabled) GetIntervalResultLimit(interval Interval) (int64, error) {
+	if e == nil {
+		return 0, errExchangeCapabilitiesEnabledIsNil
+	}
+
+	val, ok := e.Intervals.supported[interval]
+	if !ok {
+		return 0, fmt.Errorf("[%s] %w", interval, errIntervalNotSupported)
+	}
+
+	if val > 0 {
+		return val, nil
+	}
+
+	if e.GlobalResultLimit == 0 {
+		return 0, fmt.Errorf("%w there is no global result limit set", errCannotFetchIntervalLimit)
+	}
+
+	return int64(e.GlobalResultLimit), nil
 }

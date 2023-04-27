@@ -2530,7 +2530,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Enabled:      currency.Pairs{cp},
 	}
 
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneDay)
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneDay})
 	err = em.Add(fExchange{IBotExchange: exch})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
