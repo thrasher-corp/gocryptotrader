@@ -1660,8 +1660,6 @@ func TestCancelFuturesWithdrawal(t *testing.T) {
 	}
 }
 
-const transferFuturesFundsResponseJSON = `{"applyId": "620a0bbefeaa6a000110e833", "bizNo": "620a0bbefeaa6a000110e832", "payAccountType": "CONTRACT", "payTag": "DEFAULT", "remark": "", "recAccountType": "MAIN", "recTag": "DEFAULT", "recRemark": "", "recSystem": "KUCOIN", "status": "PROCESSING", "currency": "USDT", "amount": "0.001", "fee": "0", "sn": 889048787670001, "reason": "", "createdAt": 1644825534000, "updatedAt": 1644825534000 }`
-
 func TestTransferFuturesFundsToMainAccount(t *testing.T) {
 	t.Parallel()
 	var resp *TransferRes
@@ -2125,6 +2123,9 @@ const (
 	futuresStartFundingFeeSettlementPushDataJSON              = `{ "topic": "/contract/announcement","subject": "funding.begin","data": {"symbol": "XBTUSDM","fundingTime": 1551770400000,"fundingRate": -0.002966,"timestamp": 1551770400000}}`
 	futuresFundingRatePushDataJSON                            = `{ "topic": "/contract/instrument:XBTUSDM","subject": "funding.rate","data": {"granularity": 60000,"fundingRate": -0.002966,"timestamp": 1551770400000}}`
 	futuresMarkIndexPricePushDataJSON                         = `{ "topic": "/contract/instrument:XBTUSDM","subject": "mark.index.price","data": {"granularity": 1000,"indexPrice": 4000.23,"markPrice": 4010.52,"timestamp": 1551770400000}}`
+	positionSettlementPushDataJSON                            = `{"userId": "xbc453tg732eba53a88ggyt8c", "topic": "/contract/position:XBTUSDM", "subject": "position.settlement", "data": { "fundingTime": 1551770400000, "qty": 100, "markPrice": 3610.85, "fundingRate": -0.002966, "fundingFee": -296, "ts": 1547697294838004923, "settleCurrency": "XBT" } }`
+	modifySubAccountSpotAPIs                                  = `{"subName": "AAAAAAAAAA0007", "remark": "remark", "apiKey": "630325e0e750870001829864", "apiSecret": "110f31fc-61c5-4baf-a29f-3f19a62bbf5d", "passphrase": "passphrase", "permission": "General", "ipWhitelist": "", "createdAt": 1661150688000 }`
+	transferFuturesFundsResponseJSON                          = `{"applyId": "620a0bbefeaa6a000110e833", "bizNo": "620a0bbefeaa6a000110e832", "payAccountType": "CONTRACT", "payTag": "DEFAULT", "remark": "", "recAccountType": "MAIN", "recTag": "DEFAULT", "recRemark": "", "recSystem": "KUCOIN", "status": "PROCESSING", "currency": "USDT", "amount": "0.001", "fee": "0", "sn": 889048787670001, "reason": "", "createdAt": 1644825534000, "updatedAt": 1644825534000 }`
 )
 
 func TestSybmbolTicker(t *testing.T) {
@@ -2648,8 +2649,6 @@ func TestCreateSpotAPIsForSubAccount(t *testing.T) {
 	}
 }
 
-const modifySubAccountSpotAPIs = `{"subName": "AAAAAAAAAA0007", "remark": "remark", "apiKey": "630325e0e750870001829864", "apiSecret": "110f31fc-61c5-4baf-a29f-3f19a62bbf5d", "passphrase": "passphrase", "permission": "General", "ipWhitelist": "", "createdAt": 1661150688000 }`
-
 func TestModifySubAccountSpotAPIs(t *testing.T) {
 	t.Parallel()
 	var resp SpotAPISubAccount
@@ -2767,8 +2766,6 @@ func TestFetchAccountInfo(t *testing.T) {
 		}
 	}
 }
-
-const positionSettlementPushDataJSON = `{"userId": "xbc453tg732eba53a88ggyt8c", "topic": "/contract/position:XBTUSDM", "subject": "position.settlement", "data": { "fundingTime": 1551770400000, "qty": 100, "markPrice": 3610.85, "fundingRate": -0.002966, "fundingFee": -296, "ts": 1547697294838004923, "settleCurrency": "XBT" } }`
 
 func TestPushPositionSettlemenPushData(t *testing.T) {
 	t.Parallel()

@@ -1085,6 +1085,7 @@ func TestWsAuth(t *testing.T) {
 	runAuth(t)
 }
 
+//nolint:gocritic // Only used as a testing helper function in this package
 func runAuth(t *testing.T) {
 	t.Helper()
 	setupWs()

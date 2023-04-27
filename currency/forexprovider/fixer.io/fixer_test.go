@@ -13,6 +13,7 @@ var f Fixer
 
 var isSetup bool
 
+//nolint:gocritic // Only used as a testing helper function in this package
 func setup(t *testing.T) {
 	t.Helper()
 	if !isSetup {

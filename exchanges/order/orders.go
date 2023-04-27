@@ -631,7 +631,7 @@ func (t Type) Lower() string {
 
 // Title returns the type titleized, eg "Limit"
 func (t Type) Title() string {
-	return strings.Title(strings.ToLower(t.String())) //nolint:staticcheck // Ignore Title usage warning
+	return strings.Title(strings.ToLower(t.String()))
 }
 
 // String implements the stringer interface
@@ -684,7 +684,7 @@ func (s Side) Lower() string {
 
 // Title returns the side titleized, eg "Buy"
 func (s Side) Title() string {
-	return strings.Title(strings.ToLower(s.String())) //nolint:staticcheck // Ignore Title usage warning
+	return strings.Title(strings.ToLower(s.String()))
 }
 
 // IsShort returns if the side is short
@@ -1002,8 +1002,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return ImmediateOrCancel, nil
 	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case StopLimit.String(), "EXCHANGE STOP LIMIT":
+	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
 		return StopLimit, nil
+	case StopMarket.String(), "STOP_MARKET":
+		return StopMarket, nil
 	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
 		return TrailingStop, nil
 	case FillOrKill.String(), "EXCHANGE FOK":

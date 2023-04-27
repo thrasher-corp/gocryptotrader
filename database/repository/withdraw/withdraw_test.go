@@ -153,6 +153,8 @@ func seedWithdrawData() {
 		Event(resp)
 	}
 }
+
+//nolint:gocritic // Only used as a testing helper function in this package
 func withdrawHelper(t *testing.T) {
 	t.Helper()
 	seedWithdrawData()

@@ -13,9 +13,11 @@ import (
 
 var (
 	// ErrUnsetName is an error for when the exchange name is not set
-	ErrUnsetName  = errors.New("unset exchange name")
-	errNilRequest = errors.New("nil kline request")
-	// ErrNoTimeSeriesDataToConvert is an error for when no candlestick data is available for specific instrument
+	ErrUnsetName                    = errors.New("unset exchange name")
+	errNilRequest                   = errors.New("nil kline request")
+	errInvalidSpecificEndpointLimit = errors.New("specific endpoint limit must be greater than 0")
+
+	// ErrNoTimeSeriesDataToConvert returned when no candlestick data is available for specific instrument
 	ErrNoTimeSeriesDataToConvert = errors.New("no time series data to convert")
 
 	// PartialCandle is string flag for when the most recent candle is partially
@@ -54,11 +56,14 @@ type Request struct {
 	// ProcessedCandles stores the candles that have been processed, but not converted
 	// to the ClientRequiredInterval
 	ProcessedCandles []Candle
+	// RequestLimit is the potential maximum amount of candles that can be
+	// returned
+	RequestLimit int64
 }
 
 // CreateKlineRequest generates a `Request` type for interval conversions
 // supported by an exchange.
-func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item, clientRequired, exchangeInterval Interval, start, end time.Time) (*Request, error) {
+func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item, clientRequired, exchangeInterval Interval, start, end time.Time, specificEndpointLimit int64) (*Request, error) {
 	if name == "" {
 		return nil, ErrUnsetName
 	}
@@ -80,6 +85,10 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 	err := common.StartEndTimeCheck(start, end)
 	if err != nil {
 		return nil, err
+	}
+
+	if specificEndpointLimit <= 0 {
+		return nil, errInvalidSpecificEndpointLimit
 	}
 
 	// Force UTC alignment
@@ -117,6 +126,7 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 		Start:            start,
 		End:              end,
 		PartialCandle:    end.After(time.Now()),
+		RequestLimit:     specificEndpointLimit,
 	}, nil
 }
 
