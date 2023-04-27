@@ -543,7 +543,7 @@ type orderbookWorkerTester struct {
 	TestExchange
 }
 
-func (*orderbookWorkerTester) UpdateOrderbook(ctx context.Context, pair currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (*orderbookWorkerTester) UpdateOrderbook(_ context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Base, error) {
 	return &orderbook.Base{}, nil
 }
 
@@ -581,9 +581,9 @@ type tickerWorkerTester struct {
 	TestExchange
 }
 
-func (*tickerWorkerTester) SupportsRESTTickerBatchUpdates(a asset.Item) bool      { return a == asset.Spot }
-func (*tickerWorkerTester) UpdateTickers(ctx context.Context, a asset.Item) error { return nil }
-func (*tickerWorkerTester) UpdateTicker(ctx context.Context, pair currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (*tickerWorkerTester) SupportsRESTTickerBatchUpdates(a asset.Item) bool    { return a == asset.Spot }
+func (*tickerWorkerTester) UpdateTickers(_ context.Context, _ asset.Item) error { return nil }
+func (*tickerWorkerTester) UpdateTicker(_ context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
 	return &ticker.Price{}, nil
 }
 
