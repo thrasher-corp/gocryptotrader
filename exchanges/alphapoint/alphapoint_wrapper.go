@@ -26,7 +26,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
-func (a *Alphapoint) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
+func (a *Alphapoint) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -100,7 +100,7 @@ func (a *Alphapoint) FetchTradablePairs(_ context.Context, _ asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (a *Alphapoint) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -158,7 +158,7 @@ func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (a *Alphapoint) UpdateTickers(_ context.Context, assetType asset.Item) error {
+func (a *Alphapoint) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -243,13 +243,13 @@ func (a *Alphapoint) FetchOrderbook(ctx context.Context, p currency.Pair, assetT
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *Alphapoint) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (a *Alphapoint) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (a *Alphapoint) GetWithdrawalsHistory(ctx context.Context, c currency.Code, as asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (a *Alphapoint) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -307,7 +307,7 @@ func (a *Alphapoint) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (a *Alphapoint) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (a *Alphapoint) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -321,7 +321,7 @@ func (a *Alphapoint) CancelAllOrders(ctx context.Context, orderCancellation *ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (a *Alphapoint) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (a *Alphapoint) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 

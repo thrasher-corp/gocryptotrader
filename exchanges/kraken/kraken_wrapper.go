@@ -158,17 +158,17 @@ func (k *Kraken) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.FourHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.FifteenDay,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.FifteenDay},
 				),
-				ResultLimit: 720,
+				GlobalResultLimit: 720,
 			},
 		},
 	}
@@ -657,12 +657,12 @@ func (k *Kraken) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (k *Kraken) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (k *Kraken) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	withdrawals, err := k.WithdrawStatus(ctx, c, "")
 	for i := range withdrawals {
 		resp = append(resp, exchange.WithdrawalHistory{
@@ -831,7 +831,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
+func (k *Kraken) CancelBatchOrders(_ context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 	}
@@ -897,7 +897,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 }
 
 // GetOrderInfo returns information on a current open order
-func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
@@ -1472,7 +1472,7 @@ func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := k.GetKlineRequest(pair, a, interval, start, end)
+	req, err := k.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
 	}

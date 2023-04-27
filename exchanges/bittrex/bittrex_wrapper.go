@@ -28,6 +28,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var (
+	oneDay   = time.Hour * 24
+	oneMonth = oneDay * 31
+	oneYear  = oneDay * 366
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bittrex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
@@ -111,12 +117,11 @@ func (b *Bittrex) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.OneHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.OneMin, Capacity: 1440}, // 1m interval: candles for 1 day (0:00 - 23:59)
+					kline.IntervalCapacity{Interval: kline.FiveMin, Capacity: 288}, // 5m interval: candles for 1 day (0:00 - 23:55)
+					kline.IntervalCapacity{Interval: kline.OneHour, Capacity: 744}, // 1 hour interval: candles for 31 days (0:00 - 23:00)
+					kline.IntervalCapacity{Interval: kline.OneDay, Capacity: 366},  // 1 day interval: candles for 366 days
 				),
-				ResultLimit: 1000,
 			},
 		},
 	}
@@ -284,7 +289,7 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (b *Bittrex) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -506,7 +511,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bittrex) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -639,7 +644,7 @@ func (b *Bittrex) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	orderData, err := b.GetOrder(ctx, orderID)
 	if err != nil {
 		return order.Detail{}, err
@@ -954,39 +959,36 @@ func (b *Bittrex) FormatExchangeKlineInterval(in kline.Interval) string {
 // This implementation rounds returns candles up to the next interval or to the end
 // time (whichever comes first)
 func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequest(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
 
 	candleInterval := b.FormatExchangeKlineInterval(req.ExchangeInterval)
 	if candleInterval == "notfound" {
-		return nil, errors.New("invalid interval")
+		return nil, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval)
 	}
 
-	year, month, day := req.Start.Date()
+	year, month, day := req.End.Date()
 	curYear, curMonth, curDay := time.Now().Date()
-
-	getHistoric := false // nolint:ifshort,nolintlint // false positive and triggers only on Windows
-	getRecent := false   // nolint:ifshort,nolintlint // false positive and triggers only on Windows
-
+	var getHistoric, getRecent bool
 	switch req.ExchangeInterval {
 	case kline.OneMin, kline.FiveMin:
-		if time.Since(req.Start) > 24*time.Hour {
+		if time.Since(req.Start) > oneDay {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth && day >= curDay {
 			getRecent = true
 		}
 	case kline.OneHour:
-		if time.Since(req.Start) > 31*24*time.Hour {
+		if time.Since(req.Start) > oneMonth {
 			getHistoric = true
 		}
 		if year >= curYear && month >= curMonth {
 			getRecent = true
 		}
 	case kline.OneDay:
-		if time.Since(req.Start) > 366*24*time.Hour {
+		if time.Since(req.Start) > oneYear {
 			getHistoric = true
 		}
 		if year >= curYear {
@@ -994,46 +996,48 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 	}
 
-	var ohlcData []CandleData
+	if !getHistoric && !getRecent {
+		return nil, errors.New("start end time range cannot get historic or recent candles")
+	}
+
+	var candleData []CandleData
 	if getHistoric {
-		var historicData []CandleData
-		historicData, err = b.GetHistoricalCandles(ctx,
+		historicData, err := b.GetHistoricalCandles(ctx,
 			req.RequestFormatted.String(),
-			b.FormatExchangeKlineInterval(req.ExchangeInterval),
+			candleInterval,
 			"TRADE",
-			year,
-			int(month),
-			day)
+			start.Year(),
+			int(start.Month()),
+			start.Day())
 		if err != nil {
 			return nil, err
 		}
-		ohlcData = append(ohlcData, historicData...)
+		candleData = append(candleData, historicData...)
 	}
+
 	if getRecent {
-		var recentData []CandleData
-		recentData, err = b.GetRecentCandles(ctx,
+		recentData, err := b.GetRecentCandles(ctx,
 			req.RequestFormatted.String(),
-			b.FormatExchangeKlineInterval(req.ExchangeInterval),
+			candleInterval,
 			"TRADE")
 		if err != nil {
 			return nil, err
 		}
-		ohlcData = append(ohlcData, recentData...)
+		candleData = append(candleData, recentData...)
 	}
 
-	timeSeries := make([]kline.Candle, 0, len(ohlcData))
-	for x := range ohlcData {
-		if ohlcData[x].StartsAt.Before(req.Start) ||
-			ohlcData[x].StartsAt.After(req.End) {
+	timeSeries := make([]kline.Candle, 0, len(candleData))
+	for x := range candleData {
+		if candleData[x].StartsAt.Before(req.Start) || candleData[x].StartsAt.After(req.End) {
 			continue
 		}
 		timeSeries = append(timeSeries, kline.Candle{
-			Time:   ohlcData[x].StartsAt,
-			Open:   ohlcData[x].Open,
-			High:   ohlcData[x].High,
-			Low:    ohlcData[x].Low,
-			Close:  ohlcData[x].Close,
-			Volume: ohlcData[x].Volume,
+			Time:   candleData[x].StartsAt,
+			Open:   candleData[x].Open,
+			High:   candleData[x].High,
+			Low:    candleData[x].Low,
+			Close:  candleData[x].Close,
+			Volume: candleData[x].Volume,
 		})
 	}
 	return req.ProcessResponse(timeSeries)

@@ -363,7 +363,7 @@ func (g *Gemini) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (g *Gemini) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (g *Gemini) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -466,12 +466,12 @@ func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gemini) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (g *Gemini) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (g *Gemini) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -597,7 +597,7 @@ func (g *Gemini) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (g *Gemini) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (g *Gemini) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -619,7 +619,7 @@ func (g *Gemini) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (g *Gemini) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

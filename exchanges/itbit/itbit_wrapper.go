@@ -129,25 +129,25 @@ func (i *ItBit) Start(ctx context.Context, wg *sync.WaitGroup) error {
 }
 
 // Run implements the ItBit wrapper
-func (i *ItBit) Run(ctx context.Context) {
+func (i *ItBit) Run(_ context.Context) {
 	if i.Verbose {
 		i.PrintEnabledPairs()
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (i *ItBit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (i *ItBit) FetchTradablePairs(_ context.Context, _ asset.Item) (currency.Pairs, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (i *ItBit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (i *ItBit) UpdateTradablePairs(_ context.Context, _ bool) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (i *ItBit) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (i *ItBit) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -325,12 +325,12 @@ func (i *ItBit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (i *ItBit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (i *ItBit) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (i *ItBit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (i *ItBit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -445,7 +445,7 @@ func (i *ItBit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (i *ItBit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (i *ItBit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -480,7 +480,7 @@ func (i *ItBit) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (i *ItBit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (i *ItBit) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

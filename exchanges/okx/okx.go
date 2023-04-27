@@ -409,7 +409,7 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 		return errMissingInstrumentID
 	}
 	arg.Side = strings.ToLower(arg.Side)
-	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.String() {
+	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 		return fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
 	}
 	if arg.TradeMode != TradeModeCross &&
@@ -1445,7 +1445,7 @@ func (ok *Okx) GetFundsTransferState(ctx context.Context, transferID, clientID s
 }
 
 // GetAssetBillsDetails Query the billing record, you can get the latest 1 month historical data
-func (ok *Okx) GetAssetBillsDetails(ctx context.Context, currency, clientID, clientSecret string, after, before time.Time, billType, limit int64) ([]AssetBillDetail, error) {
+func (ok *Okx) GetAssetBillsDetails(ctx context.Context, currency, clientID string, after, before time.Time, billType, limit int64) ([]AssetBillDetail, error) {
 	params := url.Values{}
 	billTypeMap := map[int64]bool{1: true, 2: true, 13: true, 20: true, 21: true, 28: true, 47: true, 48: true, 49: true, 50: true, 51: true, 52: true, 53: true, 54: true, 61: true, 68: true, 69: true, 72: true, 73: true, 74: true, 75: true, 76: true, 77: true, 78: true, 79: true, 80: true, 81: true, 82: true, 83: true, 84: true, 85: true, 86: true, 87: true, 88: true, 89: true, 90: true, 91: true, 92: true, 93: true, 94: true, 95: true, 96: true, 97: true, 98: true, 99: true, 102: true, 103: true, 104: true, 105: true, 106: true, 107: true, 108: true, 109: true, 110: true, 111: true, 112: true, 113: true, 114: true, 115: true, 116: true, 117: true, 118: true, 119: true, 120: true, 121: true, 122: true, 123: true, 124: true, 125: true, 126: true, 127: true, 128: true, 129: true, 130: true, 131: true, 132: true, 133: true, 134: true, 135: true, 136: true, 137: true, 138: true, 139: true, 141: true, 142: true, 143: true, 144: true, 145: true, 146: true, 147: true, 150: true, 151: true, 152: true, 153: true, 154: true, 155: true, 156: true, 157: true, 160: true, 161: true, 162: true, 163: true, 169: true, 170: true, 171: true, 172: true, 173: true, 174: true, 175: true, 176: true, 177: true, 178: true, 179: true, 180: true, 181: true, 182: true, 183: true, 184: true, 185: true, 186: true, 187: true, 188: true, 189: true, 193: true, 194: true, 195: true, 196: true, 197: true, 198: true, 199: true, 200: true, 211: true}
 	if _, okay := billTypeMap[billType]; okay {
@@ -2057,6 +2057,9 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, instrument
 		tradeMode != TradeModeCross &&
 		tradeMode != TradeModeCash {
 		return nil, errInvalidTradeModeValue
+	}
+	if reduceOnly {
+		params.Set("reduceOnly", "true")
 	}
 	params.Set("tdMode", tradeMode)
 	params.Set("px", strconv.FormatFloat(price, 'f', 0, 64))

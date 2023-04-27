@@ -419,26 +419,24 @@ func (o *OKCoin) GetMarketData(ctx context.Context, request *GetMarketDataReques
 		if !ok {
 			return nil, common.GetAssertError("string", t[0])
 		}
-		var tempCandle kline.Candle
-		if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
+		if candles[x].Time, err = time.Parse(time.RFC3339, v); err != nil {
 			return nil, err
 		}
-		if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
+		if candles[x].Open, err = convert.FloatFromString(t[1]); err != nil {
 			return nil, err
 		}
-		if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
+		if candles[x].High, err = convert.FloatFromString(t[2]); err != nil {
 			return nil, err
 		}
-		if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
+		if candles[x].Low, err = convert.FloatFromString(t[3]); err != nil {
 			return nil, err
 		}
-		if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
+		if candles[x].Close, err = convert.FloatFromString(t[4]); err != nil {
 			return nil, err
 		}
-		if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
+		if candles[x].Volume, err = convert.FloatFromString(t[5]); err != nil {
 			return nil, err
 		}
-		candles[x] = tempCandle
 	}
 	return candles, nil
 }

@@ -3,7 +3,7 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.17
 
 require (
-	github.com/d5/tengo/v2 v2.14.0
+	github.com/d5/tengo/v2 v2.16.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/mux v1.8.0
@@ -11,7 +11,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
-	github.com/lib/pq v1.10.7
+	github.com/lib/pq v1.10.8
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.4.0

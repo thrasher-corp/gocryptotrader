@@ -118,14 +118,14 @@ func (c *CoinbasePro) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.OneHour,
-					kline.SixHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
 				),
-				ResultLimit: 300,
+				GlobalResultLimit: 300,
 			},
 		},
 	}
@@ -284,7 +284,7 @@ func (c *CoinbasePro) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	products, err := c.GetProducts(ctx)
 	if err != nil {
 		return nil, err
@@ -369,7 +369,7 @@ func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (c *CoinbasePro) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (c *CoinbasePro) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -589,7 +589,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (c *CoinbasePro) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -892,7 +892,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
 func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := c.GetKlineRequest(pair, a, interval, start, end)
+	req, err := c.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}

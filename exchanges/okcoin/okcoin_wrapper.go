@@ -119,21 +119,26 @@ func (o *OKCoin) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.ThreeDay,
-					kline.OneWeek,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					// NOTE: The supported time intervals below are returned
+					// offset to the Asia/Shanghai time zone. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. Therefore the below intervals
+					// are constructed from hourly candles.
+					// kline.IntervalCapacity{Interval: kline.SixHour},
+					// kline.IntervalCapacity{Interval: kline.TwelveHour},
+					// kline.IntervalCapacity{Interval: kline.OneDay},
+					// kline.IntervalCapacity{Interval: kline.ThreeDay},
+					// kline.IntervalCapacity{Interval: kline.OneWeek},
 				),
-				ResultLimit: 1440,
+				GlobalResultLimit: 1440,
 			},
 		},
 	}
@@ -763,7 +768,7 @@ func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 }
 
 // GetOrderInfo returns order information based on order ID
-func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	if assetType != asset.Spot {
 		return resp, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
@@ -865,7 +870,7 @@ func (o *OKCoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (o *OKCoin) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1021,7 +1026,7 @@ func (o *OKCoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := o.GetKlineRequest(pair, a, interval, start, end)
+	req, err := o.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
