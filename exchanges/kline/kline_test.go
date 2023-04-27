@@ -877,9 +877,8 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
 	tt2 := time.Now().Add(-time.Hour)
 	tt3 := time.Now().Add(time.Hour)
 	for i := 0; i < b.N; i++ {
-		if tt1.Unix() == tt2.Unix() || //nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
-			(tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
-
+		if tt1.Unix() == tt2.Unix() || (tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
+			continue
 		}
 	}
 }
@@ -893,8 +892,8 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 	tt2 := time.Now().Add(-time.Hour).Unix()
 	tt3 := time.Now().Add(time.Hour).Unix()
 	for i := 0; i < b.N; i++ {
-		if tt1 >= tt2 && tt1 <= tt3 { //nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
-
+		if tt1 >= tt2 && tt1 <= tt3 {
+			continue
 		}
 	}
 }
@@ -1033,6 +1032,18 @@ func TestConvertToNewInterval(t *testing.T) {
 			Close:  5555,
 			Volume: 2520,
 		},
+		{
+			Time: tn.AddDate(0, 0, 6),
+			// Empty end padding
+		},
+		{
+			Time: tn.AddDate(0, 0, 7),
+			// Empty end padding
+		},
+		{
+			Time: tn.AddDate(0, 0, 8),
+			// Empty end padding
+		},
 	}
 
 	_, err = old.ConvertToNewInterval(newInterval)
@@ -1040,7 +1051,7 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCandleDataNotPadded)
 	}
 
-	err = old.addPadding(tn, tn.AddDate(0, 0, 6), false)
+	err = old.addPadding(tn, tn.AddDate(0, 0, 9), false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1050,8 +1061,8 @@ func TestConvertToNewInterval(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	if len(newCandle.Candles) != 2 {
-		t.Errorf("received '%v' expected '%v'", len(newCandle.Candles), 2)
+	if len(newCandle.Candles) != 3 {
+		t.Errorf("received '%v' expected '%v'", len(newCandle.Candles), 3)
 	}
 }
 
@@ -1104,6 +1115,37 @@ func TestAddPadding(t *testing.T) {
 	err = k.addPadding(tn.AddDate(0, 0, 5), tn, false)
 	if !errors.Is(err, errCannotEstablishTimeWindow) {
 		t.Fatalf("received '%v' expected '%v'", err, errCannotEstablishTimeWindow)
+	}
+
+	k.Candles = []Candle{
+		{
+			Time:   tn.Add(time.Hour * 8),
+			Open:   1337,
+			High:   1339,
+			Low:    1336,
+			Close:  1338,
+			Volume: 1337,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 1).Add(time.Hour * 8),
+			Open:   1338,
+			High:   2000,
+			Low:    1332,
+			Close:  1696,
+			Volume: 6420,
+		},
+		{
+			Time:   tn.AddDate(0, 0, 2).Add(time.Hour * 8),
+			Open:   1696,
+			High:   1998,
+			Low:    1337,
+			Close:  6969,
+			Volume: 2520,
+		}}
+
+	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
+	if !errors.Is(err, errCandleOpenTimeIsNotUTCAligned) {
+		t.Fatalf("received '%v' expected '%v'", err, errCandleOpenTimeIsNotUTCAligned)
 	}
 
 	k.Candles = []Candle{
@@ -1207,7 +1249,7 @@ func TestDeployExchangeIntervals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", exchangeIntervals.ExchangeSupported(OneWeek), false)
 	}
 
-	exchangeIntervals = DeployExchangeIntervals(OneWeek)
+	exchangeIntervals = DeployExchangeIntervals(IntervalCapacity{Interval: OneWeek})
 	if !exchangeIntervals.ExchangeSupported(OneWeek) {
 		t.Errorf("received '%v' expected '%v'", exchangeIntervals.ExchangeSupported(OneWeek), true)
 	}
@@ -1231,7 +1273,7 @@ func TestDeployExchangeIntervals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", request, OneWeek)
 	}
 
-	exchangeIntervals = DeployExchangeIntervals(OneWeek, OneDay)
+	exchangeIntervals = DeployExchangeIntervals(IntervalCapacity{Interval: OneWeek}, IntervalCapacity{Interval: OneDay})
 
 	request, err = exchangeIntervals.Construct(OneMonth)
 	if !errors.Is(err, nil) {
@@ -1284,5 +1326,53 @@ func TestSetHasDataFromCandles(t *testing.T) {
 	}
 	if !i.HasDataAtDate(k.Candles[len(k.Candles)-1].Time) {
 		t.Errorf("received '%v' expected '%v'", true, false)
+	}
+}
+
+func TestGetIntervalResultLimit(t *testing.T) {
+	t.Parallel()
+
+	var e *ExchangeCapabilitiesEnabled
+	_, err := e.GetIntervalResultLimit(OneMin)
+	if !errors.Is(err, errExchangeCapabilitiesEnabledIsNil) {
+		t.Errorf("received '%v' expected '%v'", err, errExchangeCapabilitiesEnabledIsNil)
+	}
+
+	e = &ExchangeCapabilitiesEnabled{}
+	e.Intervals = ExchangeIntervals{}
+	_, err = e.GetIntervalResultLimit(OneDay)
+	if !errors.Is(err, errIntervalNotSupported) {
+		t.Errorf("received '%v' expected '%v'", err, errIntervalNotSupported)
+	}
+
+	e.Intervals = ExchangeIntervals{
+		supported: map[Interval]int64{
+			OneDay: 100000,
+			OneMin: 0,
+		},
+	}
+
+	_, err = e.GetIntervalResultLimit(OneMin)
+	if !errors.Is(err, errCannotFetchIntervalLimit) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotFetchIntervalLimit)
+	}
+
+	limit, err := e.GetIntervalResultLimit(OneDay)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if limit != 100000 {
+		t.Errorf("received '%v' expected '%v'", limit, 100000)
+	}
+
+	e.GlobalResultLimit = 1337
+	limit, err = e.GetIntervalResultLimit(OneMin)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if limit != 1337 {
+		t.Errorf("received '%v' expected '%v'", limit, 1337)
 	}
 }

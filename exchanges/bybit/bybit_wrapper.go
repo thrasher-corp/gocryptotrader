@@ -136,21 +136,21 @@ func (by *Bybit) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 200,
+				GlobalResultLimit: 200,
 			},
 		},
 	}
@@ -794,7 +794,7 @@ func (by *Bybit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (by *Bybit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (by *Bybit) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -920,7 +920,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (by *Bybit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (by *Bybit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1132,7 +1132,7 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (by *Bybit) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
+func (by *Bybit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -1415,13 +1415,13 @@ func (by *Bybit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (by *Bybit) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (by *Bybit) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (by *Bybit) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (by *Bybit) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1754,7 +1754,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (by *Bybit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (by *Bybit) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrNotYetImplemented
 }
 
@@ -1765,7 +1765,7 @@ func (by *Bybit) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (by *Bybit) FormatExchangeKlineInterval(ctx context.Context, interval kline.Interval) string {
+func (by *Bybit) FormatExchangeKlineInterval(_ context.Context, interval kline.Interval) string {
 	switch interval {
 	case kline.OneMin:
 		return "1m"
@@ -1799,7 +1799,7 @@ func (by *Bybit) FormatExchangeKlineInterval(ctx context.Context, interval kline
 }
 
 // FormatExchangeKlineIntervalFutures returns Interval to exchange formatted string for future assets
-func (by *Bybit) FormatExchangeKlineIntervalFutures(ctx context.Context, interval kline.Interval) string {
+func (by *Bybit) FormatExchangeKlineIntervalFutures(_ context.Context, interval kline.Interval) string {
 	switch interval {
 	case kline.OneMin:
 		return "1"
@@ -1834,7 +1834,7 @@ func (by *Bybit) FormatExchangeKlineIntervalFutures(ctx context.Context, interva
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := by.GetKlineRequest(pair, a, interval, start, end)
+	req, err := by.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1846,7 +1846,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		candles, err = by.GetKlines(ctx,
 			req.RequestFormatted.String(),
 			by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
-			int64(by.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start,
 			req.End)
 		if err != nil {
@@ -1869,7 +1869,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		candles, err = by.GetFuturesKlineData(ctx,
 			req.RequestFormatted,
 			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-			int64(by.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start)
 		if err != nil {
 			return nil, err
@@ -1891,7 +1891,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		candles, err = by.GetUSDTFuturesKlineData(ctx,
 			req.RequestFormatted,
 			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-			int64(by.Features.Enabled.Kline.ResultLimit),
+			req.RequestLimit,
 			req.Start)
 		if err != nil {
 			return nil, err
@@ -1914,7 +1914,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			req.RequestFormatted,
 			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 			req.Start,
-			int64(by.Features.Enabled.Kline.ResultLimit))
+			req.RequestLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -1951,7 +1951,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetKlines(ctx,
 				req.RequestFormatted.String(),
 				by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
-				int64(by.Features.Enabled.Kline.ResultLimit),
+				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
@@ -1973,7 +1973,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-				int64(by.Features.Enabled.Kline.ResultLimit),
+				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
@@ -1994,7 +1994,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			candles, err = by.GetUSDTFuturesKlineData(ctx,
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
-				int64(by.Features.Enabled.Kline.ResultLimit),
+				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
 				return nil, err
@@ -2016,7 +2016,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 				req.RequestFormatted,
 				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
 				req.RangeHolder.Ranges[x].Start.Time,
-				int64(by.Features.Enabled.Kline.ResultLimit))
+				req.RequestLimit)
 			if err != nil {
 				return nil, err
 			}

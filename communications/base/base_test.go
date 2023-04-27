@@ -9,7 +9,7 @@ var (
 	b Base
 )
 
-func TestStart(t *testing.T) {
+func TestStart(_ *testing.T) {
 	b = Base{
 		Name:      "test",
 		Enabled:   true,
@@ -71,7 +71,7 @@ func (p *CommunicationProvider) Connect() error {
 	return nil
 }
 
-func (p *CommunicationProvider) PushEvent(e Event) error {
+func (p *CommunicationProvider) PushEvent(_ Event) error {
 	p.PushEventCalled = true
 	return nil
 }
