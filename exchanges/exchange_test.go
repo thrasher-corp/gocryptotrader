@@ -2747,8 +2747,22 @@ func TestGetKlineRequest(t *testing.T) {
 	}
 
 	_, err = b.GetKlineRequest(pair, asset.Futures, kline.OneHour, start, end, false)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	if !errors.Is(err, asset.ErrNotEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
+	}
+
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		Enabled:       []currency.Pair{pair},
+		Available:     []currency.Pair{pair},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	_, err = b.GetKlineRequest(pair, asset.Futures, kline.OneHour, start, end, false)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
 
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneHour})

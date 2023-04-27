@@ -590,11 +590,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 				input = reflect.ValueOf("trading")
 			} else {
 				// Crypto Chain
-				if argGenerator.AssetParams.Pair.Base.Equal(currency.ETH) {
-					input = reflect.ValueOf("ERC20")
-				} else {
-					input = reflect.ValueOf("")
-				}
+				input = reflect.ValueOf("")
 			}
 		default:
 			// OrderID

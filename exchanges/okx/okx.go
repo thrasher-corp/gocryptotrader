@@ -3141,38 +3141,34 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 
 // GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles, getCandlesticksEPL)
 }
 
 // GetCandlesticksHistory Retrieve history candlestick charts from recent years.
 func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesHistory)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesHistory, getCandlestickHistoryEPL)
 }
 
 // GetIndexCandlesticks Retrieve the candlestick charts of the index. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 // the response is a list of Candlestick data.
 func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex, getIndexCandlesticksEPL)
 }
 
 // GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketPriceCandles)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketPriceCandles, getCandlestickHistoryEPL)
 }
 
 // GetCandlestickData handles fetching the data for both the default GetCandlesticks, GetCandlesticksHistory, and GetIndexCandlesticks() methods.
-func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64, route string) ([]CandleStick, error) {
+func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64, route string, rateLimit request.EndpointLimit) ([]CandleStick, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", instrumentID)
 	var resp [][7]string
-	if limit <= 300 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else if limit > 300 {
-		return nil, fmt.Errorf("%w can not exceed 300", errLimitExceedsMaximumResultPerRequest)
-	}
+	params.Set("limit", strconv.FormatInt(limit, 10))
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
@@ -3183,7 +3179,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if bar != "" {
 		params.Set("bar", bar)
 	}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
