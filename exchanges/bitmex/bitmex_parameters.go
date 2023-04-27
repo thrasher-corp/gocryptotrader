@@ -168,7 +168,7 @@ func (p ChatSendParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p ChatSendParams) ToURLVals(path string) (string, error) {
+func (p ChatSendParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -247,7 +247,7 @@ func (p LeaderboardGetParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p LeaderboardGetParams) ToURLVals(path string) (string, error) {
+func (p LeaderboardGetParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -339,7 +339,7 @@ func (p *OrderNewParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p *OrderNewParams) ToURLVals(path string) (string, error) {
+func (p *OrderNewParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -404,7 +404,7 @@ func (p *OrderAmendParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p *OrderAmendParams) ToURLVals(path string) (string, error) {
+func (p *OrderAmendParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -432,7 +432,7 @@ func (p OrderCancelParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderCancelParams) ToURLVals(path string) (string, error) {
+func (p OrderCancelParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -463,7 +463,7 @@ func (p OrderCancelAllParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderCancelAllParams) ToURLVals(path string) (string, error) {
+func (p OrderCancelAllParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -485,7 +485,7 @@ func (p OrderAmendBulkParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderAmendBulkParams) ToURLVals(path string) (string, error) {
+func (p OrderAmendBulkParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -507,7 +507,7 @@ func (p OrderNewBulkParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderNewBulkParams) ToURLVals(path string) (string, error) {
+func (p OrderNewBulkParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -530,7 +530,7 @@ func (p OrderCancelAllAfterParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderCancelAllAfterParams) ToURLVals(path string) (string, error) {
+func (p OrderCancelAllAfterParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -556,7 +556,7 @@ func (p OrderClosePositionParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p OrderClosePositionParams) ToURLVals(path string) (string, error) {
+func (p OrderClosePositionParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -615,7 +615,7 @@ func (p PositionGetParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p PositionGetParams) ToURLVals(path string) (string, error) {
+func (p PositionGetParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -641,7 +641,7 @@ func (p PositionIsolateMarginParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p PositionIsolateMarginParams) ToURLVals(path string) (string, error) {
+func (p PositionIsolateMarginParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -668,7 +668,7 @@ func (p PositionUpdateLeverageParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p PositionUpdateLeverageParams) ToURLVals(path string) (string, error) {
+func (p PositionUpdateLeverageParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -694,7 +694,7 @@ func (p PositionUpdateRiskLimitParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p PositionUpdateRiskLimitParams) ToURLVals(path string) (string, error) {
+func (p PositionUpdateRiskLimitParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -720,7 +720,7 @@ func (p PositionTransferIsolatedMarginParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p PositionTransferIsolatedMarginParams) ToURLVals(path string) (string, error) {
+func (p PositionTransferIsolatedMarginParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -780,7 +780,7 @@ func (p *QuoteGetBucketedParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p *QuoteGetBucketedParams) ToURLVals(path string) (string, error) {
+func (p *QuoteGetBucketedParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -841,7 +841,7 @@ func (p *TradeGetBucketedParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p *TradeGetBucketedParams) ToURLVals(path string) (string, error) {
+func (p *TradeGetBucketedParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -878,7 +878,7 @@ func (p *UserUpdateParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p *UserUpdateParams) ToURLVals(path string) (string, error) {
+func (p *UserUpdateParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -899,7 +899,7 @@ func (p UserTokenParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p UserTokenParams) ToURLVals(path string) (string, error) {
+func (p UserTokenParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -921,7 +921,7 @@ func (p UserCheckReferralCodeParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p UserCheckReferralCodeParams) ToURLVals(path string) (string, error) {
+func (p UserCheckReferralCodeParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -947,7 +947,7 @@ func (p UserConfirmTFAParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p UserConfirmTFAParams) ToURLVals(path string) (string, error) {
+func (p UserConfirmTFAParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -968,7 +968,7 @@ func (p UserCurrencyParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p UserCurrencyParams) ToURLVals(path string) (string, error) {
+func (p UserCurrencyParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -993,7 +993,7 @@ func (p UserPreferencesParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p UserPreferencesParams) ToURLVals(path string) (string, error) {
+func (p UserPreferencesParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -1030,7 +1030,7 @@ func (p UserRequestWithdrawalParams) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p UserRequestWithdrawalParams) ToURLVals(path string) (string, error) {
+func (p UserRequestWithdrawalParams) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 
@@ -1058,7 +1058,7 @@ func (p *OrdersRequest) VerifyData() error {
 
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
-func (p *OrdersRequest) ToURLVals(path string) (string, error) {
+func (p *OrdersRequest) ToURLVals(_ string) (string, error) {
 	return "", nil
 }
 

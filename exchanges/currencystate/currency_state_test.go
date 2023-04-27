@@ -301,7 +301,7 @@ func TestCurrencyGetState(t *testing.T) {
 	}
 }
 
-func TestAlerting(t *testing.T) {
+func TestAlerting(_ *testing.T) {
 	c := Currency{}
 	var start, finish sync.WaitGroup
 	start.Add(3)

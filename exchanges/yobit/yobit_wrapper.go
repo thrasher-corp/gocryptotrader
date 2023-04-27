@@ -158,7 +158,7 @@ func (y *Yobit) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (y *Yobit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (y *Yobit) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	info, err := y.GetInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -355,12 +355,12 @@ func (y *Yobit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (y *Yobit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (y *Yobit) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (y *Yobit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (y *Yobit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -459,7 +459,7 @@ func (y *Yobit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (y *Yobit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (y *Yobit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -507,7 +507,7 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 }
 
 // GetOrderInfo returns order information based on order ID
-func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (y *Yobit) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -697,12 +697,12 @@ func (y *Yobit) ValidateCredentials(ctx context.Context, assetType asset.Item) e
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (y *Yobit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (y *Yobit) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (y *Yobit) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

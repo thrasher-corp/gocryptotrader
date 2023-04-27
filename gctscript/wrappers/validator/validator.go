@@ -46,7 +46,7 @@ func (w Wrapper) IsEnabled(exch string) (v bool) {
 }
 
 // Orderbook validator for test execution/scripts
-func (w Wrapper) Orderbook(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
+func (w Wrapper) Orderbook(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -71,7 +71,7 @@ func (w Wrapper) Orderbook(ctx context.Context, exch string, pair currency.Pair,
 }
 
 // Ticker validator for test execution/scripts
-func (w Wrapper) Ticker(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (w Wrapper) Ticker(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -109,7 +109,7 @@ func (w Wrapper) Pairs(exch string, _ bool, _ asset.Item) (*currency.Pairs, erro
 }
 
 // QueryOrder validator for test execution/scripts
-func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (w Wrapper) QueryOrder(_ context.Context, exch, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -149,7 +149,7 @@ func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair
 }
 
 // SubmitOrder validator for test execution/scripts
-func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
+func (w Wrapper) SubmitOrder(_ context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	if o == nil {
 		return nil, errTestFailed
 	}
@@ -171,7 +171,7 @@ func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 }
 
 // CancelOrder validator for test execution/scripts
-func (w Wrapper) CancelOrder(ctx context.Context, exch, orderid string, cp currency.Pair, a asset.Item) (bool, error) {
+func (w Wrapper) CancelOrder(_ context.Context, exch, orderid string, cp currency.Pair, a asset.Item) (bool, error) {
 	if exch == exchError.String() {
 		return false, errTestFailed
 	}
@@ -188,7 +188,7 @@ func (w Wrapper) CancelOrder(ctx context.Context, exch, orderid string, cp curre
 }
 
 // AccountInformation validator for test execution/scripts
-func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType asset.Item) (account.Holdings, error) {
+func (w Wrapper) AccountInformation(_ context.Context, exch string, assetType asset.Item) (account.Holdings, error) {
 	if exch == exchError.String() {
 		return account.Holdings{}, errTestFailed
 	}
@@ -220,7 +220,7 @@ func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType 
 }
 
 // DepositAddress validator for test execution/scripts
-func (w Wrapper) DepositAddress(exch, chain string, _ currency.Code) (*deposit.Address, error) {
+func (w Wrapper) DepositAddress(exch, _ string, _ currency.Code) (*deposit.Address, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -229,7 +229,7 @@ func (w Wrapper) DepositAddress(exch, chain string, _ currency.Code) (*deposit.A
 }
 
 // WithdrawalCryptoFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalCryptoFunds(ctx context.Context, r *withdraw.Request) (out string, err error) {
+func (w Wrapper) WithdrawalCryptoFunds(_ context.Context, r *withdraw.Request) (out string, err error) {
 	if r.Exchange == exchError.String() {
 		return r.Exchange, errTestFailed
 	}
@@ -238,7 +238,7 @@ func (w Wrapper) WithdrawalCryptoFunds(ctx context.Context, r *withdraw.Request)
 }
 
 // WithdrawalFiatFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalFiatFunds(ctx context.Context, _ string, r *withdraw.Request) (out string, err error) {
+func (w Wrapper) WithdrawalFiatFunds(_ context.Context, _ string, r *withdraw.Request) (out string, err error) {
 	if r.Exchange == exchError.String() {
 		return r.Exchange, errTestFailed
 	}
@@ -247,7 +247,7 @@ func (w Wrapper) WithdrawalFiatFunds(ctx context.Context, _ string, r *withdraw.
 }
 
 // OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
-func (w Wrapper) OHLCV(ctx context.Context, exch string, p currency.Pair, a asset.Item, start, end time.Time, i kline.Interval) (*kline.Item, error) {
+func (w Wrapper) OHLCV(_ context.Context, exch string, p currency.Pair, a asset.Item, start, _ time.Time, i kline.Interval) (*kline.Item, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}

@@ -37,6 +37,7 @@ func areTestAPIKeysSet() bool {
 	return z.ValidateAPICredentials(z.GetDefaultCredentials()) == nil
 }
 
+//nolint:gocritic // Only used as a testing helper function in this package
 func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {
@@ -867,23 +868,32 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 }
 
 func TestGetSpotKline(t *testing.T) {
+	t.Parallel()
+	limit, err := z.Features.Enabled.Kline.GetIntervalResultLimit(kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
 	arg := KlinesRequestParams{
 		Symbol: testCurrency,
 		Type:   kline.OneMin.Short() + "in",
-		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
+		Size:   limit,
 	}
 	if mockTests {
 		startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 		arg.Since = startTime.UnixMilli()
 		arg.Type = "1day"
 	}
-	_, err := z.GetSpotKline(context.Background(), arg)
+	_, err = z.GetSpotKline(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB GetSpotKline: %s", err)
 	}
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	if mockTests {
+		t.Skip("mock testing is not supported for this function")
+	}
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
 		t.Fatal(err)
@@ -891,20 +901,14 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	startTime := time.Now().Add(-time.Hour * 24)
 	endTime := time.Now()
-	if mockTests {
-		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
-	}
-
-	// Current endpoint is dead.
-	_, err = z.GetHistoricCandles(context.Background(),
-		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
+	_, err = z.GetHistoricCandles(context.Background(), currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
 		t.Fatal(err)
@@ -920,8 +924,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime = time.Now().Add(-time.Hour * 24 * 365)
 	endTime = time.Now()
 	if mockTests {
-		startTime = time.UnixMilli(1674489600000)
-		endTime = startTime.Add(kline.OneDay.Duration())
+		t.Skip("mock testing is not supported for this function")
 	}
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
 		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
