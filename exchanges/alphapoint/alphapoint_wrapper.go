@@ -360,7 +360,7 @@ func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (a *Alphapoint) GetFeeByType(ctx context.Context, _ *exchange.FeeBuilder) (float64, error) {
+func (a *Alphapoint) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrFunctionNotSupported
 }
 
@@ -450,12 +450,12 @@ func (a *Alphapoint) ValidateAPICredentials(ctx context.Context, assetType asset
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (a *Alphapoint) GetHistoricCandles(ctx context.Context, pair currency.Pair, ai asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (a *Alphapoint) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set
 // time interval
-func (a *Alphapoint) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, ai asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (a *Alphapoint) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
