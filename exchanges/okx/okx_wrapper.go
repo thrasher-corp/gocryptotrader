@@ -268,7 +268,7 @@ func (ok *Okx) Run(ctx context.Context) {
 }
 
 // GetServerTime returns the current exchange server time.
-func (ok *Okx) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+func (ok *Okx) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return ok.GetSystemTime(ctx)
 }
 
@@ -1133,12 +1133,12 @@ func (ok *Okx) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (ok *Okx) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ok *Okx) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
-func (ok *Okx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ok *Okx) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

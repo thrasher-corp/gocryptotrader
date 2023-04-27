@@ -877,9 +877,8 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
 	tt2 := time.Now().Add(-time.Hour)
 	tt3 := time.Now().Add(time.Hour)
 	for i := 0; i < b.N; i++ {
-		if tt1.Unix() == tt2.Unix() || //nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
-			(tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
-
+		if tt1.Unix() == tt2.Unix() || (tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
+			continue
 		}
 	}
 }
@@ -893,8 +892,8 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 	tt2 := time.Now().Add(-time.Hour).Unix()
 	tt3 := time.Now().Add(time.Hour).Unix()
 	for i := 0; i < b.N; i++ {
-		if tt1 >= tt2 && tt1 <= tt3 { //nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
-
+		if tt1 >= tt2 && tt1 <= tt3 {
+			continue
 		}
 	}
 }

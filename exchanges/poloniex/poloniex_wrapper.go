@@ -264,7 +264,7 @@ func (p *Poloniex) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (p *Poloniex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	resp, err := p.GetTicker(ctx)
 	if err != nil {
 		return nil, err
@@ -466,12 +466,12 @@ func (p *Poloniex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (p *Poloniex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (p *Poloniex) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (p *Poloniex) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -618,7 +618,7 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (p *Poloniex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -646,7 +646,7 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (order.Detail, error) {
 	orderInfo := order.Detail{
 		Exchange: p.Name,
 		Pair:     pair,

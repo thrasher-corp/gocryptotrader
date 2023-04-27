@@ -126,10 +126,10 @@ func (s *customStrategy) SupportsSimultaneousProcessing() bool {
 func (s *customStrategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
 	return s.createSignal(d)
 }
-func (s *customStrategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
+func (s *customStrategy) OnSimultaneousSignals(_ []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	return nil, nil
 }
-func (s *customStrategy) createSignal(d data.Handler) (*signal.Signal, error) {
+func (s *customStrategy) createSignal(_ data.Handler) (*signal.Signal, error) {
 	return nil, nil
 }
 func (s *customStrategy) SetCustomSettings(map[string]interface{}) error {

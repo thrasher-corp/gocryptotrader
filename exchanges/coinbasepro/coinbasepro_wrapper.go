@@ -284,7 +284,7 @@ func (c *CoinbasePro) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	products, err := c.GetProducts(ctx)
 	if err != nil {
 		return nil, err
@@ -369,7 +369,7 @@ func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (c *CoinbasePro) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (c *CoinbasePro) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -589,7 +589,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (c *CoinbasePro) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

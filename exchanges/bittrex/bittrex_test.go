@@ -604,6 +604,7 @@ func TestModifyOrder(t *testing.T) {
 	}
 }
 
+//nolint:gocritic // Only used as a testing helper function in this package
 func WithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Helper()
 	withdrawCryptoRequest := withdraw.Request{

@@ -1413,7 +1413,7 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 }
 
 // UpdateCurrencyStates updates currency states
-func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
+func (b *Base) UpdateCurrencyStates(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
@@ -1440,12 +1440,12 @@ func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*o
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency
-func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (b *Base) CalculateTotalCollateral(_ context.Context, _ *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (b *Base) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+func (b *Base) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 

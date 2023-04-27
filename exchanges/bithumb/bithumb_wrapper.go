@@ -237,7 +237,7 @@ func (b *Bithumb) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bithumb) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (b *Bithumb) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	currencies, err := b.GetTradablePairs(ctx)
 	if err != nil {
 		return nil, err
@@ -427,12 +427,12 @@ func (b *Bithumb) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bithumb) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bithumb) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bithumb) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -532,7 +532,7 @@ func (b *Bithumb) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bithumb) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bithumb) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -579,7 +579,7 @@ func (b *Bithumb) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bithumb) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

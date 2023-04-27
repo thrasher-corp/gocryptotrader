@@ -227,7 +227,7 @@ func (z *ZB) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (z *ZB) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (z *ZB) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	markets, err := z.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
@@ -431,12 +431,12 @@ func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accoun
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (z *ZB) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (z *ZB) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (z *ZB) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -567,7 +567,7 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (z *ZB) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (z *ZB) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -630,7 +630,7 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (z *ZB) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

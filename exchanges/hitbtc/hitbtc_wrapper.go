@@ -283,7 +283,7 @@ func (h *HitBTC) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (h *HitBTC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (h *HitBTC) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	symbols, err := h.GetSymbolsDetailed(ctx)
 	if err != nil {
 		return nil, err
@@ -479,12 +479,12 @@ func (h *HitBTC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HitBTC) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (h *HitBTC) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (h *HitBTC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (h *HitBTC) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -632,7 +632,7 @@ func (h *HitBTC) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HitBTC) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (h *HitBTC) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -660,7 +660,7 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (h *HitBTC) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
