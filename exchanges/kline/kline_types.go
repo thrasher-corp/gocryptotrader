@@ -71,10 +71,14 @@ var (
 	// back further than what is allowed.
 	ErrRequestExceedsMaxLookback = errors.New("the requested time window exceeds the maximum lookback period available in the historical data, please reduce window between start and end date of your request")
 
-	errInsufficientTradeData     = errors.New("insufficient trade data")
-	errCandleDataNotPadded       = errors.New("candle data not padded")
-	errCannotEstablishTimeWindow = errors.New("cannot establish time window")
-	errNilKline                  = errors.New("kline item is nil")
+	errInsufficientTradeData            = errors.New("insufficient trade data")
+	errCandleDataNotPadded              = errors.New("candle data not padded")
+	errCannotEstablishTimeWindow        = errors.New("cannot establish time window")
+	errNilKline                         = errors.New("kline item is nil")
+	errExchangeCapabilitiesEnabledIsNil = errors.New("exchange capabilities enabled is nil")
+	errCannotFetchIntervalLimit         = errors.New("cannot fetch interval limit")
+	errIntervalNotSupported             = errors.New("interval not supported")
+	errCandleOpenTimeIsNotUTCAligned    = errors.New("candle open time is not UTC aligned")
 
 	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 
@@ -138,15 +142,20 @@ type ExchangeCapabilitiesSupported struct {
 
 // ExchangeCapabilitiesEnabled all kline related exchange enabled options
 type ExchangeCapabilitiesEnabled struct {
-	Intervals   ExchangeIntervals
-	ResultLimit uint32
+	// Intervals defines whether the exchange supports interval kline requests.
+	Intervals ExchangeIntervals
+	// GlobalResultLimit is the maximum amount of candles that can be returned
+	// across all intervals. This is used to determine if a request will exceed
+	// the exchange limits. Indivudal interval limits are stored in the
+	// ExchangeIntervals struct. If this is set to 0, it will be ignored.
+	GlobalResultLimit uint32
 }
 
 // ExchangeIntervals stores the supported intervals in an optimized lookup table
 // with a supplementary aligned retrieval list
 type ExchangeIntervals struct {
-	supported map[Interval]bool
-	aligned   []Interval
+	supported map[Interval]int64
+	aligned   []IntervalCapacity
 }
 
 // Interval type for kline Interval usage
@@ -182,4 +191,10 @@ type IntervalData struct {
 type IntervalTime struct {
 	Time  time.Time
 	Ticks int64
+}
+
+// IntervalCapacity is used to store the interval and capacity for a candle return
+type IntervalCapacity struct {
+	Interval Interval
+	Capacity int64
 }

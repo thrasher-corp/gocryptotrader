@@ -495,9 +495,8 @@ func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bo
 			if i < c.dataRequestRetryTolerance {
 				log.Errorf(common.Data, "%v %v %v failed to retrieve data %v of %v attempts: %v", c.exchangeName, c.asset, c.pair, i, c.dataRequestRetryTolerance, err)
 				continue
-			} else {
-				return false, err
 			}
+			return false, err
 		}
 		break
 	}
