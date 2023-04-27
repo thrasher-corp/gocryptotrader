@@ -345,19 +345,6 @@ type TickerData struct {
 	UnderlyingPrice float64             `json:"underlying_price"`
 }
 
-// CancelTransferData stores data for a cancel transfer
-type CancelTransferData struct {
-	Amount           float64             `json:"amount"`
-	CreatedTimestamp deribitMilliSecTime `json:"created_timestamp"`
-	Currency         string              `json:"currency"`
-	Direction        string              `json:"direction"`
-	ID               int64               `json:"id"`
-	OtherSide        string              `json:"other_side"`
-	State            string              `json:"state"`
-	Type             string              `json:"type"`
-	UpdatedTimestamp deribitMilliSecTime `json:"updated_timestamp"`
-}
-
 // CancelWithdrawalData stores cancel request data for a withdrawal
 type CancelWithdrawalData struct {
 	Address            string              `json:"address"`
@@ -393,6 +380,12 @@ type DepositsData struct {
 		TransactionID     string              `json:"transaction_id"`
 		UpdatedTimestamp  deribitMilliSecTime `json:"updated_timestamp"`
 	} `json:"data"`
+}
+
+// TransfersData stores list of transfer data
+type TransfersData struct {
+	Count int64          `json:"count"`
+	Data  []TransferData `json:"data"`
 }
 
 // TransferData stores data for a transfer
@@ -520,10 +513,10 @@ type MarginsData struct {
 
 // MMPConfigData gets the current configuration data for MMP
 type MMPConfigData struct {
-	Currency      string              `json:"currency"`
-	Interval      int64               `json:"interval"`
-	FrozenTime    deribitMilliSecTime `json:"frozen_time"`
-	QuantityLimit float64             `json:"quantity_limit"`
+	Currency      string  `json:"currency"`
+	Interval      int64   `json:"interval"`
+	FrozenTime    int64   `json:"frozen_time"`
+	QuantityLimit float64 `json:"quantity_limit"`
 }
 
 // UserTradesData stores data of user trades
@@ -536,7 +529,7 @@ type UserTradesData struct {
 type UserTradeData struct {
 	UnderlyingPrice float64             `json:"underlying_price"`
 	TradeSequence   int64               `json:"trade_sequence"`
-	TradeID         int64               `json:"trade_id"`
+	TradeInstrument string              `json:"trade_id"`
 	Timestamp       deribitMilliSecTime `json:"timestamp"`
 	TickDirection   int64               `json:"tick_direction"`
 	State           string              `json:"state"`
@@ -545,7 +538,7 @@ type UserTradeData struct {
 	Price           float64             `json:"price"`
 	PostOnly        bool                `json:"post_only"`
 	OrderType       string              `json:"order_type"`
-	OrderID         int64               `json:"order_id"`
+	OrderID         string              `json:"order_id"`
 	MatchingID      int64               `json:"matching_id"`
 	MarkPrice       float64             `json:"mark_price"`
 	Liquidity       string              `json:"liquidity"`
@@ -578,31 +571,30 @@ type PrivateSettlementData struct {
 
 // AccountSummaryData stores data of account summary for a given currency
 type AccountSummaryData struct {
-	Balance                  float64             `json:"balance"`
-	OptionsSessionUPL        float64             `json:"options_session_upl"`
-	DepositAddress           string              `json:"deposit_address"`
-	OptionsGamma             float64             `json:"options_gamma"`
-	OptionsTheta             float64             `json:"options_theta"`
-	Username                 string              `json:"username"`
-	Equity                   float64             `json:"equity"`
-	Type                     string              `json:"type"`
-	Currency                 string              `json:"currency"`
-	DeltaTotal               float64             `json:"delta_total"`
-	FuturesSessionRPL        float64             `json:"futures_session_rpl"`
-	PortfolioManagingEnabled bool                `json:"portfolio_managing_enabled"`
-	TotalPL                  float64             `json:"total_pl"`
-	MarginBalance            float64             `json:"margin_balance"`
-	TFAEnabled               bool                `json:"tfa_enabled"`
-	OptionsSessionRPL        float64             `json:"options_session_rpl"`
-	OptionsDelta             float64             `json:"options_delta"`
-	FuturesPL                float64             `json:"futures_pl"`
-	ReferrerID               string              `json:"referrer_id"`
-	ID                       int64               `json:"id"`
-	SessionUPL               float64             `json:"session_upl"`
-	AvailableWithdrawalFunds float64             `json:"available_withdrawal_funds"`
-	CreationTimestamp        deribitMilliSecTime `json:"creation_timestamp"`
-	OptionsPL                float64             `json:"options_pl"`
-	SystemName               string              `json:"system_name"`
+	Balance                  float64 `json:"balance"`
+	OptionsSessionUPL        float64 `json:"options_session_upl"`
+	DepositAddress           string  `json:"deposit_address"`
+	OptionsGamma             float64 `json:"options_gamma"`
+	OptionsTheta             float64 `json:"options_theta"`
+	Username                 string  `json:"username"`
+	Equity                   float64 `json:"equity"`
+	Type                     string  `json:"type"`
+	Currency                 string  `json:"currency"`
+	DeltaTotal               float64 `json:"delta_total"`
+	FuturesSessionRPL        float64 `json:"futures_session_rpl"`
+	PortfolioManagingEnabled bool    `json:"portfolio_managing_enabled"`
+	TotalPL                  float64 `json:"total_pl"`
+	MarginBalance            float64 `json:"margin_balance"`
+	TFAEnabled               bool    `json:"tfa_enabled"`
+	OptionsSessionRPL        float64 `json:"options_session_rpl"`
+	OptionsDelta             float64 `json:"options_delta"`
+	FuturesPL                float64 `json:"futures_pl"`
+	ReferrerID               string  `json:"referrer_id"`
+	ID                       int64   `json:"id"`
+	SessionUPL               float64 `json:"session_upl"`
+	AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
+	OptionsPL                float64 `json:"options_pl"`
+	SystemName               string  `json:"system_name"`
 	Limits                   struct {
 		NonMatchingEngine struct {
 			Rate  int64 `json:"rate"`
@@ -624,6 +616,15 @@ type AccountSummaryData struct {
 	FuturesSessionUPL         float64 `json:"futures_session_upl"`
 	AvailableFunds            float64 `json:"available_funds"`
 	OptionsValue              float64 `json:"options_value"`
+	DeltaTotalMap             struct {
+	} `json:"delta_total_map"`
+	ProjectedMaintenanceMargin   float64 `json:"projected_maintenance_margin"`
+	EstimatedLiquidationRatio    float64 `json:"estimated_liquidation_ratio"`
+	PortfolioMarginingEnabled    bool    `json:"portfolio_margining_enabled"`
+	EstimatedLiquidationRatioMap struct {
+	} `json:"estimated_liquidation_ratio_map"`
+	FeeBalance  float64 `json:"fee_balance"`
+	SpotReserve float64 `json:"spot_reserve"`
 }
 
 // APIKeyData stores data regarding the api key

@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"time"
 )
@@ -30,7 +29,7 @@ func (a *deribitMilliSecTime) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	default:
-		return errors.New("unsupported timestamp information")
+		*a = deribitMilliSecTime(-1)
 	}
 	*a = deribitMilliSecTime(millisecTimestamp)
 	return nil
@@ -38,7 +37,10 @@ func (a *deribitMilliSecTime) UnmarshalJSON(data []byte) error {
 
 // Time returns a time.Time instance information from deribitMilliSecTime timestamp.
 func (a *deribitMilliSecTime) Time() time.Time {
-	return time.UnixMilli(int64(*a))
+	if val := int64(*a); val >= 0 {
+		return time.UnixMilli(int64(*a))
+	}
+	return time.Time{}
 }
 
 // UnmarshalJSON deserializes a JSON object to an orderbook struct.
@@ -135,5 +137,17 @@ func (a *BlockTradeResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp.
+func (a *MarkPriceHistory) UnmarshalJSON(data []byte) error {
+	var resp [2]float64
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	a.Timestamp = deribitMilliSecTime(int64(resp[0]))
+	a.MarkPriceValue = resp[1]
 	return nil
 }

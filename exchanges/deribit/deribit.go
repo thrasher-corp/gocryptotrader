@@ -180,11 +180,10 @@ func (d *Deribit) GetBookSummaryByCurrency(ctx context.Context, ccy, kind string
 
 // GetBookSummaryByInstrument gets book summary data for instrument requested
 func (d *Deribit) GetBookSummaryByInstrument(ctx context.Context, instrument string) ([]BookSummaryData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	var resp []BookSummaryData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getBookByInstrument, params), &resp)
@@ -192,11 +191,10 @@ func (d *Deribit) GetBookSummaryByInstrument(ctx context.Context, instrument str
 
 // GetContractSize gets contract size for instrument requested
 func (d *Deribit) GetContractSize(ctx context.Context, instrument string) (*ContractSizeData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	var resp *ContractSizeData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getContractSize, params), &resp)
@@ -228,11 +226,10 @@ func (d *Deribit) GetDeliveryPrices(ctx context.Context, indexName string, offse
 // GetFundingChartData gets funding chart data for the requested instrument and time length
 // supported lengths: 8h, 24h, 1m <-(1month)
 func (d *Deribit) GetFundingChartData(ctx context.Context, instrument, length string) (*FundingChartData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	params.Set("length", length)
 	var resp *FundingChartData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
@@ -241,15 +238,14 @@ func (d *Deribit) GetFundingChartData(ctx context.Context, instrument, length st
 
 // GetFundingRateHistory retrieves hourly historical interest rate for requested PERPETUAL instrument.
 func (d *Deribit) GetFundingRateHistory(ctx context.Context, instrumentName string, startTime, endTime time.Time) ([]FundingRateHistory, error) {
-	if instrumentName == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
-	}
-	err := common.StartEndTimeCheck(startTime, endTime)
+	params, err := checkInstrument(instrumentName)
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrumentName)
+	err = common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp []FundingRateHistory
@@ -258,12 +254,11 @@ func (d *Deribit) GetFundingRateHistory(ctx context.Context, instrumentName stri
 
 // GetFundingRateValue gets funding rate value data.
 func (d *Deribit) GetFundingRateValue(ctx context.Context, instrument string, startTime, endTime time.Time) (float64, error) {
-	if instrument == "" {
-		return 0, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return 0, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
-	err := common.StartEndTimeCheck(startTime, endTime)
+	err = common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
 		return 0, err
 	}
@@ -336,11 +331,10 @@ func (d *Deribit) GetIndexPriceNames(ctx context.Context) ([]string, error) {
 
 // GetInstrumentData gets data for a requested instrument
 func (d *Deribit) GetInstrumentData(ctx context.Context, instrument string) (*InstrumentData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	var resp *InstrumentData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getInstrument, params), &resp)
@@ -390,11 +384,10 @@ func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy, settlem
 
 // GetLastSettlementsByInstrument gets last settlement data for requested instrument
 func (d *Deribit) GetLastSettlementsByInstrument(ctx context.Context, instrument, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if settlementType != "" {
 		params.Set("type", settlementType)
 	}
@@ -471,11 +464,10 @@ func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy, kind,
 
 // GetLastTradesByInstrument gets last trades for requested instrument requested
 func (d *Deribit) GetLastTradesByInstrument(ctx context.Context, instrument, startSeq, endSeq, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if startSeq != "" {
 		params.Set("start_seq", startSeq)
 	}
@@ -497,21 +489,20 @@ func (d *Deribit) GetLastTradesByInstrument(ctx context.Context, instrument, sta
 
 // GetLastTradesByInstrumentAndTime gets last trades for requested instrument requested and time intervals
 func (d *Deribit) GetLastTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
 	if sorting != "" {
 		params.Set("sorting", sorting)
 	}
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	err := common.StartEndTimeCheck(startTime, endTime)
+	err = common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
-	params.Set("instrument_name", instrument)
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp *PublicTradesData
@@ -521,15 +512,14 @@ func (d *Deribit) GetLastTradesByInstrumentAndTime(ctx context.Context, instrume
 
 // GetMarkPriceHistory gets data for mark price history
 func (d *Deribit) GetMarkPriceHistory(ctx context.Context, instrument string, startTime, endTime time.Time) ([]MarkPriceHistory, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
-	}
-	err := common.StartEndTimeCheck(startTime, endTime)
+	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
+	err = common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp []MarkPriceHistory
@@ -537,13 +527,21 @@ func (d *Deribit) GetMarkPriceHistory(ctx context.Context, instrument string, st
 		common.EncodeURLValues(getMarkPriceHistory, params), &resp)
 }
 
-// GetOrderbookData gets data orderbook of requested instrument
-func (d *Deribit) GetOrderbookData(ctx context.Context, instrument string, depth int64) (*Orderbook, error) {
-	if instrument == "" {
+func checkInstrument(instrumentName string) (url.Values, error) {
+	if instrumentName == "" {
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
 	}
 	params := url.Values{}
-	params.Set("instrument_name", instrument)
+	params.Set("instrument_name", instrumentName)
+	return params, nil
+}
+
+// GetOrderbookData gets data orderbook of requested instrument
+func (d *Deribit) GetOrderbookData(ctx context.Context, instrument string, depth int64) (*Orderbook, error) {
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
+	}
 	if depth != 0 {
 		params.Set("depth", strconv.FormatInt(depth, 10))
 	}
@@ -593,18 +591,17 @@ func (d *Deribit) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVo
 
 // GetTradingViewChartData gets volatility index data for the requested instrument
 func (d *Deribit) GetTradingViewChartData(ctx context.Context, instrument, resolution string, startTime, endTime time.Time) (*TVChartData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	err := common.StartEndTimeCheck(startTime, endTime)
+	err = common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
 	if resolution == "" {
 		return nil, errResolutionNotSet
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	params.Set("resolution", resolution)
@@ -685,11 +682,10 @@ func (d *Deribit) GetVolatilityIndexData(ctx context.Context, ccy, resolution st
 
 // GetPublicTicker gets public ticker data of the instrument requested
 func (d *Deribit) GetPublicTicker(ctx context.Context, instrument string) (*TickerData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	var resp *TickerData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getTicker, params), &resp)
 }
@@ -818,7 +814,7 @@ func (d *Deribit) GetDeposits(ctx context.Context, ccy string, count, offset int
 }
 
 // GetTransfers gets transfers data for the requested currency
-func (d *Deribit) GetTransfers(ctx context.Context, ccy string, count, offset int64) (*TransferData, error) {
+func (d *Deribit) GetTransfers(ctx context.Context, ccy string, count, offset int64) (*TransfersData, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
 	}
@@ -830,7 +826,7 @@ func (d *Deribit) GetTransfers(ctx context.Context, ccy string, count, offset in
 	if offset != 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
-	var resp *TransferData
+	var resp *TransfersData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getTransfers, params, &resp)
 }
@@ -1136,11 +1132,10 @@ func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, ccy string, ac
 
 // GetPosition gets the data of all positions in the requested instrument name
 func (d *Deribit) GetPosition(ctx context.Context, instrument string) (*PositionData, error) {
-	if instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	var resp *PositionData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getPosition, params, &resp)
@@ -1419,11 +1414,10 @@ func (d *Deribit) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*P
 	if arg == nil {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
-	if arg.Instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(arg.Instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", arg.Instrument)
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	if arg.OrderType != "" {
 		params.Set("type", arg.OrderType)
@@ -1471,11 +1465,10 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 	if arg == nil {
 		return nil, fmt.Errorf("%s argument is required", common.ErrNilPointer)
 	}
-	if arg.Instrument == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+	params, err := checkInstrument(arg.Instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", arg.Instrument)
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	if arg.OrderType != "" {
 		params.Set("type", arg.OrderType)
@@ -1562,17 +1555,16 @@ func (d *Deribit) EditOrderByLabel(ctx context.Context, arg *OrderBuyAndSellPara
 	if arg == nil {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
-	if arg.Instrument == "" {
-		return nil, errInvalidInstrumentName
+	params, err := checkInstrument(arg.Instrument)
+	if err != nil {
+		return nil, err
 	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	params := url.Values{}
 	if arg.Label != "" {
 		params.Set("label", arg.Label)
 	}
-	params.Set("instrument_name", arg.Instrument)
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	if arg.PostOnly {
 		params.Set("post_only", "true")
@@ -1636,11 +1628,10 @@ func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy, kind, orde
 
 // SubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument
 func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (int64, error) {
-	if instrument == "" {
-		return 0, errInvalidInstrumentName
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return 0, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
@@ -1651,7 +1642,7 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 		params.Set("include_combos", "true")
 	}
 	var resp interface{}
-	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
+	err = d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
 		submitCancelAllByInstrument, params, &resp)
 	if err != nil {
 		return 0, err
@@ -1678,11 +1669,10 @@ func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string) (i
 
 // SubmitClosePosition sends a request to cancel all user orders for the specified label
 func (d *Deribit) SubmitClosePosition(ctx context.Context, instrument, orderType string, price float64) (*PrivateTradeData, error) {
-	if instrument == "" {
-		return nil, errInvalidInstrumentName
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
@@ -1694,17 +1684,16 @@ func (d *Deribit) SubmitClosePosition(ctx context.Context, instrument, orderType
 
 // GetMargins sends a request to fetch account margins data
 func (d *Deribit) GetMargins(ctx context.Context, instrument string, amount, price float64) (*MarginsData, error) {
-	if instrument == "" {
-		return nil, errInvalidInstrumentName
-	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	if price <= 0 {
 		return nil, errInvalidPrice
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
+	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	var resp *MarginsData
@@ -1744,11 +1733,10 @@ func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy, kind, orderT
 
 // GetOpenOrdersByInstrument sends a request to fetch open orders data sorted by requested params
 func (d *Deribit) GetOpenOrdersByInstrument(ctx context.Context, instrument, orderType string) ([]OrderData, error) {
-	if instrument == "" {
-		return nil, errInvalidInstrumentName
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
@@ -1785,11 +1773,10 @@ func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, ccy, kind strin
 
 // GetOrderHistoryByInstrument sends a request to fetch order history according to given params and instrument
 func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
-	if instrument == "" {
-		return nil, errInvalidInstrumentName
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
@@ -1915,11 +1902,10 @@ func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy, kind,
 
 // GetUserTradesByInstrument sends a request to fetch user trades sorted by instrument
 func (d *Deribit) GetUserTradesByInstrument(ctx context.Context, instrument, sorting string, startSeq, endSeq, count int64, includeOld bool) (*UserTradesData, error) {
-	if instrument == "" {
-		return nil, errInvalidInstrumentName
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if startSeq != 0 {
 		params.Set("start_seq", strconv.FormatInt(startSeq, 10))
 	}
@@ -1942,18 +1928,17 @@ func (d *Deribit) GetUserTradesByInstrument(ctx context.Context, instrument, sor
 
 // GetUserTradesByInstrumentAndTime sends a request to fetch user trades sorted by instrument and time
 func (d *Deribit) GetUserTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
-	if instrument == "" {
-		return nil, errInvalidInstrumentName
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if sorting != "" {
 		params.Set("sorting", sorting)
 	}
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	err := common.StartEndTimeCheck(startTime, endTime)
+	err = common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -1999,11 +1984,10 @@ func (d *Deribit) ResetMMP(ctx context.Context, ccy string) error {
 
 // SendRequestForQuote sends RFQ on a given instrument.
 func (d *Deribit) SendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) error {
-	if instrumentName == "" {
-		return errInvalidInstrumentName
+	params, err := checkInstrument(instrumentName)
+	if err != nil {
+		return err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrumentName)
 	if amount > 0 {
 		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	}
@@ -2011,7 +1995,7 @@ func (d *Deribit) SendRequestForQuote(ctx context.Context, instrumentName string
 		params.Set("side", side.String())
 	}
 	var resp string
-	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, sendRFQ, params, &resp)
+	err = d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, sendRFQ, params, &resp)
 	if err != nil {
 		return err
 	}
@@ -2054,11 +2038,10 @@ func (d *Deribit) SetMMPConfig(ctx context.Context, ccy string, interval kline.I
 
 // GetSettlementHistoryByInstrument sends a request to fetch settlement history data sorted by instrument
 func (d *Deribit) GetSettlementHistoryByInstrument(ctx context.Context, instrument, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
-	if instrument == "" {
-		return nil, errInvalidInstrumentName
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
 	}
-	params := url.Values{}
-	params.Set("instrument_name", instrument)
 	if settlementType != "" {
 		params.Set("settlement_type", settlementType)
 	}

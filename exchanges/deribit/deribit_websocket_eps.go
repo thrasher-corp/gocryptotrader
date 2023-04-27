@@ -651,7 +651,7 @@ func (d *Deribit) WSRetrieveDeposits(symbol string, count, offset int64) (*Depos
 }
 
 // WSRetrieveTransfers retrieves data for the requested currency through the websocket connection.
-func (d *Deribit) WSRetrieveTransfers(symbol string, count, offset int64) (*TransferData, error) {
+func (d *Deribit) WSRetrieveTransfers(symbol string, count, offset int64) (*TransfersData, error) {
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
@@ -664,7 +664,7 @@ func (d *Deribit) WSRetrieveTransfers(symbol string, count, offset int64) (*Tran
 		Count:    count,
 		Offset:   offset,
 	}
-	var resp *TransferData
+	var resp *TransfersData
 	return resp, d.SendWSRequest(request.Unset, getTransfers, input, &resp, true)
 }
 

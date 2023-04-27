@@ -783,7 +783,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	if !d.SupportsAsset(assetType) {
 		return resp, fmt.Errorf("%s: orderType %v is not valid", d.Name, assetType)
@@ -803,6 +803,11 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		orderSide = order.Buy
 	}
 	orderType, err := order.StringToOrderType(orderInfo.OrderType)
+	if err != nil {
+		return resp, err
+	}
+	var pair currency.Pair
+	pair, err = currency.NewPairFromString(orderInfo.InstrumentName)
 	if err != nil {
 		return resp, err
 	}
@@ -1112,39 +1117,47 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	}
 	var tradingViewData *TVChartData
 	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.RangeHolder.Ranges {
-		intervalString, err := d.GetResolutionFromInterval(interval)
-		if err != nil {
-			return nil, err
+	switch a {
+	case asset.Options,
+		asset.FutureCombo,
+		asset.Futures:
+		for x := range req.RangeHolder.Ranges {
+			intervalString, err := d.GetResolutionFromInterval(interval)
+			if err != nil {
+				return nil, err
+			}
+			if d.Websocket.IsConnected() {
+				tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			} else {
+				tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			}
+			if err != nil {
+				return nil, err
+			}
+			checkLen := len(tradingViewData.Ticks)
+			if len(tradingViewData.Open) != checkLen ||
+				len(tradingViewData.High) != checkLen ||
+				len(tradingViewData.Low) != checkLen ||
+				len(tradingViewData.Close) != checkLen ||
+				len(tradingViewData.Volume) != checkLen {
+				return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
+			}
+			for x := range tradingViewData.Ticks {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
+					Open:   tradingViewData.Open[x],
+					High:   tradingViewData.High[x],
+					Low:    tradingViewData.Low[x],
+					Close:  tradingViewData.Close[x],
+					Volume: tradingViewData.Volume[x],
+				})
+			}
 		}
-		if d.Websocket.IsConnected() {
-			tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
-		} else {
-			tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
-		}
-		if err != nil {
-			return nil, err
-		}
-		checkLen := len(tradingViewData.Ticks)
-		if len(tradingViewData.Open) != checkLen ||
-			len(tradingViewData.High) != checkLen ||
-			len(tradingViewData.Low) != checkLen ||
-			len(tradingViewData.Close) != checkLen ||
-			len(tradingViewData.Volume) != checkLen {
-			return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
-		}
-		for x := range tradingViewData.Ticks {
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
-				Open:   tradingViewData.Open[x],
-				High:   tradingViewData.High[x],
-				Low:    tradingViewData.Low[x],
-				Close:  tradingViewData.Close[x],
-				Volume: tradingViewData.Volume[x],
-			})
-		}
+		return req.ProcessResponse(timeSeries)
+	case asset.OptionCombo:
+		// TODO: orderbook for option combo not supported yet
 	}
-	return req.ProcessResponse(timeSeries)
+	return nil, fmt.Errorf("%w orderbook for asset type %v", asset.ErrNotSupported, a)
 }
 
 // GetServerTime returns the current exchange server time.
