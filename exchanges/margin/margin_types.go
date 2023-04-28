@@ -30,6 +30,18 @@ type RateHistoryRequest struct {
 	Rates []Rate
 }
 
+// Type defines the different margin types supported by exchanges
+type Type uint8
+
+// Margin types
+const (
+	Unset         = Type(0)
+	Isolated Type = 1 << (iota - 1)
+	Multi
+	Global
+	Unknown
+)
+
 // RateHistoryResponse has the funding rate details
 type RateHistoryResponse struct {
 	Rates              []Rate

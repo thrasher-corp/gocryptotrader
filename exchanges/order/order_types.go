@@ -7,6 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
 // var error definitions
@@ -62,6 +63,7 @@ type Submit struct {
 	TriggerPrice  float64
 	ClientID      string // TODO: Shift to credentials
 	ClientOrderID string
+	MarginType    margin.Type
 	// RetrieveFees use if an API submit order response does not return fees
 	// enabling this will perform additional request(s) to retrieve them
 	// and set it in the SubmitResponse
@@ -99,6 +101,7 @@ type SubmitResponse struct {
 	Fee         float64
 	FeeAsset    currency.Code
 	Cost        float64
+	MarginType  margin.Type
 }
 
 // Modify contains all properties of an order
@@ -187,6 +190,7 @@ type Detail struct {
 	CloseTime            time.Time
 	LastUpdated          time.Time
 	Pair                 currency.Pair
+	MarginType           margin.Type
 	Trades               []TradeHistory
 }
 
@@ -222,6 +226,7 @@ type Cancel struct {
 	Side          Side
 	AssetType     asset.Item
 	Pair          currency.Pair
+	MarginType    margin.Type
 }
 
 // CancelAllResponse returns the status from attempting to
