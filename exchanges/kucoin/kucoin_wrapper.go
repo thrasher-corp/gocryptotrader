@@ -681,6 +681,9 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	switch s.AssetType {
 	case asset.Futures:
+		if s.Leverage == 0 {
+			s.Leverage = 1
+		}
 		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", "", "", s.Amount, s.Price, s.TriggerPrice, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, s.Hidden, false)
 		if err != nil {
 			return nil, err
@@ -1392,4 +1395,11 @@ func (ku *Kucoin) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 		chains = append(chains, currencyDetail.Chains[x].Name)
 	}
 	return chains, nil
+}
+
+// ValidateAPICredentials validates current credentials used for wrapper
+// functionality
+func (ku *Kucoin) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := ku.UpdateAccountInfo(ctx, assetType)
+	return ku.CheckTransientError(err)
 }
