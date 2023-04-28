@@ -666,9 +666,9 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 	return req.Filter(i.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (i *ItBit) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (i *ItBit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := i.UpdateAccountInfo(ctx, assetType)
 	return i.CheckTransientError(err)
 }

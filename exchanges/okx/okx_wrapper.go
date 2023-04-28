@@ -1356,8 +1356,8 @@ func (ok *Okx) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 	return ok.GetFee(ctx, feeBuilder)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (ok *Okx) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+func (ok *Okx) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := ok.UpdateAccountInfo(ctx, assetType)
 	return ok.CheckTransientError(err)
 }

@@ -1012,9 +1012,9 @@ func (o *OKCoin) AuthenticateWebsocket(ctx context.Context) error {
 	return o.WsLogin(ctx)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (o *OKCoin) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (o *OKCoin) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := o.UpdateAccountInfo(ctx, assetType)
 	return o.CheckTransientError(err)
 }

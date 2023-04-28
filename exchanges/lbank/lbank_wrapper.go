@@ -869,9 +869,9 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 	return resp, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (l *Lbank) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (l *Lbank) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := l.UpdateAccountInfo(ctx, assetType)
 	return l.CheckTransientError(err)
 }

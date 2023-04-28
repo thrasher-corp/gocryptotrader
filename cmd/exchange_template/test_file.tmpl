@@ -17,7 +17,7 @@ const (
 	canManipulateRealOrders   = false
 )
 
-var {{.Variable}} {{.CapitalName}}
+var {{.Variable}} = &{{.CapitalName}}{}
 
 func TestMain(m *testing.M) {
 	{{.Variable}}.SetDefaults()
@@ -51,10 +51,6 @@ func TestInterface(t *testing.T) {
 	if e = new({{.CapitalName}}); e == nil {
 		t.Fatal("unable to allocate exchange")
 	}
-}
-
-func areTestAPIKeysSet() bool {
-	return {{.Variable}}.ValidateAPICredentials({{.Variable}}.GetDefaultCredentials()) == nil
 }
 
 // Implement tests for API endpoints below
