@@ -905,7 +905,7 @@ func (ku *Kucoin) processOrderbook(respData []byte) error {
 	var init bool
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		init, err := ku.UpdateLocalBuffer(&response, asset.Spot)
+		init, err = ku.UpdateLocalBuffer(&response, asset.Spot)
 		if err != nil {
 			if init {
 				return nil
@@ -1080,7 +1080,8 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	var jointSpotMarginPairs currency.Pairs
 	format, err := ku.GetPairFormat(asset.Spot, true)
 	if err == nil {
-		if spotMarginPairsDiff, err := spotPairs.FindDifferences(marginPairs, format); err == nil {
+		var spotMarginPairsDiff currency.PairDifference
+		if spotMarginPairsDiff, err = spotPairs.FindDifferences(marginPairs, format); err == nil {
 			jointSpotMarginPairs = append(jointSpotMarginPairs, spotMarginPairsDiff.New...)
 		}
 	}
