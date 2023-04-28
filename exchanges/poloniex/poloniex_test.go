@@ -29,11 +29,7 @@ const (
 	canManipulateRealOrders = false
 )
 
-var p Poloniex
-
-func areTestAPIKeysSet() bool {
-	return p.ValidateAPICredentials(p.GetDefaultCredentials()) == nil
-}
+var p = &Poloniex{}
 
 func TestStart(t *testing.T) {
 	t.Parallel()
@@ -129,7 +125,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
+	if !sharedtestvalues.AreAPICredentialsSet(p) {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v",
 				exchange.OfflineTradeFee,
@@ -148,7 +144,7 @@ func TestGetFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 
-	if areTestAPIKeysSet() || mockTests {
+	if sharedtestvalues.AreAPICredentialsSet(p) || mockTests {
 		// CryptocurrencyTradeFee Basic
 		if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
 			t.Error(err)
@@ -230,9 +226,9 @@ func TestGetActiveOrders(t *testing.T) {
 
 	_, err := p.GetActiveOrders(context.Background(), &getOrdersRequest)
 	switch {
-	case areTestAPIKeysSet() && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 		t.Error("GetActiveOrders() error", err)
-	case !areTestAPIKeysSet() && !mockTests && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Error("Mock GetActiveOrders() err", err)
@@ -249,9 +245,9 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := p.GetOrderHistory(context.Background(), &getOrdersRequest)
 	switch {
-	case areTestAPIKeysSet() && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 		t.Errorf("Could not get order history: %s", err)
-	case !areTestAPIKeysSet() && err == nil && !mockTests:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Errorf("Could not mock get order history: %s", err)
@@ -295,9 +291,9 @@ func TestGetOrderStatus(t *testing.T) {
 			_, err := p.GetAuthenticatedOrderStatus(context.Background(),
 				tt.orderID)
 			switch {
-			case areTestAPIKeysSet() && err != nil:
+			case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 				t.Errorf("Could not get order status: %s", err)
-			case !areTestAPIKeysSet() && err == nil && !mockTests:
+			case !sharedtestvalues.AreAPICredentialsSet(p) && err == nil && !mockTests:
 				t.Error("Expecting an error when no keys are set")
 			case mockTests && err != nil:
 				if !tt.errExpected {
@@ -350,9 +346,9 @@ func TestGetOrderTrades(t *testing.T) {
 
 			_, err := p.GetAuthenticatedOrderTrades(context.Background(), tt.orderID)
 			switch {
-			case areTestAPIKeysSet() && err != nil:
+			case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 				t.Errorf("Could not get order trades: %s", err)
-			case !areTestAPIKeysSet() && err == nil && !mockTests:
+			case !sharedtestvalues.AreAPICredentialsSet(p) && err == nil && !mockTests:
 				t.Error("Expecting an error when no keys are set")
 			case mockTests && err != nil:
 				if !(tt.errExpected && strings.Contains(err.Error(), tt.errMsgExpected)) {
@@ -368,8 +364,8 @@ func TestGetOrderTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 
 	var orderSubmission = &order.Submit{
@@ -389,9 +385,9 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := p.SubmitOrder(context.Background(), orderSubmission)
 	switch {
-	case areTestAPIKeysSet() && (err != nil || response.Status != order.Filled):
+	case sharedtestvalues.AreAPICredentialsSet(p) && (err != nil || response.Status != order.Filled):
 		t.Errorf("Order failed to be placed: %v", err)
-	case !areTestAPIKeysSet() && !mockTests && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Error("Mock SubmitOrder() err", err)
@@ -400,8 +396,8 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
@@ -413,9 +409,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	err := p.CancelOrder(context.Background(), orderCancellation)
 	switch {
-	case !areTestAPIKeysSet() && !mockTests && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
-	case areTestAPIKeysSet() && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 		t.Errorf("Could not cancel orders: %v", err)
 	case mockTests && err != nil:
 		t.Error("Mock CancelExchangeOrder() err", err)
@@ -424,8 +420,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
@@ -439,9 +435,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	resp, err := p.CancelAllOrders(context.Background(), orderCancellation)
 	switch {
-	case !areTestAPIKeysSet() && !mockTests && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
-	case areTestAPIKeysSet() && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 		t.Errorf("Could not cancel orders: %v", err)
 	case mockTests && err != nil:
 		t.Error("Mock CancelAllExchangeOrders() err", err)
@@ -453,8 +449,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 
 	_, err := p.ModifyOrder(context.Background(), &order.Modify{
@@ -464,9 +460,9 @@ func TestModifyOrder(t *testing.T) {
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	})
 	switch {
-	case areTestAPIKeysSet() && err != nil && mockTests:
+	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil && mockTests:
 		t.Error("ModifyOrder() error", err)
-	case !areTestAPIKeysSet() && !mockTests && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
 		t.Error("ModifyOrder() error cannot be nil")
 	case mockTests && err != nil:
 		t.Error("Mock ModifyOrder() err", err)
@@ -486,16 +482,16 @@ func TestWithdraw(t *testing.T) {
 		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",
 	}
-	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 
 	_, err := p.WithdrawCryptocurrencyFunds(context.Background(),
 		&withdrawCryptoRequest)
 	switch {
-	case areTestAPIKeysSet() && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 		t.Errorf("Withdraw failed to be placed: %v", err)
-	case !areTestAPIKeysSet() && !mockTests && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
 	case mockTests && err == nil:
 		t.Error("should error due to invalid amount")
@@ -504,8 +500,8 @@ func TestWithdraw(t *testing.T) {
 
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 
 	var withdrawFiatRequest withdraw.Request
@@ -518,8 +514,8 @@ func TestWithdrawFiat(t *testing.T) {
 
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 
 	var withdrawFiatRequest withdraw.Request
@@ -535,9 +531,9 @@ func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetDepositAddress(context.Background(), currency.USDT, "", "USDTETH")
 	switch {
-	case areTestAPIKeysSet() && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
 		t.Error("GetDepositAddress()", err)
-	case !areTestAPIKeysSet() && !mockTests && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
 		t.Error("GetDepositAddress() cannot be nil")
 	case mockTests && err != nil:
 		t.Error("Mock GetDepositAddress() err", err)
@@ -546,9 +542,8 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestGenerateNewAddress(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("api keys not set, skipping test")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+
 	_, err := p.GenerateNewAddress(context.Background(), currency.XRP.String())
 	if err != nil {
 		t.Fatal(err)
@@ -559,7 +554,7 @@ func TestGenerateNewAddress(t *testing.T) {
 // Will receive a message only on failure
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	if !p.Websocket.IsEnabled() && !p.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+	if !p.Websocket.IsEnabled() && !p.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(p) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
@@ -1029,8 +1024,9 @@ func TestProcessAccountKilledOrder(t *testing.T) {
 }
 
 func TestGetCompleteBalances(t *testing.T) {
-	if !mockTests && !areTestAPIKeysSet() {
-		t.Skip("API keys not set, mockTests false, skipping test")
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	_, err := p.GetCompleteBalances(context.Background())
 	if err != nil {

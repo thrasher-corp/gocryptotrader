@@ -1061,9 +1061,9 @@ func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
 	}
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitfinex) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *Bitfinex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }

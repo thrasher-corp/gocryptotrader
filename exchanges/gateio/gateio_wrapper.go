@@ -1981,9 +1981,9 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 	return availableChains, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (g *Gateio) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
 }
