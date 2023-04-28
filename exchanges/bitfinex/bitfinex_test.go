@@ -756,9 +756,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -775,16 +773,15 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
 	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if sharedtestvalues.AreAPICredentialsSet(b) && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(b) && err == nil {
-		t.Error("Expecting an error when no keys are set")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -872,7 +869,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.ModifyOrder(
 		context.Background(),
 		&order.Modify{
@@ -1726,10 +1723,7 @@ func TestAccetableMethodStore(t *testing.T) {
 
 func TestOrderUpdate(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
-	}
-
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.OrderUpdate(context.Background(), "1234", "", "", 1, 1, 1)
 	if err != nil {
 		t.Error(err)
@@ -1738,9 +1732,7 @@ func TestOrderUpdate(t *testing.T) {
 
 func TestGetInactiveOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetInactiveOrders(context.Background(), "tBTCUSD")
 	if err != nil {
 		t.Error(err)
@@ -1754,9 +1746,7 @@ func TestGetInactiveOrders(t *testing.T) {
 
 func TestCancelMultipleOrdersV2(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.CancelMultipleOrdersV2(context.Background(), 1337, 0, 0, time.Time{}, false)
 	if err != nil {
 		t.Error(err)

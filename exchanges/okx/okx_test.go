@@ -119,7 +119,6 @@ func TestGetOrderBookDepth(t *testing.T) {
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
 	a, err := ok.GetCandlesticks(context.Background(), "BTC-USDT", kline.OneHour, time.Now().Add(-time.Hour*24*500), time.Now(), 500)
 	if err != nil {
 		t.Error("Okx GetCandlesticks() error", err)

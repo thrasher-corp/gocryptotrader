@@ -457,7 +457,6 @@ func TestGetCryptoDepositAddress(t *testing.T) {
 	}
 }
 
-
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_USD")
@@ -520,9 +519,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys not set, skipping test")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetAccountFundingHistory(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -531,9 +528,8 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys not set, skipping test")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
 	_, err := e.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)

@@ -13,7 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -566,6 +568,7 @@ var (
 	withdrawRequestParam = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
 	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
 	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
+	credentialsParam     = reflect.TypeOf((**account.Credentials)(nil)).Elem()
 	// types with asset in params
 	assetParam            = reflect.TypeOf((*asset.Item)(nil)).Elem()
 	orderSubmitParam      = reflect.TypeOf((**order.Submit)(nil)).Elem()
@@ -596,6 +599,15 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			// OrderID
 			input = reflect.ValueOf("1337")
 		}
+	case argGenerator.MethodInputType.AssignableTo(credentialsParam):
+		input = reflect.ValueOf(&account.Credentials{
+			Key:             "test",
+			Secret:          "test",
+			ClientID:        "test",
+			PEMKey:          "test",
+			SubAccount:      "test",
+			OneTimePassword: "test",
+		})
 	case argGenerator.MethodInputType.Implements(contextParam):
 		// Need to deploy a context.Context value as nil value is not
 		// checked throughout codebase.
@@ -835,6 +847,7 @@ var acceptableErrors = []error{
 	request.ErrRateLimiterAlreadyEnabled, // If the rate limiter is already enabled, it is not an error
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
+	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

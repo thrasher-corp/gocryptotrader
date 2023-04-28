@@ -3312,10 +3312,7 @@ func TestGetUSDCPredictedFundingRate(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
-	}
-
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID:   "1234",

@@ -3,7 +3,6 @@ package alphapoint
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -97,6 +96,11 @@ func (a *Alphapoint) Setup(_ *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (a *Alphapoint) FetchTradablePairs(_ context.Context, _ asset.Item) (currency.Pairs, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (a *Alphapoint) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores

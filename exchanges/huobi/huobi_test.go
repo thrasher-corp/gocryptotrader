@@ -2723,7 +2723,7 @@ func TestFormatFuturesPair(t *testing.T) {
 
 func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, h, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
 
 	_, err := h.SearchForExistedWithdrawsAndDeposits(context.Background(), currency.BTC, "deposit", "", 0, 100)
 	if err != nil {
@@ -2733,8 +2733,7 @@ func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 
 func TestCancelOrderBatch(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, h, canManipulateRealOrders)
-
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 	_, err := h.CancelOrderBatch(context.Background(), []string{"1234"}, nil)
 	if err != nil {
 		t.Error(err)
@@ -2743,7 +2742,7 @@ func TestCancelOrderBatch(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, h, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 
 	_, err := h.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
@@ -2759,7 +2758,7 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, h, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
 
 	_, err := h.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {

@@ -1408,7 +1408,7 @@ func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 			}, nil
 		}
 	}
-	return nil, fmt.Errorf("deposit address not found for currency: %s chain: %s", cryptocurrency, chain)
+	return nil, fmt.Errorf("%w for currency: %s chain: %s", deposit.ErrAddressNotFound, cryptocurrency, chain)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

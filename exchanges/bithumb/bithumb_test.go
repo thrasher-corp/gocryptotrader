@@ -108,9 +108,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetTransactionHistory(context.Background(), testCurrency)
 	if err != nil {
 		t.Error(err)
@@ -158,9 +156,8 @@ func TestGetWalletAddress(t *testing.T) {
 
 func TestGetLastTransaction(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetLastTransaction(context.Background())
 	if err == nil {
 		t.Error(err)
@@ -169,9 +166,8 @@ func TestGetLastTransaction(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetOrders(context.Background(),
 		"1337", order.Bid.Lower(), 100, time.Time{}, currency.BTC, currency.KRW)
 	if err != nil {
@@ -181,9 +177,8 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetUserTransactions(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetUserTransactions(context.Background(), 0, 0, 0, currency.EMPTYCODE, currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
@@ -192,9 +187,8 @@ func TestGetUserTransactions(t *testing.T) {
 
 func TestPlaceTrade(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("test requires api keys and canManipulateRealOrders = true")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.PlaceTrade(context.Background(),
 		testCurrency, order.Bid.Lower(), 0, 0)
 	if err != nil {
@@ -204,9 +198,8 @@ func TestPlaceTrade(t *testing.T) {
 
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetOrderDetails(context.Background(),
 		"1337", order.Bid.Lower(), testCurrency)
 	if err != nil {
@@ -216,9 +209,8 @@ func TestGetOrderDetails(t *testing.T) {
 
 func TestCancelTrade(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("test requires api keys and canManipulateRealOrders = true")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.CancelTrade(context.Background(), "", "", "")
 	if err != nil {
 		t.Error(err)
@@ -227,9 +219,8 @@ func TestCancelTrade(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("test requires api keys and canManipulateRealOrders = true")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.WithdrawCrypto(context.Background(),
 		"LQxiDhKU7idKiWQhx4ALKYkBx8xKEQVxJR", "", "ltc", 0)
 	if err != nil {
@@ -248,9 +239,8 @@ func TestRequestKRWDepositDetails(t *testing.T) {
 
 func TestRequestKRWWithdraw(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("test requires api keys and canManipulateRealOrders = true")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.RequestKRWWithdraw(context.Background(),
 		"102_bank", "1337", 1000)
 	if err != nil {
@@ -260,9 +250,8 @@ func TestRequestKRWWithdraw(t *testing.T) {
 
 func TestMarketBuyOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("test requires api keys and canManipulateRealOrders = true")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	p := currency.NewPair(currency.BTC, currency.KRW)
 	_, err := b.MarketBuyOrder(context.Background(), p, 0)
 	if err != nil {
@@ -272,9 +261,8 @@ func TestMarketBuyOrder(t *testing.T) {
 
 func TestMarketSellOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("test requires api keys and canManipulateRealOrders = true")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	p := currency.NewPair(currency.BTC, currency.KRW)
 	_, err := b.MarketSellOrder(context.Background(), p, 0)
 	if err != nil {
@@ -414,9 +402,6 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
 	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -526,9 +511,8 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("test requires api keys and canManipulateRealOrders = true")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	curr, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -792,9 +776,8 @@ func TestUpdateCurrencyStates(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -803,9 +786,8 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -814,9 +796,8 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)

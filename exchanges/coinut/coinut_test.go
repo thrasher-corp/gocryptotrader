@@ -1164,9 +1164,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID:   "1234",

@@ -1072,9 +1072,8 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestWalletActivity(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+
 	_, err := p.WalletActivity(context.Background(), time.Now().Add(-time.Minute), time.Now(), "")
 	if err != nil {
 		t.Error(err)
@@ -1083,9 +1082,7 @@ func TestWalletActivity(t *testing.T) {
 
 func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	_, err := p.CancelMultipleOrdersByIDs(context.Background(), []string{"1234"}, []string{"5678"})
 	if err != nil {
 		t.Error(err)
@@ -1094,9 +1091,7 @@ func TestCancelMultipleOrdersByIDs(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	_, err := p.GetAccountFundingHistory(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -1105,9 +1100,8 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+
 	_, err := p.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -1116,9 +1110,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	_, err := p.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID:   "1234",

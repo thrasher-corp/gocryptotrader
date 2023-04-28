@@ -1351,9 +1351,8 @@ func TestGetMarginLoanHistory(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("API keys unset or canManipulateRealOrders is false, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+
 	_, err := o.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID:   "1234",
@@ -1379,9 +1378,8 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API Keys unset, skipping")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+
 	_, err := o.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
