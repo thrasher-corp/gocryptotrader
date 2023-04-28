@@ -1127,9 +1127,9 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 	return nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (c *COINUT) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (c *COINUT) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := c.UpdateAccountInfo(ctx, assetType)
 	return c.CheckTransientError(err)
 }

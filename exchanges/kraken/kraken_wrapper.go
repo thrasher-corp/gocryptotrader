@@ -1458,9 +1458,9 @@ func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
 	return err
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (k *Kraken) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (k *Kraken) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := k.UpdateAccountInfo(ctx, assetType)
 	return k.CheckTransientError(err)
 }
