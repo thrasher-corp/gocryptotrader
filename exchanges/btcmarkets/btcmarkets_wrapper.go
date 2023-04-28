@@ -1021,9 +1021,9 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 	return req.Filter(b.Name, resp), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *BTCMarkets) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *BTCMarkets) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	if err != nil {
 		if b.CheckTransientError(err) == nil {

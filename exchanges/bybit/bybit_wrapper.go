@@ -1794,8 +1794,8 @@ func (by *Bybit) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float6
 	return 0, common.ErrFunctionNotSupported
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (by *Bybit) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+func (by *Bybit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := by.UpdateAccountInfo(ctx, assetType)
 	return by.CheckTransientError(err)
 }

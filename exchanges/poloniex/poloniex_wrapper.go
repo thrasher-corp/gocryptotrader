@@ -1037,9 +1037,9 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(p.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (p *Poloniex) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (p *Poloniex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := p.UpdateAccountInfo(ctx, assetType)
 	return p.CheckTransientError(err)
 }

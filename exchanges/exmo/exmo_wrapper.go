@@ -780,9 +780,9 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 	return req.Filter(e.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (e *EXMO) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (e *EXMO) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := e.UpdateAccountInfo(ctx, assetType)
 	return e.CheckTransientError(err)
 }
