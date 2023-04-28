@@ -200,7 +200,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Cryptodotcom go routine
-func (cr *Cryptodotcom) Start(ctx context.Context, wg *sync.WaitGroup) error {
+func (cr *Cryptodotcom) Start(_ context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
@@ -367,7 +367,7 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	if err != nil {
 		return nil, err
 	}
-	orderbookNew, err := cr.GetOrderbook(context.Background(), pair.String(), 0)
+	orderbookNew, err := cr.GetOrderbook(ctx, pair.String(), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +521,7 @@ func (cr *Cryptodotcom) GetFundingHistory(ctx context.Context) ([]exchange.FundH
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (cr *Cryptodotcom) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (cr *Cryptodotcom) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := cr.GetWithdrawalHistory(ctx)
 	if err != nil {
 		return nil, err
@@ -691,7 +691,7 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (cr *Cryptodotcom) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (cr *Cryptodotcom) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -868,13 +868,13 @@ func (cr *Cryptodotcom) WithdrawCryptocurrencyFunds(ctx context.Context, withdra
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (cr *Cryptodotcom) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (cr *Cryptodotcom) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (cr *Cryptodotcom) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (cr *Cryptodotcom) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1100,7 +1100,7 @@ func (cr *Cryptodotcom) GetHistoricCandles(ctx context.Context, pair currency.Pa
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (cr *Cryptodotcom) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, _, _ time.Time) (*kline.Item, error) {
+func (cr *Cryptodotcom) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

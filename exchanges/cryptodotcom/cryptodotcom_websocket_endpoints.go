@@ -118,7 +118,11 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 		}
 		orderParams[x] = p
 	}
+	if contingencyType == "" {
+		contingencyType = "LIST"
+	}
 	params["order_list"] = orderParams
+	params["contingency_type"] = contingencyType
 	var resp *OrderCreationResponse
 	return resp, cr.SendWebsocketRequest(privateCreateOrderList, params, &resp, true)
 }

@@ -282,7 +282,11 @@ func (cr *Cryptodotcom) CreateOrderList(ctx context.Context, contingencyType str
 		orderParams[x] = p
 	}
 	params := make(map[string]interface{})
+	if contingencyType == "" {
+		contingencyType = "LIST"
+	}
 	params["order_list"] = orderParams
+	params["contingency_type"] = contingencyType
 	var resp *OrderCreationResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOrderListRate, privateCreateOrderList, params, &resp)
 }
@@ -526,7 +530,7 @@ func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, currencyPair cur
 		params["page"] = page
 	}
 	var resp *QuoteHistoryResponse
-	return resp, cr.SendAuthHTTPRequest(context.Background(), exchange.RestSpot, privateGetOTCTradeHistoryRate, privateGetOTCQuoteHistory, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, privateGetOTCQuoteHistory, params, &resp)
 }
 
 // GetOTCTradeHistory retrieves otc trade history
@@ -711,7 +715,7 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 			HTTPRecording: cr.HTTPRecording,
 		}, nil
 	}
-	err = cr.SendPayload(ctx, request.Unset, newRequest)
+	err = cr.SendPayload(ctx, epl, newRequest)
 	if err != nil {
 		return err
 	}

@@ -84,7 +84,7 @@ func (cr *Cryptodotcom) WsConnect() error {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
-		err = cr.WsAuthConnect(context.TODO(), &authDialer)
+		err = cr.WsAuthConnect(&authDialer)
 		if err != nil {
 			return err
 		}
@@ -146,7 +146,7 @@ func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnect
 }
 
 // WsAuthConnect represents an authenticated connection to a websocket server
-func (cr *Cryptodotcom) WsAuthConnect(ctx context.Context, dialer *websocket.Dialer) error {
+func (cr *Cryptodotcom) WsAuthConnect(dialer *websocket.Dialer) error {
 	if !cr.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", cr.Name)
 	}
@@ -317,7 +317,6 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error {
-	println(string(respRaw))
 	var resp *SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
