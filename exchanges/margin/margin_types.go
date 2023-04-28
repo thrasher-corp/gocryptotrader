@@ -39,8 +39,39 @@ const (
 	Isolated Type = 1 << (iota - 1)
 	Multi
 	Global
-	Unknown
 )
+
+// String returns the string representation of the margin type in lowercase
+func (t Type) String() string {
+	switch t {
+	case Unset:
+		return "unset"
+	case Isolated:
+		return "isolated"
+	case Multi:
+		return "cross"
+	case Global:
+		return "global"
+	default:
+		return "unknown"
+	}
+}
+
+// Upper returns the upper case string representation of the margin type
+func (t Type) Upper() string {
+	switch t {
+	case Unset:
+		return "UNSET"
+	case Isolated:
+		return "ISOLATED"
+	case Multi:
+		return "CROSSED"
+	case Global:
+		return "GLOBAL"
+	default:
+		return "UNKNOWN"
+	}
+}
 
 // RateHistoryResponse has the funding rate details
 type RateHistoryResponse struct {

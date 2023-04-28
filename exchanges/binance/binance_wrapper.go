@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -1910,4 +1911,21 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		return time.UnixMilli(info.ServerTime), nil
 	}
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+}
+
+// SetMarginMode sets the account's margin mode for the asset type
+func (b *Binance) SetMarginMode(ctx context.Context, a asset.Item, pair currency.Pair, mode margin.Type) error {
+	switch a {
+	case asset.USDTMarginedFutures:
+		return b.UChangeInitialMarginType(ctx, pair, mode.String())
+	case asset.CoinMarginedFutures:
+		_, err := b.FuturesChangeMarginType(ctx, pair, mode.String())
+		return err
+	}
+	return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+}
+
+// GetMarginMode returns the account's margin mode for the asset type
+func (b *Binance) GetMarginMode(ctx context.Context, item asset.Item, pair currency.Pair) (margin.Type, error) {
+	return 0, common.ErrNotYetImplemented
 }
