@@ -1454,7 +1454,8 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 	chains := make([]string, 0, len(currencyChains))
 	for x := range currencyChains {
 		if (!cryptocurrency.IsEmpty() && !strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) ||
-			(!currencyChains[x].CanDeposit && !currencyChains[x].CanWithdraw) {
+			(!currencyChains[x].CanDeposit && !currencyChains[x].CanWithdraw) ||
+			!currencyChains[x].MainNet {
 			continue
 		}
 		chains = append(chains, currencyChains[x].Chain)
