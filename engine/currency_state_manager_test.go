@@ -86,35 +86,35 @@ func (f *fakerino) GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error) 
 	}, nil
 }
 
-func (f *fakerino) CanWithdraw(c currency.Code, a asset.Item) error {
+func (f *fakerino) CanWithdraw(_ currency.Code, _ asset.Item) error {
 	if f.errorMe {
 		return errExchange
 	}
 	return nil
 }
 
-func (f *fakerino) CanDeposit(c currency.Code, a asset.Item) error {
+func (f *fakerino) CanDeposit(_ currency.Code, _ asset.Item) error {
 	if f.errorMe {
 		return errExchange
 	}
 	return nil
 }
 
-func (f *fakerino) CanTrade(c currency.Code, a asset.Item) error {
+func (f *fakerino) CanTrade(_ currency.Code, _ asset.Item) error {
 	if f.errorMe {
 		return errExchange
 	}
 	return nil
 }
 
-func (f *fakerino) CanTradePair(p currency.Pair, a asset.Item) error {
+func (f *fakerino) CanTradePair(_ currency.Pair, _ asset.Item) error {
 	if f.errorMe {
 		return errExchange
 	}
 	return nil
 }
 
-func (f *fakerino) GetAvailablePairs(a asset.Item) (currency.Pairs, error) {
+func (f *fakerino) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
 	if f.GetAvailablePairsError {
 		return nil, errExchange
 	}
@@ -366,7 +366,7 @@ func TestCanTradePairRPC(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
+func TestUpdate(_ *testing.T) {
 	man := &CurrencyStateManager{}
 	var wg sync.WaitGroup
 	wg.Add(3)

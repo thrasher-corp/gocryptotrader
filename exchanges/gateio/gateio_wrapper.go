@@ -115,19 +115,19 @@ func (g *Gateio) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
 				),
-				ResultLimit: 1001,
+				GlobalResultLimit: 1001,
 			},
 		},
 	}
@@ -457,12 +457,12 @@ func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gateio) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (g *Gateio) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (g *Gateio) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -578,7 +578,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (g *Gateio) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -608,7 +608,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders(ctx, "")
 	if err != nil {
@@ -888,9 +888,9 @@ func (g *Gateio) AuthenticateWebsocket(ctx context.Context) error {
 	return g.wsServerSignIn(ctx)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (g *Gateio) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
 }
@@ -902,7 +902,7 @@ func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := g.GetKlineRequest(pair, a, interval, start, end)
+	req, err := g.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
 	}

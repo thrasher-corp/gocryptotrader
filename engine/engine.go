@@ -840,7 +840,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			useAsset = assetTypes[a]
 			break
 		}
-		err = exch.ValidateCredentials(context.TODO(), useAsset)
+		err = exch.ValidateAPICredentials(context.TODO(), useAsset)
 		if err != nil {
 			gctlog.Warnf(gctlog.ExchangeSys,
 				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",

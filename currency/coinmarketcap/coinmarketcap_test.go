@@ -28,7 +28,7 @@ func areAPICredtionalsSet(minAllowable uint8) bool {
 	return false
 }
 
-func TestSetDefaults(t *testing.T) {
+func TestSetDefaults(_ *testing.T) {
 	c.SetDefaults()
 }
 
