@@ -4213,7 +4213,6 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if authenticated {
 		requestType = request.AuthenticatedRequest
 	}
-	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
 		utcTime := time.Now().UTC().Format(time.RFC3339)
 		payload := []byte("")
