@@ -95,9 +95,8 @@ type loggerFileConfig struct {
 
 // Logger each instance of logger settings
 type Logger struct {
-	ShowLogSystemName             bool
-	BypassJobChannelFilledWarning bool
-	// StructuredLogging                                bool
+	ShowLogSystemName                                bool
+	BypassJobChannelFilledWarning                    bool
 	TimestampFormat                                  string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string
