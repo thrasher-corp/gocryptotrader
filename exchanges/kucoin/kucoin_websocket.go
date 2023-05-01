@@ -76,11 +76,6 @@ const (
 	futuresPositionChangeEventChannel      = "/contract/position:%s" // /contract/position:{symbol}
 )
 
-// used when inserting subscription channels once to the defaultSubscriptionChannels list.
-var defaultSubscriptionsChoice sync.Once
-
-var defaultSubscriptionChannels = []string{}
-
 var (
 	// maxWSUpdateBuffer defines max websocket updates to apply when an
 	// orderbook is initially fetched
@@ -90,7 +85,7 @@ var (
 	maxWSOrderbookJobs = 2000
 	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
 	// jobs from the job channel
-	maxWSOrderbookWorkers = 200
+	maxWSOrderbookWorkers = 10
 )
 
 var requiredSubscriptionIDS map[string]bool
@@ -1019,25 +1014,23 @@ func (ku *Kucoin) getChannelsAssetType(channelName string) (asset.Item, error) {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket.
 func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	defaultSubscriptionsChoice.Do(func() {
-		if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-			defaultSubscriptionChannels = append(defaultSubscriptionChannels,
-				marketTickerChannel,
-				marginFundingbookChangeChannel,
-				marketCandlesChannel,
-				marketOrderbokLevel2To50Channel)
-		}
-		if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-			defaultSubscriptionChannels = append(defaultSubscriptionChannels,
-				marginFundingbookChangeChannel)
-		}
-		if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
-			defaultSubscriptionChannels = append(defaultSubscriptionChannels,
-				futuresTickerV2Channel,
-				futuresOrderbookLevel2Depth50Channel)
-		}
-	})
-	channels := defaultSubscriptionChannels
+	channels := []string{}
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+		channels = append(channels,
+			marketTickerChannel,
+			marginFundingbookChangeChannel,
+			marketCandlesChannel,
+			marketOrderbokLevel2To50Channel)
+	}
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+		channels = append(channels,
+			marginFundingbookChangeChannel)
+	}
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
+		channels = append(channels,
+			futuresTickerV2Channel,
+			futuresOrderbookLevel2Depth50Channel)
+	}
 	subscriptions := []stream.ChannelSubscription{}
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
 		if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
@@ -1076,15 +1069,6 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		}
 	}
 
-	// jointSpotMarginPairs used to hold spot and margin currency pairs to be used to subscribe orderbook, tickers, and candlestick channels.
-	var jointSpotMarginPairs currency.Pairs
-	format, err := ku.GetPairFormat(asset.Spot, true)
-	if err == nil {
-		var spotMarginPairsDiff currency.PairDifference
-		if spotMarginPairsDiff, err = spotPairs.FindDifferences(marginPairs, format); err == nil {
-			jointSpotMarginPairs = append(jointSpotMarginPairs, spotMarginPairsDiff.New...)
-		}
-	}
 	var futuresPairs currency.Pairs
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
 		futuresPairs, err = ku.GetEnabledPairs(asset.Futures)
@@ -1106,31 +1090,72 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		case marketTickerSnapshotChannel,
 			marketOrderbookLevel2Channels,
 			marketTickerSnapshotForCurrencyChannel,
-			marketOrderbookLevel2to5Channel:
-			for b := range jointSpotMarginPairs {
+			marketOrderbookLevel2to5Channel,
+			marketOrderbokLevel2To50Channel,
+			marketTickerChannel:
+			subscribedPairsMap := map[string]bool{}
+			for b := range spotPairs {
+				if okay := subscribedPairsMap[spotPairs[b].String()]; okay {
+					continue
+				}
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  channels[x],
 					Asset:    asset.Spot,
-					Currency: jointSpotMarginPairs[b],
+					Currency: spotPairs[b],
 				})
+				subscribedPairsMap[spotPairs[b].String()] = true
 			}
-		case marketOrderbokLevel2To50Channel, indexPriceIndicatorChannel,
+			for b := range marginPairs {
+				if okay := subscribedPairsMap[marginPairs[b].String()]; okay {
+					continue
+				}
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  channels[x],
+					Asset:    asset.Margin,
+					Currency: marginPairs[b],
+				})
+				subscribedPairsMap[marginPairs[b].String()] = true
+			}
+		case indexPriceIndicatorChannel,
 			markPriceIndicatorChannel,
-			marketMatchChannel, marketTickerChannel:
-			pairStrings := jointSpotMarginPairs.Join()
+			marketMatchChannel:
+			pairs := currency.Pairs{}
+			for p := range spotPairs {
+				pairs = pairs.Add(spotPairs[p])
+			}
+			for p := range marginPairs {
+				pairs = pairs.Add(marginPairs[p])
+			}
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[x],
 				Asset:   asset.Spot,
-				Params:  map[string]interface{}{"symbols": pairStrings},
+				Params:  map[string]interface{}{"symbols": pairs.Join()},
 			})
 		case marketCandlesChannel:
-			for b := range jointSpotMarginPairs {
+			subscribedPairsMap := map[string]bool{}
+			for p := range spotPairs {
+				if okay := subscribedPairsMap[spotPairs[p].String()]; okay {
+					continue
+				}
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  channels[x],
 					Asset:    asset.Spot,
-					Currency: jointSpotMarginPairs[b],
+					Currency: spotPairs[p],
 					Params:   map[string]interface{}{"interval": kline.FifteenMin},
 				})
+				subscribedPairsMap[spotPairs[p].String()] = true
+			}
+			for p := range marginPairs {
+				if okay := subscribedPairsMap[marginPairs[p].String()]; okay {
+					continue
+				}
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  channels[x],
+					Asset:    asset.Margin,
+					Currency: marginPairs[p],
+					Params:   map[string]interface{}{"interval": kline.FifteenMin},
+				})
+				subscribedPairsMap[marginPairs[p].String()] = true
 			}
 		case marginLoanChannel:
 			for b := range marginPairs {
