@@ -192,6 +192,13 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
+		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
+		Register:              make(chan *wsRequestInfo),
+		Unregister:            make(chan string),
+		Message:               make(chan *wsIncomingData),
+	}
+
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -1217,8 +1224,8 @@ allOrders:
 				Amount:          orderList[i].Size.Float64(),
 				Pair:            pair,
 				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].FillSize,
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize,
+				ExecutedAmount:  orderList[i].FillSize.Float64(),
+				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
 				Fee:             orderList[i].TransactionFee.Float64(),
 				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
 				Exchange:        ok.Name,
