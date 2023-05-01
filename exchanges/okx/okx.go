@@ -4258,7 +4258,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	code, err := strconv.ParseInt(resp.Code, 10, 64)
 	if err == nil && code != 0 {
 		if resp.Msg != "" {
-			return fmt.Errorf(" error code: %d message: %s", code, resp.Msg)
+			return fmt.Errorf("error code: %d message: %s", code, resp.Msg)
 		}
 		err, okay := ErrorCodes[strconv.FormatInt(code, 10)]
 		if okay {
