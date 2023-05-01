@@ -4200,7 +4200,13 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	var intermediary json.RawMessage
+	resp := struct {
+		Code string      `json:"code"`
+		Msg  string      `json:"msg"`
+		Data interface{} `json:"data"`
+	}{
+		Data: result,
+	}
 	newRequest := func() (*request.Item, error) {
 		utcTime := time.Now().UTC().Format(time.RFC3339)
 		payload := []byte("")
@@ -4238,7 +4244,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			Path:          path,
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
-			Result:        &intermediary,
+			Result:        &resp,
 			AuthRequest:   authenticated,
 			Verbose:       ok.Verbose,
 			HTTPDebugging: ok.HTTPDebugging,
@@ -4249,21 +4255,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	type errCap struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data interface{} `json:"data"`
-	}
-	var errMessage errCap
-	errMessage.Data = result
-	err = json.Unmarshal(intermediary, &errMessage)
-	if err != nil {
-		return err
-	}
-	code, err := strconv.ParseInt(errMessage.Code, 10, 64)
+	code, err := strconv.ParseInt(resp.Code, 10, 64)
 	if err == nil && code != 0 {
-		if errMessage.Msg != "" {
-			return fmt.Errorf(" error code: %d message: %s", code, errMessage.Msg)
+		if resp.Msg != "" {
+			return fmt.Errorf(" error code: %d message: %s", code, resp.Msg)
 		}
 		err, okay := ErrorCodes[strconv.FormatInt(code, 10)]
 		if okay {
