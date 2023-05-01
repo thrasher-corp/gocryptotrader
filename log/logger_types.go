@@ -59,10 +59,9 @@ type job struct {
 type Config struct {
 	Enabled *bool `json:"enabled"`
 	SubLoggerConfig
-	LoggerFileConfig  *loggerFileConfig `json:"fileSettings,omitempty"`
-	AdvancedSettings  advancedSettings  `json:"advancedSettings"`
-	SubLoggers        []SubLoggerConfig `json:"subloggers,omitempty"`
-	StructuredLogging bool              `json:"structuredLogging"`
+	LoggerFileConfig *loggerFileConfig `json:"fileSettings,omitempty"`
+	AdvancedSettings advancedSettings  `json:"advancedSettings"`
+	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
 }
 
 type advancedSettings struct {
@@ -71,6 +70,7 @@ type advancedSettings struct {
 	TimeStampFormat               string  `json:"timeStampFormat"`
 	Headers                       headers `json:"headers"`
 	BypassJobChannelFilledWarning bool    `json:"bypassJobChannelFilledWarning"`
+	StructuredLogging             bool    `json:"structuredLogging"`
 }
 
 type headers struct {

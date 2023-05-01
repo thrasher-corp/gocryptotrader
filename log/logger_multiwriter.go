@@ -46,6 +46,7 @@ func loggerWorker() {
 				_, ok := structuredOutbound[k]
 				if ok {
 					// Disallow overwriting of key values
+					displayError(fmt.Errorf("structured logging: cannot overwrite key [%s]", k))
 					continue
 				}
 				structuredOutbound[k] = v
@@ -53,6 +54,10 @@ func loggerWorker() {
 			buffer, err = json.Marshal(structuredOutbound)
 			if err != nil {
 				log.Println("log: failed to marshal structured log data:", err)
+			}
+			for k := range j.StructuredFields {
+				// Delete non-persistent structured fields
+				delete(structuredOutbound, k)
 			}
 			buffer = append(buffer, '\n')
 		} else {
@@ -82,11 +87,7 @@ func loggerWorker() {
 				displayError(fmt.Errorf("%T %w", j.Writers[x], io.ErrShortWrite))
 			}
 		}
-		buffer = buffer[:0] // Clean buffer
-		for k := range j.StructuredFields {
-			// Delete non-persistent structured fields
-			delete(structuredOutbound, k)
-		}
+		buffer = buffer[:0] // Clean buffer for next use
 		jobsPool.Put(j)
 	}
 }

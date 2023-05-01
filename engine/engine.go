@@ -90,7 +90,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	}
 
 	if *b.Config.Logging.Enabled {
-		err = gctlog.SetupGlobalLogger(b.Config.Name, b.Config.Logging.StructuredLogging)
+		err = gctlog.SetupGlobalLogger(b.Config.Name, b.Config.Logging.AdvancedSettings.StructuredLogging)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup global logger. %w", err)
 		}

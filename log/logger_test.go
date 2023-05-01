@@ -743,7 +743,7 @@ func TestWithFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Errorln("hello")
+	ErrorlnWithFields(sl, ExtraFields{"id": id}, "hello")
 	<-writer.Finished
 	var captured testCapture
 	bro := writer.ReadRaw()
@@ -753,7 +753,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "hello", "error")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Errorf("%v", "good")
+	ErrorfWithFields(sl, ExtraFields{"id": id}, "%v", "good")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
@@ -761,7 +761,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "good", "error")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Debugln("sir")
+	DebuglnWithFields(sl, ExtraFields{"id": id}, "sir")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
@@ -769,7 +769,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "sir", "debug")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Debugf("%v", "how")
+	DebugfWithFields(sl, ExtraFields{"id": id}, "%v", "how")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
@@ -777,7 +777,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "how", "debug")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Warnln("are")
+	WarnlnWithFields(sl, ExtraFields{"id": id}, "are")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
@@ -785,7 +785,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "are", "warn")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Warnf("%v", "you")
+	WarnfWithFields(sl, ExtraFields{"id": id}, "%v", "you")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
@@ -793,7 +793,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "you", "warn")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Infoln("today")
+	InfolnWithFields(sl, ExtraFields{"id": id}, "today")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
@@ -801,13 +801,24 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "today", "info")
 
-	WithFields(sl, map[Key]interface{}{"id": id}).Infof("%v", "?")
+	InfofWithFields(sl, ExtraFields{"id": id}, "%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	if err != nil {
 		t.Fatal(err)
 	}
 	checkCapture(t, &captured, id, "?", "info")
+
+	// Conflicting fields
+	InfofWithFields(sl, ExtraFields{botName: "lol"}, "%v", "?")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if captured.BotName != "test" {
+		t.Fatalf("received: '%v' but expected: '%v'", captured.BotName, "test")
+	}
 }
 
 func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, expSeverity string) {
