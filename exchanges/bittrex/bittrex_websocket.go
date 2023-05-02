@@ -69,9 +69,12 @@ func (b *Bittrex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var wsHandshakeData WsSignalRHandshakeData
-	err := b.WsSignalRHandshake(context.TODO(), &wsHandshakeData)
+	err = b.WsSignalRHandshake(context.TODO(), &wsHandshakeData)
 	if err != nil {
 		return err
 	}
@@ -96,12 +99,12 @@ func (b *Bittrex) WsConnect() error {
 		return err
 	}
 
-	err = b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	// Can set up custom ping handler per websocket connection.
-	b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       bittrexWebsocketTimer,
 	})
@@ -150,6 +153,10 @@ func (b *Bittrex) WsSignalRHandshake(ctx context.Context, result interface{}) er
 // WsAuth sends an authentication message to receive auth data
 // Authentications expire after 10 minutes
 func (b *Bittrex) WsAuth(ctx context.Context) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -175,7 +182,7 @@ func (b *Bittrex) WsAuth(ctx context.Context) error {
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       authenticate,
-		InvocationID: b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
+		InvocationID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
 
 	arguments := make([]string, 0)
@@ -190,7 +197,7 @@ func (b *Bittrex) WsAuth(ctx context.Context) error {
 		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
 
-	respRaw, err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(req.InvocationID, req)
+	respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
@@ -268,10 +275,14 @@ func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 }
 
 func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       subscribe,
-		InvocationID: b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
+		InvocationID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
 
 	channels := make([]string, len(channelsToSubscribe))
@@ -289,7 +300,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 	if b.Verbose {
 		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
 	}
-	respRaw, err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(req.InvocationID, req)
+	respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
@@ -304,7 +315,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 			errs = common.AppendError(errs, errors.New("unable to subscribe to "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
-		b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
@@ -327,10 +338,14 @@ func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 }
 
 func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	req := WsEventRequest{
 		Hub:          "c3",
 		Method:       unsubscribe,
-		InvocationID: b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
+		InvocationID: spotWebsocket.Conn.GenerateMessageID(false),
 	}
 
 	channels := make([]string, len(channelsToUnsubscribe))
@@ -348,7 +363,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 	if b.Verbose {
 		log.Debugf(log.WebsocketMgr, "%s - Sending JSON message - %s\n", b.Name, requestString)
 	}
-	respRaw, err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(req.InvocationID, req)
+	respRaw, err := spotWebsocket.Conn.SendMessageReturnResponse(req.InvocationID, req)
 	if err != nil {
 		return err
 	}
@@ -363,7 +378,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 			errs = common.AppendError(errs, errors.New("unable to unsubscribe from "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
-		b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
@@ -371,13 +386,16 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 // wsReadData gets and passes on websocket messages for processing
 func (b *Bittrex) wsReadData() {
 	defer b.Websocket.Wg.Done()
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
 		select {
-		case <-b.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
+		case <-spotWebsocket.ShutdownC:
 			return
 		default:
-			resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+			resp := spotWebsocket.Conn.ReadMessage()
 			if resp.Raw == nil {
 				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", b.Name)
 				return

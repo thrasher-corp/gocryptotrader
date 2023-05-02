@@ -212,7 +212,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	h.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := h.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            wsMarketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,
@@ -221,8 +221,11 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
+	if err != nil {
+		return err
+	}
 
-	err = h.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -231,7 +234,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -633,7 +636,8 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	info.Exchange = h.Name
 	switch assetType {
 	case asset.Spot:
-		if h.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := h.wsGetAccountsList(ctx)
 			if err != nil {
 				return info, err
@@ -1140,7 +1144,8 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	switch assetType {
 	case asset.Spot:
 		var respData *OrderInfo
-		if h.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 			resp, err := h.wsGetOrderDetails(ctx, orderID)
 			if err != nil {
 				return orderDetail, err
@@ -1360,7 +1365,8 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
-		if h.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 			for i := range req.Pairs {
 				resp, err := h.wsGetOrdersList(ctx, -1, req.Pairs[i])
 				if err != nil {

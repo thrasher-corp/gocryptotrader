@@ -209,14 +209,13 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+		err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  gateioWebsocketEndpoint,
 			RateLimit:            gateioWebsocketRateLimit,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		})
 		if err != nil {
-			println(err.Error())
 			return err
 		}
 	}
@@ -233,7 +232,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.AssetTypeWebsockets[asset.Futures].SetupNewConnection(stream.ConnectionSetup{
+		err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  futuresWebsocketUsdtURL,
 			RateLimit:            gateioWebsocketRateLimit,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -242,7 +241,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.AssetTypeWebsockets[asset.Futures].SetupNewConnection(stream.ConnectionSetup{
+		err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  futuresWebsocketBtcURL,
 			RateLimit:            gateioWebsocketRateLimit,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -266,7 +265,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+		err = deliveryFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  deliveryRealUSDTTradingURL,
 			RateLimit:            gateioWebsocketRateLimit,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -275,7 +274,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.AssetTypeWebsockets[asset.DeliveryFutures].SetupNewConnection(stream.ConnectionSetup{
+		err = deliveryFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  deliveryRealBTCTradingURL,
 			RateLimit:            gateioWebsocketRateLimit,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -299,7 +298,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		return g.Websocket.AssetTypeWebsockets[asset.Options].SetupNewConnection(stream.ConnectionSetup{
+		return optionsWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  optionsWebsocketURL,
 			RateLimit:            gateioWebsocketRateLimit,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,

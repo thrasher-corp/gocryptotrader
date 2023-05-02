@@ -193,7 +193,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            bitmexWSURL,
 		RunningURL:            wsEndpoint,
 		Connector:             b.WsConnect,
@@ -202,7 +202,10 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
-	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	if err != nil {
+		return err
+	}
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  bitmexWSURL,

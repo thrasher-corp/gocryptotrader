@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -32,8 +33,12 @@ func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -46,9 +51,12 @@ func (c *CoinbasePro) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (c *CoinbasePro) wsReadData() {
 	defer c.Websocket.Wg.Done()
-
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+	}
 	for {
-		resp := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -401,8 +409,11 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var creds *account.Credentials
-	var err error
 	if c.IsWebsocketAuthenticationSupported() {
 		creds, err = c.GetCredentials(context.TODO())
 		if err != nil {
@@ -448,16 +459,20 @@ subscriptions:
 			subscribe.Timestamp = n
 		}
 	}
-	err = c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subscribe)
+	err = spotWebsocket.Conn.SendJSONMessage(subscribe)
 	if err != nil {
 		return err
 	}
-	c.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
+	spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	unsubscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 	}
@@ -479,10 +494,10 @@ unsubscriptions:
 			Name: channelsToUnsubscribe[i].Channel,
 		})
 	}
-	err := c.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unsubscribe)
+	err = spotWebsocket.Conn.SendJSONMessage(unsubscribe)
 	if err != nil {
 		return err
 	}
-	c.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }

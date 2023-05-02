@@ -188,7 +188,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            btcMarketsWSURL,
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
@@ -197,7 +197,10 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
-	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	if err != nil {
+		return err
+	}
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

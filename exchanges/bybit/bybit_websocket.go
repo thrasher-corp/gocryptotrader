@@ -48,19 +48,23 @@ func (by *Bybit) WsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op":"ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(by.Websocket.AssetTypeWebsockets[asset.Spot].Conn)
+	go by.wsReadData(spotWebsocket.Conn)
 	if by.IsWebsocketAuthenticationSupported() {
 		err = by.WsAuth(context.TODO())
 		if err != nil {
@@ -76,20 +80,24 @@ func (by *Bybit) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth(ctx context.Context) error {
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op":"ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn)
+	go by.wsReadData(spotWebsocket.AuthConn)
 
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
@@ -110,11 +118,15 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return by.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendJSONMessage(req)
+	return spotWebsocket.AuthConn.SendJSONMessage(req)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 	for i := range channelsToSubscribe {
 		var subReq WsReq
@@ -138,18 +150,22 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 				IsBinary: true,
 			}
 		}
-		err = by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subReq)
+		err = spotWebsocket.Conn.SendJSONMessage(subReq)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var errs error
 
 	for i := range channelsToUnsubscribe {
@@ -165,12 +181,12 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		unSub.Parameters = WsParams{
 			Symbol: formattedPair.String(),
 		}
-		err = by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unSub)
+		err = spotWebsocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
@@ -228,9 +244,14 @@ func stringToOrderStatus(status string) (order.Status, error) {
 // WsDataHandler handles data from wsReadData
 func (by *Bybit) WsDataHandler() {
 	defer by.Websocket.Wg.Done()
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		return
+	}
 	for {
 		select {
-		case <-by.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
+		case <-spotWebsocket.ShutdownC:
 			return
 		case resp := <-comms:
 			err := by.wsHandleData(resp.Raw)

@@ -60,8 +60,12 @@ func (by *Bybit) WsCoinConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
+	}
 	var dialer websocket.Dialer
-	err := by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].Conn.Dial(&dialer, http.Header{})
+	err = cfuturesWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -70,7 +74,7 @@ func (by *Bybit) WsCoinConnect() error {
 	if err != nil {
 		return err
 	}
-	by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].Conn.SetupPingHandler(stream.PingHandler{
+	cfuturesWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Message:     pingMsg,
 		MessageType: websocket.PingMessage,
 		Delay:       bybitWebsocketTimer,
@@ -85,7 +89,7 @@ func (by *Bybit) WsCoinConnect() error {
 		err = by.WsCoinAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
-			by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].SetCanUseAuthenticatedEndpoints(false)
+			cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	by.Websocket.Wg.Add(1)
@@ -95,6 +99,10 @@ func (by *Bybit) WsCoinConnect() error {
 
 // WsCoinAuth sends an authentication message to receive auth data
 func (by *Bybit) WsCoinAuth(ctx context.Context) error {
+	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
+	}
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -115,23 +123,27 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return by.Websocket.AssetTypeWebsockets[asset.CoinMarginedFutures].Conn.SendJSONMessage(req)
+	return cfuturesWebsocket.Conn.SendJSONMessage(req)
 }
 
 // SubscribeCoin sends a websocket message to receive data from the channel
 func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription) error {
+	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
+	}
 	var errs error
 	for i := range channelsToSubscribe {
 		var sub WsFuturesReq
 		sub.Topic = subscribe
 
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
-		err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(sub)
+		err := cfuturesWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		cfuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -149,6 +161,10 @@ func formatArgs(channel string, params map[string]interface{}) string {
 
 // UnsubscribeCoin sends a websocket message to stop receiving data from the channel
 func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
+	}
 	var errs error
 	for i := range channelsToUnsubscribe {
 		var unSub WsFuturesReq
@@ -160,27 +176,31 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 			continue
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
-		err = by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unSub)
+		err = cfuturesWebsocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		cfuturesWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
 
 // wsCoinReadData gets and passes on websocket messages for processing
 func (by *Bybit) wsCoinReadData() {
+	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.CoinMarginedFutures)
+		return
+	}
 	by.Websocket.Wg.Add(1)
 	defer by.Websocket.Wg.Done()
-
 	for {
 		select {
-		case <-by.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
+		case <-cfuturesWebsocket.ShutdownC:
 			return
 		default:
-			resp := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+			resp := cfuturesWebsocket.Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}

@@ -179,7 +179,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	_, err = z.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := z.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            zbWebsocketAPI,
 		RunningURL:            wsRunningURL,
 		Connector:             z.WsConnect,
@@ -191,7 +191,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return z.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  z.Websocket.GetWebsocketURL(),
 		RateLimit:            zbWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -367,7 +367,8 @@ func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType ass
 func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var coins []AccountsResponseCoin
-	if z.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := z.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := z.wsGetAccountInfoRequest(ctx)
 		if err != nil {
 			return info, err
@@ -494,8 +495,8 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 	if err != nil {
 		return nil, err
 	}
-
-	if z.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := z.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var isBuyOrder int64
 		if o.Side == order.Buy {
 			isBuyOrder = 1
@@ -544,13 +545,13 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-
 	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
 
-	if z.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := z.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *WsCancelOrderResponse
 		response, err = z.wsCancelOrder(ctx, o.Pair, orderIDInt)
 		if err != nil {
@@ -790,7 +791,8 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 	}
 
 	var allOrders []Order
-	if z.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := z.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
 				var resp *WsGetOrdersIgnoreTradeTypeResponse

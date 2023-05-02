@@ -87,9 +87,12 @@ func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
 	var dialer websocket.Dialer
-	err := k.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -97,7 +100,7 @@ func (k *Kraken) WsConnect() error {
 	comms := make(chan stream.Response)
 	k.Websocket.Wg.Add(2)
 	go k.wsReadData(comms)
-	go k.wsFunnelConnectionData(k.Websocket.AssetTypeWebsockets[asset.Spot].Conn, comms)
+	go k.wsFunnelConnectionData(spotWebsocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
 		authToken, err = k.GetWebsocketToken(context.TODO())
@@ -108,7 +111,7 @@ func (k *Kraken) WsConnect() error {
 				k.Name,
 				err)
 		} else {
-			err = k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.Dial(&dialer, http.Header{})
+			err = spotWebsocket.AuthConn.Dial(&dialer, http.Header{})
 			if err != nil {
 				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				log.Errorf(log.ExchangeSys,
@@ -117,7 +120,7 @@ func (k *Kraken) WsConnect() error {
 					err)
 			} else {
 				k.Websocket.Wg.Add(1)
-				go k.wsFunnelConnectionData(k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn, comms)
+				go k.wsFunnelConnectionData(spotWebsocket.AuthConn, comms)
 				err = k.wsAuthPingHandler()
 				if err != nil {
 					log.Errorf(log.ExchangeSys,
@@ -154,10 +157,15 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 // wsReadData receives and passes on websocket messages for processing
 func (k *Kraken) wsReadData(comms chan stream.Response) {
 	defer k.Websocket.Wg.Done()
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		return
+	}
 
 	for {
 		select {
-		case <-k.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
+		case <-spotWebsocket.ShutdownC:
 			select {
 			case resp := <-comms:
 				err := k.wsHandleData(resp.Raw)
@@ -379,11 +387,15 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
 func (k *Kraken) wsPingHandler() error {
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	message, err := json.Marshal(pingRequest)
 	if err != nil {
 		return err
 	}
-	k.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,
@@ -393,11 +405,15 @@ func (k *Kraken) wsPingHandler() error {
 
 // wsAuthPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
 func (k *Kraken) wsAuthPingHandler() error {
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	message, err := json.Marshal(pingRequest)
 	if err != nil {
 		return err
 	}
-	k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,
@@ -810,6 +826,10 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 // wsProcessOrderBook determines if the orderbook data is partial or update
 // Then sends to appropriate fun
 func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[string]interface{}) error {
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	askSnapshot, askSnapshotExists := data["as"].([]interface{})
 	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
 	if askSnapshotExists || bidSnapshotExists {
@@ -832,7 +852,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 				go func(resub *stream.ChannelSubscription) {
 					// This was locking the main websocket reader routine and a
 					// backlog occurred. So put this into it's own go routine.
-					errResub := k.Websocket.AssetTypeWebsockets[asset.Spot].ResubscribeToChannel(resub)
+					errResub := spotWebsocket.ResubscribeToChannel(resub)
 					if errResub != nil {
 						log.Errorf(log.WebsocketMgr,
 							"resubscription failure for %v: %v",
@@ -1222,6 +1242,10 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (k *Kraken) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var subscriptions = make(map[string]*[]WebsocketSubscriptionEventRequest)
 channels:
 	for i := range channelsToSubscribe {
@@ -1242,7 +1266,7 @@ channels:
 			continue channels
 		}
 
-		id := k.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false)
+		id := spotWebsocket.Conn.GenerateMessageID(false)
 		outbound := WebsocketSubscriptionEventRequest{
 			Event:     krakenWsSubscribe,
 			RequestID: id,
@@ -1268,12 +1292,12 @@ channels:
 	for subType, subs := range subscriptions {
 		for i := range *subs {
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
-				_, err := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+				_, err := spotWebsocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 				if err != nil {
 					errs = common.AppendError(errs, err)
 					continue
 				}
-				k.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions((*subs)[i].Channels...)
+				spotWebsocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 				continue
 			}
 			if subType == "book" {
@@ -1283,12 +1307,12 @@ channels:
 				// imposed and requests are batched in allotments of 20 items.
 				time.Sleep(time.Second)
 			}
-			_, err := k.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
+			_, err := spotWebsocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 			if err != nil {
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			k.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions((*subs)[i].Channels...)
+			spotWebsocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 		}
 	}
 	return errs
@@ -1296,6 +1320,10 @@ channels:
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (k *Kraken) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var unsubs []WebsocketSubscriptionEventRequest
 channels:
 	for x := range channelsToUnsubscribe {
@@ -1315,9 +1343,9 @@ channels:
 
 		var id int64
 		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
-			id = k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(false)
+			id = spotWebsocket.AuthConn.GenerateMessageID(false)
 		} else {
-			id = k.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false)
+			id = spotWebsocket.Conn.GenerateMessageID(false)
 		}
 
 		unsub := WebsocketSubscriptionEventRequest{
@@ -1339,32 +1367,36 @@ channels:
 	var errs error
 	for i := range unsubs {
 		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
-			_, err := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			_, err := spotWebsocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
 			if err != nil {
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			k.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
+			spotWebsocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
 			continue
 		}
 
-		_, err := k.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+		_, err := spotWebsocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		k.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
+		spotWebsocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
 	}
 	return errs
 }
 
 // wsAddOrder creates an order, returned order ID if success
 func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
-	id := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(false)
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return "", fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	id := spotWebsocket.AuthConn.GenerateMessageID(false)
 	request.RequestID = id
 	request.Event = krakenWsAddOrder
 	request.Token = authToken
-	jsonResp, err := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse(id, request)
+	jsonResp, err := spotWebsocket.AuthConn.SendMessageReturnResponse(id, request)
 	if err != nil {
 		return "", err
 	}
@@ -1381,7 +1413,11 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 
 // wsCancelOrders cancels one or more open orders passed in orderIDs param
 func (k *Kraken) wsCancelOrders(orderIDs []string) error {
-	id := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(false)
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	id := spotWebsocket.AuthConn.GenerateMessageID(false)
 	request := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
 		Token:          authToken,
@@ -1400,7 +1436,7 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 
 	defer delete(cancelOrdersStatus, id)
 
-	_, err := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse(id, request)
+	_, err = spotWebsocket.AuthConn.SendMessageReturnResponse(id, request)
 	if err != nil {
 		return err
 	}
@@ -1421,14 +1457,18 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 // wsCancelAllOrders cancels all opened orders
 // Returns number (count param) of affected orders or 0 if no open orders found
 func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
-	id := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(false)
+	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	id := spotWebsocket.AuthConn.GenerateMessageID(false)
 	request := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
 		Token:     authToken,
 		RequestID: id,
 	}
 
-	jsonResp, err := k.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.SendMessageReturnResponse(id, request)
+	jsonResp, err := spotWebsocket.AuthConn.SendMessageReturnResponse(id, request)
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
 	}

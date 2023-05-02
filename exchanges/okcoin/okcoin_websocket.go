@@ -28,10 +28,14 @@ func (o *OKCoin) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
-	err := o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -58,6 +62,10 @@ func (o *OKCoin) WsConnect() error {
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
 func (o *OKCoin) WsLogin(ctx context.Context) error {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	creds, err := o.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -82,7 +90,7 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 			base64,
 		},
 	}
-	_, err = o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse("login", request)
+	_, err = spotWebsocket.Conn.SendMessageReturnResponse("login", request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -93,9 +101,13 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 // WsReadData receives and passes on websocket messages for processing
 func (o *OKCoin) WsReadData() {
 	defer o.Websocket.Wg.Done()
-
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		return
+	}
 	for {
-		resp := o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -428,6 +440,10 @@ func (o *OKCoin) WsProcessOrderBook(respRaw []byte) error {
 }
 
 func (o *OKCoin) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) error {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -439,7 +455,7 @@ func (o *OKCoin) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) err
 			Currency: c,
 			Asset:    a,
 		}
-		err := o.Websocket.AssetTypeWebsockets[asset.Spot].ResubscribeToChannel(channelToResubscribe)
+		err := spotWebsocket.ResubscribeToChannel(channelToResubscribe)
 		if err != nil {
 			return fmt.Errorf("%s resubscribe to orderbook error %s", o.Name, err)
 		}
@@ -666,6 +682,10 @@ func (o *OKCoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
+	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	request := WebsocketEventRequest{
 		Operation: operation,
 	}
@@ -697,15 +717,15 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 			// commit last payload.
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
-			err = o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(request)
+			err = spotWebsocket.Conn.SendJSONMessage(request)
 			if err != nil {
 				return err
 			}
 
 			if operation == "unsubscribe" {
-				o.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channels...)
+				spotWebsocket.RemoveSuccessfulUnsubscriptions(channels...)
 			} else {
-				o.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channels...)
+				spotWebsocket.AddSuccessfulSubscriptions(channels...)
 			}
 
 			// Drop prior unsubs and chunked payload args on successful unsubscription
@@ -719,15 +739,15 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 	}
 
 	// Commit left overs to payload
-	err := o.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(request)
+	err = spotWebsocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
 
 	if operation == "unsubscribe" {
-		o.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channels...)
+		spotWebsocket.RemoveSuccessfulUnsubscriptions(channels...)
 	} else {
-		o.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channels...)
+		spotWebsocket.AddSuccessfulSubscriptions(channels...)
 	}
 	return nil
 }

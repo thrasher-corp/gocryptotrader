@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -61,12 +62,16 @@ func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	err = g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -76,7 +81,7 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
@@ -101,8 +106,13 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 // wsReadConnData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadConnData() {
 	defer g.Websocket.Wg.Done()
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		return
+	}
 	for {
-		resp := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -749,13 +759,17 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
 	var errs error
 	for k := range payloads {
-		result, err := g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		result, err := spotWebsocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -769,9 +783,9 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				g.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				g.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
+				spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
 			}
 		}
 	}
@@ -782,8 +796,11 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var creds *account.Credentials
-	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(context.TODO())
 		if err != nil {
@@ -866,7 +883,7 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			params = append(params, intervalString)
 		}
 		payloads[i] = WsInput{
-			ID:      g.Websocket.AssetTypeWebsockets[asset.Spot].Conn.GenerateMessageID(false),
+			ID:      spotWebsocket.Conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,

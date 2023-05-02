@@ -195,7 +195,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	p.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := p.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            poloniexWebsocketAddress,
 		RunningURL:            wsRunningURL,
 		Connector:             p.WsConnect,
@@ -204,7 +204,10 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
-	return p.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	if err != nil {
+		return err
+	}
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

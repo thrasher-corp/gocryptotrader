@@ -192,7 +192,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            btseWebsocket,
 		RunningURL:            wsRunningURL,
 		Connector:             b.WsConnect,
@@ -209,7 +209,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  btseWebsocket,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

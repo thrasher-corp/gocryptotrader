@@ -168,7 +168,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	g.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := g.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            geminiWebsocketEndpoint,
 		RunningURL:            wsRunningURL,
 		Connector:             g.WsConnect,
@@ -177,8 +177,11 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
+	if err != nil {
+		return err
+	}
 
-	err = g.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
@@ -187,7 +190,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return g.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,

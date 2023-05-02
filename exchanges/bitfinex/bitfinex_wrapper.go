@@ -216,7 +216,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            publicBitfinexWebsocketEndpoint,
 		RunningURL:            wsEndpoint,
 		Connector:             b.WsConnect,
@@ -225,7 +225,10 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
-	err = b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	if err != nil {
+		return err
+	}
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  publicBitfinexWebsocketEndpoint,
@@ -234,7 +237,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
@@ -649,9 +652,10 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 
 	var orderID string
 	status := order.New
-	if b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
-			CustomID: b.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn.GenerateMessageID(false),
+			CustomID: spotWebsocket.AuthConn.GenerateMessageID(false),
 			Type:     o.Type.String(),
 			Symbol:   fpair.String(),
 			Amount:   o.Amount,
@@ -694,7 +698,11 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if !b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
+	if !spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrNotYetImplemented
 	}
 
@@ -732,7 +740,8 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelOrder(orderIDInt)
 	} else {
 		_, err = b.CancelExistingOrder(ctx, orderIDInt)
@@ -747,8 +756,8 @@ func (b *Bitfinex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (ord
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	var err error
-	if b.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelAllOrders()
 	} else {
 		_, err = b.CancelAllExistingOrders(ctx)

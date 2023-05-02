@@ -207,7 +207,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	ok.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := ok.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            okxAPIWebsocketPublicURL,
 		RunningURL:            wsRunningEndpoint,
 		Connector:             ok.WsConnect,
@@ -216,7 +216,10 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
-	err = ok.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	if err != nil {
+		return err
+	}
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
@@ -225,7 +228,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return ok.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
@@ -787,7 +790,8 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			orderRequest.PositionSide = positionSideShort
 		}
 	}
-	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		placeOrderResponse, err = ok.WsPlaceOrder(orderRequest)
 		if err != nil {
 			return nil, err
@@ -830,7 +834,8 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		OrderID:               action.OrderID,
 		ClientSuppliedOrderID: action.ClientOrderID,
 	}
-	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsAmendOrder(&amendRequest)
 	} else {
 		_, err = ok.AmendOrder(ctx, &amendRequest)
@@ -862,7 +867,8 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		OrderID:               ord.OrderID,
 		ClientSupplierOrderID: ord.ClientOrderID,
 	}
-	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsCancelOrder(req)
 	} else {
 		_, err = ok.CancelSingleOrder(ctx, req)
@@ -910,7 +916,8 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		cancelOrderParams = append(cancelOrderParams, req)
 	}
 	var canceledOrders []OrderData
-	if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
+	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 		canceledOrders, err = ok.WsCancelMultipleOrder(cancelOrderParams)
 	} else {
 		canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
@@ -997,15 +1004,16 @@ ordersLoop:
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for b := 0; b < loop; b++ {
 		var response []OrderData
+		spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
 		if len(remaining) > 20 {
-			if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+			if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 				response, err = ok.WsCancelMultipleOrder(remaining[:20])
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining[:20])
 			}
 			remaining = remaining[20:]
 		} else {
-			if ok.Websocket.AssetTypeWebsockets[asset.Spot].CanUseAuthenticatedWebsocketForWrapper() {
+			if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 				response, err = ok.WsCancelMultipleOrder(remaining)
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining)

@@ -182,7 +182,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	c.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := c.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            coinbaseproWebsocketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             c.WsConnect,
@@ -191,7 +191,10 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
-	return c.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	if err != nil {
+		return err
+	}
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

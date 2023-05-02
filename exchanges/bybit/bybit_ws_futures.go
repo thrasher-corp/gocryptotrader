@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -26,8 +27,12 @@ func (by *Bybit) WsFuturesConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Futures)
+	}
 	var dialer websocket.Dialer
-	err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = futuresWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -36,7 +41,7 @@ func (by *Bybit) WsFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SetupPingHandler(stream.PingHandler{
+	futuresWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Message:     pingMsg,
 		MessageType: websocket.PingMessage,
 		Delay:       bybitWebsocketTimer,
@@ -59,6 +64,10 @@ func (by *Bybit) WsFuturesConnect() error {
 
 // WsFuturesAuth sends an authentication message to receive auth data
 func (by *Bybit) WsFuturesAuth(ctx context.Context) error {
+	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Futures)
+	}
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -79,29 +88,37 @@ func (by *Bybit) WsFuturesAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(req)
+	return futuresWebsocket.Conn.SendJSONMessage(req)
 }
 
 // SubscribeFutures sends a websocket message to receive data from the channel
 func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscription) error {
+	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Futures)
+	}
 	var errs error
 	for i := range channelsToSubscribe {
 		var sub WsFuturesReq
 		sub.Topic = subscribe
 
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
-		err := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(sub)
+		err := futuresWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		futuresWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
 func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Futures)
+	}
 	var errs error
 	for i := range channelsToUnsubscribe {
 		var unSub WsFuturesReq
@@ -113,27 +130,32 @@ func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscr
 			continue
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
-		err = by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unSub)
+		err = futuresWebsocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		futuresWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
 
 // wsFuturesReadData gets and passes on websocket messages for processing
 func (by *Bybit) wsFuturesReadData() {
+	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Futures)
+		return
+	}
 	by.Websocket.Wg.Add(1)
 	defer by.Websocket.Wg.Done()
 
 	for {
 		select {
-		case <-by.Websocket.AssetTypeWebsockets[asset.Spot].ShutdownC:
+		case <-futuresWebsocket.ShutdownC:
 			return
 		default:
-			resp := by.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+			resp := futuresWebsocket.Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}

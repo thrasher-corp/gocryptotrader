@@ -177,8 +177,8 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	var spotWebsocket *stream.Websocket
+	spotWebsocket, err = b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            bitstampWSURL,
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
@@ -187,8 +187,11 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
+	if err != nil {
+		return err
+	}
 
-	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  b.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

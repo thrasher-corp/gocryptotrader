@@ -562,8 +562,12 @@ func TestWsAuth(t *testing.T) {
 	if !p.Websocket.IsEnabled() && !p.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
+	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		t.Fatalf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := p.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

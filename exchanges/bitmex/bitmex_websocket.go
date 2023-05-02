@@ -69,13 +69,17 @@ func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+	resp := spotWebsocket.Conn.ReadMessage()
 	if resp.Raw == nil {
 		return errors.New("connection closed")
 	}
@@ -117,9 +121,13 @@ func (b *Bitmex) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitmex) wsReadData() {
 	defer b.Websocket.Wg.Done()
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		return
+	}
 	for {
-		resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -628,22 +636,30 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 
 // Subscribe subscribes to a websocket channel
 func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	for i := range channelsToSubscribe {
 		subscriber.Arguments = append(subscriber.Arguments,
 			channelsToSubscribe[i].Channel)
 	}
-	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(subscriber)
+	err = spotWebsocket.Conn.SendJSONMessage(subscriber)
 	if err != nil {
 		return err
 	}
-	b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(channelsToSubscribe...)
+	spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var unsubscriber WebsocketRequest
 	unsubscriber.Command = "unsubscribe"
 
@@ -651,16 +667,20 @@ func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		unsubscriber.Arguments = append(unsubscriber.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(unsubscriber)
+	err = spotWebsocket.Conn.SendJSONMessage(unsubscriber)
 	if err != nil {
 		return err
 	}
-	b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 
 // WebsocketSendAuth sends an authenticated subscription
 func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -680,7 +700,7 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, creds.Key, timestamp,
 		signature)
-	err = b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(sendAuth)
+	err = spotWebsocket.Conn.SendJSONMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

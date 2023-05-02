@@ -217,7 +217,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if by.IsAssetWebsocketSupported(asset.Spot) {
-		by.Websocket.AddWebsocket(&stream.WebsocketSetup{
+		spotWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
 			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
 			RunningURL:            wsRunningEndpoint,
 			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
@@ -227,7 +227,10 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
 			AssetType:             asset.Spot,
 		})
-		err = by.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+		if err != nil {
+			return err
+		}
+		err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  by.Websocket.GetWebsocketURL(),
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

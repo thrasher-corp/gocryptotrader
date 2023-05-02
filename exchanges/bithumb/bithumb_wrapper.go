@@ -181,7 +181,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            wsEndpoint,
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
@@ -190,10 +190,9 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		AssetType:             asset.Spot,
 	})
 	if err != nil {
-		println(". : ", err.Error(), "\n\n")
 		return err
 	}
-	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMillisecond,

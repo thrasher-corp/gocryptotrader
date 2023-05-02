@@ -12,6 +12,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var (
+	// ErrAssetWebsocketNotFound returned when the asset does not have a websocket instance
+	ErrAssetWebsocketNotFound = errors.New("asset websocket not found")
+)
+
 // GetName returns exchange name
 func (w *WrapperWebsocket) GetName() string {
 	return w.exchangeName
@@ -222,7 +227,7 @@ func (w *WrapperWebsocket) GetProxyAddress() string {
 // Setup sets main variables for websocket connection
 func (w *WrapperWebsocket) Setup(s *WebsocketWrapperSetup) error {
 	if w == nil {
-		return errWebsocketIsNil
+		return errWebsocketWrapperIsNil
 	}
 	if s == nil {
 		return errWebsocketSetupIsNil
@@ -367,6 +372,7 @@ func (w *WrapperWebsocket) setInit(b bool) {
 	w.Init = b
 	w.connectionMutex.Unlock()
 }
+
 func (w *WrapperWebsocket) setEnabled(b bool) {
 	w.connectionMutex.Lock()
 	w.enabled = b
@@ -399,17 +405,20 @@ func (w *WrapperWebsocket) SetWebsocketURL(url string, auth, reconnect bool) err
 // AddWebsocket creates a websocket instance for a specified asset type
 func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 	if wr == nil {
-		return nil, errWebsocketIsNil
+		return nil, errWebsocketWrapperIsNil
+	}
+	if s == nil {
+		return nil, errWebsocketSetupIsNil
 	}
 	w, okay := wr.AssetTypeWebsockets[s.AssetType]
 	if okay && w != nil {
 		return w, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketAlreadyInitialised)
 	}
-	if s == nil {
-		return nil, errWebsocketSetupIsNil
-	}
 	if s.Connector == nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketConnectorUnset)
+	}
+	if s.GenerateSubscriptions == nil {
+		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketSubscriptionsGeneratorUnset)
 	}
 	if wr.features.Subscribe && s.Subscriber == nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketSubscriberUnset)
@@ -417,21 +426,17 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 	if wr.features.Unsubscribe && s.Unsubscriber == nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketUnsubscriberUnset)
 	}
-	connectionMonitorDelay := wr.connectionMonitorDelay
-	if wr.connectionMonitorDelay <= 0 {
-		connectionMonitorDelay = config.DefaultConnectionMonitorDelay
-	}
-	if s.GenerateSubscriptions == nil {
-		return nil, fmt.Errorf("%s %w", wr.exchangeName, errWebsocketSubscriptionsGeneratorUnset)
-	}
 	if s.DefaultURL == "" {
 		return nil, fmt.Errorf("%s websocket %w", wr.exchangeName, errDefaultURLIsEmpty)
 	}
 	if s.RunningURL == "" {
 		return nil, fmt.Errorf("%s websocket %w", wr.exchangeName, errRunningURLIsEmpty)
 	}
-	var err error
-	wr.AssetTypeWebsockets[s.AssetType] = &Websocket{
+	connectionMonitorDelay := wr.connectionMonitorDelay
+	if wr.connectionMonitorDelay <= 0 {
+		connectionMonitorDelay = config.DefaultConnectionMonitorDelay
+	}
+	assetWebsocket := &Websocket{
 		Init:                   true,
 		Subscribe:              make(chan []ChannelSubscription),
 		Unsubscribe:            make(chan []ChannelSubscription),
@@ -456,9 +461,17 @@ func (wr *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) 
 		ShutdownC:              make(chan struct{}),
 		AssetShutdownC:         wr.ShutdownC,
 	}
-	err = wr.AssetTypeWebsockets[s.AssetType].SetWebsocketURL(s.RunningURL, false, false)
+	err := assetWebsocket.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", wr.exchangeName, err)
 	}
+
+	if s.RunningURLAuth != "" {
+		err = assetWebsocket.SetWebsocketURL(s.RunningURLAuth, true, false)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", wr.exchangeName, err)
+		}
+	}
+	wr.AssetTypeWebsockets[s.AssetType] = assetWebsocket
 	return wr.AssetTypeWebsockets[s.AssetType], nil
 }

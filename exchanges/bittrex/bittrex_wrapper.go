@@ -177,7 +177,7 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := b.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            bittrexAPIWSURL, // Default ws endpoint so we can roll back via CLI if needed.
 		RunningURL:            wsRunningEndpoint,
 		Connector:             b.WsConnect,                    // Connector function outlined above.
@@ -186,8 +186,11 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
 		AssetType:             asset.Spot,
 	})
+	if err != nil {
+		return err
+	}
 	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
-	return b.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimit,

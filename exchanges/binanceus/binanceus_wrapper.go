@@ -201,8 +201,8 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	bi.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	var spotWebsocket *stream.Websocket
+	spotWebsocket, err = bi.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            binanceusDefaultWebsocketURL,
 		RunningURL:            ePoint,
 		Connector:             bi.WsConnect,
@@ -211,8 +211,11 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: bi.GenerateSubscriptions,
 		AssetType:             asset.Spot,
 	})
+	if err != nil {
+		return err
+	}
 
-	return bi.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMilliseconds,

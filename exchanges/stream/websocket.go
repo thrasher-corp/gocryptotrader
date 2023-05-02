@@ -30,7 +30,7 @@ var (
 
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
-	errWebsocketIsNil                       = errors.New("websocket is nil")
+	errWebsocketWrapperIsNil                = errors.New("websocket wrapper is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
 	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")

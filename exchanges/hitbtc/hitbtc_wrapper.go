@@ -185,7 +185,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	h.Websocket.AddWebsocket(&stream.WebsocketSetup{
+	spotWebsocket, err := h.Websocket.AddWebsocket(&stream.WebsocketSetup{
 		DefaultURL:            hitbtcWebsocketAddress,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,
@@ -194,8 +194,11 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
+	if err != nil {
+		return err
+	}
 
-	return h.Websocket.AssetTypeWebsockets[asset.Spot].SetupNewConnection(stream.ConnectionSetup{
+	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

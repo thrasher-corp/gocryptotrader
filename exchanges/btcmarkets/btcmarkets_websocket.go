@@ -40,8 +40,12 @@ func (b *BTCMarkets) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var dialer websocket.Dialer
-	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.Dial(&dialer, http.Header{})
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -57,9 +61,13 @@ func (b *BTCMarkets) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTCMarkets) wsReadData() {
 	defer b.Websocket.Wg.Done()
-
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		return
+	}
 	for {
-		resp := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.ReadMessage()
+		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
@@ -353,6 +361,10 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	var payload WsSubscribe
 	if len(subs) > 1 {
 		// TODO: Expand this to stream package as this assumes that we are doing
@@ -399,15 +411,19 @@ func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
 		payload.Timestamp = signTime
 	}
 
-	if err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload); err != nil {
+	if err := spotWebsocket.Conn.SendJSONMessage(payload); err != nil {
 		return err
 	}
-	b.Websocket.AssetTypeWebsockets[asset.Spot].AddSuccessfulSubscriptions(subs...)
+	spotWebsocket.AddSuccessfulSubscriptions(subs...)
 	return nil
 }
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.
 func (b *BTCMarkets) Unsubscribe(subs []stream.ChannelSubscription) error {
+	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
+	}
 	payload := WsSubscribe{
 		MessageType: removeSubscription,
 		ClientType:  clientType,
@@ -425,11 +441,11 @@ func (b *BTCMarkets) Unsubscribe(subs []stream.ChannelSubscription) error {
 		payload.MarketIDs = append(payload.MarketIDs, pair)
 	}
 
-	err := b.Websocket.AssetTypeWebsockets[asset.Spot].Conn.SendJSONMessage(payload)
+	err = spotWebsocket.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
 	}
-	b.Websocket.AssetTypeWebsockets[asset.Spot].RemoveSuccessfulUnsubscriptions(subs...)
+	spotWebsocket.RemoveSuccessfulUnsubscriptions(subs...)
 	return nil
 }
 
