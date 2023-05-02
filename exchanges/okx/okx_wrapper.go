@@ -131,27 +131,27 @@ func (ok *Okx) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.TwoDay,
-					kline.ThreeDay,
-					kline.FiveDay,
-					kline.OneWeek,
-					kline.OneMonth,
-					kline.ThreeMonth,
-					kline.SixMonth,
-					kline.OneYear,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.TwoDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
+					kline.IntervalCapacity{Interval: kline.FiveDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
+					kline.IntervalCapacity{Interval: kline.ThreeMonth},
+					kline.IntervalCapacity{Interval: kline.SixMonth},
+					kline.IntervalCapacity{Interval: kline.OneYear},
 				),
-				ResultLimit: 300,
+				GlobalResultLimit: 100, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
 			},
 		},
 	}
@@ -190,6 +190,13 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	err = ok.SetupDefaults(exch)
 	if err != nil {
 		return err
+	}
+
+	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
+		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
+		Register:              make(chan *wsRequestInfo),
+		Unregister:            make(chan string),
+		Message:               make(chan *wsIncomingData),
 	}
 
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
@@ -273,7 +280,7 @@ func (ok *Okx) Run(ctx context.Context) {
 }
 
 // GetServerTime returns the current exchange server time.
-func (ok *Okx) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+func (ok *Okx) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return ok.GetSystemTime(ctx)
 }
 
@@ -368,8 +375,7 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if err != nil {
 		return nil, err
 	}
-	var baseVolume float64
-	var quoteVolume float64
+	var baseVolume, quoteVolume float64
 	switch a {
 	case asset.Spot, asset.Margin:
 		baseVolume = mdata.Vol24H.Float64()
@@ -1144,12 +1150,12 @@ func (ok *Okx) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest 
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (ok *Okx) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ok *Okx) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
-func (ok *Okx) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ok *Okx) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1228,8 +1234,8 @@ allOrders:
 				Amount:          orderList[i].Size.Float64(),
 				Pair:            pair,
 				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].FillSize,
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize,
+				ExecutedAmount:  orderList[i].FillSize.Float64(),
+				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
 				Fee:             orderList[i].TransactionFee.Float64(),
 				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
 				Exchange:        ok.Name,
@@ -1367,15 +1373,15 @@ func (ok *Okx) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 	return ok.GetFee(ctx, feeBuilder)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (ok *Okx) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+func (ok *Okx) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := ok.UpdateAccountInfo(ctx, assetType)
 	return ok.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (ok *Okx) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := ok.GetKlineRequest(pair, a, interval, start, end)
+	req, err := ok.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}

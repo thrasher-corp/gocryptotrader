@@ -1948,7 +1948,7 @@ func TestBase_ValidateKline(t *testing.T) {
 		Features: Features{
 			Enabled: FeaturesEnabled{
 				Kline: kline.ExchangeCapabilitiesEnabled{
-					Intervals: kline.DeployExchangeIntervals(kline.OneMin),
+					Intervals: kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin}),
 				},
 			},
 		},
@@ -2685,40 +2685,15 @@ func TestHasAssetTypeAccountSegregation(t *testing.T) {
 func TestGetKlineRequest(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}
-	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{})
+	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err = b.GetKlineRequest(pair, asset.Empty, 0, time.Time{}, time.Time{})
+	_, err = b.GetKlineRequest(pair, asset.Empty, 0, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
-
-	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{})
-	if !errors.Is(err, kline.ErrInvalidInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
-	}
-
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, time.Time{}, time.Time{})
-	if !errors.Is(err, kline.ErrCannotConstructInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
-	}
-
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneMin)
-	b.Features.Enabled.Kline.ResultLimit = 1439
-	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 0, 1)
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, start, end)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
-
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneHour)
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
 	}
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
@@ -2730,7 +2705,19 @@ func TestGetKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end)
+	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{}, false)
+	if !errors.Is(err, kline.ErrInvalidInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
+	}
+
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, time.Time{}, time.Time{}, false)
+	if !errors.Is(err, kline.ErrCannotConstructInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
+	}
+
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
+	b.Features.Enabled.Kline.GlobalResultLimit = 1439
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, errAssetRequestFormatIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
 	}
@@ -2745,7 +2732,65 @@ func TestGetKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	r, err := b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end)
+	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 1)
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, start, end, true)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
+	}
+
+	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, start, end, false)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
+	}
+
+	_, err = b.GetKlineRequest(pair, asset.Futures, kline.OneHour, start, end, false)
+	if !errors.Is(err, kline.ErrValidatingParams) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	}
+
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneHour})
+	r, err := b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r.Exchange != "klineTest" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Exchange, "klineTest")
+	}
+
+	if !r.Pair.Equal(pair) {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Pair, pair)
+	}
+
+	if r.Asset != asset.Spot {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Asset, asset.Spot)
+	}
+
+	if r.ExchangeInterval != kline.OneHour {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ExchangeInterval, kline.OneHour)
+	}
+
+	if r.ClientRequired != kline.OneHour {
+		t.Fatalf("received: '%v' but expected: '%v'", r.ClientRequired, kline.OneHour)
+	}
+
+	if r.Start != start {
+		t.Fatalf("received: '%v' but expected: '%v'", r.Start, start)
+	}
+
+	if r.End != end {
+		t.Fatalf("received: '%v' but expected: '%v'", r.End, end)
+	}
+
+	if r.RequestFormatted.String() != "BTCUSDT" {
+		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
+	}
+
+	end = time.Now().Truncate(kline.OneHour.Duration()).UTC()
+	start = end.Add(-kline.OneHour.Duration() * 1439)
+
+	r, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -2807,8 +2852,8 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
 	}
 
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneMin)
-	b.Features.Enabled.Kline.ResultLimit = 100
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
+	b.Features.Enabled.Kline.GlobalResultLimit = 100
 	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
 

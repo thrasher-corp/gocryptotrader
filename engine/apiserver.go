@@ -794,7 +794,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetAccountInfo(client *websocketClient, data interface{}) error {
+func wsGetAccountInfo(client *websocketClient, _ interface{}) error {
 	accountInfo := getAllActiveAccounts(client.exchangeManager)
 	wsResp := WebsocketEventResponse{
 		Event: "GetAccountInfo",
@@ -803,7 +803,7 @@ func wsGetAccountInfo(client *websocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetTickers(client *websocketClient, data interface{}) error {
+func wsGetTickers(client *websocketClient, _ interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetTickers",
 	}
@@ -863,7 +863,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetOrderbooks(client *websocketClient, data interface{}) error {
+func wsGetOrderbooks(client *websocketClient, _ interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetOrderbooks",
 	}
@@ -923,7 +923,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 	return nil
 }
 
-func wsGetExchangeRates(client *websocketClient, data interface{}) error {
+func wsGetExchangeRates(client *websocketClient, _ interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetExchangeRates",
 	}
@@ -937,7 +937,7 @@ func wsGetExchangeRates(client *websocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetPortfolio(client *websocketClient, data interface{}) error {
+func wsGetPortfolio(client *websocketClient, _ interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetPortfolio",
 	}

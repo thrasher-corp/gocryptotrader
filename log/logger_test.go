@@ -180,13 +180,13 @@ func TestAddWriter(t *testing.T) {
 
 type WriteShorter struct{}
 
-func (w *WriteShorter) Write(p []byte) (int, error) {
+func (w *WriteShorter) Write(_ []byte) (int, error) {
 	return 1, nil
 }
 
 type WriteError struct{}
 
-func (w *WriteError) Write(p []byte) (int, error) {
+func (w *WriteError) Write(_ []byte) (int, error) {
 	return 0, errWriteError
 }
 

@@ -118,7 +118,7 @@ func TestAreCredentialsValid(t *testing.T) {
 	}
 }
 
-func TestValidateAPICredentials(t *testing.T) {
+func TestVerifyAPICredentials(t *testing.T) {
 	t.Parallel()
 
 	type tester struct {
@@ -175,7 +175,7 @@ func TestValidateAPICredentials(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			b := setupBase(testData)
-			if err := b.ValidateAPICredentials(b.API.credentials); !errors.Is(err, testData.Expected) {
+			if err := b.VerifyAPICredentials(b.API.credentials); !errors.Is(err, testData.Expected) {
 				t.Errorf("Test %d: expected: %v: got %v", x+1, testData.Expected, err)
 			}
 		})

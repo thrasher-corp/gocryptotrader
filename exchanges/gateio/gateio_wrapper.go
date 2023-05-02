@@ -116,26 +116,26 @@ func (g *Gateio) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.HundredMilliseconds,
-					kline.ThousandMilliseconds,
-					kline.TenSecond,
-					kline.ThirtySecond,
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.FourHour,
-					kline.EightHour,
-					kline.TwelveHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
-					kline.ThreeMonth,
-					kline.SixMonth,
+					kline.IntervalCapacity{Interval: kline.HundredMilliseconds},
+					kline.IntervalCapacity{Interval: kline.ThousandMilliseconds},
+					kline.IntervalCapacity{Interval: kline.TenSecond},
+					kline.IntervalCapacity{Interval: kline.ThirtySecond},
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.EightHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
+					kline.IntervalCapacity{Interval: kline.ThreeMonth},
+					kline.IntervalCapacity{Interval: kline.SixMonth},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -1919,7 +1919,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := g.GetKlineRequest(pair, a, interval, start, end)
+	req, err := g.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
@@ -2067,9 +2067,9 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 	return availableChains, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (g *Gateio) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (g *Gateio) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
 }

@@ -671,7 +671,7 @@ type OrderDetail struct {
 	Category                   string            `json:"category"` // normal, twap, adl, full_liquidation, partial_liquidation, delivery, ddh
 	AccumulatedFillSize        okxNumericalValue `json:"accFillSz"`
 	FillPrice                  okxNumericalValue `json:"fillPx"`
-	FillSize                   float64           `json:"fillSz"`
+	FillSize                   okxNumericalValue `json:"fillSz"`
 	RebateAmount               okxNumericalValue `json:"rebate"`
 	FeeCurrency                string            `json:"feeCcy"`
 	TransactionFee             okxNumericalValue `json:"fee"`

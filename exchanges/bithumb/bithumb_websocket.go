@@ -60,7 +60,7 @@ func (b *Bithumb) wsReadData() {
 	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	for {

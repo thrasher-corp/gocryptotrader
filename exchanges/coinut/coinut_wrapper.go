@@ -270,7 +270,7 @@ func (c *COINUT) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *COINUT) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (c *COINUT) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	var resp Instruments
 	var err error
 	if c.Websocket.IsConnected() {
@@ -418,7 +418,7 @@ func (c *COINUT) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (c *COINUT) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (c *COINUT) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -532,7 +532,7 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *COINUT) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (c *COINUT) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1141,9 +1141,9 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 	return nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (c *COINUT) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (c *COINUT) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := c.UpdateAccountInfo(ctx, assetType)
 	return c.CheckTransientError(err)
 }

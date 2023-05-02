@@ -414,12 +414,12 @@ func (e *EXMO) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (e *EXMO) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (e *EXMO) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (e *EXMO) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -522,7 +522,7 @@ func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (e *EXMO) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (e *EXMO) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -548,7 +548,7 @@ func (e *EXMO) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Canc
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (e *EXMO) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -730,9 +730,9 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 	return req.Filter(e.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (e *EXMO) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (e *EXMO) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := e.UpdateAccountInfo(ctx, assetType)
 	return e.CheckTransientError(err)
 }

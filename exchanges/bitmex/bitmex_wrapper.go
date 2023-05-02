@@ -341,7 +341,7 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (b *Bitmex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (b *Bitmex) UpdateTradablePairs(ctx context.Context, _ bool) error {
 	assets := b.GetAssetTypes(false)
 
 	for x := range assets {
@@ -557,12 +557,12 @@ func (b *Bitmex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitmex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitmex) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitmex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitmex) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -721,7 +721,7 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bitmex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -746,7 +746,7 @@ func (b *Bitmex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *Bitmex) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -931,9 +931,9 @@ func (b *Bitmex) AuthenticateWebsocket(ctx context.Context) error {
 	return b.websocketSendAuth(ctx)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitmex) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *Bitmex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }

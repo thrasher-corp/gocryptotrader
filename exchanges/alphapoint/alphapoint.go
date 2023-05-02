@@ -540,7 +540,7 @@ func (a *Alphapoint) GetOrderFee(ctx context.Context, symbol, side string, quant
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (a *Alphapoint) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]interface{}, result interface{}) error {
+func (a *Alphapoint) SendHTTPRequest(_ context.Context, ep exchange.URL, method, path string, data map[string]interface{}, result interface{}) error {
 	endpoint, err := a.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
