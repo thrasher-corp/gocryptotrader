@@ -969,6 +969,7 @@ func BenchmarkGenerateMessageID_Low(b *testing.B) {
 }
 
 func TestCheckWebsocketURL(t *testing.T) {
+	t.Parallel()
 	err := checkWebsocketURL("")
 	if err == nil {
 		t.Fatal("error cannot be nil")

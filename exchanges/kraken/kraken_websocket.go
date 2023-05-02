@@ -159,7 +159,7 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 	defer k.Websocket.Wg.Done()
 	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 

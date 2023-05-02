@@ -79,7 +79,7 @@ func (c *COINUT) wsReadData() {
 	defer c.Websocket.Wg.Done()
 	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	for {

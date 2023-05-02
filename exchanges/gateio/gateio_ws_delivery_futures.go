@@ -107,7 +107,7 @@ func (g *Gateio) wsReadDeliveryFuturesData() {
 	defer g.Websocket.Wg.Done()
 	deliveryFuturesWebsocket, err := g.Websocket.GetAssetWebsocket(asset.DeliveryFutures)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.DeliveryFutures)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.DeliveryFutures)
 	}
 	for {
 		select {

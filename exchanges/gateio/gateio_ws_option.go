@@ -295,7 +295,7 @@ func (g *Gateio) wsReadOptionsConnData() {
 	defer g.Websocket.Wg.Done()
 	optionsWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Options)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Options)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Options)
 		return
 	}
 	for {

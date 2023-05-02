@@ -54,7 +54,7 @@ func (bi *Binanceus) WsConnect() error {
 		listenKey, err = bi.GetWsAuthStreamKey(context.TODO())
 		if err != nil {
 			bi.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
+			log.Errorf(log.WebsocketMgr,
 				"%v unable to connect to authenticated Websocket. Error: %s",
 				bi.Name,
 				err)
@@ -112,7 +112,7 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	// Looping in 30 Minutes and updating the listenKey
@@ -126,7 +126,7 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 			err := bi.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				bi.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys,
+				log.Warnf(log.WebsocketMgr,
 					bi.Name+" - Unable to renew auth websocket token, may experience shutdown")
 			}
 		}
@@ -138,7 +138,7 @@ func (bi *Binanceus) wsReadData() {
 	defer bi.Websocket.Wg.Done()
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	for {
@@ -668,7 +668,7 @@ func (bi *Binanceus) setupOrderbookManager() {
 func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	bi.Websocket.Wg.Add(1)

@@ -193,7 +193,7 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	b.Websocket.Wg.Add(1)

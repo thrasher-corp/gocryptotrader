@@ -56,7 +56,7 @@ func (z *ZB) wsReadData() {
 	defer z.Websocket.Wg.Done()
 	spotWebsocket, err := z.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	for {

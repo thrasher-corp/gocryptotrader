@@ -100,7 +100,7 @@ func (b *Bitfinex) wsReadData(ws stream.Connection) {
 func (b *Bitfinex) WsDataHandler() {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	defer b.Websocket.Wg.Done()
