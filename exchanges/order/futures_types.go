@@ -51,6 +51,25 @@ var (
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
+// CollateralType defines the different collateral types supported by exchanges
+// For example, FTX had a global collateral pool
+// Binance has either singular position collateral calculation
+// or cross aka asset level collateral calculation
+type CollateralType uint8
+
+const (
+	// Unset is the default value
+	Unset CollateralType = 0
+	// Single has allocated collateral per position
+	Single CollateralType = 1 << (iota - 1)
+	// Multi has collateral allocated across the whole asset
+	Multi
+	// Global has collateral allocated across account
+	Global
+	// Unknown has collateral allocated in an unknown manner at present, but is not unset
+	Unknown
+)
+
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {

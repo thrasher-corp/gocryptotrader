@@ -62,6 +62,7 @@ const (
 	ufuturesNotionalBracket       = "/fapi/v1/leverageBracket"
 	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
+	uFuturesMultiAssetsMargin     = "/fapi/v1/multiAssetsMargin"
 )
 
 // UServerTime gets the server time
@@ -1160,4 +1161,20 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 		})
 	}
 	return limits, nil
+}
+
+// SetMarginMode sets the current margin mode type, true for multi, false for single
+func (b *Binance) SetMarginMode(ctx context.Context, multiMargin bool) error {
+	params := url.Values{
+		"multiAssetsMargin": {strconv.FormatBool(multiMargin)},
+	}
+	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, uFuturesMultiAssetsMargin, params, uFuturesDefaultRate, nil)
+}
+
+// GetMarginMode returns the current margin mode type, true for multi, false for single
+func (b *Binance) GetMarginMode(ctx context.Context) (bool, error) {
+	var result struct {
+		MultiAssetsMargin bool `json:"multiAssetsMargin"`
+	}
+	return result.MultiAssetsMargin, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, uFuturesMultiAssetsMargin, nil, uFuturesDefaultRate, &result)
 }

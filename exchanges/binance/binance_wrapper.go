@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -1914,18 +1913,33 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 }
 
 // SetMarginMode sets the account's margin mode for the asset type
-func (b *Binance) SetMarginMode(ctx context.Context, a asset.Item, pair currency.Pair, mode margin.Type) error {
-	switch a {
-	case asset.USDTMarginedFutures:
-		return b.UChangeInitialMarginType(ctx, pair, mode.String())
-	case asset.CoinMarginedFutures:
-		_, err := b.FuturesChangeMarginType(ctx, pair, mode.String())
-		return err
+func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collateralType order.CollateralType) error {
+	if a != asset.USDTMarginedFutures {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	var isMulti bool
+	switch collateralType {
+	case order.Multi:
+		isMulti = true
+	case order.Single:
+		isMulti = false
+	default:
+		return fmt.Errorf("%w %v", order.ErrSideIsInvalid, collateralType)
+	}
+	return b.SetMarginMode(ctx, isMulti)
 }
 
-// GetMarginMode returns the account's margin mode for the asset type
-func (b *Binance) GetMarginMode(ctx context.Context, item asset.Item, pair currency.Pair) (margin.Type, error) {
-	return 0, common.ErrNotYetImplemented
+// GetCollateralMode returns the account's collateral mode for the asset type
+func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.CollateralType, error) {
+	if a != asset.USDTMarginedFutures {
+		return order.Unknown, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	isMulti, err := b.GetMarginMode(ctx)
+	if err != nil {
+		return order.Unknown, err
+	}
+	if isMulti {
+		return order.Multi, nil
+	}
+	return order.Single, nil
 }

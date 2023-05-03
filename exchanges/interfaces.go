@@ -149,6 +149,6 @@ type FuturesManagement interface {
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	order.PNLCalculation
-	SetMarginMode(ctx context.Context, item asset.Item, mode margin.Type) error
-	GetMarginMode(ctx context.Context, item asset.Item) (margin.Type, error)
+	SetCollateralMode(ctx context.Context, item asset.Item, mode order.CollateralType) error
+	GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error)
 }

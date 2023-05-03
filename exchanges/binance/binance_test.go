@@ -2734,3 +2734,31 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 		t.Error("expected a response")
 	}
 }
+
+func TestSetMarginMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	is, err := b.GetMarginMode(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+
+	err = b.SetMarginMode(context.Background(), !is)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+
+	err = b.SetMarginMode(context.Background(), is)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestGetMarginMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetMarginMode(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
