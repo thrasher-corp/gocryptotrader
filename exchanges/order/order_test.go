@@ -1959,3 +1959,39 @@ func TestIsValidOrderSubmissionSide(t *testing.T) {
 		t.Error("expected false")
 	}
 }
+
+func TestAdjustBaseAmount(t *testing.T) {
+	t.Parallel()
+
+	var s *SubmitResponse
+	err := s.AdjustBaseAmount(0)
+	if !errors.Is(err, errOrderSubmitResponseIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitResponseIsNil)
+	}
+
+	s = &SubmitResponse{}
+	err = s.AdjustBaseAmount(0)
+	if !errors.Is(err, errAmountIsZero) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountIsZero)
+	}
+
+	s.Amount = 1.7777777777
+	err = s.AdjustBaseAmount(1.7777777777)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.Amount != 1.7777777777 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 1.7777777777)
+	}
+
+	s.Amount = 1.7777777777
+	err = s.AdjustBaseAmount(1.777)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.Amount != 1.777 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 1.777)
+	}
+}

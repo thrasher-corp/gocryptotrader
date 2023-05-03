@@ -592,7 +592,21 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(tempResp.OrderID)
+
+	submitResp, err := s.DeriveSubmitResponse(tempResp.OrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = submitResp.AdjustBaseAmount(tempResp.Amount)
+	if err != nil {
+		return nil, err
+	}
+
+	// With market orders the price is optional, so we can set it to the
+	// actual price that was filled.
+	submitResp.Price = tempResp.Price
+	return submitResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
