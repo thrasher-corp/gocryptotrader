@@ -99,7 +99,6 @@ func (l *Lbank) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
 					kline.IntervalCapacity{Interval: kline.FourHour},
-
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/HongKong time zone. This may lead to
 					// issues with candle quality and conversion as the

@@ -270,16 +270,19 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 		return nil, err
 	}
 
-	pairs := make([]currency.Pair, len(resp))
-	var target int
-	for key := range resp {
+	pairs := make([]currency.Pair, 0, len(resp))
+	for key, info := range resp {
+		// Poloniex returns 0 for highest bid and lowest ask if support has been
+		// dropped from the front end. We don't want to add these pairs.
+		if info.HighestBid == 0 || info.LowestAsk == 0 {
+			continue
+		}
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err
 		}
-		pairs[target] = pair
-		target++
+		pairs = append(pairs, pair)
 	}
 	return pairs, nil
 }
