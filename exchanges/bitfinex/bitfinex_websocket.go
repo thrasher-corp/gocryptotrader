@@ -172,7 +172,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			if status == "OK" {
 				b.Websocket.DataHandler <- d
-				b.WsAddSubscriptionChannel(0, "account", "N/A")
+				b.WsAddSubscriptionChannel(0, "account", "")
 			} else if status == "fail" {
 				if code, ok := d["code"].(string); ok {
 					return fmt.Errorf("websocket unable to AUTH. Error code: %s",
