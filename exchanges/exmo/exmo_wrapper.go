@@ -177,16 +177,29 @@ func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		return nil, err
 	}
 
-	pairs := make([]currency.Pair, len(symbols))
-	var target int
+	// This secondary call is required to get last updated time for each pair.
+	// Some pairs are not currently supported by the API but are not listed as
+	// such in the first call.
+	tickers, err := e.GetTicker(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := make([]currency.Pair, 0, len(symbols))
 	for key := range symbols {
+		info, ok := tickers[key]
+		if !ok {
+			return nil, errors.New("could not match pair to ticker info")
+		}
+		if time.Since(time.Unix(info.Updated, 0)) >= time.Hour {
+			continue
+		}
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err
 		}
-		pairs[target] = pair
-		target++
+		pairs = append(pairs, pair)
 	}
 	return pairs, nil
 }
@@ -212,19 +225,20 @@ func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 	for i := range pairs {
-		for j := range result {
-			if !strings.EqualFold(pairs[i].String(), j) {
+		for pair, tick := range result {
+			if !strings.EqualFold(pairs[i].String(), pair) {
 				continue
 			}
 
 			err = ticker.ProcessTicker(&ticker.Price{
 				Pair:         pairs[i],
-				Last:         result[j].Last,
-				Ask:          result[j].Sell,
-				High:         result[j].High,
-				Bid:          result[j].Buy,
-				Low:          result[j].Low,
-				Volume:       result[j].Volume,
+				Last:         tick.Last,
+				Ask:          tick.Sell,
+				High:         tick.High,
+				Bid:          tick.Buy,
+				Low:          tick.Low,
+				Volume:       tick.Volume,
+				LastUpdated:  time.Unix(tick.Updated, 0),
 				ExchangeName: e.Name,
 				AssetType:    a})
 			if err != nil {
