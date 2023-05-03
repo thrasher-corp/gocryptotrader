@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -192,6 +193,9 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 // search for an asset that does and enable one if none are enabled
 // error if no currency pairs found for an entire exchange
 func (p *PairsManager) EnsureOnePairEnabled() error {
+	if p == nil {
+		return common.ErrNilPointer
+	}
 	p.m.Lock()
 	defer p.m.Unlock()
 	for i := range p.Pairs {

@@ -117,7 +117,6 @@ func TestGetCandlesticks(t *testing.T) {
 	if err != nil {
 		t.Error("Okx GetCandlesticks() error", err)
 	}
-	t.Log(len(a))
 }
 
 func TestGetCandlesticksHistory(t *testing.T) {
