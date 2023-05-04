@@ -559,7 +559,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		t.Fatalf("%w asset type: %v", err, asset.Spot)
+		t.Fatalf("%v asset type: %v", err, asset.Spot)
 	}
 	var dialer websocket.Dialer
 	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})

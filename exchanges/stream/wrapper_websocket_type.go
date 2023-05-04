@@ -62,6 +62,7 @@ type WrapperWebsocket struct {
 	AssetTypeWebsockets map[asset.Item]*Websocket
 }
 
+// NewWrapper creates a new websocket wrapper instance
 func NewWrapper() *WrapperWebsocket {
 	return &WrapperWebsocket{
 		Init:                true,

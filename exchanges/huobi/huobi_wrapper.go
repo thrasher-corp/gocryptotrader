@@ -1151,17 +1151,20 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		var respData *OrderInfo
 		spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
 		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := h.wsGetOrderDetails(ctx, orderID)
+			var resp *WsAuthenticatedOrderDetailResponse
+			resp, err = h.wsGetOrderDetails(ctx, orderID)
 			if err != nil {
 				return orderDetail, err
 			}
 			respData = &resp.Data
 		} else {
-			oID, err := strconv.ParseInt(orderID, 10, 64)
+			var oID int64
+			oID, err = strconv.ParseInt(orderID, 10, 64)
 			if err != nil {
 				return orderDetail, err
 			}
-			resp, err := h.GetOrder(ctx, oID)
+			var resp OrderInfo
+			resp, err = h.GetOrder(ctx, oID)
 			if err != nil {
 				return orderDetail, err
 			}

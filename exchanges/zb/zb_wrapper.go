@@ -374,13 +374,15 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 	var coins []AccountsResponseCoin
 	spotWebsocket, err := z.Websocket.GetAssetWebsocket(asset.Spot)
 	if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
-		resp, err := z.wsGetAccountInfoRequest(ctx)
+		var resp *WsGetAccountInfoResponse
+		resp, err = z.wsGetAccountInfoRequest(ctx)
 		if err != nil {
 			return info, err
 		}
 		coins = resp.Data.Coins
 	} else {
-		bal, err := z.GetAccountInformation(ctx)
+		var bal AccountsResponse
+		bal, err = z.GetAccountInformation(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -389,12 +391,13 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 
 	balances := make([]account.Balance, len(coins))
 	for i := range coins {
-		hold, err := strconv.ParseFloat(coins[i].Freeze, 64)
+		var hold float64
+		hold, err = strconv.ParseFloat(coins[i].Freeze, 64)
 		if err != nil {
 			return info, err
 		}
-
-		avail, err := strconv.ParseFloat(coins[i].Available, 64)
+		var avail float64
+		avail, err = strconv.ParseFloat(coins[i].Available, 64)
 		if err != nil {
 			return info, err
 		}

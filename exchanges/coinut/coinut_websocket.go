@@ -841,7 +841,8 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 	}
 	orderRequest := WsSubmitOrdersRequest{}
 	for i := range orders {
-		curr, err := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot)
+		var curr currency.Pair
+		curr, err = c.FormatExchangeCurrency(orders[i].Currency, asset.Spot)
 		if err != nil {
 			return nil, []error{err}
 		}

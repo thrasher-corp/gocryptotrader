@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.AuthenticatedSupport = true
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
-	// k.Websocket = sharedtestvalues.NewTestWebsocket()
+	k.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -1162,7 +1162,7 @@ func setupWsTests(t *testing.T) {
 	}
 	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		t.Skipf("%w asset type: %v", err, asset.Spot)
+		t.Skipf("%v asset type: %v", err, asset.Spot)
 		return
 	}
 	var dialer websocket.Dialer

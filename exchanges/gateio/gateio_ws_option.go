@@ -332,7 +332,8 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 	}
 	var errs error
 	for k := range payloads {
-		result, err := optionsWebsocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		var result []byte
+		result, err = optionsWebsocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue

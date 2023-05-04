@@ -706,7 +706,8 @@ func (b *Bitfinex) ModifyOrder(_ context.Context, action *order.Modify) (*order.
 		return nil, common.ErrNotYetImplemented
 	}
 
-	if err := action.Validate(); err != nil {
+	err = action.Validate()
+	if err != nil {
 		return nil, err
 	}
 

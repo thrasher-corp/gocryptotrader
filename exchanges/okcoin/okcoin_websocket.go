@@ -707,7 +707,8 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		}
 
 		temp.Arguments = append(temp.Arguments, arg)
-		chunk, err := json.Marshal(request)
+		var chunk []byte
+		chunk, err = json.Marshal(request)
 		if err != nil {
 			return err
 		}

@@ -127,7 +127,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Error(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	ticks := time.NewTicker(time.Minute * 30)
@@ -152,7 +152,7 @@ func (b *Binance) wsReadData() {
 	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
-		log.Error(log.ExchangeSys, "%w asset type: %v", err, asset.Spot)
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
 	for {

@@ -740,7 +740,8 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if s.ImmediateOrCancel {
 			timeInForce = KrakenRequestParamsTimeIOC
 		}
-		spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
+		var spotWebsocket *stream.Websocket
+		spotWebsocket, err = k.Websocket.GetAssetWebsocket(asset.Spot)
 		if err == nil && spotWebsocket.CanUseAuthenticatedWebsocketForWrapper() {
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
@@ -851,7 +852,8 @@ func (k *Kraken) CancelBatchOrders(_ context.Context, orders []order.Cancel) (or
 
 	ordersList := make([]string, len(orders))
 	for i := range orders {
-		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
+		err = orders[i].Validate(orders[i].StandardCancel())
+		if err != nil {
 			return order.CancelBatchResponse{}, err
 		}
 		ordersList[i] = orders[i].OrderID

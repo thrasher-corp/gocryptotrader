@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -67,23 +66,7 @@ var defaultSetup = &WebsocketSetup{
 			{Channel: "TestSub4"},
 		}, nil
 	},
-}
-
-var defaultWrapperSetup = &WebsocketWrapperSetup{
-	ExchangeConfig: &config.Exchange{
-		Features: &config.FeaturesConfig{
-			Enabled: config.FeaturesEnabledConfig{Websocket: true},
-		},
-		API: config.APIConfig{
-			AuthenticatedWebsocketSupport: true,
-		},
-		WebsocketTrafficTimeout: time.Second * 5,
-		Name:                    "exchangeName",
-	},
-	Features: &protocol.Features{
-		Subscribe:   true,
-		Unsubscribe: true,
-	},
+	AssetType: asset.Spot,
 }
 
 type dodgyConnection struct {

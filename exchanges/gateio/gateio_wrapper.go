@@ -193,7 +193,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if g.IsAssetWebsocketSupported(asset.Spot) && false {
-		wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		var wsRunningURL string
+		wsRunningURL, err = g.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			return err
 		}

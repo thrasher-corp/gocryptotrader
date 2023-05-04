@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	bitmexConfig.API.AuthenticatedWebsocketSupport = true
 	bitmexConfig.API.Credentials.Key = apiKey
 	bitmexConfig.API.Credentials.Secret = apiSecret
-	// b.Websocket = sharedtestvalues.NewTestWebsocket()
+	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = b.Setup(bitmexConfig)
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
