@@ -20,6 +20,7 @@ var (
 	ErrPairIsEmpty                = errors.New("order pair is empty")
 	ErrAssetNotSet                = errors.New("order asset type is not set")
 	ErrSideIsInvalid              = errors.New("order side is invalid")
+	ErrCollateralInvalid          = errors.New("collateral type is invalid")
 	ErrTypeIsInvalid              = errors.New("order type is invalid")
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")

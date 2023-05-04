@@ -1,12 +1,15 @@
 package margin
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+var ErrInvalidMarginType = errors.New("invalid margin type")
 
 // RateHistoryRequest is used to request a funding rate
 type RateHistoryRequest struct {
@@ -35,43 +38,22 @@ type Type uint8
 
 // Margin types
 const (
-	Unset         = Type(0)
+	// Unset is the default value
+	Unset = Type(0)
+	// Isolated means a margin trade is isolated from other margin trades
 	Isolated Type = 1 << (iota - 1)
+	// Multi means a margin trade is not isolated from other margin trades
 	Multi
-	Global
+	// Unknown is an unknown margin type but is not unset
+	Unknown
 )
 
-// String returns the string representation of the margin type in lowercase
-func (t Type) String() string {
-	switch t {
-	case Unset:
-		return "unset"
-	case Isolated:
-		return "isolated"
-	case Multi:
-		return "cross"
-	case Global:
-		return "global"
-	default:
-		return "unknown"
-	}
-}
-
-// Upper returns the upper case string representation of the margin type
-func (t Type) Upper() string {
-	switch t {
-	case Unset:
-		return "UNSET"
-	case Isolated:
-		return "ISOLATED"
-	case Multi:
-		return "CROSSED"
-	case Global:
-		return "GLOBAL"
-	default:
-		return "UNKNOWN"
-	}
-}
+const (
+	unsetStr    = "unset"
+	isolatedStr = "isolated"
+	multiStr    = "multi"
+	unknownStr  = "unknown"
+)
 
 // RateHistoryResponse has the funding rate details
 type RateHistoryResponse struct {

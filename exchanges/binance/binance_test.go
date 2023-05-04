@@ -2738,17 +2738,17 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 func TestSetMarginMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	is, err := b.GetMarginMode(context.Background())
+	is, err := b.GetAssetMode(context.Background())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	err = b.SetMarginMode(context.Background(), !is)
+	err = b.SetAssetMode(context.Background(), !is)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	err = b.SetMarginMode(context.Background(), is)
+	err = b.SetAssetMode(context.Background(), is)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -2757,8 +2757,46 @@ func TestSetMarginMode(t *testing.T) {
 func TestGetMarginMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetMarginMode(context.Background())
+	_, err := b.GetAssetMode(context.Background())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestGetCollateralMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetCollateralMode(context.Background(), asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
+	_, err = b.GetCollateralMode(context.Background(), asset.CoinMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
+	_, err = b.GetCollateralMode(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestSetCollateralMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetCollateralMode(context.Background(), asset.Spot, order.SingleCollateral)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
+	err = b.SetCollateralMode(context.Background(), asset.CoinMarginedFutures, order.SingleCollateral)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
+	err = b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, order.SingleCollateral)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, order.GlobalCollateral)
+	if !errors.Is(err, order.ErrCollateralInvalid) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
 	}
 }

@@ -58,16 +58,16 @@ var (
 type CollateralType uint8
 
 const (
-	// Unset is the default value
-	Unset CollateralType = 0
-	// Single has allocated collateral per position
-	Single CollateralType = 1 << (iota - 1)
-	// Multi has collateral allocated across the whole asset
-	Multi
-	// Global has collateral allocated across account
-	Global
-	// Unknown has collateral allocated in an unknown manner at present, but is not unset
-	Unknown
+	// UnsetCollateralType is the default value
+	UnsetCollateralType CollateralType = 0
+	// SingleCollateral has allocated collateral per position
+	SingleCollateral CollateralType = 1 << (iota - 1)
+	// MultiCollateral has collateral allocated across the whole asset
+	MultiCollateral
+	// GlobalCollateral has collateral allocated across account
+	GlobalCollateral
+	// UnknownCollateral has collateral allocated in an unknown manner at present, but is not unset
+	UnknownCollateral
 )
 
 // PNLCalculation is an interface to allow multiple

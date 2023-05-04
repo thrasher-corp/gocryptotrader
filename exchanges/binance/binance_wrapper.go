@@ -1046,6 +1046,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		default:
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
+
 		order, err := b.UFuturesNewOrder(ctx,
 			&UFuturesNewOrderRequest{
 				Symbol:           s.Pair,
@@ -1912,34 +1913,34 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
 
-// SetMarginMode sets the account's margin mode for the asset type
+// SetCollateralMode sets the account's collateral mode for the asset type
 func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collateralType order.CollateralType) error {
 	if a != asset.USDTMarginedFutures {
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	var isMulti bool
 	switch collateralType {
-	case order.Multi:
+	case order.MultiCollateral:
 		isMulti = true
-	case order.Single:
+	case order.SingleCollateral:
 		isMulti = false
 	default:
-		return fmt.Errorf("%w %v", order.ErrSideIsInvalid, collateralType)
+		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralType)
 	}
-	return b.SetMarginMode(ctx, isMulti)
+	return b.SetAssetMode(ctx, isMulti)
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
 func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.CollateralType, error) {
 	if a != asset.USDTMarginedFutures {
-		return order.Unknown, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return order.UnknownCollateral, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	isMulti, err := b.GetMarginMode(ctx)
+	isMulti, err := b.GetAssetMode(ctx)
 	if err != nil {
-		return order.Unknown, err
+		return order.UnknownCollateral, err
 	}
 	if isMulti {
-		return order.Multi, nil
+		return order.MultiCollateral, nil
 	}
-	return order.Single, nil
+	return order.SingleCollateral, nil
 }

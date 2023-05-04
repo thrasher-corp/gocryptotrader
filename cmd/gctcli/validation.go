@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -32,4 +33,8 @@ func isFuturesAsset(a string) error {
 		return fmt.Errorf("%w '%s'", order.ErrNotFuturesAsset, a)
 	}
 	return nil
+}
+
+func validMargin(m string) bool {
+	return margin.IsValidString(m)
 }

@@ -467,6 +467,7 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		TriggerPrice:      s.TriggerPrice,
 		ClientID:          s.ClientID,
 		ClientOrderID:     s.ClientOrderID,
+		MarginType:        s.MarginType,
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),

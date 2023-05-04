@@ -1204,6 +1204,9 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return nil, err
 	}
 
+	if r.MarginType != "" && !margin.IsValidString(r.MarginType) {
+		return nil, fmt.Errorf("%w %s", margin.ErrInvalidMarginType, r.MarginType)
+	}
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1244,6 +1247,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		ClientOrderID: r.ClientId,
 		Exchange:      r.Exchange,
 		AssetType:     a,
+		MarginType:    margin.StringToMarginType(r.MarginType),
 	}
 
 	resp, err := s.OrderManager.Submit(ctx, submission)
