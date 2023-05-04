@@ -238,7 +238,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-		case len(pairInfo) == 1:
+		case len(pairInfo) == 1 && chanInfo.Pair != "":
 			newPair := pairInfo[0]
 			if newPair[0] == 'f' {
 				chanAsset = asset.MarginFunding
