@@ -177,23 +177,8 @@ func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		return nil, err
 	}
 
-	// This secondary call is required to get last updated time for each pair.
-	// Some pairs are not currently supported by the API but are not listed as
-	// such in the first call.
-	tickers, err := e.GetTicker(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	pairs := make([]currency.Pair, 0, len(symbols))
 	for key := range symbols {
-		info, ok := tickers[key]
-		if !ok {
-			return nil, errors.New("could not match pair to ticker info")
-		}
-		if time.Since(time.Unix(info.Updated, 0)) >= time.Hour {
-			continue
-		}
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
@@ -216,36 +201,45 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
+	avail, err := e.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	enabled, err := e.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
 	result, err := e.GetTicker(ctx)
 	if err != nil {
 		return err
 	}
-	pairs, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	for i := range pairs {
-		for pair, tick := range result {
-			if !strings.EqualFold(pairs[i].String(), pair) {
-				continue
-			}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Pair:         pairs[i],
-				Last:         tick.Last,
-				Ask:          tick.Sell,
-				High:         tick.High,
-				Bid:          tick.Buy,
-				Low:          tick.Low,
-				Volume:       tick.Volume,
-				LastUpdated:  time.Unix(tick.Updated, 0),
-				ExchangeName: e.Name,
-				AssetType:    a})
-			if err != nil {
-				return err
-			}
+	for symbol, tick := range result {
+		pair, err := avail.DeriveFrom(strings.Replace(symbol, "_", "", 1))
+		if err != nil {
+			return err
+		}
+		if !enabled.Contains(pair, true) {
+			continue
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Pair:         pair,
+			Last:         tick.Last,
+			Ask:          tick.Sell,
+			High:         tick.High,
+			Bid:          tick.Buy,
+			Low:          tick.Low,
+			Volume:       tick.Volume,
+			LastUpdated:  time.Unix(tick.Updated, 0),
+			ExchangeName: e.Name,
+			AssetType:    a})
+		if err != nil {
+			return err
 		}
 	}
+
 	return nil
 }
 
