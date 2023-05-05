@@ -598,11 +598,19 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		return nil, err
 	}
 
-	err = submitResp.AdjustBaseAmount(tempResp.Amount)
-	if err != nil {
-		return nil, err
+	if tempResp.Amount != 0 {
+		err = submitResp.AdjustBaseAmount(tempResp.Amount)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s - Order %s Base Amount Conversion Error: %s\n", b.Name, submitResp.OrderID, err)
+		}
 	}
 
+	if tempResp.TargetAmount != 0 {
+		err = submitResp.AdjustQuoteAmount(tempResp.TargetAmount)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s - Order %s Quote Amount Conversion Error: %s\n", b.Name, submitResp.OrderID, err)
+		}
+	}
 	// With market orders the price is optional, so we can set it to the
 	// actual price that was filled.
 	submitResp.Price = tempResp.Price

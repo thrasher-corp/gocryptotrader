@@ -1995,3 +1995,39 @@ func TestAdjustBaseAmount(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 1.777)
 	}
 }
+
+func TestAdjustQuoteAmount(t *testing.T) {
+	t.Parallel()
+
+	var s *SubmitResponse
+	err := s.AdjustQuoteAmount(0)
+	if !errors.Is(err, errOrderSubmitResponseIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitResponseIsNil)
+	}
+
+	s = &SubmitResponse{}
+	err = s.AdjustQuoteAmount(0)
+	if !errors.Is(err, errAmountIsZero) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountIsZero)
+	}
+
+	s.QuoteAmount = 5.222222222222
+	err = s.AdjustQuoteAmount(5.222222222222)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.QuoteAmount != 5.222222222222 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 5.222222222222)
+	}
+
+	s.QuoteAmount = 5.222222222222
+	err = s.AdjustQuoteAmount(5.22222222)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.QuoteAmount != 5.22222222 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 5.22222222)
+	}
+}

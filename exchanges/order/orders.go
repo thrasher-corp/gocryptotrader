@@ -496,10 +496,39 @@ func (s *SubmitResponse) AdjustBaseAmount(a float64) error {
 	// Warning because amounts should conform to exchange requirements prior to
 	// call but this is not fatal.
 	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested base amount from %v to %v",
-		s.Exchange, s.Amount,
+		s.Exchange,
+		s.Amount,
 		a)
 
 	s.Amount = a
+	return nil
+}
+
+// AdjustQuoteAmount will adjust the quote amount of a submit response if the
+// exchange has modified the amount. This is usually due to decimal place
+// restrictions or rounding. This will return an error if the amount is zero
+// or the submit response is nil.
+func (s *SubmitResponse) AdjustQuoteAmount(a float64) error {
+	if s == nil {
+		return errOrderSubmitResponseIsNil
+	}
+
+	if a <= 0 {
+		return errAmountIsZero
+	}
+
+	if s.QuoteAmount == a {
+		return nil
+	}
+
+	// Warning because amounts should conform to exchange requirements prior to
+	// call but this is not fatal.
+	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested quote amount from %v to %v",
+		s.Exchange,
+		s.Amount,
+		a)
+
+	s.QuoteAmount = a
 	return nil
 }
 
