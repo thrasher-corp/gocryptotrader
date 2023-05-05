@@ -198,7 +198,7 @@ func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 			return err
 		}
 	}
-	return b.EnsureOnePairEnabled()
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

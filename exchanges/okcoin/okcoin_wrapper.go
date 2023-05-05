@@ -337,7 +337,7 @@ func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 			return err
 		}
 	}
-	return o.EnsureOnePairEnabled()
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

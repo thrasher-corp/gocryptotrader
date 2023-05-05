@@ -285,7 +285,7 @@ func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 			return err
 		}
 	}
-	return b.EnsureOnePairEnabled()
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

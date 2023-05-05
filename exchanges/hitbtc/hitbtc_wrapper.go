@@ -308,11 +308,7 @@ func (h *HitBTC) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-	err = h.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return h.EnsureOnePairEnabled()
+	return h.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

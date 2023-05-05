@@ -312,11 +312,7 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	if err != nil {
 		return err
 	}
-	err = c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return c.EnsureOnePairEnabled()
+	return c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

@@ -421,7 +421,7 @@ func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 			return err
 		}
 	}
-	return h.EnsureOnePairEnabled()
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

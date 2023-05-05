@@ -308,11 +308,7 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 	if err != nil {
 		return err
 	}
-	err = b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return b.EnsureOnePairEnabled()
+	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

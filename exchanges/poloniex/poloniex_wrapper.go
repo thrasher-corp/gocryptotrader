@@ -292,11 +292,7 @@ func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) e
 	if err != nil {
 		return err
 	}
-	err = p.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
-	if err != nil {
-		return err
-	}
-	return p.EnsureOnePairEnabled()
+	return p.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

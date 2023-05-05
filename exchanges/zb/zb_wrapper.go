@@ -253,11 +253,7 @@ func (z *ZB) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-	err = z.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return z.EnsureOnePairEnabled()
+	return z.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

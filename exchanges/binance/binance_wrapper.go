@@ -438,7 +438,7 @@ func (b *Binance) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 			return err
 		}
 	}
-	return b.EnsureOnePairEnabled()
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

@@ -283,11 +283,7 @@ func (bi *Binanceus) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 	if err != nil {
 		return err
 	}
-	err = bi.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return bi.EnsureOnePairEnabled()
+	return bi.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

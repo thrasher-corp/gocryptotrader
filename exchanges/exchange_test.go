@@ -2945,38 +2945,3 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(r.RangeHolder.Ranges), 15)
 	}
 }
-
-func TestEnsureOnePairEnabled(t *testing.T) {
-	t.Parallel()
-	b := Base{Name: "klineTest"}
-	err := b.EnsureOnePairEnabled()
-	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairsEmpty)
-	}
-	b.CurrencyPairs = currency.PairsManager{
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Futures: {},
-			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
-				Available: []currency.Pair{
-					currency.NewPair(currency.BTC, currency.USDT),
-				},
-			},
-		},
-	}
-	err = b.EnsureOnePairEnabled()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
-	}
-
-	err = b.EnsureOnePairEnabled()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
-	}
-}
