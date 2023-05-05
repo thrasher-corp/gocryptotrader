@@ -12,8 +12,9 @@ import (
 func Infoln(sl *SubLogger, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stageln(fields.logger.InfoHeader, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.stageln(fields.logger.InfoHeader, a...)
+	}
 }
 
 // InfolnWithFields is a logging function that takes a sublogger, additional
@@ -24,9 +25,10 @@ func Infoln(sl *SubLogger, a ...interface{}) {
 func InfolnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stageln(fields.logger.InfoHeader, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stageln(fields.logger.InfoHeader, a...)
+	}
 }
 
 // Infof is a logging function that takes a sublogger, a format string along
@@ -36,8 +38,9 @@ func InfolnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Infof(sl *SubLogger, format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	sl.getFields().stagef(fields.logger.InfoHeader, format, a...)
+	if fields := sl.getFields(); fields != nil {
+		sl.getFields().stagef(fields.logger.InfoHeader, format, a...)
+	}
 }
 
 // InfofWithFields is a logging function that takes a sublogger, additional
@@ -46,12 +49,13 @@ func Infof(sl *SubLogger, format string, a ...interface{}) {
 // formats according to the format specifier. A new line is automatically added
 // to the output. If structured logging is not enabled, the fields will be
 // ignored.
-func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) {
+func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stagef(fields.logger.InfoHeader, format, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stagef(fields.logger.InfoHeader, format, a...)
+	}
 }
 
 // Debugln is a logging function that takes a sublogger and an arbitrary number
@@ -61,8 +65,9 @@ func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inter
 func Debugln(sl *SubLogger, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stageln(fields.logger.DebugHeader, v...)
+	if fields := sl.getFields(); fields != nil {
+		fields.stageln(fields.logger.DebugHeader, v...)
+	}
 }
 
 // DebuglnWithFields is a logging function that takes a sublogger, additional
@@ -73,9 +78,10 @@ func Debugln(sl *SubLogger, v ...interface{}) {
 func DebuglnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stageln(fields.logger.DebugHeader, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stageln(fields.logger.DebugHeader, a...)
+	}
 }
 
 // Debugf is a logging function that takes a sublogger, a format string along
@@ -85,8 +91,9 @@ func DebuglnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Debugf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	sl.getFields().stagef(fields.logger.DebugHeader, data, v...)
+	if fields := sl.getFields(); fields != nil {
+		sl.getFields().stagef(fields.logger.DebugHeader, data, v...)
+	}
 }
 
 // DebugfWithFields is a logging function that takes a sublogger, additional
@@ -94,12 +101,13 @@ func Debugf(sl *SubLogger, data string, v ...interface{}) {
 // This writes to configured io.Writer(s) as an debug message which formats
 // according to the format specifier. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) {
+func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stagef(fields.logger.DebugHeader, format, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stagef(fields.logger.DebugHeader, format, a...)
+	}
 }
 
 // Warnln is a logging function that takes a sublogger and an arbitrary number
@@ -109,8 +117,9 @@ func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inte
 func Warnln(sl *SubLogger, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stageln(fields.logger.WarnHeader, v...)
+	if fields := sl.getFields(); fields != nil {
+		fields.stageln(fields.logger.WarnHeader, v...)
+	}
 }
 
 // WarnlnWithFields is a logging function that takes a sublogger, additional
@@ -121,9 +130,10 @@ func Warnln(sl *SubLogger, v ...interface{}) {
 func WarnlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stageln(fields.logger.WarnHeader, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stageln(fields.logger.WarnHeader, a...)
+	}
 }
 
 // Warnf is a logging function that takes a sublogger, a format string along
@@ -133,8 +143,9 @@ func WarnlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Warnf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	sl.getFields().stagef(fields.logger.WarnHeader, data, v...)
+	if fields := sl.getFields(); fields != nil {
+		sl.getFields().stagef(fields.logger.WarnHeader, data, v...)
+	}
 }
 
 // WarnfWithFields is a logging function that takes a sublogger, additional
@@ -142,12 +153,13 @@ func Warnf(sl *SubLogger, data string, v ...interface{}) {
 // This writes to configured io.Writer(s) as an warning message which formats
 // according to the format specifier. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) {
+func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stagef(fields.logger.WarnHeader, format, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stagef(fields.logger.WarnHeader, format, a...)
+	}
 }
 
 // Errorln is a logging function that takes a sublogger and an arbitrary number
@@ -157,8 +169,9 @@ func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inter
 func Errorln(sl *SubLogger, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.stageln(fields.logger.ErrorHeader, v...)
+	if fields := sl.getFields(); fields != nil {
+		fields.stageln(fields.logger.ErrorHeader, v...)
+	}
 }
 
 // ErrorlnWithFields is a logging function that takes a sublogger, additional
@@ -169,9 +182,10 @@ func Errorln(sl *SubLogger, v ...interface{}) {
 func ErrorlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stageln(fields.logger.ErrorHeader, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stageln(fields.logger.ErrorHeader, a...)
+	}
 }
 
 // Errorf is a logging function that takes a sublogger, a format string along
@@ -181,8 +195,9 @@ func ErrorlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Errorf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	sl.getFields().stagef(fields.logger.ErrorHeader, data, v...)
+	if fields := sl.getFields(); fields != nil {
+		sl.getFields().stagef(fields.logger.ErrorHeader, data, v...)
+	}
 }
 
 // ErrorfWithFields is a logging function that takes a sublogger, additional
@@ -190,12 +205,13 @@ func Errorf(sl *SubLogger, data string, v ...interface{}) {
 // This writes to configured io.Writer(s) as an error message which formats
 // according to the format specifier. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func ErrorfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) {
+func ErrorfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	fields := sl.getFields()
-	fields.structuredFields = extra
-	fields.stagef(fields.logger.ErrorHeader, format, a...)
+	if fields := sl.getFields(); fields != nil {
+		fields.structuredFields = extra
+		fields.stagef(fields.logger.ErrorHeader, format, a...)
+	}
 }
 
 func displayError(err error) {

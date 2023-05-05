@@ -370,12 +370,16 @@ func TestInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	Infof(nil, "%s", "hello")
+
 	Infof(sl, "%s", "hello")
 	<-w.Finished
 	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
+
+	Infoln(nil, "hello", "goodbye")
 
 	Infoln(sl, "hello", "goodbye")
 	<-w.Finished
