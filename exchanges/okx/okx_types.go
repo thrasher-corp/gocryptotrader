@@ -978,16 +978,16 @@ type LightningDepositItem struct {
 
 // CurrencyDepositResponseItem represents the deposit address information item.
 type CurrencyDepositResponseItem struct {
-	Tag                      string `json:"tag"`
-	Chain                    string `json:"chain"`
-	ContractAddress          string `json:"ctAddr"`
-	Currency                 string `json:"ccy"`
-	ToBeneficiaryAccount     string `json:"to"`
-	Address                  string `json:"addr"`
-	Selected                 bool   `json:"selected"`
-	Memo                     string `json:"memo"`
-	DepositAddressAttachment string `json:"addrEx"`
-	PaymentID                string `json:"pmtId"`
+	Tag                      string            `json:"tag"`
+	Chain                    string            `json:"chain"`
+	ContractAddress          string            `json:"ctAddr"`
+	Currency                 string            `json:"ccy"`
+	ToBeneficiaryAccount     string            `json:"to"`
+	Address                  string            `json:"addr"`
+	Selected                 bool              `json:"selected"`
+	Memo                     string            `json:"memo"`
+	DepositAddressAttachment map[string]string `json:"addrEx"`
+	PaymentID                string            `json:"pmtId"`
 }
 
 // DepositHistoryResponseItem deposit history response item.
