@@ -251,8 +251,11 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		if !m[x].Active ||
 			// BTSE returns 0 for both highest bid and lowest ask if there is
 			// no order book data, so we skip those pairs. There is no way to
-			// take or provide liquidity for these pairs. They are not found on
-			// the frontend either.
+			// take or provide liquidity for these pairs.
+
+			// TODO: Add support for an OTC asset as this eliminates many valid
+			// tradable pairs which are active, OTC only and available on the
+			// front-end.
 			(m[x].LowestAsk == 0 && m[x].HighestBid == 0) {
 			continue
 		}
