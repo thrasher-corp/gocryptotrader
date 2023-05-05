@@ -361,9 +361,6 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			if info.Status != "online" {
 				continue
 			}
-			if strings.Contains(info.Altname, ".d") {
-				continue
-			}
 			base := assetTranslator.LookupAltname(info.Base)
 			if base == "" {
 				log.Warnf(log.ExchangeSys,
