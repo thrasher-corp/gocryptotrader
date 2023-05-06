@@ -262,15 +262,23 @@ func (ok *Okx) Run(ctx context.Context) {
 		ok.PrintEnabledPairs()
 	}
 
-	if !ok.GetEnabledFeatures().AutoPairUpdates {
-		return
+	assetTypes := ok.GetAssetTypes(false)
+	for i := range assetTypes {
+		if err := ok.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to set exchange order execution limits. Err: %v",
+				ok.Name,
+				err)
+		}
 	}
-	err := ok.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			ok.Name,
-			err)
+
+	if ok.GetEnabledFeatures().AutoPairUpdates {
+		if err := ok.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				ok.Name,
+				err)
+		}
 	}
 }
 
@@ -281,46 +289,7 @@ func (ok *Okx) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, erro
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if !ok.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, ok.Name)
-	}
-	var insts []Instrument
-	var err error
-	switch a {
-	case asset.Spot:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeSpot,
-		})
-	case asset.Futures:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeFutures,
-		})
-	case asset.PerpetualSwap:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeSwap,
-		})
-	case asset.Options:
-		var underlyings []string
-		underlyings, err = ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
-		if err != nil {
-			return nil, err
-		}
-		for x := range underlyings {
-			var instruments []Instrument
-			instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-				InstrumentType: okxInstTypeOption,
-				Underlying:     underlyings[x],
-			})
-			if err != nil {
-				return nil, err
-			}
-			insts = append(insts, instruments...)
-		}
-	case asset.Margin:
-		insts, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
-			InstrumentType: okxInstTypeMargin,
-		})
-	}
+	insts, err := ok.getInstrumentsForAsset(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -351,6 +320,33 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 		}
 	}
 	return nil
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	insts, err := ok.getInstrumentsForAsset(ctx, a)
+	if err != nil {
+		return err
+	}
+	if len(insts) == 0 {
+		return errNoInstrumentFound
+	}
+	limits := make([]order.MinMaxLevel, len(insts))
+	for x := range insts {
+		pair, err := currency.NewPairFromString(insts[x].InstrumentID)
+		if err != nil {
+			return err
+		}
+
+		limits[x] = order.MinMaxLevel{
+			Pair:                   pair,
+			Asset:                  a,
+			PriceStepIncrementSize: insts[x].TickSize.Float64(),
+			MinAmount:              insts[x].MinimumOrderSize.Float64(),
+		}
+	}
+
+	return ok.LoadLimits(limits)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -1459,4 +1455,50 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 		chains = append(chains, currencyChains[x].Chain)
 	}
 	return chains, nil
+}
+
+// getInstrumentsForOptions returns the instruments for options asset type
+func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, error) {
+	underlyings, err := ok.GetPublicUnderlyings(context.Background(), okxInstTypeOption)
+	if err != nil {
+		return nil, err
+	}
+	var insts []Instrument
+	for x := range underlyings {
+		var instruments []Instrument
+		instruments, err = ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			InstrumentType: okxInstTypeOption,
+			Underlying:     underlyings[x],
+		})
+		if err != nil {
+			return nil, err
+		}
+		insts = append(insts, instruments...)
+	}
+	return insts, nil
+}
+
+// getInstrumentsForAsset returns the instruments for an asset type
+func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Instrument, error) {
+	if !ok.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, ok.Name)
+	}
+
+	var instType string
+	switch a {
+	case asset.Options:
+		return ok.getInstrumentsForOptions(ctx)
+	case asset.Spot:
+		instType = okxInstTypeSpot
+	case asset.Futures:
+		instType = okxInstTypeFutures
+	case asset.PerpetualSwap:
+		instType = okxInstTypeSwap
+	case asset.Margin:
+		instType = okxInstTypeMargin
+	}
+
+	return ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		InstrumentType: instType,
+	})
 }
