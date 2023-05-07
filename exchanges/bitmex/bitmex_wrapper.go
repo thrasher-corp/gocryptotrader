@@ -348,7 +348,7 @@ func (b *Bitmex) UpdateTradablePairs(ctx context.Context, _ bool) error {
 			return err
 		}
 	}
-	return nil
+	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
