@@ -446,7 +446,7 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		return nil, ErrWebsocketWrapperNotInitialized
 	}
 	if s.AssetType == asset.Empty || !s.AssetType.IsValid() {
-		return nil, fmt.Errorf("%w invalid asset type for websocket", asset.ErrNotSupported)
+		return nil, asset.ErrNotSupported
 	}
 	ws, okay := w.AssetTypeWebsockets[s.AssetType]
 	if okay && ws != nil {
@@ -501,6 +501,7 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		runningURLAuth:         s.RunningURLAuth,
 		ShutdownC:              make(chan struct{}),
 		AssetShutdownC:         w.ShutdownC,
+		AssetType:              s.AssetType,
 	}
 	err := assetWebsocket.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {

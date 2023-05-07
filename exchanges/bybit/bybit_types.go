@@ -584,7 +584,7 @@ type WsFuturesOrderbookData struct {
 // WsFuturesOrderbook stores ws futures orderbook
 type WsFuturesOrderbook struct {
 	Topic  string                   `json:"topic"`
-	Type   string                   `json:"string"`
+	Type   string                   `json:"type"`
 	OBData []WsFuturesOrderbookData `json:"data"`
 }
 
@@ -708,7 +708,7 @@ type WsDeltaTicker struct {
 
 // WsFuturesTickerData stores ws future ticker data
 type WsFuturesTickerData struct {
-	ID                    string           `json:"id"`
+	ID                    int64            `json:"id"`
 	Symbol                string           `json:"symbol"`
 	SymbolName            string           `json:"symbol_name"`
 	SymbolYear            int64            `json:"symbol_year"`
@@ -724,8 +724,8 @@ type WsFuturesTickerData struct {
 	ContractStatus        string           `json:"contract_status"`
 	SystemSubsidy         int64            `json:"system_subsidy_e8"`
 	LastPrice             float64          `json:"last_price,string"`
-	BidPrice              float64          `json:"bid1_price"`
-	AskPrice              float64          `json:"ask1_price"`
+	BidPrice              float64          `json:"bid1_price,string"`
+	AskPrice              float64          `json:"ask1_price,string"`
 	LastDirection         string           `json:"last_tick_direction"`
 	PrevPrice24h          float64          `json:"prev_price_24h,string"`
 	Price24hPercentChange float64          `json:"price_24h_pcnt_e6"`
@@ -944,4 +944,10 @@ type WsFuturesWalletData struct {
 type WsFuturesWallet struct {
 	Topic string                `json:"topic"`
 	Data  []WsFuturesWalletData `json:"data"`
+}
+
+// WsFuturesParams stores futures ws subscription parameters
+type WsFuturesParams struct {
+	Operation string   `json:"op"`
+	Arguments []string `json:"args"`
 }

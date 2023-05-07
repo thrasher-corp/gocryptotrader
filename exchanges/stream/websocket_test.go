@@ -100,10 +100,15 @@ func TestAddWebsocket(t *testing.T) {
 	}
 	websocketSetup := &WebsocketSetup{}
 	_, err = websocketWrapper.AddWebsocket(websocketSetup)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
+	}
+	websocketSetup = &WebsocketSetup{AssetType: asset.Spot}
+	_, err = websocketWrapper.AddWebsocket(websocketSetup)
 	if !errors.Is(err, errWebsocketAlreadyInitialised) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
 	}
-	websocketSetup.AssetType = asset.Spot
+	websocketSetup.AssetType = asset.Margin
 	_, err = websocketWrapper.AddWebsocket(websocketSetup)
 	if !errors.Is(err, errWebsocketConnectorUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)

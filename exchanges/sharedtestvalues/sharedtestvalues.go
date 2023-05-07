@@ -2,6 +2,7 @@ package sharedtestvalues
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -61,12 +62,14 @@ func NewTestWebsocket() *stream.Websocket {
 func NewTestWrapperWebsocket() *stream.WrapperWebsocket {
 	return &stream.WrapperWebsocket{
 		Init:                true,
-		DataHandler:         make(chan interface{}, WebsocketChannelOverrideCapacity),
-		ToRoutine:           make(chan interface{}, 1000),
+		DataHandler:         make(chan interface{}, 100),
+		ToRoutine:           make(chan interface{}, 100),
 		TrafficAlert:        make(chan struct{}),
 		ReadMessageErrors:   make(chan error),
 		AssetTypeWebsockets: make(map[asset.Item]*stream.Websocket),
+		ShutdownC:           make(chan asset.Item),
 		Match:               stream.NewMatch(),
+		Wg:                  &sync.WaitGroup{},
 	}
 }
 

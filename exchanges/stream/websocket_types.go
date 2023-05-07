@@ -50,6 +50,7 @@ type Websocket struct {
 	subscriptions     []ChannelSubscription
 	Subscribe         chan []ChannelSubscription
 	Unsubscribe       chan []ChannelSubscription
+	AssetType         asset.Item
 
 	// Subscriber function for package defined websocket subscriber
 	// functionality

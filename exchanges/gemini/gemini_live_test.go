@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	geminiConfig.API.Credentials.Key = apiKey
 	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
-	g.Websocket = sharedtestvalues.NewTestWebsocket()
+	g.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = g.Setup(geminiConfig)
 	if err != nil {
 		log.Fatal("Gemini setup error", err)

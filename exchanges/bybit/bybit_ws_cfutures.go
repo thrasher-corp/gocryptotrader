@@ -745,8 +745,6 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 		book.Asset = a
 		book.Pair = p
 		book.Exchange = by.Name
-		book.VerifyOrderbook = by.CanVerifyOrderbook
-
 		err := by.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
 			return fmt.Errorf("process orderbook error -  %s", err)

@@ -3309,3 +3309,106 @@ func TestGetUSDCPredictedFundingRate(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWsCoinConnect(t *testing.T) {
+	t.Parallel()
+	err := b.Websocket.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 30)
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	subscriptions, err := b.GenerateFuturesDefaultSubscriptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.SubscribeFutures(subscriptions)
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second * 20)
+}
+
+const (
+	futuresOrderbookL2Depth25CDeltaPushData     = `{"topic": "orderBookL2_25.BTCUSD", "type": "delta", "data": { "delete": [ { "price": "29597.00", "symbol": "BTCUSD", "id": 295970000, "side": "Buy" } ], "update": [ { "price": "29606.50", "symbol": "BTCUSD", "id": 296065000, "side": "Buy", "size": 17500 } ], "insert": [ { "price": "29607.50", "symbol": "BTCUSD", "id": 296075000, "side": "Buy", "size": 299 } ], "transactTimeE6": 0 }, "cross_seq": 21538613235, "timestamp_e6": 1683307211621933 }`
+	futuresOrderbookL2Depth25CSnapshootPushData = `{"topic": "orderBookL2_25.BTCUSD", "type": "snapshot", "data": [ { "price": "29517.00", "symbol": "BTCUSD", "id": 295170000, "side": "Buy", "size": 32586 }, { "price": "29517.50", "symbol": "BTCUSD", "id": 295175000, "side": "Buy", "size": 53029 }, { "price": "29518.00", "symbol": "BTCUSD", "id": 295180000, "side": "Buy", "size": 107133 }, { "price": "29518.50", "symbol": "BTCUSD", "id": 295185000, "side": "Buy", "size": 50425 }, { "price": "29519.00", "symbol": "BTCUSD", "id": 295190000, "side": "Buy", "size": 74309 }, { "price": "29519.50", "symbol": "BTCUSD", "id": 295195000, "side": "Buy", "size": 88387 }, { "price": "29520.00", "symbol": "BTCUSD", "id": 295200000, "side": "Buy", "size": 47011 }, { "price": "29520.50", "symbol": "BTCUSD", "id": 295205000, "side": "Buy", "size": 38408 }, { "price": "29521.00", "symbol": "BTCUSD", "id": 295210000, "side": "Buy", "size": 632 }, { "price": "29521.50", "symbol": "BTCUSD", "id": 295215000, "side": "Buy", "size": 39657 }, { "price": "29522.00", "symbol": "BTCUSD", "id": 295220000, "side": "Buy", "size": 51845 }, { "price": "29524.00", "symbol": "BTCUSD", "id": 295240000, "side": "Buy", "size": 57 }, { "price": "29525.00", "symbol": "BTCUSD", "id": 295250000, "side": "Buy", "size": 7542 }, { "price": "29525.50", "symbol": "BTCUSD", "id": 295255000, "side": "Buy", "size": 5 }, { "price": "29526.00", "symbol": "BTCUSD", "id": 295260000, "side": "Buy", "size": 2013 }, { "price": "29526.50", "symbol": "BTCUSD", "id": 295265000, "side": "Buy", "size": 45460 }, { "price": "29527.00", "symbol": "BTCUSD", "id": 295270000, "side": "Sell", "size": 228514 }, { "price": "29527.50", "symbol": "BTCUSD", "id": 295275000, "side": "Sell", "size": 103019 }, { "price": "29528.00", "symbol": "BTCUSD", "id": 295280000, "side": "Sell", "size": 123285 }, { "price": "29529.50", "symbol": "BTCUSD", "id": 295295000, "side": "Sell", "size": 915 }, { "price": "29530.00", "symbol": "BTCUSD", "id": 295300000, "side": "Sell", "size": 2 }, { "price": "29530.50", "symbol": "BTCUSD", "id": 295305000, "side": "Sell", "size": 15000 }, { "price": "29531.00", "symbol": "BTCUSD", "id": 295310000, "side": "Sell", "size": 15199 }, { "price": "29531.50", "symbol": "BTCUSD", "id": 295315000, "side": "Sell", "size": 299 }, { "price": "29532.00", "symbol": "BTCUSD", "id": 295320000, "side": "Sell", "size": 40706 }, { "price": "29532.50", "symbol": "BTCUSD", "id": 295325000, "side": "Sell", "size": 17500 }, { "price": "29533.00", "symbol": "BTCUSD", "id": 295330000, "side": "Sell", "size": 40506 }, { "price": "29533.50", "symbol": "BTCUSD", "id": 295335000, "side": "Sell", "size": 60462 }, { "price": "29534.00", "symbol": "BTCUSD", "id": 295340000, "side": "Sell", "size": 100769 }, { "price": "29534.50", "symbol": "BTCUSD", "id": 295345000, "side": "Sell", "size": 598 }, { "price": "29535.00", "symbol": "BTCUSD", "id": 295350000, "side": "Sell", "size": 106183 }, { "price": "29535.50", "symbol": "BTCUSD", "id": 295355000, "side": "Sell", "size": 840 }, { "price": "29536.00", "symbol": "BTCUSD", "id": 295360000, "side": "Sell", "size": 105389 }, { "price": "29536.50", "symbol": "BTCUSD", "id": 295365000, "side": "Sell", "size": 40881 }, { "price": "29537.00", "symbol": "BTCUSD", "id": 295370000, "side": "Sell", "size": 32297 }, { "price": "29537.50", "symbol": "BTCUSD", "id": 295375000, "side": "Sell", "size": 67333 }, { "price": "29538.00", "symbol": "BTCUSD", "id": 295380000, "side": "Sell", "size": 16950 }, { "price": "29538.50", "symbol": "BTCUSD", "id": 295385000, "side": "Sell", "size": 102518 }, { "price": "29539.00", "symbol": "BTCUSD", "id": 295390000, "side": "Sell", "size": 103458 }, { "price": "29539.50", "symbol": "BTCUSD", "id": 295395000, "side": "Sell", "size": 92849 }, { "price": "29540.00", "symbol": "BTCUSD", "id": 295400000, "side": "Sell", "size": 133414 } ], "cross_seq": 21541553659, "timestamp_e6": 1683320123862497 }`
+	futuresOrderbookDepth200SnapshootPushData   = `{"topic": "orderBook_200.100ms.BTCUSD", "type": "snapshot", "data": [ { "price": "29486.00", "symbol": "BTCUSD", "id": 294860000, "side": "Buy", "size": 50 }, { "price": "29487.00", "symbol": "BTCUSD", "id": 294870000, "side": "Buy", "size": 6 }, { "price": "29487.50", "symbol": "BTCUSD", "id": 294875000, "side": "Buy", "size": 130 }, { "price": "29488.00", "symbol": "BTCUSD", "id": 294880000, "side": "Buy", "size": 10000 }, { "price": "29489.50", "symbol": "BTCUSD", "id": 294895000, "side": "Buy", "size": 7 }, { "price": "29490.00", "symbol": "BTCUSD", "id": 294900000, "side": "Buy", "size": 1686 }, { "price": "29490.50", "symbol": "BTCUSD", "id": 294905000, "side": "Buy", "size": 39 }, { "price": "29491.00", "symbol": "BTCUSD", "id": 294910000, "side": "Buy", "size": 36 }, { "price": "29491.50", "symbol": "BTCUSD", "id": 294915000, "side": "Buy", "size": 528 }, { "price": "29492.00", "symbol": "BTCUSD", "id": 294920000, "side": "Buy", "size": 23 }, { "price": "29604.50", "symbol": "BTCUSD", "id": 296045000, "side": "Buy", "size": 54459 }, { "price": "29605.00", "symbol": "BTCUSD", "id": 296050000, "side": "Buy", "size": 190668 }, { "price": "29605.50", "symbol": "BTCUSD", "id": 296055000, "side": "Buy", "size": 137083 }, { "price": "29606.00", "symbol": "BTCUSD", "id": 296060000, "side": "Buy", "size": 48455 }, { "price": "29606.50", "symbol": "BTCUSD", "id": 296065000, "side": "Buy", "size": 73097 }, { "price": "29607.00", "symbol": "BTCUSD", "id": 296070000, "side": "Buy", "size": 58459 }, { "price": "29607.50", "symbol": "BTCUSD", "id": 296075000, "side": "Buy", "size": 130149 }, { "price": "29608.00", "symbol": "BTCUSD", "id": 296080000, "side": "Buy", "size": 89916 }, { "price": "29608.50", "symbol": "BTCUSD", "id": 296085000, "side": "Buy", "size": 100335 }, { "price": "29609.00", "symbol": "BTCUSD", "id": 296090000, "side": "Buy", "size": 92727 }, { "price": "29609.50", "symbol": "BTCUSD", "id": 296095000, "side": "Buy", "size": 30668 }, { "price": "29610.00", "symbol": "BTCUSD", "id": 296100000, "side": "Buy", "size": 92324 }, { "price": "29610.50", "symbol": "BTCUSD", "id": 296105000, "side": "Buy", "size": 107466 }, { "price": "29611.00", "symbol": "BTCUSD", "id": 296110000, "side": "Buy", "size": 45974 } ], "cross_seq": 21538712631, "timestamp_e6": 1683307635861843 }`
+	futuresOrderbookDepth200UpdatePushData      = `{"topic": "orderBook_200.100ms.BTCUSD", "type": "delta", "data": { "delete": [ { "price": "29484.50", "symbol": "BTCUSD", "id": 294845000, "side": "Buy" } ], "update": [ { "price": "29628.50", "symbol": "BTCUSD", "id": 296285000, "side": "Sell", "size": 95285 }, { "price": "29628.00", "symbol": "BTCUSD", "id": 296280000, "side": "Sell", "size": 88728 } ], "insert": [ { "price": "29617.00", "symbol": "BTCUSD", "id": 296170000, "side": "Buy", "size": 64100 } ], "transactTimeE6": 0 }, "cross_seq": 21538712722, "timestamp_e6": 1683307636462153 }`
+	futuresUnsubscribePushData                  = `{"success": true, "ret_msg": "", "conn_id": "7bb4d5b1-0b98-4c61-9979-5a7abc9d5028", "request": { "op": "unsubscribe", "args": [ "orderBook_200.100ms.BTCUSD" ] } }`
+	futuresTradeConnectionPushData              = `{"topic": "trade.ETHUSD", "data": [ { "trade_time_ms": 1683308606936, "timestamp": "2023-05-05T17:43:26.000Z", "symbol": "ETHUSD", "side": "Buy", "size": 1, "price": 1995.05, "tick_direction": "ZeroPlusTick", "trade_id": "14bbac52-f716-5cd0-af1a-236a2f963be5", "cross_seq": 14563860127, "is_block_trade": "false" }, { "trade_time_ms": 1683308606941, "timestamp": "2023-05-05T17:43:26.000Z", "symbol": "ETHUSD", "side": "Sell", "size": 1, "price": 1995, "tick_direction": "MinusTick", "trade_id": "5050a170-03d4-5984-9542-1d7f62c3c45e", "cross_seq": 14563860131, "is_block_trade": "false" } ] }`
+	futuresInsurancePushData                    = `{"topic": "insurance.ETH", "data": [ { "currency": "ETH", "timestamp": "2023-05-04T20:00:00Z", "wallet_balance": 5067222494036 } ] }`
+	futuresInstrumentInfoPushData               = `{"topic": "instrument_info.100ms.BTCUSD", "type": "snapshot", "data": { "id": 1, "symbol": "BTCUSD", "last_price_e4": 295245000, "last_price": "29524.50", "bid1_price_e4": 295240000, "bid1_price": "29524.00", "ask1_price_e4": 295245000, "ask1_price": "29524.50", "last_tick_direction": "PlusTick", "prev_price_24h_e4": 288165000, "prev_price_24h": "28816.50", "price_24h_pcnt_e6": 24569, "high_price_24h_e4": 297000000, "high_price_24h": "29700.00", "low_price_24h_e4": 286705000, "low_price_24h": "28670.50", "prev_price_1h_e4": 295195000, "prev_price_1h": "29519.50", "price_1h_pcnt_e6": 169, "mark_price_e4": 295210000, "mark_price": "29521.00", "index_price_e4": 295289500, "index_price": "29528.95", "open_interest": 508778809, "open_value_e8": 0, "total_turnover_e8": 106089738482568, "turnover_24h_e8": 2666832075738, "total_volume": 30329789303, "volume_24h": 778214476, "funding_rate_e6": 100, "predicted_funding_rate_e6": 100, "cross_seq": 21539067996, "created_at": "2018-11-14T16:33:26Z", "updated_at": "2023-05-05T17:49:57Z", "next_funding_time": "2023-05-06T00:00:00Z", "countdown_hour": 7, "funding_rate_interval": 8, "settle_time_e9": 0, "delisting_status": "0" }, "cross_seq": 21539068089, "timestamp_e6": 1683308997862627 }`
+	futuresKlinePushData                        = `{"topic": "klineV2.1.BTCUSD", "data": [ { "start": 1683309060, "end": 1683309120, "open": 29529, "close": 29541, "high": 29541, "low": 29528.5, "volume": 184045, "turnover": 6.2314151, "confirm": false, "cross_seq": 21539090874, "timestamp": 1683309102077887 } ], "timestamp_e6": 1683309102077887 }`
+	futuresSubscriptionResponsePushData         = `{"success": true, "ret_msg": "", "conn_id": "7bb4d5b1-0b98-4c61-9979-5a7abc9d5028", "request": { "op": "subscribe", "args": [ "liquidation" ] } }`
+	futuresPositionPushData                     = `{"topic": "position", "data": [ { "user_id": 533285, "symbol": "BTCUSD", "size": 200, "side": "Buy", "position_value": "0.0099975", "entry_price": "20005.00125031", "liq_price": "489", "bust_price": "489", "leverage": "5", "order_margin": "0", "position_margin": "0.39929535", "available_balance": "0.39753405", "take_profit": "0", "stop_loss": "0", "realised_pnl": "0.00055631", "trailing_stop": "0", "trailing_active": "0", "wallet_balance": "0.40053971", "risk_id": 1, "occ_closing_fee": "0.0002454", "occ_funding_fee": "0", "auto_add_margin": 1, "cum_realised_pnl": "0.00055105", "position_status": "Normal", "position_seq": 0, "Isolated": false, "mode": 0, "position_idx": 0, "tp_sl_mode": "Partial", "tp_order_num": 0, "sl_order_num": 0, "tp_free_size_x": 200, "sl_free_size_x": 200 } ] }`
+	futuresExecutionPushData                    = `{"topic": "execution", "data": [ { "symbol": "BTCUSD", "side": "Buy", "order_id": "xxxxxxxx-xxxx-xxxx-9a8f-4a973eb5c418", "exec_id": "xxxxxxxx-xxxx-xxxx-8b66-c3d2fcd352f6", "order_link_id": "", "price": "8300", "order_qty": 1, "exec_type": "Trade", "exec_qty": 1, "exec_fee": "0.00000009", "leaves_qty": 0, "is_maker": false, "trade_time": "2020-01-14T14:07:23.629Z" } ] }`
+	futuresOrderPushData                        = `{"topic": "order", "data": [ { "order_id": "1640b725-75e9-407d-bea9-aae4fc666d33", "order_link_id": "IPBTC00005", "symbol": "BTCUSD", "side": "Sell", "order_type": "Market", "price": "20564", "qty": 200, "time_in_force": "ImmediateOrCancel", "create_type": "CreateByUser", "cancel_type": "", "order_status": "Filled", "leaves_qty": 0, "cum_exec_qty": 200, "cum_exec_value": "0.00943552", "cum_exec_fee": "0.00000567", "timestamp": "2022-06-21T07:35:56.505Z", "take_profit": "18500", "tp_trigger_by": "LastPrice", "stop_loss": "22000", "sl_trigger_by": "LastPrice", "trailing_stop": "0", "last_exec_price": "21196.5", "reduce_only": false, "close_on_trigger": false } ] }`
+	futuresStopOrderPushData                    = `{"topic": "stop_order", "data": [ { "order_id": "xxxxxxxx-xxxx-xxxx-98fb-335aaa6c613b", "order_link_id": "", "user_id": 1, "symbol": "BTCUSD", "side": "Buy", "order_type": "Limit", "price": "8584.5", "qty": 1, "time_in_force": "ImmediateOrCancel", "create_type": "CreateByStopOrder", "cancel_type": "", "order_status": "Untriggered", "stop_order_type": "Stop", "trigger_by": "LastPrice", "trigger_price": "8584.5", "close_on_trigger": false, "timestamp": "2020-01-14T14:11:22.062Z", "take_profit": 10000, "stop_loss": 7500 } ] }`
+	futuresWalletPushData                       = `{"topic": "wallet", "data": [ { "user_id": 738713, "coin": "BTC", "available_balance": "1.50121026", "wallet_balance": "1.50121261" } ] }`
+)
+
+func TestWsHandleData(t *testing.T) {
+	t.Parallel()
+	err := b.wsFuturesHandleData([]byte(futuresOrderbookL2Depth25CSnapshootPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresOrderbookL2Depth25CDeltaPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresOrderbookDepth200SnapshootPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresOrderbookDepth200UpdatePushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresUnsubscribePushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresTradeConnectionPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresInsurancePushData))
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresInstrumentInfoPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresKlinePushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresSubscriptionResponsePushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresPositionPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresExecutionPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresOrderPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresStopOrderPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsFuturesHandleData([]byte(futuresWalletPushData))
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -1245,22 +1245,6 @@ func TestSetupDefaults(t *testing.T) {
 	// Test websocket support
 	b.Websocket = stream.NewWrapper()
 	b.Features.Supports.Websocket = true
-	// err = b.Websocket.Setup(&stream.WebsocketSetup{
-	// 	// ExchangeConfig: &config.Exchange{
-	// 	// 	WebsocketTrafficTimeout: time.Second * 30,
-	// 	// 	Name:                    "test",
-	// 	// 	Features:                &config.FeaturesConfig{},
-	// 	// },
-	// 	// Features:              &protocol.Features{},
-	// 	// DefaultURL:            "ws://something.com",
-	// 	// RunningURL:            "ws://something.com",
-	// 	// Connector:             func() error { return nil },
-	// 	// GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
-	// 	// Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
-	// })
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 	err = b.Websocket.Enable()
 	if err != nil {
 		t.Fatal(err)
@@ -1589,27 +1573,6 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	}
 
 	b.Websocket = stream.NewWrapper()
-	// err := b.Websocket.Setup(&stream.WebsocketSetup{
-	// 	ExchangeConfig: &config.Exchange{
-	// 		Enabled:                 true,
-	// 		WebsocketTrafficTimeout: time.Second * 30,
-	// 		Name:                    "test",
-	// 		Features: &config.FeaturesConfig{
-	// 			Enabled: config.FeaturesEnabledConfig{
-	// 				Websocket: true,
-	// 			},
-	// 		},
-	// 	},
-	// 	Features:              &protocol.Features{},
-	// 	DefaultURL:            "ws://something.com",
-	// 	RunningURL:            "ws://something.com",
-	// 	Connector:             func() error { return nil },
-	// 	GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
-	// 	Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
-	// })
-	// if err != nil {
-	// 	t.Error(err)
-	// }
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
 	}

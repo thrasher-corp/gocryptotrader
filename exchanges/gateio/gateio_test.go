@@ -51,6 +51,7 @@ func TestMain(m *testing.M) {
 	if apiKey == "" || apiSecret == "" {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
+	g.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)

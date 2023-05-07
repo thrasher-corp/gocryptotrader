@@ -66,18 +66,12 @@ func (by *Bybit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
 	err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
 	err = by.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	err = by.DisableAssetWebsocketSupport(asset.Futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -238,6 +232,37 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
+		err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  bybitWSBaseURL + wsSpotPrivate,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Authenticated:        true,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if by.IsAssetWebsocketSupported(asset.Futures) {
+		futuresWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
+			DefaultURL:            bybitWebsocketFuturesPublicV2,
+			RunningURL:            bybitWebsocketFuturesPublicV2,
+			Connector:             by.WsFuturesConnect,
+			Subscriber:            by.SubscribeFutures,
+			Unsubscriber:          by.UnsubscribeFutures,
+			GenerateSubscriptions: by.GenerateFuturesDefaultSubscriptions,
+			AssetType:             asset.Futures,
+		})
+		if err != nil {
+			return err
+		}
+		err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  bybitWebsocketFuturesPublicV2,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -274,7 +299,7 @@ func (by *Bybit) Run(ctx context.Context) {
 		return
 	}
 
-	err := by.UpdateTradablePairs(ctx, false)
+	err := by.UpdateTradablePairs(ctx, true)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -358,23 +383,17 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		pairs := make([]currency.Pair, 0, len(allPairs))
+		pairs := make(currency.Pairs, 0, len(allPairs))
 		for x := range allPairs {
 			if allPairs[x].Status != "Trading" {
 				continue
 			}
 
-			symbol := allPairs[x].BaseCurrency + allPairs[x].QuoteCurrency
-			filter := strings.Split(allPairs[x].Name, symbol)
-			if len(filter) != 2 || filter[1] == "" {
-				continue
-			}
-
-			pair, err = currency.NewPairFromStrings(symbol, filter[1])
+			pair := currency.Pair{Base: currency.NewCode(allPairs[x].BaseCurrency), Quote: currency.NewCode(allPairs[x].QuoteCurrency)}
 			if err != nil {
 				return nil, err
 			}
-			pairs = append(pairs, pair)
+			pairs = pairs.Add(pair)
 		}
 		return pairs, nil
 	case asset.USDCMarginedFutures:

@@ -73,5 +73,6 @@ func NewWrapper() *WrapperWebsocket {
 		AssetTypeWebsockets: make(map[asset.Item]*Websocket),
 		ShutdownC:           make(chan asset.Item),
 		Match:               NewMatch(),
+		Wg:                  &sync.WaitGroup{},
 	}
 }

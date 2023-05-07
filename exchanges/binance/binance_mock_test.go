@@ -59,7 +59,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 	request.MaxRequestJobs = 100
-	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	log.Printf(sharedtestvalues.MockTesting, b.Name)
 	os.Exit(m.Run())
 }
