@@ -7,10 +7,12 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -1413,8 +1415,63 @@ func TestGetOrderbooks(t *testing.T) {
 
 func TestGetLiteOrderbook(t *testing.T) {
 	t.Parallel()
-	o.Verbose = true
 	_, err := o.GetOrderbookLitebook(context.Background(), "BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCandlestick(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetCandlesticks(context.Background(), "BTC-USD", kline.FiveMin, time.Now().Add(-time.Hour*3), time.Now(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCandlestickHistory(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetCandlestickHistory(context.Background(), "BTC-USD", time.Now().Add(-time.Minute*30), time.Now(), kline.FiveMin, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTrades(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetTrades(context.Background(), "BTC-USD", 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTradeHistory(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetTradeHistory(context.Background(), "BTC-USD", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGet24HourTradingVolume(t *testing.T) {
+	t.Parallel()
+	_, err := o.Get24HourTradingVolume(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOracle(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetOracle(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExchangeRate(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetExchangeRate(context.Background())
 	if err != nil {
 		t.Error(err)
 	}

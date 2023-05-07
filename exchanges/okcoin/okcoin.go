@@ -55,11 +55,13 @@ const (
 	systemTime   = "time"
 
 	// market endpoints
-	tickersPath       = "tickers"
-	tickerData        = "ticker"
-	getSpotOrderBooks = "books"
-	orderbookLitePath = "books-lite"
-	getSpotMarketData = "candles"
+	tickersPath            = "tickers"
+	tickerData             = "ticker"
+	getSpotOrderBooks      = "books"
+	orderbookLitePath      = "books-lite"
+	getSpotMarketData      = "candles"
+	getSpotHistoricCandles = "history-candles"
+	getTrades              = "trades"
 
 	// ----------------------------------
 	marginTradingSubsection   = "margin"
@@ -194,12 +196,121 @@ func (o *OKCoin) GetOrderbookLitebook(ctx context.Context, instrumentID string) 
 
 // GetCandlesticks retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, after, before time.Time, limit int64) ([]CandlestickData, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	var err error
+	if interval != kline.Interval(0) {
+		intervalString, err := intervalToString(interval, false)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("bar", intervalString)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	var resp []CandlestickItemResponse
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, getSpotMarketData, nil, &resp, false)
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotMarketData, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
 	return ExtractCandlesticks(resp)
+}
+
+// GetCandlestickHistory retrieve history candlestick charts from recent years.
+func (o *OKCoin) GetCandlestickHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickData, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	var err error
+	if bar != kline.Interval(0) {
+		intervalString, err := intervalToString(bar, false)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("bar", intervalString)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []CandlestickItemResponse
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotHistoricCandles, params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	return ExtractCandlesticks(resp)
+}
+
+// GetTrades retrieve the recent transactions of an instrument.
+func (o *OKCoin) GetTrades(ctx context.Context, instrumentID string, limit int64) ([]SpotTrade, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SpotTrade
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(getTrades, params), nil, &resp, false)
+}
+
+// GetTradeHistory retrieve the recent transactions of an instrument from the last 3 months with pagination.
+func (o *OKCoin) GetTradeHistory(ctx context.Context, instrumentID, paginationType string, after, before time.Time, limit int64) ([]SpotTrade, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if paginationType != "" {
+		params.Set("type", paginationType)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SpotTrade
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues("history-trades", params), nil, &resp, false)
+}
+
+// Get24HourTradingVolume returns the 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit.
+func (o *OKCoin) Get24HourTradingVolume(ctx context.Context) ([]TradingVolume, error) {
+	var resp []TradingVolume
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, "platform-24-volume", nil, &resp, false)
+}
+
+// GetOracle retrives the crypto price of signing using Open Oracle smart contract.
+func (o *OKCoin) GetOracle(ctx context.Context) (*Oracle, error) {
+	var resp *Oracle
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, "open-oracle", nil, &resp, false)
+}
+
+// GetExchangeRate provides the average exchange rate data for 2 weeks
+func (o *OKCoin) GetExchangeRate(ctx context.Context) ([]ExchangeRate, error) {
+	var resp []ExchangeRate
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, "exchange-rate", nil, &resp, false)
 }
 
 func intervalToString(interval kline.Interval, UTCOpeningPrice bool) (string, error) {

@@ -1879,6 +1879,36 @@ type CandlestickData struct {
 	Confirm              string
 }
 
+// SpotTrades represents spot trades
+type SpotTrade struct {
+	InstID     string         `json:"instId"`
+	Side       string         `json:"side"`
+	TradeSize  string         `json:"sz"`
+	TradePrice string         `json:"px"`
+	TradeID    string         `json:"tradeId"`
+	Timestamp  okcoinMilliSec `json:"ts"`
+}
+
+// TradingVolume represents the trading volume of the platform in 24 hours
+type TradingVolume struct {
+	VolCny    float64        `json:"volCny,string"`
+	VolUsd    float64        `json:"volUsd,string"`
+	Timestamp okcoinMilliSec `json:"ts"`
+}
+
+// Oracle
+type Oracle []struct {
+	Messages   []string          `json:"messages"`
+	Prices     map[string]string `json:"prices"`
+	Signatures []string          `json:"signatures"`
+	Timestamp  okcoinMilliSec    `json:"timestamp"`
+}
+
+// ExchangeRate
+type ExchangeRate struct {
+	UsdCny string `json:"usdCny"`
+}
+
 // ToExtract returns a CandlestickData instance from []string
 func (c *CandlestickItemResponse) ToExtract() (CandlestickData, error) {
 	var candle CandlestickData
