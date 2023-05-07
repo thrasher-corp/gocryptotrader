@@ -2734,3 +2734,84 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 		t.Error("expected a response")
 	}
 }
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	tests := map[asset.Item]currency.Pair{
+		asset.Spot:   currency.NewPair(currency.BTC, currency.USDT),
+		asset.Margin: currency.NewPair(currency.ETH, currency.BTC),
+	}
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		pairs, err := b.FetchTradablePairs(context.Background(), a)
+		if err != nil {
+			t.Errorf("Error fetching dated %s pairs for test: %v", a, err)
+		}
+		tests[a] = pairs[0]
+	}
+
+	for _, a := range b.GetAssetTypes(false) {
+		if err := b.UpdateOrderExecutionLimits(context.Background(), a); err != nil {
+			t.Error("Binance UpdateOrderExecutionLimits() error", err)
+			continue
+		}
+
+		p := tests[a]
+		limits, err := b.GetOrderExecutionLimits(a, p)
+		if err != nil {
+			t.Errorf("Binance GetOrderExecutionLimits() error during TestUpdateOrderExecutionLimits; Asset: %s Pair: %s Err: %v", a, p, err)
+			continue
+		}
+		if limits.MinPrice == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MinPrice; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinPrice)
+		}
+		if limits.MaxPrice == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxPrice; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxPrice)
+		}
+		if limits.PriceStepIncrementSize == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty PriceStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.PriceStepIncrementSize)
+		}
+		if limits.MinAmount == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MinAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinAmount)
+		}
+		if limits.MaxAmount == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxAmount)
+		}
+		if limits.AmountStepIncrementSize == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty AmountStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.AmountStepIncrementSize)
+		}
+		if a == asset.USDTMarginedFutures && limits.MinNotional == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MinNotional; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinNotional)
+		}
+		if limits.MarketMaxQty == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MarketMaxQty; Asset: %s, Pair: %s, Got: %v", a, p, limits.MarketMaxQty)
+		}
+		if limits.MaxTotalOrders == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxTotalOrders; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxTotalOrders)
+		}
+
+		if a == asset.Spot || a == asset.Margin {
+			if limits.MaxIcebergParts == 0 {
+				t.Errorf("Binance UpdateOrderExecutionLimits empty MaxIcebergParts; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxIcebergParts)
+			}
+		}
+
+		if a == asset.CoinMarginedFutures || a == asset.USDTMarginedFutures {
+			if limits.MultiplierUp == 0 {
+				t.Errorf("Binance UpdateOrderExecutionLimits empty MultiplierUp; Asset: %s, Pair: %s, Got: %v", a, p, limits.MultiplierUp)
+			}
+			if limits.MultiplierDown == 0 {
+				t.Errorf("Binance UpdateOrderExecutionLimits empty MultiplierDown; Asset: %s, Pair: %s, Got: %v", a, p, limits.MultiplierDown)
+			}
+			if limits.MarketMinQty == 0 {
+				t.Errorf("Binance UpdateOrderExecutionLimits empty MarketMinQty; Asset: %s, Pair: %s, Got: %v", a, p, limits.MarketMinQty)
+			}
+			if limits.MarketStepIncrementSize == 0 {
+				t.Errorf("Binance UpdateOrderExecutionLimits empty MarketStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.MarketStepIncrementSize)
+			}
+			if limits.MaxAlgoOrders == 0 {
+				t.Errorf("Binance UpdateOrderExecutionLimits empty MaxAlgoOrders; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxAlgoOrders)
+			}
+		}
+	}
+}

@@ -1196,30 +1196,40 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 		}
 
 		for z := range assets {
-			if len(spot.Symbols[x].Filters) < 8 {
-				continue
+			l := order.MinMaxLevel{
+				Pair:  cp,
+				Asset: assets[z],
 			}
 
-			limits = append(limits, order.MinMaxLevel{
-				Pair:                    cp,
-				Asset:                   assets[z],
-				MinPrice:                spot.Symbols[x].Filters[0].MinPrice,
-				MaxPrice:                spot.Symbols[x].Filters[0].MaxPrice,
-				PriceStepIncrementSize:  spot.Symbols[x].Filters[0].TickSize,
-				MultiplierUp:            spot.Symbols[x].Filters[1].MultiplierUp,
-				MultiplierDown:          spot.Symbols[x].Filters[1].MultiplierDown,
-				AveragePriceMinutes:     spot.Symbols[x].Filters[1].AvgPriceMinutes,
-				MaxAmount:               spot.Symbols[x].Filters[2].MaxQty,
-				MinAmount:               spot.Symbols[x].Filters[2].MinQty,
-				AmountStepIncrementSize: spot.Symbols[x].Filters[2].StepSize,
-				MinNotional:             spot.Symbols[x].Filters[3].MinNotional,
-				MaxIcebergParts:         spot.Symbols[x].Filters[4].Limit,
-				MarketMinQty:            spot.Symbols[x].Filters[5].MinQty,
-				MarketMaxQty:            spot.Symbols[x].Filters[5].MaxQty,
-				MarketStepIncrementSize: spot.Symbols[x].Filters[5].StepSize,
-				MaxTotalOrders:          spot.Symbols[x].Filters[6].MaxNumOrders,
-				MaxAlgoOrders:           spot.Symbols[x].Filters[7].MaxNumAlgoOrders,
-			})
+			for _, f := range spot.Symbols[x].Filters {
+				switch f.FilterType {
+				case priceFilter:
+					l.MinPrice = f.MinPrice
+					l.MaxPrice = f.MaxPrice
+					l.PriceStepIncrementSize = f.TickSize
+				case percentPriceFilter:
+					l.MultiplierUp = f.MultiplierUp
+					l.MultiplierDown = f.MultiplierDown
+					l.AveragePriceMinutes = f.AvgPriceMinutes
+				case lotSizeFilter:
+					l.MaxAmount = f.MaxQty
+					l.MinAmount = f.MinQty
+					l.AmountStepIncrementSize = f.StepSize
+				case notionalFilter:
+					l.MinNotional = f.MinNotional
+				case icebergPartsFilter:
+					l.MaxIcebergParts = f.Limit
+				case marketLotSizeFilter:
+					l.MarketMinQty = f.MinQty
+					l.MarketMaxQty = f.MaxQty
+					l.MarketStepIncrementSize = f.StepSize
+				case maxNumOrdersFilter:
+					l.MaxTotalOrders = f.MaxNumOrders
+					l.MaxAlgoOrders = f.MaxNumAlgoOrders
+				}
+			}
+
+			limits = append(limits, l)
 		}
 	}
 	return limits, nil
