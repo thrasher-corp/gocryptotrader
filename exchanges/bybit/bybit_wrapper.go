@@ -389,7 +389,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				continue
 			}
 
-			pair := currency.Pair{Base: currency.NewCode(allPairs[x].BaseCurrency), Quote: currency.NewCode(allPairs[x].QuoteCurrency)}
+			pair = currency.Pair{Base: currency.NewCode(allPairs[x].BaseCurrency), Quote: currency.NewCode(allPairs[x].QuoteCurrency)}
 			if err != nil {
 				return nil, err
 			}
