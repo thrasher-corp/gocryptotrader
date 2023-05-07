@@ -2358,9 +2358,15 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetDepositAddress(context.Background(), currency.USDT, "", "TRX")
+	chains, err := g.GetAvailableTransferChains(context.Background(), currency.BTC)
 	if err != nil {
-		t.Error("Test Fail - GetDepositAddress error", err)
+		t.Fatal(err)
+	}
+	for i := range chains {
+		_, err = g.GetDepositAddress(context.Background(), currency.BTC, "", chains[i])
+		if err != nil {
+			t.Error("Test Fail - GetDepositAddress error", err)
+		}
 	}
 }
 
