@@ -1453,7 +1453,13 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 	}
 	chains := make([]string, 0, len(currencyChains))
 	for x := range currencyChains {
-		if !cryptocurrency.IsEmpty() && !strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency) {
+		if (!cryptocurrency.IsEmpty() && !strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) ||
+			(!currencyChains[x].CanDeposit && !currencyChains[x].CanWithdraw) ||
+			// Lightning network is currently not supported by transfer chains
+			// as it is an invoice string which is generated per request and is
+			// not a static address. TODO: Add a hook to generate a new invoice
+			// string per request.
+			(currencyChains[x].Chain != "" && currencyChains[x].Chain == "BTC-Lightning") {
 			continue
 		}
 		chains = append(chains, currencyChains[x].Chain)
