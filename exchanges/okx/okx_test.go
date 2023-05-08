@@ -1849,8 +1849,11 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	if err := ok.UpdateOrderExecutionLimits(context.Background(), asset.Spot); err != nil {
-		t.Error("Okx UpdateOrderExecutionLimits() error", err)
+
+	for _, a := range ok.GetAssetTypes(false) {
+		if err := ok.UpdateOrderExecutionLimits(context.Background(), a); err != nil {
+			t.Error("Okx UpdateOrderExecutionLimits() error", err)
+		}
 	}
 
 	for _, tt := range []struct {
