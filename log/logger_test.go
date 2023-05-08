@@ -197,7 +197,7 @@ var errWriteError = errors.New("write error")
 func TestMultiWriterWrite(t *testing.T) {
 	t.Parallel()
 
-	fields := &Fields{}
+	fields := &fields{}
 	buff := newTestBuffer()
 
 	var err error
@@ -345,7 +345,7 @@ func TestStageNewLogEvent(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	fields := &Fields{output: mw}
+	fields := &fields{output: mw}
 	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", "", "", false, false, false, nil)
 
 	<-w.Finished
@@ -370,7 +370,7 @@ func TestInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Infof(nil, "%s", "hello")
+	Infof(nil, "%s", "bad")
 
 	Infof(sl, "%s", "hello")
 	<-w.Finished
@@ -379,7 +379,7 @@ func TestInfo(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
-	Infoln(nil, "hello", "goodbye")
+	Infoln(nil, "hello", "bad")
 
 	Infoln(sl, "hello", "goodbye")
 	<-w.Finished
@@ -417,12 +417,16 @@ func TestDebug(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	Debugf(nil, "%s", "bad")
+
 	Debugf(sl, "%s", "hello")
 	<-w.Finished
 	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
+
+	Debugln(nil, ":sun_with_face:", "bad")
 
 	Debugln(sl, ":sun_with_face:", ":angrysun:")
 	<-w.Finished
@@ -460,12 +464,16 @@ func TestWarn(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	Warnf(nil, "%s", "silly")
+
 	Warnf(sl, "%s", "hello")
 	<-w.Finished
 	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
+
+	Warnln(nil, "super", "silly")
 
 	Warnln(sl, "hello", "world")
 	<-w.Finished
@@ -508,12 +516,16 @@ func TestError(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	Errorf(nil, "%s", "oh wow")
+
 	Errorf(sl, "%s", "hello")
 	<-w.Finished
 	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
+
+	Errorln(nil, "nil", "days")
 
 	Errorln(sl, "hello", "goodbye")
 	<-w.Finished
@@ -747,6 +759,7 @@ func TestWithFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ErrorlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	ErrorlnWithFields(sl, ExtraFields{"id": id}, "hello")
 	<-writer.Finished
 	var captured testCapture
@@ -757,6 +770,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "hello", "error")
 
+	ErrorfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
 	ErrorfWithFields(sl, ExtraFields{"id": id}, "%v", "good")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
@@ -765,6 +779,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "good", "error")
 
+	DebuglnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	DebuglnWithFields(sl, ExtraFields{"id": id}, "sir")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
@@ -773,6 +788,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "sir", "debug")
 
+	DebugfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
 	DebugfWithFields(sl, ExtraFields{"id": id}, "%v", "how")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
@@ -781,6 +797,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "how", "debug")
 
+	WarnlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	WarnlnWithFields(sl, ExtraFields{"id": id}, "are")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
@@ -789,6 +806,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "are", "warn")
 
+	WarnfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
 	WarnfWithFields(sl, ExtraFields{"id": id}, "%v", "you")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
@@ -797,6 +815,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "you", "warn")
 
+	InfolnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	InfolnWithFields(sl, ExtraFields{"id": id}, "today")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
@@ -805,6 +824,7 @@ func TestWithFields(t *testing.T) {
 	}
 	checkCapture(t, &captured, id, "today", "info")
 
+	InfofWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
 	InfofWithFields(sl, ExtraFields{"id": id}, "%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
@@ -814,6 +834,7 @@ func TestWithFields(t *testing.T) {
 	checkCapture(t, &captured, id, "?", "info")
 
 	// Conflicting fields
+	InfofWithFields(nil, ExtraFields{botName: "lol"}, "%v", "nilerinos")
 	InfofWithFields(sl, ExtraFields{botName: "lol"}, "%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)

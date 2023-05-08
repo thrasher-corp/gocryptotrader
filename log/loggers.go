@@ -221,7 +221,7 @@ func displayError(err error) {
 }
 
 // enabled checks if the log level is enabled
-func (l *Fields) enabled(header string) string {
+func (l *fields) enabled(header string) string {
 	switch header {
 	case l.logger.InfoHeader:
 		if l.info {
@@ -244,7 +244,7 @@ func (l *Fields) enabled(header string) string {
 }
 
 // stage stages a log event
-func (l *Fields) stage(header string, deferFunc deferral) {
+func (l *fields) stage(header string, deferFunc deferral) {
 	if l == nil {
 		return
 	}
@@ -265,11 +265,11 @@ func (l *Fields) stage(header string, deferFunc deferral) {
 }
 
 // stageln stages a log event
-func (l *Fields) stageln(header string, a ...interface{}) {
+func (l *fields) stageln(header string, a ...interface{}) {
 	l.stage(header, func() string { return fmt.Sprint(a...) })
 }
 
 // stagef stages a log event
-func (l *Fields) stagef(header, format string, a ...interface{}) {
+func (l *fields) stagef(header, format string, a ...interface{}) {
 	l.stage(header, func() string { return fmt.Sprintf(format, a...) })
 }

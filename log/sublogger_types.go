@@ -42,9 +42,9 @@ type SubLogger struct {
 	structuredLogging bool
 }
 
-// Fields is used to store data in a non-global and thread-safe manner
+// fields is used to store data in a non-global and thread-safe manner
 // so logs cannot be modified mid-log causing a data-race issue
-type Fields struct {
+type fields struct {
 	info              bool
 	warn              bool
 	debug             bool
