@@ -2948,7 +2948,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 
 func TestEnsureOnePairEnabled(t *testing.T) {
 	t.Parallel()
-	b := Base{Name: "klineTest"}
+	b := Base{Name: "test"}
 	err := b.EnsureOnePairEnabled()
 	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairsEmpty)

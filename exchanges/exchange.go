@@ -648,7 +648,14 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 // search for an asset that does and enable one if none are enabled
 // error if no currency pairs found for an entire exchange
 func (b *Base) EnsureOnePairEnabled() error {
-	return b.CurrencyPairs.EnsureOnePairEnabled()
+	pair, item, err := b.CurrencyPairs.EnsureOnePairEnabled()
+	if err != nil {
+		return err
+	}
+	if !pair.IsEmpty() {
+		log.Warnf(log.ExchangeSys, "%v had no enabled pairs, %v %v pair has been enabled", b.Name, item, pair)
+	}
+	return nil
 }
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or

@@ -239,7 +239,6 @@ const (
 )
 
 var (
-	errLimitExceedsMaximumResultPerRequest           = errors.New("maximum result per request exceeds the limit")
 	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
 	errOracleInformationNotFound                     = errors.New("oracle information not found")
 	errExchangeInfoNotFound                          = errors.New("exchange information not found")
@@ -328,7 +327,6 @@ var (
 	errEmptyArgument                                 = errors.New("empty argument")
 	errInvalidIPAddress                              = errors.New("invalid ip address")
 	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
-	errNoInstrumentFound                             = errors.New("instruments not found")
 	errInvalidResponseParam                          = errors.New("invalid response parameter, response must be non-nil pointer")
 	errEmptyPlaceOrderResponse                       = errors.New("empty place order response")
 	errTooManyArgument                               = errors.New("too many cancel request params")
