@@ -217,7 +217,8 @@ func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for symbol, tick := range result {
-		pair, err := avail.DeriveFrom(strings.Replace(symbol, "_", "", 1))
+		var pair currency.Pair
+		pair, err = avail.DeriveFrom(strings.Replace(symbol, "_", "", 1))
 		if err != nil {
 			return err
 		}
