@@ -1069,3 +1069,10 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	if _, err := h.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
+		t.Fatal(err)
+	}
+}
