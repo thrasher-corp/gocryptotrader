@@ -495,10 +495,11 @@ func (s *SubmitResponse) AdjustBaseAmount(a float64) error {
 
 	// Warning because amounts should conform to exchange requirements prior to
 	// call but this is not fatal.
-	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested base amount from %v to %v",
+	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested base amount from %v to %v for orderID %v",
 		s.Exchange,
 		s.Amount,
-		a)
+		a,
+		s.OrderID)
 
 	s.Amount = a
 	return nil
@@ -523,10 +524,11 @@ func (s *SubmitResponse) AdjustQuoteAmount(a float64) error {
 
 	// Warning because amounts should conform to exchange requirements prior to
 	// call but this is not fatal.
-	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested quote amount from %v to %v",
+	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested quote amount from %v to %v for orderID %v",
 		s.Exchange,
 		s.Amount,
-		a)
+		a,
+		s.OrderID)
 
 	s.QuoteAmount = a
 	return nil
