@@ -945,3 +945,20 @@ type WsFuturesWallet struct {
 	Topic string                `json:"topic"`
 	Data  []WsFuturesWalletData `json:"data"`
 }
+
+// Ticker holds ticker information
+type Ticker struct {
+	Symbol            string  `json:"symbol"`
+	TopBidPrice       float64 `json:"bid1Price,string"`
+	TopBidSize        float64 `json:"bid1Size,string"`
+	TopAskPrice       float64 `json:"ask1Price,string"`
+	TopAskSize        float64 `json:"ask1Size,string"`
+	LastPrice         float64 `json:"lastPrice,string"`
+	PreviousPrice24Hr float64 `json:"prevPrice24h,string"`
+	Price24HrPcnt     float64 `json:"price24hPcnt,string"`
+	HighPrice24Hr     float64 `json:"highPrice24h,string"`
+	LowPrice24Hr      float64 `json:"lowPrice24h,string"`
+	Turnover24Hr      float64 `json:"turnover24h,string"`
+	Volume24Hr        float64 `json:"volume24h,string"`
+	USDIndexPrice     float64 `json:"usdIndexPrice,string"`
+}

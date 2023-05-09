@@ -16,6 +16,8 @@ var (
 	errInvalidTicker       = errors.New("invalid ticker")
 	errTickerNotFound      = errors.New("ticker not found")
 	errExchangeNameIsEmpty = errors.New("exchange name is empty")
+	errBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
+	errBidGreaterThanAsk   = errors.New("bid greater than ask this is a crossed or locked market")
 )
 
 func init() {
@@ -127,6 +129,22 @@ func ProcessTicker(p *Price) error {
 
 	if p.Pair.IsEmpty() {
 		return fmt.Errorf("%s %s", p.ExchangeName, errPairNotSet)
+	}
+
+	if p.Bid != 0 && p.Ask != 0 && p.AssetType != asset.MarginFunding { // Margin funding books can be crossed see Bitfinex.
+		if p.Bid == p.Ask {
+			return fmt.Errorf("%s %s %w",
+				p.ExchangeName,
+				p.Pair,
+				errBidEqualsAsk)
+		}
+
+		if p.Bid > p.Ask {
+			return fmt.Errorf("%s %s %w",
+				p.ExchangeName,
+				p.Pair,
+				errBidGreaterThanAsk)
+		}
 	}
 
 	if p.AssetType == asset.Empty {

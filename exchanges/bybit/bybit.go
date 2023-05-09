@@ -42,6 +42,7 @@ const (
 	bybit24HrsChange      = "/spot/quote/v1/ticker/24hr"
 	bybitLastTradedPrice  = "/spot/quote/v1/ticker/price"
 	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
+	bybitGetTickersV5     = "/v5/market/tickers"
 
 	// Authenticated endpoints
 	bybitSpotOrder                = "/spot/v1/order" // create, query, cancel
@@ -58,6 +59,8 @@ const (
 	bybitGetDepositAddress = "/asset/v1/private/deposit/address"
 	bybitWithdrawFund      = "/asset/v1/private/withdraw"
 )
+
+var errCategoryNotSet = errors.New("category not set")
 
 // GetAllSpotPairs gets all pairs on the exchange
 func (by *Bybit) GetAllSpotPairs(ctx context.Context) ([]PairData, error) {
@@ -482,6 +485,36 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 	return tickers, nil
 }
 
+// GetTickersV5 returns tickers for either "spot", "option" or "inverse".
+// Specific symbol is optional.
+func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol string) ([]Ticker, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	}
+
+	val := url.Values{}
+	val.Set("category", category)
+
+	if symbol != "" {
+		val.Set("symbol", symbol)
+	}
+
+	result := struct {
+		Data struct {
+			Catagory string   `json:"catagory"` // Not neccesary to return
+			List     []Ticker `json:"list"`
+		} `json:"result"`
+		Error
+	}{}
+
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitGetTickersV5+"/?"+val.Encode(), publicSpotRate, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Data.List, result.GetError()
+}
+
 // CreatePostOrder create and post order
 func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*PlaceOrderResponse, error) {
 	if o == nil {
@@ -895,16 +928,21 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 
 // Error defines all error information for each request
 type Error struct {
-	ReturnCode int64  `json:"ret_code"`
-	ReturnMsg  string `json:"ret_msg"`
-	ExtCode    string `json:"ext_code"`
-	ExtMsg     string `json:"ext_info"`
+	ReturnCode     int64  `json:"ret_code"`
+	ReturnMsg      string `json:"ret_msg"`
+	ReturnCodeV5   int64  `json:"retCode"`
+	ReturnMesagev5 string `json:"retMsg"`
+	ExtCode        string `json:"ext_code"`
+	ExtMsg         string `json:"ext_info"`
 }
 
 // GetError checks and returns an error if it is supplied.
 func (e Error) GetError() error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
 		return errors.New(e.ReturnMsg)
+	}
+	if e.ReturnCodeV5 != 0 && e.ReturnMesagev5 != "" {
+		return errors.New(e.ReturnMesagev5)
 	}
 	if e.ExtCode != "" && e.ExtMsg != "" {
 		return errors.New(e.ExtMsg)

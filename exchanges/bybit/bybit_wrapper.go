@@ -306,6 +306,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures:
+		// ctx = request.WithVerbose(ctx)
 		allPairs, err := by.GetSymbolsInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -381,13 +382,16 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		pairs := make([]currency.Pair, len(allPairs))
+		pairs := make([]currency.Pair, 0, len(allPairs))
 		for x := range allPairs {
+			if allPairs[x].Status != "ONLINE" {
+				continue
+			}
 			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, "PERP")
 			if err != nil {
 				return nil, err
 			}
-			pairs[x] = pair
+			pairs = append(pairs, pair)
 		}
 		return pairs, nil
 	}
@@ -413,58 +417,62 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	allPairs, err := by.GetEnabledPairs(assetType)
+	avail, err := by.GetAvailablePairs(assetType)
 	if err != nil {
 		return err
 	}
+
+	enabled, err := by.GetEnabledPairs(assetType)
+	if err != nil {
+		return err
+	}
+
 	switch assetType {
 	case asset.Spot:
-		tick, err := by.Get24HrsChange(ctx, "")
+		ticks, err := by.GetTickersV5(ctx, "spot", "")
 		if err != nil {
 			return err
 		}
-		for p := range allPairs {
-			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+
+		for x := range ticks {
+			pair, err := avail.DeriveFrom(ticks[x].Symbol)
 			if err != nil {
+				// These symbols below do not have a spot market but are in fact
+				// perpetuals.
+				if ticks[x].Symbol == "ZECUSDT" || ticks[x].Symbol == "DASHUSDT" {
+					continue
+				}
 				return err
 			}
 
-			for y := range tick {
-				if tick[y].Symbol != formattedPair.String() {
-					continue
-				}
+			if !enabled.Contains(pair, true) {
+				continue
+			}
 
-				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
-				if err != nil {
-					return err
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tick[y].BestBidPrice,
-					Ask:          tick[y].BestAskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Pair:         cp,
-					LastUpdated:  tick[y].Time,
-					ExchangeName: by.Name,
-					AssetType:    assetType})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks[x].LastPrice,
+				High:         ticks[x].HighPrice24Hr,
+				Low:          ticks[x].LowPrice24Hr,
+				Bid:          ticks[x].TopBidPrice,
+				BidSize:      ticks[x].TopBidSize,
+				Ask:          ticks[x].TopAskPrice,
+				AskSize:      ticks[x].TopAskSize,
+				Volume:       ticks[x].Volume24Hr,
+				Pair:         pair,
+				ExchangeName: by.Name,
+				AssetType:    assetType})
+			if err != nil {
+				return err
 			}
 		}
-
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.Pair{})
 		if err != nil {
 			return err
 		}
 
-		for p := range allPairs {
-			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+		for p := range enabled {
+			formattedPair, err := by.FormatExchangeCurrency(enabled[p], assetType)
 			if err != nil {
 				return err
 			}
@@ -493,10 +501,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				}
 			}
 		}
-
 	case asset.USDCMarginedFutures:
-		for p := range allPairs {
-			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+		for x := range enabled {
+			formattedPair, err := by.FormatExchangeCurrency(enabled[x], assetType)
 			if err != nil {
 				return err
 			}
@@ -524,11 +531,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				return err
 			}
 		}
-
 	default:
 		return fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-
 	return nil
 }
 
@@ -2063,4 +2068,46 @@ func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.P
 		return currency.Pair{}, err
 	}
 	return pairs.DeriveFrom(symbol)
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	avail, err := by.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		var pairsData []PairData
+		pairsData, err = by.GetAllSpotPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		for x := range pairsData {
+			var pair currency.Pair
+			pair, err = avail.DeriveFrom(pairsData[x].Name)
+			if err != nil {
+				return err
+			}
+
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                   a,
+				Pair:                    pair,
+				AmountStepIncrementSize: pairsData[x].BasePrecision,
+				PriceStepIncrementSize:  pairsData[x].QuotePrecision,
+				// MinTradeQuantity refers to the minimum in base terms
+				MinAmount: pairsData[x].MinTradeQuantity,
+				// MaxTradeQuantity	refers to the maximum in base terms
+				MaxAmount: pairsData[x].MaxTradeQuantity,
+			})
+		}
+	default:
+		// TODO: Add in other assets
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+	return by.LoadLimits(limits)
 }
