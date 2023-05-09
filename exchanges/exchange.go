@@ -1628,12 +1628,12 @@ func (b *Base) Shutdown() error {
 	return b.Requester.Shutdown()
 }
 
-// SetMarginMode sets the account's margin mode for the asset type
-func (b *Base) SetMarginMode(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) error {
+// SetCollateralMode sets the account's collateral mode for the asset type
+func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralType) error {
 	return common.ErrNotYetImplemented
 }
 
-// GetMarginMode returns the account's margin mode for the asset type
-func (b *Base) GetMarginMode(_ context.Context, _ asset.Item, _ currency.Pair) (margin.Type, error) {
+// GetCollateralMode returns the account's collateral mode for the asset type
+func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (order.CollateralType, error) {
 	return 0, common.ErrNotYetImplemented
 }

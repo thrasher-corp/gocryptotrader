@@ -2735,29 +2735,29 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 	}
 }
 
-func TestSetMarginMode(t *testing.T) {
+func TestSetAssetsMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	is, err := b.GetAssetMode(context.Background())
+	is, err := b.GetAssetsMode(context.Background())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	err = b.SetAssetMode(context.Background(), !is)
+	err = b.SetAssetsMode(context.Background(), !is)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	err = b.SetAssetMode(context.Background(), is)
+	err = b.SetAssetsMode(context.Background(), is)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }
 
-func TestGetMarginMode(t *testing.T) {
+func TestGetAssetsMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetAssetMode(context.Background())
+	_, err := b.GetAssetsMode(context.Background())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}

@@ -1918,16 +1918,10 @@ func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collatera
 	if a != asset.USDTMarginedFutures {
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	var isMulti bool
-	switch collateralType {
-	case order.MultiCollateral:
-		isMulti = true
-	case order.SingleCollateral:
-		isMulti = false
-	default:
+	if collateralType != order.MultiCollateral && collateralType != order.SingleCollateral {
 		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralType)
 	}
-	return b.SetAssetMode(ctx, isMulti)
+	return b.SetAssetsMode(ctx, collateralType == order.MultiCollateral)
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
@@ -1935,7 +1929,7 @@ func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.Co
 	if a != asset.USDTMarginedFutures {
 		return order.UnknownCollateral, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	isMulti, err := b.GetAssetMode(ctx)
+	isMulti, err := b.GetAssetsMode(ctx)
 	if err != nil {
 		return order.UnknownCollateral, err
 	}

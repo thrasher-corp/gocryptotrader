@@ -1163,16 +1163,16 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 	return limits, nil
 }
 
-// SetAssetMode sets the current asset margin type, true for multi, false for single
-func (b *Binance) SetAssetMode(ctx context.Context, multiMargin bool) error {
+// SetAssetsMode sets the current asset margin type, true for multi, false for single
+func (b *Binance) SetAssetsMode(ctx context.Context, multiMargin bool) error {
 	params := url.Values{
 		"multiAssetsMargin": {strconv.FormatBool(multiMargin)},
 	}
 	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, uFuturesMultiAssetsMargin, params, uFuturesDefaultRate, nil)
 }
 
-// GetAssetMode returns the current asset margin type, true for multi, false for single
-func (b *Binance) GetAssetMode(ctx context.Context) (bool, error) {
+// GetAssetsMode returns the current asset margin type, true for multi, false for single
+func (b *Binance) GetAssetsMode(ctx context.Context) (bool, error) {
 	var result struct {
 		MultiAssetsMargin bool `json:"multiAssetsMargin"`
 	}
