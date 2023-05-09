@@ -2,6 +2,7 @@ package okcoin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -1475,4 +1476,23 @@ func TestGetExchangeRate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	subscriptions, err := o.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Error(err)
+	} else {
+		val, _ := json.Marshal(subscriptions)
+		println(string(val))
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	err := o.WsConnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 25)
 }

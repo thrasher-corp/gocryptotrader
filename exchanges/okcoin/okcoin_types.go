@@ -1392,8 +1392,8 @@ type SpotInstrument struct {
 
 // WebsocketEventRequest contains event data for a websocket channel
 type WebsocketEventRequest struct {
-	Operation string   `json:"op"`   // 1--subscribe 2--unsubscribe 3--login
-	Arguments []string `json:"args"` // args: the value is the channel name, which can be one or more channels
+	Operation string              `json:"op"`   // 1--subscribe 2--unsubscribe 3--login
+	Arguments []map[string]string `json:"args"` // args: the value is the channel name, which can be one or more channels
 }
 
 // WebsocketEventResponse contains event data for a websocket channel
@@ -1404,33 +1404,84 @@ type WebsocketEventResponse struct {
 }
 
 // WebsocketDataResponse formats all response data for a websocket event
+// type WebsocketDataResponse struct {
+// 	Table  string        `json:"table"`
+// 	Action string        `json:"action,omitempty"`
+// 	Data   []interface{} `json:"data"`
+// }
+
+// WebsocketDataResponse formats all response data for a websocket event
 type WebsocketDataResponse struct {
-	Table  string        `json:"table"`
-	Action string        `json:"action,omitempty"`
+	Arguments struct {
+		Channel        string `json:"channel"`
+		InstrumentID   string `json:"instId"`
+		InstrumentType string `json:"instType"`
+	} `json:"arg"`
+	Action string        `json:"action"`
 	Data   []interface{} `json:"data"`
 }
 
-// WebsocketTickerData contains formatted data for ticker related websocket responses
-type WebsocketTickerData struct {
-	Table string `json:"table"`
-	Data  []struct {
-		BaseVolume24h     float64   `json:"base_volume_24h,string"`
-		BestAsk           float64   `json:"best_ask,string"`
-		BestAskSize       float64   `json:"best_ask_size,string"`
-		BestBid           float64   `json:"best_bid,string"`
-		BestBidSize       float64   `json:"best_bid_size,string"`
-		High24h           float64   `json:"high_24h,string"`
-		InstrumentID      string    `json:"instrument_id"`
-		Last              float64   `json:"last,string"`
-		LastQty           float64   `json:"last_qty,string"`
-		Low24h            float64   `json:"low_24h,string"`
-		Open24h           float64   `json:"open_24h,string"`
-		QuoteVolume24h    float64   `json:"quote_volume_24h,string"`
-		Timestamp         time.Time `json:"timestamp"`
-		ContractVolume24h float64   `json:"volume_24h,string"`
-		TokenVolume24h    float64   `json:"volume_token_24h,string"`
-		OpenInterest      float64   `json:"open_interest,string"`
-	} `json:"data"`
+// WebsocketDataResponseReciever formats all response data for a websocket events and used to unmarshal push data into corresponding instance
+type WebsocketDataResponseReciever struct {
+	Arguments struct {
+		Channel        string `json:"channel"`
+		InstrumentID   string `json:"instId"`
+		InstrumentType string `json:"instType"`
+	} `json:"arg"`
+	Action string      `json:"action"`
+	Data   interface{} `json:"data"`
+}
+
+// WebsocketInstrumentData contains formatted data for instruments related websocket responses
+type WebsocketInstrumentData struct {
+	Alias                 string         `json:"alias"`
+	BaseCurrency          string         `json:"baseCcy"`
+	Category              string         `json:"category"`
+	ContractMultiplier    string         `json:"ctMult"`
+	ContractType          string         `json:"ctType"`
+	ContractValue         string         `json:"ctVal"`
+	ContractValueCurrency string         `json:"ctValCcy"`
+	ExpiryTime            okcoinMilliSec `json:"expTime"`
+	InstrumentFamily      string         `json:"instFamily"`
+	InstrumentID          string         `json:"instId"`
+	InstrumentType        string         `json:"instType"`
+	Leverage              string         `json:"lever"`
+	ListTime              okcoinMilliSec `json:"listTime"`
+	LotSize               string         `json:"lotSz"`
+	MaxIcebergSize        float64        `json:"maxIcebergSz,string"`
+	MaxLimitSize          float64        `json:"maxLmtSz,string"`
+	MaxMarketSize         float64        `json:"maxMktSz,string"`
+	MaxStopSize           float64        `json:"maxStopSz,string"`
+	MaxTriggerSize        float64        `json:"maxTriggerSz,string"`
+	MaxTwapSize           float64        `json:"maxTwapSz,string"`
+	MinimumOrderSize      float64        `json:"minSz,string"`
+	OptionType            string         `json:"optType"`
+	QuoteCurrency         string         `json:"quoteCcy"`
+	SettleCurrency        string         `json:"settleCcy"`
+	State                 string         `json:"state"`
+	StrikePrice           string         `json:"stk"`
+	TickSize              float64        `json:"tickSz,string"`
+	Underlying            string         `json:"uly"`
+}
+
+// WsTickerData contains formatted data for ticker related websocket responses
+type WsTickerData struct {
+	InstrumentType string         `json:"instType"`
+	InstrumentID   string         `json:"instId"`
+	Last           float64        `json:"last,string"`
+	LastSize       float64        `json:"lastSz,string"`
+	AskPrice       float64        `json:"askPx,string"`
+	AskSize        float64        `json:"askSz,string"`
+	BidPrice       float64        `json:"bidPx,string"`
+	BidSize        float64        `json:"bidSz,string"`
+	Open24H        float64        `json:"open24h,string"`
+	High24H        float64        `json:"high24h,string"`
+	Low24H         float64        `json:"low24h,string"`
+	SodUtc0        string         `json:"sodUtc0"`
+	SodUtc8        string         `json:"sodUtc8"`
+	VolCcy24H      float64        `json:"volCcy24h,string"`
+	Vol24H         float64        `json:"vol24h,string"`
+	Timestamp      okcoinMilliSec `json:"ts"`
 }
 
 // WebsocketTradeResponse contains formatted data for trade related websocket responses

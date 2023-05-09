@@ -27,7 +27,8 @@ const (
 	okCoinAPIURL              = "https://www.okcoin.com/" + apiPath
 	okCoinAPIVersion          = "v5/"
 	okCoinExchangeName        = "OKCOIN International"
-	okCoinWebsocketURL        = "wss://real.okcoin.com:8443/ws/v3"
+	okCoinWebsocketURL        = "wss://real.okcoin.com:8443/ws/v5/public"
+	okCoinPrivateWebsocketURL = "wss://real.okcoin.com:8443/ws/v5/private"
 )
 
 // OKCoin is the overarching type used for OKCoin's exchange API implementation

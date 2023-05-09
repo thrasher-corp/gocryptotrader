@@ -23,6 +23,38 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+const (
+	// Public endpoint subscriptions
+	wsInstruments = "instruments"
+	wsTickers     = "tickers"
+	wsCandle3M, wsCandle1M, wsCandle1W, wsCandle1D, wsCandle2D, wsCandle3D, wsCandle5D,
+	wsCandle12H, wsCandle6H, wsCandle4H, wsCandle2H, wsCandle1H, wsCandle30m, wsCandle15m,
+	wsCandle5m, wsCandle3m, wsCandle1m, wsCandle3Mutc, wsCandle1Mutc, wsCandle1Wutc, wsCandle1Dutc,
+	wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc = "candle3M", "candle1M", "candle1W", "candle1D", "candle2D",
+		"candle3D", "candle5D", "candle12H", "candle6H", "candle4H",
+		"candle2H", "candle1H", "candle30m", "candle15m", "candle5m",
+		"candle3m", "candle1m", "candle3Mutc", "candle1Mutc", "candle1Wutc",
+		"candle1Dutc", "candle2Dutc", "candle3Dutc", "candle5Dutc", "candle12Hutc", "candle6Hutc"
+	wsTrades     = "trades"
+	wsOrderbooks = "books"
+	wsStatus     = "status"
+
+	// Private subscriptions
+	wsAccount     = "account"
+	wsOrder       = "orders"
+	wsOrdersAlgo  = "orders-algo"
+	wsAlgoAdvance = "algo-advance"
+)
+
+var defaultSubscriptions = []string{
+	wsInstruments,
+	wsTickers,
+	wsCandle1D,
+	wsTrades,
+	wsOrderbooks,
+	wsStatus,
+}
+
 // WsConnect initiates a websocket connection
 func (o *OKCoin) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
@@ -39,8 +71,14 @@ func (o *OKCoin) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			o.Websocket.GetWebsocketURL())
 	}
+	o.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+		Delay:       time.Second * 25,
+		Message:     []byte("ping"),
+		MessageType: websocket.TextMessage,
+	})
 
-	o.Websocket.Wg.Add(1)
+	o.Websocket.Wg.Add(2)
+	go o.funnelWebsocketConn(o.Websocket.Conn)
 	go o.WsReadData()
 
 	if o.IsWebsocketAuthenticationSupported() {
@@ -75,11 +113,13 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 	base64 := crypto.Base64Encode(hmac)
 	request := WebsocketEventRequest{
 		Operation: "login",
-		Arguments: []string{
-			creds.Key,
-			creds.ClientID,
-			strconv.FormatInt(unixTime, 10),
-			base64,
+		Arguments: []map[string]string{
+			{
+				"apiKey":     creds.Key,
+				"passphrase": creds.ClientID,
+				"timestamp":  strconv.FormatInt(unixTime, 10),
+				"sign":       base64,
+			},
 		},
 	}
 	_, err = o.Websocket.Conn.SendMessageReturnResponse("login", request)
@@ -90,18 +130,54 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 	return nil
 }
 
-// WsReadData receives and passes on websocket messages for processing
-func (o *OKCoin) WsReadData() {
-	defer o.Websocket.Wg.Done()
+var messageChan = make(chan stream.Response)
 
+func (o *OKCoin) funnelWebsocketConn(conn stream.Connection) {
+	defer o.Websocket.Wg.Done()
 	for {
-		resp := o.Websocket.Conn.ReadMessage()
+		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := o.WsHandleData(resp.Raw)
-		if err != nil {
-			o.Websocket.DataHandler <- err
+		messageChan <- resp
+	}
+}
+
+// WsReadData receives and passes on websocket messages for processing
+func (o *OKCoin) WsReadData() {
+	defer o.Websocket.Wg.Done()
+	for {
+		select {
+		case <-o.Websocket.ShutdownC:
+			select {
+			case resp := <-messageChan:
+				err := o.WsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case o.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", o.Name, err)
+					}
+				}
+			default:
+			}
+			return
+		case data := <-messageChan:
+			err := o.WsHandleData(data.Raw)
+			if err != nil {
+				o.Websocket.DataHandler <- err
+			}
+			err = o.WsHandleData(data.Raw)
+			if err != nil {
+				select {
+				case o.Websocket.DataHandler <- err:
+				default:
+					log.Errorf(log.WebsocketMgr,
+						"%s websocket handle data error: %v",
+						o.Name,
+						err)
+				}
+			}
 		}
 	}
 }
@@ -114,16 +190,17 @@ func (o *OKCoin) WsHandleData(respRaw []byte) error {
 		return err
 	}
 	if len(dataResponse.Data) > 0 {
-		switch o.GetWsChannelWithoutOrderType(dataResponse.Table) {
-		case okcoinWsCandle60s, okcoinWsCandle180s, okcoinWsCandle300s,
-			okcoinWsCandle900s, okcoinWsCandle1800s, okcoinWsCandle3600s,
-			okcoinWsCandle7200s, okcoinWsCandle14400s, okcoinWsCandle21600s,
-			okcoinWsCandle43200s, okcoinWsCandle86400s, okcoinWsCandle604900s:
-			return o.wsProcessCandles(respRaw)
-		case okcoinWsDepth, okcoinWsDepth5:
+		switch dataResponse.Arguments.Channel {
+		case wsInstruments:
+			return o.wsProcessInstruments(respRaw)
+		case wsTickers:
+			return o.wsProcessTickers(respRaw)
+		case wsCandle3M, wsCandle1M, wsCandle1W, wsCandle1D, wsCandle2D, wsCandle3D, wsCandle5D,
+			wsCandle12H, wsCandle6H, wsCandle4H, wsCandle2H, wsCandle1H, wsCandle30m, wsCandle15m,
+			wsCandle5m, wsCandle3m, wsCandle1m, wsCandle3Mutc, wsCandle1Mutc, wsCandle1Wutc, wsCandle1Dutc,
+			wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc:
 			return o.WsProcessOrderBook(respRaw)
 		case okcoinWsTicker:
-			return o.wsProcessTickers(respRaw)
 		case okcoinWsTrade:
 			return o.wsProcessTrades(respRaw)
 		case okcoinWsOrder:
@@ -246,45 +323,54 @@ func (o *OKCoin) wsProcessOrder(respRaw []byte) error {
 	return nil
 }
 
-// wsProcessTickers converts ticker data and sends it to the datahandler
-func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
-	var response WebsocketTickerData
-	err := json.Unmarshal(respRaw, &response)
+// wsProcessInstruments converts instrument data and sends it to the datahandler
+func (o *OKCoin) wsProcessInstruments(respRaw []byte) error {
+	var response []WebsocketInstrumentData
+	resp := WebsocketDataResponseReciever{
+		Data: &response,
+	}
+	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	a := o.GetAssetTypeFromTableName(response.Table)
-	for i := range response.Data {
-		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+	o.Websocket.DataHandler <- response
+	return nil
+}
 
-		c := currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
-
-		baseVolume := response.Data[i].BaseVolume24h
-		if response.Data[i].ContractVolume24h != 0 {
-			baseVolume = response.Data[i].ContractVolume24h
+// wsProcessTickers  converts ticker data and sends it to the datahandler
+func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
+	var response []WsTickerData
+	resp := WebsocketDataResponseReciever{
+		Data: &response,
+	}
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	tickers := make([]ticker.Price, len(response))
+	for x := range response {
+		pair, err := currency.NewPairFromString(response[x].InstrumentID)
+		if err != nil {
+			return err
 		}
-
-		quoteVolume := response.Data[i].QuoteVolume24h
-		if response.Data[i].TokenVolume24h != 0 {
-			quoteVolume = response.Data[i].TokenVolume24h
-		}
-
-		o.Websocket.DataHandler <- &ticker.Price{
+		tickers[x] = ticker.Price{
+			AssetType:    asset.Spot,
+			Last:         response[x].Last,
+			Open:         response[x].Open24H,
+			High:         response[x].High24H,
+			Low:          response[x].Low24H,
+			Volume:       response[x].Vol24H,
+			QuoteVolume:  response[x].VolCcy24H,
+			Bid:          response[x].BidPrice,
+			BidSize:      response[x].BidSize,
+			Ask:          response[x].AskPrice,
+			AskSize:      response[x].AskSize,
+			LastUpdated:  response[x].Timestamp.Time(),
 			ExchangeName: o.Name,
-			Open:         response.Data[i].Open24h,
-			Close:        response.Data[i].Last,
-			Volume:       baseVolume,
-			QuoteVolume:  quoteVolume,
-			High:         response.Data[i].High24h,
-			Low:          response.Data[i].Low24h,
-			Bid:          response.Data[i].BestBid,
-			Ask:          response.Data[i].BestAsk,
-			Last:         response.Data[i].Last,
-			AssetType:    a,
-			Pair:         c,
-			LastUpdated:  response.Data[i].Timestamp,
+			Pair:         pair,
 		}
 	}
+	o.Websocket.DataHandler <- tickers
 	return nil
 }
 
@@ -621,34 +707,83 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	var subscriptions []stream.ChannelSubscription
 	assets := o.GetAssetTypes(true)
 	for x := range assets {
+		if assets[x] != asset.Spot {
+			continue
+		}
 		pairs, err := o.GetEnabledPairs(assets[x])
 		if err != nil {
 			return nil, err
 		}
-
-		if assets[x] != asset.Spot {
-			o.Websocket.DataHandler <- fmt.Errorf("%w %v", asset.ErrNotSupported, assets[x])
-			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assets[x])
+		spotFormat, err := o.GetPairFormat(assets[x], true)
+		if err != nil {
+			return nil, err
 		}
-		channels := defaultSpotSubscribedChannels
+		pairs = pairs.Format(spotFormat)
+		channels := defaultSubscriptions
 		if o.IsWebsocketAuthenticationSupported() {
-			channels = append(channels,
-				okcoinWsSpotMarginAccount,
-				okcoinWsSpotAccount,
-				okcoinWsSpotOrder)
+			channels = append(
+				channels,
+				wsAccount,
+				wsOrder,
+				wsOrdersAlgo,
+				wsAlgoAdvance)
 		}
-		for i := range pairs {
-			p, err := o.FormatExchangeCurrency(pairs[i], asset.Spot)
-			if err != nil {
-				return nil, err
-			}
-			for y := range channels {
-				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel:  channels[y],
-						Currency: p,
-						Asset:    asset.Spot,
+		for s := range channels {
+			switch channels[s] {
+			case wsInstruments:
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel: channels[s],
+					Asset:   assets[x],
+				})
+			case wsTickers, wsTrades, wsOrderbooks, wsCandle3M, wsCandle1M, wsCandle1W, wsCandle1D,
+				wsCandle2D, wsCandle3D, wsCandle5D,
+				wsCandle12H, wsCandle6H, wsCandle4H, wsCandle2H, wsCandle1H, wsCandle30m, wsCandle15m,
+				wsCandle5m, wsCandle3m, wsCandle1m, wsCandle3Mutc, wsCandle1Mutc, wsCandle1Wutc, wsCandle1Dutc,
+				wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc:
+				for p := range pairs {
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel:  channels[s],
+						Currency: pairs[p],
 					})
+				}
+			case wsStatus:
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel: channels[s],
+				})
+			case wsAccount:
+				currenciesMap := map[currency.Code]bool{}
+				for p := range pairs {
+					if reserved, okay := currenciesMap[pairs[p].Base]; !okay && !reserved {
+						subscriptions = append(subscriptions, stream.ChannelSubscription{
+							Channel: channels[s],
+							Params: map[string]interface{}{
+								"ccy": pairs[p].Base,
+							},
+						})
+						currenciesMap[pairs[p].Base] = true
+					}
+				}
+				for p := range pairs {
+					if reserved, okay := currenciesMap[pairs[p].Quote]; !okay && !reserved {
+						subscriptions = append(subscriptions, stream.ChannelSubscription{
+							Channel: channels[s],
+							Params: map[string]interface{}{
+								"ccy": pairs[p].Quote,
+							},
+						})
+						currenciesMap[pairs[p].Quote] = true
+					}
+				}
+			case wsOrder, wsOrdersAlgo, wsAlgoAdvance:
+				for p := range pairs {
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel:  channels[s],
+						Currency: pairs[p],
+						Asset:    assets[x],
+					})
+				}
+			default:
+				return nil, errors.New("unsupported websocket channel")
 			}
 		}
 	}
@@ -668,25 +803,41 @@ func (o *OKCoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
 	request := WebsocketEventRequest{
 		Operation: operation,
+		Arguments: []map[string]string{},
 	}
 
+	temp := WebsocketEventRequest{
+		Operation: operation,
+		Arguments: []map[string]string{},
+	}
 	var channels []stream.ChannelSubscription
 	for i := 0; i < len(subs); i++ {
 		// Temp type to evaluate max byte len after a marshal on batched unsubs
-		temp := WebsocketEventRequest{
-			Operation: operation,
-		}
-		temp.Arguments = make([]string, len(request.Arguments))
 		copy(temp.Arguments, request.Arguments)
-
-		arg := subs[i].Channel + delimiterColon
-		if strings.EqualFold(subs[i].Channel, okcoinWsSpotAccount) {
-			arg += subs[i].Currency.Base.String()
-		} else {
-			arg += subs[i].Currency.String()
+		temp.Arguments = append(temp.Arguments, map[string]string{
+			"channel": subs[i].Channel,
+		})
+		if subs[i].Params != nil {
+			if currency, okay := subs[i].Params["ccy"]; okay {
+				temp.Arguments[i]["ccy"], okay = (currency).(string)
+				if !okay {
+					continue
+				}
+			}
+			if interval, okay := subs[i].Params["interval"]; okay {
+				intervalString, okay := (interval).(string)
+				if !okay {
+					continue
+				}
+				temp.Arguments[i]["channel"] += intervalString
+			}
 		}
-
-		temp.Arguments = append(temp.Arguments, arg)
+		if subs[i].Asset != asset.Empty {
+			temp.Arguments[i]["instType"] = strings.ToUpper(subs[i].Asset.String())
+		}
+		if !subs[i].Currency.IsEmpty() {
+			temp.Arguments[i]["instId"] = subs[i].Currency.String()
+		}
 		chunk, err := json.Marshal(request)
 		if err != nil {
 			return err
@@ -718,7 +869,6 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		request.Arguments = temp.Arguments
 	}
 
-	// Commit left overs to payload
 	err := o.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		return err
