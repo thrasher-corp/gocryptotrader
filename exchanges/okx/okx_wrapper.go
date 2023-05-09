@@ -288,9 +288,9 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]currency.Pair, len(instruments))
-	for x := range instruments {
-		pairs[x], err = currency.NewPairDelimiter(instruments[x].InstrumentID, ok.CurrencyPairs.ConfigFormat.Delimiter)
+	pairs := make([]currency.Pair, len(insts))
+	for x := range insts {
+		pairs[x], err = currency.NewPairDelimiter(insts[x].InstrumentID, ok.CurrencyPairs.ConfigFormat.Delimiter)
 		if err != nil {
 			return nil, err
 		}

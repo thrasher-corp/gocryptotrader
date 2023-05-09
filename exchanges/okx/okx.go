@@ -335,6 +335,7 @@ var (
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 	errExceedLimit                                   = errors.New("limit exceeded")
 	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
+	errNoInstrumentFound                             = errors.New("no instrument found")
 )
 
 /************************************ MarketData Endpoints *************************************************/
