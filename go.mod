@@ -11,7 +11,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
-	github.com/lib/pq v1.10.8
+	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.4.0
@@ -20,13 +20,13 @@ require (
 	github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
-	github.com/urfave/cli/v2 v2.25.1
+	github.com/urfave/cli/v2 v2.25.3
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.8.0
 	golang.org/x/net v0.9.0
 	golang.org/x/time v0.3.0
-	google.golang.org/genproto v0.0.0-20230223222841-637eb2293923
-	google.golang.org/grpc v1.54.0
+	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4
+	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
 )
 
@@ -35,7 +35,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

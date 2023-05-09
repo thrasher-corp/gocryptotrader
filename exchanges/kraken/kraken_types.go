@@ -123,6 +123,7 @@ type AssetPairs struct {
 	MarginCall        int         `json:"margin_call"`
 	MarginStop        int         `json:"margin_stop"`
 	Ordermin          string      `json:"ordermin"`
+	Status            string      `json:"status"`
 }
 
 // Ticker is a standard ticker type

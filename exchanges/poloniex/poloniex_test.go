@@ -1146,3 +1146,11 @@ func TestGetServerTime(t *testing.T) {
 		t.Error("expected a time")
 	}
 }
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := p.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
