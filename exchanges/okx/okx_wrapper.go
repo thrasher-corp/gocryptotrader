@@ -527,22 +527,22 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	if !ok.SupportsAsset(assetType) {
 		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-	balances, err := ok.GetBalance(ctx, "")
+	accountBalances, err := ok.GetNonZeroBalances(ctx, "")
 	if err != nil {
 		return info, err
 	}
-	currencyBalance := make([]account.Balance, len(balances))
-	for i := range balances {
-		free := balances[i].AvailBal
-		locked := balances[i].FrozenBalance
-		currencyBalance[i] = account.Balance{
-			Currency: currency.NewCode(balances[i].Currency),
-			Total:    balances[i].Balance,
-			Hold:     locked,
-			Free:     free,
+	currencyBalances := []account.Balance{}
+	for i := range accountBalances {
+		for j := range accountBalances[i].Details {
+			currencyBalances = append(currencyBalances, account.Balance{
+				Currency: currency.NewCode(accountBalances[i].Details[j].Currency),
+				Total:    accountBalances[i].Details[j].EquityOfCurrency.Float64(),
+				Hold:     accountBalances[i].Details[j].FrozenBalance.Float64(),
+				Free:     accountBalances[i].Details[j].AvailableBalance.Float64(),
+			})
 		}
 	}
-	acc.Currencies = currencyBalance
+	acc.Currencies = currencyBalances
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := ok.GetCredentials(ctx)

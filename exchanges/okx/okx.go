@@ -90,7 +90,7 @@ const (
 	oneClickRepayHistory          = "trade/one-click-repay-history"
 	oneClickRepay                 = "trade/one-click-repay"
 
-	// Funding orders routes
+	// Funding account routes
 	assetCurrencies    = "asset/currencies"
 	assetBalance       = "asset/balances"
 	assetValuation     = "asset/asset-valuation"
@@ -1379,7 +1379,7 @@ func (ok *Okx) GetFundingCurrencies(ctx context.Context) ([]CurrencyResponse, er
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCurrenciesEPL, http.MethodGet, assetCurrencies, nil, &resp, true)
 }
 
-// GetBalance retrieves the balances of all the assets and the amount that is available or on hold.
+// GetBalance retrieves the funding account balances of all the assets and the amount that is available or on hold.
 func (ok *Okx) GetBalance(ctx context.Context, currency string) ([]AssetBalance, error) {
 	var resp []AssetBalance
 	params := url.Values{}
