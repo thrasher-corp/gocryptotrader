@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -47,6 +48,22 @@ func TestMain(m *testing.M) {
 
 	e.API.AuthenticatedSupport = true
 	e.SetCredentials(APIKey, APISecret, "", "", "", "")
+
+	err = e.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		log.Fatal("Exmo UpdateTradablePairs error", err)
+	}
+
+	avail, err := e.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Fatal("Exmo GetAvailablePairs error", err)
+	}
+
+	err = e.CurrencyPairs.StorePairs(asset.Spot, avail, true)
+	if err != nil {
+		log.Fatal("Exmo StorePairs error", err)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -486,9 +503,22 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
 	err := e.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+
+	avail, err := e.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for x := range avail {
+		_, err := ticker.GetTicker(e.Name, avail[x], asset.Spot)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
