@@ -1895,8 +1895,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			return nil, err
 		}
 
-		fmt.Println(PayloadJSON)
-
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 			[]byte(PayloadBase64),
