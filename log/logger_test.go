@@ -197,17 +197,17 @@ var errWriteError = errors.New("write error")
 func TestMultiWriterWrite(t *testing.T) {
 	t.Parallel()
 
-	fields := &fields{}
+	f := &fields{}
 	buff := newTestBuffer()
 
 	var err error
-	fields.output, err = multiWriter(io.Discard, buff)
+	f.output, err = multiWriter(io.Discard, buff)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	payload := "woooooooooooooooooooooooooooooooooooow"
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil)
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,17 +217,17 @@ func TestMultiWriterWrite(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, payload)
 	}
 
-	fields.output, err = multiWriter(&WriteShorter{}, io.Discard)
+	f.output, err = multiWriter(&WriteShorter{}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteShorter short write
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteShorter short write
 
-	fields.output, err = multiWriter(&WriteError{}, io.Discard)
+	f.output, err = multiWriter(&WriteError{}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteError write error
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteError write error
 }
 
 func TestGetWriters(t *testing.T) {
@@ -345,8 +345,8 @@ func TestStageNewLogEvent(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	fields := &fields{output: mw}
-	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", "", "", false, false, false, nil)
+	f := &fields{output: mw}
+	f.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", "", "", false, false, false, nil)
 
 	<-w.Finished
 	if contents := w.Read(); contents != "header space  space out\n" { //nolint:dupword // False positive
