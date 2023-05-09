@@ -470,7 +470,7 @@ func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 	}
 }
 
-// GetSiteConfigData returns site configuration data by pub:{Action}:{Object}:{Detail}
+// GetSiteListConfigData returns site configuration data by pub:{Action}:{Object}:{Detail}
 // string sets.
 // NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
 // ALSO: This only accesses the lists not the maps.
