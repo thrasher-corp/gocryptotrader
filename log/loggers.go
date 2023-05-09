@@ -12,8 +12,8 @@ import (
 func Infoln(sl *SubLogger, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.stageln(fields.logger.InfoHeader, a...)
+	if f := sl.getFields(); f != nil {
+		f.stageln(f.logger.InfoHeader, a...)
 	}
 }
 
@@ -25,9 +25,9 @@ func Infoln(sl *SubLogger, a ...interface{}) {
 func InfolnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stageln(fields.logger.InfoHeader, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stageln(f.logger.InfoHeader, a...)
 	}
 }
 
@@ -38,8 +38,8 @@ func InfolnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Infof(sl *SubLogger, format string, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		sl.getFields().stagef(fields.logger.InfoHeader, format, a...)
+	if f := sl.getFields(); f != nil {
+		sl.getFields().stagef(f.logger.InfoHeader, format, a...)
 	}
 }
 
@@ -52,9 +52,9 @@ func Infof(sl *SubLogger, format string, a ...interface{}) {
 func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stagef(fields.logger.InfoHeader, format, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stagef(f.logger.InfoHeader, format, a...)
 	}
 }
 
@@ -65,8 +65,8 @@ func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inter
 func Debugln(sl *SubLogger, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.stageln(fields.logger.DebugHeader, v...)
+	if f := sl.getFields(); f != nil {
+		f.stageln(f.logger.DebugHeader, v...)
 	}
 }
 
@@ -78,9 +78,9 @@ func Debugln(sl *SubLogger, v ...interface{}) {
 func DebuglnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stageln(fields.logger.DebugHeader, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stageln(f.logger.DebugHeader, a...)
 	}
 }
 
@@ -91,8 +91,8 @@ func DebuglnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Debugf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		sl.getFields().stagef(fields.logger.DebugHeader, data, v...)
+	if f := sl.getFields(); f != nil {
+		sl.getFields().stagef(f.logger.DebugHeader, data, v...)
 	}
 }
 
@@ -104,9 +104,9 @@ func Debugf(sl *SubLogger, data string, v ...interface{}) {
 func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stagef(fields.logger.DebugHeader, format, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stagef(f.logger.DebugHeader, format, a...)
 	}
 }
 
@@ -117,8 +117,8 @@ func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inte
 func Warnln(sl *SubLogger, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.stageln(fields.logger.WarnHeader, v...)
+	if f := sl.getFields(); f != nil {
+		f.stageln(f.logger.WarnHeader, v...)
 	}
 }
 
@@ -130,9 +130,9 @@ func Warnln(sl *SubLogger, v ...interface{}) {
 func WarnlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stageln(fields.logger.WarnHeader, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stageln(f.logger.WarnHeader, a...)
 	}
 }
 
@@ -143,8 +143,8 @@ func WarnlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Warnf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		sl.getFields().stagef(fields.logger.WarnHeader, data, v...)
+	if f := sl.getFields(); f != nil {
+		sl.getFields().stagef(f.logger.WarnHeader, data, v...)
 	}
 }
 
@@ -156,9 +156,9 @@ func Warnf(sl *SubLogger, data string, v ...interface{}) {
 func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stagef(fields.logger.WarnHeader, format, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stagef(f.logger.WarnHeader, format, a...)
 	}
 }
 
@@ -169,8 +169,8 @@ func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inter
 func Errorln(sl *SubLogger, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.stageln(fields.logger.ErrorHeader, v...)
+	if f := sl.getFields(); f != nil {
+		f.stageln(f.logger.ErrorHeader, v...)
 	}
 }
 
@@ -182,9 +182,9 @@ func Errorln(sl *SubLogger, v ...interface{}) {
 func ErrorlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stageln(fields.logger.ErrorHeader, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stageln(f.logger.ErrorHeader, a...)
 	}
 }
 
@@ -195,8 +195,8 @@ func ErrorlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 func Errorf(sl *SubLogger, data string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		sl.getFields().stagef(fields.logger.ErrorHeader, data, v...)
+	if f := sl.getFields(); f != nil {
+		sl.getFields().stagef(f.logger.ErrorHeader, data, v...)
 	}
 }
 
@@ -208,9 +208,9 @@ func Errorf(sl *SubLogger, data string, v ...interface{}) {
 func ErrorfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
 	mu.RLock()
 	defer mu.RUnlock()
-	if fields := sl.getFields(); fields != nil {
-		fields.structuredFields = extra
-		fields.stagef(fields.logger.ErrorHeader, format, a...)
+	if f := sl.getFields(); f != nil {
+		f.structuredFields = extra
+		f.stagef(f.logger.ErrorHeader, format, a...)
 	}
 }
 
