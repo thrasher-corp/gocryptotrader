@@ -86,6 +86,8 @@ func (b *Bitfinex) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	// TODO: Implement Futures and Securities asset types.
+
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -278,49 +280,27 @@ func (b *Bitfinex) Run(ctx context.Context) {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	items, err := b.GetTickerBatch(ctx)
+	items, err := b.GetPairs(ctx, a)
 	if err != nil {
 		return nil, err
 	}
 
-	pairs := make([]currency.Pair, 0, len(items))
-	var pair currency.Pair
-	switch a {
-	case asset.Spot:
-		for k := range items {
-			if !strings.HasPrefix(k, "t") {
-				continue
-			}
-			pair, err = currency.NewPairFromString(k[1:])
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
+	pairs := make(currency.Pairs, 0, len(items))
+	for x := range items {
+		if strings.Contains(items[x], "TEST") {
+			continue
 		}
-	case asset.Margin:
-		for k := range items {
-			if !strings.Contains(k, ":") {
-				continue
-			}
-			pair, err = currency.NewPairFromStrings(k[1:], "")
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
+
+		var pair currency.Pair
+		if a == asset.MarginFunding {
+			pair, err = currency.NewPairFromStrings(items[x], "")
+		} else {
+			pair, err = currency.NewPairFromString(items[x])
 		}
-	case asset.MarginFunding:
-		for k := range items {
-			if !strings.HasPrefix(k, "f") {
-				continue
-			}
-			pair, err = currency.NewPairFromString(k[1:])
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
+		if err != nil {
+			return nil, err
 		}
-	default:
-		return nil, errors.New("asset type not supported by this endpoint")
+		pairs = append(pairs, pair)
 	}
 	return pairs, nil
 }
@@ -345,7 +325,7 @@ func (b *Bitfinex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	enabledPairs, err := b.GetEnabledPairs(a)
+	enabled, err := b.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
@@ -355,23 +335,22 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
-	for k, v := range tickerNew {
-		pair, err := currency.NewPairFromString(k[1:]) // Remove prefix
+	for key, val := range tickerNew {
+		pair, err := enabled.DeriveFrom(strings.Replace(key, ":", "", 1)[1:])
 		if err != nil {
-			return err
-		}
-
-		if !enabledPairs.Contains(pair, true) {
+			// GetTickerBatch returns all pairs in call across all asset types.
+			// To filter these requires a bit of work. Continue and qualify all
+			// loaded pairs via tests.
 			continue
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         v.Last,
-			High:         v.High,
-			Low:          v.Low,
-			Bid:          v.Bid,
-			Ask:          v.Ask,
-			Volume:       v.Volume,
+			Last:         val.Last,
+			High:         val.High,
+			Low:          val.Low,
+			Bid:          val.Bid,
+			Ask:          val.Ask,
+			Volume:       val.Volume,
 			Pair:         pair,
 			AssetType:    a,
 			ExchangeName: b.Name})

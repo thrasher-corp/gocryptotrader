@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -61,6 +62,12 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = true
 	}
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+
+	err = b.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		log.Fatal("Bitfinex UpdateTradablePairs error", err)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -139,11 +146,16 @@ func TestGetDerivativeStatusInfo(t *testing.T) {
 	}
 }
 
-func TestGetMarginPairs(t *testing.T) {
+func TestGetPairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarginPairs(context.Background())
+	_, err := b.GetPairs(context.Background(), asset.MarginFunding)
 	if err != nil {
 		t.Error(err)
+	}
+
+	_, err = b.GetPairs(context.Background(), asset.Binary)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 }
 
@@ -429,9 +441,30 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
-	err := b.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
+	t.Parallel()
+	assets := b.GetAssetTypes(false)
+	for x := range assets {
+		avail, err := b.GetAvailablePairs(assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = b.CurrencyPairs.StorePairs(assets[x], avail, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = b.UpdateTickers(context.Background(), assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for y := range avail {
+			_, err := ticker.GetTicker(b.Name, avail[y], assets[x])
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }
 
@@ -1105,13 +1138,6 @@ func TestWsCancelOffer(t *testing.T) {
 		runAuth(t)
 	}
 	if err := b.WsCancelOffer(1234); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestUpdateTradablePairs(t *testing.T) {
-	err := b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
 		t.Error(err)
 	}
 }

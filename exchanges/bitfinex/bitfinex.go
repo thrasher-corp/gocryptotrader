@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -78,7 +79,12 @@ const (
 	bitfinexMarginInfo      = "margin_infos"
 	bitfinexDepositMethod   = "conf/pub:map:tx:method"
 	bitfinexDepositAddress  = "auth/w/deposit/address"
-	bitfinexMarginPairs     = "conf/pub:list:pair:margin"
+
+	bitfinexMarginPairs        = "conf/pub:list:pair:margin"
+	bitfinexSpotPairs          = "conf/pub:list:pair:exchange"
+	bitfinexMarginFundingPairs = "conf/pub:list:currency"
+	bitfinexFuturesPairs       = "conf/pub:list:pair:futures"    // TODO: Implement
+	bitfinexSecuritiesPairs    = "conf/pub:list:pair:securities" // TODO: Implement
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
@@ -419,10 +425,62 @@ func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 	return resp, nil
 }
 
-// GetMarginPairs gets pairs that allow margin trading
-func (b *Bitfinex) GetMarginPairs(ctx context.Context) ([]string, error) {
+// GetPairs gets pairs for different assets
+func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error) {
+	switch a {
+	case asset.Spot:
+		list, err := b.GetSiteListConfigData(ctx, bitfinexSpotPairs)
+		if err != nil {
+			return nil, err
+		}
+		filter, err := b.GetSiteListConfigData(ctx, bitfinexSecuritiesPairs)
+		if err != nil {
+			return nil, err
+		}
+		filtered := make([]string, 0, len(list))
+		for x := range list {
+			if common.StringDataCompare(filter, list[x]) {
+				continue
+			}
+			filtered = append(filtered, list[x])
+		}
+		return filtered, nil
+	case asset.Margin:
+		return b.GetSiteListConfigData(ctx, bitfinexMarginPairs)
+	case asset.Futures:
+		return b.GetSiteListConfigData(ctx, bitfinexFuturesPairs)
+	case asset.MarginFunding:
+		funding, err := b.GetTickerBatch(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var pairs []string
+		for key := range funding {
+			symbol := key[1:]
+			if key[0] != 'f' || strings.Contains(symbol, ":") || len(symbol) > 6 {
+				continue
+			}
+			pairs = append(pairs, symbol)
+		}
+		return pairs, nil
+	case asset.Securities:
+		return b.GetSiteListConfigData(ctx, bitfinexSecuritiesPairs)
+	default:
+		return nil, fmt.Errorf("%v GetPairs: %v %w", b.Name, a, asset.ErrNotSupported)
+	}
+}
+
+// GetSiteConfigData returns site configuration data by pub:{Action}:{Object}:{Detail}
+// string sets.
+// NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
+// ALSO: This only accesses the lists not the maps.
+func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]string, error) {
+	if set == "" {
+		return nil, errors.New("set cannot be empty")
+	}
+
 	var resp [][]string
-	path := bitfinexAPIVersion2 + bitfinexMarginPairs
+	path := bitfinexAPIVersion2 + set
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, status)
 	if err != nil {
 		return nil, err
@@ -1836,6 +1894,8 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		if err != nil {
 			return nil, err
 		}
+
+		fmt.Println(PayloadJSON)
 
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
