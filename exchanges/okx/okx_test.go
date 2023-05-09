@@ -1847,6 +1847,63 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	type limitTest struct {
+		pair currency.Pair
+		step float64
+		min  float64
+	}
+
+	tests := map[asset.Item][]limitTest{
+		asset.Spot: {
+			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.0001},
+			{currency.NewPair(currency.BTC, currency.USDT), 0.1, 0.00001},
+		},
+		asset.Margin: {
+			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.0001},
+			{currency.NewPair(currency.ETH, currency.BTC), 0.00001, 0.0001},
+		},
+	}
+
+	for _, a := range []asset.Item{asset.PerpetualSwap, asset.Futures, asset.Options} {
+		pairs, err := ok.FetchTradablePairs(context.Background(), a)
+		if err != nil {
+			t.Errorf("Error fetching dated %s pairs for test: %v", a, err)
+		}
+		stepIncr := 0.1
+		if a == asset.Options {
+			stepIncr = 0.0005
+		}
+
+		tests[a] = []limitTest{{pairs[0], stepIncr, 1}}
+	}
+
+	for _, a := range ok.GetAssetTypes(false) {
+		if err := ok.UpdateOrderExecutionLimits(context.Background(), a); err != nil {
+			t.Error("Okx UpdateOrderExecutionLimits() error", err)
+			continue
+		}
+
+		for _, tt := range tests[a] {
+			limits, err := ok.GetOrderExecutionLimits(a, tt.pair)
+			if err != nil {
+				t.Errorf("Okx GetOrderExecutionLimits() error during TestUpdateOrderExecutionLimits; Asset: %s Pair: %s Err: %v", a, tt.pair, err)
+				continue
+			}
+
+			if got := limits.PriceStepIncrementSize; got != tt.step {
+				t.Errorf("Okx UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", a, tt.pair, tt.step, got)
+			}
+
+			if got := limits.MinAmount; got != tt.min {
+				t.Errorf("Okx UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", tt.pair, tt.min, got)
+			}
+		}
+	}
+}
+
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	if _, err := ok.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot); err != nil {
