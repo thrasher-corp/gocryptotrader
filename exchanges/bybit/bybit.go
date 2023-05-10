@@ -54,6 +54,7 @@ const (
 	bybitTradeHistory             = "/spot/v1/myTrades"
 	bybitWalletBalance            = "/spot/v1/account"
 	bybitServerTime               = "/spot/v1/time"
+	bybitAccountFee               = "/v5/account/fee-rate"
 
 	// Account asset endpoint
 	bybitGetDepositAddress = "/asset/v1/private/deposit/address"
@@ -822,6 +823,44 @@ func (by *Bybit) WithdrawFund(ctx context.Context, coin, chain, address, tag, am
 	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, nil, params, &resp, privateSpotRate)
 }
 
+// GetAccountFee returns user account fee
+// Valid  category: "spot", "linear", "inverse", "option"
+func (by *Bybit) GetAccountFee(ctx context.Context, category, symbol, baseCoin string) ([]Fee, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	}
+
+	if !common.StringDataContains(validCategory, category) {
+		// NOTE: Opted to fail here because if the user passes in an invalid
+		// category the error returned is this
+		// `Bybit raw response: {"retCode":10005,"retMsg":"Permission denied, please check your API key permissions.","result":{},"retExtInfo":{},"time":1683694010783}`
+		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+	}
+
+	params := url.Values{}
+	params.Set("category", category)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+
+	result := struct {
+		Data struct {
+			List []Fee `json:"list"`
+		} `json:"result"`
+		Error
+	}{}
+
+	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, &result, privateSpotRate)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Data.List, result.GetError()
+}
+
 // SendHTTPRequest sends an unauthenticated request
 func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result UnmarshalTo) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
@@ -875,8 +914,8 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		var (
 			payload       []byte
 			hmacSignedStr string
+			headers       = make(map[string]string)
 		)
-		headers := make(map[string]string)
 
 		if jsonPayload != nil {
 			headers["Content-Type"] = "application/json"
@@ -923,6 +962,53 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	if err != nil {
 		return err
 	}
+	return result.GetError()
+}
+
+// SendAuthHTTPRequestV5 sends an authenticated HTTP request
+func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result UnmarshalTo, f request.EndpointLimit) error {
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
+	if result == nil {
+		result = &Error{}
+	}
+
+	endpointPath, err := by.API.Endpoints.GetURL(ePath)
+	if err != nil {
+		return err
+	}
+
+	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
+		timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+		headers["X-BAPI-TIMESTAMP"] = timestamp
+		headers["X-BAPI-API-KEY"] = creds.Key
+		headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
+
+		var hmacSignedStr string
+		hmacSignedStr, err = getSign(timestamp+creds.Key+defaultRecvWindow+params.Encode(), creds.Secret)
+		if err != nil {
+			return nil, err
+		}
+		headers["X-BAPI-SIGN"] = hmacSignedStr
+		return &request.Item{
+			Method:        method,
+			Path:          endpointPath + common.EncodeURLValues(path, params),
+			Headers:       headers,
+			Result:        &result,
+			AuthRequest:   true,
+			Verbose:       by.Verbose,
+			HTTPDebugging: by.HTTPDebugging,
+			HTTPRecording: by.HTTPRecording}, nil
+	})
+	if err != nil {
+		return err
+	}
+
 	return result.GetError()
 }
 

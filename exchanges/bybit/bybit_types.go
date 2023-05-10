@@ -44,6 +44,8 @@ var (
 	errExpectedOneOrder     = errors.New("expected one order")
 )
 
+var validCategory = []string{"spot", "linear", "inverse", "option"}
+
 // bybitTimeSec provides an internal conversion helper
 type bybitTimeSec time.Time
 
@@ -961,4 +963,11 @@ type Ticker struct {
 	Turnover24Hr      float64 `json:"turnover24h,string"`
 	Volume24Hr        float64 `json:"volume24h,string"`
 	USDIndexPrice     float64 `json:"usdIndexPrice,string"`
+}
+
+// Fee holds fee information
+type Fee struct {
+	Symbol string  `json:"symbol"`
+	Taker  float64 `json:"takerFeeRate,string"`
+	Maker  float64 `json:"makerFeeRate,string"`
 }

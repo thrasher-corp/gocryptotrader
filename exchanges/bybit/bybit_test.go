@@ -3384,9 +3384,26 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		if err != nil {
 			t.Fatal("Okx GetOrderExecutionLimits() error", err)
 		}
-		// fmt.Printf("%+v\n", limits)
 		if limits == (order.MinMaxLevel{}) {
 			t.Fatal("Okx GetOrderExecutionLimits() error cannot be nil")
 		}
+	}
+}
+
+func TestGetAccountFee(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetAccountFee(context.Background(), "", "", "")
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err = b.GetAccountFee(context.Background(), "bruh", "", "bruh")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v but expected %v", err, nil)
 	}
 }
