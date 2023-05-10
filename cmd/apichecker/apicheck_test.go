@@ -26,18 +26,18 @@ func TestMain(m *testing.M) {
 	setTestVars()
 	err := log.SetGlobalLogConfig(log.GenDefaultSettings())
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Errorln(log.Global, err)
 		os.Exit(1)
 	}
 	log.Infoln(log.Global, "set verbose to true for more detailed output")
 	configData, err = readFileData(jsonFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Errorln(log.Global, err)
 		os.Exit(1)
 	}
 	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Errorln(log.Global, err)
 		os.Exit(1)
 	}
 	usageData = testConfigData
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 	testExitCode := m.Run()
 	err = removeTestFileVars()
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Errorln(log.Global, err)
 		os.Exit(1)
 	}
 	os.Exit(testExitCode)

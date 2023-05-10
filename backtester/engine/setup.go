@@ -786,7 +786,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		defer func() {
 			stopErr := bt.databaseManager.Stop()
 			if stopErr != nil {
-				log.Error(common.Setup, stopErr)
+				log.Errorln(common.Setup, stopErr)
 			}
 		}()
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType, isUSDTrackingPair)

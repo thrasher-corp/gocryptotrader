@@ -22,7 +22,7 @@ func (d *Data) GenerateReport() error {
 	if d.TemplatePath == "" || d.OutputPath == "" {
 		return nil
 	}
-	log.Info(common.Report, "Generating report")
+	log.Infoln(common.Report, "Generating report")
 	err := d.enhanceCandles()
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func (d *Data) GenerateReport() error {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Error(common.Report, err)
+			log.Errorln(common.Report, err)
 		}
 	}()
 

@@ -218,7 +218,7 @@ func (m *syncManager) Start() error {
 				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
 				err := m.Stop()
 				if err != nil {
-					log.Error(log.SyncMgr, err)
+					log.Errorln(log.SyncMgr, err)
 				}
 				return
 			}
@@ -547,7 +547,7 @@ func (m *syncManager) worker() {
 
 							m.add(c)
 						} else {
-							log.Error(log.SyncMgr, err)
+							log.Errorln(log.SyncMgr, err)
 							continue
 						}
 					}
@@ -595,7 +595,7 @@ func (m *syncManager) worker() {
 								}
 								updateErr := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, err)
 								if updateErr != nil {
-									log.Error(log.SyncMgr, updateErr)
+									log.Errorln(log.SyncMgr, updateErr)
 								}
 							} else {
 								time.Sleep(time.Millisecond * 50)
@@ -673,7 +673,7 @@ func (m *syncManager) worker() {
 										}
 										updateErr := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, err)
 										if updateErr != nil {
-											log.Error(log.SyncMgr, updateErr)
+											log.Errorln(log.SyncMgr, updateErr)
 										}
 									}
 								} else {
@@ -688,7 +688,7 @@ func (m *syncManager) worker() {
 									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
 									err := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
 									if err != nil {
-										log.Error(log.SyncMgr, err)
+										log.Errorln(log.SyncMgr, err)
 									}
 								}
 							}

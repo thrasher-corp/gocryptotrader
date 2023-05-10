@@ -21,7 +21,7 @@ func (a *Alphapoint) WebsocketClient() {
 		var httpResp *http.Response
 		endpoint, err := a.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.WebsocketMgr, err)
+			log.Errorln(log.WebsocketMgr, err)
 		}
 		a.WebsocketConn, httpResp, err = dialer.Dial(endpoint, http.Header{})
 		httpResp.Body.Close() // not used, so safely free the body
@@ -38,14 +38,14 @@ func (a *Alphapoint) WebsocketClient() {
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
 
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.Errorln(log.ExchangeSys, err)
 			return
 		}
 
 		for a.Enabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Error(log.ExchangeSys, err)
+				log.Errorln(log.ExchangeSys, err)
 				break
 			}
 
@@ -57,7 +57,7 @@ func (a *Alphapoint) WebsocketClient() {
 				msgType := MsgType{}
 				err := json.Unmarshal(resp, &msgType)
 				if err != nil {
-					log.Error(log.ExchangeSys, err)
+					log.Errorln(log.ExchangeSys, err)
 					continue
 				}
 
@@ -65,7 +65,7 @@ func (a *Alphapoint) WebsocketClient() {
 					ticker := WebsocketTicker{}
 					err = json.Unmarshal(resp, &ticker)
 					if err != nil {
-						log.Error(log.ExchangeSys, err)
+						log.Errorln(log.ExchangeSys, err)
 						continue
 					}
 				}

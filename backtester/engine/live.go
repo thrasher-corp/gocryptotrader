@@ -82,7 +82,7 @@ func (d *dataChecker) Start() error {
 		if err != nil {
 			stopErr := d.SignalStopFromError(err)
 			if stopErr != nil {
-				log.Error(common.LiveStrategy, stopErr)
+				log.Errorln(common.LiveStrategy, stopErr)
 			}
 		}
 	}()
@@ -118,7 +118,7 @@ func (d *dataChecker) SignalStopFromError(err error) error {
 	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
 		return engine.ErrSubSystemNotStarted
 	}
-	log.Error(common.LiveStrategy, err)
+	log.Errorln(common.LiveStrategy, err)
 	d.shutdownErr <- true
 	return nil
 }
@@ -399,7 +399,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		err = d.UpdateFunding(false)
 		if err != nil {
 			if err != nil {
-				log.Error(common.LiveStrategy, err)
+				log.Errorln(common.LiveStrategy, err)
 			}
 		}
 	}
