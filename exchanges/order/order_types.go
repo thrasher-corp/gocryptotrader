@@ -149,6 +149,7 @@ type ModifyResponse struct {
 	Price             float64
 	Amount            float64
 	TriggerPrice      float64
+	AllocatedMargin   float64
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable

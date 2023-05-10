@@ -563,6 +563,7 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 		Price:             m.Price,
 		Amount:            m.Amount,
 		TriggerPrice:      m.TriggerPrice,
+		AllocatedMargin:   m.AllocatedMargin,
 	}, nil
 }
 

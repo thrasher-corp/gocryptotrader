@@ -1274,18 +1274,20 @@ func (b *Binance) FuturesChangeMarginType(ctx context.Context, symbol currency.P
 }
 
 // ModifyIsolatedPositionMargin changes margin for an isolated position
-func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (GenericAuthResponse, error) {
-	var resp GenericAuthResponse
+func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (FuturesMarginUpdatedResponse, error) {
+	var resp FuturesMarginUpdatedResponse
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validPositionSide, positionSide) {
-		return resp, errors.New("invalid positionSide")
+	if positionSide != "" {
+		if !common.StringDataCompare(validPositionSide, positionSide) {
+			return resp, errors.New("invalid positionSide")
+		}
+		params.Set("positionSide", positionSide)
 	}
-	params.Set("positionSide", positionSide)
 	cType, ok := validMarginChange[changeType]
 	if !ok {
 		return resp, errors.New("invalid changeType")

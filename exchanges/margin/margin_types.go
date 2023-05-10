@@ -33,6 +33,28 @@ type RateHistoryRequest struct {
 	Rates []Rate
 }
 
+type PositionChangeRequest struct {
+	OrderID                 string
+	Pair                    currency.Pair
+	Asset                   asset.Item
+	OriginalAllocatedMargin float64
+	NewAllocatedMargin      float64
+	OriginalMarginType      Type
+	NewMarginType           Type
+	OriginalMarginSide      string
+	NewMarginSide           string
+	// Is this needed?
+	CalculateOffline bool
+}
+
+type PositionChangeResponse struct {
+	OrderID         string
+	Pair            currency.Pair
+	Asset           asset.Item
+	AllocatedMargin float64
+	MarginType      Type
+}
+
 // Type defines the different margin types supported by exchanges
 type Type uint8
 

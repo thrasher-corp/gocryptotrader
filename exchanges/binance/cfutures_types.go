@@ -408,6 +408,13 @@ type GenericAuthResponse struct {
 	Msg  string `json:"msg"`
 }
 
+// FuturesMarginUpdatedResponse stores margin update response data
+type FuturesMarginUpdatedResponse struct {
+	Amount float64 `json:"amount"`
+	Type   int     `json:"type"`
+	GenericAuthResponse
+}
+
 // FuturesLeverageData stores leverage data for futures
 type FuturesLeverageData struct {
 	Leverage int64   `json:"leverage"`

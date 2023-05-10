@@ -91,6 +91,7 @@ type IBotExchange interface {
 	OrderManagement
 	CurrencyStateManagement
 	FuturesManagement
+	MarginManagement
 }
 
 // OrderManagement defines functionality for order management
@@ -147,8 +148,14 @@ type FuturesManagement interface {
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
-	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	order.PNLCalculation
 	SetCollateralMode(ctx context.Context, item asset.Item, mode order.CollateralType) error
 	GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error)
+}
+
+// MarginManagement manages margin positions and rates
+type MarginManagement interface {
+	ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error)
+	SetDefaultMarginType(ctx context.Context, item asset.Item, tp margin.Type) error
+	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 }

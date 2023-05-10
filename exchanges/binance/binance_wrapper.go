@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -1937,4 +1938,59 @@ func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.Co
 		return order.MultiCollateral, nil
 	}
 	return order.SingleCollateral, nil
+}
+
+// ChangePositionMargin will modify a position/currencies margin parameters
+func (b *Binance) ChangePositionMargin(ctx context.Context, m *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	if m.Asset != asset.USDTMarginedFutures {
+		return nil, common.ErrFunctionNotSupported
+	}
+	fPair, err := b.FormatExchangeCurrency(m.Pair, m.Asset)
+	if err != nil {
+		return nil, err
+	}
+	resp := margin.PositionChangeResponse{
+		OrderID: m.OrderID,
+		Pair:    m.Pair,
+		Asset:   m.Asset,
+	}
+
+	if m.NewAllocatedMargin > 0 {
+		marginType := "add"
+		if m.OriginalAllocatedMargin < m.NewAllocatedMargin {
+			marginType = "reduce"
+		}
+		var side string
+		if m.OriginalMarginSide != "" && m.NewMarginSide != "" && m.OriginalMarginSide != m.NewMarginSide {
+			side = m.NewMarginSide
+		}
+		_, err = b.ModifyIsolatedPositionMargin(ctx, fPair, side, marginType, m.NewAllocatedMargin)
+		if err != nil {
+			return nil, err
+		}
+		resp.AllocatedMargin = m.NewAllocatedMargin
+	}
+	if m.NewMarginType != margin.Unset {
+		var mt string
+		mt, err = b.marginTypeToString(m.NewMarginType)
+		if err != nil {
+			return nil, err
+		}
+		err = b.UChangeInitialMarginType(ctx, fPair, mt)
+		if err != nil {
+			return nil, err
+		}
+		resp.MarginType = m.NewMarginType
+	}
+	return &resp, nil
+}
+
+func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
+	switch mt {
+	case margin.Isolated:
+		return margin.Isolated.Upper(), nil
+	case margin.Multi:
+		return "CROSSED", nil
+	}
+	return "", fmt.Errorf("%w %v", margin.ErrInvalidMarginType, mt)
 }
