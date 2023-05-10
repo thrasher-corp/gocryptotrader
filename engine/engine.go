@@ -90,7 +90,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	}
 
 	if *b.Config.Logging.Enabled {
-		err = gctlog.SetupGlobalLogger()
+		err = gctlog.SetupGlobalLogger(b.Config.Name, b.Config.Logging.AdvancedSettings.StructuredLogging)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup global logger. %w", err)
 		}
@@ -339,7 +339,7 @@ func (bot *Engine) Start() error {
 			if err != nil {
 				return fmt.Errorf("unable to set NTP check: %w", err)
 			}
-			gctlog.Info(gctlog.TimeMgr, responseMessage)
+			gctlog.Infoln(gctlog.TimeMgr, responseMessage)
 		}
 		bot.ntpManager, err = setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
 		if err != nil {

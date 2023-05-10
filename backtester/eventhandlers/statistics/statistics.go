@@ -211,7 +211,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e commo
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
 func (s *Statistic) CalculateAllResults() error {
-	log.Info(common.Statistics, "Calculating backtesting results")
+	log.Infoln(common.Statistics, "Calculating backtesting results")
 	s.PrintAllEventsChronologically()
 	currCount := 0
 	var finalResults []FinalResultsHolder
@@ -227,7 +227,7 @@ func (s *Statistic) CalculateAllResults() error {
 					}
 					err = stats.CalculateResults(s.RiskFreeRate)
 					if err != nil {
-						log.Error(common.Statistics, err)
+						log.Errorln(common.Statistics, err)
 					}
 					stats.FinalHoldings = last.Holdings
 					stats.InitialHoldings = stats.Events[0].Holdings
