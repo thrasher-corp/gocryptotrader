@@ -704,7 +704,7 @@ func (m *OrderManager) processOrders() {
 			}
 
 			if m.activelyTrackFuturesPositions && enabledAssets[y].IsFutures() {
-				var positions []order.PositionDetails
+				var positions []order.PositionResponse
 				var sd time.Time
 				sd, err = m.orderStore.futuresPositionController.LastUpdated()
 				if err != nil {
@@ -744,7 +744,7 @@ func (m *OrderManager) processOrders() {
 }
 
 // processFuturesPositions ensures any open position found is kept up to date in the order manager
-func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *order.PositionDetails) error {
+func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *order.PositionResponse) error {
 	if !m.activelyTrackFuturesPositions {
 		return errFuturesTrackingDisabled
 	}
@@ -752,7 +752,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		return fmt.Errorf("%w IBotExchange", common.ErrNilPointer)
 	}
 	if position == nil {
-		return fmt.Errorf("%w PositionDetails", common.ErrNilPointer)
+		return fmt.Errorf("%w PositionResponse", common.ErrNilPointer)
 	}
 	if len(position.Orders) == 0 {
 		return fmt.Errorf("%w position for '%v' '%v' '%v' has no orders", errNilOrder, position.Exchange, position.Asset, position.Pair)

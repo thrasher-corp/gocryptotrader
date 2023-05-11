@@ -78,6 +78,12 @@ const (
 	binanceSAPITimeLayout = "2006-01-02 15:04:05"
 )
 
+var (
+	errOriginalPositionMarginRequired     = errors.New("original position margin required")
+	errInvalidChangePositionMarginRequest = errors.New("invalid change position margin request")
+	errAllocatedUnsupportedForCrossMargin = errors.New("allocated margin unsupported for cross margin")
+)
+
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory(ctx context.Context) (MarginInfoData, error) {
 	var resp MarginInfoData

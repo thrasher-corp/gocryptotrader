@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1940,49 +1941,78 @@ func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.Co
 	return order.SingleCollateral, nil
 }
 
-// ChangePositionMargin will modify a position/currencies margin parameters
-func (b *Binance) ChangePositionMargin(ctx context.Context, m *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
-	if m.Asset != asset.USDTMarginedFutures {
-		return nil, common.ErrFunctionNotSupported
+// SetMarginType sets the default margin type for when opening a new position
+func (b *Binance) SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error {
+	if item != asset.USDTMarginedFutures && item != asset.CoinMarginedFutures {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	fPair, err := b.FormatExchangeCurrency(m.Pair, m.Asset)
+	if !tp.Valid() {
+		return fmt.Errorf("%w %v", margin.ErrInvalidMarginType, tp)
+	}
+	mt, err := b.marginTypeToString(tp)
+	if err != nil {
+		return err
+	}
+	switch item {
+	case asset.CoinMarginedFutures:
+		_, err = b.FuturesChangeMarginType(ctx, pair, mt)
+	case asset.USDTMarginedFutures:
+		err = b.UChangeInitialMarginType(ctx, pair, mt)
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ChangePositionMargin will modify a position/currencies margin parameters
+func (b *Binance) ChangePositionMargin(ctx context.Context, req *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w PositionChangeRequest", common.ErrNilPointer)
+	}
+	if req.CalculateOffline {
+		return nil, common.ErrCannotCalculateOffline
+	}
+	if req.Asset != asset.USDTMarginedFutures && req.Asset != asset.CoinMarginedFutures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.NewAllocatedMargin == 0 {
+		return nil, fmt.Errorf("%w %v %v", margin.ErrNewAllocatedMarginRequired, req.Asset, req.Pair)
+	}
+	if req.OriginalAllocatedMargin == 0 {
+		return nil, errOriginalPositionMarginRequired
+	}
+	if req.MarginType == margin.Multi {
+		return nil, margin.ErrMarginTypeUnsupported
+	}
+
+	marginType := "add"
+	if req.NewAllocatedMargin < req.OriginalAllocatedMargin {
+		marginType = "reduce"
+	}
+	var side string
+	if req.MarginSide != "" {
+		side = req.MarginSide
+	}
+	var err error
+	switch req.Asset {
+	case asset.CoinMarginedFutures:
+		_, err = b.ModifyIsolatedPositionMargin(ctx, req.Pair, side, marginType, req.NewAllocatedMargin)
+	case asset.USDTMarginedFutures:
+		_, err = b.UModifyIsolatedPositionMarginReq(ctx, req.Pair, side, marginType, req.NewAllocatedMargin)
+	}
 	if err != nil {
 		return nil, err
 	}
-	resp := margin.PositionChangeResponse{
-		OrderID: m.OrderID,
-		Pair:    m.Pair,
-		Asset:   m.Asset,
-	}
 
-	if m.NewAllocatedMargin > 0 {
-		marginType := "add"
-		if m.OriginalAllocatedMargin < m.NewAllocatedMargin {
-			marginType = "reduce"
-		}
-		var side string
-		if m.OriginalMarginSide != "" && m.NewMarginSide != "" && m.OriginalMarginSide != m.NewMarginSide {
-			side = m.NewMarginSide
-		}
-		_, err = b.ModifyIsolatedPositionMargin(ctx, fPair, side, marginType, m.NewAllocatedMargin)
-		if err != nil {
-			return nil, err
-		}
-		resp.AllocatedMargin = m.NewAllocatedMargin
-	}
-	if m.NewMarginType != margin.Unset {
-		var mt string
-		mt, err = b.marginTypeToString(m.NewMarginType)
-		if err != nil {
-			return nil, err
-		}
-		err = b.UChangeInitialMarginType(ctx, fPair, mt)
-		if err != nil {
-			return nil, err
-		}
-		resp.MarginType = m.NewMarginType
-	}
-	return &resp, nil
+	return &margin.PositionChangeResponse{
+		Exchange:        b.Name,
+		Pair:            req.Pair,
+		Asset:           req.Asset,
+		MarginType:      req.MarginType,
+		AllocatedMargin: req.NewAllocatedMargin,
+	}, nil
 }
 
 func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
@@ -1993,4 +2023,53 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 		return "CROSSED", nil
 	}
 	return "", fmt.Errorf("%w %v", margin.ErrInvalidMarginType, mt)
+}
+
+var errHedgeModeUnsupported = errors.New("hedge mode is not supported")
+
+func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+	}
+	var resp []order.PositionResponse
+	switch req.Asset {
+	case asset.USDTMarginedFutures:
+		for i := range req.Pairs {
+			result, err := b.UPositionsInfoV2(ctx, req.Pairs[i])
+			if err != nil {
+				return nil, err
+			}
+			if len(result) > 1 {
+				return nil, fmt.Errorf("%w %v", errHedgeModeUnsupported, b.Name)
+			}
+			for j := range result {
+				currencyPosition := order.PositionResponse{
+					Exchange: b.Name,
+					PositionSummary: order.PositionSummary{
+						Asset:          req.Asset,
+						Pair:           req.Pairs[i],
+						IsolatedMargin: decimal.NewFromFloat(result[j].IsolatedMargin),
+					},
+				}
+				orders, err := b.UAllAccountOpenOrders(ctx, req.Pairs[i])
+				if err != nil {
+					return nil, err
+				}
+				for k := range orders {
+					currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
+						Amount: orders[k].ExecutedQuantity,
+					})
+				}
+				resp = append(resp, currencyPosition)
+			}
+		}
+		return resp, nil
+	case asset.CoinMarginedFutures:
+		//_, err := b.FuturesPositionsInfo(ctx, req.Asset.String(), req.Pair.String())
+		//if err != nil {
+		//	return nil, err
+		//}
+
+	}
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 }

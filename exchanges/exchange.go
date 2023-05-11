@@ -1483,7 +1483,7 @@ func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequ
 }
 
 // GetFuturesPositions returns futures positions for all currencies
-func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

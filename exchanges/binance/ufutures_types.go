@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
 var (
@@ -320,18 +321,20 @@ type UPositionMarginChangeHistoryData struct {
 
 // UPositionInformationV2 stores positions data
 type UPositionInformationV2 struct {
-	EntryPrice           float64 `json:"entryPrice,string"`
-	MarginType           string  `json:"marginType"`
-	AutoAddMarginEnabled bool    `json:"isAutoAddMargin,string"`
-	IsolatedMargin       float64 `json:"isolatedMargin,string"`
-	Leverage             float64 `json:"leverage,string"`
-	LiquidationPrice     float64 `json:"liquidationPrice,string"`
-	MarkPrice            float64 `json:"markPrice,string"`
-	MaxNotionalValue     float64 `json:"maxNotionalValue,string"`
-	PositionAmount       float64 `json:"positionAmt,string"`
-	Symbol               string  `json:"symbol"`
-	UnrealizedProfit     float64 `json:"unrealizedProfit,string"`
-	PositionSide         string  `json:"positionSide"`
+	EntryPrice           float64     `json:"entryPrice,string"`
+	MarginType           margin.Type `json:"marginType"`
+	AutoAddMarginEnabled bool        `json:"isAutoAddMargin,string"`
+	IsolatedMargin       float64     `json:"isolatedMargin,string"`
+	Leverage             float64     `json:"leverage,string"`
+	LiquidationPrice     float64     `json:"liquidationPrice,string"`
+	MarkPrice            float64     `json:"markPrice,string"`
+	MaxNotionalValue     float64     `json:"maxNotionalValue,string"`
+	PositionAmount       float64     `json:"positionAmt,string"`
+	Notional             float64     `json:"notional,string"`
+	Symbol               string      `json:"symbol"`
+	UnrealizedProfit     float64     `json:"unrealizedProfit,string"`
+	PositionSide         string      `json:"positionSide"`
+	UpdateTime           binanceTime `json:"updateTime"`
 }
 
 // UAccountTradeHistory stores trade data for the users account

@@ -9,7 +9,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var ErrInvalidMarginType = errors.New("invalid margin type")
+var (
+	// ErrInvalidMarginType returned when the margin type is invalid
+	ErrInvalidMarginType = errors.New("invalid margin type")
+	// ErrMarginTypeUnsupported returned when the margin type is unsupported
+	ErrMarginTypeUnsupported = errors.New("unsupported margin type")
+	// ErrNewAllocatedMarginRequired returned when the new allocated margin is missing
+	ErrNewAllocatedMarginRequired = errors.New("new allocated margin required")
+)
 
 // RateHistoryRequest is used to request a funding rate
 type RateHistoryRequest struct {
@@ -34,21 +41,21 @@ type RateHistoryRequest struct {
 }
 
 type PositionChangeRequest struct {
-	OrderID                 string
-	Pair                    currency.Pair
-	Asset                   asset.Item
+	// Required fields
+	Exchange string
+	Pair     currency.Pair
+	Asset    asset.Item
+	// Optional fields depending on desired outcome
+	MarginType              Type
 	OriginalAllocatedMargin float64
 	NewAllocatedMargin      float64
-	OriginalMarginType      Type
-	NewMarginType           Type
-	OriginalMarginSide      string
-	NewMarginSide           string
+	MarginSide              string
 	// Is this needed?
 	CalculateOffline bool
 }
 
 type PositionChangeResponse struct {
-	OrderID         string
+	Exchange        string
 	Pair            currency.Pair
 	Asset           asset.Item
 	AllocatedMargin float64
@@ -70,10 +77,13 @@ const (
 	Unknown
 )
 
+var supported = Isolated | Multi
+
 const (
 	unsetStr    = "unset"
 	isolatedStr = "isolated"
 	multiStr    = "multi"
+	crossedStr  = "crossed"
 	unknownStr  = "unknown"
 )
 

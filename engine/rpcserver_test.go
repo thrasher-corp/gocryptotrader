@@ -75,15 +75,15 @@ func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryReq
 	}, nil
 }
 
-func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]order.PositionDetails, len(req.Pairs))
+	resp := make([]order.PositionResponse, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
-		resp[i] = order.PositionDetails{
+		resp[i] = order.PositionResponse{
 			Exchange: f.GetName(),
 			Asset:    req.Asset,
 			Pair:     req.Pairs[i],

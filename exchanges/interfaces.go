@@ -144,7 +144,7 @@ type FuturesManagement interface {
 	GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
 	ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*order.CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error)
-	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error)
+	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error)
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
@@ -155,7 +155,7 @@ type FuturesManagement interface {
 
 // MarginManagement manages margin positions and rates
 type MarginManagement interface {
+	SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error
 	ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error)
-	SetDefaultMarginType(ctx context.Context, item asset.Item, tp margin.Type) error
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 }

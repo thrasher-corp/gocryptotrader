@@ -120,15 +120,15 @@ func (f omfExchange) ModifyOrder(_ context.Context, action *order.Modify) (*orde
 	return modResp, nil
 }
 
-func (f omfExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (f omfExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]order.PositionDetails, len(req.Pairs))
+	resp := make([]order.PositionResponse, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
-		resp[i] = order.PositionDetails{
+		resp[i] = order.PositionResponse{
 			Exchange: f.GetName(),
 			Asset:    req.Asset,
 			Pair:     req.Pairs[i],
@@ -1622,7 +1622,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
 	}
 
-	position := &order.PositionDetails{
+	position := &order.PositionResponse{
 		Exchange: b.Name,
 		Asset:    asset.Spot,
 		Pair:     cp,

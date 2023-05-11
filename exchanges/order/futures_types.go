@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
 var (
@@ -328,7 +329,6 @@ type Position struct {
 type PositionSummaryRequest struct {
 	Asset asset.Item
 	Pair  currency.Pair
-
 	// offline calculation requirements below
 	CalculateOffline          bool
 	Direction                 Side
@@ -344,22 +344,6 @@ type PositionSummaryRequest struct {
 	MaxLeverageForAccount     decimal.Decimal
 	TotalAccountValue         decimal.Decimal
 	TotalOpenPositionNotional decimal.Decimal
-}
-
-// PositionSummary returns basic details on an open position
-type PositionSummary struct {
-	MaintenanceMarginRequirement decimal.Decimal
-	InitialMarginRequirement     decimal.Decimal
-	EstimatedLiquidationPrice    decimal.Decimal
-	CollateralUsed               decimal.Decimal
-	MarkPrice                    decimal.Decimal
-	CurrentSize                  decimal.Decimal
-	BreakEvenPrice               decimal.Decimal
-	AverageOpenPrice             decimal.Decimal
-	RecentPNL                    decimal.Decimal
-	MarginFraction               decimal.Decimal
-	FreeCollateral               decimal.Decimal
-	TotalCollateral              decimal.Decimal
 }
 
 // FundingRatesRequest is used to request funding rate details for a position
@@ -392,19 +376,39 @@ type FundingRate struct {
 	Payment decimal.Decimal
 }
 
-// PositionDetails are used to track open positions
-// in the order manager
-type PositionDetails struct {
-	Exchange string
-	Asset    asset.Item
-	Pair     currency.Pair
-	Orders   []Detail
-}
-
 // PositionsRequest defines the request to
 // retrieve futures position data
 type PositionsRequest struct {
 	Asset     asset.Item
 	Pairs     currency.Pairs
 	StartDate time.Time
+}
+
+// PositionResponse are used to track open positions
+// in the order manager
+type PositionResponse struct {
+	Exchange string
+	PositionSummary
+	Orders []Detail
+}
+
+// PositionSummary returns basic details on an open position
+type PositionSummary struct {
+	Pair                         currency.Pair
+	Asset                        asset.Item
+	MarginType                   margin.Type
+	IsolatedMargin               decimal.Decimal
+	Leverage                     decimal.Decimal
+	MaintenanceMarginRequirement decimal.Decimal
+	InitialMarginRequirement     decimal.Decimal
+	EstimatedLiquidationPrice    decimal.Decimal
+	CollateralUsed               decimal.Decimal
+	MarkPrice                    decimal.Decimal
+	CurrentSize                  decimal.Decimal
+	BreakEvenPrice               decimal.Decimal
+	AverageOpenPrice             decimal.Decimal
+	RecentPNL                    decimal.Decimal
+	MarginFraction               decimal.Decimal
+	FreeCollateral               decimal.Decimal
+	TotalCollateral              decimal.Decimal
 }

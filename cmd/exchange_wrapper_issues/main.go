@@ -998,7 +998,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculateTotalCollateralResponse}),
 		})
 
-		var futuresPositionsResponse []order.PositionDetails
+		var futuresPositionsResponse []order.PositionResponse
 		futuresPositionsRequest := &order.PositionsRequest{
 			Asset:     assetTypes[i],
 			Pairs:     currency.Pairs{p},

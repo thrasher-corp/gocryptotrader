@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -442,18 +443,18 @@ type GetPositionMarginChangeHistoryData struct {
 
 // FuturesPositionInformation stores futures position info
 type FuturesPositionInformation struct {
-	Symbol           string  `json:"symbol"`
-	PositionAmount   float64 `json:"positionAmt,string"`
-	EntryPrice       float64 `json:"entryPrice,string"`
-	MarkPrice        float64 `json:"markPrice,string"`
-	UnrealizedProfit float64 `json:"unRealizedProfit,string"`
-	LiquidationPrice float64 `json:"liquidation,string"`
-	Leverage         int64   `json:"leverage"`
-	MaxQty           float64 `json:"maxQty"`
-	MarginType       string  `json:"marginType"`
-	IsolatedMargin   float64 `json:"isolatedMargin,string"`
-	IsAutoAddMargin  bool    `json:"isAutoAddMargin"`
-	PositionSide     string  `json:"positionSide"`
+	Symbol           string      `json:"symbol"`
+	PositionAmount   float64     `json:"positionAmt,string"`
+	EntryPrice       float64     `json:"entryPrice,string"`
+	MarkPrice        float64     `json:"markPrice,string"`
+	UnrealizedProfit float64     `json:"unRealizedProfit,string"`
+	LiquidationPrice float64     `json:"liquidation,string"`
+	Leverage         float64     `json:"leverage"`
+	MaxQty           float64     `json:"maxQty"`
+	MarginType       margin.Type `json:"marginType"`
+	IsolatedMargin   float64     `json:"isolatedMargin,string"`
+	IsAutoAddMargin  bool        `json:"isAutoAddMargin"`
+	PositionSide     string      `json:"positionSide"`
 }
 
 // FuturesAccountTradeList stores account trade list data
