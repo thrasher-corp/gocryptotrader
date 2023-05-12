@@ -601,7 +601,7 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	if tempResp.Amount != 0 {
 		err = submitResp.AdjustBaseAmount(tempResp.Amount)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "Exchange %s: OrderID: %s Base Amount Conversion Error: %s\n", b.Name, submitResp.OrderID, err)
+			log.Errorf(log.ExchangeSys, "Exchange %s: OrderID: %s base amount conversion error: %s\n", b.Name, submitResp.OrderID, err)
 		}
 	}
 
