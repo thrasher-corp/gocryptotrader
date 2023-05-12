@@ -1260,11 +1260,11 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 
 func TestClassificationError_Error(t *testing.T) {
 	class := ClassificationError{OrderID: "1337", Exchange: "test", Err: errors.New("test error")}
-	if class.Error() != "test - OrderID: 1337 classification error: test error" {
+	if class.Error() != "Exchange test: OrderID: 1337 classification error: test error" {
 		t.Fatal("unexpected output")
 	}
 	class.OrderID = ""
-	if class.Error() != "test - classification error: test error" {
+	if class.Error() != "Exchange test: classification error: test error" {
 		t.Fatal("unexpected output")
 	}
 }
