@@ -1202,6 +1202,8 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 			}
 
 			for _, f := range spot.Symbols[x].Filters {
+				// TODO: Unhandled filters:
+				// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
 				switch f.FilterType {
 				case priceFilter:
 					l.MinPrice = f.MinPrice
