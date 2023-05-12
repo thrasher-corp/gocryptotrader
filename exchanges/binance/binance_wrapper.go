@@ -1555,7 +1555,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					return nil, fmt.Errorf("can only fetch orders 30 days out")
 				}
 				orderHistory, err = b.GetAllFuturesOrders(ctx,
-					req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+					req.Pairs[i], currency.EMPTYPAIR, req.StartTime, req.EndTime, 0, 0)
 				if err != nil {
 					return nil, err
 				}
@@ -1565,7 +1565,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					return nil, err
 				}
 				orderHistory, err = b.GetAllFuturesOrders(ctx,
-					req.Pairs[i], "", time.Time{}, time.Time{}, fromID, 0)
+					req.Pairs[i], currency.EMPTYPAIR, time.Time{}, time.Time{}, fromID, 0)
 				if err != nil {
 					return nil, err
 				}
@@ -2034,42 +2034,140 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 	var resp []order.PositionResponse
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
-		for i := range req.Pairs {
-			result, err := b.UPositionsInfoV2(ctx, req.Pairs[i])
+		for x := range req.Pairs {
+			result, err := b.UPositionsInfoV2(ctx, req.Pairs[x])
 			if err != nil {
 				return nil, err
 			}
 			if len(result) > 1 {
+				// TODO: Support hedge mode
 				return nil, fmt.Errorf("%w %v", errHedgeModeUnsupported, b.Name)
 			}
-			for j := range result {
+
+			for y := range result {
 				currencyPosition := order.PositionResponse{
 					Exchange: b.Name,
 					PositionSummary: order.PositionSummary{
-						Asset:          req.Asset,
-						Pair:           req.Pairs[i],
-						IsolatedMargin: decimal.NewFromFloat(result[j].IsolatedMargin),
+						Asset:                     req.Asset,
+						Pair:                      req.Pairs[x],
+						IsolatedMargin:            decimal.NewFromFloat(result[y].IsolatedMargin),
+						MarginType:                result[y].MarginType,
+						Leverage:                  decimal.NewFromFloat(result[y].Leverage),
+						RecentPNL:                 decimal.NewFromFloat(result[y].UnrealizedProfit),
+						EstimatedLiquidationPrice: decimal.NewFromFloat(result[y].LiquidationPrice),
+						AverageOpenPrice:          decimal.NewFromFloat(result[y].EntryPrice),
+						CurrentSize:               decimal.NewFromFloat(result[y].PositionAmount),
 					},
 				}
-				orders, err := b.UAllAccountOpenOrders(ctx, req.Pairs[i])
+
+				timeRanges := &kline.IntervalRangeHolder{} //nolint:staticcheck // prevents need for additional nil check
+				// Binance splits up
+				timeRanges, err = kline.CalculateCandleDateRanges(req.StartDate, time.Now(), kline.OneDay, 1000)
 				if err != nil {
 					return nil, err
 				}
-				for k := range orders {
-					currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
-						Amount: orders[k].ExecutedQuantity,
-					})
+				for z := range timeRanges.Ranges {
+					orders := make([]UFuturesOrderData, 0, 1000)
+					orders, err = b.UAllAccountOrders(ctx, req.Pairs[x], 0, 1000, timeRanges.Ranges[z].Start.Time, timeRanges.Ranges[z].End.Time)
+					if err != nil {
+						return nil, err
+					}
+					for i := range orders {
+						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
+							ReduceOnly:           orders[i].ClosePosition,
+							Price:                orders[i].Price,
+							Amount:               orders[i].ExecutedQty,
+							TriggerPrice:         orders[i].ActivatePrice,
+							AverageExecutedPrice: orders[i].AvgPrice,
+							ExecutedAmount:       orders[i].ExecutedQty,
+							RemainingAmount:      orders[i].OrigQty - orders[i].ExecutedQty,
+							CostAsset:            req.Pairs[i].Quote,
+							Exchange:             b.Name,
+							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+							ClientOrderID:        orders[i].ClientOrderID,
+							Type:                 orderVars.OrderType,
+							Side:                 orderVars.Side,
+							Status:               orderVars.Status,
+							AssetType:            asset.USDTMarginedFutures,
+							Date:                 orders[i].Time,
+							LastUpdated:          orders[i].UpdateTime,
+							Pair:                 req.Pairs[i],
+							MarginType:           result[x].MarginType,
+						})
+					}
 				}
 				resp = append(resp, currencyPosition)
 			}
 		}
 		return resp, nil
 	case asset.CoinMarginedFutures:
-		//_, err := b.FuturesPositionsInfo(ctx, req.Asset.String(), req.Pair.String())
-		//if err != nil {
-		//	return nil, err
-		//}
+		for x := range req.Pairs {
+			result, err := b.FuturesPositionsInfo(ctx, req.Pairs[x], currency.EMPTYPAIR)
+			if err != nil {
+				return nil, err
+			}
+			if len(result) > 1 {
+				// TODO: Support hedge mode
+				return nil, fmt.Errorf("%w %v", errHedgeModeUnsupported, b.Name)
+			}
 
+			for y := range result {
+				currencyPosition := order.PositionResponse{
+					Exchange: b.Name,
+					PositionSummary: order.PositionSummary{
+						Asset:                     req.Asset,
+						Pair:                      req.Pairs[x],
+						IsolatedMargin:            decimal.NewFromFloat(result[y].IsolatedMargin),
+						MarginType:                result[y].MarginType,
+						Leverage:                  decimal.NewFromFloat(result[y].Leverage),
+						RecentPNL:                 decimal.NewFromFloat(result[y].UnrealizedProfit),
+						EstimatedLiquidationPrice: decimal.NewFromFloat(result[y].LiquidationPrice),
+						AverageOpenPrice:          decimal.NewFromFloat(result[y].EntryPrice),
+						CurrentSize:               decimal.NewFromFloat(result[y].PositionAmount),
+					},
+				}
+
+				timeRanges := &kline.IntervalRangeHolder{} //nolint:staticcheck // prevents need for additional nil check
+				timeRanges, err = kline.CalculateCandleDateRanges(req.StartDate, time.Now(), kline.OneWeek, 1000)
+				if err != nil {
+					return nil, err
+				}
+				for z := range timeRanges.Ranges {
+					orders := make([]FuturesOrderData, 0, 1000)
+					orders, err = b.GetAllFuturesOrders(ctx, req.Pairs[x], currency.EMPTYPAIR, timeRanges.Ranges[z].Start.Time, timeRanges.Ranges[z].End.Time, 0, 1000)
+					if err != nil {
+						return nil, err
+					}
+					for i := range orders {
+						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
+							ReduceOnly:           orders[i].ClosePosition,
+							Price:                orders[i].Price,
+							Amount:               orders[i].ExecutedQty,
+							TriggerPrice:         orders[i].ActivatePrice,
+							AverageExecutedPrice: orders[i].AvgPrice,
+							ExecutedAmount:       orders[i].ExecutedQty,
+							RemainingAmount:      orders[i].OrigQty - orders[i].ExecutedQty,
+							CostAsset:            req.Pairs[i].Quote,
+							Exchange:             b.Name,
+							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+							ClientOrderID:        orders[i].ClientOrderID,
+							Type:                 orderVars.OrderType,
+							Side:                 orderVars.Side,
+							Status:               orderVars.Status,
+							AssetType:            asset.CoinMarginedFutures,
+							Date:                 orders[i].Time,
+							LastUpdated:          orders[i].UpdateTime,
+							Pair:                 req.Pairs[i],
+							MarginType:           result[x].MarginType,
+						})
+					}
+				}
+				resp = append(resp, currencyPosition)
+			}
+		}
+		return resp, nil
 	}
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 }

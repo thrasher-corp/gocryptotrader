@@ -1198,7 +1198,7 @@ func (b *Binance) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.P
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
-func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol currency.Pair, pair string, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
+func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
 	rateLimit := cFuturesPairOrdersRate
@@ -1210,8 +1210,8 @@ func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol currency.Pair,
 		}
 		params.Set("symbol", symbolValue)
 	}
-	if pair != "" {
-		params.Set("pair", pair)
+	if !pair.IsEmpty() {
+		params.Set("pair", pair.String())
 	}
 	if orderID != 0 {
 		params.Set("orderID", strconv.FormatInt(orderID, 10))
@@ -1325,15 +1325,20 @@ func (b *Binance) FuturesMarginChangeHistory(ctx context.Context, symbol currenc
 }
 
 // FuturesPositionsInfo gets futures positions info
-func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair string) ([]FuturesPositionInformation, error) {
+func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair currency.Pair) ([]FuturesPositionInformation, error) {
 	var resp []FuturesPositionInformation
 	params := url.Values{}
-	if marginAsset != "" {
-		params.Set("marginAsset", marginAsset)
+	if !marginAsset.IsEmpty() {
+		symbolValue, err := b.FormatSymbol(marginAsset, asset.CoinMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("marginAsset", symbolValue)
 	}
-	if pair != "" {
-		params.Set("pair", pair)
+	if !pair.IsEmpty() {
+		params.Set("pair", pair.String())
 	}
+
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesPositionInfo, params, cFuturesDefaultRate, &resp)
 }
 

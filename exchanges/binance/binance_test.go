@@ -69,6 +69,7 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	testWg.Wait()
 }
 
@@ -1000,7 +1001,7 @@ func TestGetFuturesAllOpenOrders(t *testing.T) {
 func TestGetAllFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetAllFuturesOrders(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", time.Time{}, time.Time{}, 0, 2)
+	_, err := b.GetAllFuturesOrders(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1063,7 +1064,11 @@ func TestFuturesMarginChangeHistory(t *testing.T) {
 func TestFuturesPositionsInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.FuturesPositionsInfo(context.Background(), "BTCUSD_PERP", "")
+	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FuturesPositionsInfo(context.Background(), p, currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2798,5 +2803,40 @@ func TestSetCollateralMode(t *testing.T) {
 	err = b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, order.GlobalCollateral)
 	if !errors.Is(err, order.ErrCollateralInvalid) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
+	}
+}
+
+func TestGetFuturesPositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+		Asset:     asset.USDTMarginedFutures,
+		Pairs:     []currency.Pair{currency.BTCUSDT},
+		StartDate: time.Now(),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+		Asset:     asset.CoinMarginedFutures,
+		Pairs:     []currency.Pair{p},
+		StartDate: time.Now(),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+		Asset:     asset.Spot,
+		Pairs:     []currency.Pair{currency.BTCUSDT},
+		StartDate: time.Now(),
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
 	}
 }

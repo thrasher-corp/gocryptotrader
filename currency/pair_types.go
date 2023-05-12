@@ -17,3 +17,8 @@ type PairDifference struct {
 	Remove           Pairs
 	FormatDifference bool
 }
+
+// Common pairs so we don't need to define them all the time
+var (
+	BTCUSDT = Pair{Base: BTC, Quote: USDT}
+)

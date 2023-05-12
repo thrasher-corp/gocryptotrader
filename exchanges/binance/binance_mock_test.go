@@ -1,5 +1,5 @@
-//go:build !mock_test_off
-// +build !mock_test_off
+//go:build mock_test_off
+// +build mock_test_off
 
 // This will build if build tag mock_test_off is not parsed and will try to mock
 // all tests in _test.go
