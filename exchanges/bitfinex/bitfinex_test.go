@@ -148,14 +148,18 @@ func TestGetDerivativeStatusInfo(t *testing.T) {
 
 func TestGetPairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetPairs(context.Background(), asset.MarginFunding)
-	if err != nil {
-		t.Error(err)
-	}
 
-	_, err = b.GetPairs(context.Background(), asset.Binary)
+	_, err := b.GetPairs(context.Background(), asset.Binary)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	assets := b.GetAssetTypes(false)
+	for x := range assets {
+		_, err := b.GetPairs(context.Background(), assets[x])
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -1721,5 +1725,23 @@ func TestAccetableMethodStore(t *testing.T) {
 	}
 	if name := a.lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
 		t.Error("incorrect values")
+	}
+}
+
+func TestGetSiteListConfigData(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetSiteListConfigData(context.Background(), "")
+	if !errors.Is(err, errSetCannotBeEmpty) {
+		t.Fatalf("received: %v, expected: %v", err, errSetCannotBeEmpty)
+	}
+
+	pairs, err := b.GetSiteListConfigData(context.Background(), bitfinexSecuritiesPairs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, expected: %v", err, nil)
+	}
+
+	if len(pairs) == 0 {
+		t.Fatal("expected pairs")
 	}
 }

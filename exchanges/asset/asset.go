@@ -35,7 +35,6 @@ const (
 	USDTMarginedFutures
 	USDCMarginedFutures
 	Options
-	Securities
 
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
 	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options

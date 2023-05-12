@@ -85,7 +85,6 @@ func (b *Bitfinex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
 	// TODO: Implement Futures and Securities asset types.
 
 	b.Features = exchange.Features{
@@ -339,8 +338,6 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 		pair, err := enabled.DeriveFrom(strings.Replace(key, ":", "", 1)[1:])
 		if err != nil {
 			// GetTickerBatch returns all pairs in call across all asset types.
-			// To filter these requires a bit of work. Continue and qualify all
-			// loaded pairs via tests.
 			continue
 		}
 

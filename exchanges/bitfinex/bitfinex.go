@@ -463,8 +463,6 @@ func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 			pairs = append(pairs, symbol)
 		}
 		return pairs, nil
-	case asset.Securities:
-		return b.GetSiteListConfigData(ctx, bitfinexSecuritiesPairs)
 	default:
 		return nil, fmt.Errorf("%v GetPairs: %v %w", b.Name, a, asset.ErrNotSupported)
 	}
@@ -476,7 +474,7 @@ func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 // ALSO: This only accesses the lists not the maps.
 func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]string, error) {
 	if set == "" {
-		return nil, errors.New("set cannot be empty")
+		return nil, errSetCannotBeEmpty
 	}
 
 	var resp [][]string
