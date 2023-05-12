@@ -52,7 +52,7 @@ type Telegram struct {
 	initConnected     bool
 	Token             string
 	Offset            int64
-	AuthorisedClients []int64
+	AuthorisedClients map[string]int64
 }
 
 // IsConnected returns whether or not the connection is connected
@@ -82,8 +82,9 @@ func (t *Telegram) Connect() error {
 func (t *Telegram) PushEvent(event base.Event) error {
 	msg := fmt.Sprintf("Type: %s Message: %s",
 		event.Type, event.Message)
-	for i := range t.AuthorisedClients {
-		err := t.SendMessage(msg, t.AuthorisedClients[i])
+
+	for _, ID := range t.AuthorisedClients {
+		err := t.SendMessage(msg, ID)
 		if err != nil {
 			return err
 		}
@@ -141,14 +142,14 @@ func (t *Telegram) InitialConnect() error {
 		return errors.New(resp.Description)
 	}
 
-	warmWelcomeList := make(map[string]int64)
+	t.AuthorisedClients = make(map[string]int64)
 	for i := range resp.Result {
-		if resp.Result[i].Message.From.ID != 0 {
-			warmWelcomeList[resp.Result[i].Message.From.UserName] = resp.Result[i].Message.From.ID
+		if resp.Result[i].Message.From.UserName != "" && resp.Result[i].Message.From.ID != 0 {
+			t.AuthorisedClients[resp.Result[i].Message.From.UserName] = resp.Result[i].Message.From.ID
 		}
 	}
 
-	for userName, ID := range warmWelcomeList {
+	for userName, ID := range t.AuthorisedClients {
 		err = t.SendMessage(fmt.Sprintf("GoCryptoTrader bot has connected: Hello, %s!", userName), ID)
 		if err != nil {
 			log.Errorf(log.CommunicationMgr, "Telegram: Unable to send welcome message. Error: %s\n", err)

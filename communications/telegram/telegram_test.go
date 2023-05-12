@@ -48,7 +48,7 @@ func TestPushEvent(t *testing.T) {
 	if err != nil {
 		t.Error("telegram PushEvent() error", err)
 	}
-	T.AuthorisedClients = append(T.AuthorisedClients, 1337)
+	T.AuthorisedClients = map[string]int64{"sender": 1337}
 	err = T.PushEvent(base.Event{})
 	if err.Error() != testErrNotFound {
 		t.Errorf("telegram PushEvent() error, expected 'Not found' got '%s'",
