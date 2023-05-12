@@ -495,11 +495,11 @@ func (s *SubmitResponse) AdjustBaseAmount(a float64) error {
 
 	// Warning because amounts should conform to exchange requirements prior to
 	// call but this is not fatal.
-	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested base amount from %v to %v for orderID %v",
+	log.Warnf(log.ExchangeSys, "Exchange %s: has adjusted OrderID: %v requested base amount from %v to %v",
+		s.OrderID,
 		s.Exchange,
 		s.Amount,
-		a,
-		s.OrderID)
+		a)
 
 	s.Amount = a
 	return nil
@@ -524,11 +524,11 @@ func (s *SubmitResponse) AdjustQuoteAmount(a float64) error {
 
 	// Warning because amounts should conform to exchange requirements prior to
 	// call but this is not fatal.
-	log.Warnf(log.ExchangeSys, "exchange %v has adjusted requested quote amount from %v to %v for orderID %v",
+	log.Warnf(log.ExchangeSys, "Exchange %s: has adjusted OrderID: %v requested quote amount from %v to %v",
+		s.OrderID,
 		s.Exchange,
 		s.Amount,
-		a,
-		s.OrderID)
+		a)
 
 	s.QuoteAmount = a
 	return nil
@@ -1128,12 +1128,12 @@ func StringToOrderStatus(status string) (Status, error) {
 
 func (o *ClassificationError) Error() string {
 	if o.OrderID != "" {
-		return fmt.Sprintf("%s - OrderID: %s classification error: %v",
+		return fmt.Sprintf("Exchange %s: OrderID: %s classification error: %v",
 			o.Exchange,
 			o.OrderID,
 			o.Err)
 	}
-	return fmt.Sprintf("%s - classification error: %v",
+	return fmt.Sprintf("Exchange %s: classification error: %v",
 		o.Exchange,
 		o.Err)
 }
