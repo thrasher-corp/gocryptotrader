@@ -298,7 +298,7 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 			err := bi.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				log.Warn(log.ExchangeSys, err.Error())
+				log.Warnln(log.ExchangeSys, err.Error())
 				return resp, err
 			}
 		}

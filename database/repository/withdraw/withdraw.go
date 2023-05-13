@@ -35,7 +35,7 @@ func Event(res *withdraw.Response) {
 
 	exchangeUUID, err := exchangeDB.UUIDByName(res.Exchange.Name)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.Errorln(log.DatabaseMgr, err)
 		return
 	}
 
@@ -232,7 +232,7 @@ func GetEventByUUID(id string) (*withdraw.Response, error) {
 func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
 	exch, err := exchangeDB.UUIDByName(exchange)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.Errorln(log.DatabaseMgr, err)
 		return nil, err
 	}
 	return getByColumns(generateWhereQuery([]string{"exchange_name_id"}, []string{exch.String()}, limit))
@@ -242,7 +242,7 @@ func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, erro
 func GetEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
 	exch, err := exchangeDB.UUIDByName(exchange)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.Errorln(log.DatabaseMgr, err)
 		return nil, err
 	}
 	resp, err := getByColumns(generateWhereQuery([]string{"exchange_name_id", "exchange_id"}, []string{exch.String(), id}, 1))
@@ -260,7 +260,7 @@ func GetEventsByDate(exchange string, start, end time.Time, limit int) ([]*withd
 	}
 	exch, err := exchangeDB.UUIDByName(exchange)
 	if err != nil {
-		log.Error(log.DatabaseMgr, err)
+		log.Errorln(log.DatabaseMgr, err)
 		return nil, err
 	}
 	return getByColumns(append(generateWhereQuery([]string{"exchange_name_id"}, []string{exch.String()}, 0), betweenQuery...))

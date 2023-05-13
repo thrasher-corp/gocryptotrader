@@ -90,7 +90,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	}
 
 	if *b.Config.Logging.Enabled {
-		err = gctlog.SetupGlobalLogger()
+		err = gctlog.SetupGlobalLogger(b.Config.Name, b.Config.Logging.AdvancedSettings.StructuredLogging)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup global logger. %w", err)
 		}
@@ -339,7 +339,7 @@ func (bot *Engine) Start() error {
 			if err != nil {
 				return fmt.Errorf("unable to set NTP check: %w", err)
 			}
-			gctlog.Info(gctlog.TimeMgr, responseMessage)
+			gctlog.Infoln(gctlog.TimeMgr, responseMessage)
 		}
 		bot.ntpManager, err = setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
 		if err != nil {
@@ -840,7 +840,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			useAsset = assetTypes[a]
 			break
 		}
-		err = exch.ValidateCredentials(context.TODO(), useAsset)
+		err = exch.ValidateAPICredentials(context.TODO(), useAsset)
 		if err != nil {
 			gctlog.Warnf(gctlog.ExchangeSys,
 				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",

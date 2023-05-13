@@ -241,7 +241,7 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 	base.Config.API.AuthenticatedSupport = true
 	base.Config.API.AuthenticatedWebsocketSupport = true
 
-	return base.ValidateAPICredentials(base.GetDefaultCredentials()) == nil
+	return base.VerifyAPICredentials(base.GetDefaultCredentials()) == nil
 }
 
 func parseOrderSide(orderSide string) order.Side {

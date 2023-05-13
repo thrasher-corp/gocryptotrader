@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	o                    OKCoin
+	o                    = &OKCoin{}
 	spotCurrency         = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")
 	spotCurrencyLowerStr = spotCurrency.Lower().String()
 	spotCurrencyUpperStr = spotCurrency.Upper().String()
@@ -54,10 +54,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("OKCoin setup error", err)
 	}
 	os.Exit(m.Run())
-}
-
-func areTestAPIKeysSet() bool {
-	return o.ValidateAPICredentials(o.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {

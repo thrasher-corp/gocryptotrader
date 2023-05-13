@@ -1561,7 +1561,7 @@ type dhmExchange struct {
 	exchange.IBotExchange
 }
 
-func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
+func (f dhmExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
 	return &kline.Item{
 		Exchange: testExchange,
 		Pair:     p,
@@ -1596,7 +1596,7 @@ func (f dhmExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	}, nil
 }
 
-func (f dhmExchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+func (f dhmExchange) GetHistoricTrades(_ context.Context, p currency.Pair, a asset.Item, startTime, _ time.Time) ([]trade.Data, error) {
 	return []trade.Data{
 		{
 			Exchange:     testExchange,

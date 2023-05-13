@@ -38,6 +38,7 @@ var (
 	errOrderSubmitIsNil         = errors.New("order submit is nil")
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
 	errOrderDetailIsNil         = errors.New("order detail is nil")
+	errAmountIsZero             = errors.New("amount is zero")
 )
 
 // IsValidOrderSubmissionSide validates that the order side is a valid submission direction
@@ -475,6 +476,64 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	}, nil
 }
 
+// AdjustBaseAmount will adjust the base amount of a submit response if the
+// exchange has modified the amount. This is usually due to decimal place
+// restrictions or rounding. This will return an error if the amount is zero
+// or the submit response is nil.
+func (s *SubmitResponse) AdjustBaseAmount(a float64) error {
+	if s == nil {
+		return errOrderSubmitResponseIsNil
+	}
+
+	if a <= 0 {
+		return errAmountIsZero
+	}
+
+	if s.Amount == a {
+		return nil
+	}
+
+	// Warning because amounts should conform to exchange requirements prior to
+	// call but this is not fatal.
+	log.Warnf(log.ExchangeSys, "Exchange %s: has adjusted OrderID: %s requested base amount from %v to %v",
+		s.Exchange,
+		s.OrderID,
+		s.Amount,
+		a)
+
+	s.Amount = a
+	return nil
+}
+
+// AdjustQuoteAmount will adjust the quote amount of a submit response if the
+// exchange has modified the amount. This is usually due to decimal place
+// restrictions or rounding. This will return an error if the amount is zero
+// or the submit response is nil.
+func (s *SubmitResponse) AdjustQuoteAmount(a float64) error {
+	if s == nil {
+		return errOrderSubmitResponseIsNil
+	}
+
+	if a <= 0 {
+		return errAmountIsZero
+	}
+
+	if s.QuoteAmount == a {
+		return nil
+	}
+
+	// Warning because amounts should conform to exchange requirements prior to
+	// call but this is not fatal.
+	log.Warnf(log.ExchangeSys, "Exchange %s: has adjusted OrderID: %s requested quote amount from %v to %v",
+		s.Exchange,
+		s.OrderID,
+		s.Amount,
+		a)
+
+	s.QuoteAmount = a
+	return nil
+}
+
 // DeriveDetail will construct an order detail when a successful submission
 // has occurred. Has an optional parameter field internal uuid for internal
 // management.
@@ -631,7 +690,7 @@ func (t Type) Lower() string {
 
 // Title returns the type titleized, eg "Limit"
 func (t Type) Title() string {
-	return strings.Title(strings.ToLower(t.String())) //nolint:staticcheck // Ignore Title usage warning
+	return strings.Title(strings.ToLower(t.String()))
 }
 
 // String implements the stringer interface
@@ -684,7 +743,7 @@ func (s Side) Lower() string {
 
 // Title returns the side titleized, eg "Buy"
 func (s Side) Title() string {
-	return strings.Title(strings.ToLower(s.String())) //nolint:staticcheck // Ignore Title usage warning
+	return strings.Title(strings.ToLower(s.String()))
 }
 
 // IsShort returns if the side is short
@@ -1002,8 +1061,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return ImmediateOrCancel, nil
 	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case StopLimit.String(), "EXCHANGE STOP LIMIT":
+	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
 		return StopLimit, nil
+	case StopMarket.String(), "STOP_MARKET":
+		return StopMarket, nil
 	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
 		return TrailingStop, nil
 	case FillOrKill.String(), "EXCHANGE FOK":
@@ -1067,12 +1128,12 @@ func StringToOrderStatus(status string) (Status, error) {
 
 func (o *ClassificationError) Error() string {
 	if o.OrderID != "" {
-		return fmt.Sprintf("%s - OrderID: %s classification error: %v",
+		return fmt.Sprintf("Exchange %s: OrderID: %s classification error: %v",
 			o.Exchange,
 			o.OrderID,
 			o.Err)
 	}
-	return fmt.Sprintf("%s - classification error: %v",
+	return fmt.Sprintf("Exchange %s: classification error: %v",
 		o.Exchange,
 		o.Err)
 }

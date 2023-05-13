@@ -174,7 +174,7 @@ func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 				for x := range m.dataHandlers {
 					err := m.dataHandlers[x](ws.GetName(), data)
 					if err != nil {
-						log.Error(log.WebsocketMgr, err)
+						log.Errorln(log.WebsocketMgr, err)
 					}
 				}
 				m.mu.RUnlock()
@@ -190,7 +190,7 @@ func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 func (m *websocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
 	switch d := data.(type) {
 	case string:
-		log.Info(log.WebsocketMgr, d)
+		log.Infoln(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
 	case stream.FundingData:
@@ -267,7 +267,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case stream.UnhandledMessageWarning:
-		log.Warn(log.WebsocketMgr, d.Message)
+		log.Warnln(log.WebsocketMgr, d.Message)
 	case account.Change:
 		if m.verbose {
 			m.printAccountHoldingsChangeSummary(d)

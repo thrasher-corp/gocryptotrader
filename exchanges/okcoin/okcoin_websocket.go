@@ -257,7 +257,7 @@ func (o *OKCoin) WsHandleData(respRaw []byte) error {
 			o.Websocket.DataHandler <- eventResponse
 		case "error":
 			if o.Verbose {
-				log.Debug(log.ExchangeSys,
+				log.Debugf(log.ExchangeSys,
 					o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)
 			}
 		}
