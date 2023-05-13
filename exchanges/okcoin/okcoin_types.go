@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var (
@@ -1403,12 +1404,23 @@ type WebsocketEventResponse struct {
 	Success bool   `json:"success,omitempty"`
 }
 
-// WebsocketDataResponse formats all response data for a websocket event
-// type WebsocketDataResponse struct {
-// 	Table  string        `json:"table"`
-// 	Action string        `json:"action,omitempty"`
-// 	Data   []interface{} `json:"data"`
-// }
+// WebsocketOrderbookResponse formats orderbook data for a websocket push data
+type WebsocketOrderbookResponse struct {
+	Arg struct {
+		Channel string `json:"channel"`
+		InstID  string `json:"instId"`
+	} `json:"arg"`
+	Action string               `json:"action"`
+	Data   []WebsocketOrderBook `json:"data"`
+}
+
+// WebsocketOrderBook holds orderbook data
+type WebsocketOrderBook struct {
+	Asks      [][]string     `json:"asks"` // [ Price, Quantity, depreciated, number of orders at the price ]
+	Bids      [][]string     `json:"bids"` // [ Price, Quantity, depreciated, number of orders at the price ]
+	Timestamp okcoinMilliSec `json:"ts"`
+	Checksum  int64          `json:"checksum"`
+}
 
 // WebsocketDataResponse formats all response data for a websocket event
 type WebsocketDataResponse struct {
@@ -1430,6 +1442,218 @@ type WebsocketDataResponseReciever struct {
 	} `json:"arg"`
 	Action string      `json:"action"`
 	Data   interface{} `json:"data"`
+}
+
+// WebsocketStatus represents a system status response.
+type WebsocketStatus struct {
+	Arg struct {
+		Channel string `json:"channel"`
+	} `json:"arg"`
+	Data []struct {
+		Title                 string         `json:"title"`
+		State                 okcoinMilliSec `json:"state"`
+		Begin                 okcoinMilliSec `json:"begin"`
+		Href                  string         `json:"href"`
+		End                   string         `json:"end"`
+		ServiceType           string         `json:"serviceType"`
+		System                string         `json:"system"`
+		RescheduleDescription string         `json:"scheDesc"`
+		Time                  okcoinMilliSec `json:"ts"`
+	} `json:"data"`
+}
+
+// WebsocketAccount represents an account information. Data will be pushed when triggered by events such as placing order, canceling order, transaction execution
+type WebsocketAccount struct {
+	Arg struct {
+		Channel string `json:"channel"`
+		UID     string `json:"uid"`
+	} `json:"arg"`
+	Data []struct {
+		AdjustedEquity string `json:"adjEq"`
+		Details        []struct {
+			AvailableBalance   string         `json:"availBal"`
+			AvailableEquity    string         `json:"availEq"`
+			CashBalance        string         `json:"cashBal"`
+			Currency           string         `json:"ccy"`
+			CoinUsdPrice       string         `json:"coinUsdPrice"`
+			CrossLiab          string         `json:"crossLiab"`
+			DiscountEquity     string         `json:"disEq"`
+			Equity             string         `json:"eq"`
+			EquityUsd          string         `json:"eqUsd"`
+			FixedBalance       string         `json:"fixedBal"`
+			FrozenBalance      string         `json:"frozenBal"`
+			Interest           string         `json:"interest"`
+			IsoEquity          string         `json:"isoEq"`
+			IsoLiability       string         `json:"isoLiab"`
+			IsoUpl             string         `json:"isoUpl"`
+			Liability          string         `json:"liab"`
+			MaxLoan            string         `json:"maxLoan"`
+			MgnRatio           string         `json:"mgnRatio"`
+			NotionalLeverage   string         `json:"notionalLever"`
+			MarginFrozenOrders string         `json:"ordFrozen"`
+			SpotInUseAmount    string         `json:"spotInUseAmt"`
+			StrategyEquity     string         `json:"stgyEq"`
+			Twap               string         `json:"twap"`
+			UPL                string         `json:"upl"` // Unrealized profit and loss
+			UpdateTime         okcoinMilliSec `json:"uTime"`
+		} `json:"details"`
+		FrozenEquity                 string         `json:"imr"`
+		IsoEquity                    string         `json:"isoEq"`
+		MarginRatio                  string         `json:"mgnRatio"`
+		MaintenanceMarginRequirement string         `json:"mmr"`
+		NotionalUsd                  string         `json:"notionalUsd"`
+		MarginOrderFrozen            string         `json:"ordFroz"`
+		TotalEquity                  string         `json:"totalEq"`
+		UpdateTime                   okcoinMilliSec `json:"uTime"`
+	} `json:"data"`
+}
+
+// WebsocketOrder represents and order information. Data will not be pushed when first subscribed.
+type WebsocketOrder struct {
+	Arg struct {
+		Channel        string `json:"channel"`
+		InstrumentType string `json:"instType"`
+		InstID         string `json:"instId"`
+		UID            string `json:"uid"`
+	} `json:"arg"`
+	Data []struct {
+		AccFillSize                float64        `json:"accFillSz"`
+		AmendResult                string         `json:"amendResult"`
+		AveragePrice               float64        `json:"avgPx"`
+		CreateTime                 okcoinMilliSec `json:"cTime"`
+		Category                   string         `json:"category"`
+		Currency                   string         `json:"ccy"`
+		ClientOrdID                string         `json:"clOrdId"`
+		Code                       string         `json:"code"`
+		ExecType                   string         `json:"execType"`
+		Fee                        float64        `json:"fee"`
+		FeeCurrency                string         `json:"feeCcy"`
+		FillFee                    string         `json:"fillFee"`
+		FillFeeCurrency            string         `json:"fillFeeCcy"`
+		FillNotionalUsd            string         `json:"fillNotionalUsd"`
+		FillPrice                  float64        `json:"fillPx"`
+		FillSize                   float64        `json:"fillSz"`
+		FillTime                   okcoinMilliSec `json:"fillTime"`
+		InstrumentID               string         `json:"instId"`
+		InstrumentType             string         `json:"instType"`
+		Leverage                   string         `json:"lever"`
+		ErrorMessage               string         `json:"msg"`
+		NotionalUsd                string         `json:"notionalUsd"`
+		OrderID                    string         `json:"ordId"`
+		OrderType                  string         `json:"ordType"`
+		ProfitAndLoss              string         `json:"pnl"`
+		PositionSide               string         `json:"posSide"`
+		Price                      string         `json:"px"`
+		Rebate                     string         `json:"rebate"`
+		RebateCurrency             string         `json:"rebateCcy"`
+		ReduceOnly                 string         `json:"reduceOnly"`
+		ClientRequestID            string         `json:"reqId"`
+		Side                       string         `json:"side"`
+		StopLossOrderPrice         float64        `json:"slOrdPx"`
+		StopLossTriggerPrice       float64        `json:"slTriggerPx"`
+		StopLossTriggerPriceType   string         `json:"slTriggerPxType"`
+		Source                     string         `json:"source"`
+		State                      string         `json:"state"`
+		Size                       float64        `json:"sz"`
+		Tag                        string         `json:"tag"`
+		TradeMode                  string         `json:"tdMode"`
+		TargetCurrency             string         `json:"tgtCcy"`
+		TakeProfitOrdPrice         float64        `json:"tpOrdPx"`
+		TakeProfitTriggerPrice     float64        `json:"tpTriggerPx"`
+		TakeProfitTriggerPriceType string         `json:"tpTriggerPxType"`
+		TradeID                    string         `json:"tradeId"`
+		UTime                      okcoinMilliSec `json:"uTime"`
+	} `json:"data"`
+}
+
+// WebsocketAlgoOrder represents algo orders (includes trigger order, oco order, conditional order).
+type WebsocketAlgoOrder struct {
+	Arg struct {
+		Channel  string `json:"channel"`
+		UID      string `json:"uid"`
+		InstType string `json:"instType"`
+		InstID   string `json:"instId"`
+	} `json:"arg"`
+	Data []struct {
+		InstrumentType             string         `json:"instType"`
+		InstrumentID               string         `json:"instId"`
+		OrderID                    string         `json:"ordId"`
+		Currency                   string         `json:"ccy"`
+		ClientOrderID              string         `json:"clOrdId"`
+		AlgoID                     string         `json:"algoId"`
+		Price                      float64        `json:"px,string"`
+		Size                       float64        `json:"sz,string"`
+		TradeMode                  string         `json:"tdMode"`
+		TgtCurrency                string         `json:"tgtCcy"`
+		NotionalUsd                string         `json:"notionalUsd"`
+		OrderType                  string         `json:"ordType"`
+		Side                       string         `json:"side"`
+		PositionSide               string         `json:"posSide"`
+		State                      string         `json:"state"`
+		Leverage                   float64        `json:"lever"`
+		TakeProfitTriggerPrice     float64        `json:"tpTriggerPx,string"`
+		TakeProfitTriggerPriceType string         `json:"tpTriggerPxType"`
+		TakeProfitOrdPrice         float64        `json:"tpOrdPx,string"`
+		SlTriggerPrice             float64        `json:"slTriggerPx,string"`
+		SlTriggerPriceType         string         `json:"slTriggerPxType"`
+		TriggerPxType              string         `json:"triggerPxType"`
+		TriggerPrice               float64        `json:"triggerPx,string"`
+		OrderPrice                 float64        `json:"ordPx,string"`
+		Tag                        string         `json:"tag"`
+		ActualSize                 float64        `json:"actualSz,string"`
+		ActualPrice                float64        `json:"actualPx,string"`
+		ActualSide                 string         `json:"actualSide"`
+		TriggerTime                okcoinMilliSec `json:"triggerTime"`
+		CreateTime                 okcoinMilliSec `json:"cTime"`
+	} `json:"data"`
+}
+
+// WebsocketAdvancedAlgoOrder represents advance algo orders (including Iceberg order, TWAP order, Trailing order).
+type WebsocketAdvancedAlgoOrder struct {
+	Arg struct {
+		Channel  string `json:"channel"`
+		UID      string `json:"uid"`
+		InstType string `json:"instType"`
+		InstID   string `json:"instId"`
+	} `json:"arg"`
+	Data []struct {
+		ActualPx       string `json:"actualPx"`
+		ActualSide     string `json:"actualSide"`
+		ActualSz       string `json:"actualSz"`
+		AlgoID         string `json:"algoId"`
+		CTime          string `json:"cTime"`
+		Ccy            string `json:"ccy"`
+		ClOrdID        string `json:"clOrdId"`
+		Count          string `json:"count"`
+		InstID         string `json:"instId"`
+		InstType       string `json:"instType"`
+		Lever          string `json:"lever"`
+		NotionalUsd    string `json:"notionalUsd"`
+		OrdPx          string `json:"ordPx"`
+		OrdType        string `json:"ordType"`
+		PTime          string `json:"pTime"`
+		PosSide        string `json:"posSide"`
+		PxLimit        string `json:"pxLimit"`
+		PxSpread       string `json:"pxSpread"`
+		PxVar          string `json:"pxVar"`
+		Side           string `json:"side"`
+		SlOrdPx        string `json:"slOrdPx"`
+		SlTriggerPx    string `json:"slTriggerPx"`
+		State          string `json:"state"`
+		Sz             string `json:"sz"`
+		SzLimit        string `json:"szLimit"`
+		TdMode         string `json:"tdMode"`
+		TimeInterval   string `json:"timeInterval"`
+		TpOrdPx        string `json:"tpOrdPx"`
+		TpTriggerPx    string `json:"tpTriggerPx"`
+		Tag            string `json:"tag"`
+		TriggerPx      string `json:"triggerPx"`
+		TriggerTime    string `json:"triggerTime"`
+		CallbackRatio  string `json:"callbackRatio"`
+		CallbackSpread string `json:"callbackSpread"`
+		ActivePx       string `json:"activePx"`
+		MoveTriggerPx  string `json:"moveTriggerPx"`
+	} `json:"data"`
 }
 
 // WebsocketInstrumentData contains formatted data for instruments related websocket responses
@@ -1486,42 +1710,90 @@ type WsTickerData struct {
 
 // WebsocketTradeResponse contains formatted data for trade related websocket responses
 type WebsocketTradeResponse struct {
-	Table string `json:"table"`
-	Data  []struct {
-		Price        float64   `json:"price,string"`
-		Size         float64   `json:"size,string"`
-		InstrumentID string    `json:"instrument_id"`
-		Side         string    `json:"side"`
-		Timestamp    time.Time `json:"timestamp"`
-		TradeID      string    `json:"trade_id"`
-		// Quantity - Futures amount is sent as a separate json field
-		Quantity float64 `json:"qty,string"`
+	Arg struct {
+		Channel      string `json:"channel"`
+		InstrumentID string `json:"instId"`
+	} `json:"arg"`
+	Data []struct {
+		InstrumentID string         `json:"instId"`
+		TradeID      string         `json:"tradeId"`
+		Price        float64        `json:"px,string"`
+		Size         float64        `json:"sz,string"`
+		Side         string         `json:"side"`
+		Timestamp    okcoinMilliSec `json:"ts"`
 	} `json:"data"`
 }
 
-// WebsocketCandleResponse contains formatted data for candle related websocket responses
-type WebsocketCandleResponse struct {
-	Table string `json:"table"`
-	Data  []struct {
-		Candle       []string `json:"candle"` // [0]timestamp, [1]open, [2]high, [3]low, [4]close, [5]volume, [6]currencyVolume
-		InstrumentID string   `json:"instrument_id"`
-	} `json:"data"`
+// WebsocketCandlesResponse represents a candlestick response data.
+type WebsocketCandlesResponse struct {
+	Arg struct {
+		Channel string `json:"channel"`
+		InstID  string `json:"instId"`
+	} `json:"arg"`
+	Data [][]string `json:"data"`
 }
+
+// GetCandlesData represents a candlestick instances list.
+func (a *WebsocketCandlesResponse) GetCandlesData(exchangeName string) ([]stream.KlineData, error) {
+	candlesticks := make([]stream.KlineData, len(a.Data))
+	cp, err := currency.NewPairFromString(a.Arg.InstID)
+	if err != nil {
+		return nil, err
+	}
+	for x := range a.Data {
+		var timestamp int64
+		timestamp, err = strconv.ParseInt(a.Data[x][0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x] = stream.KlineData{
+			AssetType: asset.Spot,
+			Pair:      cp,
+			Timestamp: time.UnixMilli(timestamp),
+			Exchange:  exchangeName,
+		}
+		candlesticks[x].OpenPrice, err = strconv.ParseFloat(a.Data[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].HighPrice, err = strconv.ParseFloat(a.Data[x][2], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].LowPrice, err = strconv.ParseFloat(a.Data[x][3], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].ClosePrice, err = strconv.ParseFloat(a.Data[x][4], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].Volume, err = strconv.ParseFloat(a.Data[x][5], 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return candlesticks, nil
+}
+
+type WebsocketCandlestick struct {
+	OpeningTimeCandlestick okcoinMilliSec
+	OpenPrice              float64
+	HighestPrice           float64
+	LowestPrice            float64
+	ClosePrice             float64
+	TradingVolume          float64
+	TradingQuoteVolume     float64
+	Confirm                string
+}
+
+// func (a *WebsocketCandidatesResponse) Get
 
 // WebsocketOrderBooksData is the full websocket response containing orderbook data
 type WebsocketOrderBooksData struct {
 	Table  string               `json:"table"`
 	Action string               `json:"action"`
 	Data   []WebsocketOrderBook `json:"data"`
-}
-
-// WebsocketOrderBook holds orderbook data
-type WebsocketOrderBook struct {
-	Checksum     int32           `json:"checksum,omitempty"`
-	InstrumentID string          `json:"instrument_id"`
-	Timestamp    time.Time       `json:"timestamp,omitempty"`
-	Asks         [][]interface{} `json:"asks,omitempty"` // [0] Price, [1] Size, [2] Number of orders
-	Bids         [][]interface{} `json:"bids,omitempty"` // [0] Price, [1] Size, [2] Number of orders
 }
 
 // WebsocketUserSwapPositionResponse contains formatted data for user position data

@@ -204,7 +204,8 @@ func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, inter
 	params.Set("instId", instrumentID)
 	var err error
 	if interval != kline.Interval(0) {
-		intervalString, err := intervalToString(interval, false)
+		var intervalString string
+		intervalString, err = intervalToString(interval, false)
 		if err != nil {
 			return nil, err
 		}
@@ -236,7 +237,8 @@ func (o *OKCoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 	params.Set("instId", instrumentID)
 	var err error
 	if bar != kline.Interval(0) {
-		intervalString, err := intervalToString(bar, false)
+		var intervalString string
+		intervalString, err = intervalToString(bar, false)
 		if err != nil {
 			return nil, err
 		}
