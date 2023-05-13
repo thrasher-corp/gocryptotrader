@@ -97,7 +97,7 @@ var (
 
 // ------------------------------------  New ------------------------------------------------------------
 
-// GetSpotTokenPairDetails Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
+// GetInstruments Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
 // List trading pairs and get the trading limit, price, and more information of different trading pairs.
 func (o *OKCoin) GetInstruments(ctx context.Context, instrumentType, instrumentID string) ([]Instrument, error) {
 	params := url.Values{}
@@ -111,8 +111,7 @@ func (o *OKCoin) GetInstruments(ctx context.Context, instrumentType, instrumentI
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typePublic, common.EncodeURLValues(instruments, params), nil, &resp, false)
 }
 
-// GetSystemStatus
-// System maintenance status,scheduled: waiting; ongoing: processing; pre_open: pre_open; completed: completed ;canceled: canceled.
+// GetSystemStatus system maintenance status,scheduled: waiting; ongoing: processing; pre_open: pre_open; completed: completed ;canceled: canceled.
 // Generally, pre_open last about 10 minutes. There will be pre_open when the time of upgrade is too long.
 // If this parameter is not filled, the data with status scheduled, ongoing and pre_open will be returned by default
 func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) (interface{}, error) {
@@ -220,7 +219,7 @@ func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, inter
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []CandlestickItemResponse
+	var resp []candlestickItemResponse
 	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotMarketData, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
@@ -253,7 +252,7 @@ func (o *OKCoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []CandlestickItemResponse
+	var resp []candlestickItemResponse
 	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotHistoricCandles, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
@@ -316,7 +315,7 @@ func (o *OKCoin) GetExchangeRate(ctx context.Context) ([]ExchangeRate, error) {
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeMarket, "exchange-rate", nil, &resp, false)
 }
 
-func intervalToString(interval kline.Interval, UTCOpeningPrice bool) (string, error) {
+func intervalToString(interval kline.Interval, utcOpeningPrice bool) (string, error) {
 	switch interval {
 	case kline.OneMin:
 		return "1m", nil
@@ -335,42 +334,42 @@ func intervalToString(interval kline.Interval, UTCOpeningPrice bool) (string, er
 	case kline.FourHour:
 		return "4H", nil
 	case kline.SixHour:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "6Hutc", nil
 		}
 		return "6H", nil
 	case kline.TwelveHour:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "12Hutc", nil
 		}
 		return "12H", nil
 	case kline.OneDay:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "1Dutc", nil
 		}
 		return "1D", nil
 	case kline.TwoDay:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "2Dutc", nil
 		}
 		return "2D", nil
 	case kline.ThreeDay:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "3Dutc", nil
 		}
 		return "3D", nil
 	case kline.OneWeek:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "1Wutc", nil
 		}
 		return "1W", nil
 	case kline.OneMonth:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "1Mutc", nil
 		}
 		return "1M", nil
 	case kline.ThreeMonth:
-		if UTCOpeningPrice {
+		if utcOpeningPrice {
 			return "3Mutc", nil
 		}
 		return "3M", nil

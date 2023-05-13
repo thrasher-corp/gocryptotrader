@@ -407,7 +407,7 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 			if err != nil {
 				return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 			}
-			if signedChecksum != int32(resp.Data[0].Checksum) {
+			if int64(signedChecksum) != resp.Data[0].Checksum {
 				return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
 					o.Name,
 					cp)
@@ -428,12 +428,24 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 		update.Asks = make([]orderbook.Item, len(resp.Data[x].Asks))
 		for a := range resp.Data[x].Asks {
 			update.Asks[a].Amount, err = strconv.ParseFloat(resp.Data[x].Asks[a][1], 64)
+			if err != nil {
+				return err
+			}
 			update.Asks[a].Price, err = strconv.ParseFloat(resp.Data[x].Asks[a][0], 64)
+			if err != nil {
+				return err
+			}
 		}
 		update.Bids = make([]orderbook.Item, len(resp.Data[x].Bids))
 		for b := range resp.Data[x].Bids {
 			update.Bids[b].Amount, err = strconv.ParseFloat(resp.Data[x].Bids[b][1], 64)
+			if err != nil {
+				return err
+			}
 			update.Bids[b].Price, err = strconv.ParseFloat(resp.Data[x].Bids[b][0], 64)
+			if err != nil {
+				return err
+			}
 		}
 		update.Checksum = uint32(o.CalculateUpdateOrderbookChecksum(&update))
 		if update.Checksum != uint32(resp.Data[x].Checksum) {

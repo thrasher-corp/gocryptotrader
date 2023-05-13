@@ -1776,19 +1776,6 @@ func (a *WebsocketCandlesResponse) GetCandlesData(exchangeName string) ([]stream
 	return candlesticks, nil
 }
 
-type WebsocketCandlestick struct {
-	OpeningTimeCandlestick okcoinMilliSec
-	OpenPrice              float64
-	HighestPrice           float64
-	LowestPrice            float64
-	ClosePrice             float64
-	TradingVolume          float64
-	TradingQuoteVolume     float64
-	Confirm                string
-}
-
-// func (a *WebsocketCandidatesResponse) Get
-
 // WebsocketOrderBooksData is the full websocket response containing orderbook data
 type WebsocketOrderBooksData struct {
 	Table  string               `json:"table"`
@@ -2187,7 +2174,7 @@ type Instrument struct {
 	Underlying     string         `json:"uly"`
 }
 
-type CandlestickItemResponse [9]string
+type candlestickItemResponse [9]string
 
 // CandlestickData represents the candlestick chart
 type CandlestickData struct {
@@ -2202,7 +2189,7 @@ type CandlestickData struct {
 	Confirm              string
 }
 
-// SpotTrades represents spot trades
+// SpotTrade represents spot trades
 type SpotTrade struct {
 	InstID     string         `json:"instId"`
 	Side       string         `json:"side"`
@@ -2219,7 +2206,7 @@ type TradingVolume struct {
 	Timestamp okcoinMilliSec `json:"ts"`
 }
 
-// Oracle
+// Oracle represents crypto price of signing using Open Oracle smart contract.
 type Oracle []struct {
 	Messages   []string          `json:"messages"`
 	Prices     map[string]string `json:"prices"`
@@ -2227,13 +2214,13 @@ type Oracle []struct {
 	Timestamp  okcoinMilliSec    `json:"timestamp"`
 }
 
-// ExchangeRate
+// ExchangeRate represents average exchange rate data
 type ExchangeRate struct {
 	UsdCny string `json:"usdCny"`
 }
 
 // ToExtract returns a CandlestickData instance from []string
-func (c *CandlestickItemResponse) ToExtract() (CandlestickData, error) {
+func (c *candlestickItemResponse) ToExtract() (CandlestickData, error) {
 	var candle CandlestickData
 	err := json.Unmarshal([]byte(c[0]), &candle.Timestamp)
 	if err != nil {
@@ -2272,7 +2259,7 @@ func (c *CandlestickItemResponse) ToExtract() (CandlestickData, error) {
 }
 
 // ExtractCandlesticks retrives a list of CandlestickData
-func ExtractCandlesticks(candles []CandlestickItemResponse) ([]CandlestickData, error) {
+func ExtractCandlesticks(candles []candlestickItemResponse) ([]CandlestickData, error) {
 	candlestickData := make([]CandlestickData, len(candles))
 	var err error
 	for x := range candles {
