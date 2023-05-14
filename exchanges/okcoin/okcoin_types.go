@@ -2270,3 +2270,179 @@ func ExtractCandlesticks(candles []candlestickItemResponse) ([]CandlestickData, 
 	}
 	return candlestickData, nil
 }
+
+// CurrencyInfo represents a currency instance detailed information
+type CurrencyInfo struct {
+	CanDep                     bool    `json:"canDep"`
+	CanInternal                bool    `json:"canInternal"`
+	CanWd                      bool    `json:"canWd"`
+	Currency                   string  `json:"ccy"`
+	Chain                      string  `json:"chain"`
+	DepQuotaFixed              string  `json:"depQuotaFixed"`
+	DepQuoteDailyLayer2        string  `json:"depQuoteDailyLayer2"`
+	LogoLink                   string  `json:"logoLink"`
+	MainNet                    bool    `json:"mainNet"`
+	MaxFee                     float64 `json:"maxFee,string"`
+	MaxWithdrawal              float64 `json:"maxWd,string"`
+	MinDeposit                 float64 `json:"minDep,string"`
+	MinDepArrivalConfirm       string  `json:"minDepArrivalConfirm"`
+	MinFee                     float64 `json:"minFee,string"`
+	MinWithdrawal              float64 `json:"minWd,string"`
+	MinWithdrawalUnlockConfirm string  `json:"minWdUnlockConfirm"`
+	Name                       string  `json:"name"`
+	NeedTag                    bool    `json:"needTag"`
+	UsedDepQuotaFixed          string  `json:"usedDepQuotaFixed"`
+	UsedWdQuota                string  `json:"usedWdQuota"`
+	WithdrawalQuota            string  `json:"wdQuota"`
+	WithdrawalTickSize         float64 `json:"wdTickSz,string"`
+}
+
+// CurrencyBalance represents a currency balance information.
+type CurrencyBalance struct {
+	AvailableBalance float64 `json:"availBal,string"`
+	Balance          float64 `json:"bal,string"`
+	Currency         string  `json:"ccy"`
+	FrozenBalance    float64 `json:"frozenBal,string"`
+}
+
+// AccountAssetValuation represents account asset valuation
+type AccountAssetValuation struct {
+	Details struct {
+		Classic float64 `json:"classic,string"`
+		Earn    float64 `json:"earn,string"`
+		Funding float64 `json:"funding,string"`
+		Trading float64 `json:"trading,string"`
+	} `json:"details"`
+	TotalBalance float64        `json:"totalBal,string"`
+	Timestamp    okcoinMilliSec `json:"ts"`
+}
+
+// FundingTransferRequest represents a transfer of funds between your funding account and trading account
+type FundingTransferRequest struct {
+	Currency currency.Code `json:"ccy"`
+	// Transfer type
+	// 0: transfer within account
+	// 1: master account to sub-account (Only applicable to APIKey from master account)
+	// 2: sub-account to master account (Only applicable to APIKey from master account)
+	// 3: sub-account to master account (Only applicable to APIKey from sub-account)
+	// The default is 0.
+	Amount       float64 `json:"amt,string"`
+	From         string  `json:"from"`
+	To           string  `json:"to"`
+	TransferType int32   `json:"type,string,omitempty"`
+	SubAccount   string  `json:"subAcct,omitempty"`
+	ClientID     string  `json:"clientId,omitempty"`
+}
+
+// FundingTransferItem represents a response for a transfer of funds between your funding account and trading account
+type FundingTransferItem struct {
+	TransferID string  `json:"transId"`
+	Currency   string  `json:"ccy"`
+	ClientID   string  `json:"clientId"`
+	From       string  `json:"from"`
+	Amount     float64 `json:"amt,string"`
+	InstID     string  `json:"instId"`
+	State      string  `json:"state"`
+	SubAcct    string  `json:"subAcct"`
+	To         string  `json:"to"`
+	ToInstID   string  `json:"toInstId"`
+	Type       string  `json:"type"`
+}
+
+// AssetBillDetail represents the billing record.
+type AssetBillDetail struct {
+	BillID    string         `json:"billId"`
+	Currency  string         `json:"ccy"`
+	ClientID  string         `json:"clientId"`
+	BalChange float64        `json:"balChg,string"`
+	Bal       float64        `json:"bal,string"`
+	Type      string         `json:"type"`
+	Timestamp okcoinMilliSec `json:"ts"`
+}
+
+// LightningDepositDetail represents a lightning deposit instance detail
+type LightningDepositDetail struct {
+	CreationTime okcoinMilliSec `json:"cTime"`
+	Invoice      string         `json:"invoice"`
+}
+
+// DepositAddress represents a currency deposit address detail
+type DepositAddress struct {
+	Chain                     string `json:"chain"`
+	ContractAddr              string `json:"ctAddr"`
+	Ccy                       string `json:"ccy"`
+	To                        string `json:"to"`
+	Address                   string `json:"addr"`
+	Selected                  bool   `json:"selected"`
+	Tag                       string `json:"tag"`
+	Memo                      string `json:"memo"`
+	DepositPaymentID          string `json:"pmtId"`
+	DepositAddressAttachement string `json:"addrEx"`
+}
+
+// DepositHistoryItem represents deposit records according to the currency, deposit status, and time range in reverse chronological order.
+type DepositHistoryItem struct {
+	ActualDepBlkConfirm string         `json:"actualDepBlkConfirm"` // ActualDepBlkConfirm actual amount of blockchain confirm in a single deposit
+	Amount              float64        `json:"amt,string"`
+	Currency            string         `json:"ccy"`
+	Chain               string         `json:"chain"`
+	DepositID           string         `json:"depId"`
+	From                string         `json:"from"`
+	State               string         `json:"state"`
+	To                  string         `json:"to"`
+	Timstamp            okcoinMilliSec `json:"ts"`
+	TransactionID       string         `json:"txId"`
+}
+
+// WithdrawalRequest represents withdrawal of tokens request.
+type WithdrawalRequest struct {
+	Amount           float64       `json:"amt,string,omitempty"`
+	TransactionFee   float64       `json:"fee,string,omitempty"`
+	WithdrawalMethod string        `json:"dest,omitempty"` // Withdrawal method 3: internal  4: on chain
+	Ccy              currency.Code `json:"ccy,omitempty"`
+	Chain            string        `json:"chain,omitempty"`
+	ClientID         string        `json:"clientId,omitempty"`
+	ToAddress        string        `json:"toAddr,omitempty"`
+}
+
+// WithdrawalResponse represents withdrawal of tokens response.
+type WithdrawalResponse struct {
+	Amt      string `json:"amt"`
+	WdID     string `json:"wdId"`
+	Ccy      string `json:"ccy"`
+	ClientID string `json:"clientId"`
+	Chain    string `json:"chain"`
+}
+
+// LightningWithdrawalsRequest represents lightning withdrawal request params
+type LightningWithdrawalsRequest struct {
+	Ccy     currency.Code `json:"ccy"`
+	Invoice string        `json:"invoice"`
+	Memo    string        `json:"memo,omitempty"`
+}
+
+// LightningWithdrawals the minimum withdrawal amount is approximately 0.000001 BTC. Sub-account does not support withdrawal.
+type LightningWithdrawals struct {
+	WithdrawalID string         `json:"wdId"`
+	CreationTime okcoinMilliSec `json:"cTime"`
+}
+
+// WithdrawalCancelation represents a request parameter for withdrawal cancellation
+type WithdrawalCancelation struct {
+	WithdrawalID string `json:"wdId"`
+}
+
+// WithdrawalOrderItem represents a withdrawal instance item
+type WithdrawalOrderItem struct {
+	Chain         string         `json:"chain"`
+	Fee           float64        `json:"fee,string"`
+	Ccy           string         `json:"ccy"`
+	ClientID      string         `json:"clientId"`
+	Amt           float64        `json:"amt,string"`
+	TransactionID string         `json:"txId"`
+	From          string         `json:"from"`
+	To            string         `json:"to"`
+	State         string         `json:"state"`
+	Timestamp     okcoinMilliSec `json:"ts"`
+	WithdrawalID  string         `json:"wdId"`
+}

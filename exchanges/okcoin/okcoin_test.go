@@ -193,6 +193,7 @@ func TestGetOracle(t *testing.T) {
 
 func TestGetExchangeRate(t *testing.T) {
 	t.Parallel()
+	o.Verbose = true
 	_, err := o.GetExchangeRate(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -213,4 +214,201 @@ func TestWsConnect(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(time.Second * 25)
+}
+
+func TestGetCurrencies(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetCurrencies(context.Background(), currency.EMPTYCODE)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetBalance(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountAssetValuation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetAccountAssetValuation(context.Background(), currency.EMPTYCODE)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFundsTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := o.FundsTransfer(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("found %v, but expected %v", err, errNilArgument)
+	}
+	_, err = o.FundsTransfer(context.Background(), &FundingTransferRequest{
+		Currency: currency.EMPTYCODE,
+	})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("found %v, but expected %v", err, currency.ErrCurrencyCodeEmpty)
+	}
+	_, err = o.FundsTransfer(context.Background(), &FundingTransferRequest{
+		Currency: currency.BTC,
+	})
+	if !errors.Is(err, errInvalidAmount) { // "From" address
+		t.Errorf("found %v, but expected %v", err, errInvalidAmount)
+	}
+	_, err = o.FundsTransfer(context.Background(), &FundingTransferRequest{
+		Currency: currency.BTC,
+		Amount:   1,
+		From:     "abcde",
+	})
+	if !errors.Is(err, errAddressMustNotBeEmptyString) { // 'To' address
+		t.Errorf("found %v, but expected %v", err, errAddressMustNotBeEmptyString)
+	}
+	_, err = o.FundsTransfer(context.Background(), &FundingTransferRequest{
+		Currency:     currency.BTC,
+		Amount:       1,
+		From:         "abcdef",
+		To:           "ghijklmnopqrstu",
+		TransferType: 2,
+	})
+	if !errors.Is(err, errSubAccountNameRequired) {
+		t.Errorf("found %v, but expected %v", err, errSubAccountNameRequired)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err = o.FundsTransfer(context.Background(), &FundingTransferRequest{
+		Currency: currency.BTC,
+		Amount:   1,
+		From:     "1",
+		To:       "6",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundsTransferState(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetFundsTransferState(context.Background(), "", "", "")
+	if !errors.Is(err, errTransferIDOrClientIDRequred) {
+		t.Error(err)
+	}
+	_, err = o.GetFundsTransferState(context.Background(), "1", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAssetBillType(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetAssetBilsDetail(context.Background(), currency.BTC, "2", "", time.Now().Add(-time.Minute), time.Now().Add(-time.Hour), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLightningDeposits(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetLightningDeposits(context.Background(), currency.BTC, 0.001, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrencyDepositAddresses(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetCurrencyDepositAddresses(context.Background(), currency.EMPTYCODE)
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("found %v, expected %v", err, currency.ErrCurrencyCodeEmpty)
+	}
+	_, err = o.GetCurrencyDepositAddresses(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetDepositHistory(context.Background(), currency.BTC, "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawal(t *testing.T) {
+	t.Parallel()
+	_, err := o.Withdrawal(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("found %v, expected %v", err, errNilArgument)
+	}
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("found %v, expected %v", err, currency.ErrCurrencyCodeEmpty)
+	}
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{
+		Ccy: currency.BTC,
+	})
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("found %v, expected %v", err, errInvalidAmount)
+	}
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{
+		Ccy:    currency.BTC,
+		Amount: 1,
+	})
+	if !errors.Is(err, errInvalidWithdrawalMethod) {
+		t.Fatalf("found %v, expected %v", err, errInvalidWithdrawalMethod)
+	}
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1"})
+	if !errors.Is(err, errAddressMustNotBeEmptyString) {
+		t.Fatalf("found %v, expected %v", err, errInvalidWithdrawalMethod)
+	}
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg"})
+	if !errors.Is(err, errInvalidTrasactionFeeValue) {
+		t.Fatalf("found %v, expected %v", err, errAddressMustNotBeEmptyString)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg", TransactionFee: 0.004})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLightningWithdrawals(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.SubmitLightningWithdrawals(context.Background(), &LightningWithdrawalsRequest{
+		Ccy:     currency.BTC,
+		Invoice: "something",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.CancelWithdrawal(context.Background(), &WithdrawalCancelation{
+		WithdrawalID: "1123456",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetWithdrawalHistory(context.Background(), currency.BTC, "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
 }

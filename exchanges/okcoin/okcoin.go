@@ -14,6 +14,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -23,9 +24,9 @@ import (
 const (
 	okCoinRateInterval        = time.Second
 	okCoinStandardRequestRate = 6
-	apiPath                   = "api/"
-	okCoinAPIURL              = "https://www.okcoin.com/" + apiPath
-	okCoinAPIVersion          = "v5/"
+	apiPath                   = "/api/"
+	okCoinAPIURL              = "https://www.okcoin.com"
+	okCoinAPIVersion          = apiPath + "v5/"
 	okCoinExchangeName        = "OKCOIN International"
 	okCoinWebsocketURL        = "wss://real.okcoin.com:8443/ws/v5/public"
 	okCoinPrivateWebsocketURL = "wss://real.okcoin.com:8443/ws/v5/private"
@@ -37,6 +38,18 @@ type OKCoin struct {
 	// Spot and contract market error codes
 	ErrorCodes map[string]error
 }
+
+var (
+	errNilArgument                 = errors.New("nil argument")
+	errInvalidAmount               = errors.New("invalid amount value")
+	errAddressMustNotBeEmptyString = errors.New("address must be a non-empty string")
+	errSubAccountNameRequired      = errors.New("sub-account name is required")
+	errNoValidResposeFromServer    = errors.New("no valid response")
+	errTransferIDOrClientIDRequred = errors.New("either transfer id or cliend id is required")
+	errInvalidWithdrawalMethod     = errors.New("withdrawal method must be specified")
+	errInvalidTrasactionFeeValue   = errors.New("invalid transaction fee value")
+	errWithdrawalIDMissing         = errors.New("withdrawal id is missing")
+)
 
 const (
 	// endpoint types
@@ -378,109 +391,379 @@ func intervalToString(interval kline.Interval, utcOpeningPrice bool) (string, er
 	}
 }
 
+// ------------ Funding endpoints --------------------------------
+
+// GetCurrencies retrieves all list of currencies
+func (o *OKCoin) GetCurrencies(ctx context.Context, ccy currency.Code) ([]CurrencyInfo, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.Upper().String())
+	}
+	var resp []CurrencyInfo
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("currencies", params), nil, &resp, true)
+}
+
+// GetBalance retrieve the funding account balances of all the assets and the amount that is available or on hold.
+func (o *OKCoin) GetBalance(ctx context.Context, ccy currency.Code) ([]CurrencyBalance, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	var resp []CurrencyBalance
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("balances", params), nil, &resp, true)
+}
+
+// GetAccountAssetValuation view account asset valuation
+func (o *OKCoin) GetAccountAssetValuation(ctx context.Context, ccy currency.Code) ([]AccountAssetValuation, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	var resp []AccountAssetValuation
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("asset-valuation", params), nil, &resp, true)
+}
+
+// FundsTransfer transfer of funds between your funding account and trading account, and from the master account to sub-accounts.
+func (o *OKCoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest) (*FundingTransferItem, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w %f", errInvalidAmount, arg.Amount)
+	}
+	if arg.From == "" {
+		return nil, fmt.Errorf("%w, 'from' address", errAddressMustNotBeEmptyString)
+	}
+	if arg.To == "" {
+		return nil, fmt.Errorf("%w, 'to' address", errAddressMustNotBeEmptyString)
+	}
+	if arg.TransferType == 1 || arg.TransferType == 2 && arg.SubAccount == "" {
+		return nil, fmt.Errorf("for transfer type is 1 or 2, %w", errSubAccountNameRequired)
+	}
+	var resp []FundingTransferItem
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeAssets, "transfer", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResposeFromServer
+	}
+	return &resp[0], nil
+}
+
+// GetFundsTransferState retrieve the transfer state data of the last 2 weeks.
+func (o *OKCoin) GetFundsTransferState(ctx context.Context, transferID, clientID, transferType string) ([]FundingTransferItem, error) {
+	params := url.Values{}
+	if transferID == "" && clientID == "" {
+		return nil, errTransferIDOrClientIDRequred
+	}
+	if transferID != "" {
+		params.Set("transId", transferID)
+	}
+	if clientID != "" {
+		params.Set("clientId", clientID)
+	}
+	if transferType != "" {
+		params.Set("type", transferType)
+	}
+	var resp []FundingTransferItem
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("transfer-state", params), nil, &resp, true)
+}
+
+// GetAssetBilsDetail query the billing record. You can get the latest 1 month historical data.
+// Bill type 1: Deposit 2: Withdrawal 13: Canceled withdrawal 20: Transfer to sub account 21: Transfer from sub account
+// 22: Transfer out from sub to master account 23: Transfer in from master to sub account 37: Transfer to spot 38: Transfer from spot
+func (o *OKCoin) GetAssetBilsDetail(ctx context.Context, ccy currency.Code, billType, clientSuppliedID string, before, after time.Time, limit int64) ([]AssetBillDetail, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if billType != "" {
+		params.Set("type", billType)
+	}
+	if clientSuppliedID != "" {
+		params.Set("clientId", clientSuppliedID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() && after.Before(before) {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []AssetBillDetail
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("bills", params), nil, &resp, true)
+}
+
+// GetLightningDeposits retrives lightning deposit instances
+func (o *OKCoin) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to string) ([]LightningDepositDetail, error) {
+	params := url.Values{}
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params.Set("ccy", ccy.String())
+	if amount < 0.000001 || amount > 0.1 {
+		return nil, fmt.Errorf("%w, deposit amount must be between 0.000001 - 0.1", errInvalidAmount)
+	}
+	params.Set("amt", strconv.FormatFloat(amount, 'f', -1, 64))
+	if to != "" {
+		params.Set("to", to)
+	}
+	var resp []LightningDepositDetail
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("deposit-lightning", params), nil, &resp, true)
+}
+
+// GetCurrencyDepositAddresses retrieve the deposit addresses of currencies, including previously-used addresses.
+func (o *OKCoin) GetCurrencyDepositAddresses(ctx context.Context, ccy currency.Code) ([]DepositAddress, error) {
+	params := url.Values{}
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params.Set("ccy", ccy.String())
+	var resp []DepositAddress
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("deposit-address", params), nil, &resp, true)
+}
+
+// GetDepositHistory retrieve the deposit records according to the currency, deposit status, and time range in reverse chronological order. The 100 most recent records are returned by default.
+func (o *OKCoin) GetDepositHistory(ctx context.Context, ccy currency.Code, depositID, transactionID, depositType, state string, after, before time.Time, limit int64) ([]DepositHistoryItem, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if depositID != "" {
+		params.Set("depId", depositID)
+	}
+	if transactionID != "" {
+		params.Set("txId", transactionID)
+	}
+	if depositType != "" {
+		params.Set("type", depositType)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() && after.Before(before) {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []DepositHistoryItem
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("deposit-history", params), nil, &resp, true)
+}
+
+// Withdrawal apply withdrawal of tokens. Sub-account does not support withdrawal.
+func (o *OKCoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]WithdrawalResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w %f", errInvalidAmount, arg.Amount)
+	}
+	if arg.WithdrawalMethod == "" {
+		return nil, errInvalidWithdrawalMethod
+	}
+	if arg.ToAddress == "" {
+		return nil, fmt.Errorf("%w, 'toAddr' address", errAddressMustNotBeEmptyString)
+	}
+	if arg.TransactionFee <= 0 {
+		return nil, fmt.Errorf("%w, transaction fee: %f", errInvalidTrasactionFeeValue, arg.TransactionFee)
+	}
+	var resp []WithdrawalResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeAssets, "withdrawal", arg, &resp, true)
+}
+
+// SubmitLightningWithdrawals the maximum withdrawal amount is 0.1 BTC per request, and 1 BTC in 24 hours.
+// The minimum withdrawal amount is approximately 0.000001 BTC. Sub-account does not support withdrawal.
+func (o *OKCoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningWithdrawalsRequest) ([]LightningWithdrawals, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Invoice == "" {
+		return nil, errors.New("missing invoice text")
+	}
+	var resp []LightningWithdrawals
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeAssets, "withdrawal-lightning", arg, resp, true)
+}
+
+// CancelWithdrawal cancel normal withdrawal requests, but you cannot cancel withdrawal requests on Lightning.
+func (o *OKCoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancelation) (*WithdrawalCancelation, error) {
+	var resp []WithdrawalCancelation
+	if arg.WithdrawalID == "" {
+		return nil, errWithdrawalIDMissing
+	}
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeAssets, "cancel-withdrawal", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResposeFromServer
+	}
+	return &resp[0], nil
+}
+
+// GetWithdrawalHistory retrieve the withdrawal records according to the currency, withdrawal status, and time range in reverse chronological order. The 100 most recent records are returned by default.
+func (o *OKCoin) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, withdrawalID, clientID, transactionID, withdrawalType, state string, after, before time.Time, limit int64) ([]WithdrawalOrderItem, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if withdrawalID != "" {
+		params.Set("wdId", withdrawalID)
+	}
+	if clientID != "" {
+		params.Set("clientId", clientID)
+	}
+	if transactionID != "" {
+		params.Set("txId", transactionID)
+	}
+	if withdrawalType != "" {
+		params.Set("type", withdrawalType)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	var resp []WithdrawalOrderItem
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("withdrawal-history", params), nil, &resp, true)
+}
+
 // ------------------------------------  Old ------------------------------------------------------------
 
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties
-// func (o *OKCoin) GetAccountCurrencies(ctx context.Context) ([]GetAccountCurrenciesResponse, error) {
-// 	var respData []struct {
-// 		Name          string `json:"name"`
-// 		Currency      string `json:"currency"`
-// 		Chain         string `json:"chain"`
-// 		CanInternal   int64  `json:"can_internal,string"`
-// 		CanWithdraw   int64  `json:"can_withdraw,string"`
-// 		CanDeposit    int64  `json:"can_deposit,string"`
-// 		MinWithdrawal string `json:"min_withdrawal"`
-// 	}
-// 	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, getAccountCurrencies, nil, &respData, true)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	resp := make([]GetAccountCurrenciesResponse, len(respData))
-// 	for i := range respData {
-// 		var mw float64
-// 		if respData[i].MinWithdrawal != "" {
-// 			mw, err = strconv.ParseFloat(respData[i].MinWithdrawal, 64)
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 		}
-// 		resp[i] = GetAccountCurrenciesResponse{
-// 			Name:          respData[i].Name,
-// 			Currency:      respData[i].Currency,
-// 			Chain:         respData[i].Chain,
-// 			CanInternal:   respData[i].CanInternal == 1,
-// 			CanWithdraw:   respData[i].CanWithdraw == 1,
-// 			CanDeposit:    respData[i].CanDeposit == 1,
-// 			MinWithdrawal: mw,
-// 		}
-// 	}
-// 	return resp, nil
-// }
+func (o *OKCoin) GetAccountCurrencies(ctx context.Context) ([]GetAccountCurrenciesResponse, error) {
+	//	var respData []struct {
+	//		Name          string `json:"name"`
+	//		Currency      string `json:"currency"`
+	//		Chain         string `json:"chain"`
+	//		CanInternal   int64  `json:"can_internal,string"`
+	//		CanWithdraw   int64  `json:"can_withdraw,string"`
+	//		CanDeposit    int64  `json:"can_deposit,string"`
+	//		MinWithdrawal string `json:"min_withdrawal"`
+	//	}
+	//
+	// err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, getAccountCurrencies, nil, &respData, true)
+	//
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	// resp := make([]GetAccountCurrenciesResponse, len(respData))
+	//
+	//	for i := range respData {
+	//		var mw float64
+	//		if respData[i].MinWithdrawal != "" {
+	//			mw, err = strconv.ParseFloat(respData[i].MinWithdrawal, 64)
+	//			if err != nil {
+	//				return nil, err
+	//			}
+	//		}
+	//		resp[i] = GetAccountCurrenciesResponse{
+	//			Name:          respData[i].Name,
+	//			Currency:      respData[i].Currency,
+	//			Chain:         respData[i].Chain,
+	//			CanInternal:   respData[i].CanInternal == 1,
+	//			CanWithdraw:   respData[i].CanWithdraw == 1,
+	//			CanDeposit:    respData[i].CanDeposit == 1,
+	//			MinWithdrawal: mw,
+	//		}
+	//	}
+	//
+	// return resp, nil
+	return nil, nil
+}
 
-// // GetAccountWalletInformation returns a list of wallets and their properties
-// func (o *OKCoin) GetAccountWalletInformation(ctx context.Context, currency string) ([]WalletInformationResponse, error) {
-// 	requestURL := getAccountWalletInformation
-// 	if currency != "" {
-// 		requestURL += "/" + currency
-// 	}
-// 	var resp []WalletInformationResponse
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
-// }
+// GetAccountWalletInformation returns a list of wallets and their properties
+func (o *OKCoin) GetAccountWalletInformation(ctx context.Context, currency string) ([]WalletInformationResponse, error) {
+	// requestURL := getAccountWalletInformation
+	//
+	//	if currency != "" {
+	//		requestURL += "/" + currency
+	//	}
+	//
+	// var resp []WalletInformationResponse
+	// return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
+	return nil, nil
+}
 
-// // TransferAccountFunds  the transfer of funds between wallet, trading accounts, main account and subaccounts
-// func (o *OKCoin) TransferAccountFunds(ctx context.Context, request *TransferAccountFundsRequest) (*TransferAccountFundsResponse, error) {
-// 	var resp *TransferAccountFundsResponse
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSubsection, fundsTransfer, request, &resp, true)
-// }
+// TransferAccountFunds  the transfer of funds between wallet, trading accounts, main account and subaccounts
+func (o *OKCoin) TransferAccountFunds(ctx context.Context, request *TransferAccountFundsRequest) (*TransferAccountFundsResponse, error) {
+	// var resp *TransferAccountFundsResponse
+	// return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSubsection, fundsTransfer, request, &resp, true)
+	return nil, nil
+}
 
-// // AccountWithdraw withdrawal of tokens to OKCoin International or other addresses.
-// func (o *OKCoin) AccountWithdraw(ctx context.Context, request *AccountWithdrawRequest) (*AccountWithdrawResponse, error) {
-// 	var resp *AccountWithdrawResponse
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSubsection, withdrawRequest, request, &resp, true)
-// }
+// AccountWithdraw withdrawal of tokens to OKCoin International or other addresses.
+func (o *OKCoin) AccountWithdraw(ctx context.Context, request *AccountWithdrawRequest) (*AccountWithdrawResponse, error) {
+	// 	var resp *AccountWithdrawResponse
+	// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSubsection, withdrawRequest, request, &resp, true)
+	return nil, nil
+}
 
-// // GetAccountWithdrawalFee retrieves the information about the recommended network transaction fee for withdrawals to digital asset addresses. The higher the fees are, the sooner the confirmations you will get.
-// func (o *OKCoin) GetAccountWithdrawalFee(ctx context.Context, currency string) ([]GetAccountWithdrawalFeeResponse, error) {
-// 	requestURL := getWithdrawalFees
-// 	if currency != "" {
-// 		requestURL += "?currency=" + currency
-// 	}
+// GetAccountWithdrawalFee retrieves the information about the recommended network transaction fee for withdrawals to digital asset addresses. The higher the fees are, the sooner the confirmations you will get.
+func (o *OKCoin) GetAccountWithdrawalFee(ctx context.Context, currency string) ([]GetAccountWithdrawalFeeResponse, error) {
+	// 	requestURL := getWithdrawalFees
+	// 	if currency != "" {
+	// 		requestURL += "?currency=" + currency
+	// 	}
 
-// 	var resp []GetAccountWithdrawalFeeResponse
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
-// }
+	// 	var resp []GetAccountWithdrawalFeeResponse
+	// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
+	// }
 
-// // GetAccountWithdrawalHistory retrieves all recent withdrawal records.
-// func (o *OKCoin) GetAccountWithdrawalHistory(ctx context.Context, currency string) ([]WithdrawalHistoryResponse, error) {
-// 	requestURL := getWithdrawalHistory
-// 	if currency != "" {
-// 		requestURL += "/" + currency
-// 	}
-// 	var resp []WithdrawalHistoryResponse
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
-// }
+	// // GetAccountWithdrawalHistory retrieves all recent withdrawal records.
+	// func (o *OKCoin) GetAccountWithdrawalHistory(ctx context.Context, currency string) ([]WithdrawalHistoryResponse, error) {
+	// 	requestURL := getWithdrawalHistory
+	// 	if currency != "" {
+	// 		requestURL += "/" + currency
+	// 	}
+	// 	var resp []WithdrawalHistoryResponse
+	// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
+	return nil, nil
+}
 
-// // GetAccountBillDetails retrieves the bill details of the wallet. All the information will be paged and sorted in reverse chronological order,
-// // which means the latest will be at the top. Please refer to the pagination section for additional records after the first page.
-// // 3 months recent records will be returned at maximum
-// func (o *OKCoin) GetAccountBillDetails(ctx context.Context, request *GetAccountBillDetailsRequest) ([]GetAccountBillDetailsResponse, error) {
-// 	encodedRequest, err := encodeRequest(request)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	requestURL := ledger + encodedRequest
-// 	var resp []GetAccountBillDetailsResponse
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
-// }
+// GetAccountBillDetails retrieves the bill details of the wallet. All the information will be paged and sorted in reverse chronological order,
+// which means the latest will be at the top. Please refer to the pagination section for additional records after the first page.
+// 3 months recent records will be returned at maximum
+func (o *OKCoin) GetAccountBillDetails(ctx context.Context, request *GetAccountBillDetailsRequest) ([]GetAccountBillDetailsResponse, error) {
+	// 	encodedRequest, err := encodeRequest(request)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	requestURL := ledger + encodedRequest
+	// 	var resp []GetAccountBillDetailsResponse
+	// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
+	return nil, nil
+}
 
-// // GetAccountDepositAddressForCurrency retrieves the deposit addresses of different tokens, including previously used addresses.
-// func (o *OKCoin) GetAccountDepositAddressForCurrency(ctx context.Context, currency string) ([]GetDepositAddressResponse, error) {
-// 	urlValues := url.Values{}
-// 	urlValues.Set("currency", currency)
-// 	requestURL := getDepositAddress + "?" + urlValues.Encode()
-// 	var resp []GetDepositAddressResponse
-// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
-// }
+// GetAccountDepositAddressForCurrency retrieves the deposit addresses of different tokens, including previously used addresses.
+func (o *OKCoin) GetAccountDepositAddressForCurrency(ctx context.Context, currency string) ([]GetDepositAddressResponse, error) {
+	// 	urlValues := url.Values{}
+	// 	urlValues.Set("currency", currency)
+	// 	requestURL := getDepositAddress + "?" + urlValues.Encode()
+	// 	var resp []GetDepositAddressResponse
+	// 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountSubsection, requestURL, nil, &resp, true)
+	return nil, nil
+}
 
 // // GetAccountDepositHistory retrieves the deposit history of all tokens.100 recent records will be returned at maximum
 // func (o *OKCoin) GetAccountDepositHistory(ctx context.Context, currency string) ([]GetAccountDepositHistoryResponse, error) {
@@ -956,7 +1239,7 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 		return err
 	}
 	resp := &struct {
-		Code    string      `json:"code"`
+		Code    int64       `json:"code,string"`
 		Message string      `json:"msg"`
 		Data    interface{} `json:"data"`
 	}{
@@ -973,7 +1256,6 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 				return nil, err
 			}
 		}
-
 		path := endpoint + okCoinAPIVersion + requestType + "/" + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
@@ -983,7 +1265,7 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 			if err != nil {
 				return nil, err
 			}
-			signPath := endpoint + okCoinAPIVersion + requestType + "/" + requestPath
+			signPath := okCoinAPIVersion + requestType + "/" + requestPath
 
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
@@ -1022,22 +1304,26 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 		Result       bool   `json:"result,string"`
 	}
 	errCap := errCapFormat{Result: true}
-
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
+		if errCap.Error > 0 {
+			return fmt.Errorf("sendHTTPRequest error - %s", o.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
+		}
 		if errCap.ErrorMessage != "" {
 			return fmt.Errorf("error: %v", errCap.ErrorMessage)
-		}
-		if errCap.Error > 0 {
-			return fmt.Errorf("sendHTTPRequest error - %s",
-				o.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
 		}
 		if !errCap.Result {
 			return errors.New("unspecified error occurred")
 		}
 	}
-
-	return json.Unmarshal(intermediary, resp)
+	err = json.Unmarshal(intermediary, resp)
+	if err != nil {
+		return err
+	}
+	if resp.Code > 2 {
+		return fmt.Errorf("sendHTTPRequest error - code: %d message: %s", resp.Code, resp.Message)
+	}
+	return nil
 }
 
 // // GetFee returns an estimate of fee based on type of transaction
