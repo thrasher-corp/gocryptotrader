@@ -13,12 +13,11 @@ import (
 
 var (
 	// ErrUnsetName is an error for when the exchange name is not set
-	ErrUnsetName                    = errors.New("unset exchange name")
+	ErrUnsetName = errors.New("unset exchange name")
+	// ErrNoTimeSeriesDataToConvert returned when no candlestick data is available for specific instrument
+	ErrNoTimeSeriesDataToConvert    = errors.New("no time series data to convert")
 	errNilRequest                   = errors.New("nil kline request")
 	errInvalidSpecificEndpointLimit = errors.New("specific endpoint limit must be greater than 0")
-
-	// ErrNoTimeSeriesDataToConvert returned when no candlestick data is available for specific instrument
-	ErrNoTimeSeriesDataToConvert = errors.New("no time series data to convert")
 
 	// PartialCandle is string flag for when the most recent candle is partially
 	// formed.

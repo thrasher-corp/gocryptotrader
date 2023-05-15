@@ -542,9 +542,16 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
 	pair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return err
+	}
+	if !enabledPairs.Contains(pair, true) {
+		return nil
 	}
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Futures,
@@ -737,10 +744,10 @@ func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
 		Volume:       response.Size,
 	}
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
+	if assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 		ku.Websocket.DataHandler <- &spotTickerPrice
 	}
-	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+	if assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		marginTickerPrice := spotTickerPrice
 		marginTickerPrice.AssetType = asset.Margin
 		ku.Websocket.DataHandler <- &marginTickerPrice
@@ -776,10 +783,10 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 		Volume:     resp.Candles.TransactionVolume,
 	}
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
+	if assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 		ku.Websocket.DataHandler <- candlestickData
 	}
-	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+	if assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		candlestickData.AssetType = asset.Margin
 		ku.Websocket.DataHandler <- candlestickData
 	}
@@ -950,10 +957,10 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte, instrument string) erro
 		LastUpdated:  response.Data.Datetime.Time(),
 	}
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
+	if assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 		ku.Websocket.DataHandler <- &spotTickerPrice
 	}
-	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+	if assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		marginTickerPrice := spotTickerPrice
 		marginTickerPrice.AssetType = asset.Margin
 		ku.Websocket.DataHandler <- &marginTickerPrice
@@ -1019,7 +1026,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		channels = append(channels,
 			marketTickerChannel,
 			marginFundingbookChangeChannel,
-			marketCandlesChannel,
+			marketMatchChannel,
 			marketOrderbokLevel2To50Channel)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
@@ -1031,7 +1038,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			futuresTickerV2Channel,
 			futuresOrderbookLevel2Depth50Channel)
 	}
-	subscriptions := []stream.ChannelSubscription{}
+	var subscriptions []stream.ChannelSubscription
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
 		if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 			channels = append(channels,
