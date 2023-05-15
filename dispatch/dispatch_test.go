@@ -236,7 +236,7 @@ func TestPublish(t *testing.T) {
 
 	d = NewDispatcher()
 
-	err = d.publish(nonEmptyUUID, "lol")
+	err = d.publish(nonEmptyUUID, "test")
 	if !errors.Is(err, nil) { // If not running, don't send back an error.
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -255,16 +255,33 @@ func TestPublish(t *testing.T) {
 	if !errors.Is(err, errNoData) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
 	}
+	// need to reset before next test
+	err = nil
 
-	// max out worker processing
-	for x := 0; x < 100; x++ {
-		err2 := d.publish(nonEmptyUUID, "lol")
+	// demonstrate that jobs do not get published when the limit should be reached
+	// but there is no listener associated with job
+	for x := 0; x < 200; x++ {
+		err2 := d.publish(nonEmptyUUID, "test")
 		if !errors.Is(err2, nil) {
 			err = err2
 			break
 		}
 	}
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
+	// demonstrate job limit error
+	d.routes[nonEmptyUUID] = []chan interface{}{
+		make(chan interface{}),
+	}
+	for x := 0; x < 200; x++ {
+		err2 := d.publish(nonEmptyUUID, "test")
+		if !errors.Is(err2, nil) {
+			err = err2
+			break
+		}
+	}
 	if !errors.Is(err, errDispatcherJobsAtLimit) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherJobsAtLimit)
 	}
@@ -523,5 +540,55 @@ func BenchmarkSubscribe(b *testing.B) {
 		if err != nil {
 			b.Error(err)
 		}
+	}
+}
+
+func TestHasListener(t *testing.T) {
+	t.Parallel()
+	d := NewDispatcher()
+	_, err := d.hasListener(uuid.Nil)
+	if !errors.Is(err, errChannelIsNil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, errChannelIsNil)
+	}
+
+	id, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.routes = nil
+	_, err = d.hasListener(id)
+	if !errors.Is(err, errDispatcherNotInitialized) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherNotInitialized)
+	}
+
+	c := make(chan interface{}, 1)
+	d.routes = map[uuid.UUID][]chan interface{}{
+		id: {
+			c,
+		},
+	}
+	has, err := d.hasListener(id)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if !has {
+		t.Error("expected true")
+	}
+
+	d.routes = map[uuid.UUID][]chan interface{}{
+		id: nil,
+	}
+	has, err = d.hasListener(id)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if has {
+		t.Error("expected false")
+	}
+
+	d = nil
+	_, err = d.hasListener(id)
+	if !errors.Is(err, errDispatcherNotInitialized) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherNotInitialized)
 	}
 }

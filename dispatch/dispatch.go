@@ -139,7 +139,7 @@ func (d *Dispatcher) stop() error {
 	d.rMtx.Unlock()
 
 	ch := make(chan struct{})
-	timer := time.NewTimer(time.Second)
+	timer := time.NewTimer(time.Second * 5)
 	go func(ch chan<- struct{}) { d.wg.Wait(); ch <- struct{}{} }(ch)
 	select {
 	case <-ch:
@@ -166,14 +166,23 @@ func (d *Dispatcher) relayer() {
 	for {
 		select {
 		case j := <-d.jobs:
+			if j.ID.IsNil() {
+				// empty jobs from `channelCapacity` length are sent upon shutdown
+				// every real job created has an ID set
+				continue
+			}
 			d.rMtx.RLock()
-			if pipes, ok := d.routes[j.ID]; ok {
-				for i := range pipes {
-					select {
-					case pipes[i] <- j.Data:
-					default:
-						// no receiver; don't wait. This limits complexity.
-					}
+			pipes, ok := d.routes[j.ID]
+			if !ok {
+				log.Warnf(log.DispatchMgr, "%v: %v\n", errDispatcherUUIDNotFoundInRouteList, j.ID)
+				d.rMtx.RUnlock()
+				continue
+			}
+			for i := range pipes {
+				select {
+				case pipes[i] <- j.Data:
+				default:
+					// no receiver; don't wait. This limits complexity.
 				}
 			}
 			d.rMtx.RUnlock()
@@ -204,6 +213,14 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	if !d.running {
 		return nil
 	}
+	hasListener, err := d.hasListener(id)
+	if err != nil {
+		return err
+	}
+	if !hasListener {
+		// no subscribers
+		return nil
+	}
 
 	select {
 	case d.jobs <- job{data, id}: // Push job into job channel.
@@ -214,6 +231,24 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 			len(d.jobs),
 			d.maxWorkers)
 	}
+}
+
+// hasListener checks whether its worth publishing a job to a
+// limited job pool where many validation checks occur
+func (d *Dispatcher) hasListener(id uuid.UUID) (bool, error) {
+	if d == nil {
+		return false, errDispatcherNotInitialized
+	}
+	if id.IsNil() {
+		return false, errChannelIsNil
+	}
+	d.rMtx.RLock()
+	defer d.rMtx.RUnlock()
+	if d.routes == nil {
+		return false, fmt.Errorf("%w routes property unset", errDispatcherNotInitialized)
+	}
+	routes := d.routes[id]
+	return len(routes) > 0, nil
 }
 
 // Subscribe subscribes a system and returns a communication chan, this does not
