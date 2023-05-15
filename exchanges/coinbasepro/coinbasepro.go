@@ -766,9 +766,13 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		n := strconv.FormatInt(time.Now().Unix(), 10)
 		message := n + method + "/" + path + string(payload)
 
+		secret, err := crypto.Base64Decode(creds.Secret)
+		if err != nil {
+			return nil, err
+		}
 		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(message),
-			[]byte(creds.Secret))
+			secret)
 		if err != nil {
 			return nil, err
 		}
