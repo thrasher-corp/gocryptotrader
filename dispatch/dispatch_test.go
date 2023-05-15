@@ -522,7 +522,7 @@ func TestMuxPublish(t *testing.T) {
 	}
 }
 
-// 2363419	       468.7 ns/op	     142 B/op	       1 allocs/op
+// 13636467	        84.26 ns/op	     141 B/op	       1 allocs/op
 func BenchmarkSubscribe(b *testing.B) {
 	d := NewDispatcher()
 	err := d.start(0, 0)

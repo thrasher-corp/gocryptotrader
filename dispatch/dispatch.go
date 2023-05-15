@@ -139,7 +139,7 @@ func (d *Dispatcher) stop() error {
 	d.rMtx.Unlock()
 
 	ch := make(chan struct{})
-	timer := time.NewTimer(time.Second * 5)
+	timer := time.NewTimer(time.Second)
 	go func(ch chan<- struct{}) { d.wg.Wait(); ch <- struct{}{} }(ch)
 	select {
 	case <-ch:
