@@ -766,9 +766,12 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		n := strconv.FormatInt(time.Now().Unix(), 10)
 		message := n + method + "/" + path + string(payload)
 
-		secret, err := crypto.Base64Decode(creds.Secret)
-		if err != nil {
-			return nil, err
+		secret := []byte(creds.Secret)
+		if c.API.CredentialsValidator.RequiresBase64DecodeSecret {
+			secret, err = crypto.Base64Decode(creds.Secret)
+			if err != nil {
+				return nil, fmt.Errorf("credentials error: could not decode secret to base64 %v", err)
+			}
 		}
 		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(message),
