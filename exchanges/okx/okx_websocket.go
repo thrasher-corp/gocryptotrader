@@ -1228,32 +1228,33 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 			okxChannelOrders,
 		)
 	}
-	for x := range assets {
-		pairs, err := ok.GetEnabledPairs(assets[x])
-		if err != nil {
-			return nil, err
-		}
-		for y := range defaultSubscribedChannels {
-			if defaultSubscribedChannels[y] == okxChannelCandle5m ||
-				defaultSubscribedChannels[y] == okxChannelTickers ||
-				defaultSubscribedChannels[y] == okxChannelOrders ||
-				defaultSubscribedChannels[y] == okxChannelOrderBooks ||
-				defaultSubscribedChannels[y] == okxChannelOrderBooks5 ||
-				defaultSubscribedChannels[y] == okxChannelOrderBooks50TBT ||
-				defaultSubscribedChannels[y] == okxChannelOrderBooksTBT ||
-				defaultSubscribedChannels[y] == okxChannelTrades {
+	for c := range defaultSubscribedChannels {
+		switch defaultSubscribedChannels[c] {
+		case okxChannelOrders:
+			for x := range assets {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel: defaultSubscribedChannels[c],
+					Asset:   assets[x],
+				})
+			}
+		case okxChannelCandle5m, okxChannelTickers, okxChannelOrderBooks, okxChannelFundingRate, okxChannelOrderBooks5, okxChannelOrderBooks50TBT, okxChannelOrderBooksTBT, okxChannelTrades:
+			for x := range assets {
+				pairs, err := ok.GetEnabledPairs(assets[x])
+				if err != nil {
+					return nil, err
+				}
 				for p := range pairs {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  defaultSubscribedChannels[y],
+						Channel:  defaultSubscribedChannels[c],
 						Asset:    assets[x],
 						Currency: pairs[p],
 					})
 				}
-			} else {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel: defaultSubscribedChannels[y],
-				})
 			}
+		default:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: defaultSubscribedChannels[c],
+			})
 		}
 	}
 	if len(subscriptions) >= 240 {
