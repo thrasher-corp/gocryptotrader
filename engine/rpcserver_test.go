@@ -85,8 +85,10 @@ func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRe
 	for i := range req.Pairs {
 		resp[i] = order.PositionResponse{
 			Exchange: f.GetName(),
-			Asset:    req.Asset,
-			Pair:     req.Pairs[i],
+			PositionSummary: order.PositionSummary{
+				Asset: req.Asset,
+				Pair:  req.Pairs[i],
+			},
 			Orders: []order.Detail{
 				{
 					Exchange:        f.GetName(),

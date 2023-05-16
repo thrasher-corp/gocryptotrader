@@ -1630,10 +1630,20 @@ func (b *Base) Shutdown() error {
 
 // SetCollateralMode sets the account's collateral mode for the asset type
 func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralType) error {
-	return common.ErrNotYetImplemented
+	return common.ErrFunctionNotSupported
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
 func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (order.CollateralType, error) {
-	return 0, common.ErrNotYetImplemented
+	return 0, common.ErrFunctionNotSupported
+}
+
+// SetMarginType sets the account's margin type for the asset type
+func (b *Base) SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error {
+	return common.ErrFunctionNotSupported
+}
+
+// ChangePositionMargin changes the margin type for a position
+func (b *Base) ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }

@@ -346,7 +346,6 @@ message SubmitOrderRequest {
   double price = 6;
   string client_id = 7;
   string asset_type = 8;
-  string margin_type = 9;
 }
 
 message Trades {

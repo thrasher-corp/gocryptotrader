@@ -2031,6 +2031,9 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
+	if len(req.Pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
 	var resp []order.PositionResponse
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
@@ -2051,7 +2054,7 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 						Asset:                     req.Asset,
 						Pair:                      req.Pairs[x],
 						IsolatedMargin:            decimal.NewFromFloat(result[y].IsolatedMargin),
-						MarginType:                result[y].MarginType,
+						MarginType:                margin.StringToMarginType(result[y].MarginType),
 						Leverage:                  decimal.NewFromFloat(result[y].Leverage),
 						RecentPNL:                 decimal.NewFromFloat(result[y].UnrealizedProfit),
 						EstimatedLiquidationPrice: decimal.NewFromFloat(result[y].LiquidationPrice),
@@ -2093,7 +2096,7 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 							Date:                 orders[i].Time,
 							LastUpdated:          orders[i].UpdateTime,
 							Pair:                 req.Pairs[i],
-							MarginType:           result[x].MarginType,
+							MarginType:           margin.StringToMarginType(result[x].MarginType),
 						})
 					}
 				}
@@ -2160,7 +2163,6 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 							Date:                 orders[i].Time,
 							LastUpdated:          orders[i].UpdateTime,
 							Pair:                 req.Pairs[i],
-							MarginType:           result[x].MarginType,
 						})
 					}
 				}

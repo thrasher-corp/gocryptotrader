@@ -61,11 +61,9 @@ type Submit struct {
 	QuoteAmount float64
 	// TriggerPrice is mandatory if order type `Stop, Stop Limit or Take Profit`
 	// See btcmarkets_wrapper.go.
-	TriggerPrice    float64
-	ClientID        string // TODO: Shift to credentials
-	ClientOrderID   string
-	MarginType      margin.Type
-	AllocatedMargin float64
+	TriggerPrice  float64
+	ClientID      string // TODO: Shift to credentials
+	ClientOrderID string
 	// RetrieveFees use if an API submit order response does not return fees
 	// enabling this will perform additional request(s) to retrieve them
 	// and set it in the SubmitResponse
@@ -103,7 +101,6 @@ type SubmitResponse struct {
 	Fee             float64
 	FeeAsset        currency.Code
 	Cost            float64
-	MarginType      margin.Type
 	AllocatedMargin float64
 }
 
