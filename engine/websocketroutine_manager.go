@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -58,10 +59,14 @@ func (m *websocketRoutineManager) Start() error {
 		return errNilCurrencyPairFormat
 	}
 
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&m.state, stoppedState, startingState) {
 		return ErrSubSystemAlreadyStarted
 	}
-	m.websocketRoutine()
+	go func() {
+		m.websocketRoutine()
+		// It's okay for this to fail, just means shutdown has started
+		atomic.CompareAndSwapInt32(&m.state, startingState, readyState)
+	}()
 	return nil
 }
 
@@ -70,7 +75,7 @@ func (m *websocketRoutineManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return atomic.LoadInt32(&m.state) == readyState
 }
 
 // Stop attempts to shutdown the subsystem
@@ -78,11 +83,18 @@ func (m *websocketRoutineManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+
+	m.mu.Lock()
+	if atomic.LoadInt32(&m.state) == stoppedState {
+		m.mu.Unlock()
 		return fmt.Errorf("websocket routine manager %w", ErrSubSystemNotStarted)
 	}
+	atomic.StoreInt32(&m.state, stoppedState)
+	m.mu.Unlock()
+
 	close(m.shutdown)
 	m.wg.Wait()
+
 	return nil
 }
 
@@ -95,8 +107,11 @@ func (m *websocketRoutineManager) websocketRoutine() {
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "websocket routine manager cannot get exchanges: %v", err)
 	}
+	wg := sync.WaitGroup{}
+	wg.Add(len(exchanges))
 	for i := range exchanges {
 		go func(i int) {
+			defer wg.Done()
 			if exchanges[i].SupportsWebsocket() {
 				if m.verbose {
 					log.Debugf(log.WebsocketMgr,
@@ -141,6 +156,7 @@ func (m *websocketRoutineManager) websocketRoutine() {
 			}
 		}(i)
 	}
+	wg.Wait()
 }
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
@@ -154,7 +170,7 @@ func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 		return errNilWebsocket
 	}
 
-	if atomic.LoadInt32(&m.started) == 0 {
+	if atomic.LoadInt32(&m.state) == stoppedState {
 		return errRoutineManagerNotStarted
 	}
 
@@ -293,7 +309,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
 		return p
 	}
 	return p.Format(*m.currencyConfig.CurrencyPairFormat)
@@ -302,7 +318,7 @@ func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 // printOrderSummary this function will be deprecated when a order manager
 // update is done.
 func (m *websocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bool) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
+	if m == nil || atomic.LoadInt32(&m.state) == stoppedState || o == nil {
 		return
 	}
 
@@ -331,7 +347,7 @@ func (m *websocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 // printAccountHoldingsChangeSummary this function will be deprecated when a
 // account holdings update is done.
 func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Change) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
 		return
 	}
 	log.Debugf(log.WebsocketMgr,

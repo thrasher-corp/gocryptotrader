@@ -3,7 +3,9 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -88,6 +90,9 @@ func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
 	err = m.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	for atomic.LoadInt32(&m.state) == startingState {
+		<-time.After(time.Second / 100)
 	}
 	if !m.IsRunning() {
 		t.Error("expected true")
@@ -294,7 +299,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 
 	mock := stream.New()
 	mock.ToRoutine = make(chan interface{})
-	m.started = 1
+	m.state = readyState
 	err = m.websocketDataReceiver(mock)
 	if err != nil {
 		t.Fatal(err)
