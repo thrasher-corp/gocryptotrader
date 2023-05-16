@@ -1106,7 +1106,7 @@ type LendingHistory struct {
 	Timestamp okxUnixMilliTime `json:"ts"`
 }
 
-// PublicBorrowInfo holds a currencies borrow info.
+// PublicBorrowInfo holds a currency's borrow info.
 type PublicBorrowInfo struct {
 	Currency         string            `json:"ccy"`
 	AverageAmount    okxNumericalValue `json:"avgAmt"`
