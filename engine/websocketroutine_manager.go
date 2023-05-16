@@ -61,7 +61,6 @@ func (m *websocketRoutineManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return ErrSubSystemAlreadyStarted
 	}
-	m.shutdown = make(chan struct{})
 	m.websocketRoutine()
 	return nil
 }
