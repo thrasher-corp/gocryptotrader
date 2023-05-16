@@ -395,6 +395,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelOrderBooks5 ||
 			arg.Channel == okxChannelOrderBooks50TBT ||
 			arg.Channel == okxChannelOrderBooksTBT ||
+			arg.Channel == okxChannelFundingRate ||
 			arg.Channel == okxChannelTrades {
 			if subscriptions[i].Params["instId"] != "" {
 				instrumentID, okay = subscriptions[i].Params["instId"].(string)
