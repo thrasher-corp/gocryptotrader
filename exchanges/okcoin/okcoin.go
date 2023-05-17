@@ -49,13 +49,15 @@ var (
 	errInvalidWithdrawalMethod     = errors.New("withdrawal method must be specified")
 	errInvalidTrasactionFeeValue   = errors.New("invalid transaction fee value")
 	errWithdrawalIDMissing         = errors.New("withdrawal id is missing")
+	errTradeModeIsRequired         = errors.New("trade mode is required")
+	errInstrumentTypeMissing       = errors.New("instrument type is required")
 )
 
 const (
 	// endpoint types
 	typeAccountSubsection = "account"
 	typeTokenSubsection   = "spot"
-	typeAccounts          = "accounts"
+	typeAccounts          = "account"
 	typeFiat              = "fiat"
 	typeOtc               = "otc"
 	typeAssets            = "asset"
@@ -645,6 +647,170 @@ func (o *OKCoin) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, wi
 	}
 	var resp []WithdrawalOrderItem
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAssets, common.EncodeURLValues("withdrawal-history", params), nil, &resp, true)
+}
+
+// ------------------------ Account Endpoints --------------------
+
+// GetAccountBalance retrieve a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
+func (o *OKCoin) GetAccountBalance(ctx context.Context, currencies ...currency.Code) ([]AccountBalanceInformation, error) {
+	params := url.Values{}
+	if len(currencies) > 0 {
+		currencyString := ""
+		found := false
+		for x := range currencies {
+			if found {
+				currencyString += ","
+			}
+			if !currencies[x].IsEmpty() {
+				currencyString += currencies[x].String()
+				found = true
+			}
+		}
+		if found {
+			params.Set("ccy", currencyString)
+		}
+	}
+	var resp []AccountBalanceInformation
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("balance", params), nil, &resp, true)
+}
+
+// GetBillsDetails retrieve the bills of the account. The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first.
+// For the last 7 days.
+func (o *OKCoin) GetBillsDetails(ctx context.Context, ccy currency.Code, instrumentType, billType, billSubType, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]BillsDetail, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if billType != "" {
+		params.Set("type", billType)
+	}
+	if billSubType != "" {
+		params.Set("subType", billSubType)
+	}
+	if afterBillID != "" {
+		params.Set("after", afterBillID)
+	}
+	if beforeBillID != "" {
+		params.Set("before", beforeBillID)
+	}
+	if !begin.IsZero() {
+		params.Set("before", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []BillsDetail
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("bills", params), nil, &resp, true)
+}
+
+// GetBillsDetailsFor3Moonths retrieve the bills of the account. The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first.
+// For the last 3 months.
+func (o *OKCoin) GetBillsDetailsFor3Months(ctx context.Context, ccy currency.Code, instrumentType, billType, billSubType, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]BillsDetail, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if billType != "" {
+		params.Set("type", billType)
+	}
+	if billSubType != "" {
+		params.Set("subType", billSubType)
+	}
+	if afterBillID != "" {
+		params.Set("after", afterBillID)
+	}
+	if beforeBillID != "" {
+		params.Set("before", beforeBillID)
+	}
+	if !begin.IsZero() {
+		params.Set("before", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []BillsDetail
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("bills-archive", params), nil, &resp, true)
+}
+
+// GetAccountConfigurations retrives current account configuration informations.
+func (o *OKCoin) GetAccountConfigurations(ctx context.Context) ([]AccountConfiguration, error) {
+	var resp []AccountConfiguration
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, "config", nil, &resp, true)
+}
+
+// GetMaximumBuySellOrOpenAmount retrives maximum buy, sell, or open amount information.
+// Single instrument or multiple instruments (no more than 5) separated with comma, e.g. BTC-USD
+// Trade mode 'cash'
+// Price When the price is not specified, it will be calculated according to the last traded price.
+// optional parameter
+func (o *OKCoin) GetMaximumBuySellOrOpenAmount(ctx context.Context, instrumentID, tradeMode string, price float64) ([]MaxBuySellResp, error) {
+	params := url.Values{}
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params.Set("instId", instrumentID)
+	if tradeMode == "" {
+		return nil, errTradeModeIsRequired
+	}
+	params.Set("tdMode", tradeMode)
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
+	var resp []MaxBuySellResp
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("max-size", params), nil, &resp, true)
+}
+
+// GetMaximumAvailableTradableAmount retrives maximum available tradable amount.
+// Single instrument or multiple instruments (no more than 5) separated with comma, e.g. BTC-USDT,ETH-USDT
+// Trade mode 'cash'
+func (o *OKCoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMode string, instrumentIDs ...string) ([]AvailableTradableAmount, error) {
+	params := url.Values{}
+	if len(instrumentIDs) == 0 {
+		return nil, errMissingInstrumentID
+	}
+	params.Set("instId", strings.Join(instrumentIDs, ","))
+	if tradeMode == "" {
+		return nil, errTradeModeIsRequired
+	}
+	params.Set("tdMode", tradeMode)
+	var resp []AvailableTradableAmount
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("max-avail-size", params), nil, &resp, true)
+}
+
+// GetFeeRates retrives instrument trading fee information.
+func (o *OKCoin) GetFeeRates(ctx context.Context, instrumentType, instrumentID string) ([]FeeRate, error) {
+	params := url.Values{}
+	if instrumentType == "" {
+		return nil, errInstrumentTypeMissing
+	}
+	params.Set("instType", instrumentType)
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	var resp []FeeRate
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("trade-fee", params), nil, &resp, true)
+}
+
+// GetMaximumWithdrawals retrieve the maximum transferable amount from trading account to funding account. If no currency is specified, the transferable amount of all owned currencies will be returned.
+func (o *OKCoin) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) ([]MaximumWithdrawal, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	var resp []MaximumWithdrawal
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("max-withdrawal", params), nil, &resp, true)
 }
 
 // ------------------------------------  Old ------------------------------------------------------------

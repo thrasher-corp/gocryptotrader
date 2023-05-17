@@ -18,9 +18,9 @@ import (
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
+	apiKey                  = "02fc735f-5e17-4126-b487-9a9088fed393"
+	apiSecret               = "D84B227D8AE0EF9A3B1E09E0FF9F3F38"
+	passphrase              = "0631Okcoin!"
 	canManipulateRealOrders = false
 )
 
@@ -408,6 +408,77 @@ func TestCancelWithdrawal(t *testing.T) {
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetWithdrawalHistory(context.Background(), currency.BTC, "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetAccountBalance(context.Background(), currency.BTC, currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBillsDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetBillsDetails(context.Background(), currency.BTC, "", "", "", "", "", time.Now().Add(-time.Hour*30), time.Now(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestGetBillsDetailsFor3Months(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetBillsDetailsFor3Months(context.Background(), currency.BTC, "", "", "", "", "", time.Now().Add(-time.Hour*30), time.Now(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountConfigurations(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetAccountConfigurations(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMaximumBuySellOrOpenAmount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetMaximumBuySellOrOpenAmount(context.Background(), "BTC-USD", "cash", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMaximumAvailableTradableAmount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetMaximumAvailableTradableAmount(context.Background(), "cash", "BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFeeRates(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetFeeRates(context.Background(), "SPOT", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMaximumWithdrawals(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetMaximumWithdrawals(context.Background(), currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}

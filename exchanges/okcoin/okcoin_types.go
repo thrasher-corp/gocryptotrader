@@ -2446,3 +2446,121 @@ type WithdrawalOrderItem struct {
 	Timestamp     okcoinMilliSec `json:"ts"`
 	WithdrawalID  string         `json:"wdId"`
 }
+
+// AccountBalanceInformation represents currency balance information.
+type AccountBalanceInformation struct {
+	AdjustedEquity string `json:"adjEq"` // Adjusted / Effective equity in USD . Not enabled. Please disregard.
+	Details        []struct {
+		AvailableBalance                 string         `json:"availBal"`
+		AvaileEquity                     string         `json:"availEq"`
+		CashBalance                      string         `json:"cashBal"`
+		Currency                         string         `json:"ccy"`
+		CrossLiability                   string         `json:"crossLiab"`
+		DiscountEqutity                  string         `json:"disEq"`
+		Equity                           string         `json:"eq"`
+		EquityUsd                        string         `json:"eqUsd"`
+		FixedBalance                     string         `json:"fixedBal"`
+		FrozenBalance                    string         `json:"frozenBal"`
+		Interest                         string         `json:"interest"`
+		IsolatedEquity                   string         `json:"isoEq"`
+		IsolatedLiability                string         `json:"isoLiab"`
+		IsolatedUpl                      string         `json:"isoUpl"` // Isolated unrealized profit and loss of the currency. Not enabled. Please disregard.
+		Liability                        string         `json:"liab"`
+		MaxLoan                          string         `json:"maxLoan"`
+		MarginRatio                      string         `json:"mgnRatio"`
+		NotionalLever                    string         `json:"notionalLever"`
+		OrdFrozen                        string         `json:"ordFrozen"`
+		SpotInUseAmount                  string         `json:"spotInUseAmt"`
+		StrategyEquity                   string         `json:"stgyEq"`
+		Twap                             string         `json:"twap"`
+		UpdateTime                       okcoinMilliSec `json:"uTime"`
+		UnrealizedProfitAndLoss          string         `json:"upl"`
+		UnrealizedProfitAndLossLiability string         `json:"uplLiab"`
+	} `json:"details"`
+	IMR             string         `json:"imr"` // Frozen equity for open positions and pending orders in USD.
+	IsolatedEqutity string         `json:"isoEq"`
+	MarginRatio     string         `json:"mgnRatio"`
+	Mmr             string         `json:"mmr"` // Maintenance margin requirement in USD.
+	NotionalUsd     string         `json:"notionalUsd"`
+	OrdFroz         string         `json:"ordFroz"`
+	TotalEq         string         `json:"totalEq"`
+	UpdateTime      okcoinMilliSec `json:"uTime"`
+}
+
+// BillsDetail represents a bill
+type BillsDetail struct {
+	Balance          float64        `json:"bal,string"`
+	BalanceChange    float64        `json:"balChg,string"`
+	BillID           string         `json:"billId"`
+	Currency         string         `json:"ccy"`
+	ExecType         string         `json:"execType"`
+	Fee              string         `json:"fee"`
+	From             string         `json:"from"`
+	InstrumentID     string         `json:"instId"`
+	InstrumentType   string         `json:"instType"`
+	MarginMode       string         `json:"mgnMode"`
+	Notes            string         `json:"notes"`
+	OrderID          string         `json:"ordId"`
+	ProfitAndLoss    string         `json:"pnl"`
+	PosBalance       float64        `json:"posBal,string"`
+	PosBalanceChange float64        `json:"posBalChg,string"`
+	BillSubType      string         `json:"subType"`
+	Size             float64        `json:"sz,string"`
+	To               string         `json:"to"`
+	BillType         string         `json:"type"`
+	Timestamp        okcoinMilliSec `json:"ts"`
+}
+
+// AccountConfiguration represents account configuration information.
+type AccountConfiguration struct {
+	AccountLevel         string `json:"acctLv"`
+	AutoLoan             bool   `json:"autoLoan"`
+	ContractIsolatedMode string `json:"ctIsoMode"`
+	GreeksType           string `json:"greeksType"`
+	Level                string `json:"level"`
+	LevelTemporary       string `json:"levelTmp"`
+	MarginIsolatedMode   string `json:"mgnIsoMode"`
+	PositionMode         string `json:"posMode"`
+	SpotOffsetType       string `json:"spotOffsetType"`
+	UID                  string `json:"uid"`
+}
+
+// MaxBuySellResp represent a maximum buy sell or open amount information.
+type MaxBuySellResp struct {
+	Currency     string  `json:"ccy"`
+	InstrumentID string  `json:"instId"`
+	MaxBuy       float64 `json:"maxBuy,string"`
+	MaxSell      float64 `json:"maxSell,string"`
+}
+
+// AvailableTradableAmount represents maximum available tradable amount information
+type AvailableTradableAmount struct {
+	AvailableBuy  float64 `json:"availBuy,string"`
+	AvailableSell float64 `json:"availSell,string"`
+	InstrumentID  string  `json:"instId"`
+}
+
+// FeeRate represents instrument trading fee information.
+type FeeRate struct {
+	Category       string         `json:"category"`
+	Delivery       string         `json:"delivery"`
+	Exercise       string         `json:"exercise"`
+	InstrumentType string         `json:"instType"`
+	Level          string         `json:"level"`
+	MakerFeeRate   string         `json:"maker"`
+	MakerU         string         `json:"makerU"`
+	MakerUSDC      string         `json:"makerUSDC"`
+	TakerFeeRate   string         `json:"taker"`
+	TakerU         string         `json:"takerU"`
+	TakerUSDC      string         `json:"takerUSDC"`
+	Timestamp      okcoinMilliSec `json:"ts"`
+}
+
+// MaximumWithdrawal represents maximum withdrawal information for currency.
+type MaximumWithdrawal struct {
+	Currency          string `json:"ccy"`
+	MaxWithdrawal     string `json:"maxWd"`
+	MaxWithdrawalEx   string `json:"maxWdEx"`
+	SpotOffsetMaxWd   string `json:"spotOffsetMaxWd"`
+	SpotOffsetMaxWdEx string `json:"spotOffsetMaxWdEx"`
+}
