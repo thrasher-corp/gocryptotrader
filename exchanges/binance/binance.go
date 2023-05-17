@@ -31,6 +31,9 @@ type Binance struct {
 }
 
 const (
+	testnetSpotURL = "https://testnet.binance.vision/api"
+	testnetFutures = "https://testnet.binancefuture.com"
+
 	apiURL         = "https://api.binance.com"
 	spotAPIURL     = "https://sapi.binance.com"
 	cfuturesAPIURL = "https://dapi.binance.com"

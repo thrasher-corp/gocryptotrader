@@ -1247,7 +1247,6 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		ClientOrderID: r.ClientId,
 		Exchange:      r.Exchange,
 		AssetType:     a,
-		MarginType:    margin.StringToMarginType(r.MarginType),
 	}
 
 	resp, err := s.OrderManager.Submit(ctx, submission)

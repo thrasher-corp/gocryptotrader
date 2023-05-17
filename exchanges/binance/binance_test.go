@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -25,7 +26,8 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = !false
+	useTestNet              = !false
 )
 
 var (
@@ -2806,12 +2808,26 @@ func TestSetCollateralMode(t *testing.T) {
 	}
 }
 
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	_, err := b.ChangePositionMargin(context.Background(), &margin.PositionChangeRequest{
+		Pair:                    currency.NewBTCUSDT(),
+		Asset:                   asset.USDTMarginedFutures,
+		MarginType:              margin.Isolated,
+		OriginalAllocatedMargin: 1337,
+		NewAllocatedMargin:      1333337,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
 		Asset:     asset.USDTMarginedFutures,
-		Pairs:     []currency.Pair{currency.BTCUSDT},
+		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
 		StartDate: time.Now(),
 	})
 	if err != nil {
@@ -2833,9 +2849,33 @@ func TestGetFuturesPositions(t *testing.T) {
 
 	_, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
 		Asset:     asset.Spot,
-		Pairs:     []currency.Pair{currency.BTCUSDT},
+		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
 		StartDate: time.Now(),
 	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestSetMarginType(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
+
+	err := b.SetMarginType(context.Background(), asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT), margin.Isolated)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.SetMarginType(context.Background(), asset.CoinMarginedFutures, p, margin.Isolated)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	err = b.SetMarginType(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT), margin.Isolated)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}

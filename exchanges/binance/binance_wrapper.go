@@ -1971,9 +1971,6 @@ func (b *Binance) ChangePositionMargin(ctx context.Context, req *margin.Position
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionChangeRequest", common.ErrNilPointer)
 	}
-	if req.CalculateOffline {
-		return nil, common.ErrCannotCalculateOffline
-	}
 	if req.Asset != asset.USDTMarginedFutures && req.Asset != asset.CoinMarginedFutures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 	}

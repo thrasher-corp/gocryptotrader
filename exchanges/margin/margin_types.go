@@ -50,8 +50,6 @@ type PositionChangeRequest struct {
 	OriginalAllocatedMargin float64
 	NewAllocatedMargin      float64
 	MarginSide              string
-	// Is this needed?
-	CalculateOffline bool
 }
 
 type PositionChangeResponse struct {
