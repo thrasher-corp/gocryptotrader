@@ -2564,3 +2564,192 @@ type MaximumWithdrawal struct {
 	SpotOffsetMaxWd   string `json:"spotOffsetMaxWd"`
 	SpotOffsetMaxWdEx string `json:"spotOffsetMaxWdEx"`
 }
+
+// AvailableRFQPair represents list of instruments and
+type AvailableRFQPair struct {
+	Instruments []struct {
+		BaseCurrency      string `json:"baseCcy"`
+		BaseCurrencyIcon  string `json:"baseCcyIcon"`
+		BaseSingleMin     string `json:"baseSingleMin"`
+		InstrumentID      string `json:"instId"`
+		QuoteCurrency     string `json:"quoteCcy"`
+		QuoteCurrencyIcon string `json:"quoteCcyIcon"`
+		QuoteSingleMin    string `json:"quoteSingleMin"`
+	} `json:"instruments"`
+	Timestamp okcoinMilliSec `json:"ts"`
+}
+
+// QuoteRequestArg market quotation information
+type QuoteRequestArg struct {
+	BaseCurrency                currency.Code `json:"baseCcy"`
+	QuoteCurrency               currency.Code `json:"quoteCcy"`
+	Side                        string        `json:"side"`
+	RfqSize                     float64       `json:"rfqSz,string"` // Amount
+	RfqSzCurrency               currency.Code `json:"rfqSzCcy"`     // Token
+	ClientDefinedQuoteRequestID string        `json:"clQReqId,omitempty"`
+	ClientRequestTimestamp      string        `json:"clQReqTs,omitempty"`
+}
+
+// RFQQuoteResponse query current market quotation information
+type RFQQuoteResponse struct {
+	QuoteTimesamp okcoinMilliSec `json:"quoteTs"`
+	TTLMs         string         `json:"ttlMs"`
+	ClQReqID      string         `json:"clQReqId"`
+	QuoteID       string         `json:"quoteId"`
+	BaseCurrency  string         `json:"baseCcy"`
+	QuoteCurrency string         `json:"quoteCcy"`
+	Side          string         `json:"side"`
+	OrigRfqSize   float64        `json:"origRfqSz"`
+	RfqSize       float64        `json:"rfqSz"`
+	RfqSzCurrency string         `json:"rfqSzCcy"`
+	BidPrice      float64        `json:"bidPx,string"`
+	BidBaseSize   float64        `json:"bidBaseSz,string"`
+	BidQuoteSize  float64        `json:"bidQuoteSz,string"`
+	AskPx         string         `json:"askPx"`
+	AskBaseSize   float64        `json:"askBaseSz,string"`
+	AskQuoteSize  float64        `json:"askQuoteSz,string"`
+}
+
+// PlaceRFQOrderRequest represents a place RFQ request order.
+type PlaceRFQOrderRequest struct {
+	ClientDefinedTradeRequestID string        `json:"clTReqId"`
+	QuoteID                     string        `json:"quoteId"`
+	BaseCurrency                currency.Code `json:"baseCcy"`
+	QuoteCurrency               currency.Code `json:"quoteCcy"`
+	Side                        string        `json:"side"`
+	Size                        float64       `json:"Sz,string"`
+	SizeCurrency                currency.Code `json:"szCcy"`
+}
+
+// RFQOrderResponse represents an RFQ
+type RFQOrderResponse struct {
+	Timestamp      okcoinMilliSec `json:"ts"`
+	TradeID        string         `json:"tradeId"`
+	QuoteID        string         `json:"quoteId"`
+	ClTReqID       string         `json:"clTReqId"` // user-defined ID
+	State          string         `json:"state"`
+	InstrumentID   string         `json:"instId"`
+	BaseCurrency   string         `json:"baseCcy"`
+	QuoteCurrency  string         `json:"quoteCcy"`
+	Side           string         `json:"side"`
+	Price          float64        `json:"px,string"`
+	FilledBaseSize float64        `json:"filledBaseSz,string"`
+	FilledTermSize float64        `json:"filledTermSz,string"`
+}
+
+// RFQOrderDetail represents an rfq order detail
+type RFQOrderDetail struct {
+	Timestamp      okcoinMilliSec `json:"ts"`
+	TradeID        string         `json:"tradeId"`
+	QuoteID        string         `json:"quoteId"`
+	ClTReqID       string         `json:"clTReqId"`
+	State          string         `json:"state"`
+	InstID         string         `json:"instId"`
+	BaseCurrency   string         `json:"baseCcy"`
+	QuoteCurrency  string         `json:"quoteCcy"`
+	Side           string         `json:"side"`
+	Price          string         `json:"px,string"`
+	FilledBaseSize float64        `json:"filledBaseSz,string"`
+	FilledTermSize float64        `json:"filledTermSz,string"`
+}
+
+// RFQOrderHistoryItem represents otc rfq order instance.
+type RFQOrderHistoryItem struct {
+	Ts               okcoinMilliSec `json:"ts"`
+	PageIdx          int64          `json:"pageIdx,string"`
+	TotalPageCount   int64          `json:"totalPageCnt,string"`
+	TotalRecordCount int64          `json:"totalRecordCnt,string"`
+	Trades           []struct {
+		Timestamp      okcoinMilliSec `json:"ts"`
+		TradeID        string         `json:"tradeId"`
+		TradeTimestamp okcoinMilliSec `json:"tradeTs"`
+		ClTRequestID   string         `json:"clTReqId"`
+		InstrumentID   string         `json:"instId"`
+		Side           string         `json:"side"`
+		Price          float64        `json:"px,string"`
+		BaseCurrency   string         `json:"baseCcy"`
+		BaseSize       float64        `json:"baseSz,string"`
+		QuoteCurrency  string         `json:"quoteCcy"`
+		QuoteSize      float64        `json:"quoteSz,string"`
+	} `json:"trades"`
+}
+
+// FiatDepositRequestArg represents
+type FiatDepositRequestArg struct {
+	ChannelID         string  `json:"chanId"` // Channel ID. 9:PrimeX; 28:PrimeX US; 21:PrimeX Europe; 3:Silvergate SEN; 27:Silvergate SEN HK; 24:ACH
+	BankAccountNumber string  `json:"bankAcctNum"`
+	Amount            float64 `json:"amt,string"`
+	To                float64 `json:"to,omitempty,string"` // Amount to deposit. Recharge to the account: funding:Funding Account
+}
+
+// FiatDepositResponse represents a fiat deposit response data
+type FiatDepositResponse struct {
+	DepositID    string         `json:"depId"`
+	CreationTime okcoinMilliSec `json:"cTime"`
+}
+
+// CancelDepositAddressResp represents a deposit address id response after cancelling.
+type CancelDepositAddressResp struct {
+	DepositAddressID string `json:"depId"`
+}
+
+// DepositHistoryResponse represents a deposit history instance detail.
+type DepositHistoryResponse struct {
+	DepositID         string         `json:"depId"`
+	ChannelID         string         `json:"chanId"`
+	BillID            string         `json:"billId"`
+	BankAccountName   string         `json:"bankAcctName"`
+	BankAccountNumber string         `json:"bankAcctNum"`
+	Amount            float64        `json:"amt,string"`
+	State             string         `json:"state"`
+	Currency          string         `json:"ccy"`
+	CreationTime      okcoinMilliSec `json:"cTime"`
+	UpdatedTime       okcoinMilliSec `json:"uTime"`
+}
+
+// FiatWithdrawalParam represents a fiat withdrawal parameters
+type FiatWithdrawalParam struct {
+	ChannelID      string  `json:"chanId"`
+	BankAcctNumber string  `json:"bankAcctNum"`
+	Amount         float64 `json:"amt,string"`
+}
+
+// FiatWithdrawalResponse represents a fiat withdrawal
+type FiatWithdrawalResponse struct {
+	DepositID    string         `json:"depId"`
+	Fee          float64        `json:"fee,string"`
+	CreationTime okcoinMilliSec `json:"cTime"`
+}
+
+// FiatWithdrawalHistoryItem represents fiat withdrawal history item.
+type FiatWithdrawalHistoryItem struct {
+	WithdrawalID    string         `json:"wdId"`
+	ChannelID       string         `json:"chanId"`
+	BillID          string         `json:"billId"`
+	BankAccountName string         `json:"bankAcctName"`
+	BankAcctNumber  string         `json:"bankAcctNum"`
+	Amount          float64        `json:"amt,string"`
+	Fee             float64        `json:"fee,string"`
+	State           string         `json:"state"`
+	Ccy             string         `json:"ccy"`
+	CreationTime    okcoinMilliSec `json:"cTime"`
+	UpdateTime      okcoinMilliSec `json:"uTime"`
+}
+
+// ChannelInfo represents a channel information
+type ChannelInfo struct {
+	ChannelID            string `json:"chanId"`
+	Currency             string `json:"ccy"`
+	DepositQuota         string `json:"depQuota"`
+	MinDeposit           string `json:"minDep"`
+	WithdrawalQuota      string `json:"wdQuota"`
+	MinWithdrawal        string `json:"minWd"`
+	UsedWithdrawalQuota  string `json:"usedWdQuota"`
+	ValidWithdrawalQuota string `json:"validWdQuota"`
+	BankAccountInfo      []struct {
+		BankAccountName   string `json:"bankAcctName"`
+		BankAccountNum    string `json:"bankAcctNum"`
+		InstrumentName    string `json:"instName"`
+		MaskAccountNumber string `json:"maskAcctNum"`
+	} `json:"bankAcctInfo"`
+}

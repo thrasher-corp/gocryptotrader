@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -51,6 +52,8 @@ var (
 	errWithdrawalIDMissing         = errors.New("withdrawal id is missing")
 	errTradeModeIsRequired         = errors.New("trade mode is required")
 	errInstrumentTypeMissing       = errors.New("instrument type is required")
+	errChannelIDRequired           = errors.New("channel id is required")
+	errBankAccountNumberIsRequired = errors.New("bank account number is required")
 )
 
 const (
@@ -811,6 +814,248 @@ func (o *OKCoin) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) (
 	}
 	var resp []MaximumWithdrawal
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeAccounts, common.EncodeURLValues("max-withdrawal", params), nil, &resp, true)
+}
+
+// ------------------------------------ OTC-Desk RFQ --------------------------------
+
+// GetAvailableRFQPairs retrives a list of RFQ instruments.
+func (o *OKCoin) GetAvailableRFQPairs(ctx context.Context) ([]AvailableRFQPair, error) {
+	var resp []AvailableRFQPair
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeOtc, "rfq/instruments", nil, &resp, true)
+}
+
+// RequestQuote query current market quotation information
+func (o *OKCoin) RequestQuote(ctx context.Context, arg *QuoteRequestArg) ([]RFQQuoteResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.BaseCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w, base currency", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.QuoteCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w, quote currency", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.Side == "" {
+		return nil, fmt.Errorf("%w, empty order side", order.ErrSideIsInvalid)
+	}
+	if arg.RfqSize <= 0 {
+		return nil, fmt.Errorf("%w, RFQ size must be greater than 0", errInvalidAmount)
+	}
+	if arg.RfqSzCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w, rfqSzCurrency currency", currency.ErrCurrencyCodeEmpty)
+	}
+	var resp []RFQQuoteResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeOtc, "rfq/quote", arg, &resp, true)
+}
+
+// PlaceRFQOrder submit RFQ order
+func (o *OKCoin) PlaceRFQOrder(ctx context.Context, arg *PlaceRFQOrderRequest) ([]RFQOrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.ClientDefinedTradeRequestID == "" {
+		return nil, errors.New("client supplied request ID is required")
+	}
+	if arg.QuoteID == "" {
+		return nil, errors.New("quoteid is required")
+	}
+	if arg.BaseCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w, base currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.QuoteCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w, quote currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.Side == "" {
+		return nil, fmt.Errorf("%w, order side is required", order.ErrSideIsInvalid)
+	}
+	if arg.Size <= 0 {
+		return nil, fmt.Errorf("%w, size can not be less than or equal to zero", errInvalidAmount)
+	}
+	if arg.SizeCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
+	}
+	var resp []RFQOrderResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeAccounts, "", arg, &resp, true)
+}
+
+// GetRFQOrderDetails retrives an RFQ order details.
+func (o *OKCoin) GetRFQOrderDetails(ctx context.Context, clientDefinedID, tradeOrderID string) ([]RFQOrderDetail, error) {
+	params := url.Values{}
+	if clientDefinedID != "" {
+		params.Set("clTReqId", clientDefinedID)
+	}
+	if tradeOrderID != "" {
+		params.Set("tradeId", tradeOrderID)
+	}
+	var resp []RFQOrderDetail
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeOtc, common.EncodeURLValues("rfq/trade", params), nil, &resp, true)
+}
+
+// GetRFQOrderHistory retrives an RFQ order history
+func (o *OKCoin) GetRFQOrderHistory(ctx context.Context, begin, end time.Time, pageSize, pageIndex int64) ([]RFQOrderHistoryItem, error) {
+	params := url.Values{}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSz", strconv.FormatInt(pageSize, 10))
+	}
+	if pageIndex > 0 {
+		params.Set("pageIdx", strconv.FormatInt(pageIndex, 10))
+	}
+	var resp []RFQOrderHistoryItem
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeOtc, common.EncodeURLValues("rfq/history", params), nil, &resp, true)
+}
+
+// ---------- Fiat ----------------------------------------------------------------
+
+// Deposit posts a fiat deposit to an account
+func (o *OKCoin) Deposit(ctx context.Context, arg *FiatDepositRequestArg) ([]FiatDepositResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.ChannelID == "" {
+		return nil, errChannelIDRequired
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w, amount %f", errInvalidAmount, arg.Amount)
+	}
+	if arg.BankAccountNumber == "" {
+		return nil, errBankAccountNumberIsRequired
+	}
+	var resp []FiatDepositResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeFiat, "deposit", arg, &resp, true)
+}
+
+// CancelFiatDeposit cancels pending deposit requests.
+func (o *OKCoin) CancelFiatDeposit(ctx context.Context, depositID string) (*CancelDepositAddressResp, error) {
+	if depositID == "" {
+		return nil, errors.New("deposit address required")
+	}
+	var resp []CancelDepositAddressResp
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeFiat, "cancel-deposit", map[string]string{"depId": depositID}, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResposeFromServer
+	}
+	return &resp[0], nil
+}
+
+// GetFiatDepositHistory deposit history query requests can be filtered by the different elements, such as channels, deposit status, and currencies.
+// Paging is also available during query and is stored in reverse order based on the transaction time, with the latest one at the top.
+func (o *OKCoin) GetFiatDepositHistory(ctx context.Context, ccy currency.Code, channelID, depositState, depositID string, after, before time.Time, limit int64) ([]DepositHistoryResponse, error) {
+	params := url.Values{}
+	if channelID != "" {
+		params.Set("chanId", channelID)
+	}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if depositState != "" {
+		params.Set("state", depositState)
+	}
+	if depositID != "" {
+		params.Set("depId", depositID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []DepositHistoryResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeFiat, common.EncodeURLValues("deposit-history", params), nil, &resp, true)
+}
+
+// FiatWithdrawal submit fiat withdrawal operations.
+func (o *OKCoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (*FiatWithdrawalResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.ChannelID == "" {
+		return nil, errChannelIDRequired
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
+	}
+	if arg.BankAcctNumber == "" {
+		return nil, errBankAccountNumberIsRequired
+	}
+	var resp []FiatWithdrawalResponse
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeFiat, "withdrawal", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResposeFromServer
+	}
+	return &resp[0], nil
+}
+
+// FiatCancelWithdrawal canceles fiat withdrawal request
+func (o *OKCoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
+	if withdrawalID == "" {
+		return "", errWithdrawalIDMissing
+	}
+	var resp []struct {
+		WithdrawalID string `json:"wdId"`
+	}
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeFiat, "cancel-withdrawal", &map[string]string{"wdId": withdrawalID}, &resp, true)
+	if err != nil {
+		return "", err
+	}
+	if len(resp) == 0 {
+		return "", errNoValidResposeFromServer
+	}
+	return resp[0].WithdrawalID, nil
+}
+
+// GetFiatWithdrawalHistory retrives a fiat withdrawal orders list
+// Channel ID used in the transaction.  9:PrimeX; 28:PrimeX US; 21:PrimeX Europe; 3:Silvergate SEN; 27:Silvergate SEN HK
+// Withdrawal state. -2:User canceled the order；-1:Withdrawal attempt has failed; 0:Withdrawal request submitted; 1:Withdrawal request is pending; 2:Withdrawal has been credited
+func (o *OKCoin) GetFiatWithdrawalHistory(ctx context.Context, ccy currency.Code, channelID, withdrawalState, withdrawalID string, after, before time.Time, limit int64) ([]FiatWithdrawalHistoryItem, error) {
+	params := url.Values{}
+	if channelID != "" {
+		params.Set("chanId", channelID)
+	}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if withdrawalState != "" {
+		params.Set("state", withdrawalState)
+	}
+	if withdrawalID != "" {
+		params.Set("depId", withdrawalID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []FiatWithdrawalHistoryItem
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeFiat, common.EncodeURLValues("withdrawal-history", params), nil, &resp, true)
+}
+
+// GetChannelInfo retrives channel detailed information given channel id.
+func (o *OKCoin) GetChannelInfo(ctx context.Context, channelID string) ([]ChannelInfo, error) {
+	params := url.Values{}
+	if channelID != "" {
+		params.Set("chanId", channelID)
+	}
+	var resp []ChannelInfo
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeFiat, common.EncodeURLValues("channel", params), nil, &resp, true)
 }
 
 // ------------------------------------  Old ------------------------------------------------------------

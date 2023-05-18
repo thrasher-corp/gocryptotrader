@@ -18,9 +18,9 @@ import (
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey                  = "02fc735f-5e17-4126-b487-9a9088fed393"
-	apiSecret               = "D84B227D8AE0EF9A3B1E09E0FF9F3F38"
-	passphrase              = "0631Okcoin!"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 )
 
@@ -479,6 +479,128 @@ func TestGetMaximumWithdrawals(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
 	_, err := o.GetMaximumWithdrawals(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAvailableRFQPairs(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetAvailableRFQPairs(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestQuote(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.RequestQuote(context.Background(), &QuoteRequestArg{
+		BaseCurrency:  currency.BTC,
+		QuoteCurrency: currency.USD,
+		Side:          "sell",
+		RfqSize:       1000,
+		RfqSzCurrency: currency.USD,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceRFQOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.PlaceRFQOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, but found %v", errNilArgument, err)
+	}
+}
+
+func TestGetRFQOrderDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetRFQOrderDetails(context.Background(), "", "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRFQOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetRFQOrderHistory(context.Background(), time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeposit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.Deposit(context.Background(), &FiatDepositRequestArg{
+		ChannelID:         "28",
+		BankAccountNumber: "1000221891299",
+		Amount:            100,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelFiatDeposit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.CancelFiatDeposit(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFiatDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetFiatDepositHistory(context.Background(), currency.BTC, "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFiatWithdrawal(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.FiatWithdrawal(context.Background(), &FiatWithdrawalParam{
+		ChannelID:      "3",
+		BankAcctNumber: "100221891299",
+		Amount:         12,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFiatCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.FiatCancelWithdrawal(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFiatWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetFiatWithdrawalHistory(context.Background(), currency.BTC, "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetChannelInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetChannelInfo(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
