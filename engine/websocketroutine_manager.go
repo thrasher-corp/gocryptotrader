@@ -40,7 +40,6 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
-		shutdown:        make(chan struct{}),
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -62,6 +61,9 @@ func (m *websocketRoutineManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.state, stoppedState, startingState) {
 		return ErrSubSystemAlreadyStarted
 	}
+
+	m.shutdown = make(chan struct{})
+
 	go func() {
 		m.websocketRoutine()
 		// It's okay for this to fail, just means shutdown has started
