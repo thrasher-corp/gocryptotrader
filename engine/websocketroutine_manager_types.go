@@ -23,8 +23,8 @@ const (
 	readyState
 )
 
-// websocketRoutineManager is used to process websocket updates from a unified location
-type websocketRoutineManager struct {
+// WebsocketRoutineManager is used to process websocket updates from a unified location
+type WebsocketRoutineManager struct {
 	state           int32
 	verbose         bool
 	exchangeManager iExchangeManager

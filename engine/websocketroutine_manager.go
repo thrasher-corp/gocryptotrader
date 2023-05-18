@@ -18,7 +18,7 @@ import (
 )
 
 // setupWebsocketRoutineManager creates a new websocket routine manager
-func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*websocketRoutineManager, error) {
+func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -34,7 +34,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 	if cfg.CurrencyPairFormat == nil {
 		return nil, errNilCurrencyPairFormat
 	}
-	man := &websocketRoutineManager{
+	man := &WebsocketRoutineManager{
 		verbose:         verbose,
 		exchangeManager: exchangeManager,
 		orderManager:    orderManager,
@@ -45,7 +45,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 }
 
 // Start runs the subsystem
-func (m *websocketRoutineManager) Start() error {
+func (m *WebsocketRoutineManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -73,7 +73,7 @@ func (m *websocketRoutineManager) Start() error {
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *websocketRoutineManager) IsRunning() bool {
+func (m *WebsocketRoutineManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
@@ -81,7 +81,7 @@ func (m *websocketRoutineManager) IsRunning() bool {
 }
 
 // Stop attempts to shutdown the subsystem
-func (m *websocketRoutineManager) Stop() error {
+func (m *WebsocketRoutineManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -101,7 +101,7 @@ func (m *websocketRoutineManager) Stop() error {
 }
 
 // websocketRoutine Initial routine management system for websocket
-func (m *websocketRoutineManager) websocketRoutine() {
+func (m *WebsocketRoutineManager) websocketRoutine() {
 	if m.verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
@@ -163,7 +163,7 @@ func (m *websocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) error {
+func (m *WebsocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -204,7 +204,7 @@ func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 // websocketDataHandler is the default central point for exchange websocket
 // implementations to send processed data which will then pass that to an
 // appropriate handler.
-func (m *websocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
+func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
 	switch d := data.(type) {
 	case string:
 		log.Infoln(log.WebsocketMgr, d)
@@ -310,7 +310,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair {
+func (m *WebsocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
 		return p
 	}
@@ -319,7 +319,7 @@ func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 
 // printOrderSummary this function will be deprecated when a order manager
 // update is done.
-func (m *websocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bool) {
+func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bool) {
 	if m == nil || atomic.LoadInt32(&m.state) == stoppedState || o == nil {
 		return
 	}
@@ -348,7 +348,7 @@ func (m *websocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 
 // printAccountHoldingsChangeSummary this function will be deprecated when a
 // account holdings update is done.
-func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Change) {
+func (m *WebsocketRoutineManager) printAccountHoldingsChangeSummary(o account.Change) {
 	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
 		return
 	}
@@ -365,7 +365,7 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 // dedicated filter specific data types for internal & external strategy use.
 // InterceptorOnly as true will purge all other registered handlers
 // (including default) bypassing all other handling.
-func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
+func (m *WebsocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
 	if m == nil {
 		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
 	}
@@ -388,7 +388,7 @@ func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataH
 
 // setWebsocketDataHandler sets a single websocket data handler, removing all
 // pre-existing handlers.
-func (m *websocketRoutineManager) setWebsocketDataHandler(fn WebsocketDataHandler) error {
+func (m *WebsocketRoutineManager) setWebsocketDataHandler(fn WebsocketDataHandler) error {
 	if m == nil {
 		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
 	}

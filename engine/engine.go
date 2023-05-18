@@ -44,7 +44,7 @@ type Engine struct {
 	OrderManager            *OrderManager
 	portfolioManager        *portfolioManager
 	gctScriptManager        *gctscript.GctScriptManager
-	WebsocketRoutineManager *websocketRoutineManager
+	WebsocketRoutineManager *WebsocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
 	currencyStateManager    *CurrencyStateManager
