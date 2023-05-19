@@ -2753,3 +2753,162 @@ type ChannelInfo struct {
 		MaskAccountNumber string `json:"maskAcctNum"`
 	} `json:"bankAcctInfo"`
 }
+
+// PlaceTradeOrderParam represents a trade order arguments.
+type PlaceTradeOrderParam struct {
+	InstrumentID   currency.Pair `json:"instId"`
+	TradeMode      string        `json:"tdMode"` // Trade mode --> Margin mode: 'cross','isolated' Non-Margin mode: 'cash'
+	ClientOrderID  string        `json:"clOrdId"`
+	Side           string        `json:"side"`                // Order side, buy sell
+	OrderType      string        `json:"ordType"`             // Order type 'market': Market order 'limit': Limit order 'post_only': Post-only order 'fok': Fill-or-kill order 'ioc': Immediate-or-cancel order
+	Price          float64       `json:"px,string,omitempty"` // Order price. Only applicable to limit,post_only,fok,ioc order.
+	Size           float64       `json:"sz,string"`
+	OrderTag       string        `json:"tag,omitempty"` // Order tag A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 16 characters.
+	BanAmend       bool          `json:"banAmend,omitempty"`
+	TargetCurrency string        `json:"tgtCcy,omitempty"` // Whether the target currency uses the quote or base currency.
+}
+
+// TradeOrderResponse represents a single trade order information
+type TradeOrderResponse struct {
+	ClientOrderID string `json:"clOrdId"`
+	OrderID       string `json:"ordId"`
+	Tag           string `json:"tag"`
+	SCode         string `json:"sCode"`
+	SMsg          string `json:"sMsg"`
+}
+
+// CancelTradeOrderRequest represents a cancel trade order request body
+type CancelTradeOrderRequest struct {
+	InstrumentID  string `json:"instId"`
+	OrderID       string `json:"ordId"`
+	ClientOrderID string `json:"clOrdId"`
+}
+
+// AmendTradeOrderRequestParam represents an order cancellation request parameter
+type AmendTradeOrderRequestParam struct {
+	OrderID                 string  `json:"ordId,omitempty"`
+	InstrumentID            string  `json:"instId"`
+	CancelOOrderIfAmendFail bool    `json:"cxlOnFail,omitempty"` // whether the order needs to be automatically canceled when the order amendment fails
+	ClientOrderID           string  `json:"clOrdId,omitempty"`
+	ClientRequestID         string  `json:"reqId,omitempty"`
+	NewSize                 float64 `json:"newSz,string,omitempty"` // Conditional
+	NewPrice                float64 `json:"newPx,string,omitempty"` // Conditional
+}
+
+// AmendTradeOrderResponse represents a request parameter to amend an incomplete order.
+type AmendTradeOrderResponse struct {
+	ClientOrderID string `json:"clOrdId"`
+	OrderID       string `json:"ordId"`
+	RequestID     string `json:"reqId"`
+	StatusCode    string `json:"sCode"`
+	StatusMessage string `json:"sMsg"`
+}
+
+// TradeOrder represents a trade order detail
+type TradeOrder struct {
+	AccFillSize                string         `json:"accFillSz"`
+	AveragePrice               string         `json:"avgPx"`
+	CreationTime               okcoinMilliSec `json:"cTime"`
+	Category                   string         `json:"category"`
+	Currency                   string         `json:"ccy"`
+	ClientOrdID                string         `json:"clOrdId"`
+	Fee                        string         `json:"fee"`
+	FeeCurrency                string         `json:"feeCcy"`
+	FillPrice                  string         `json:"fillPx"`
+	FillSize                   string         `json:"fillSz"`
+	FillTime                   okcoinMilliSec `json:"fillTime"`
+	InstrumentID               string         `json:"instId"`
+	InstrumentType             string         `json:"instType"`
+	Leverage                   string         `json:"lever"`
+	OrderID                    string         `json:"ordId"`
+	OrderType                  string         `json:"ordType"`
+	ProfitAndLoss              string         `json:"pnl"`
+	PosSide                    string         `json:"posSide"`
+	Price                      string         `json:"px"`
+	Rebate                     string         `json:"rebate"`
+	RebateCurrency             string         `json:"rebateCcy"`
+	ReduceOnly                 string         `json:"reduceOnly"`
+	Side                       string         `json:"side"`
+	StopLossOrdPrice           string         `json:"slOrdPx"`
+	StopLossTriggerPrice       string         `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string         `json:"slTriggerPxType"`
+	Source                     string         `json:"source"`
+	State                      string         `json:"state"`
+	Size                       string         `json:"sz"`
+	Tag                        string         `json:"tag"`
+	TradeMode                  string         `json:"tdMode"`
+	TargetCurrency             string         `json:"tgtCcy"`
+	TakeProfitOrderPrice       string         `json:"tpOrdPx"`
+	TakeProfitTriggerPrice     string         `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string         `json:"tpTriggerPxType"`
+	TradeID                    string         `json:"tradeId"`
+	UpdateTime                 okcoinMilliSec `json:"uTime"`
+}
+
+// TransactionFillItem represents recently filled transactions
+type TransactionFillItem struct {
+	InstrumentType string         `json:"instType"`
+	InstrumentID   string         `json:"instId"`
+	TradeID        string         `json:"tradeId"`
+	OrderID        string         `json:"ordId"`
+	ClientOrderID  string         `json:"clOrdId"`
+	BillID         string         `json:"billId"`
+	Tag            string         `json:"tag"`
+	FillSize       float64        `json:"fillSz,string"`
+	FillPrice      float64        `json:"fillPx,string"`
+	Side           string         `json:"side"`
+	PosSide        string         `json:"posSide"`
+	ExecType       string         `json:"execType"`
+	FeeCurrency    string         `json:"feeCcy"`
+	Fee            float64        `json:"fee,string"`
+	Timestamp      okcoinMilliSec `json:"ts"`
+}
+
+// AlgoOrderRequestParam represents algo order request parameters.
+type AlgoOrderRequestParam struct {
+	InstrumentID             string  `json:"instId"`
+	TradeMode                string  `json:"tdMode"`
+	Side                     string  `json:"side"`
+	OrderType                string  `json:"ordType"` // Order type'conditional': One-way stop order'oco': One-cancels-the-other order'trigger': Trigger order'move_order_stop': Trailing order'iceberg': Iceberg order'twap': TWAP order
+	Size                     float64 `json:"sz,string"`
+	TpTriggerPrice           float64 `json:"tpTriggerPx,string,omitempty"`
+	TpOrderPrice             float64 `json:"tpOrdPx,string,omitempty"`
+	TpTriggerOrderPrice      float64 `json:"tpTriggerPxType,string,omitempty"`
+	StopLossTriggerPrice     float64 `json:"slTriggerPx,string,omitempty"`
+	StopLossOrderPrice       float64 `json:"slOrdPx,string,omitempty"`
+	StopLossTriggerPriceType string  `json:"slTriggerPxType,omitempty"`
+	TargetCurrency           string  `json:"tgtCcy,omitempty"`
+	Tag                      string  `json:"tag,omitempty"`
+	ClientOrderID            string  `json:"clOrdId,omitempty"`
+
+	// Trigger Order
+	TriggerPrice     float64 `json:"triggerPx,string"`
+	OrderPrice       float64 `json:"orderPx,string"`
+	TriggerPriceType string  `json:"triggerPxType"`
+
+	// Trailing Stop Order
+	CallbackRatio  float64 `json:"callbackRatio,string,omitempty"` // Either callbackRatio or callbackSpread is allowed to be passed.
+	CallbackSpread string  `json:"callbackSpread"`
+	ActivePrice    float64 `json:"activePx,string,omitempty"`
+
+	// Iceberg Order
+	PriceRatio  float64 `json:"pxVar,string,omitempty"`
+	PriceSpread float64 `json:"pxSpread,string,omitempty"`
+	SizeLimit   float64 `json:"szLimit,string,omitempty"` // Average amount
+	PriceLimit  float64 `json:"pxLimit,string,omitempty"`
+
+	// Twap Order
+
+	// PriceRatio
+	// PriceSpread
+	// SizeLimit or AverageAmount
+	TimeInterval string `json:"timeInterval,omitempty"`
+}
+
+// AlgoOrderResponse represents a response data for creating algo order.
+type AlgoOrderResponse struct {
+	AlgoID        string `json:"algoId"`
+	ClientOrderID string `json:"clOrdId"`
+	StatusCode    string `json:"sCode"`
+	StatusMsg     string `json:"sMsg"`
+}

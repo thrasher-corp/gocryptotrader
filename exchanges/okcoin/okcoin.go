@@ -41,19 +41,28 @@ type OKCoin struct {
 }
 
 var (
-	errNilArgument                 = errors.New("nil argument")
-	errInvalidAmount               = errors.New("invalid amount value")
-	errAddressMustNotBeEmptyString = errors.New("address must be a non-empty string")
-	errSubAccountNameRequired      = errors.New("sub-account name is required")
-	errNoValidResposeFromServer    = errors.New("no valid response")
-	errTransferIDOrClientIDRequred = errors.New("either transfer id or cliend id is required")
-	errInvalidWithdrawalMethod     = errors.New("withdrawal method must be specified")
-	errInvalidTrasactionFeeValue   = errors.New("invalid transaction fee value")
-	errWithdrawalIDMissing         = errors.New("withdrawal id is missing")
-	errTradeModeIsRequired         = errors.New("trade mode is required")
-	errInstrumentTypeMissing       = errors.New("instrument type is required")
-	errChannelIDRequired           = errors.New("channel id is required")
-	errBankAccountNumberIsRequired = errors.New("bank account number is required")
+	errNilArgument                              = errors.New("nil argument")
+	errInvalidAmount                            = errors.New("invalid amount value")
+	errInvalidPrice                             = errors.New("invalid price value")
+	errAddressMustNotBeEmptyString              = errors.New("address must be a non-empty string")
+	errSubAccountNameRequired                   = errors.New("sub-account name is required")
+	errNoValidResponseFromServer                = errors.New("no valid response")
+	errTransferIDOrClientIDRequred              = errors.New("either transfer id or cliend id is required")
+	errInvalidWithdrawalMethod                  = errors.New("withdrawal method must be specified")
+	errInvalidTrasactionFeeValue                = errors.New("invalid transaction fee value")
+	errWithdrawalIDMissing                      = errors.New("withdrawal id is missing")
+	errTradeModeIsRequired                      = errors.New("trade mode is required")
+	errInstrumentTypeMissing                    = errors.New("instrument type is required")
+	errChannelIDRequired                        = errors.New("channel id is required")
+	errBankAccountNumberIsRequired              = errors.New("bank account number is required")
+	errMissingInstrumentID                      = errors.New("missing instrument id")
+	errNoOrderbookData                          = errors.New("no orderbook data found")
+	errOrderIDOrClientOrderIDRequired           = errors.New("order id or client order id is required")
+	errSizeOrPriceRequired                      = errors.New("valid size or price has to be specified")
+	errPriceRatioOrPriveSpreadRequired          = errors.New("either price ratio or price variance is required")
+	errSizeLimitRequired                        = errors.New("size limit is required")
+	errPriceLimitRequired                       = errors.New("price limit is required")
+	errStopLossOrTakeProfitTriggerPriceRequired = errors.New("either parameter slTriggerPx or tpTriggerPx is required")
 )
 
 const (
@@ -106,11 +115,6 @@ const (
 	getMarketAvailability = "availability"
 	getLoan               = "borrow"
 	getRepayment          = "repayment"
-)
-
-var (
-	errMissingInstrumentID = errors.New("missing instrument id")
-	errNoOrderbookData     = errors.New("no orderbook data found")
 )
 
 // ------------------------------------  New ------------------------------------------------------------
@@ -454,7 +458,7 @@ func (o *OKCoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest)
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResposeFromServer
+		return nil, errNoValidResponseFromServer
 	}
 	return &resp[0], nil
 }
@@ -616,7 +620,7 @@ func (o *OKCoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancelatio
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResposeFromServer
+		return nil, errNoValidResponseFromServer
 	}
 	return &resp[0], nil
 }
@@ -941,7 +945,7 @@ func (o *OKCoin) CancelFiatDeposit(ctx context.Context, depositID string) (*Canc
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResposeFromServer
+		return nil, errNoValidResponseFromServer
 	}
 	return &resp[0], nil
 }
@@ -995,7 +999,7 @@ func (o *OKCoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResposeFromServer
+		return nil, errNoValidResponseFromServer
 	}
 	return &resp[0], nil
 }
@@ -1013,7 +1017,7 @@ func (o *OKCoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) 
 		return "", err
 	}
 	if len(resp) == 0 {
-		return "", errNoValidResposeFromServer
+		return "", errNoValidResponseFromServer
 	}
 	return resp[0].WithdrawalID, nil
 }
@@ -1056,6 +1060,383 @@ func (o *OKCoin) GetChannelInfo(ctx context.Context, channelID string) ([]Channe
 	}
 	var resp []ChannelInfo
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeFiat, common.EncodeURLValues("channel", params), nil, &resp, true)
+}
+
+// --------------------- Trade endpoints ---------------------------
+
+func (a *PlaceTradeOrderParam) validateTradeOrderParameter() error {
+	if a == nil {
+		return errNilArgument
+	}
+	if a.InstrumentID.IsEmpty() {
+		return fmt.Errorf("%w, instrument id is required", currency.ErrCurrencyPairEmpty)
+	}
+	if a.TradeMode == "" {
+		return errTradeModeIsRequired
+	}
+	if a.Side == "" {
+		return fmt.Errorf("%w, empty order side", order.ErrSideIsInvalid)
+	}
+	if a.OrderType == "" {
+		return fmt.Errorf("%w, empty order type", order.ErrTypeIsInvalid)
+	}
+	if a.Size <= 0 {
+		return fmt.Errorf("%w, size: %f", errInvalidAmount, a.Size)
+	}
+	return nil
+}
+
+// PlaceOrder to place a trade order.
+func (o *OKCoin) PlaceOrder(ctx context.Context, arg *PlaceTradeOrderParam) (*TradeOrderResponse, error) {
+	err := arg.validateTradeOrderParameter()
+	if err != nil {
+		return nil, err
+	}
+	var resp []TradeOrderResponse
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeTrade, "order", &arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResponseFromServer
+	}
+	if resp[0].SCode != "0" {
+		return nil, fmt.Errorf("code: %s msg: %s", resp[0].SCode, resp[0].SMsg)
+	}
+	return &resp[0], nil
+}
+
+// PlaceMultipleOrder place orders in batches. Maximum 20 orders can be placed per request. Request parameters should be passed in the form of an array.
+func (o *OKCoin) PlaceMultipleOrder(ctx context.Context, args []PlaceTradeOrderParam) ([]TradeOrderResponse, error) {
+	var err error
+	if len(args) == 0 {
+		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
+	}
+	for x := range args {
+		err = args[x].validateTradeOrderParameter()
+		if err != nil {
+			return nil, err
+		}
+	}
+	var resp []TradeOrderResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeTrade, "batch-orders", &args, &resp, true)
+}
+
+// CancelTradeOrder cancels a single trade order
+func (o *OKCoin) CancelTradeOrder(ctx context.Context, arg *CancelTradeOrderRequest) (*TradeOrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	if arg.OrderID == "" && arg.ClientOrderID == "" {
+		return nil, errOrderIDOrClientOrderIDRequired
+	}
+	var resp []TradeOrderResponse
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeTrade, "cancel-order", &arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResponseFromServer
+	}
+	if resp[0].SCode != "0" {
+		return nil, fmt.Errorf("code: %s msg: %s", resp[0].SCode, resp[0].SMsg)
+	}
+	return &resp[0], nil
+}
+
+func (arg *CancelTradeOrderRequest) validate() error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.InstrumentID == "" {
+		return errMissingInstrumentID
+	}
+	if arg.OrderID == "" && arg.ClientOrderID == "" {
+		return errOrderIDOrClientOrderIDRequired
+	}
+	return nil
+}
+
+// CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled per request.
+// Request parameters should be passed in the form of an array.
+func (o *OKCoin) CancelMultipleOrders(ctx context.Context, args []CancelTradeOrderRequest) ([]TradeOrderResponse, error) {
+	var err error
+	if len(args) == 0 {
+		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
+	}
+	for x := range args {
+		err = args[x].validate()
+		if err != nil {
+			return nil, err
+		}
+	}
+	var resp []TradeOrderResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeTrade, "cancel-batch-orders", args, &resp, true)
+}
+
+func (a *AmendTradeOrderRequestParam) validate() error {
+	if a == nil {
+		return errNilArgument
+	}
+	if a.InstrumentID == "" {
+		return errMissingInstrumentID
+	}
+	if a.OrderID == "" && a.ClientOrderID == "" {
+		return errOrderIDOrClientOrderIDRequired
+	}
+	if a.NewSize <= 0 && a.NewPrice <= 0 {
+		return errSizeOrPriceRequired
+	}
+	return nil
+}
+
+// AmendOrder amends an incomplete order.
+func (o *OKCoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestParam) (*AmendTradeOrderResponse, error) {
+	err := arg.validate()
+	if err != nil {
+		return nil, err
+	}
+	var resp []AmendTradeOrderResponse
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeTrade, "amend-order", &arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResponseFromServer
+	}
+	if resp[0].StatusCode != "0" {
+		return nil, fmt.Errorf("code: %s msg: %s", resp[0].StatusCode, resp[0].StatusMessage)
+	}
+	return &resp[0], nil
+}
+
+// AmendMultipleOrder amends multple trade orders.
+func (o *OKCoin) AmendMultipleOrder(ctx context.Context, args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
+	if len(args) == 0 {
+		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", errNilArgument)
+	}
+	for x := range args {
+		err := args[x].validate()
+		if err != nil {
+			return nil, err
+		}
+	}
+	var resp []AmendTradeOrderResponse
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeTrade, "amend-batch-orders", &args, &resp, true)
+}
+
+// GetPersonalOrderDetail retrives an order detail
+func (o *OKCoin) GetPersonalOrderDetail(ctx context.Context, instrumentID, orderID, clientOrderID string) (*TradeOrder, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	if orderID == "" && clientOrderID == "" {
+		return nil, errOrderIDOrClientOrderIDRequired
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("clOrdId", clientOrderID)
+	}
+	var resp []TradeOrder
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeTrade, common.EncodeURLValues("order", params), nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, err
+	}
+	return &resp[0], nil
+}
+
+func tradeOrderParamsFill(instrumentType, instrumentID, orderType, state string, after, before time.Time, limit int64) url.Values {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if orderType != "" {
+		params.Set("ordType", orderType)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return params
+}
+
+// GetPersonalOrderList retrieve all incomplete orders under the current account.
+func (o *OKCoin) GetPersonalOrderList(ctx context.Context, instrumentType, instrumentID, orderType, state string, after, before time.Time, limit int64) ([]TradeOrder, error) {
+	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
+	var resp []TradeOrder
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeTrade, common.EncodeURLValues("orders-pending", params), nil, &resp, true)
+}
+
+// GetOrderHistory7Days retrieve the completed order data for the last 7 days, and the incomplete orders that have been canceled are only reserved for 2 hours.
+func (o *OKCoin) GetOrderHistory7Days(ctx context.Context, instrumentType, instrumentID, orderType, state string, after, before time.Time, limit int64) ([]TradeOrder, error) {
+	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
+	var resp []TradeOrder
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeTrade, common.EncodeURLValues("orders-history", params), nil, &resp, true)
+}
+
+// GetOrderHistory3Months retrieve the completed order data of the last 3 months.
+func (o *OKCoin) GetOrderHistory3MonthsDays(ctx context.Context, instrumentType, instrumentID, orderType, state string, after, before time.Time, limit int64) ([]TradeOrder, error) {
+	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
+	var resp []TradeOrder
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeTrade, common.EncodeURLValues("orders-history-archive", params), nil, &resp, true)
+}
+
+func transactionFillParams(instrumentType, instrumentID, orderID, afterBillID, beforeBillID string, begin, end time.Time, limit int64) url.Values {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if afterBillID != "" {
+		params.Set("after", afterBillID)
+	}
+	if beforeBillID != "" {
+		params.Set("before", beforeBillID)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return params
+}
+
+// GetRecentTransactionDetail retrieve recently-filled transaction details in the last 3 day.
+func (o *OKCoin) GetRecentTransactionDetail(ctx context.Context, instrumentType, instrumentID, orderID, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]TransactionFillItem, error) {
+	params := transactionFillParams(instrumentType, instrumentID, orderID, afterBillID, beforeBillID, begin, end, limit)
+	var resp []TransactionFillItem
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeTrade, common.EncodeURLValues("fills", params), nil, &resp, true)
+}
+
+// GetTransactionDetails3Months retrives recently filled transaction detail in the last 3-months
+func (o *OKCoin) GetTransactionDetails3Months(ctx context.Context, instrumentType, instrumentID, orderID, beforeBillID, afterBillID string, begin, end time.Time, limit int64) ([]TransactionFillItem, error) {
+	params := transactionFillParams(instrumentType, instrumentID, orderID, afterBillID, beforeBillID, begin, end, limit)
+	var resp []TransactionFillItem
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, typeTrade, common.EncodeURLValues("fills-history", params), nil, &resp, true)
+}
+
+func (arg *AlgoOrderRequestParam) validateAlgoOrder() error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.InstrumentID == "" {
+		return errMissingInstrumentID
+	}
+	if arg.TradeMode == "" {
+		return errTradeModeIsRequired
+	}
+	if arg.Side == "" {
+		return fmt.Errorf("%w, empty order side", order.ErrSideIsInvalid)
+	}
+	// conditional: One-way stop order, 'oco': One-cancels-the-other order, 'trigger': Trigger order
+	// 'move_order_stop': Trailing order 'iceberg': Iceberg order 'twap': TWAP order
+	if arg.OrderType == "" {
+		return fmt.Errorf("%w, empty order type", order.ErrTypeIsInvalid)
+	}
+	if arg.Size <= 0 {
+		return fmt.Errorf("%w, please specify a valid size, size >0", errInvalidAmount)
+	}
+	switch arg.OrderType {
+	case "conditional":
+		//  One-way stop order
+		// When placing net stop order (ordType=conditional) and both take-profit and stop-loss parameters are sent,
+		// only stop-loss logic will be performed and take-profit logic will be ignored.
+		if arg.StopLossTriggerPrice <= 0 && arg.TpTriggerPrice <= 0 {
+			return errStopLossOrTakeProfitTriggerPriceRequired
+		}
+	case "oco":
+		//  One-cancels-the-other order
+	case "trigger":
+		//  Trigger order
+		if arg.TriggerPrice <= 0 {
+			return fmt.Errorf("%w, trigger price is required for order type %s", errInvalidPrice, arg.OrderType)
+		}
+		if arg.OrderPrice <= 0 {
+			return fmt.Errorf("%w, order price is required for order type %s", errInvalidPrice, arg.OrderType)
+		}
+	case "move_order_stop":
+		//  Trailing order
+		if arg.CallbackRatio <= 0 && arg.CallbackSpread == "" {
+			return errors.New("either Callback ration or callback spread is required")
+		}
+	case "iceberg":
+		//  Iceberg order
+		if arg.PriceRatio <= 0 && arg.PriceSpread <= 0 {
+			return errPriceRatioOrPriveSpreadRequired
+		}
+		if arg.SizeLimit <= 0 {
+			return fmt.Errorf("%w, order type %s", errSizeLimitRequired, arg.OrderType)
+		}
+		if arg.PriceLimit <= 0 {
+			return fmt.Errorf("%w, order type %s", errPriceLimitRequired, arg.OrderType)
+		}
+	case "twap":
+		//  TWAP order
+		if arg.PriceRatio <= 0 && arg.PriceSpread <= 0 {
+			return errPriceRatioOrPriveSpreadRequired
+		}
+		if arg.SizeLimit <= 0 {
+			return fmt.Errorf("%w, order type %s", errSizeLimitRequired, arg.OrderType)
+		}
+		if arg.PriceLimit <= 0 {
+			return fmt.Errorf("%w, order type %s", errPriceLimitRequired, arg.OrderType)
+		}
+		if arg.TimeInterval == "" {
+			return errors.New("time interval information is required")
+		}
+	}
+	return nil
+}
+
+// PlaceAlgoOrder places an algo order.
+// The algo order includes trigger order, oco order, conditional order,iceberg order, twap order and trailing order.
+func (o *OKCoin) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderRequestParam) (*AlgoOrderResponse, error) {
+	err := arg.validateAlgoOrder()
+	if err != nil {
+		return nil, err
+	}
+	var resp []AlgoOrderResponse
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, typeTrade, "order-algo", &arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResponseFromServer
+	}
+	if resp[0].StatusCode != "0" {
+		return nil, fmt.Errorf("code: %s msg: %s", resp[0].StatusCode, resp[0].StatusMsg)
+	}
+	return &resp[0], nil
 }
 
 // ------------------------------------  Old ------------------------------------------------------------

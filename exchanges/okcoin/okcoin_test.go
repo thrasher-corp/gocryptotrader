@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -603,5 +604,303 @@ func TestGetChannelInfo(t *testing.T) {
 	_, err := o.GetChannelInfo(context.Background(), "")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestPlaceOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.PlaceOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("found %v, but expected %v", err, errNilArgument)
+	}
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("found %v, but expected %v", err, currency.ErrCurrencyPairEmpty)
+	}
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD}})
+	if !errors.Is(err, errTradeModeIsRequired) {
+		t.Errorf("found %v, but expected %v", err, errTradeModeIsRequired)
+	}
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+		TradeMode: "cash",
+	})
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+		TradeMode: "cash",
+		Side:      "buy",
+	})
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Errorf("found %v, but expected %v", err, order.ErrTypeIsInvalid)
+	}
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+		TradeMode: "cash",
+		Side:      "buy",
+		OrderType: "limit",
+	})
+	if !errors.Is(err, errInvalidAmount) {
+		t.Errorf("found %v, but expected %v", err, errInvalidAmount)
+	}
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{
+		InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+		TradeMode:     "cash",
+		ClientOrderID: "12345",
+		Side:          "buy",
+		OrderType:     "limit",
+		Price:         2.15,
+		Size:          2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceMultipleOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	o.Verbose = true
+	_, err := o.PlaceMultipleOrder(context.Background(), []PlaceTradeOrderParam{
+		{
+			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			TradeMode:     "cash",
+			ClientOrderID: "1",
+			Side:          "buy",
+			OrderType:     "limit",
+			Price:         2.15,
+			Size:          2,
+		},
+		{
+			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			TradeMode:     "cash",
+			ClientOrderID: "12",
+			Side:          "buy",
+			OrderType:     "limit",
+			Price:         2.15,
+			Size:          1.5,
+		},
+		{
+			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			TradeMode:     "cash",
+			ClientOrderID: "123",
+			Side:          "buy",
+			OrderType:     "limit",
+			Price:         2.15,
+			Size:          1,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelTradeOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	o.Verbose = true
+	_, err := o.CancelTradeOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("found %v, but expected %v", err, errNilArgument)
+	}
+	_, err = o.CancelTradeOrder(context.Background(), &CancelTradeOrderRequest{})
+	if !errors.Is(err, errMissingInstrumentID) {
+		t.Errorf("found %v, but expected %v", err, errMissingInstrumentID)
+	}
+	_, err = o.CancelTradeOrder(context.Background(), &CancelTradeOrderRequest{
+		InstrumentID: "BTC-USD",
+	})
+	if !errors.Is(err, errOrderIDOrClientOrderIDRequired) {
+		t.Errorf("found %v, but expected %v", err, errOrderIDOrClientOrderIDRequired)
+	}
+	_, err = o.CancelTradeOrder(context.Background(), &CancelTradeOrderRequest{
+		InstrumentID:  "BTC-USD",
+		ClientOrderID: "123",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelMultipleOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.CancelMultipleOrders(context.Background(), []CancelTradeOrderRequest{
+		{
+			InstrumentID:  "BTC-USD",
+			ClientOrderID: "123",
+		},
+		{
+			InstrumentID:  "BTC-USD",
+			ClientOrderID: "abcdefg",
+		},
+		{
+			InstrumentID:  "ETH-USD",
+			ClientOrderID: "1234",
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAmendOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.AmendOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("found %v, but expected %v", err, errNilArgument)
+	}
+	_, err = o.AmendOrder(context.Background(), &AmendTradeOrderRequestParam{})
+	if !errors.Is(err, errMissingInstrumentID) {
+		t.Errorf("found %v, expected %v", err, errMissingInstrumentID)
+	}
+	_, err = o.AmendOrder(context.Background(), &AmendTradeOrderRequestParam{
+		InstrumentID: "BTC-USD"})
+	if !errors.Is(err, errOrderIDOrClientOrderIDRequired) {
+		t.Errorf("found %v, expected %v", err, errOrderIDOrClientOrderIDRequired)
+	}
+	_, err = o.AmendOrder(context.Background(), &AmendTradeOrderRequestParam{
+		InstrumentID: "BTC-USD",
+		OrderID:      "1234"})
+	if !errors.Is(err, errSizeOrPriceRequired) {
+		t.Errorf("found %v, expected %v", err, errSizeOrPriceRequired)
+	}
+	_, err = o.AmendOrder(context.Background(), &AmendTradeOrderRequestParam{
+		InstrumentID: "BTC-USD",
+		OrderID:      "1234",
+		NewSize:      5,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAmendMultipleOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.AmendMultipleOrder(context.Background(), []AmendTradeOrderRequestParam{
+		{
+			InstrumentID: "BTC-USD",
+			OrderID:      "1234",
+			NewSize:      5,
+		},
+		{
+			InstrumentID:  "BTC-USD",
+			ClientOrderID: "abe",
+			NewPrice:      100,
+		},
+		{
+			InstrumentID:    "BTC-USD",
+			OrderID:         "3452",
+			ClientRequestID: "9879",
+			NewSize:         2,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetPersonalOrderDetail(context.Background(), "BTC-USD", "1243", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPersonalOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetPersonalOrderList(context.Background(), "SPOT", "BTC-USD", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderHistory7Days(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetOrderHistory7Days(context.Background(), "SPOT", "BTC-USD", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderHistory3MonthsDays(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetOrderHistory3MonthsDays(context.Background(), "SPOT", "BTC-USD", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecentTransactionDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetRecentTransactionDetail(context.Background(), "SPOT", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestGetTransactionDetails3Months(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetTransactionDetails3Months(context.Background(), "SPOT", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceAlgoOrder(t *testing.T) {
+	t.Parallel()
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.PlaceAlgoOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Error(err)
+	}
+	_, err = o.PlaceAlgoOrder(context.Background(), &AlgoOrderRequestParam{})
+	if !errors.Is(err, errMissingInstrumentID) {
+		t.Errorf("found %v, but expected %v", err, errMissingInstrumentID)
+	}
+	_, err = o.PlaceAlgoOrder(context.Background(), &AlgoOrderRequestParam{
+		InstrumentID: "BTC-USD",
+	})
+	if !errors.Is(err, errTradeModeIsRequired) {
+		t.Errorf("found %v, but expected %v", err, errTradeModeIsRequired)
+	}
+	_, err = o.PlaceAlgoOrder(context.Background(), &AlgoOrderRequestParam{
+		InstrumentID: "BTC-USD",
+		TradeMode:    "cash",
+	})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("found %v, but expected %v", err, order.ErrSideIsInvalid)
+	}
+	_, err = o.PlaceAlgoOrder(context.Background(), &AlgoOrderRequestParam{
+		InstrumentID: "BTC-USD",
+		TradeMode:    "cash",
+		Side:         "buy",
+	})
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Errorf("found %v, but expected %v", err, order.ErrTypeIsInvalid)
+	}
+	_, err = o.PlaceAlgoOrder(context.Background(), &AlgoOrderRequestParam{
+		InstrumentID: "BTC-USD",
+		TradeMode:    "cash",
+		Side:         "buy",
+		OrderType:    "oco",
+	})
+	if !errors.Is(err, errInvalidAmount) {
+		t.Errorf("found %v, but expected %v", err, errInvalidAmount)
+	}
+	_, err = o.PlaceAlgoOrder(context.Background(), &AlgoOrderRequestParam{
+		InstrumentID: "BTC-USD",
+		TradeMode:    "cash",
+		Side:         "buy",
+		Size:         2,
+		OrderType:    "conditional",
+	})
+	if !errors.Is(err, errStopLossOrTakeProfitTriggerPriceRequired) {
+		t.Errorf("found %v, but expected %v", err, errStopLossOrTakeProfitTriggerPriceRequired)
 	}
 }
