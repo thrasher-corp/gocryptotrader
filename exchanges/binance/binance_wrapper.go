@@ -2024,6 +2024,146 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 
 var errHedgeModeUnsupported = errors.New("hedge mode is not supported")
 
+// GetPositionSummary returns the account's position summary for the asset type and pair
+// it can be used to calculate potential positions
+func (b *Binance) GetPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+	}
+	if req.CalculateOffline {
+		return nil, common.ErrCannotCalculateOffline
+	}
+	resp := &order.PositionSummary{
+		Pair:  req.Pair,
+		Asset: req.Asset,
+	}
+	fPair, err := b.FormatExchangeCurrency(req.Pair, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	switch req.Asset {
+	case asset.USDTMarginedFutures:
+		ai, err := b.UAccountInformationV2(ctx)
+		if err != nil {
+			return nil, err
+		}
+		collateralType := order.SingleCollateral
+		if ai.MultiAssetsMargin {
+			collateralType = order.MultiCollateral
+		}
+		marginType := margin.Multi
+		var isolatedMargin float64
+		var leverage, maintenanceMargin, initialMargin, collateralUsed, liquidationPrice, markPrice, positionSize float64
+		for i := range ai.Positions {
+			if ai.Positions[i].Symbol != fPair.String() {
+				continue
+			}
+			leverage = ai.Positions[i].Leverage
+			if ai.Positions[i].Isolated {
+				marginType = margin.Isolated
+				isolatedMargin = ai.Positions[i].IsolatedWallet
+				maintenanceMargin = ai.Positions[i].MaintenanceMargin
+				initialMargin = ai.Positions[i].PositionInitialMargin
+				collateralUsed = isolatedMargin
+			}
+		//	ai.Positions[i].EntryPrice*ai.Positions[i].PositionAmount + ai
+		}
+		rates, err := b.
+
+		// binance so fun, some prices exclusively here
+		pos, err := b.UPositionsInfoV2(ctx, fPair)
+		if err != nil {
+			return nil, err
+		}
+		if len(pos) > 1 {
+			return nil, errHedgeModeUnsupported
+		}
+		if len(pos) == 1 {
+			liquidationPrice = pos[0].LiquidationPrice
+			markPrice = pos[0].MarkPrice
+			positionSize = pos[0].PositionAmount
+
+		}
+
+		return &order.PositionSummary{
+			Pair:                         req.Pair,
+			Asset:                        req.Asset,
+			MarginType:                   marginType, // does not say,
+			CollateralType:               collateralType,
+			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
+			Leverage:                     decimal.NewFromFloat(leverage),
+			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
+			InitialMarginRequirement:     decimal.NewFromFloat(initialMargin),
+			EstimatedLiquidationPrice:    decimal.NewFromFloat(liquidationPrice),
+			CollateralUsed:               decimal.NewFromFloat(collateralUsed),
+			MarkPrice:                    decimal.NewFromFloat(markPrice),
+			CurrentSize:                  decimal.NewFromFloat(positionSize),
+			BreakEvenPrice:               decimal.Decimal{},
+			AverageOpenPrice:             decimal.Decimal{},
+			RecentPNL:                    decimal.Decimal{},
+			MarginFraction:               decimal.Decimal{},
+			FreeCollateral:               decimal.Decimal{},
+			TotalCollateral:              decimal.Decimal{},
+		}, nil
+		/*
+			var positionInfo []UPositionInformationV2
+			positionInfo, err = b.UPositionsInfoV2(ctx, fPair)
+			if err != nil {
+				return nil, err
+			}
+			if len(positionInfo) > 1 {
+				// TODO: Support hedge mode
+				return nil, fmt.Errorf("%w %v", errHedgeModeUnsupported, b.Name)
+			}
+			ai, err := b.UAccountInformationV2(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var uExchangeInfo UFuturesExchangeInfo
+			uExchangeInfo, err = b.UExchangeInfo(ctx)
+			if err != nil {
+				return nil, err
+			}
+			for i := range uExchangeInfo.Symbols {
+				if fPair.String() != uExchangeInfo.Symbols[i].Symbol {
+					continue
+				}
+				resp.MaintenanceMarginRequirement = decimal.NewFromFloat(uExchangeInfo.Symbols[i].MaintenanceMarginPercent).Mul(ai.AvailableBalance)
+			}
+
+			resp = &order.PositionSummary{
+				MarginType:                   positionInfo[0].MarginType,
+				IsolatedMargin:               decimal.NewFromFloat(positionInfo[0].IsolatedMargin),
+				Leverage:                     decimal.NewFromFloat(positionInfo[0].Leverage),
+				MaintenanceMarginRequirement: decimal.Zero,
+				InitialMarginRequirement:     positionAmount.Mul(openingPrice).Div(leverage),
+				EstimatedLiquidationPrice:    decimal.NewFromFloat(result[0].LiquidationPrice),
+				CollateralUsed:               im,
+				MarkPrice:                    decimal.NewFromFloat(result[0].MarkPrice),
+				CurrentSize:                  positionAmount,
+				BreakEvenPrice:               openingPrice,
+				AverageOpenPrice:             openingPrice,
+				RecentPNL:                    decimal.NewFromFloat(result[0].UnrealizedProfit),
+				MarginFraction:               decimal.Decimal{},
+				FreeCollateral:               iw.Sub(im),
+				TotalCollateral:              iw,
+			}
+
+		*/
+	case asset.CoinMarginedFutures:
+		result, err := b.FuturesPositionsInfo(ctx, fPair, currency.EMPTYPAIR)
+		if err != nil {
+			return nil, err
+		}
+		if len(result) == 0 {
+			return nil, fmt.Errorf("%w %v", order.ErrNoPositionsFound, fPair)
+		}
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	return resp, nil
+}
+
 func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
@@ -2045,18 +2185,31 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 			}
 
 			for y := range result {
+				im := decimal.NewFromFloat(result[y].IsolatedMargin)
+				iw := decimal.NewFromFloat(result[y].IsolatedWallet)
+				//n := decimal.NewFromFloat(result[y].Notional)
+				ep := decimal.NewFromFloat(result[y].EntryPrice)
+				//bep :=
 				currencyPosition := order.PositionResponse{
 					Exchange: b.Name,
 					PositionSummary: order.PositionSummary{
-						Asset:                     req.Asset,
-						Pair:                      req.Pairs[x],
-						IsolatedMargin:            decimal.NewFromFloat(result[y].IsolatedMargin),
-						MarginType:                margin.StringToMarginType(result[y].MarginType),
-						Leverage:                  decimal.NewFromFloat(result[y].Leverage),
-						RecentPNL:                 decimal.NewFromFloat(result[y].UnrealizedProfit),
-						EstimatedLiquidationPrice: decimal.NewFromFloat(result[y].LiquidationPrice),
-						AverageOpenPrice:          decimal.NewFromFloat(result[y].EntryPrice),
-						CurrentSize:               decimal.NewFromFloat(result[y].PositionAmount),
+						Pair:                         req.Pairs[x],
+						Asset:                        req.Asset,
+						MarginType:                   result[y].MarginType,
+						IsolatedMargin:               im,
+						Leverage:                     decimal.NewFromFloat(result[y].Leverage),
+						MaintenanceMarginRequirement: decimal.Decimal{},
+						InitialMarginRequirement:     decimal.NewFromFloat(result[y].PositionAmount).Mul(decimal.NewFromFloat(result[y].EntryPrice)).Div(decimal.NewFromFloat(result[y].Leverage)),
+						EstimatedLiquidationPrice:    decimal.NewFromFloat(result[y].LiquidationPrice),
+						CollateralUsed:               im,
+						MarkPrice:                    decimal.NewFromFloat(result[y].MarkPrice),
+						CurrentSize:                  decimal.NewFromFloat(result[y].PositionAmount),
+						BreakEvenPrice:               ep,
+						AverageOpenPrice:             ep,
+						RecentPNL:                    decimal.NewFromFloat(result[y].UnrealizedProfit),
+						MarginFraction:               decimal.Decimal{},
+						FreeCollateral:               iw.Sub(im),
+						TotalCollateral:              iw,
 					},
 				}
 
@@ -2082,7 +2235,7 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 							AverageExecutedPrice: orders[i].AvgPrice,
 							ExecutedAmount:       orders[i].ExecutedQty,
 							RemainingAmount:      orders[i].OrigQty - orders[i].ExecutedQty,
-							CostAsset:            req.Pairs[i].Quote,
+							CostAsset:            req.Pairs[x].Quote,
 							Exchange:             b.Name,
 							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 							ClientOrderID:        orders[i].ClientOrderID,
@@ -2092,8 +2245,8 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, req *order.PositionsR
 							AssetType:            asset.USDTMarginedFutures,
 							Date:                 orders[i].Time,
 							LastUpdated:          orders[i].UpdateTime,
-							Pair:                 req.Pairs[i],
-							MarginType:           margin.StringToMarginType(result[x].MarginType),
+							Pair:                 req.Pairs[x],
+							MarginType:           result[y].MarginType,
 						})
 					}
 				}

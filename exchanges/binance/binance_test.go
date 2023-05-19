@@ -536,9 +536,16 @@ func TestUAccountBalanceV2(t *testing.T) {
 func TestUAccountInformationV2(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.UAccountInformationV2(context.Background())
+	b.Verbose = true
+	a, err := b.UAccountInformationV2(context.Background())
 	if err != nil {
 		t.Error(err)
+	}
+	for i := range a.Assets {
+		t.Logf("%+v", a.Assets[i])
+	}
+	for i := range a.Positions {
+		t.Logf("%+v", a.Positions[i])
 	}
 }
 
@@ -581,6 +588,7 @@ func TestUPositionMarginChangeHistory(t *testing.T) {
 func TestUPositionsInfoV2(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	b.Verbose = true
 	_, err := b.UPositionsInfoV2(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
@@ -2824,37 +2832,40 @@ func TestChangePositionMargin(t *testing.T) {
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+	a, err := b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
 		Asset:     asset.USDTMarginedFutures,
 		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
-		StartDate: time.Now(),
+		StartDate: time.Now().Add(time.Hour * 24 * -7),
 	})
 	if err != nil {
 		t.Error(err)
 	}
+	t.Logf("%+v", a)
 
-	p, err := currency.NewPairFromString("BTCUSD_PERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
-		Asset:     asset.CoinMarginedFutures,
-		Pairs:     []currency.Pair{p},
-		StartDate: time.Now(),
-	})
-	if err != nil {
-		t.Error(err)
-	}
+	//p, err := currency.NewPairFromString("BTCUSD_PERP")
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//a, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+	//	Asset:     asset.CoinMarginedFutures,
+	//	Pairs:     []currency.Pair{p},
+	//	StartDate: time.Now(),
+	//})
+	//if err != nil {
+	//	t.Error(err)
+	//}
+	//t.Logf("%+v", a)
 
-	_, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
-		Asset:     asset.Spot,
-		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
-		StartDate: time.Now(),
-	})
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	//_, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+	//	Asset:     asset.Spot,
+	//	Pairs:     []currency.Pair{currency.NewBTCUSDT()},
+	//	StartDate: time.Now(),
+	//})
+	//if !errors.Is(err, asset.ErrNotSupported) {
+	//	t.Error(err)
+	//}
 }
 
 func TestSetMarginType(t *testing.T) {

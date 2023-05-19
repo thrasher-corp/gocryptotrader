@@ -329,21 +329,25 @@ type Position struct {
 type PositionSummaryRequest struct {
 	Asset asset.Item
 	Pair  currency.Pair
+
 	// offline calculation requirements below
 	CalculateOffline          bool
-	Direction                 Side
 	FreeCollateral            decimal.Decimal
 	TotalCollateral           decimal.Decimal
-	OpeningPrice              decimal.Decimal
 	CurrentPrice              decimal.Decimal
-	OpeningSize               decimal.Decimal
 	CurrentSize               decimal.Decimal
 	CollateralUsed            decimal.Decimal
 	NotionalPrice             decimal.Decimal
-	Leverage                  decimal.Decimal
 	MaxLeverageForAccount     decimal.Decimal
-	TotalAccountValue         decimal.Decimal
 	TotalOpenPositionNotional decimal.Decimal
+	// EstimatePosition if enabled, can be used to calculate a new position
+	EstimatePosition bool
+	// These fields are also used for offline calculation
+	OpeningPrice      decimal.Decimal
+	OpeningSize       decimal.Decimal
+	Leverage          decimal.Decimal
+	Direction         Side
+	TotalAccountValue decimal.Decimal
 }
 
 // FundingRatesRequest is used to request funding rate details for a position
@@ -397,6 +401,7 @@ type PositionSummary struct {
 	Pair                         currency.Pair
 	Asset                        asset.Item
 	MarginType                   margin.Type
+	CollateralType               CollateralType
 	IsolatedMargin               decimal.Decimal
 	Leverage                     decimal.Decimal
 	MaintenanceMarginRequirement decimal.Decimal

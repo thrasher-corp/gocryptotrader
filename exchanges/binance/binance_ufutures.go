@@ -57,6 +57,7 @@ const (
 	ufuturesModifyMargin          = "/fapi/v1/positionMargin"
 	ufuturesMarginChangeHistory   = "/fapi/v1/positionMargin/history"
 	ufuturesPositionInfo          = "/fapi/v2/positionRisk"
+	ufuturesCommissionRate        = "/fapi/v1/commissionRate"
 	ufuturesAccountTradeList      = "/fapi/v1/userTrades"
 	ufuturesIncomeHistory         = "/fapi/v1/income"
 	ufuturesNotionalBracket       = "/fapi/v1/leverageBracket"
@@ -978,6 +979,20 @@ func (b *Binance) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([
 		params.Set("symbol", symbolValue)
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPositionInfo, params, uFuturesDefaultRate, &resp)
+}
+
+func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair) (UPositionInformationV2, error) {
+	// commissionRate
+	var resp []UPositionInformationV2
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesCommissionRate, params, uFuturesDefaultRate, &resp)
 }
 
 // UAccountTradesHistory gets account's trade history data for USDTMarginedFutures

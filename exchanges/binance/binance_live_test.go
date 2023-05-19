@@ -35,14 +35,15 @@ func TestMain(m *testing.M) {
 	b.SetDefaults()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	if useTestNet {
-		err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-			exchange.RestSpot:              testnetSpotURL,
-			exchange.RestSpotSupplementary: apiURL,
-			exchange.RestUSDTMargined:      testnetFutures,
-			exchange.RestCoinMargined:      testnetFutures,
-			exchange.EdgeCase1:             "https://www.binance.com",
-			exchange.WebsocketSpot:         binanceDefaultWebsocketURL,
-		})
+		err = b.API.Endpoints.SetRunning(exchange.RestUSDTMargined.String(), testnetFutures)
+		if err != nil {
+			log.Fatal("Binance setup error", err)
+		}
+		err = b.API.Endpoints.SetRunning(exchange.RestCoinMargined.String(), testnetFutures)
+		if err != nil {
+			log.Fatal("Binance setup error", err)
+		}
+		err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), testnetSpotURL)
 		if err != nil {
 			log.Fatal("Binance setup error", err)
 		}

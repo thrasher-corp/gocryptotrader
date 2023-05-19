@@ -150,7 +150,6 @@ type FuturesManagement interface {
 	order.PNLCalculation
 
 	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error)
-
 	SetCollateralMode(ctx context.Context, item asset.Item, mode order.CollateralType) error
 	GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error)
 }
