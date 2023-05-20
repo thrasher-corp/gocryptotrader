@@ -94,10 +94,11 @@ const (
 	okxChannelGridOrdersContract   = "grid-orders-contract"
 	okxChannelGridPositions        = "grid-positions"
 	okcChannelGridSubOrders        = "grid-sub-orders"
-	okxChannelInstruments          = "instruments"
-	okxChannelOpenInterest         = "open-interest"
-	okxChannelTrades               = "trades"
 
+	// Public channels
+	okxChannelInstruments     = "instruments"
+	okxChannelOpenInterest    = "open-interest"
+	okxChannelTrades          = "trades"
 	okxChannelEstimatedPrice  = "estimated-price"
 	okxChannelMarkPrice       = "mark-price"
 	okxChannelPriceLimit      = "price-limit"
@@ -385,10 +386,25 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		var algoID string
 		var uid string
 
-		if arg.Channel == okxChannelAccount ||
-			arg.Channel == okxChannelOrders {
+		switch arg.Channel {
+		case okxChannelAccount,
+			okxChannelPositions,
+			okxChannelBalanceAndPosition,
+			okxChannelOrders,
+			okxChannelAlgoOrders,
+			okxChannelAlgoAdvance,
+			okxChannelLiquidationWarning,
+			okxChannelAccountGreeks,
+			okxChannelRFQs,
+			okxChannelQuotes,
+			okxChannelStructureBlockTrades,
+			okxChannelSpotGridOrder,
+			okxChannelGridOrdersContract,
+			okxChannelGridPositions,
+			okcChannelGridSubOrders:
 			authSubscription = true
 		}
+
 		if arg.Channel == okxChannelGridPositions {
 			algoID, _ = subscriptions[i].Params["algoId"].(string)
 		}
