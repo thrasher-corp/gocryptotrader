@@ -90,11 +90,11 @@ type TickerData struct {
 	BestAskSize     float64        `json:"askSz,string"`
 	BestBidPrice    float64        `json:"bidPx,string"`
 	BestBidSize     float64        `json:"bidSz,string"`
-	Open24H         float64        `json:"open24h,string"` // Open price in the past 24 hours
-	High24H         float64        `json:"high24h,string"` // Highest price in the past 24 hours
-	Low24H          float64        `json:"low24h,string"`  // Lowest price in the past 24 hours
-	VolCcy24H       string         `json:"volCcy24h"`      // 24h trading volume, with a unit of currency. The value is the quantity in quote currency.
-	Vol24H          string         `json:"vol24h"`         // 24h trading volume, with a unit of contract. The value is the quantity in base currency.
+	Open24H         float64        `json:"open24h,string"`   // Open price in the past 24 hours
+	High24H         float64        `json:"high24h,string"`   // Highest price in the past 24 hours
+	Low24H          float64        `json:"low24h,string"`    // Lowest price in the past 24 hours
+	VolCcy24H       float64        `json:"volCcy24h,string"` // 24h trading volume, with a unit of currency. The value is the quantity in quote currency.
+	Vol24H          float64        `json:"vol24h,string"`    // 24h trading volume, with a unit of contract. The value is the quantity in base currency.
 	Timestamp       okcoinMilliSec `json:"ts"`
 	OpenPriceInUtc0 float64        `json:"sodUtc0,string"`
 	OpenPriceInUtc8 float64        `json:"sodUtc8,string"`
@@ -2128,8 +2128,6 @@ func (o *OKCoin) SetErrorDefaults() {
 	}
 }
 
-// ---------------------------------------------- New --------------------------------------------------
-
 // SystemStatus represents system status
 type SystemStatus struct {
 	Title       string `json:"title"`
@@ -2193,8 +2191,8 @@ type CandlestickData struct {
 type SpotTrade struct {
 	InstID     string         `json:"instId"`
 	Side       string         `json:"side"`
-	TradeSize  string         `json:"sz"`
-	TradePrice string         `json:"px"`
+	TradeSize  float64        `json:"sz,string"`
+	TradePrice float64        `json:"px,string"`
 	TradeID    string         `json:"tradeId"`
 	Timestamp  okcoinMilliSec `json:"ts"`
 }
@@ -2873,7 +2871,7 @@ type AlgoOrderRequestParam struct {
 	Size                     float64 `json:"sz,string"`
 	TpTriggerPrice           float64 `json:"tpTriggerPx,string,omitempty"`
 	TpOrderPrice             float64 `json:"tpOrdPx,string,omitempty"`
-	TpTriggerOrderPrice      float64 `json:"tpTriggerPxType,string,omitempty"`
+	TpTriggerOrderPriceType  string  `json:"tpTriggerPxType,omitempty"`
 	StopLossTriggerPrice     float64 `json:"slTriggerPx,string,omitempty"`
 	StopLossOrderPrice       float64 `json:"slOrdPx,string,omitempty"`
 	StopLossTriggerPriceType string  `json:"slTriggerPxType,omitempty"`
@@ -2882,9 +2880,9 @@ type AlgoOrderRequestParam struct {
 	ClientOrderID            string  `json:"clOrdId,omitempty"`
 
 	// Trigger Order
-	TriggerPrice     float64 `json:"triggerPx,string"`
-	OrderPrice       float64 `json:"orderPx,string"`
-	TriggerPriceType string  `json:"triggerPxType"`
+	TriggerPrice     float64 `json:"triggerPx,omitempty,string"`
+	OrderPrice       float64 `json:"orderPx,omitempty,string"`
+	TriggerPriceType string  `json:"triggerPxType,omitempty"`
 
 	// Trailing Stop Order
 	CallbackRatio  float64 `json:"callbackRatio,string,omitempty"` // Either callbackRatio or callbackSpread is allowed to be passed.
@@ -2911,4 +2909,52 @@ type AlgoOrderResponse struct {
 	ClientOrderID string `json:"clOrdId"`
 	StatusCode    string `json:"sCode"`
 	StatusMsg     string `json:"sMsg"`
+}
+
+// CancelAlgoOrderRequestParam represents a algo order cancellation request parameter
+type CancelAlgoOrderRequestParam struct {
+	AlgoOrderID  string `json:"algoId"`
+	InstrumentID string `json:"instId"`
+}
+
+// AlgoOrderDetail represents an algo-order detailed information
+type AlgoOrderDetail struct {
+	ActivePrice              string         `json:"activePx"`
+	ActualPrice              string         `json:"actualPx"`
+	ActualSide               string         `json:"actualSide"`
+	ActualSize               string         `json:"actualSz"`
+	AlgoID                   string         `json:"algoId"`
+	CreateTime               okcoinMilliSec `json:"cTime"`
+	CallbackRatio            string         `json:"callbackRatio"`
+	CallbackSpread           string         `json:"callbackSpread"`
+	Currency                 string         `json:"ccy"`
+	ClientOrderID            string         `json:"clOrdId"`
+	InstrumentID             string         `json:"instId"`
+	InstrumentType           string         `json:"instType"`
+	Leverage                 string         `json:"lever"`
+	MoveTriggerPrice         string         `json:"moveTriggerPx"`
+	OrderID                  string         `json:"ordId"`
+	OrdPrice                 string         `json:"ordPx"`
+	OrderType                string         `json:"ordType"`
+	PosSide                  string         `json:"posSide"`
+	PriceLimit               string         `json:"pxLimit"`
+	PriceSpread              string         `json:"pxSpread"`
+	PriceVar                 string         `json:"pxVar"`
+	Side                     string         `json:"side"`
+	StopLossOrdPrice         string         `json:"slOrdPx"`
+	StopLossTriggerPrice     string         `json:"slTriggerPx"`
+	StopLossTriggerPriceType string         `json:"slTriggerPxType"`
+	State                    string         `json:"state"`
+	Size                     string         `json:"sz"`
+	SizeLimit                string         `json:"szLimit"`
+	Tag                      string         `json:"tag"`
+	TdMode                   string         `json:"tdMode"`
+	TgtCcy                   string         `json:"tgtCcy"`
+	TimeInterval             string         `json:"timeInterval"`
+	TpOrdPrice               string         `json:"tpOrdPx"`
+	TpTriggerPrice           string         `json:"tpTriggerPx"`
+	TpTriggerPriceType       string         `json:"tpTriggerPxType"`
+	TriggerPrice             string         `json:"triggerPx"`
+	TriggerPriceType         string         `json:"triggerPxType"`
+	TriggerTime              okcoinMilliSec `json:"triggerTime"`
 }

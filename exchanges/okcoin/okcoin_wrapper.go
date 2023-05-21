@@ -3,6 +3,8 @@ package okcoin
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -33,18 +35,16 @@ func (o *OKCoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies
 
-	err := o.SetupDefaults(exchCfg)
+	err := o.Setup(exchCfg)
 	if err != nil {
 		return nil, err
 	}
-
 	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err = o.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	return exchCfg, nil
 }
 
@@ -58,7 +58,6 @@ func (o *OKCoin) SetDefaults() {
 	o.API.CredentialsValidator.RequiresKey = true
 	o.API.CredentialsValidator.RequiresSecret = true
 	o.API.CredentialsValidator.RequiresClientID = true
-
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
@@ -124,26 +123,22 @@ func (o *OKCoin) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneHour},
 					kline.IntervalCapacity{Interval: kline.TwoHour},
 					kline.IntervalCapacity{Interval: kline.FourHour},
-					// NOTE: The supported time intervals below are returned
-					// offset to the Asia/Shanghai time zone. This may lead to
-					// issues with candle quality and conversion as the
-					// intervals may be broken up. Therefore the below intervals
-					// are constructed from hourly candles.
-					// kline.IntervalCapacity{Interval: kline.SixHour},
-					// kline.IntervalCapacity{Interval: kline.TwelveHour},
-					// kline.IntervalCapacity{Interval: kline.OneDay},
-					// kline.IntervalCapacity{Interval: kline.ThreeDay},
-					// kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.TwoDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
+					kline.IntervalCapacity{Interval: kline.ThreeMonth},
 				),
 				GlobalResultLimit: 1440,
 			},
 		},
 	}
-
 	o.Requester, err = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		// TODO: Specify each individual endpoint rate limits as per docs
-		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
+		request.WithLimiter(SetRateLimit()),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -196,7 +191,6 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	err = o.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            okcoinWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -294,11 +288,9 @@ func (o *OKCoin) Run(ctx context.Context) {
 			}
 		}
 	}
-
 	if !o.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
-
 	err = o.UpdateTradablePairs(ctx, forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -309,16 +301,18 @@ func (o *OKCoin) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKCoin) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
-	prods, err := o.GetInstruments(ctx, "", "")
+func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, a)
+	}
+	prods, err := o.GetInstruments(ctx, "SPOT", "")
 	if err != nil {
 		return nil, err
 	}
-
 	pairs := make([]currency.Pair, len(prods))
 	for x := range prods {
 		var pair currency.Pair
-		pair, err = currency.NewPairFromStrings(prods[x].BaseCurrency, prods[x].QuoteCurrency)
+		pair, err = currency.NewPairFromString(prods[x].InstrumentID)
 		if err != nil {
 			return nil, err
 		}
@@ -339,111 +333,105 @@ func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
-	// 	if a == asset.Spot {
-	// 		resp, err := o.GetSpotAllTokenPairsInformation(ctx)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		pairs, err := o.GetEnabledPairs(a)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		for i := range pairs {
-	// 			for j := range resp {
-	// 				if !pairs[i].Equal(resp[j].InstrumentID) {
-	// 					continue
-	// 				}
-
-	// 				err = ticker.ProcessTicker(&ticker.Price{
-	// 					Last:         resp[j].Last,
-	// 					High:         resp[j].High24h,
-	// 					Low:          resp[j].Low24h,
-	// 					Bid:          resp[j].BestBid,
-	// 					Ask:          resp[j].BestAsk,
-	// 					Volume:       resp[j].BaseVolume24h,
-	// 					QuoteVolume:  resp[j].QuoteVolume24h,
-	// 					Open:         resp[j].Open24h,
-	// 					Pair:         pairs[i],
-	// 					LastUpdated:  resp[j].Timestamp,
-	// 					ExchangeName: o.Name,
-	// 					AssetType:    a})
-	// 				if err != nil {
-	// 					return err
-	// 				}
-	// 			}
-	// 		}
-	// 	}
+	if a != asset.Spot {
+		return fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, a)
+	}
+	tickers, err := o.GetTickers(ctx, "SPOT")
+	if err != nil {
+		return err
+	}
+	enabledPairs, err := o.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	for p := range enabledPairs {
+		for i := range tickers {
+			cp, err := currency.NewPairFromString(tickers[i].InstrumentID)
+			if err != nil {
+				return err
+			}
+			if !enabledPairs[p].Equal(cp) {
+				continue
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tickers[i].LastTradedPrice,
+				High:         tickers[i].High24H,
+				Bid:          tickers[i].BestBidPrice,
+				BidSize:      tickers[i].BestBidSize,
+				Ask:          tickers[i].BestAskPrice,
+				AskSize:      tickers[i].BestAskPrice,
+				QuoteVolume:  tickers[i].VolCcy24H,
+				LastUpdated:  tickers[i].Timestamp.Time(),
+				Volume:       tickers[i].Vol24H,
+				Open:         tickers[i].Open24H,
+				AssetType:    asset.Spot,
+				ExchangeName: o.Name,
+				Pair:         cp,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKCoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	//	if err := o.UpdateTickers(ctx, a); err != nil {
-	//		return nil, err
-	//	}
-	//
-	// return ticker.GetTicker(o.Name, p, a)
-	return nil, nil
+	if err := o.UpdateTickers(ctx, a); err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(o.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (o *OKCoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// tickerData, err := ticker.GetTicker(o.Name, p, assetType)
-	//
-	//	if err != nil {
-	//		return o.UpdateTicker(ctx, p, assetType)
-	//	}
-	//
-	// return tickerData, nil
-	return nil, nil
+	tickerData, err := ticker.GetTicker(o.Name, p, assetType)
+	if err != nil {
+		return o.UpdateTicker(ctx, p, assetType)
+	}
+	return tickerData, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	// 	var err error
-	// 	p, err = o.FormatExchangeCurrency(p, assetType)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	var resp []trade.Data
-	// 	switch assetType {
-	// 	case asset.Spot:
-	// 		var tradeData []GetSpotFilledOrdersInformationResponse
-	// 		tradeData, err = o.GetSpotFilledOrdersInformation(ctx,
-	// 			&GetSpotFilledOrdersInformationRequest{
-	// 				InstrumentID: p.String(),
-	// 			})
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		for i := range tradeData {
-	// 			var side order.Side
-	// 			side, err = order.StringToOrderSide(tradeData[i].Side)
-	// 			if err != nil {
-	// 				return nil, err
-	// 			}
-	// 			resp = append(resp, trade.Data{
-	// 				Exchange:     o.Name,
-	// 				TID:          tradeData[i].TradeID,
-	// 				CurrencyPair: p,
-	// 				Side:         side,
-	// 				AssetType:    assetType,
-	// 				Price:        tradeData[i].Price,
-	// 				Amount:       tradeData[i].Size,
-	// 				Timestamp:    tradeData[i].Timestamp,
-	// 			})
-	// 		}
-	// 	default:
-	// 		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
-	// 	}
-	// 	err = o.AddTradesToBuffer(resp...)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// sort.Sort(trade.ByDate(resp))
-	// return resp, nil
-	return nil, nil
+	if assetType != asset.Spot {
+		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
+	}
+	var err error
+	p, err = o.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	var tradeData []SpotTrade
+	tradeData, err = o.GetTrades(ctx, p.String(), 0)
+	if err != nil {
+		return nil, err
+	}
+	for i := range tradeData {
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     o.Name,
+			TID:          tradeData[i].TradeID,
+			CurrencyPair: p,
+			Side:         side,
+			AssetType:    assetType,
+			Price:        tradeData[i].TradePrice,
+			Amount:       tradeData[i].TradeSize,
+			Timestamp:    tradeData[i].Timestamp.Time(),
+		})
+	}
+	err = o.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -453,180 +441,123 @@ func (o *OKCoin) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.C
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (o *OKCoin) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	// fPair, err := o.FormatExchangeCurrency(p, assetType)
-	//
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	// ob, err := orderbook.Get(o.Name, fPair, assetType)
-	//
-	//	if err != nil {
-	//		return o.UpdateOrderbook(ctx, fPair, assetType)
-	//	}
-	//
-	// return ob, nil
-	return nil, nil
+	fPair, err := o.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	ob, err := orderbook.Get(o.Name, fPair, assetType)
+	if err != nil {
+		return o.UpdateOrderbook(ctx, fPair, assetType)
+	}
+	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *OKCoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
-	// 	book := &orderbook.Base{
-	// 		Exchange:        o.Name,
-	// 		Pair:            p,
-	// 		Asset:           a,
-	// 		VerifyOrderbook: o.CanVerifyOrderbook,
-	// 	}
-
-	// 	fPair, err := o.FormatExchangeCurrency(p, a)
-	// 	if err != nil {
-	// 		return book, err
-	// 	}
-
-	// 	orderbookNew, err := o.GetOrderBook(ctx,
-	// 		&GetOrderBookRequest{
-	// 			InstrumentID: fPair.String(),
-	// 			Size:         200,
-	// 		}, a)
-	// 	if err != nil {
-	// 		return book, err
-	// 	}
-
-	// 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
-	// 	for x := range orderbookNew.Bids {
-	// 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
-	// 		if convErr != nil {
-	// 			return book, err
-	// 		}
-	// 		price, convErr := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
-	// 		if convErr != nil {
-	// 			return book, err
-	// 		}
-
-	// 		var liquidationOrders, orderCount int64
-	// 		// Contract specific variables
-	// 		if len(orderbookNew.Bids[x]) == 4 {
-	// 			liquidationOrders, convErr = strconv.ParseInt(orderbookNew.Bids[x][2], 10, 64)
-	// 			if convErr != nil {
-	// 				return book, err
-	// 			}
-
-	// 			orderCount, convErr = strconv.ParseInt(orderbookNew.Bids[x][3], 10, 64)
-	// 			if convErr != nil {
-	// 				return book, err
-	// 			}
-	// 		}
-
-	// 		book.Bids[x] = orderbook.Item{
-	// 			Amount:            amount,
-	// 			Price:             price,
-	// 			LiquidationOrders: liquidationOrders,
-	// 			OrderCount:        orderCount,
-	// 		}
-	// 	}
-
-	// 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
-	// 	for x := range orderbookNew.Asks {
-	// 		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
-	// 		if convErr != nil {
-	// 			return book, err
-	// 		}
-	// 		price, convErr := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
-	// 		if convErr != nil {
-	// 			return book, err
-	// 		}
-
-	// 		var liquidationOrders, orderCount int64
-	// 		// Contract specific variables
-	// 		if len(orderbookNew.Asks[x]) == 4 {
-	// 			liquidationOrders, convErr = strconv.ParseInt(orderbookNew.Asks[x][2], 10, 64)
-	// 			if convErr != nil {
-	// 				return book, err
-	// 			}
-
-	// 			orderCount, convErr = strconv.ParseInt(orderbookNew.Asks[x][3], 10, 64)
-	// 			if convErr != nil {
-	// 				return book, err
-	// 			}
-	// 		}
-
-	// 		book.Asks[x] = orderbook.Item{
-	// 			Amount:            amount,
-	// 			Price:             price,
-	// 			LiquidationOrders: liquidationOrders,
-	// 			OrderCount:        orderCount,
-	// 		}
-	// 	}
-
-	// 	err = book.Process()
-	// 	if err != nil {
-	// 		return book, err
-	// 	}
-
-	// return orderbook.Get(o.Name, fPair, a)
-	return nil, nil
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
+	}
+	book := &orderbook.Base{
+		Exchange:        o.Name,
+		Pair:            p,
+		Asset:           a,
+		VerifyOrderbook: o.CanVerifyOrderbook,
+	}
+	p, err := o.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
+	if !p.IsPopulated() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	orderbookLite, err := o.GetOrderbook(ctx, p.String(), 0)
+	if err != nil {
+		return nil, err
+	}
+	book.Bids = make(orderbook.Items, len(orderbookLite.Bids))
+	for x := range orderbookLite.Bids {
+		book.Bids[x].Amount, err = strconv.ParseFloat(orderbookLite.Bids[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		book.Bids[x].Price, err = strconv.ParseFloat(orderbookLite.Bids[x][0], 64)
+		if err != nil {
+			return book, err
+		}
+	}
+	book.Asks = make(orderbook.Items, len(orderbookLite.Asks))
+	for x := range orderbookLite.Bids {
+		book.Asks[x].Amount, err = strconv.ParseFloat(orderbookLite.Asks[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		book.Asks[x].Price, err = strconv.ParseFloat(orderbookLite.Asks[x][0], 64)
+		if err != nil {
+			return book, err
+		}
+	}
+	err = book.Process()
+	if err != nil {
+		return book, err
+	}
+	return orderbook.Get(o.Name, p, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (o *OKCoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// 	currencies, err := o.GetSpotTradingAccounts(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
+	if assetType != asset.Spot {
+		return account.Holdings{}, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
+	}
+	currencies, err := o.GetAccountBalance(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	var resp account.Holdings
+	resp.Exchange = o.Name
+	currencyAccount := account.SubAccount{AssetType: assetType}
 
-	// 	var resp account.Holdings
-	// 	resp.Exchange = o.Name
-	// 	currencyAccount := account.SubAccount{AssetType: assetType}
-
-	// 	for i := range currencies {
-	// 		hold, parseErr := strconv.ParseFloat(currencies[i].Hold, 64)
-	// 		if parseErr != nil {
-	// 			return resp, parseErr
-	// 		}
-	// 		totalValue, parseErr := strconv.ParseFloat(currencies[i].Balance, 64)
-	// 		if parseErr != nil {
-	// 			return resp, parseErr
-	// 		}
-	// 		currencyAccount.Currencies = append(currencyAccount.Currencies,
-	// 			account.Balance{
-	// 				Currency: currency.NewCode(currencies[i].Currency),
-	// 				Total:    totalValue,
-	// 				Hold:     hold,
-	// 				Free:     totalValue - hold,
-	// 			})
-	// 	}
-
-	// 	resp.Accounts = append(resp.Accounts, currencyAccount)
-
-	// 	creds, err := o.GetCredentials(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
-	// 	err = account.Process(&resp, creds)
-	// 	if err != nil {
-	// 		return resp, err
-	// 	}
-
-	// return resp, nil
-	return account.Holdings{}, nil
+	for i := range currencies {
+		for x := range currencies[i].Details {
+			hold, parseErr := strconv.ParseFloat(currencies[i].Details[x].FrozenBalance, 64)
+			if parseErr != nil {
+				return resp, parseErr
+			}
+			totalValue, parseErr := strconv.ParseFloat(currencies[i].Details[x].AvailableBalance, 64)
+			if parseErr != nil {
+				return resp, parseErr
+			}
+			currencyAccount.Currencies = append(currencyAccount.Currencies,
+				account.Balance{
+					Currency: currency.NewCode(currencies[i].Details[x].Currency),
+					Total:    totalValue,
+					Hold:     hold,
+					Free:     totalValue - hold,
+				})
+		}
+	}
+	resp.Accounts = append(resp.Accounts, currencyAccount)
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&resp, creds)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (o *OKCoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// creds, err := o.GetCredentials(ctx)
-	//
-	//	if err != nil {
-	//		return account.Holdings{}, err
-	//	}
-	//
-	// acc, err := account.GetHoldings(o.Name, creds, assetType)
-	//
-	//	if err != nil {
-	//		return o.UpdateAccountInfo(ctx, assetType)
-	//	}
-	//
-	// return acc, nil
-	return account.Holdings{}, nil
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(o.Name, creds, assetType)
+	if err != nil {
+		return o.UpdateAccountInfo(ctx, assetType)
+	}
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -1041,16 +972,6 @@ func (o *OKCoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 	return 0, nil
 }
 
-// // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-// func (o *OKCoin) GetWithdrawCapabilities() uint32 {
-// 	return o.GetWithdrawPermissions()
-// }
-
-// // AuthenticateWebsocket sends an authentication message to the websocket
-// func (o *OKCoin) AuthenticateWebsocket(ctx context.Context) error {
-// 	return o.WsLogin(ctx)
-// }
-
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (o *OKCoin) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
@@ -1059,59 +980,116 @@ func (o *OKCoin) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (o *OKCoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
-	return nil, common.ErrFunctionNotSupported
+func (o *OKCoin) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, start, end time.Time) ([]trade.Data, error) {
+	const limit = 100
+	format, err := o.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	if !pair.IsPopulated() {
+		return nil, fmt.Errorf("%w, %v", currency.ErrCurrencyPairEmpty, assetType)
+	}
+	var resp []trade.Data
+	instrumentID := format.Format(pair)
+	tradeIDEnd := ""
+allTrades:
+	for {
+		var trades []SpotTrade
+		trades, err = o.GetTradeHistory(ctx, instrumentID, "", start, end, 100)
+		if err != nil {
+			return nil, err
+		}
+		if len(trades) == 0 {
+			break
+		}
+		for i := 0; i < len(trades); i++ {
+			if start.Equal(trades[i].Timestamp.Time()) ||
+				trades[i].Timestamp.Time().Before(start) ||
+				tradeIDEnd == trades[len(trades)-1].TradeID {
+				// reached end of trades to crawl
+				break allTrades
+			}
+			var tradeSide order.Side
+			tradeSide, err = order.StringToOrderSide(trades[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				TID:          trades[i].TradeID,
+				Exchange:     o.Name,
+				CurrencyPair: pair,
+				AssetType:    assetType,
+				Price:        trades[i].TradePrice,
+				Amount:       trades[i].TradeSize,
+				Timestamp:    trades[i].Timestamp.Time(),
+				Side:         tradeSide,
+			})
+		}
+		tradeIDEnd = trades[len(trades)-1].TradeID
+	}
+	if o.IsSaveTradeDataEnabled() {
+		err = trade.AddTradesToBuffer(o.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
+	}
+	sort.Sort(trade.ByDate(resp))
+	return trade.FilterTradesByTime(resp, start, end), nil
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	// 	req, err := o.GetKlineRequest(pair, a, interval, start, end)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	timeSeries, err := o.GetMarketData(ctx, &GetMarketDataRequest{
-	// 		Asset:        a,
-	// 		Start:        start.UTC().Format(time.RFC3339),
-	// 		End:          end.UTC().Format(time.RFC3339),
-	// 		Granularity:  o.FormatExchangeKlineInterval(interval),
-	// 		InstrumentID: req.RequestFormatted.String(),
-	// 	})
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// return req.ProcessResponse(timeSeries)
-	return nil, nil
+	req, err := o.GetKlineRequest(pair, a, interval, start, end, false)
+	if err != nil {
+		return nil, err
+	}
+	pair, err = o.FormatExchangeCurrency(pair, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	timeSeries, err := o.GetCandlesticks(ctx, pair.String(), interval, start, end, 300)
+	if err != nil {
+		return nil, err
+	}
+	timeSeriesData := make([]kline.Candle, len(timeSeries))
+	for x := range timeSeries {
+		timeSeriesData = append(timeSeriesData, kline.Candle{
+			Time:   timeSeries[x].Timestamp.Time(),
+			Open:   timeSeries[x].OpenPrice,
+			High:   timeSeries[x].HighestPrice,
+			Low:    timeSeries[x].LowestPrice,
+			Close:  timeSeries[x].ClosePrice,
+			Volume: timeSeries[x].TradingVolume,
+		})
+	}
+	return req.ProcessResponse(timeSeriesData)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	// 	req, err := o.GetKlineExtendedRequest(pair, a, interval, start, end)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// gran := o.FormatExchangeKlineInterval(interval)
-	// timeSeries := make([]kline.Candle, 0, req.Size())
-	//
-	//	for x := range req.RangeHolder.Ranges {
-	//		var candles []kline.Candle
-	//		candles, err = o.GetMarketData(ctx, &GetMarketDataRequest{
-	//			Asset:        a,
-	//			Start:        req.RangeHolder.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
-	//			End:          req.RangeHolder.Ranges[x].End.Time.UTC().Format(time.RFC3339),
-	//			Granularity:  gran,
-	//			InstrumentID: req.RequestFormatted.String(),
-	//		})
-	//		if err != nil {
-	//			return nil, err
-	//		}
-	//		timeSeries = append(timeSeries, candles...)
-	//	}
-	//
-	// return req.ProcessResponse(timeSeries)
-	return nil, nil
+	req, err := o.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	timeSeries := make([]kline.Candle, 0, req.Size())
+	for x := range req.RangeHolder.Ranges {
+		var candles []CandlestickData
+		candles, err = o.GetCandlestickHistory(ctx, req.RequestFormatted.String(), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, interval, 300)
+		if err != nil {
+			return nil, err
+		}
+		for z := range candles {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   candles[z].Timestamp.Time(),
+				Open:   candles[z].OpenPrice,
+				High:   candles[z].HighestPrice,
+				Low:    candles[z].LowestPrice,
+				Close:  candles[z].ClosePrice,
+				Volume: candles[z].TradingVolume,
+			})
+		}
+	}
+	return req.ProcessResponse(timeSeries)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
