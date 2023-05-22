@@ -2830,6 +2830,33 @@ func TestChangePositionMargin(t *testing.T) {
 	}
 }
 
+func TestGetPositionSummary(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	b.Verbose = true
+	bb := currency.NewBTCUSDT()
+	a, err := b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+		Asset: asset.USDTMarginedFutures,
+		Pair:  bb,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", a)
+
+	bb.Quote = currency.BUSD
+	a, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+		Asset: asset.USDTMarginedFutures,
+		Pair:  bb,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", a)
+
+}
+
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	b.Verbose = true

@@ -4532,10 +4532,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				CollateralUsed:               stats.CollateralUsed.String(),
 				MarkPrice:                    stats.MarkPrice.String(),
 				CurrentSize:                  stats.CurrentSize.String(),
-				BreakEvenPrice:               stats.BreakEvenPrice.String(),
 				AverageOpenPrice:             stats.AverageOpenPrice.String(),
-				RecentPnl:                    stats.RecentPNL.String(),
-				MarginFraction:               stats.MarginFraction.String(),
+				RecentPnl:                    stats.PositionPNL.String(),
+				MarginFraction:               stats.MaintenanceMarginFraction.String(),
 				FreeCollateral:               stats.FreeCollateral.String(),
 				TotalCollateral:              stats.TotalCollateral.String(),
 			}

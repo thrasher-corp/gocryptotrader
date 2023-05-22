@@ -981,7 +981,7 @@ func (b *Binance) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPositionInfo, params, uFuturesDefaultRate, &resp)
 }
 
-func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair) (UPositionInformationV2, error) {
+func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair) ([]UPositionInformationV2, error) {
 	// commissionRate
 	var resp []UPositionInformationV2
 	params := url.Values{}

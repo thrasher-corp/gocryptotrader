@@ -403,6 +403,7 @@ type PositionSummary struct {
 	MarginType                   margin.Type
 	CollateralType               CollateralType
 	IsolatedMargin               decimal.Decimal
+	NotionalSize                 decimal.Decimal
 	Leverage                     decimal.Decimal
 	MaintenanceMarginRequirement decimal.Decimal
 	InitialMarginRequirement     decimal.Decimal
@@ -410,10 +411,9 @@ type PositionSummary struct {
 	CollateralUsed               decimal.Decimal
 	MarkPrice                    decimal.Decimal
 	CurrentSize                  decimal.Decimal
-	BreakEvenPrice               decimal.Decimal
 	AverageOpenPrice             decimal.Decimal
-	RecentPNL                    decimal.Decimal
-	MarginFraction               decimal.Decimal
+	PositionPNL                  decimal.Decimal
+	MaintenanceMarginFraction    decimal.Decimal
 	FreeCollateral               decimal.Decimal
 	TotalCollateral              decimal.Decimal
 }

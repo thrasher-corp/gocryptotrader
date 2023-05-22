@@ -66,10 +66,9 @@ func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryReq
 		CollateralUsed:               leet,
 		MarkPrice:                    leet,
 		CurrentSize:                  leet,
-		BreakEvenPrice:               leet,
 		AverageOpenPrice:             leet,
-		RecentPNL:                    leet,
-		MarginFraction:               leet,
+		PositionPNL:                  leet,
+		MaintenanceMarginFraction:    leet,
 		FreeCollateral:               leet,
 		TotalCollateral:              leet,
 	}, nil
