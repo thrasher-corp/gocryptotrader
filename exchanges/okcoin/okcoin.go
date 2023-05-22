@@ -244,11 +244,11 @@ func (o *OKCoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 		}
 		params.Set("bar", intervalString)
 	}
-	if !after.IsZero() {
-		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
-	}
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -276,7 +276,7 @@ func (o *OKCoin) GetTrades(ctx context.Context, instrumentID string, limit int64
 }
 
 // GetTradeHistory retrieve the recent transactions of an instrument from the last 3 months with pagination.
-func (o *OKCoin) GetTradeHistory(ctx context.Context, instrumentID, paginationType string, after, before time.Time, limit int64) ([]SpotTrade, error) {
+func (o *OKCoin) GetTradeHistory(ctx context.Context, instrumentID, paginationType string, before, after time.Time, limit int64) ([]SpotTrade, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -549,6 +549,9 @@ func (o *OKCoin) GetDepositHistory(ctx context.Context, ccy currency.Code, depos
 }
 
 // Withdrawal apply withdrawal of tokens. Sub-account does not support withdrawal.
+// Withdrawal method
+// 3: 'internal' using email, phone or login account name.
+// 4: 'on chain' a trusted crypto currency address.
 func (o *OKCoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]WithdrawalResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
@@ -1261,21 +1264,21 @@ func tradeOrderParamsFill(instrumentType, instrumentID, orderType, state string,
 }
 
 // GetPersonalOrderList retrieve all incomplete orders under the current account.
-func (o *OKCoin) GetPersonalOrderList(ctx context.Context, instrumentType, instrumentID, orderType, state string, after, before time.Time, limit int64) ([]TradeOrder, error) {
+func (o *OKCoin) GetPersonalOrderList(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
 	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
 	var resp []TradeOrder
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderListEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-pending", params), nil, &resp, true)
 }
 
 // GetOrderHistory7Days retrieve the completed order data for the last 7 days, and the incomplete orders that have been canceled are only reserved for 2 hours.
-func (o *OKCoin) GetOrderHistory7Days(ctx context.Context, instrumentType, instrumentID, orderType, state string, after, before time.Time, limit int64) ([]TradeOrder, error) {
+func (o *OKCoin) GetOrderHistory7Days(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
 	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
 	var resp []TradeOrder
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderHistoryEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-history", params), nil, &resp, true)
 }
 
 // GetOrderHistory3Months retrieve the completed order data of the last 3 months.
-func (o *OKCoin) GetOrderHistory3MonthsDays(ctx context.Context, instrumentType, instrumentID, orderType, state string, after, before time.Time, limit int64) ([]TradeOrder, error) {
+func (o *OKCoin) GetOrderHistory3MonthsDays(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
 	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
 	var resp []TradeOrder
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderhistory3MonthsEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-history-archive", params), nil, &resp, true)
@@ -1633,4 +1636,34 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 		return fmt.Errorf("sendHTTPRequest error - code: %d message: %s", resp.Code, resp.Message)
 	}
 	return nil
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (o *OKCoin) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		rate, err := o.GetFeeRates(ctx, "SPOT", feeBuilder.Pair.String())
+		if err != nil {
+			return 0, err
+		}
+		if feeBuilder.IsMaker {
+			fee = rate[0].MakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+		} else {
+			fee = rate[0].TakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+		}
+	case exchange.CryptocurrencyWithdrawalFee:
+		// TODO: manully add withdrawal fees
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
 }

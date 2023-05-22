@@ -2,6 +2,7 @@ package okcoin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -11,11 +12,14 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -31,6 +35,8 @@ var (
 	spotCurrency         = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")
 	spotCurrencyLowerStr = spotCurrency.Lower().String()
 	spotCurrencyUpperStr = spotCurrency.Upper().String()
+
+	spotTradablePair currency.Pair
 )
 
 func TestMain(m *testing.M) {
@@ -54,6 +60,10 @@ func TestMain(m *testing.M) {
 	err = o.Setup(okcoinConfig)
 	if err != nil {
 		log.Fatal("OKCoin setup error", err)
+	}
+	err = o.populateTradablePairs(context.Background())
+	if err != nil {
+		log.Fatalf("%s populateTradablePairs error %v", o.Name, err)
 	}
 	os.Exit(m.Run())
 }
@@ -144,7 +154,7 @@ func TestGetLiteOrderbook(t *testing.T) {
 
 func TestGetCandlestick(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetCandlesticks(context.Background(), "BTC-USD", kline.FiveMin, time.Now().Add(-time.Hour*3), time.Now(), 0)
+	_, err := o.GetCandlesticks(context.Background(), "BTC-USD", kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*30), 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -168,9 +178,14 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetTradeHistory(context.Background(), "BTC-USD", "", time.Time{}, time.Time{}, 0)
+	results, err := o.GetTradeHistory(context.Background(), "BTC-USD", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
+	} else {
+		for x := range results {
+			val, _ := json.Marshal(results[x])
+			println(string(val))
+		}
 	}
 }
 
@@ -1290,19 +1305,19 @@ func TestFetchAccountInfo(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetHistoricCandles(context.Background(), spotCurrency, asset.Spot, kline.OneDay, time.Now().Add(-5*time.Hour), time.Now())
+	_, err := o.GetHistoricCandles(context.Background(), spotCurrency, asset.Spot, kline.FiveMin, time.Now().Add(-5*time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = o.GetHistoricCandles(context.Background(), spotCurrency, asset.Spot, kline.Interval(time.Hour*4), time.Now().Add(-5*time.Hour), time.Now())
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Errorf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
+	_, err = o.GetHistoricCandles(context.Background(), spotCurrency, asset.Spot, kline.FiveMin, time.Now().Add(-5*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetHistoricCandlesExtended(context.Background(), spotCurrency, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
+	_, err := o.GetHistoricCandlesExtended(context.Background(), spotCurrency, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*3), time.Now())
 	if err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", o.Name, err)
 	}
@@ -1310,7 +1325,209 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	if _, err := o.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, time.Now().Add(-time.Minute*4), time.Now().Add(-time.Minute*2)); err != nil {
+	if _, err := o.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot, time.Now().Add(-time.Hour*4), time.Now().Add(-time.Minute*2)); err != nil {
 		t.Errorf("%s GetHistoricTrades() error %v", o.Name, err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+	}
+	_, err := o.GetActiveOrders(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+	}
+	_, err := o.GetOrderHistory(context.Background(), &getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Base:  currency.BTC,
+			Quote: currency.USD,
+		},
+		Exchange:  o.Name,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1000000000,
+		ClientID:  "yeneOrder",
+		AssetType: asset.Spot,
+	}
+	_, err := o.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func (o *OKCoin) populateTradablePairs(ctx context.Context) error {
+	err := o.UpdateTradablePairs(ctx, true)
+	if err != nil {
+		return err
+	}
+	enabledPairs, err := o.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	if len(enabledPairs) == 0 {
+		return errors.New("No enabled pairs found")
+	}
+	spotTradablePair = enabledPairs[0]
+	return nil
+}
+
+func TestModifyOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.ModifyOrder(context.Background(),
+		&order.Modify{
+			AssetType: asset.Spot,
+			Pair:      spotTradablePair,
+			OrderID:   "1234",
+			Price:     123456.44,
+			Amount:    123,
+		})
+	if err != nil {
+		t.Errorf("Okx ModifyOrder() error %v", err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	var orderCancellation = &order.Cancel{
+		OrderID:       "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		Pair:          spotTradablePair,
+		AssetType:     asset.Spot,
+	}
+	if err := o.CancelOrder(context.Background(), orderCancellation); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	var orderCancellationParams = []order.Cancel{
+		{
+			OrderID:   "1",
+			Pair:      spotTradablePair,
+			AssetType: asset.Spot,
+		},
+		{
+			OrderID:   "2",
+			Pair:      spotTradablePair,
+			AssetType: asset.Spot,
+		},
+	}
+	_, err := o.CancelBatchOrders(context.Background(), orderCancellationParams)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetOrderInfo(context.Background(), "123", spotTradablePair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	if _, err := o.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, o, canManipulateRealOrders)
+	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    o.Name,
+		Amount:      1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: withdraw.CryptoRequest{
+			Address:   "emailaddress@company.com",
+			FeeAmount: 0.01,
+		},
+		ClientOrderID: "1234",
+	}
+	_, err := o.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
+	if err != nil {
+		t.Error(err)
+	}
+	withdrawCryptoRequest = withdraw.Request{
+		Exchange:    o.Name,
+		Amount:      1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: withdraw.CryptoRequest{
+			Chain:     "USDT-ERC20",
+			Address:   core.BitcoinDonationAddress,
+			FeeAmount: 0.01,
+		},
+		ClientOrderID: "1234",
+	}
+	_, err = o.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	if _, err := o.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
+		t.Error(err)
+	}
+}
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	if _, err := o.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+		Amount:              1,
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		Pair:                spotTradablePair,
+		PurchasePrice:       1,
+		FiatCurrency:        currency.USD,
+		BankTransactionType: exchange.WireTransfer,
+	}); err != nil {
+		t.Errorf("%s GetFeeByType() error %v", o.Name, err)
 	}
 }

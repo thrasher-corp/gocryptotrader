@@ -1,7 +1,6 @@
 package okcoin
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
 	"sync"
@@ -2220,7 +2219,7 @@ type ExchangeRate struct {
 // ToExtract returns a CandlestickData instance from []string
 func (c *candlestickItemResponse) ToExtract() (CandlestickData, error) {
 	var candle CandlestickData
-	err := json.Unmarshal([]byte(c[0]), &candle.Timestamp)
+	err := candle.Timestamp.UnmarshalJSON([]byte(c[0]))
 	if err != nil {
 		return candle, err
 	}
@@ -2244,13 +2243,17 @@ func (c *candlestickItemResponse) ToExtract() (CandlestickData, error) {
 	if err != nil {
 		return candle, err
 	}
-	candle.QuoteTradingVolume, err = strconv.ParseFloat(c[6], 64)
-	if err != nil {
-		return candle, err
+	if c[6] != "" {
+		candle.QuoteTradingVolume, err = strconv.ParseFloat(c[6], 64)
+		if err != nil {
+			return candle, err
+		}
 	}
-	candle.TradingVolumeInQuote, err = strconv.ParseFloat(c[7], 64)
-	if err != nil {
-		return candle, err
+	if c[7] != "" {
+		candle.TradingVolumeInQuote, err = strconv.ParseFloat(c[7], 64)
+		if err != nil {
+			return candle, err
+		}
 	}
 	candle.Confirm = c[8]
 	return candle, nil
@@ -2386,9 +2389,9 @@ type DepositHistoryItem struct {
 	Chain               string         `json:"chain"`
 	DepositID           string         `json:"depId"`
 	From                string         `json:"from"`
-	State               string         `json:"state"`
+	State               int64          `json:"state,string"`
 	To                  string         `json:"to"`
-	Timstamp            okcoinMilliSec `json:"ts"`
+	Timestamp           okcoinMilliSec `json:"ts"`
 	TransactionID       string         `json:"txId"`
 }
 
@@ -2440,7 +2443,7 @@ type WithdrawalOrderItem struct {
 	TransactionID string         `json:"txId"`
 	From          string         `json:"from"`
 	To            string         `json:"to"`
-	State         string         `json:"state"`
+	State         int64          `json:"state,string"`
 	Timestamp     okcoinMilliSec `json:"ts"`
 	WithdrawalID  string         `json:"wdId"`
 }
@@ -2545,10 +2548,10 @@ type FeeRate struct {
 	Exercise       string         `json:"exercise"`
 	InstrumentType string         `json:"instType"`
 	Level          string         `json:"level"`
-	MakerFeeRate   string         `json:"maker"`
+	MakerFeeRate   float64        `json:"maker,string"`
 	MakerU         string         `json:"makerU"`
 	MakerUSDC      string         `json:"makerUSDC"`
-	TakerFeeRate   string         `json:"taker"`
+	TakerFeeRate   float64        `json:"taker,string"`
 	TakerU         string         `json:"takerU"`
 	TakerUSDC      string         `json:"takerUSDC"`
 	Timestamp      okcoinMilliSec `json:"ts"`
@@ -2804,35 +2807,35 @@ type AmendTradeOrderResponse struct {
 
 // TradeOrder represents a trade order detail
 type TradeOrder struct {
-	AccFillSize                string         `json:"accFillSz"`
-	AveragePrice               string         `json:"avgPx"`
+	AccFillSize                float64        `json:"accFillSz,string"`
+	AveragePrice               float64        `json:"avgPx,string"`
 	CreationTime               okcoinMilliSec `json:"cTime"`
 	Category                   string         `json:"category"`
 	Currency                   string         `json:"ccy"`
 	ClientOrdID                string         `json:"clOrdId"`
-	Fee                        string         `json:"fee"`
+	Fee                        float64        `json:"fee,string"`
 	FeeCurrency                string         `json:"feeCcy"`
-	FillPrice                  string         `json:"fillPx"`
-	FillSize                   string         `json:"fillSz"`
+	FillPrice                  float64        `json:"fillPx,string"`
+	FillSize                   float64        `json:"fillSz,string"`
 	FillTime                   okcoinMilliSec `json:"fillTime"`
 	InstrumentID               string         `json:"instId"`
 	InstrumentType             string         `json:"instType"`
-	Leverage                   string         `json:"lever"`
+	Leverage                   float64        `json:"lever,string"`
 	OrderID                    string         `json:"ordId"`
 	OrderType                  string         `json:"ordType"`
 	ProfitAndLoss              string         `json:"pnl"`
 	PosSide                    string         `json:"posSide"`
-	Price                      string         `json:"px"`
+	Price                      float64        `json:"px,string"`
 	Rebate                     string         `json:"rebate"`
 	RebateCurrency             string         `json:"rebateCcy"`
-	ReduceOnly                 string         `json:"reduceOnly"`
+	ReduceOnly                 bool           `json:"reduceOnly,string"`
 	Side                       string         `json:"side"`
 	StopLossOrdPrice           string         `json:"slOrdPx"`
 	StopLossTriggerPrice       string         `json:"slTriggerPx"`
 	StopLossTriggerPriceType   string         `json:"slTriggerPxType"`
 	Source                     string         `json:"source"`
 	State                      string         `json:"state"`
-	Size                       string         `json:"sz"`
+	Size                       float64        `json:"sz,string"`
 	Tag                        string         `json:"tag"`
 	TradeMode                  string         `json:"tdMode"`
 	TargetCurrency             string         `json:"tgtCcy"`

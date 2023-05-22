@@ -24,6 +24,10 @@ func (o *okcoinMilliSec) UnmarshalJSON(data []byte) error {
 		*o = okcoinMilliSec(timeInteger)
 	case int64:
 		*o = okcoinMilliSec(value)
+	case float64:
+		*o = okcoinMilliSec(int64(value))
+	case float32:
+		*o = okcoinMilliSec(int64(value))
 	}
 	return nil
 }
