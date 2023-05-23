@@ -57,8 +57,17 @@ var defaultSubscriptions = []string{
 	wsTickers,
 	wsCandle1D,
 	wsTrades,
-	wsOrderbooksL5,
+	wsOrderbooks,
 	wsStatus,
+}
+
+func isAuthenticatedChannel(channel string) bool {
+	switch channel {
+	case wsAccount, wsOrder, wsOrdersAlgo, wsAlgoAdvance:
+		return true
+	default:
+		return false
+	}
 }
 
 // WsConnect initiates a websocket connection
@@ -88,7 +97,7 @@ func (o *OKCoin) WsConnect() error {
 	go o.WsReadData()
 
 	if o.IsWebsocketAuthenticationSupported() {
-		err = o.WsLogin(context.TODO())
+		err = o.WsLogin(context.TODO(), &dialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -96,21 +105,35 @@ func (o *OKCoin) WsConnect() error {
 				err)
 		}
 	}
-
 	return nil
 }
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
-func (o *OKCoin) WsLogin(ctx context.Context) error {
+func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 	creds, err := o.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	unixTime := time.Now().UTC().Unix()
+	err = o.Websocket.AuthConn.Dial(dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	o.Websocket.Wg.Add(1)
+	go o.funnelWebsocketConn(o.Websocket.AuthConn)
+
+	o.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+		Delay:       time.Second * 25,
+		Message:     []byte("ping"),
+		MessageType: websocket.TextMessage,
+	})
+	systemTime, err := o.GetSystemTime(context.Background())
+	if err != nil {
+		systemTime = time.Now().UTC()
+	}
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(unixTime, 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(systemTime.UTC().Unix(), 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
@@ -123,12 +146,12 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 			{
 				"apiKey":     creds.Key,
 				"passphrase": creds.ClientID,
-				"timestamp":  strconv.FormatInt(unixTime, 10),
+				"timestamp":  strconv.FormatInt(systemTime.UTC().Unix(), 10),
 				"sign":       base64,
 			},
 		},
 	}
-	_, err = o.Websocket.Conn.SendMessageReturnResponse("login", request)
+	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -195,6 +218,12 @@ func (o *OKCoin) WsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	if dataResponse.ID != "" {
+		if !o.Websocket.Match.IncomingWithData(dataResponse.ID, respRaw) {
+			return fmt.Errorf("couldn't match incoming message with id: %s and operation: %s", dataResponse.ID, dataResponse.Operation)
+		}
+		return nil
+	}
 	if len(dataResponse.Data) > 0 {
 		switch dataResponse.Arguments.Channel {
 		case wsInstruments:
@@ -250,12 +279,20 @@ func (o *OKCoin) WsHandleData(respRaw []byte) error {
 	if err == nil && eventResponse.Event != "" {
 		switch eventResponse.Event {
 		case "login":
-			if o.Websocket.Match.Incoming("login") {
-				o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
+			if o.Websocket.Match.IncomingWithData("login", respRaw) {
+				o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Code == "0")
 			}
 		case "subscribe", "unsubscribe":
 			o.Websocket.DataHandler <- eventResponse
 		case "error":
+			waitingSignatureLock.Lock()
+			for x := range waitingSignatures {
+				if strings.Contains(dataResponse.Message, waitingSignatures[x]) {
+					o.Websocket.Match.IncomingWithData(waitingSignatures[x], respRaw)
+					return nil
+				}
+			}
+			waitingSignatureLock.Unlock()
 			if o.Verbose {
 				log.Debugf(log.ExchangeSys,
 					o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)
@@ -796,25 +833,22 @@ func (o *OKCoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
-	request := WebsocketEventRequest{
-		Operation: operation,
-		Arguments: []map[string]string{},
-	}
-
-	temp := WebsocketEventRequest{
-		Operation: operation,
-		Arguments: []map[string]string{},
-	}
+	request := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
+	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
+	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
+	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
+	var err error
 	var channels []stream.ChannelSubscription
 	for i := 0; i < len(subs); i++ {
 		// Temp type to evaluate max byte len after a marshal on batched unsubs
 		copy(temp.Arguments, request.Arguments)
-		temp.Arguments = append(temp.Arguments, map[string]string{
+		copy(authTemp.Arguments, authRequest.Arguments)
+		argument := map[string]string{
 			"channel": subs[i].Channel,
-		})
+		}
 		if subs[i].Params != nil {
 			if currency, okay := subs[i].Params["ccy"]; okay {
-				temp.Arguments[i]["ccy"], okay = (currency).(string)
+				argument["ccy"], okay = (currency).(string)
 				if !okay {
 					continue
 				}
@@ -824,18 +858,31 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 				if !okay {
 					continue
 				}
-				temp.Arguments[i]["channel"] += intervalString
+				argument["channel"] += intervalString
 			}
 		}
 		if subs[i].Asset != asset.Empty {
-			temp.Arguments[i]["instType"] = strings.ToUpper(subs[i].Asset.String())
+			argument["instType"] = strings.ToUpper(subs[i].Asset.String())
 		}
 		if !subs[i].Currency.IsEmpty() {
-			temp.Arguments[i]["instId"] = subs[i].Currency.String()
+			argument["instId"] = subs[i].Currency.String()
 		}
-		chunk, err := json.Marshal(request)
-		if err != nil {
-			return err
+		if isAuthenticatedChannel(subs[i].Channel) {
+			authTemp.Arguments = append(authTemp.Arguments, argument)
+		} else {
+			temp.Arguments = append(temp.Arguments, argument)
+		}
+		var chunk []byte
+		if isAuthenticatedChannel(subs[i].Channel) {
+			chunk, err = json.Marshal(authRequest)
+			if err != nil {
+				return err
+			}
+		} else {
+			chunk, err = json.Marshal(request)
+			if err != nil {
+				return err
+			}
 		}
 
 		if len(chunk) > maxConnByteLen {
@@ -843,7 +890,11 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 			// commit last payload.
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
-			err = o.Websocket.Conn.SendJSONMessage(request)
+			if isAuthenticatedChannel(subs[i].Channel) {
+				err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
+			} else {
+				err = o.Websocket.Conn.SendJSONMessage(request)
+			}
 			if err != nil {
 				return err
 			}
@@ -856,18 +907,33 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 
 			// Drop prior unsubs and chunked payload args on successful unsubscription
 			channels = nil
-			request.Arguments = nil
+			if isAuthenticatedChannel(subs[i].Channel) {
+				authRequest.Arguments = nil
+			} else {
+				request.Arguments = nil
+			}
 			continue
 		}
 		// Add pending chained items
 		channels = append(channels, subs[i])
-		request.Arguments = temp.Arguments
+		if isAuthenticatedChannel(subs[i].Channel) {
+			authRequest.Arguments = authTemp.Arguments
+		} else {
+			request.Arguments = temp.Arguments
+		}
 	}
-	err := o.Websocket.Conn.SendJSONMessage(request)
-	if err != nil {
-		return err
+	if len(request.Arguments) > 0 {
+		err = o.Websocket.Conn.SendJSONMessage(request)
+		if err != nil {
+			return err
+		}
 	}
-
+	if len(authRequest.Arguments) > 0 {
+		err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
+		if err != nil {
+			return err
+		}
+	}
 	if operation == "unsubscribe" {
 		o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
 	} else {

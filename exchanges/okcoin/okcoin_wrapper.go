@@ -104,8 +104,7 @@ func (o *OKCoin) SetDefaults() {
 				GetOrder:               true,
 				AccountBalance:         true,
 			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.NoFiatWithdrawals,
+			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
@@ -403,19 +402,19 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
 	var tradeData []SpotTrade
 	tradeData, err = o.GetTrades(ctx, p.String(), 0)
 	if err != nil {
 		return nil, err
 	}
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     o.Name,
 			TID:          tradeData[i].TradeID,
 			CurrencyPair: p,
@@ -424,7 +423,7 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData[i].TradePrice,
 			Amount:       tradeData[i].TradeSize,
 			Timestamp:    tradeData[i].Timestamp.Time(),
-		})
+		}
 	}
 	err = o.AddTradesToBuffer(resp...)
 	if err != nil {
@@ -445,13 +444,13 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (or
 		if args[x].AssetType != asset.Spot {
 			return cancelBatchResponse, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, args[x].AssetType)
 		}
-		err := args[x].Validate()
+		err = args[x].Validate()
 		if err != nil {
 			return cancelBatchResponse, err
 		}
 		args[x].Pair, err = o.FormatExchangeCurrency(args[x].Pair, args[x].AssetType)
 		if err != nil {
-			return cancelBatchResponse, nil
+			return cancelBatchResponse, err
 		}
 		params[x] = CancelTradeOrderRequest{
 			InstrumentID:  args[x].Pair.String(),
@@ -459,7 +458,12 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (or
 			ClientOrderID: args[x].ClientOrderID,
 		}
 	}
-	responses, err := o.CancelMultipleOrders(ctx, params)
+	var responses []TradeOrderResponse
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		responses, err = o.WsCancelMultipleOrders(params)
+	} else {
+		responses, err = o.CancelMultipleOrders(ctx, params)
+	}
 	if err != nil {
 		return cancelBatchResponse, err
 	}
@@ -704,7 +708,12 @@ func (o *OKCoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		s.Type == order.FillOrKill || s.Type == order.ImmediateOrCancel) && s.Price <= 0 {
 		return nil, fmt.Errorf("%w, price is required for order types %v,%v,%v, and %v", errInvalidPrice, order.Limit, order.PostOnly, order.ImmediateOrCancel, order.FillOrKill)
 	}
-	orderResponse, err := o.PlaceOrder(ctx, &req)
+	var orderResponse *TradeOrderResponse
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		orderResponse, err = o.WsPlaceOrder(&req)
+	} else {
+		orderResponse, err = o.PlaceOrder(ctx, &req)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -726,12 +735,17 @@ func (o *OKCoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.Mod
 	if err != nil {
 		return nil, err
 	}
-	_, err = o.AmendOrder(ctx, &AmendTradeOrderRequestParam{
+	request := &AmendTradeOrderRequestParam{
 		OrderID:       req.OrderID,
 		InstrumentID:  req.Pair.String(),
 		ClientOrderID: req.ClientOrderID,
 		NewSize:       req.Amount,
-		NewPrice:      req.Price})
+		NewPrice:      req.Price}
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		_, err = o.WsAmendOrder(request)
+	} else {
+		_, err = o.AmendOrder(ctx, request)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -748,12 +762,16 @@ func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = o.CancelTradeOrder(ctx,
-		&CancelTradeOrderRequest{
-			InstrumentID:  cancel.Pair.String(),
-			OrderID:       cancel.OrderID,
-			ClientOrderID: cancel.ClientOrderID,
-		})
+	request := &CancelTradeOrderRequest{
+		InstrumentID:  cancel.Pair.String(),
+		OrderID:       cancel.OrderID,
+		ClientOrderID: cancel.ClientOrderID,
+	}
+	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		_, err = o.WsCancelTradeOrder(request)
+	} else {
+		_, err = o.CancelTradeOrder(ctx, request)
+	}
 	if err != nil {
 		return err
 	}
@@ -761,7 +779,7 @@ func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKCoin) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (o *OKCoin) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
 }
 
@@ -861,22 +879,8 @@ func (o *OKCoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKCoin) WithdrawFiatFunds(ctx context.Context, req *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := req.Validate(); err != nil {
-		return nil, err
-	}
-	_, err := o.FiatWithdrawal(ctx, &FiatWithdrawalParam{
-		// ChannelID: req.,
-		BankAcctNumber: req.Fiat.Bank.BankAddress,
-		Amount:         req.Amount,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &withdraw.ExchangeResponse{
-		Status: "",
-	}, nil
+func (o *OKCoin) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
@@ -967,18 +971,18 @@ func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
 			resp = append(resp, order.Detail{
-				OrderID:        tradeOrders[i].OrderID,
-				Price:          tradeOrders[i].AveragePrice,
-				Amount:         tradeOrders[i].Size,
-				Pair:           req.Pairs[x],
-				Exchange:       o.Name,
-				Side:           side,
-				Type:           orderType,
-				ExecutedAmount: tradeOrders[i].AccFillSize,
 				Date:           tradeOrders[i].CreationTime.Time(),
 				LastUpdated:    tradeOrders[i].UpdateTime.Time(),
 				CloseTime:      tradeOrders[i].FillTime.Time(),
+				Price:          tradeOrders[i].AveragePrice,
+				ExecutedAmount: tradeOrders[i].AccFillSize,
+				OrderID:        tradeOrders[i].OrderID,
+				Amount:         tradeOrders[i].Size,
+				Pair:           req.Pairs[x],
+				Type:           orderType,
 				Status:         status,
+				Exchange:       o.Name,
+				Side:           side,
 			})
 		}
 	}
@@ -999,7 +1003,7 @@ func (o *OKCoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 		var spotOrders []TradeOrder
-		spotOrders, err = o.GetOrderHistory3MonthsDays(ctx, "SPOT", req.Pairs[x].String(), "", "", req.StartTime, req.EndTime, 0)
+		spotOrders, err = o.GetOrderHistory3Months(ctx, "SPOT", req.Pairs[x].String(), "", "", req.StartTime, req.EndTime, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1140,14 +1144,14 @@ func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	}
 	timeSeriesData := make([]kline.Candle, len(timeSeries))
 	for x := range timeSeries {
-		timeSeriesData = append(timeSeriesData, kline.Candle{
+		timeSeriesData[x] = kline.Candle{
 			Time:   timeSeries[x].Timestamp.Time(),
 			Open:   timeSeries[x].OpenPrice,
 			High:   timeSeries[x].HighestPrice,
 			Low:    timeSeries[x].LowestPrice,
 			Close:  timeSeries[x].ClosePrice,
 			Volume: timeSeries[x].TradingVolume,
-		})
+		}
 	}
 	return req.ProcessResponse(timeSeriesData)
 }
@@ -1186,4 +1190,9 @@ func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 func (o *OKCoin) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := o.UpdateAccountInfo(ctx, assetType)
 	return o.CheckTransientError(err)
+}
+
+// GetServerTime returns the current exchange server time.
+func (o *OKCoin) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return o.GetSystemTime(ctx)
 }

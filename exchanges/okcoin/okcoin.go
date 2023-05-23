@@ -69,33 +69,19 @@ var (
 	errCallbackRatioOrCallbackSpeedRequired   = errors.New("either Callback ration or callback spread is required")
 	errTimeIntervlaInformationRequired        = errors.New("time interval information is required")
 	errOrderTypeRequired                      = errors.New("order type is required")
+	errNoAccountDepositAddress                = errors.New("no account deposit address")
 )
 
 const (
 	// endpoint types
-	typeAccountSubsection = "account"
-	typeTokenSubsection   = "spot"
-	typeAccounts          = "account"
-	typeFiat              = "fiat"
-	typeOtc               = "otc"
-	typeAssets            = "asset"
-	typeMarket            = "market"
-	typePublic            = "public"
-	typeSystem            = "system"
-	typeTrade             = "trade"
-
-	// endpoints
-	systemStatus = "status"
-	systemTime   = "time"
-
-	// market endpoints
-	tickersPath            = "tickers"
-	tickerData             = "ticker"
-	getSpotOrderBooks      = "books"
-	orderbookLitePath      = "books-lite"
-	getSpotMarketData      = "candles"
-	getSpotHistoricCandles = "history-candles"
-	getTrades              = "trades"
+	typeAccounts = "account"
+	typeFiat     = "fiat"
+	typeOtc      = "otc"
+	typeAssets   = "asset"
+	typeMarket   = "market"
+	typePublic   = "public"
+	typeSystem   = "system"
+	typeTrade    = "trade"
 )
 
 // GetInstruments Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
@@ -121,7 +107,7 @@ func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) (interface{}
 		params.Set("state", state)
 	}
 	var resp []SystemStatus
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getSystemStatusEPL, http.MethodGet, typeSystem, common.EncodeURLValues(systemStatus, params), nil, &resp, false)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getSystemStatusEPL, http.MethodGet, typeSystem, common.EncodeURLValues("status", params), nil, &resp, false)
 }
 
 // GetSystemTime retrieve API server time.
@@ -129,7 +115,7 @@ func (o *OKCoin) GetSystemTime(ctx context.Context) (time.Time, error) {
 	timestampResponse := []struct {
 		Timestamp okcoinMilliSec `json:"ts"`
 	}{}
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, typePublic, systemTime, nil, &timestampResponse, false)
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, typePublic, "time", nil, &timestampResponse, false)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -143,13 +129,13 @@ func (o *OKCoin) GetTickers(ctx context.Context, instrumentType string) ([]Ticke
 		params.Set("instType", instrumentType)
 	}
 	var resp []TickerData
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, typeMarket, common.EncodeURLValues(tickersPath, params), nil, &resp, false)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, typeMarket, common.EncodeURLValues("tickers", params), nil, &resp, false)
 }
 
 // GetTicker retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
 func (o *OKCoin) GetTicker(ctx context.Context, instrumentID string) (*TickerData, error) {
 	var resp []TickerData
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getTickerEPL, http.MethodGet, typeMarket, tickerData+"?instId="+instrumentID, nil, &resp, false)
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getTickerEPL, http.MethodGet, typeMarket, "ticker"+"?instId="+instrumentID, nil, &resp, false)
 	if err != nil {
 		return nil, err
 	} else if len(resp) == 0 {
@@ -169,7 +155,7 @@ func (o *OKCoin) GetOrderbook(ctx context.Context, instrumentID string, sideDept
 		params.Set("sz", strconv.FormatInt(sideDepth, 10))
 	}
 	var resp []GetOrderBookResponse
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderbookEPL, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotOrderBooks, params), nil, &resp, false)
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderbookEPL, http.MethodGet, typeMarket, common.EncodeURLValues("books", params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	} else if len(resp) == 0 {
@@ -186,7 +172,7 @@ func (o *OKCoin) GetOrderbookLitebook(ctx context.Context, instrumentID string) 
 	params := url.Values{}
 	params.Set("instId", instrumentID)
 	var resp []GetOrderBookResponse
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderliteBookEPL, http.MethodGet, typeMarket, common.EncodeURLValues(orderbookLitePath, params), nil, &resp, false)
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderliteBookEPL, http.MethodGet, typeMarket, common.EncodeURLValues("books-lite", params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	} else if len(resp) == 0 {
@@ -221,7 +207,7 @@ func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, inter
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []candlestickItemResponse
-	err = o.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotMarketData, params), nil, &resp, false)
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, typeMarket, common.EncodeURLValues("candles", params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +240,7 @@ func (o *OKCoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []candlestickItemResponse
-	err = o.SendHTTPRequest(ctx, exchange.RestSpot, getCandlestickHistoryEPL, http.MethodGet, typeMarket, common.EncodeURLValues(getSpotHistoricCandles, params), nil, &resp, false)
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, getCandlestickHistoryEPL, http.MethodGet, typeMarket, common.EncodeURLValues("history-candles", params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +290,7 @@ func (o *OKCoin) Get24HourTradingVolume(ctx context.Context) ([]TradingVolume, e
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, get24HourTradingVolumeEPL, http.MethodGet, typeMarket, "platform-24-volume", nil, &resp, false)
 }
 
-// GetOracle retrives the crypto price of signing using Open Oracle smart contract.
+// GetOracle retrieves the crypto price of signing using Open Oracle smart contract.
 func (o *OKCoin) GetOracle(ctx context.Context) (*Oracle, error) {
 	var resp *Oracle
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOracleEPL, http.MethodGet, typeMarket, "open-oracle", nil, &resp, false)
@@ -488,7 +474,7 @@ func (o *OKCoin) GetAssetBilsDetail(ctx context.Context, ccy currency.Code, bill
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, assetBillsDetailEPL, http.MethodGet, typeAssets, common.EncodeURLValues("bills", params), nil, &resp, true)
 }
 
-// GetLightningDeposits retrives lightning deposit instances
+// GetLightningDeposits retrieves lightning deposit instances
 func (o *OKCoin) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to string) ([]LightningDepositDetail, error) {
 	params := url.Values{}
 	if ccy.IsEmpty() {
@@ -592,8 +578,8 @@ func (o *OKCoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningW
 }
 
 // CancelWithdrawal cancel normal withdrawal requests, but you cannot cancel withdrawal requests on Lightning.
-func (o *OKCoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancelation) (*WithdrawalCancelation, error) {
-	var resp []WithdrawalCancelation
+func (o *OKCoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancellation) (*WithdrawalCancellation, error) {
+	var resp []WithdrawalCancellation
 	if arg.WithdrawalID == "" {
 		return nil, errWithdrawalIDMissing
 	}
@@ -633,6 +619,9 @@ func (o *OKCoin) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, wi
 	}
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []WithdrawalOrderItem
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAssetWithdrawalHistoryEPL, http.MethodGet, typeAssets, common.EncodeURLValues("withdrawal-history", params), nil, &resp, true)
@@ -698,7 +687,7 @@ func (o *OKCoin) GetBillsDetails(ctx context.Context, ccy currency.Code, instrum
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getBillsDetailLast3MonthEPL, http.MethodGet, typeAccounts, common.EncodeURLValues("bills", params), nil, &resp, true)
 }
 
-// GetBillsDetailsFor3Moonths retrieve the bills of the account. The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first.
+// GetBillsDetailsFor3Months retrieve the bills of the account. The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first.
 // For the last 3 months.
 func (o *OKCoin) GetBillsDetailsFor3Months(ctx context.Context, ccy currency.Code, instrumentType, billType, billSubType, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]BillsDetail, error) {
 	params := url.Values{}
@@ -733,13 +722,13 @@ func (o *OKCoin) GetBillsDetailsFor3Months(ctx context.Context, ccy currency.Cod
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getBillsDetailEPL, http.MethodGet, typeAccounts, common.EncodeURLValues("bills-archive", params), nil, &resp, true)
 }
 
-// GetAccountConfigurations retrives current account configuration informations.
+// GetAccountConfigurations retrieves current account configuration information.
 func (o *OKCoin) GetAccountConfigurations(ctx context.Context) ([]AccountConfiguration, error) {
 	var resp []AccountConfiguration
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, typeAccounts, "config", nil, &resp, true)
 }
 
-// GetMaximumBuySellOrOpenAmount retrives maximum buy, sell, or open amount information.
+// GetMaximumBuySellOrOpenAmount retrieves maximum buy, sell, or open amount information.
 // Single instrument or multiple instruments (no more than 5) separated with comma, e.g. BTC-USD
 // Trade mode 'cash'
 // Price When the price is not specified, it will be calculated according to the last traded price.
@@ -761,7 +750,7 @@ func (o *OKCoin) GetMaximumBuySellOrOpenAmount(ctx context.Context, instrumentID
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getMaxBuySellAmountOpenAmountEPL, http.MethodGet, typeAccounts, common.EncodeURLValues("max-size", params), nil, &resp, true)
 }
 
-// GetMaximumAvailableTradableAmount retrives maximum available tradable amount.
+// GetMaximumAvailableTradableAmount retrieves maximum available tradable amount.
 // Single instrument or multiple instruments (no more than 5) separated with comma, e.g. BTC-USDT,ETH-USDT
 // Trade mode 'cash'
 func (o *OKCoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMode string, instrumentIDs ...string) ([]AvailableTradableAmount, error) {
@@ -778,7 +767,7 @@ func (o *OKCoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMod
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getMaxAvailableTradableAmountEPL, http.MethodGet, typeAccounts, common.EncodeURLValues("max-avail-size", params), nil, &resp, true)
 }
 
-// GetFeeRates retrives instrument trading fee information.
+// GetFeeRates retrieves instrument trading fee information.
 func (o *OKCoin) GetFeeRates(ctx context.Context, instrumentType, instrumentID string) ([]FeeRate, error) {
 	params := url.Values{}
 	if instrumentType == "" {
@@ -804,7 +793,7 @@ func (o *OKCoin) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) (
 
 // ------------------------------------ OTC-Desk RFQ --------------------------------
 
-// GetAvailableRFQPairs retrives a list of RFQ instruments.
+// GetAvailableRFQPairs retrieves a list of RFQ instruments.
 func (o *OKCoin) GetAvailableRFQPairs(ctx context.Context) ([]AvailableRFQPair, error) {
 	var resp []AvailableRFQPair
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAvailablePairsEPL, http.MethodGet, typeOtc, "rfq/instruments", nil, &resp, true)
@@ -864,7 +853,7 @@ func (o *OKCoin) PlaceRFQOrder(ctx context.Context, arg *PlaceRFQOrderRequest) (
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, placeRFQOrderEPL, http.MethodPost, typeAccounts, "", arg, &resp, true)
 }
 
-// GetRFQOrderDetails retrives an RFQ order details.
+// GetRFQOrderDetails retrieves an RFQ order details.
 func (o *OKCoin) GetRFQOrderDetails(ctx context.Context, clientDefinedID, tradeOrderID string) ([]RFQOrderDetail, error) {
 	params := url.Values{}
 	if clientDefinedID != "" {
@@ -877,7 +866,7 @@ func (o *OKCoin) GetRFQOrderDetails(ctx context.Context, clientDefinedID, tradeO
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getRFQTradeOrderDetailsEPL, http.MethodGet, typeOtc, common.EncodeURLValues("rfq/trade", params), nil, &resp, true)
 }
 
-// GetRFQOrderHistory retrives an RFQ order history
+// GetRFQOrderHistory retrieves an RFQ order history
 func (o *OKCoin) GetRFQOrderHistory(ctx context.Context, begin, end time.Time, pageSize, pageIndex int64) ([]RFQOrderHistoryItem, error) {
 	params := url.Values{}
 	if !begin.IsZero() {
@@ -986,7 +975,7 @@ func (o *OKCoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (
 	return &resp[0], nil
 }
 
-// FiatCancelWithdrawal canceles fiat withdrawal request
+// FiatCancelWithdrawal cancels fiat withdrawal request
 func (o *OKCoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
 	if withdrawalID == "" {
 		return "", errWithdrawalIDMissing
@@ -1004,7 +993,7 @@ func (o *OKCoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) 
 	return resp[0].WithdrawalID, nil
 }
 
-// GetFiatWithdrawalHistory retrives a fiat withdrawal orders list
+// GetFiatWithdrawalHistory retrieves a fiat withdrawal orders list
 // Channel ID used in the transaction.  9:PrimeX; 28:PrimeX US; 21:PrimeX Europe; 3:Silvergate SEN; 27:Silvergate SEN HK
 // Withdrawal state. -2:User canceled the order；-1:Withdrawal attempt has failed; 0:Withdrawal request submitted; 1:Withdrawal request is pending; 2:Withdrawal has been credited
 func (o *OKCoin) GetFiatWithdrawalHistory(ctx context.Context, ccy currency.Code, channelID, withdrawalState, withdrawalID string, after, before time.Time, limit int64) ([]FiatWithdrawalHistoryItem, error) {
@@ -1034,7 +1023,7 @@ func (o *OKCoin) GetFiatWithdrawalHistory(ctx context.Context, ccy currency.Code
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, fiatGetWithdrawalsEPL, http.MethodGet, typeFiat, common.EncodeURLValues("withdrawal-history", params), nil, &resp, true)
 }
 
-// GetChannelInfo retrives channel detailed information given channel id.
+// GetChannelInfo retrieves channel detailed information given channel id.
 func (o *OKCoin) GetChannelInfo(ctx context.Context, channelID string) ([]ChannelInfo, error) {
 	params := url.Values{}
 	if channelID != "" {
@@ -1195,7 +1184,7 @@ func (o *OKCoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestPara
 	return &resp[0], nil
 }
 
-// AmendMultipleOrder amends multple trade orders.
+// AmendMultipleOrder amends multiple trade orders.
 func (o *OKCoin) AmendMultipleOrder(ctx context.Context, args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", errNilArgument)
@@ -1210,7 +1199,7 @@ func (o *OKCoin) AmendMultipleOrder(ctx context.Context, args []AmendTradeOrderR
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, typeTrade, "amend-batch-orders", &args, &resp, true)
 }
 
-// GetPersonalOrderDetail retrives an order detail
+// GetPersonalOrderDetail retrieves an order detail
 func (o *OKCoin) GetPersonalOrderDetail(ctx context.Context, instrumentID, orderID, clientOrderID string) (*TradeOrder, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -1278,7 +1267,7 @@ func (o *OKCoin) GetOrderHistory7Days(ctx context.Context, instrumentType, instr
 }
 
 // GetOrderHistory3Months retrieve the completed order data of the last 3 months.
-func (o *OKCoin) GetOrderHistory3MonthsDays(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
+func (o *OKCoin) GetOrderHistory3Months(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
 	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
 	var resp []TradeOrder
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderhistory3MonthsEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-history-archive", params), nil, &resp, true)
@@ -1320,7 +1309,7 @@ func (o *OKCoin) GetRecentTransactionDetail(ctx context.Context, instrumentType,
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getTransactionDetails3DaysEPL, http.MethodGet, typeTrade, common.EncodeURLValues("fills", params), nil, &resp, true)
 }
 
-// GetTransactionDetails3Months retrives recently filled transaction detail in the last 3-months
+// GetTransactionDetails3Months retrieves recently filled transaction detail in the last 3-months
 func (o *OKCoin) GetTransactionDetails3Months(ctx context.Context, instrumentType, instrumentID, orderID, beforeBillID, afterBillID string, begin, end time.Time, limit int64) ([]TransactionFillItem, error) {
 	params := transactionFillParams(instrumentType, instrumentID, orderID, afterBillID, beforeBillID, begin, end, limit)
 	var resp []TransactionFillItem
@@ -1633,6 +1622,9 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 		return err
 	}
 	if resp.Code > 2 {
+		if resp.Message == "" {
+			resp.Message = errorCodes[strconv.FormatInt(resp.Code, 10)]
+		}
 		return fmt.Errorf("sendHTTPRequest error - code: %d message: %s", resp.Code, resp.Message)
 	}
 	return nil
@@ -1653,7 +1645,7 @@ func (o *OKCoin) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (f
 			fee = rate[0].TakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
 		}
 	case exchange.CryptocurrencyWithdrawalFee:
-		// TODO: manully add withdrawal fees
+		// TODO: manually add withdrawal fees
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
