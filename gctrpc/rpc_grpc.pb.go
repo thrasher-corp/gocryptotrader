@@ -113,7 +113,7 @@ const (
 	GoCryptoTraderService_CurrencyStateDeposit_FullMethodName              = "/gctrpc.GoCryptoTraderService/CurrencyStateDeposit"
 	GoCryptoTraderService_CurrencyStateWithdraw_FullMethodName             = "/gctrpc.GoCryptoTraderService/CurrencyStateWithdraw"
 	GoCryptoTraderService_CurrencyStateTradingPair_FullMethodName          = "/gctrpc.GoCryptoTraderService/CurrencyStateTradingPair"
-	GoCryptoTraderService_GetFuturesPositions_FullMethodName               = "/gctrpc.GoCryptoTraderService/GetFuturesPositions"
+	GoCryptoTraderService_GetFuturesPositions_FullMethodName               = "/gctrpc.GoCryptoTraderService/GetFuturesPositionOrders"
 	GoCryptoTraderService_GetCollateral_FullMethodName                     = "/gctrpc.GoCryptoTraderService/GetCollateral"
 	GoCryptoTraderService_Shutdown_FullMethodName                          = "/gctrpc.GoCryptoTraderService/Shutdown"
 	GoCryptoTraderService_GetTechnicalAnalysis_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetTechnicalAnalysis"
@@ -1727,7 +1727,7 @@ func (UnimplementedGoCryptoTraderServiceServer) CurrencyStateTradingPair(context
 	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateTradingPair not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetFuturesPositions(context.Context, *GetFuturesPositionsRequest) (*GetFuturesPositionsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFuturesPositions not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method GetFuturesPositionOrders not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCollateral not implemented")
@@ -4040,7 +4040,7 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTraderService_CurrencyStateTradingPair_Handler,
 		},
 		{
-			MethodName: "GetFuturesPositions",
+			MethodName: "GetFuturesPositionOrders",
 			Handler:    _GoCryptoTraderService_GetFuturesPositions_Handler,
 		},
 		{

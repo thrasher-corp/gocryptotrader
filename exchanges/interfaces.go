@@ -141,7 +141,6 @@ type FunctionalityChecker interface {
 
 // FuturesManagement manages futures orders, pnl and collateral calculations
 type FuturesManagement interface {
-	GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
 	ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*order.CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error)
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
@@ -149,7 +148,8 @@ type FuturesManagement interface {
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	order.PNLCalculation
 
-	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error)
+	GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
+	GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error)
 	SetCollateralMode(ctx context.Context, item asset.Item, mode order.CollateralType) error
 	GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error)
 }

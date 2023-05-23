@@ -714,7 +714,7 @@ func (m *OrderManager) processOrders() {
 				if sd.IsZero() {
 					sd = time.Now().Add(m.futuresPositionSeekDuration)
 				}
-				positions, err = exchanges[x].GetFuturesPositions(context.TODO(), &order.PositionsRequest{
+				positions, err = exchanges[x].GetFuturesPositionOrders(context.TODO(), &order.PositionsRequest{
 					Asset:     enabledAssets[y],
 					Pairs:     pairs,
 					StartDate: sd,

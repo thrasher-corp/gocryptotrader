@@ -17338,7 +17338,7 @@ var file_rpc_proto_depIdxs = []int32{
 	167, // 219: gctrpc.GoCryptoTraderService.CurrencyStateDeposit:input_type -> gctrpc.CurrencyStateDepositRequest
 	166, // 220: gctrpc.GoCryptoTraderService.CurrencyStateWithdraw:input_type -> gctrpc.CurrencyStateWithdrawRequest
 	165, // 221: gctrpc.GoCryptoTraderService.CurrencyStateTradingPair:input_type -> gctrpc.CurrencyStateTradingPairRequest
-	177, // 222: gctrpc.GoCryptoTraderService.GetFuturesPositions:input_type -> gctrpc.GetFuturesPositionsRequest
+	177, // 222: gctrpc.GoCryptoTraderService.GetFuturesPositionOrders:input_type -> gctrpc.GetFuturesPositionsRequest
 	179, // 223: gctrpc.GoCryptoTraderService.GetCollateral:input_type -> gctrpc.GetCollateralRequest
 	186, // 224: gctrpc.GoCryptoTraderService.Shutdown:input_type -> gctrpc.ShutdownRequest
 	188, // 225: gctrpc.GoCryptoTraderService.GetTechnicalAnalysis:input_type -> gctrpc.GetTechnicalAnalysisRequest
@@ -17443,7 +17443,7 @@ var file_rpc_proto_depIdxs = []int32{
 	132, // 324: gctrpc.GoCryptoTraderService.CurrencyStateDeposit:output_type -> gctrpc.GenericResponse
 	132, // 325: gctrpc.GoCryptoTraderService.CurrencyStateWithdraw:output_type -> gctrpc.GenericResponse
 	132, // 326: gctrpc.GoCryptoTraderService.CurrencyStateTradingPair:output_type -> gctrpc.GenericResponse
-	178, // 327: gctrpc.GoCryptoTraderService.GetFuturesPositions:output_type -> gctrpc.GetFuturesPositionsResponse
+	178, // 327: gctrpc.GoCryptoTraderService.GetFuturesPositionOrders:output_type -> gctrpc.GetFuturesPositionsResponse
 	180, // 328: gctrpc.GoCryptoTraderService.GetCollateral:output_type -> gctrpc.GetCollateralResponse
 	187, // 329: gctrpc.GoCryptoTraderService.Shutdown:output_type -> gctrpc.ShutdownResponse
 	190, // 330: gctrpc.GoCryptoTraderService.GetTechnicalAnalysis:output_type -> gctrpc.GetTechnicalAnalysisResponse

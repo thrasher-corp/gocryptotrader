@@ -4373,7 +4373,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 // GetFuturesPositions returns pnl positions for an exchange asset pair
 func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuturesPositionsRequest) (*gctrpc.GetFuturesPositionsResponse, error) {
 	if r == nil {
-		return nil, fmt.Errorf("%w GetFuturesPositions", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w GetFuturesPositionOrders", common.ErrNilPointer)
 	}
 	if err := order.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
 		return nil, err
@@ -4426,7 +4426,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if creds.SubAccount != "" {
 		subAccount = "for subaccount: " + creds.SubAccount
 	}
-	positionDetails, err := exch.GetFuturesPositions(ctx, &order.PositionsRequest{
+	positionDetails, err := exch.GetFuturesPositionOrders(ctx, &order.PositionsRequest{
 		Asset:     ai,
 		Pairs:     currency.Pairs{cp},
 		StartDate: start,

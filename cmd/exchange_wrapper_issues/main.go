@@ -1004,7 +1004,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Pairs:     currency.Pairs{p},
 			StartDate: time.Now().Add(-time.Hour),
 		}
-		futuresPositionsResponse, err = e.GetFuturesPositions(context.TODO(), futuresPositionsRequest)
+		futuresPositionsResponse, err = e.GetFuturesPositionOrders(context.TODO(), futuresPositionsRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -1012,7 +1012,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			SentParams: jsonifyInterface([]interface{}{futuresPositionsRequest}),
-			Function:   "GetFuturesPositions",
+			Function:   "GetFuturesPositionOrders",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{futuresPositionsResponse}),
 		})

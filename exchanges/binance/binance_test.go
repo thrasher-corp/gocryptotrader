@@ -1011,6 +1011,7 @@ func TestGetFuturesAllOpenOrders(t *testing.T) {
 func TestGetAllFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	b.Verbose = true
 	_, err := b.GetAllFuturesOrders(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 2)
 	if err != nil {
 		t.Error(err)
@@ -2834,34 +2835,52 @@ func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	b.Verbose = true
 	bb := currency.NewBTCUSDT()
-	a, err := b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err := b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%+v", a)
 
 	bb.Quote = currency.BUSD
-	a, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%+v", a)
 
+	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bb.Quote = currency.USD
+	_, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+		Asset:          asset.CoinMarginedFutures,
+		Pair:           p,
+		UnderlyingPair: bb,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+		Asset:          asset.Spot,
+		Pair:           p,
+		UnderlyingPair: bb,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
 }
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	a, err := b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+	_, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
 		Asset:     asset.USDTMarginedFutures,
 		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
@@ -2869,30 +2888,28 @@ func TestGetFuturesPositions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	b.Verbose = true
+	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
+		Asset:     asset.CoinMarginedFutures,
+		Pairs:     []currency.Pair{p},
+		StartDate: time.Now().Add(time.Hour * 24 * -7),
+	})
+	if err != nil {
+		t.Error(err)
+	}
 	t.Logf("%+v", a)
-
-	//p, err := currency.NewPairFromString("BTCUSD_PERP")
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//a, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
-	//	Asset:     asset.CoinMarginedFutures,
-	//	Pairs:     []currency.Pair{p},
-	//	StartDate: time.Now(),
-	//})
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	//t.Logf("%+v", a)
-
-	//_, err = b.GetFuturesPositions(context.Background(), &order.PositionsRequest{
+	//https://testnet.binancefuture.com/dapi/v1/allOrders?limit=2&recvWindow=5000&symbol=BTCUSD_PERP&timestamp=1684820235856&signature=5dc40ae6ec30ba00104dd5119ea83563184c0e6628c38566f53fb0a490e95b9f
+	//_, err = b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
 	//	Asset:     asset.Spot,
 	//	Pairs:     []currency.Pair{currency.NewBTCUSDT()},
 	//	StartDate: time.Now(),
 	//})
-	//if !errors.Is(err, asset.ErrNotSupported) {
-	//	t.Error(err)
-	//}
+
 }
 
 func TestSetMarginType(t *testing.T) {

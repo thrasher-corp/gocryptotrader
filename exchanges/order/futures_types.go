@@ -327,8 +327,9 @@ type Position struct {
 
 // PositionSummaryRequest is used to request a summary of an open position
 type PositionSummaryRequest struct {
-	Asset asset.Item
-	Pair  currency.Pair
+	Asset          asset.Item
+	Pair           currency.Pair
+	UnderlyingPair currency.Pair
 
 	// offline calculation requirements below
 	CalculateOffline          bool
@@ -391,17 +392,18 @@ type PositionsRequest struct {
 // PositionResponse are used to track open positions
 // in the order manager
 type PositionResponse struct {
-	Exchange string
-	PositionSummary
 	Orders []Detail
 }
 
 // PositionSummary returns basic details on an open position
 type PositionSummary struct {
-	Pair                         currency.Pair
-	Asset                        asset.Item
-	MarginType                   margin.Type
-	CollateralType               CollateralType
+	Pair           currency.Pair
+	Asset          asset.Item
+	MarginType     margin.Type
+	CollateralType CollateralType
+	// BaseAsQuote means that the figures below are valued in the base currency
+	// Binance for example with CoinMarginedFutures is valued in the base currency, eg BTC
+	Currency                     currency.Code
 	IsolatedMargin               decimal.Decimal
 	NotionalSize                 decimal.Decimal
 	Leverage                     decimal.Decimal

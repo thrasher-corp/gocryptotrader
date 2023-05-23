@@ -120,7 +120,7 @@ func (f omfExchange) ModifyOrder(_ context.Context, action *order.Modify) (*orde
 	return modResp, nil
 }
 
-func (f omfExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (f omfExchange) GetFuturesPositionOrders(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err

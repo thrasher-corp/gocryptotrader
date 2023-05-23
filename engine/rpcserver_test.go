@@ -74,7 +74,7 @@ func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryReq
 	}, nil
 }
 
-func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err

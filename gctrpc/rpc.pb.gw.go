@@ -5657,7 +5657,7 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetFuturesPositions", runtime.WithHTTPPathPattern("/v1/getfuturespositions"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetFuturesPositionOrders", runtime.WithHTTPPathPattern("/v1/getfuturespositions"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -8039,7 +8039,7 @@ func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtim
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetFuturesPositions", runtime.WithHTTPPathPattern("/v1/getfuturespositions"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetFuturesPositionOrders", runtime.WithHTTPPathPattern("/v1/getfuturespositions"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return

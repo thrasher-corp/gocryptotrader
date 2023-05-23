@@ -538,7 +538,7 @@ type RepayMarginLoanResponse struct {
 	Result      bool  `json:"result"`
 }
 
-// GetFuturesPositionsResponse response data for GetFuturesPositions
+// GetFuturesPositionsResponse response data for GetFuturesPositionOrders
 type GetFuturesPositionsResponse struct {
 	Holding [][]GetFuturePostionsDetails `json:"holding"`
 	Result  bool                         `json:"result"`
