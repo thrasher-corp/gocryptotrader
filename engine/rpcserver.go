@@ -709,7 +709,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.Errorln(log.DispatchMgr, pipeErr)
 		}
 	}()
 
@@ -2186,7 +2186,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.Errorln(log.DispatchMgr, pipeErr)
 		}
 	}()
 
@@ -2271,7 +2271,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.Errorln(log.DispatchMgr, pipeErr)
 		}
 	}()
 
@@ -2324,7 +2324,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	defer func() {
 		pipeErr := pipe.Release()
 		if pipeErr != nil {
-			log.Error(log.DispatchMgr, pipeErr)
+			log.Errorln(log.DispatchMgr, pipeErr)
 		}
 	}()
 
@@ -4114,7 +4114,7 @@ func (s *RPCServer) SetDataHistoryJobStatus(_ context.Context, r *gctrpc.SetData
 	status := "success"
 	err := s.dataHistoryManager.SetJobStatus(r.Nickname, r.Id, dataHistoryStatus(r.Status))
 	if err != nil {
-		log.Error(log.GRPCSys, err)
+		log.Errorln(log.GRPCSys, err)
 		status = "failed"
 	}
 

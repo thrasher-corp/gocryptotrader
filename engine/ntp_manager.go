@@ -109,7 +109,7 @@ func (m *ntpManager) run() {
 		case <-t.C:
 			err := m.processTime()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.Errorln(log.TimeMgr, err)
 			}
 		}
 	}
@@ -166,7 +166,7 @@ func (m *ntpManager) checkTimeInPools() time.Time {
 			log.Warnf(log.TimeMgr, "Unable to SetDeadline. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.Errorln(log.TimeMgr, err)
 			}
 			continue
 		}
@@ -176,7 +176,7 @@ func (m *ntpManager) checkTimeInPools() time.Time {
 			log.Warnf(log.TimeMgr, "Unable to write. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.Errorln(log.TimeMgr, err)
 			}
 			continue
 		}
@@ -186,7 +186,7 @@ func (m *ntpManager) checkTimeInPools() time.Time {
 			log.Warnf(log.TimeMgr, "Unable to read. Error: %s\n", err)
 			err = con.Close()
 			if err != nil {
-				log.Error(log.TimeMgr, err)
+				log.Errorln(log.TimeMgr, err)
 			}
 			continue
 		}
@@ -196,7 +196,7 @@ func (m *ntpManager) checkTimeInPools() time.Time {
 
 		err = con.Close()
 		if err != nil {
-			log.Error(log.TimeMgr, err)
+			log.Errorln(log.TimeMgr, err)
 		}
 		return time.Unix(int64(secs), nanos)
 	}

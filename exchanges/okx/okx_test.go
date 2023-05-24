@@ -1183,6 +1183,16 @@ func TestGetPublicBorrowInfo(t *testing.T) {
 	if _, err := ok.GetPublicBorrowInfo(contextGenerate(), ""); err != nil {
 		t.Error("Okx GetPublicBorrowInfo() error", err)
 	}
+	if _, err := ok.GetPublicBorrowInfo(context.Background(), "USDT"); err != nil {
+		t.Error("Okx GetPublicBorrowInfo() error", err)
+	}
+}
+
+func TestGetPublicBorrowHistory(t *testing.T) {
+	t.Parallel()
+	if _, err := ok.GetPublicBorrowHistory(context.Background(), "USDT", time.Time{}, time.Time{}, 1); err != nil {
+		t.Error("Okx GetPublicBorrowHistory() error", err)
+	}
 }
 
 func TestGetConvertCurrencies(t *testing.T) {
@@ -1861,6 +1871,63 @@ func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	if err := ok.UpdateTradablePairs(contextGenerate(), true); err != nil {
 		t.Error("Okx UpdateTradablePairs() error", err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	type limitTest struct {
+		pair currency.Pair
+		step float64
+		min  float64
+	}
+
+	tests := map[asset.Item][]limitTest{
+		asset.Spot: {
+			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.0001},
+			{currency.NewPair(currency.BTC, currency.USDT), 0.1, 0.00001},
+		},
+		asset.Margin: {
+			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.0001},
+			{currency.NewPair(currency.ETH, currency.BTC), 0.00001, 0.0001},
+		},
+	}
+
+	for _, a := range []asset.Item{asset.PerpetualSwap, asset.Futures, asset.Options} {
+		pairs, err := ok.FetchTradablePairs(context.Background(), a)
+		if err != nil {
+			t.Errorf("Error fetching dated %s pairs for test: %v", a, err)
+		}
+		stepIncr := 0.1
+		if a == asset.Options {
+			stepIncr = 0.0005
+		}
+
+		tests[a] = []limitTest{{pairs[0], stepIncr, 1}}
+	}
+
+	for _, a := range ok.GetAssetTypes(false) {
+		if err := ok.UpdateOrderExecutionLimits(context.Background(), a); err != nil {
+			t.Error("Okx UpdateOrderExecutionLimits() error", err)
+			continue
+		}
+
+		for _, tt := range tests[a] {
+			limits, err := ok.GetOrderExecutionLimits(a, tt.pair)
+			if err != nil {
+				t.Errorf("Okx GetOrderExecutionLimits() error during TestUpdateOrderExecutionLimits; Asset: %s Pair: %s Err: %v", a, tt.pair, err)
+				continue
+			}
+
+			if got := limits.PriceStepIncrementSize; got != tt.step {
+				t.Errorf("Okx UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", a, tt.pair, tt.step, got)
+			}
+
+			if got := limits.MinAmount; got != tt.min {
+				t.Errorf("Okx UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", tt.pair, tt.min, got)
+			}
+		}
 	}
 }
 
