@@ -1060,19 +1060,29 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		orderAmount := response.Data[x].Size
+		if response.Data[x].QuantityType == "quote_ccy" {
+			// Size is quote amount.
+			orderAmount /= response.Data[x].AveragePrice.Float64()
+		}
+		var remainingAmount float64
+		if orderStatus != order.Filled {
+			remainingAmount = orderAmount - response.Data[x].AccumulatedFillSize.Float64()
+		}
 		ok.Websocket.DataHandler <- &order.Detail{
-			Price:           response.Data[x].Price,
-			Amount:          response.Data[x].Size,
-			ExecutedAmount:  response.Data[x].LastFilledSize.Float64(),
-			RemainingAmount: response.Data[x].AccumulatedFillSize.Float64() - response.Data[x].LastFilledSize.Float64(),
-			Exchange:        ok.Name,
-			OrderID:         response.Data[x].OrderID,
-			Type:            orderType,
-			Side:            response.Data[x].Side,
-			Status:          orderStatus,
-			AssetType:       a,
-			Date:            response.Data[x].CreationTime,
-			Pair:            pair,
+			Price:                response.Data[x].Price,
+			Amount:               orderAmount,
+			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
+			RemainingAmount:      remainingAmount,
+			AverageExecutedPrice: response.Data[x].AveragePrice.Float64(),
+			Exchange:             ok.Name,
+			OrderID:              response.Data[x].OrderID,
+			Type:                 orderType,
+			Side:                 response.Data[x].Side,
+			Status:               orderStatus,
+			AssetType:            a,
+			Date:                 response.Data[x].CreationTime,
+			Pair:                 pair,
 		}
 	}
 	return nil
