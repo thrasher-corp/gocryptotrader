@@ -1167,6 +1167,16 @@ func TestGetPublicBorrowInfo(t *testing.T) {
 	if _, err := ok.GetPublicBorrowInfo(context.Background(), ""); err != nil {
 		t.Error("Okx GetPublicBorrowInfo() error", err)
 	}
+	if _, err := ok.GetPublicBorrowInfo(context.Background(), "USDT"); err != nil {
+		t.Error("Okx GetPublicBorrowInfo() error", err)
+	}
+}
+
+func TestGetPublicBorrowHistory(t *testing.T) {
+	t.Parallel()
+	if _, err := ok.GetPublicBorrowHistory(context.Background(), "USDT", time.Time{}, time.Time{}, 1); err != nil {
+		t.Error("Okx GetPublicBorrowHistory() error", err)
+	}
 }
 
 func TestGetConvertCurrencies(t *testing.T) {

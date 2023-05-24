@@ -322,7 +322,7 @@ func TestRegisterWebsocketDataHandler(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
 	}
 
-	e = &Engine{websocketRoutineManager: &websocketRoutineManager{}}
+	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.RegisterWebsocketDataHandler(func(_ string, _ interface{}) error { return nil }, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -337,7 +337,7 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
 	}
 
-	e = &Engine{websocketRoutineManager: &websocketRoutineManager{}}
+	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.SetDefaultWebsocketDataHandler()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

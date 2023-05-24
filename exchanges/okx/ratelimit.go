@@ -82,11 +82,13 @@ type RateLimit struct {
 	CancelWithdrawal         *rate.Limiter
 	GetWithdrawalHistory     *rate.Limiter
 	SmallAssetsConvert       *rate.Limiter
-	GetSavingBalance         *rate.Limiter
-	SavingsPurchaseRedemp    *rate.Limiter
-	SetLendingRate           *rate.Limiter
-	GetLendingHistory        *rate.Limiter
-	GetPublicBorrowInfo      *rate.Limiter
+	// Savings
+	GetSavingBalance       *rate.Limiter
+	SavingsPurchaseRedempt *rate.Limiter
+	SetLendingRate         *rate.Limiter
+	GetLendingHistory      *rate.Limiter
+	GetPublicBorrowInfo    *rate.Limiter
+	GetPublicBorrowHistory *rate.Limiter
 	// Convert
 	GetConvertCurrencies   *rate.Limiter
 	GetConvertCurrencyPair *rate.Limiter
@@ -255,11 +257,13 @@ const (
 	cancelWithdrawalRate         = 6
 	getWithdrawalHistoryRate     = 6
 	smallAssetsConvertRate       = 1
-	getSavingBalanceRate         = 6
-	savingsPurchaseRedemption    = 6
-	setLendingRateRate           = 6
-	getLendingHistoryRate        = 6
-	getPublicBorrowInfoRate      = 6
+	// Savings
+	getSavingBalanceRate          = 6
+	savingsPurchaseRedemptionRate = 6
+	setLendingRateRate            = 6
+	getLendingHistoryRate         = 6
+	getPublicBorrowInfoRate       = 6
+	getPublicBorrowHistoryRate    = 6
 	// Convert
 	getConvertCurrenciesRate   = 6
 	getConvertCurrencyPairRate = 6
@@ -430,6 +434,7 @@ const (
 	setLendingRateEPL
 	getLendingHistoryEPL
 	getPublicBorrowInfoEPL
+	getPublicBorrowHistoryEPL
 	getConvertCurrenciesEPL
 	getConvertCurrencyPairEPL
 	estimateQuoteEPL
@@ -646,13 +651,15 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case getSavingBalanceEPL:
 		return r.GetSavingBalance.Wait(ctx)
 	case savingsPurchaseRedemptionEPL:
-		return r.SavingsPurchaseRedemp.Wait(ctx)
+		return r.SavingsPurchaseRedempt.Wait(ctx)
 	case setLendingRateEPL:
 		return r.SetLendingRate.Wait(ctx)
 	case getLendingHistoryEPL:
 		return r.GetLendingHistory.Wait(ctx)
 	case getPublicBorrowInfoEPL:
 		return r.GetPublicBorrowInfo.Wait(ctx)
+	case getPublicBorrowHistoryEPL:
+		return r.GetPublicBorrowHistory.Wait(ctx)
 	case getConvertCurrenciesEPL:
 		return r.GetConvertCurrencies.Wait(ctx)
 	case getConvertCurrencyPairEPL:
@@ -916,10 +923,11 @@ func SetRateLimit() *RateLimit {
 		GetWithdrawalHistory:     request.NewRateLimit(oneSecondInterval, getWithdrawalHistoryRate),
 		SmallAssetsConvert:       request.NewRateLimit(oneSecondInterval, smallAssetsConvertRate),
 		GetSavingBalance:         request.NewRateLimit(oneSecondInterval, getSavingBalanceRate),
-		SavingsPurchaseRedemp:    request.NewRateLimit(oneSecondInterval, savingsPurchaseRedemption),
+		SavingsPurchaseRedempt:   request.NewRateLimit(oneSecondInterval, savingsPurchaseRedemptionRate),
 		SetLendingRate:           request.NewRateLimit(oneSecondInterval, setLendingRateRate),
 		GetLendingHistory:        request.NewRateLimit(oneSecondInterval, getLendingHistoryRate),
 		GetPublicBorrowInfo:      request.NewRateLimit(oneSecondInterval, getPublicBorrowInfoRate),
+		GetPublicBorrowHistory:   request.NewRateLimit(oneSecondInterval, getPublicBorrowHistoryRate),
 		// Convert
 		GetConvertCurrencies:   request.NewRateLimit(oneSecondInterval, getConvertCurrenciesRate),
 		GetConvertCurrencyPair: request.NewRateLimit(oneSecondInterval, getConvertCurrencyPairRate),

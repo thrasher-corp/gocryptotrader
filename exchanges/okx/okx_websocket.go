@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -42,17 +43,27 @@ var (
 	candlesticksIndexPriceMap = map[string]bool{okxChannelIndexCandle1Y: true, okxChannelIndexCandle6M: true, okxChannelIndexCandle3M: true, okxChannelIndexCandle1M: true, okxChannelIndexCandle1W: true, okxChannelIndexCandle1D: true, okxChannelIndexCandle2D: true, okxChannelIndexCandle3D: true, okxChannelIndexCandle5D: true, okxChannelIndexCandle12H: true, okxChannelIndexCandle6H: true, okxChannelIndexCandle4H: true, okxChannelIndexCandle2H: true, okxChannelIndexCandle1H: true, okxChannelIndexCandle30m: true, okxChannelIndexCandle15m: true, okxChannelIndexCandle5m: true, okxChannelIndexCandle3m: true, okxChannelIndexCandle1m: true, okxChannelIndexCandle1Yutc: true, okxChannelIndexCandle3Mutc: true, okxChannelIndexCandle1Mutc: true, okxChannelIndexCandle1Wutc: true, okxChannelIndexCandle1Dutc: true, okxChannelIndexCandle2Dutc: true, okxChannelIndexCandle3Dutc: true, okxChannelIndexCandle5Dutc: true, okxChannelIndexCandle12Hutc: true, okxChannelIndexCandle6Hutc: true}
 )
 
+var (
+	pingMsg = []byte("ping")
+	pongMsg = []byte("pong")
+)
+
 const (
 	// wsOrderbookChecksumDelimiter to be used in validating checksum
 	wsOrderbookChecksumDelimiter = ":"
-	// maxConnByteLen otal length of multiple channels cannot exceed 4096 bytes.
-	maxConnByteLen = 4096
 	// allowableIterations use the first 25 bids and asks in the full load to form a string
 	allowableIterations = 25
+
 	// wsOrderbookSnapshot orderbook push data type 'snapshot'
 	wsOrderbookSnapshot = "snapshot"
 	// wsOrderbookUpdate orderbook push data type 'update'
 	wsOrderbookUpdate = "update"
+
+	// ColonDelimiter to be used in validating checksum
+	ColonDelimiter = ":"
+
+	// maxConnByteLen total length of multiple channels cannot exceed 4096 bytes.
+	maxConnByteLen = 4096
 
 	// Candlestick channels
 	markPrice        = "mark-price-"
@@ -221,9 +232,9 @@ func (ok *Okx) WsConnect() error {
 			ok.Websocket.GetWebsocketURL())
 	}
 	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       websocket.PingMessage,
-		Delay:             time.Second * 10,
+		MessageType: websocket.TextMessage,
+		Message:     pingMsg,
+		Delay:       time.Second * 27,
 	})
 	if ok.IsWebsocketAuthenticationSupported() {
 		var authDialer websocket.Dialer
@@ -249,9 +260,9 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	ok.Websocket.Wg.Add(1)
 	go ok.wsFunnelConnectionData(ok.Websocket.AuthConn)
 	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       websocket.PingMessage,
-		Delay:             time.Second * 5,
+		MessageType: websocket.TextMessage,
+		Message:     pingMsg,
+		Delay:       time.Second * 27,
 	})
 	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
@@ -392,6 +403,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelOrderBooks5 ||
 			arg.Channel == okxChannelOrderBooks50TBT ||
 			arg.Channel == okxChannelOrderBooksTBT ||
+			arg.Channel == okxChannelFundingRate ||
 			arg.Channel == okxChannelTrades {
 			if subscriptions[i].Params["instId"] != "" {
 				instrumentID, okay = subscriptions[i].Params["instId"].(string)
@@ -551,6 +563,9 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
+		if bytes.Equal(respRaw, pongMsg) {
+			return nil
+		}
 		return err
 	}
 	if (resp.Event != "" && (resp.Event == "login" || resp.Event == "error")) || resp.Operation != "" {

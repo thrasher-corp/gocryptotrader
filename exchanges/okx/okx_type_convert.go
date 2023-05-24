@@ -14,22 +14,25 @@ type okxNumericalValue float64
 
 // UnmarshalJSON is custom type json unmarshaller for okxNumericalValue
 func (a *okxNumericalValue) UnmarshalJSON(data []byte) error {
-	var num string
+	var num interface{}
 	err := json.Unmarshal(data, &num)
 	if err != nil {
 		return err
 	}
 
-	if num == "" {
-		return nil
+	switch d := num.(type) {
+	case float64:
+		*a = okxNumericalValue(d)
+	case string:
+		if d == "" {
+			return nil
+		}
+		convNum, err := strconv.ParseFloat(d, 64)
+		if err != nil {
+			return err
+		}
+		*a = okxNumericalValue(convNum)
 	}
-
-	v, err := strconv.ParseFloat(num, 64)
-	if err != nil {
-		return err
-	}
-
-	*a = okxNumericalValue(v)
 	return nil
 }
 
