@@ -125,7 +125,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 			)
 			userID = response[0].UserID
 		} else if g.Verbose {
-			log.Error(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
+			log.Errorf(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
 		}
 	}
 getEnabledPairs:
