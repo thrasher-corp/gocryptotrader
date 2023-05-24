@@ -104,19 +104,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = log.SetupGlobalLogger()
+	err = log.SetupGlobalLogger("cmd/apicheck", false)
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)
 	}
 	configData, err = readFileData(jsonFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Errorln(log.Global, err)
 		os.Exit(1)
 	}
 	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
-		log.Error(log.Global, err)
+		log.Errorln(log.Global, err)
 		os.Exit(1)
 	}
 	usageData = testConfigData
@@ -130,7 +130,7 @@ func main() {
 			data.Repo = path
 			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Errorln(log.Global, err)
 				os.Exit(1)
 			}
 		case htmlScrape:
@@ -145,7 +145,7 @@ func main() {
 			data.Path = path
 			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Errorln(log.Global, err)
 				os.Exit(1)
 			}
 		}
@@ -156,7 +156,7 @@ func main() {
 		if trelloBoardName != "" {
 			a, err = trelloGetBoardID()
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Errorln(log.Global, err)
 				os.Exit(1)
 			}
 			trelloBoardID = a
@@ -164,25 +164,25 @@ func main() {
 		if create {
 			err = createAndSet()
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Errorln(log.Global, err)
 				os.Exit(1)
 			}
 		}
 		err = updateFile(backupFile)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Errorln(log.Global, err)
 			os.Exit(1)
 		}
 		err = checkUpdates(jsonFile)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Errorln(log.Global, err)
 			os.Exit(1)
 		}
 	} else {
 		log.Warnln(log.Global, "This is a test update since API keys are not set.")
 		err := checkUpdates(testJSONFile)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Errorln(log.Global, err)
 			os.Exit(1)
 		}
 		log.Infoln(log.Global, "API update check completed successfully")

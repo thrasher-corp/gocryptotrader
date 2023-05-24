@@ -152,7 +152,7 @@ func (o *OKCoin) WsHandleData(respRaw []byte) error {
 			}
 		}
 		if o.Verbose {
-			log.Debug(log.ExchangeSys,
+			log.Debugln(log.ExchangeSys,
 				o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)
 		}
 	}
