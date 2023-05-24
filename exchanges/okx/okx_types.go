@@ -1445,12 +1445,12 @@ type IncreaseDecreaseMarginInput struct {
 
 // IncreaseDecreaseMargin represents increase or decrease the margin of the isolated position response
 type IncreaseDecreaseMargin struct {
-	Amt          string `json:"amt"`
-	Ccy          string `json:"ccy"`
-	InstrumentID string `json:"instId"`
-	Leverage     string `json:"leverage"`
-	PosSide      string `json:"posSide"`
-	Type         string `json:"type"`
+	Amount       okxNumericalValue `json:"amt"`
+	Ccy          string            `json:"ccy"`
+	InstrumentID string            `json:"instId"`
+	Leverage     okxNumericalValue `json:"leverage"`
+	PosSide      string            `json:"posSide"`
+	Type         string            `json:"type"`
 }
 
 // LeverageResponse instrument id leverage response.

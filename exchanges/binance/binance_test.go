@@ -26,8 +26,8 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = !false
-	useTestNet              = !false
+	canManipulateRealOrders = false
+	useTestNet              = false
 )
 
 var (
@@ -1150,8 +1150,8 @@ func TestGetExchangeInfo(t *testing.T) {
 	}
 	if mockTests {
 		serverTime := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
-		if !info.Servertime.Equal(serverTime) {
-			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
+		if !info.ServerTime.Equal(serverTime) {
+			t.Errorf("Expected %v, got %v", serverTime, info.ServerTime)
 		}
 	}
 }
@@ -2819,6 +2819,7 @@ func TestSetCollateralMode(t *testing.T) {
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.ChangePositionMargin(context.Background(), &margin.PositionChangeRequest{
 		Pair:                    currency.NewBTCUSDT(),
 		Asset:                   asset.USDTMarginedFutures,

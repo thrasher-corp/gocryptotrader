@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -68,12 +69,14 @@ func (ok *Okx) SetDefaults() {
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
 
+	cpf := &currency.PairFormat{
+		Delimiter: currency.DashDelimiter,
+		Uppercase: true,
+	}
+
 	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
+		RequestFormat: cpf,
+		ConfigFormat:  cpf,
 	}
 
 	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin)
@@ -355,7 +358,7 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	format, err := ok.GetPairFormat(a, false)
+	format, err := ok.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +484,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	var instrumentID string
-	format, err := ok.GetPairFormat(assetType, false)
+	format, err := ok.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -635,7 +638,7 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	format, err := ok.GetPairFormat(assetType, false)
+	format, err := ok.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -682,7 +685,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 		return nil, errOnlyThreeMonthsSupported
 	}
 	const limit = 100
-	format, err := ok.GetPairFormat(assetType, false)
+	format, err := ok.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -748,7 +751,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if s.Amount <= 0 {
 		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
 	}
-	format, err := ok.GetPairFormat(s.AssetType, false)
+	format, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -817,7 +820,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if math.Mod(action.Amount, 1) != 0 {
 		return nil, errors.New("okx contract amount can not be decimal")
 	}
-	format, err := ok.GetPairFormat(action.AssetType, false)
+	format, err := ok.GetPairFormat(action.AssetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -853,7 +856,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !ok.SupportsAsset(ord.AssetType) {
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
-	format, err := ok.GetPairFormat(ord.AssetType, false)
+	format, err := ok.GetPairFormat(ord.AssetType, true)
 	if err != nil {
 		return err
 	}
@@ -895,7 +898,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (or
 		}
 		var instrumentID string
 		var format currency.PairFormat
-		format, err = ok.GetPairFormat(ord.AssetType, false)
+		format, err = ok.GetPairFormat(ord.AssetType, true)
 		if err != nil {
 			return cancelBatchResponse, err
 		}
@@ -1034,7 +1037,7 @@ ordersLoop:
 // GetOrderInfo returns order information based on order ID
 func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var respData order.Detail
-	format, err := ok.GetPairFormat(assetType, false)
+	format, err := ok.GetPairFormat(assetType, true)
 	if err != nil {
 		return respData, err
 	}
@@ -1459,4 +1462,175 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 		chains = append(chains, currencyChains[x].Chain)
 	}
 	return chains, nil
+}
+
+// SetMarginType sets the default margin type for when opening a new position
+// okx allows this to be set with an order, however this sets a default
+func (ok *Okx) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) error {
+	return fmt.Errorf("%w margin type is set per order", common.ErrFunctionNotSupported)
+}
+
+func (ok *Okx) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralType) error {
+	return fmt.Errorf("%w must be set via website", common.ErrFunctionNotSupported)
+}
+
+func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error) {
+	cfg, err := ok.GetAccountConfiguration(ctx)
+	if err != nil {
+		return 0, err
+	}
+	switch cfg[0].AccountLevel {
+	case 1:
+		if item != asset.Spot {
+			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+		}
+		fallthrough
+	case 2:
+		return order.SingleCollateral, nil
+	case 3:
+		return order.MultiCollateral, nil
+	case 4:
+		return order.GlobalCollateral, nil
+	default:
+		return order.UnknownCollateral, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
+	}
+}
+
+// ChangePositionMargin will modify a position/currencies margin parameters
+func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w PositionChangeRequest", common.ErrNilPointer)
+	}
+	if !ok.SupportsAsset(req.Asset) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.NewAllocatedMargin == 0 {
+		return nil, fmt.Errorf("%w %v %v", margin.ErrNewAllocatedMarginRequired, req.Asset, req.Pair)
+	}
+	if req.OriginalAllocatedMargin == 0 {
+		return nil, margin.ErrOriginalPositionMarginRequired
+	}
+	if req.MarginType != margin.Isolated {
+		return nil, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, req.MarginType)
+	}
+	format, err := ok.GetPairFormat(req.Asset, true)
+	fPair := req.Pair.Format(format)
+	marginType := "add"
+	amt := req.NewAllocatedMargin - req.OriginalAllocatedMargin
+	if req.NewAllocatedMargin < req.OriginalAllocatedMargin {
+		marginType = "reduce"
+		amt = req.OriginalAllocatedMargin - req.NewAllocatedMargin
+	}
+	if req.MarginSide == "" {
+		req.MarginSide = "net"
+	}
+	r := IncreaseDecreaseMarginInput{
+		InstrumentID: fPair.String(),
+		PositionSide: req.MarginSide,
+		Type:         marginType,
+		Amount:       amt,
+	}
+
+	if req.Asset == asset.Margin {
+		r.Currency = req.Pair.Base.Item.Symbol
+	}
+
+	resp, err := ok.IncreaseDecreaseMargin(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &margin.PositionChangeResponse{
+		Exchange:        ok.Name,
+		Pair:            req.Pair,
+		Asset:           req.Asset,
+		AllocatedMargin: resp.Amount.Float64(),
+		MarginType:      req.MarginType,
+	}, nil
+}
+
+func (ok *Okx) GetPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+	}
+	if req.CalculateOffline {
+		return nil, common.ErrCannotCalculateOffline
+	}
+	if !ok.SupportsAsset(req.Asset) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	fPair, err := ok.FormatExchangeCurrency(req.Pair, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	_, err := ok.GetBalance(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+	resp := &order.PositionSummary{
+		Pair:                         req.Pair,
+		Asset:                        req.Asset,
+		CollateralType:               order.UnknownCollateral,
+		IsolatedMargin:               decimal.Decimal{},
+		NotionalSize:                 decimal.Decimal{},
+		Leverage:                     decimal.Decimal{},
+		MaintenanceMarginRequirement: decimal.Decimal{},
+		InitialMarginRequirement:     decimal.Decimal{},
+		EstimatedLiquidationPrice:    decimal.Decimal{},
+		CollateralUsed:               decimal.Decimal{},
+		MarkPrice:                    decimal.Decimal{},
+		CurrentSize:                  decimal.Decimal{},
+		AverageOpenPrice:             decimal.Decimal{},
+		PositionPNL:                  decimal.Decimal{},
+		MaintenanceMarginFraction:    decimal.Decimal{},
+		FreeCollateral:               decimal.Decimal{},
+		TotalCollateral:              decimal.Decimal{},
+	}
+	return resp, nil
+}
+
+// GetFuturesPositionOrders returns the orders for futures positions
+func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+	}
+	if !ok.SupportsAsset(req.Asset) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	fPair, err := ok.FormatExchangeCurrency(req.Pair, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+
+	positions, err := ok.GetPositions(ctx, instrumentType, fPair.String(), "")
+	if err != nil {
+		return nil, err
+	}
+	resp := &order.PositionSummary{
+		Pair:                         currency.Pair{},
+		Asset:                        0,
+		MarginType:                   0,
+		CollateralType:               0,
+		Currency:                     currency.Code{},
+		IsolatedMargin:               decimal.Decimal{},
+		NotionalSize:                 decimal.Decimal{},
+		Leverage:                     decimal.Decimal{},
+		MaintenanceMarginRequirement: decimal.Decimal{},
+		InitialMarginRequirement:     decimal.Decimal{},
+		EstimatedLiquidationPrice:    decimal.Decimal{},
+		CollateralUsed:               decimal.Decimal{},
+		MarkPrice:                    decimal.Decimal{},
+		CurrentSize:                  decimal.Decimal{},
+		AverageOpenPrice:             decimal.Decimal{},
+		PositionPNL:                  decimal.Decimal{},
+		MaintenanceMarginFraction:    decimal.Decimal{},
+		FreeCollateral:               decimal.Decimal{},
+		TotalCollateral:              decimal.Decimal{},
+	}
+	for i := range positions {
+
+	}
+	return nil, nil
 }

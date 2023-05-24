@@ -40,7 +40,7 @@ func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	a.Servertime = aux.Servertime.Time()
+	a.ServerTime = aux.Servertime.Time()
 	return nil
 }
 

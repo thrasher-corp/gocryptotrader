@@ -16,6 +16,8 @@ var (
 	ErrMarginTypeUnsupported = errors.New("unsupported margin type")
 	// ErrNewAllocatedMarginRequired returned when the new allocated margin is missing
 	ErrNewAllocatedMarginRequired = errors.New("new allocated margin required")
+	// ErrOriginalPositionMarginRequired
+	ErrOriginalPositionMarginRequired = errors.New("original allocated margin required")
 )
 
 // RateHistoryRequest is used to request a funding rate

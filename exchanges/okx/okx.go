@@ -2084,7 +2084,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 		return nil, errors.New("missing valid amount")
 	}
 	var resp []IncreaseDecreaseMargin
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodGet, accountPositionMarginBalance, &arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, accountPositionMarginBalance, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -4220,6 +4220,9 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
+		if _, okay := ctx.Value("testnet").(bool); okay {
+			headers["x-simulated-trading"] = "1"
+		}
 		if authenticated {
 			var creds *account.Credentials
 			creds, err = ok.GetCredentials(ctx)

@@ -327,8 +327,9 @@ type Position struct {
 
 // PositionSummaryRequest is used to request a summary of an open position
 type PositionSummaryRequest struct {
-	Asset          asset.Item
-	Pair           currency.Pair
+	Asset asset.Item
+	Pair  currency.Pair
+	// UnderlyingPair is optional if the exchange requires it for a contract like BTCUSDT-13333337
 	UnderlyingPair currency.Pair
 
 	// offline calculation requirements below

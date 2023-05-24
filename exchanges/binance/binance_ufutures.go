@@ -66,6 +66,8 @@ const (
 	uFuturesMultiAssetsMargin     = "/fapi/v1/multiAssetsMargin"
 )
 
+var errHedgeModeUnsupported = errors.New("hedge mode is not supported")
+
 // UServerTime gets the server time
 func (b *Binance) UServerTime(ctx context.Context) (time.Time, error) {
 	var data struct {

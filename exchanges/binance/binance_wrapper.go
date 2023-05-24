@@ -1904,7 +1904,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		if err != nil {
 			return time.Time{}, err
 		}
-		return info.Servertime, nil
+		return info.ServerTime, nil
 	case asset.CoinMarginedFutures:
 		info, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
@@ -1978,10 +1978,10 @@ func (b *Binance) ChangePositionMargin(ctx context.Context, req *margin.Position
 		return nil, fmt.Errorf("%w %v %v", margin.ErrNewAllocatedMarginRequired, req.Asset, req.Pair)
 	}
 	if req.OriginalAllocatedMargin == 0 {
-		return nil, errOriginalPositionMarginRequired
+		return nil, fmt.Errorf("%w %v %v", margin.ErrOriginalPositionMarginRequired, req.Asset, req.Pair)
 	}
 	if req.MarginType == margin.Multi {
-		return nil, margin.ErrMarginTypeUnsupported
+		return nil, fmt.Errorf("%w %v %v", margin.ErrMarginTypeUnsupported, req.Asset, req.Pair)
 	}
 
 	marginType := "add"
@@ -2012,6 +2012,7 @@ func (b *Binance) ChangePositionMargin(ctx context.Context, req *margin.Position
 	}, nil
 }
 
+// marginTypeToString converts the GCT margin type to Binance's string
 func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 	switch mt {
 	case margin.Isolated:
@@ -2021,8 +2022,6 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 	}
 	return "", fmt.Errorf("%w %v", margin.ErrInvalidMarginType, mt)
 }
-
-var errHedgeModeUnsupported = errors.New("hedge mode is not supported")
 
 // GetPositionSummary returns the account's position summary for the asset type and pair
 // it can be used to calculate potential positions
@@ -2254,6 +2253,7 @@ func (b *Binance) GetPositionSummary(ctx context.Context, req *order.PositionSum
 	}
 }
 
+// GetFuturesPositionOrders returns the orders for futures positions
 func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
