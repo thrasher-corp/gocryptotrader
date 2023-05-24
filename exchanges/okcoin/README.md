@@ -49,7 +49,7 @@ main.go
 var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "OKCoin" {
+	if bot.Exchanges[i].GetName() == "OKCoin International" {
 		y = bot.Exchanges[i]
 	}
 }

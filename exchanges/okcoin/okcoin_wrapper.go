@@ -679,6 +679,9 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 
 // SubmitOrder submits a new order
 func (o *OKCoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s == nil {
+		return nil, fmt.Errorf("%w, place order request parameter can not be null", common.ErrNilPointer)
+	}
 	if s.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, s.AssetType)
 	}
@@ -723,6 +726,9 @@ func (o *OKCoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (o *OKCoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.ModifyResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w, modify request parameter can not be null", common.ErrNilPointer)
+	}
 	if req.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, req.AssetType)
 	}

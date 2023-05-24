@@ -89,7 +89,6 @@ func TestFetchTradablePair(t *testing.T) {
 
 func TestGetSystemStatus(t *testing.T) {
 	t.Parallel()
-	o.Verbose = true
 	// allowed state value: ongoing, scheduled, processing, pre_open, completed, canceled
 	_, err := o.GetSystemStatus(context.Background(), "scheduled")
 	if err != nil {
@@ -199,7 +198,6 @@ func TestGetOracle(t *testing.T) {
 
 func TestGetExchangeRate(t *testing.T) {
 	t.Parallel()
-	o.Verbose = true
 	_, err := o.GetExchangeRate(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -212,14 +210,6 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-func TestWsConnect(t *testing.T) {
-	err := o.WsConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second * 25)
 }
 
 func TestGetCurrencies(t *testing.T) {
@@ -606,7 +596,6 @@ func TestGetFiatWithdrawalHistory(t *testing.T) {
 func TestGetChannelInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
-	o.Verbose = true
 	_, err := o.GetChannelInfo(context.Background(), "27")
 	if err != nil {
 		t.Error(err)
@@ -703,7 +692,6 @@ func TestPlaceMultipleOrder(t *testing.T) {
 func TestCancelTradeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
-	o.Verbose = true
 	_, err := o.CancelTradeOrder(context.Background(), nil)
 	if !errors.Is(err, errNilArgument) {
 		t.Errorf("found %v, but expected %v", err, errNilArgument)
@@ -1635,7 +1623,6 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 func TestWsCancelTradeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
-	o.Verbose = true
 	_, err := o.WsCancelTradeOrder(nil)
 	if !errors.Is(err, errNilArgument) {
 		t.Errorf("found %v, but expected %v", err, errNilArgument)

@@ -110,18 +110,17 @@ func (o *OKCoin) WsConnect() error {
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
 func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
+	o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	creds, err := o.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	err = o.Websocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	o.Websocket.Wg.Add(1)
 	go o.funnelWebsocketConn(o.Websocket.AuthConn)
-
 	o.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Second * 25,
 		Message:     []byte("ping"),
@@ -153,9 +152,9 @@ func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 	}
 	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", request)
 	if err != nil {
-		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
+	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	return nil
 }
 
@@ -750,7 +749,7 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		}
 		pairs = pairs.Format(spotFormat)
 		channels := defaultSubscriptions
-		if o.IsWebsocketAuthenticationSupported() {
+		if o.Websocket.CanUseAuthenticatedEndpoints() {
 			channels = append(
 				channels,
 				wsAccount,
@@ -839,7 +838,9 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	var err error
 	var channels []stream.ChannelSubscription
+	var authChannels []stream.ChannelSubscription
 	for i := 0; i < len(subs); i++ {
+		authenticatedChannelSubscription := isAuthenticatedChannel(subs[i].Channel)
 		// Temp type to evaluate max byte len after a marshal on batched unsubs
 		copy(temp.Arguments, request.Arguments)
 		copy(authTemp.Arguments, authRequest.Arguments)
@@ -867,13 +868,13 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		if !subs[i].Currency.IsEmpty() {
 			argument["instId"] = subs[i].Currency.String()
 		}
-		if isAuthenticatedChannel(subs[i].Channel) {
+		if authenticatedChannelSubscription {
 			authTemp.Arguments = append(authTemp.Arguments, argument)
 		} else {
 			temp.Arguments = append(temp.Arguments, argument)
 		}
 		var chunk []byte
-		if isAuthenticatedChannel(subs[i].Channel) {
+		if authenticatedChannelSubscription {
 			chunk, err = json.Marshal(authRequest)
 			if err != nil {
 				return err
@@ -890,7 +891,7 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 			// commit last payload.
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
-			if isAuthenticatedChannel(subs[i].Channel) {
+			if authenticatedChannelSubscription {
 				err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
 			} else {
 				err = o.Websocket.Conn.SendJSONMessage(request)
@@ -900,23 +901,31 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 			}
 
 			if operation == "unsubscribe" {
-				o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+				if authenticatedChannelSubscription {
+					o.Websocket.RemoveSuccessfulUnsubscriptions(authChannels...)
+				} else {
+					o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+				}
 			} else {
-				o.Websocket.AddSuccessfulSubscriptions(channels...)
+				if authenticatedChannelSubscription {
+					o.Websocket.AddSuccessfulSubscriptions(authChannels...)
+				} else {
+					o.Websocket.AddSuccessfulSubscriptions(channels...)
+				}
 			}
-
 			// Drop prior unsubs and chunked payload args on successful unsubscription
-			channels = nil
-			if isAuthenticatedChannel(subs[i].Channel) {
+			if authenticatedChannelSubscription {
+				authChannels = nil
 				authRequest.Arguments = nil
 			} else {
+				channels = nil
 				request.Arguments = nil
 			}
 			continue
 		}
 		// Add pending chained items
 		channels = append(channels, subs[i])
-		if isAuthenticatedChannel(subs[i].Channel) {
+		if authenticatedChannelSubscription {
 			authRequest.Arguments = authTemp.Arguments
 		} else {
 			request.Arguments = temp.Arguments

@@ -88,7 +88,7 @@ func (o *OKCoin) WsCancelMultipleOrders(args []CancelTradeOrderRequest) ([]Trade
 		}
 	}
 	var resp []TradeOrderResponse
-	return resp, o.SendWebsocketRequest("cancel-batch-orders", args, &resp, true)
+	return resp, o.SendWebsocketRequest("batch-cancel-orders", args, &resp, true)
 }
 
 // WsAmendOrder amends an incomplete order through the websocket connection
@@ -100,6 +100,9 @@ func (o *OKCoin) WsAmendOrder(arg *AmendTradeOrderRequestParam) (*AmendTradeOrde
 	var resp []AmendTradeOrderResponse
 	err = o.SendWebsocketRequest("amend-order", &arg, &resp, true)
 	if err != nil {
+		if len(resp) > 0 && resp[0].StatusCode != "0" && resp[0].StatusCode != "" {
+			return nil, fmt.Errorf("%w, code: %s msg: %s", err, resp[0].StatusCode, resp[0].StatusMessage)
+		}
 		return nil, err
 	}
 	if len(resp) == 0 {
@@ -123,7 +126,7 @@ func (o *OKCoin) WsAmendMultipleOrder(args []AmendTradeOrderRequestParam) ([]Ame
 		}
 	}
 	var resp []AmendTradeOrderResponse
-	return resp, o.SendWebsocketRequest("amend-batch-orders", &args, &resp, true)
+	return resp, o.SendWebsocketRequest("batch-amend-orders", &args, &resp, true)
 }
 
 // SendWebsocketRequest send a request through the websocket connection.
@@ -134,7 +137,7 @@ func (o *OKCoin) SendWebsocketRequest(operation string, data, result interface{}
 	case !o.Websocket.IsConnected():
 		return stream.ErrNotConnected
 	case !o.Websocket.CanUseAuthenticatedEndpoints() && authenticated:
-		return errors.New("can not use authenticated endpoints")
+		return errors.New("websocket connection not authenticated")
 	}
 	req := &struct {
 		ID        string      `json:"id"`
