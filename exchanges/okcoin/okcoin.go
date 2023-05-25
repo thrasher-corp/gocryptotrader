@@ -1623,7 +1623,7 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 	}
 	if resp.Code > 2 {
 		if resp.Message == "" {
-			resp.Message = errorCodes[strconv.FormatInt(resp.Code, 10)]
+			resp.Message = websocketErrorCodes[strconv.FormatInt(resp.Code, 10)]
 		}
 		return fmt.Errorf("sendHTTPRequest error - code: %d message: %s", resp.Code, resp.Message)
 	}

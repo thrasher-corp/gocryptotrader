@@ -51,11 +51,11 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	// wsTickers,
-	// wsCandle1D,
-	// wsTrades,
+	wsTickers,
+	wsCandle1D,
+	wsTrades,
 	wsOrderbooks,
-	// wsStatus,
+	wsStatus,
 }
 
 func isAuthenticatedChannel(channel string) bool {
@@ -209,7 +209,9 @@ func (o *OKCoin) WsReadData() {
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (o *OKCoin) WsHandleData(respRaw []byte) error {
-	println(string(respRaw))
+	if string(respRaw) == "pong" {
+		return nil
+	}
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
@@ -387,7 +389,6 @@ func StringToOrderStatus(num int64) (order.Status, error) {
 }
 
 func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
-	println(" Orderbook data ")
 	var resp WebsocketOrderbookResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -408,89 +409,61 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 		snapshot = true
 	}
 	if snapshot {
+		resp.Data[0].prepareOrderbook()
+		if len(resp.Data[0].Asks)+len(resp.Data[0].Bids) == 0 {
+			return nil
+		}
 		base := orderbook.Base{
 			Asset:       asset.Spot,
 			Pair:        cp,
 			Exchange:    o.Name,
 			LastUpdated: resp.Data[0].Timestamp.Time(),
 		}
-		for x := range resp.Data {
-			base.Asks = make([]orderbook.Item, len(resp.Data[x].Asks))
-			for a := range resp.Data[x].Asks {
-				base.Asks[a].Amount, err = strconv.ParseFloat(resp.Data[x].Asks[a][0], 64)
-				if err != nil {
-					return err
-				}
-				base.Asks[a].Price, err = strconv.ParseFloat(resp.Data[x].Asks[a][1], 64)
-				if err != nil {
-					return err
-				}
-			}
-			base.Bids = make([]orderbook.Item, len(resp.Data[x].Bids))
-			for b := range resp.Data[x].Bids {
-				base.Bids[b].Amount, err = strconv.ParseFloat(resp.Data[x].Bids[b][0], 64)
-				if err != nil {
-					return err
-				}
-				base.Bids[b].Price, err = strconv.ParseFloat(resp.Data[x].Bids[b][1], 64)
-				if err != nil {
-					return err
-				}
-			}
-			var signedChecksum int32
-			signedChecksum, err = o.CalculatePartialOrderbookChecksum(&resp.Data[x])
-			if err != nil {
-				return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
-			}
-			if signedChecksum != resp.Data[0].Checksum {
-				return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
-					o.Name,
-					cp)
-			}
+		base.Asks = make([]orderbook.Item, len(resp.Data[0].Asks))
+		for a := range resp.Data[0].Asks {
+			base.Asks[a].Amount = resp.Data[0].Asks[a][0].Float64()
+			base.Asks[a].Price = resp.Data[0].Asks[a][1].Float64()
+		}
+		base.Bids = make([]orderbook.Item, len(resp.Data[0].Bids))
+		for b := range resp.Data[0].Bids {
+			base.Bids[b].Amount = resp.Data[0].Bids[b][0].Float64()
+			base.Bids[b].Price = resp.Data[0].Bids[b][1].Float64()
+		}
+		var signedChecksum uint32
+		signedChecksum, err = o.CalculatePartialOrderbookChecksum(&resp.Data[0])
+		if err != nil {
+			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
+		}
+		if signedChecksum != uint32(resp.Data[0].Checksum) {
+			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
+				o.Name,
+				cp)
 		}
 		err = base.Process()
 		if err != nil {
 			return err
 		}
-		println(" Loading snapshot ... ")
 		return o.Websocket.Orderbook.LoadSnapshot(&base)
 	}
 
+	resp.Data[0].prepareOrderbook()
+	if len(resp.Data[0].Asks)+len(resp.Data[0].Bids) == 0 {
+		return nil
+	}
 	update := orderbook.Update{
 		Asset: asset.Spot,
 		Pair:  cp,
 	}
-	for x := range resp.Data {
-		update.Asks = make([]orderbook.Item, len(resp.Data[x].Asks))
-		for a := range resp.Data[x].Asks {
-			update.Asks[a].Amount, err = strconv.ParseFloat(resp.Data[x].Asks[a][1], 64)
-			if err != nil {
-				return err
-			}
-			update.Asks[a].Price, err = strconv.ParseFloat(resp.Data[x].Asks[a][0], 64)
-			if err != nil {
-				return err
-			}
-		}
-		update.Bids = make([]orderbook.Item, len(resp.Data[x].Bids))
-		for b := range resp.Data[x].Bids {
-			update.Bids[b].Amount, err = strconv.ParseFloat(resp.Data[x].Bids[b][1], 64)
-			if err != nil {
-				return err
-			}
-			update.Bids[b].Price, err = strconv.ParseFloat(resp.Data[x].Bids[b][0], 64)
-			if err != nil {
-				return err
-			}
-		}
-		// println(string(respRaw))
-		updateChecksum := o.CalculateUpdateOrderbookChecksum(&update)
-		println("Sent checksum: ", updateChecksum, "Calculated checksum: ", uint32(resp.Data[x].Checksum))
-		if uint32(updateChecksum) != uint32(resp.Data[x].Checksum) {
-			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
-		}
+	update.Asks = make([]orderbook.Item, len(resp.Data[0].Asks))
+	for a := range resp.Data[0].Asks {
+		update.Asks[a].Amount = resp.Data[0].Asks[a][1].Float64()
+		update.Asks[a].Price = resp.Data[0].Asks[a][0].Float64()
 	}
-	println(" Update orderbook ")
+	update.Bids = make([]orderbook.Item, len(resp.Data[0].Bids))
+	for b := range resp.Data[0].Bids {
+		update.Bids[b].Amount = resp.Data[0].Bids[b][1].Float64()
+		update.Bids[b].Price = resp.Data[0].Bids[b][0].Float64()
+	}
 	return o.Websocket.Orderbook.Update(&update)
 }
 
@@ -684,28 +657,28 @@ func (o *OKCoin) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.It
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKCoin) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) (int32, error) {
+func (o *OKCoin) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) (uint32, error) {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := orderbookData.Bids[i][0]
 			bidAmount := orderbookData.Bids[i][1]
-			checksum.WriteString(bidPrice +
-				delimiterColon +
-				bidAmount +
-				delimiterColon)
+			checksum.WriteString(bidPrice.String() +
+				currency.ColonDelimiter +
+				bidAmount.String() +
+				currency.ColonDelimiter)
 		}
 		if len(orderbookData.Asks)-1 >= i {
 			askPrice := orderbookData.Asks[i][0]
 			askAmount := orderbookData.Asks[i][1]
-			checksum.WriteString(askPrice +
-				delimiterColon +
-				askAmount +
-				delimiterColon)
+			checksum.WriteString(askPrice.String() +
+				currency.ColonDelimiter +
+				askAmount.String() +
+				currency.ColonDelimiter)
 		}
 	}
-	checksumStr := strings.TrimSuffix(checksum.String(), delimiterColon)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
+	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
+	return crc32.ChecksumIEEE([]byte(checksumStr)), nil
 }
 
 // CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
@@ -719,15 +692,15 @@ func (o *OKCoin) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Updat
 		if len(orderbookData.Bids)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + delimiterColon + amount + delimiterColon)
+			checksum.WriteString(price + currency.ColonDelimiter + amount + currency.ColonDelimiter)
 		}
 		if len(orderbookData.Asks)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + delimiterColon + amount + delimiterColon)
+			checksum.WriteString(price + currency.ColonDelimiter + amount + currency.ColonDelimiter)
 		}
 	}
-	checksumStr := strings.TrimSuffix(checksum.String(), delimiterColon)
+	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
 	return crc32.ChecksumIEEE([]byte(checksumStr))
 }
 
@@ -753,10 +726,10 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		if o.Websocket.CanUseAuthenticatedEndpoints() {
 			channels = append(
 				channels,
-				// wsAccount,
-				// wsOrder,
-				// wsOrdersAlgo,
-				// wsAlgoAdvance,
+				wsAccount,
+				wsOrder,
+				wsOrdersAlgo,
+				wsAlgoAdvance,
 			)
 		}
 		for s := range channels {

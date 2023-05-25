@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("%s populateTradablePairs error %v", o.Name, err)
 	}
-	// setupWS()
+	setupWS()
 	os.Exit(m.Run())
 }
 
@@ -134,7 +134,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbooks(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetOrderbook(context.Background(), "BTC-USD", 200)
+	_, err := o.GetOrderbook(context.Background(), spotTradablePair.String(), 200)
 	if err != nil {
 		t.Error(err)
 	}
@@ -142,7 +142,7 @@ func TestGetOrderbooks(t *testing.T) {
 
 func TestGetLiteOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetOrderbookLitebook(context.Background(), "BTC-USD")
+	_, err := o.GetOrderbookLitebook(context.Background(), spotTradablePair.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -403,6 +403,7 @@ func TestCancelWithdrawal(t *testing.T) {
 
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
 	_, err := o.GetWithdrawalHistory(context.Background(), currency.BTC, "", "", "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
@@ -613,24 +614,24 @@ func TestPlaceOrder(t *testing.T) {
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Errorf("found %v, but expected %v", err, currency.ErrCurrencyPairEmpty)
 	}
-	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD}})
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: spotTradablePair})
 	if !errors.Is(err, errTradeModeIsRequired) {
 		t.Errorf("found %v, but expected %v", err, errTradeModeIsRequired)
 	}
-	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: spotTradablePair,
 		TradeMode: "cash",
 	})
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Errorf("found %v, but expected %v", err, order.ErrSideIsInvalid)
 	}
-	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: spotTradablePair,
 		TradeMode: "cash",
 		Side:      "buy",
 	})
 	if !errors.Is(err, order.ErrTypeIsInvalid) {
 		t.Errorf("found %v, but expected %v", err, order.ErrTypeIsInvalid)
 	}
-	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{InstrumentID: spotTradablePair,
 		TradeMode: "cash",
 		Side:      "buy",
 		OrderType: "limit",
@@ -639,7 +640,7 @@ func TestPlaceOrder(t *testing.T) {
 		t.Errorf("found %v, but expected %v", err, errInvalidAmount)
 	}
 	_, err = o.PlaceOrder(context.Background(), &PlaceTradeOrderParam{
-		InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+		InstrumentID:  spotTradablePair,
 		TradeMode:     "cash",
 		ClientOrderID: "12345",
 		Side:          "buy",
@@ -657,7 +658,7 @@ func TestPlaceMultipleOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.PlaceMultipleOrder(context.Background(), []PlaceTradeOrderParam{
 		{
-			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			InstrumentID:  spotTradablePair,
 			TradeMode:     "cash",
 			ClientOrderID: "1",
 			Side:          "buy",
@@ -666,7 +667,7 @@ func TestPlaceMultipleOrder(t *testing.T) {
 			Size:          2,
 		},
 		{
-			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			InstrumentID:  spotTradablePair,
 			TradeMode:     "cash",
 			ClientOrderID: "12",
 			Side:          "buy",
@@ -675,7 +676,7 @@ func TestPlaceMultipleOrder(t *testing.T) {
 			Size:          1.5,
 		},
 		{
-			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			InstrumentID:  spotTradablePair,
 			TradeMode:     "cash",
 			ClientOrderID: "123",
 			Side:          "buy",
@@ -1233,7 +1234,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := o.UpdateTicker(context.Background(), currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.USD}, asset.Spot)
+	_, err := o.UpdateTicker(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1241,7 +1242,7 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	_, err := o.FetchTicker(context.Background(), currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.USD}, asset.Spot)
+	_, err := o.FetchTicker(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1249,7 +1250,7 @@ func TestFetchTicker(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetRecentTrades(context.Background(), currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.USD}, asset.Spot)
+	_, err := o.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1272,6 +1273,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -1280,6 +1282,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 func TestFetchAccountInfo(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.FetchAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -1354,10 +1357,7 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
-			Base:  currency.BTC,
-			Quote: currency.USD,
-		},
+		Pair:      spotTradablePair,
 		Exchange:  o.Name,
 		Side:      order.Buy,
 		Type:      order.Limit,
@@ -1370,22 +1370,6 @@ func TestSubmitOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-func (o *OKCoin) populateTradablePairs(ctx context.Context) error {
-	err := o.UpdateTradablePairs(ctx, true)
-	if err != nil {
-		return err
-	}
-	enabledPairs, err := o.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-	if len(enabledPairs) == 0 {
-		return errors.New("No enabled pairs found")
-	}
-	spotTradablePair = enabledPairs[0]
-	return nil
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -1459,7 +1443,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, o, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    o.Name,
 		Amount:      1,
@@ -1543,24 +1527,24 @@ func TestWsPlaceOrder(t *testing.T) {
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Errorf("found %v, but expected %v", err, currency.ErrCurrencyPairEmpty)
 	}
-	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD}})
+	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: spotTradablePair})
 	if !errors.Is(err, errTradeModeIsRequired) {
 		t.Errorf("found %v, but expected %v", err, errTradeModeIsRequired)
 	}
-	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: spotTradablePair,
 		TradeMode: "cash",
 	})
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Errorf("found %v, but expected %v", err, order.ErrSideIsInvalid)
 	}
-	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: spotTradablePair,
 		TradeMode: "cash",
 		Side:      "buy",
 	})
 	if !errors.Is(err, order.ErrTypeIsInvalid) {
 		t.Errorf("found %v, but expected %v", err, order.ErrTypeIsInvalid)
 	}
-	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{InstrumentID: spotTradablePair,
 		TradeMode: "cash",
 		Side:      "buy",
 		OrderType: "limit",
@@ -1576,7 +1560,7 @@ func TestWsPlaceOrder(t *testing.T) {
 		OrderType:     "limit",
 		Price:         2.15,
 		Size:          2,
-		ExpiryTime:    okcoinMilliSec(time.Now().UnixMilli()),
+		ExpiryTime:    okcoinMilliSec(time.Now()),
 	})
 	if err != nil {
 		t.Error(err)
@@ -1588,7 +1572,7 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.WsPlaceMultipleOrder([]PlaceTradeOrderParam{
 		{
-			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			InstrumentID:  spotTradablePair,
 			TradeMode:     "cash",
 			ClientOrderID: "1",
 			Side:          "buy",
@@ -1597,7 +1581,7 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 			Size:          2,
 		},
 		{
-			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			InstrumentID:  spotTradablePair,
 			TradeMode:     "cash",
 			ClientOrderID: "12",
 			Side:          "buy",
@@ -1606,7 +1590,7 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 			Size:          1.5,
 		},
 		{
-			InstrumentID:  currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USD},
+			InstrumentID:  spotTradablePair,
 			TradeMode:     "cash",
 			ClientOrderID: "123",
 			Side:          "buy",
@@ -1732,4 +1716,20 @@ func TestGetServerTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func (o *OKCoin) populateTradablePairs(ctx context.Context) error {
+	err := o.UpdateTradablePairs(ctx, true)
+	if err != nil {
+		return err
+	}
+	enabledPairs, err := o.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	if len(enabledPairs) == 0 {
+		return errors.New("No enabled pairs found")
+	}
+	spotTradablePair = enabledPairs[0]
+	return nil
 }

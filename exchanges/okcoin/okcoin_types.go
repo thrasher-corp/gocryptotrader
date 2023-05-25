@@ -1,202 +1,13 @@
 package okcoin
 
 import (
-	"errors"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
-
-var errorCodes = map[string]string{
-	"0":     "Ok",
-	"1":     "Operation failed.",
-	"2":     "Bulk operation partially succeeded.",
-	"50000": "Body cannot be empty.",
-	"50001": "Service temporarily unavailable, please try again later.",
-	"50002": "Json data format error.",
-	"50004": "Endpoint request timeout (does not mean that the request was successful or failed, please check the request result).",
-	"50005": "API is offline or unavailable.",
-	"50006": "Invalid Content_Type, please use 'application/json' format.",
-	"50007": "Account blocked.",
-	"50008": "User does not exist.",
-	"50009": "Account is suspended due to ongoing liquidation.",
-	"50010": "User ID cannot be empty.",
-	"50011": "Requests too frequent.",
-	"50012": "Account status invalid.",
-	"50013": "System is busy, please try again later.",
-	"50026": "System error, please try again later.",
-	"50027": "The account is restricted from trading.",
-	"50028": "Unable to take the order, please reach out to support center for details.",
-	"50030": "No permission to use this API",
-	"50032": "This asset is blocked, allow its trading and try again",
-	"50033": "This instrument is blocked, allow its trading and try again",
-	"50035": "This endpoint requires that APIKey must be bound to IP",
-	"50036": "Invalid expTime",
-	"50037": "Order expired",
-	"50038": "This feature is temporarily unavailable in demo trading",
-	"50039": "The before parameter is not available for implementing timestamp pagination",
-	"50041": "You are not currently on the whitelist, please contact customer service",
-	"50100": `API frozen, please contact customer service.`,
-	"50101": `APIKey does not match current environment.`,
-	"50102": `Timestamp request expired.`,
-	"50103": `Request header "OK-ACCESS-KEY" cannot be empty.`,
-	"50104": `Request header "OK-ACCESS-PASSPHRASE" cannot be empty.`,
-	"50105": `Request header "OK-ACCESS-PASSPHRASE" incorrect.`,
-	"50106": `Request header "OK-ACCESS-SIGN" cannot be empty.`,
-	"50107": `Request header "OK-ACCESS-TIMESTAMP" cannot be empty.`,
-	"50108": `Exchange ID does not exist.`,
-	"50109": `Exchange domain does not exist.`,
-	"50111": `Invalid OK-ACCESS-KEY.`,
-	"50112": `Invalid OK-ACCESS-TIMESTAMP.`,
-	"50113": `Invalid signature.`,
-	"50114": `Invalid authorization.`,
-	"50115": `Invalid request method.`,
-	"51001": `Instrument ID does not exist.`,
-	"51003": `Either client order ID or order ID is required.`,
-	"51005": `Order amount exceeds the limit.`,
-	"51009": `Order placement function is blocked by the platform.`,
-	"51010": `Operation is not supported under the current account mode.`,
-	"51011": `Duplicated order ID.`,
-	"51012": `Token does not exist.`,
-	"51014": `Index does not exist.`,
-	"51015": `Instrument ID does not match instrument type.`,
-	"51016": `Duplicated client order ID.`,
-	"51020": `Order amount should be greater than the min available amount.`,
-	"51023": `Position does not exist.`,
-	"51024": `Trading account is blocked.`,
-	"51025": `Order count exceeds the limit.`,
-	"51026": `Instrument type does not match underlying index.`,
-	"51030": `Funding fee is being settled.`,
-	"51031": `This order price is not within the closing price range.`,
-	"51032": `Closing all positions at market price.`,
-	"51033": `The total amount per order for this pair has reached the upper limit.`,
-	"51037": `The current account risk status only supports you to place IOC orders that can reduce the risk of your account.`,
-	"51038": `There is already an IOC order under the current risk module that reduces the risk of the account.`,
-	"51046": `The take profit trigger price should be higher than the order price`,
-	"51047": `The stop loss trigger price should be lower than the order price`,
-	"51048": `The take profit trigger price should be lower than the order price`,
-	"51049": `The stop loss trigger price should be higher than the order price`,
-	"51050": `The take profit trigger price should be higher than the best ask price`,
-	"51051": `The stop loss trigger price should be lower than the best ask price`,
-	"51052": `The take profit trigger price should be lower than the best bid price`,
-	"51053": `The stop loss trigger price should be higher than the best bid price`,
-	"51054": `Getting information timed out, please try again later`,
-	"51056": `Action not allowed`,
-	"51058": `No available position for this algo order`,
-	"51059": `Strategy for the current state does not support this operation`,
-	"51101": `Entered amount exceeds the max pending order amount (Cont) per transaction.`,
-	"51103": `Entered amount exceeds the max pending order count of the underlying asset.`,
-	"51104": `Entered amount exceeds the max pending order amount (Cont) of the underlying asset.`,
-	"51106": `Entered amount exceeds the max order amount (Cont) of the underlying asset.`,
-	"51107": `Entered amount exceeds the max holding amount (Cont).`,
-	"51109": `No available offer.`,
-	"51110": `You can only place a limit order after Call Auction has started.`,
-	"51112": `Close order size exceeds your available size.`,
-	"51113": `Market-price liquidation requests too frequent.`,
-	"51115": `Cancel all pending close-orders before liquidation.`,
-	"51117": `Pending close-orders count exceeds limit.`,
-	"51121": `Order count should be the integer multiples of the lot size.`,
-	"51124": `You can only place limit orders during call auction.`,
-	"51127": `Available balance is 0.`,
-	"51129": `The value of the position and buy order has reached the position limit, and no further buying is allowed.`,
-	"51131": `Insufficient balance.`,
-	"51132": `Your position amount is negative and less than the minimum trading amount.`,
-	"51134": `Closing position failed. Please check your holdings and pending orders.`,
-	"51139": `Reduce-only feature is unavailable for the spot transactions by simple account.`,
-	"51143": `There is no valid quotation in the market, and the order cannot be filled in USDT mode, please try to switch to currency mode`,
-	"51148": `ReduceOnly cannot increase the position quantity.`,
-	"51149": `Order timed out, please try again later.`,
-	"51150": `The precision of the number of trades or the price exceeds the limit.`,
-	"51201": `Value of per market order cannot exceed 1,000,000 USDT.`,
-	"51202": `Market - order amount exceeds the max amount.`,
-	"51204": `The price for the limit order cannot be empty.`,
-	"51205": `Reduce-Only is not available.`,
-	"51250": `Algo order price is out of the available range.`,
-	"51251": `Algo order type error (when user place an iceberg order).`,
-	"51252": `Algo order amount is out of the available range.`,
-	"51253": `Average amount exceeds the limit of per iceberg order.`,
-	"51254": `Iceberg average amount error (when user place an iceberg order).`,
-	"51255": `Limit of per iceberg order: Total amount/1000 < x <= Total amount.`,
-	"51256": `Iceberg order price variance error.`,
-	"51257": `Trail order callback rate error.`,
-	"51258": `Trail - order placement failed. The trigger price of a sell order should be higher than the last transaction price.`,
-	"51259": `Trail - order placement failed. The trigger price of a buy order should be lower than the last transaction price.`,
-	"51264": `Average amount exceeds the limit of per time-weighted order.`,
-	"51265": `Time-weighted order limit error.`,
-	"51267": `Time-weighted order strategy initiative rate error.`,
-	"51268": `Time-weighted order strategy initiative range error.`,
-	"51270": `The limit of time-weighted order price variance is 0 < x <= 1%.`,
-	"51271": `Sweep ratio should be 0 < x <= 100%.`,
-	"51272": `Price variance should be 0 < x <= 1%.`,
-	"51274": `Total quantity of time-weighted order must be larger than single order limit.`,
-	"51275": `The amount of single stop-market order cannot exceed the upper limit.`,
-	"51276": `Stop - Market orders cannot specify a price.`,
-	"51277": `TP trigger price cannot be higher than the last price.`,
-	"51278": `SL trigger price cannot be lower than the last price.`,
-	"51279": `TP trigger price cannot be lower than the last price.`,
-	"51280": `SL trigger price cannot be higher than the last price.`,
-	"51281": `trigger not support the tgtCcy parameter.`,
-	"51288": `We are stopping the Bot. Please do not click it multiple times`,
-	"51289": `Bot configuration does not exist. Please try again later`,
-	"51290": `The Bot engine is being upgraded. Please try again later`,
-	"51291": `This Bot does not exist or has been stopped`,
-	"51292": `This Bot type does not exist`,
-	"51293": `This Bot does not exist`,
-	"51294": `This Bot cannot be created temporarily. Please try again later`,
-	"51300": `TP trigger price cannot be higher than the mark price`,
-	"51302": `SL trigger price cannot be lower than the mark price`,
-	"51303": `TP trigger price cannot be lower than the mark price`,
-	"51304": `SL trigger price cannot be higher than the mark price`,
-	"51305": `TP trigger price cannot be higher than the index price`,
-	"51306": `SL trigger price cannot be lower than the index price`,
-	"51307": `TP trigger price cannot be lower than the index price`,
-	"51308": `SL trigger price cannot be higher than the index price`,
-	"51309": `Cannot create trading bot during call auction`,
-	"51313": `Manual transfer in isolated mode does not support bot trading`,
-	"51341": `Position closing not allowed`,
-	"51342": `Closing order already exists. Please try again later`,
-	"51343": `TP price must be less than the lower price`,
-	"51344": `SL price must be greater than the upper price`,
-	"51345": `Policy type is not grid policy`,
-	"51346": `The highest price cannot be lower than the lowest price`,
-	"51347": `No profit available`,
-	"51348": `Stop loss price should be less than the lower price in the range`,
-	"51349": `Stop profit price should be greater than the highest price in the range`,
-	"51350": `No recommended parameters`,
-	"51351": `Single income must be greater than 0`,
-	"51400": `cancellation failed as the order does not exist.`,
-	"51401": `cancellation failed as the order is already canceled.`,
-	"51402": `cancellation failed as the order is already completed.`,
-	"51403": `cancellation failed as the order type does not support cancellation.`,
-	"51404": `Order cancellation unavailable during the second phase of call auction.`,
-	"51405": `cancellation failed as you do not have any pending orders.`,
-	"51407": `Either order ID or client order ID is required.`,
-	"51408": `Pair ID or name does not match the order info.`,
-	"51409": `Either pair ID or pair name ID is required.`,
-	"51410": `cancellation pending. Duplicate order rejected.`,
-	"51411": `Account does not have permission for mass cancellation.`,
-	"51412": `The order has been triggered and cannot be canceled.`,
-	"51413": `cancellation failed as the order type is not supported by endpoint.`,
-	"51415": `Unable to place order. Spot trading only supports using the last price as trigger price. Please select "Last" and try again.`,
-	"51500": `Either order price or amount is required.`,
-	"51503": `Order modification failed as the order does not exist.`,
-	"51506": `Order modification unavailable for the order type.`,
-	"51508": `Orders are not allowed to be modified during the call auction.`,
-	"51509": `Modification failed as the order has been canceled.`,
-	"51510": `Modification failed as the order has been completed.`,
-	"51511": `Operation failed as the order price did not meet the requirement for Post Only.`,
-	"51512": `Failed to amend orders in batches. You cannot have duplicate orders in the same amend-batch-orders request.`,
-	"51513": `Number of modification requests that are currently in progress for an order cannot exceed 3.`,
-	"51600": `Status not found.`,
-	"51601": `Order status and order ID cannot exist at the same time.`,
-	"51602": `Either order status or order ID is required.`,
-	"51603": `Order does not exist.`,
-	"51607": `The file is generating.`,
-}
 
 // TickerData stores ticker data
 type TickerData struct {
@@ -251,10 +62,47 @@ type WebsocketOrderbookResponse struct {
 
 // WebsocketOrderBook holds orderbook data
 type WebsocketOrderBook struct {
-	Asks      [][]string     `json:"asks"` // [ Price, Quantity, depreciated, number of orders at the price ]
-	Bids      [][]string     `json:"bids"` // [ Price, Quantity, depreciated, number of orders at the price ]
-	Timestamp okcoinMilliSec `json:"ts"`
-	Checksum  int32          `json:"checksum"`
+	Checksum  int64            `json:"checksum"`
+	Asks      [][]okcoinNumber `json:"asks"` // [ Price, Quantity, depreciated, number of orders at the price ]
+	Bids      [][]okcoinNumber `json:"bids"` // [ Price, Quantity, depreciated, number of orders at the price ]
+	Timestamp okcoinMilliSec   `json:"ts"`
+}
+
+func (a *WebsocketOrderBook) prepareOrderbook() {
+	asks := [][]okcoinNumber{}
+askLoop:
+	for x := range a.Asks {
+		if a.Asks[x][1].Float64() != 0 {
+			for i := 0; i < len(asks); i++ {
+				if asks[i][0].Float64() == a.Asks[x][0].Float64() {
+					if asks[i][1].Float64() > a.Asks[x][1].Float64() {
+						continue askLoop
+					}
+					asks[i][1] = a.Asks[x][1]
+					continue askLoop
+				}
+			}
+			asks = append(asks, a.Asks[x])
+		}
+	}
+	a.Asks = asks
+	bids := [][]okcoinNumber{}
+bidsLoop:
+	for x := range a.Bids {
+		if a.Bids[x][1].Float64() != 0 {
+			for i := 0; i < len(bids); i++ {
+				if bids[i][0].Float64() == a.Bids[x][0].Float64() {
+					if bids[i][1].Float64() > a.Bids[x][1].Float64() {
+						continue bidsLoop
+					}
+					bids[i][1] = a.Bids[x][1]
+					continue bidsLoop
+				}
+			}
+			bids = append(bids, a.Bids[x])
+		}
+	}
+	a.Bids = bids
 }
 
 // WebsocketDataResponse formats all response data for a websocket event
@@ -289,10 +137,10 @@ type WebsocketStatus struct {
 	} `json:"arg"`
 	Data []struct {
 		Title                 string         `json:"title"`
-		State                 okcoinMilliSec `json:"state"`
+		State                 string         `json:"state"`
+		End                   okcoinMilliSec `json:"end"`
 		Begin                 okcoinMilliSec `json:"begin"`
 		Href                  string         `json:"href"`
-		End                   string         `json:"end"`
 		ServiceType           string         `json:"serviceType"`
 		System                string         `json:"system"`
 		RescheduleDescription string         `json:"scheDesc"`
@@ -309,7 +157,7 @@ type WebsocketAccount struct {
 	Data []struct {
 		AdjustedEquity string `json:"adjEq"`
 		Details        []struct {
-			AvailableBalance   string         `json:"availBal"`
+			AvailableBalance   okcoinNumber   `json:"availBal"`
 			AvailableEquity    string         `json:"availEq"`
 			CashBalance        string         `json:"cashBal"`
 			Currency           string         `json:"ccy"`
@@ -677,305 +525,21 @@ type WebsocketErrorResponse struct {
 
 // List of all websocket channels to subscribe to
 const (
-	// Orderbook events
-	okcoinWsOrderbookUpdate  = "update"
-	okcoinWsOrderbookPartial = "partial"
-	// API subsections
-	okcoinWsSwapSubsection    = "swap/"
-	okcoinWsIndexSubsection   = "index/"
-	okcoinWsFuturesSubsection = "futures/"
-	okcoinWsSpotSubsection    = "spot/"
-	// Shared API endpoints
-	okcoinWsCandle         = "candle"
-	okcoinWsCandle60s      = okcoinWsCandle + "60s"
-	okcoinWsCandle180s     = okcoinWsCandle + "180s"
-	okcoinWsCandle300s     = okcoinWsCandle + "300s"
-	okcoinWsCandle900s     = okcoinWsCandle + "900s"
-	okcoinWsCandle1800s    = okcoinWsCandle + "1800s"
-	okcoinWsCandle3600s    = okcoinWsCandle + "3600s"
-	okcoinWsCandle7200s    = okcoinWsCandle + "7200s"
-	okcoinWsCandle14400s   = okcoinWsCandle + "14400s"
-	okcoinWsCandle21600s   = okcoinWsCandle + "21600"
-	okcoinWsCandle43200s   = okcoinWsCandle + "43200s"
-	okcoinWsCandle86400s   = okcoinWsCandle + "86400s"
-	okcoinWsCandle604900s  = okcoinWsCandle + "604800s"
-	okcoinWsTicker         = "ticker"
-	okcoinWsTrade          = "trade"
-	okcoinWsDepth          = "depth"
-	okcoinWsDepth5         = "depth5"
-	okcoinWsAccount        = "account"
-	okcoinWsMarginAccount  = "margin_account"
-	okcoinWsOrder          = "order"
-	okcoinWsFundingRate    = "funding_rate"
-	okcoinWsPriceRange     = "price_range"
-	okcoinWsMarkPrice      = "mark_price"
-	okcoinWsPosition       = "position"
-	okcoinWsEstimatedPrice = "estimated_price"
-	// Spot endpoints
-	okcoinWsSpotTicker        = okcoinWsSpotSubsection + okcoinWsTicker
-	okcoinWsSpotCandle60s     = okcoinWsSpotSubsection + okcoinWsCandle60s
-	okcoinWsSpotCandle180s    = okcoinWsSpotSubsection + okcoinWsCandle180s
-	okcoinWsSpotCandle300s    = okcoinWsSpotSubsection + okcoinWsCandle300s
-	okcoinWsSpotCandle900s    = okcoinWsSpotSubsection + okcoinWsCandle900s
-	okcoinWsSpotCandle1800s   = okcoinWsSpotSubsection + okcoinWsCandle1800s
-	okcoinWsSpotCandle3600s   = okcoinWsSpotSubsection + okcoinWsCandle3600s
-	okcoinWsSpotCandle7200s   = okcoinWsSpotSubsection + okcoinWsCandle7200s
-	okcoinWsSpotCandle14400s  = okcoinWsSpotSubsection + okcoinWsCandle14400s
-	okcoinWsSpotCandle21600s  = okcoinWsSpotSubsection + okcoinWsCandle21600s
-	okcoinWsSpotCandle43200s  = okcoinWsSpotSubsection + okcoinWsCandle43200s
-	okcoinWsSpotCandle86400s  = okcoinWsSpotSubsection + okcoinWsCandle86400s
-	okcoinWsSpotCandle604900s = okcoinWsSpotSubsection + okcoinWsCandle604900s
-	okcoinWsSpotTrade         = okcoinWsSpotSubsection + okcoinWsTrade
-	okcoinWsSpotDepth         = okcoinWsSpotSubsection + okcoinWsDepth
-	okcoinWsSpotDepth5        = okcoinWsSpotSubsection + okcoinWsDepth5
-	okcoinWsSpotAccount       = okcoinWsSpotSubsection + okcoinWsAccount
-	okcoinWsSpotMarginAccount = okcoinWsSpotSubsection + okcoinWsMarginAccount
-	okcoinWsSpotOrder         = okcoinWsSpotSubsection + okcoinWsOrder
-	// Swap endpoints
-	okcoinWsSwapTicker        = okcoinWsSwapSubsection + okcoinWsTicker
-	okcoinWsSwapCandle60s     = okcoinWsSwapSubsection + okcoinWsCandle60s
-	okcoinWsSwapCandle180s    = okcoinWsSwapSubsection + okcoinWsCandle180s
-	okcoinWsSwapCandle300s    = okcoinWsSwapSubsection + okcoinWsCandle300s
-	okcoinWsSwapCandle900s    = okcoinWsSwapSubsection + okcoinWsCandle900s
-	okcoinWsSwapCandle1800s   = okcoinWsSwapSubsection + okcoinWsCandle1800s
-	okcoinWsSwapCandle3600s   = okcoinWsSwapSubsection + okcoinWsCandle3600s
-	okcoinWsSwapCandle7200s   = okcoinWsSwapSubsection + okcoinWsCandle7200s
-	okcoinWsSwapCandle14400s  = okcoinWsSwapSubsection + okcoinWsCandle14400s
-	okcoinWsSwapCandle21600s  = okcoinWsSwapSubsection + okcoinWsCandle21600s
-	okcoinWsSwapCandle43200s  = okcoinWsSwapSubsection + okcoinWsCandle43200s
-	okcoinWsSwapCandle86400s  = okcoinWsSwapSubsection + okcoinWsCandle86400s
-	okcoinWsSwapCandle604900s = okcoinWsSwapSubsection + okcoinWsCandle604900s
-	okcoinWsSwapTrade         = okcoinWsSwapSubsection + okcoinWsTrade
-	okcoinWsSwapDepth         = okcoinWsSwapSubsection + okcoinWsDepth
-	okcoinWsSwapDepth5        = okcoinWsSwapSubsection + okcoinWsDepth5
-	okcoinWsSwapFundingRate   = okcoinWsSwapSubsection + okcoinWsFundingRate
-	okcoinWsSwapPriceRange    = okcoinWsSwapSubsection + okcoinWsPriceRange
-	okcoinWsSwapMarkPrice     = okcoinWsSwapSubsection + okcoinWsMarkPrice
-	okcoinWsSwapPosition      = okcoinWsSwapSubsection + okcoinWsPosition
-	okcoinWsSwapAccount       = okcoinWsSwapSubsection + okcoinWsAccount
-	okcoinWsSwapOrder         = okcoinWsSwapSubsection + okcoinWsOrder
-	// Index endpoints
-	okcoinWsIndexTicker        = okcoinWsIndexSubsection + okcoinWsTicker
-	okcoinWsIndexCandle60s     = okcoinWsIndexSubsection + okcoinWsCandle60s
-	okcoinWsIndexCandle180s    = okcoinWsIndexSubsection + okcoinWsCandle180s
-	okcoinWsIndexCandle300s    = okcoinWsIndexSubsection + okcoinWsCandle300s
-	okcoinWsIndexCandle900s    = okcoinWsIndexSubsection + okcoinWsCandle900s
-	okcoinWsIndexCandle1800s   = okcoinWsIndexSubsection + okcoinWsCandle1800s
-	okcoinWsIndexCandle3600s   = okcoinWsIndexSubsection + okcoinWsCandle3600s
-	okcoinWsIndexCandle7200s   = okcoinWsIndexSubsection + okcoinWsCandle7200s
-	okcoinWsIndexCandle14400s  = okcoinWsIndexSubsection + okcoinWsCandle14400s
-	okcoinWsIndexCandle21600s  = okcoinWsIndexSubsection + okcoinWsCandle21600s
-	okcoinWsIndexCandle43200s  = okcoinWsIndexSubsection + okcoinWsCandle43200s
-	okcoinWsIndexCandle86400s  = okcoinWsIndexSubsection + okcoinWsCandle86400s
-	okcoinWsIndexCandle604900s = okcoinWsIndexSubsection + okcoinWsCandle604900s
-	// Futures endpoints
-	okcoinWsFuturesTicker         = okcoinWsFuturesSubsection + okcoinWsTicker
-	okcoinWsFuturesCandle60s      = okcoinWsFuturesSubsection + okcoinWsCandle60s
-	okcoinWsFuturesCandle180s     = okcoinWsFuturesSubsection + okcoinWsCandle180s
-	okcoinWsFuturesCandle300s     = okcoinWsFuturesSubsection + okcoinWsCandle300s
-	okcoinWsFuturesCandle900s     = okcoinWsFuturesSubsection + okcoinWsCandle900s
-	okcoinWsFuturesCandle1800s    = okcoinWsFuturesSubsection + okcoinWsCandle1800s
-	okcoinWsFuturesCandle3600s    = okcoinWsFuturesSubsection + okcoinWsCandle3600s
-	okcoinWsFuturesCandle7200s    = okcoinWsFuturesSubsection + okcoinWsCandle7200s
-	okcoinWsFuturesCandle14400s   = okcoinWsFuturesSubsection + okcoinWsCandle14400s
-	okcoinWsFuturesCandle21600s   = okcoinWsFuturesSubsection + okcoinWsCandle21600s
-	okcoinWsFuturesCandle43200s   = okcoinWsFuturesSubsection + okcoinWsCandle43200s
-	okcoinWsFuturesCandle86400s   = okcoinWsFuturesSubsection + okcoinWsCandle86400s
-	okcoinWsFuturesCandle604900s  = okcoinWsFuturesSubsection + okcoinWsCandle604900s
-	okcoinWsFuturesTrade          = okcoinWsFuturesSubsection + okcoinWsTrade
-	okcoinWsFuturesEstimatedPrice = okcoinWsFuturesSubsection + okcoinWsTrade
-	okcoinWsFuturesPriceRange     = okcoinWsFuturesSubsection + okcoinWsPriceRange
-	okcoinWsFuturesDepth          = okcoinWsFuturesSubsection + okcoinWsDepth
-	okcoinWsFuturesDepth5         = okcoinWsFuturesSubsection + okcoinWsDepth5
-	okcoinWsFuturesMarkPrice      = okcoinWsFuturesSubsection + okcoinWsMarkPrice
-	okcoinWsFuturesAccount        = okcoinWsFuturesSubsection + okcoinWsAccount
-	okcoinWsFuturesPosition       = okcoinWsFuturesSubsection + okcoinWsPosition
-	okcoinWsFuturesOrder          = okcoinWsFuturesSubsection + okcoinWsOrder
-
-	okcoinWsRateLimit = 30
-
+	okcoinWsRateLimit   = 30
 	allowableIterations = 25
-	delimiterColon      = ":"
-	delimiterDash       = "-"
-
-	maxConnByteLen = 4096
+	maxConnByteLen      = 4096
 )
-
-// orderbookMutex Ensures if two entries arrive at once, only one can be
-// processed at a time
-var orderbookMutex sync.Mutex
-
-var defaultSpotSubscribedChannels = []string{okcoinWsSpotDepth,
-	okcoinWsSpotCandle300s,
-	okcoinWsSpotTicker,
-	okcoinWsSpotTrade}
-
-var defaultFuturesSubscribedChannels = []string{okcoinWsFuturesDepth,
-	okcoinWsFuturesCandle300s,
-	okcoinWsFuturesTicker,
-	okcoinWsFuturesTrade}
-
-var defaultIndexSubscribedChannels = []string{okcoinWsIndexCandle300s,
-	okcoinWsIndexTicker}
-
-var defaultSwapSubscribedChannels = []string{okcoinWsSwapDepth,
-	okcoinWsSwapCandle300s,
-	okcoinWsSwapTicker,
-	okcoinWsSwapTrade,
-	okcoinWsSwapFundingRate,
-	okcoinWsSwapMarkPrice}
-
-// SetErrorDefaults sets the full error default list
-func (o *OKCoin) SetErrorDefaults() {
-	o.ErrorCodes = map[string]error{
-		"0":     errors.New("successful"),
-		"1":     errors.New("invalid parameter in url normally"),
-		"30001": errors.New("request header \"OK_ACCESS_KEY\" cannot be blank"),
-		"30002": errors.New("request header \"OK_ACCESS_SIGN\" cannot be blank"),
-		"30003": errors.New("request header \"OK_ACCESS_TIMESTAMP\" cannot be blank"),
-		"30004": errors.New("request header \"OK_ACCESS_PASSPHRASE\" cannot be blank"),
-		"30005": errors.New("invalid OK_ACCESS_TIMESTAMP"),
-		"30006": errors.New("invalid OK_ACCESS_KEY"),
-		"30007": errors.New("invalid Content_Type, please use \"application/json\" format"),
-		"30008": errors.New("timestamp request expired"),
-		"30009": errors.New("system error"),
-		"30010": errors.New("api validation failed"),
-		"30011": errors.New("invalid IP"),
-		"30012": errors.New("invalid authorization"),
-		"30013": errors.New("invalid sign"),
-		"30014": errors.New("request too frequent"),
-		"30015": errors.New("request header \"OK_ACCESS_PASSPHRASE\" incorrect"),
-		"30016": errors.New("you are using v1 apiKey, please use v1 endpoint. If you would like to use v3 endpoint, please subscribe to v3 apiKey"),
-		"30017": errors.New("apikey's broker id does not match"),
-		"30018": errors.New("apikey's domain does not match"),
-		"30020": errors.New("body cannot be blank"),
-		"30021": errors.New("json data format error"),
-		"30023": errors.New("required parameter cannot be blank"),
-		"30024": errors.New("parameter value error"),
-		"30025": errors.New("parameter category error"),
-		"30026": errors.New("requested too frequent; endpoint limit exceeded"),
-		"30027": errors.New("login failure"),
-		"30028": errors.New("unauthorized execution"),
-		"30029": errors.New("account suspended"),
-		"30030": errors.New("endpoint request failed. Please try again"),
-		"30031": errors.New("token does not exist"),
-		"30032": errors.New("pair does not exist"),
-		"30033": errors.New("exchange domain does not exist"),
-		"30034": errors.New("exchange ID does not exist"),
-		"30035": errors.New("trading is not supported in this website"),
-		"30036": errors.New("no relevant data"),
-		"30037": errors.New("endpoint is offline or unavailable"),
-		"30038": errors.New("user does not exist"),
-		"32001": errors.New("futures account suspended"),
-		"32002": errors.New("futures account does not exist"),
-		"32003": errors.New("canceling, please wait"),
-		"32004": errors.New("you have no unfilled orders"),
-		"32005": errors.New("max order quantity"),
-		"32006": errors.New("the order price or trigger price exceeds USD 1 million"),
-		"32007": errors.New("leverage level must be the same for orders on the same side of the contract"),
-		"32008": errors.New("max. positions to open (cross margin)"),
-		"32009": errors.New("max. positions to open (fixed margin)"),
-		"32010": errors.New("leverage cannot be changed with open positions"),
-		"32011": errors.New("futures status error"),
-		"32012": errors.New("futures order update error"),
-		"32013": errors.New("token type is blank"),
-		"32014": errors.New("your number of contracts closing is larger than the number of contracts available"),
-		"32015": errors.New("margin ratio is lower than 100% before opening positions"),
-		"32016": errors.New("margin ratio is lower than 100% after opening position"),
-		"32017": errors.New("no BBO"),
-		"32018": errors.New("the order quantity is less than 1, please try again"),
-		"32019": errors.New("the order price deviates from the price of the previous minute by more than 3%"),
-		"32020": errors.New("the price is not in the range of the price limit"),
-		"32021": errors.New("leverage error"),
-		"32022": errors.New("this function is not supported in your country or region according to the regulations"),
-		"32023": errors.New("this account has outstanding loan"),
-		"32024": errors.New("order cannot be placed during delivery"),
-		"32025": errors.New("order cannot be placed during settlement"),
-		"32026": errors.New("your account is restricted from opening positions"),
-		"32027": errors.New("cancelled over 20 orders"),
-		"32028": errors.New("account is suspended and liquidated"),
-		"32029": errors.New("order info does not exist"),
-		"33001": errors.New("margin account for this pair is not enabled yet"),
-		"33002": errors.New("margin account for this pair is suspended"),
-		"33003": errors.New("no loan balance"),
-		"33004": errors.New("loan amount cannot be smaller than the minimum limit"),
-		"33005": errors.New("repayment amount must exceed 0"),
-		"33006": errors.New("loan order not found"),
-		"33007": errors.New("status not found"),
-		"33008": errors.New("loan amount cannot exceed the maximum limit"),
-		"33009": errors.New("user ID is blank"),
-		"33010": errors.New("you cannot cancel an order during session 2 of call auction"),
-		"33011": errors.New("no new market data"),
-		"33012": errors.New("order cancellation failed"),
-		"33013": errors.New("order placement failed"),
-		"33014": errors.New("order does not exist"),
-		"33015": errors.New("exceeded maximum limit"),
-		"33016": errors.New("margin trading is not open for this token"),
-		"33017": errors.New("insufficient balance"),
-		"33018": errors.New("this parameter must be smaller than 1"),
-		"33020": errors.New("request not supported"),
-		"33021": errors.New("token and the pair do not match"),
-		"33022": errors.New("pair and the order do not match"),
-		"33023": errors.New("you can only place market orders during call auction"),
-		"33024": errors.New("trading amount too small"),
-		"33025": errors.New("base token amount is blank"),
-		"33026": errors.New("transaction completed"),
-		"33027": errors.New("cancelled order or order cancelling"),
-		"33028": errors.New("the decimal places of the trading price exceeded the limit"),
-		"33029": errors.New("the decimal places of the trading size exceeded the limit"),
-		"34001": errors.New("withdrawal suspended"),
-		"34002": errors.New("please add a withdrawal address"),
-		"34003": errors.New("sorry, this token cannot be withdrawn to xx at the moment"),
-		"34004": errors.New("withdrawal fee is smaller than minimum limit"),
-		"34005": errors.New("withdrawal fee exceeds the maximum limit"),
-		"34006": errors.New("withdrawal amount is lower than the minimum limit"),
-		"34007": errors.New("withdrawal amount exceeds the maximum limit"),
-		"34008": errors.New("insufficient balance"),
-		"34009": errors.New("your withdrawal amount exceeds the daily limit"),
-		"34010": errors.New("transfer amount must be larger than 0"),
-		"34011": errors.New("conditions not met"),
-		"34012": errors.New("the minimum withdrawal amount for NEO is 1, and the amount must be an integer"),
-		"34013": errors.New("please transfer"),
-		"34014": errors.New("transfer limited"),
-		"34015": errors.New("subaccount does not exist"),
-		"34016": errors.New("transfer suspended"),
-		"34017": errors.New("account suspended"),
-		"34018": errors.New("incorrect trades password"),
-		"34019": errors.New("please bind your email before withdrawal"),
-		"34020": errors.New("please bind your funds password before withdrawal"),
-		"34021": errors.New("not verified address"),
-		"34022": errors.New("withdrawals are not available for sub accounts"),
-		"35001": errors.New("contract subscribing does not exist"),
-		"35002": errors.New("contract is being settled"),
-		"35003": errors.New("contract is being paused"),
-		"35004": errors.New("pending contract settlement"),
-		"35005": errors.New("perpetual swap trading is not enabled"),
-		"35008": errors.New("margin ratio too low when placing order"),
-		"35010": errors.New("closing position size larger than available size"),
-		"35012": errors.New("placing an order with less than 1 contract"),
-		"35014": errors.New("order size is not in acceptable range"),
-		"35015": errors.New("leverage level unavailable"),
-		"35017": errors.New("changing leverage level"),
-		"35019": errors.New("order size exceeds limit"),
-		"35020": errors.New("order price exceeds limit"),
-		"35021": errors.New("order size exceeds limit of the current tier"),
-		"35022": errors.New("contract is paused or closed"),
-		"35030": errors.New("place multiple orders"),
-		"35031": errors.New("cancel multiple orders"),
-		"35061": errors.New("invalid instrument_id"),
-	}
-}
 
 // SystemStatus represents system status
 type SystemStatus struct {
-	Title       string `json:"title"`
-	State       string `json:"state"`
-	Begin       string `json:"begin"`
-	End         string `json:"end"`
-	Href        string `json:"href"`
-	ServiceType string `json:"serviceType"`
-	System      string `json:"system"`
-	ScheDesc    string `json:"scheDesc"`
+	Title       string         `json:"title"`
+	State       string         `json:"state"`
+	Begin       okcoinMilliSec `json:"begin"`
+	End         okcoinMilliSec `json:"end"`
+	Href        string         `json:"href"`
+	ServiceType string         `json:"serviceType"`
+	System      string         `json:"system"`
+	ScheDesc    string         `json:"scheDesc"`
 }
 
 // Instrument represents an instrument in an open contract.
@@ -987,26 +551,26 @@ type Instrument struct {
 	CtType         string         `json:"ctType"`
 	CtVal          string         `json:"ctVal"`
 	CtValCurrency  string         `json:"ctValCcy"`
-	ExpTime        string         `json:"expTime"`
+	ExpTime        okcoinMilliSec `json:"expTime"`
 	InstFamily     string         `json:"instFamily"`
 	InstrumentID   string         `json:"instId"`
 	InstrumentType string         `json:"instType"`
 	Leverage       string         `json:"lever"`
 	ListTime       okcoinMilliSec `json:"listTime"`
 	LotSize        string         `json:"lotSz"`
-	MaxIcebergSz   string         `json:"maxIcebergSz"`
-	MaxLimitSize   float64        `json:"maxLmtSz,string"`
-	MaxMarketSize  float64        `json:"maxMktSz,string"`
-	MaxStopSize    float64        `json:"maxStopSz,string"`
-	MaxTwapSize    float64        `json:"maxTwapSz,string"`
-	MaxTriggerSize float64        `json:"maxTriggerSz,string"`
-	MinSize        float64        `json:"minSz,string"`
+	MaxIcebergSz   okcoinNumber   `json:"maxIcebergSz"`
+	MaxLimitSize   okcoinNumber   `json:"maxLmtSz"`
+	MaxMarketSize  okcoinNumber   `json:"maxMktSz"`
+	MaxStopSize    okcoinNumber   `json:"maxStopSz"`
+	MaxTwapSize    okcoinNumber   `json:"maxTwapSz"`
+	MaxTriggerSize okcoinNumber   `json:"maxTriggerSz"`
+	MinSize        okcoinNumber   `json:"minSz"`
 	QuoteCurrency  string         `json:"quoteCcy"`
 	OptionType     string         `json:"optType"`
 	SettleCurrency string         `json:"settleCcy"`
 	State          string         `json:"state"`
-	StrikePrice    string         `json:"stk"`
-	TickSize       float64        `json:"tickSz,string"`
+	StrikePrice    okcoinNumber   `json:"stk"`
+	TickSize       okcoinNumber   `json:"tickSz"`
 	Underlying     string         `json:"uly"`
 }
 
@@ -1195,7 +759,7 @@ type AssetBillDetail struct {
 	Currency  string         `json:"ccy"`
 	ClientID  string         `json:"clientId"`
 	BalChange float64        `json:"balChg,string"`
-	Bal       float64        `json:"bal,string"`
+	Balance   float64        `json:"bal,string"`
 	Type      string         `json:"type"`
 	Timestamp okcoinMilliSec `json:"ts"`
 }
@@ -1228,7 +792,7 @@ type DepositHistoryItem struct {
 	Chain               string         `json:"chain"`
 	DepositID           string         `json:"depId"`
 	From                string         `json:"from"`
-	State               int64          `json:"state,string"`
+	State               string         `json:"state"`
 	To                  string         `json:"to"`
 	Timestamp           okcoinMilliSec `json:"ts"`
 	TransactionID       string         `json:"txId"`
@@ -1282,7 +846,7 @@ type WithdrawalOrderItem struct {
 	TransactionID string         `json:"txId"`
 	From          string         `json:"from"`
 	To            string         `json:"to"`
-	State         int64          `json:"state,string"`
+	State         string         `json:"state"`
 	Timestamp     okcoinMilliSec `json:"ts"`
 	WithdrawalID  string         `json:"wdId"`
 }
@@ -1291,19 +855,19 @@ type WithdrawalOrderItem struct {
 type AccountBalanceInformation struct {
 	AdjustedEquity string `json:"adjEq"` // Adjusted / Effective equity in USD . Not enabled. Please disregard.
 	Details        []struct {
-		AvailableBalance                 string         `json:"availBal"`
+		AvailableBalance                 okcoinNumber   `json:"availBal"`
 		AvaileEquity                     string         `json:"availEq"`
-		CashBalance                      string         `json:"cashBal"`
+		CashBalance                      okcoinNumber   `json:"cashBal"`
 		Currency                         string         `json:"ccy"`
 		CrossLiability                   string         `json:"crossLiab"`
 		DiscountEqutity                  string         `json:"disEq"`
 		Equity                           string         `json:"eq"`
 		EquityUsd                        string         `json:"eqUsd"`
-		FixedBalance                     string         `json:"fixedBal"`
-		FrozenBalance                    string         `json:"frozenBal"`
-		Interest                         string         `json:"interest"`
-		IsolatedEquity                   string         `json:"isoEq"`
-		IsolatedLiability                string         `json:"isoLiab"`
+		FixedBalance                     okcoinNumber   `json:"fixedBal"`
+		FrozenBalance                    okcoinNumber   `json:"frozenBal"`
+		Interest                         okcoinNumber   `json:"interest"`
+		IsolatedEquity                   okcoinNumber   `json:"isoEq"`
+		IsolatedLiability                okcoinNumber   `json:"isoLiab"`
 		IsolatedUpl                      string         `json:"isoUpl"` // Isolated unrealized profit and loss of the currency. Not enabled. Please disregard.
 		Liability                        string         `json:"liab"`
 		MaxLoan                          string         `json:"maxLoan"`
@@ -1319,7 +883,7 @@ type AccountBalanceInformation struct {
 	} `json:"details"`
 	IMR             string         `json:"imr"` // Frozen equity for open positions and pending orders in USD.
 	IsolatedEqutity string         `json:"isoEq"`
-	MarginRatio     string         `json:"mgnRatio"`
+	MarginRatio     okcoinNumber   `json:"mgnRatio"`
 	Mmr             string         `json:"mmr"` // Maintenance margin requirement in USD.
 	NotionalUsd     string         `json:"notionalUsd"`
 	OrdFroz         string         `json:"ordFroz"`
@@ -1334,7 +898,7 @@ type BillsDetail struct {
 	BillID           string         `json:"billId"`
 	Currency         string         `json:"ccy"`
 	ExecType         string         `json:"execType"`
-	Fee              string         `json:"fee"`
+	Fee              okcoinNumber   `json:"fee"`
 	From             string         `json:"from"`
 	InstrumentID     string         `json:"instId"`
 	InstrumentType   string         `json:"instType"`
@@ -1408,13 +972,13 @@ type MaximumWithdrawal struct {
 // AvailableRFQPair represents list of instruments and
 type AvailableRFQPair struct {
 	Instruments []struct {
-		BaseCurrency      string `json:"baseCcy"`
-		BaseCurrencyIcon  string `json:"baseCcyIcon"`
-		BaseSingleMin     string `json:"baseSingleMin"`
-		InstrumentID      string `json:"instId"`
-		QuoteCurrency     string `json:"quoteCcy"`
-		QuoteCurrencyIcon string `json:"quoteCcyIcon"`
-		QuoteSingleMin    string `json:"quoteSingleMin"`
+		BaseCurrency      string       `json:"baseCcy"`
+		BaseCurrencyIcon  string       `json:"baseCcyIcon"`
+		BaseSingleMin     okcoinNumber `json:"baseSingleMin"`
+		InstrumentID      string       `json:"instId"`
+		QuoteCurrency     string       `json:"quoteCcy"`
+		QuoteCurrencyIcon string       `json:"quoteCcyIcon"`
+		QuoteSingleMin    okcoinNumber `json:"quoteSingleMin"`
 	} `json:"instruments"`
 	Timestamp okcoinMilliSec `json:"ts"`
 }
@@ -1445,7 +1009,7 @@ type RFQQuoteResponse struct {
 	BidPrice      float64        `json:"bidPx,string"`
 	BidBaseSize   float64        `json:"bidBaseSz,string"`
 	BidQuoteSize  float64        `json:"bidQuoteSz,string"`
-	AskPx         string         `json:"askPx"`
+	AskPx         float64        `json:"askPx,string"`
 	AskBaseSize   float64        `json:"askBaseSz,string"`
 	AskQuoteSize  float64        `json:"askQuoteSz,string"`
 }
@@ -1488,7 +1052,7 @@ type RFQOrderDetail struct {
 	BaseCurrency   string         `json:"baseCcy"`
 	QuoteCurrency  string         `json:"quoteCcy"`
 	Side           string         `json:"side"`
-	Price          string         `json:"px,string"`
+	Price          float64        `json:"px,string"`
 	FilledBaseSize float64        `json:"filledBaseSz,string"`
 	FilledTermSize float64        `json:"filledTermSz,string"`
 }
@@ -1578,17 +1142,17 @@ type FiatWithdrawalHistoryItem struct {
 
 // ChannelInfo represents a channel information
 type ChannelInfo struct {
-	ChannelID            string `json:"chanId"`
-	Currency             string `json:"ccy"`
-	DepositQuota         string `json:"depQuota"`
-	MinDeposit           string `json:"minDep"`
-	WithdrawalQuota      string `json:"wdQuota"`
-	MinWithdrawal        string `json:"minWd"`
-	UsedWithdrawalQuota  string `json:"usedWdQuota"`
-	ValidWithdrawalQuota string `json:"validWdQuota"`
+	ChannelID            string       `json:"chanId"`
+	Currency             string       `json:"ccy"`
+	DepositQuota         string       `json:"depQuota"`
+	MinDeposit           okcoinNumber `json:"minDep"`
+	WithdrawalQuota      string       `json:"wdQuota"`
+	MinWithdrawal        string       `json:"minWd"`
+	UsedWithdrawalQuota  string       `json:"usedWdQuota"`
+	ValidWithdrawalQuota string       `json:"validWdQuota"`
 	BankAccountInfo      []struct {
 		BankAccountName   string `json:"bankAcctName"`
-		BankAccountNum    string `json:"bankAcctNum"`
+		BankAccountNumber string `json:"bankAcctNum"`
 		InstrumentName    string `json:"instName"`
 		MaskAccountNumber string `json:"maskAcctNum"`
 	} `json:"bankAcctInfo"`
@@ -1608,7 +1172,7 @@ type PlaceTradeOrderParam struct {
 	TargetCurrency string        `json:"tgtCcy,omitempty"` // Whether the target currency uses the quote or base currency.
 
 	// ExpiryTime is the request effective deadline.
-	ExpiryTime okcoinMilliSec `json:"expTime,string"`
+	ExpiryTime okcoinMilliSec `json:"expTime"`
 }
 
 // TradeOrderResponse represents a single trade order information
@@ -1631,11 +1195,11 @@ type CancelTradeOrderRequest struct {
 type AmendTradeOrderRequestParam struct {
 	OrderID                 string  `json:"ordId,omitempty"`
 	InstrumentID            string  `json:"instId"`
-	CancelOOrderIfAmendFail bool    `json:"cxlOnFail,omitempty"` // whether the order needs to be automatically canceled when the order amendment fails
 	ClientOrderID           string  `json:"clOrdId,omitempty"`
 	ClientRequestID         string  `json:"reqId,omitempty"`
 	NewSize                 float64 `json:"newSz,string,omitempty"` // Conditional
 	NewPrice                float64 `json:"newPx,string,omitempty"` // Conditional
+	CancelOOrderIfAmendFail bool    `json:"cxlOnFail,omitempty"`    // whether the order needs to be automatically canceled when the order amendment fails
 }
 
 // AmendTradeOrderResponse represents a request parameter to amend an incomplete order.
@@ -1655,14 +1219,14 @@ type TradeOrder struct {
 	Category                   string         `json:"category"`
 	Currency                   string         `json:"ccy"`
 	ClientOrdID                string         `json:"clOrdId"`
-	Fee                        float64        `json:"fee,string"`
+	Fee                        okcoinNumber   `json:"fee"`
 	FeeCurrency                string         `json:"feeCcy"`
 	FillPrice                  float64        `json:"fillPx,string"`
 	FillSize                   float64        `json:"fillSz,string"`
 	FillTime                   okcoinMilliSec `json:"fillTime"`
 	InstrumentID               string         `json:"instId"`
 	InstrumentType             string         `json:"instType"`
-	Leverage                   float64        `json:"lever,string"`
+	Leverage                   okcoinNumber   `json:"lever"`
 	OrderID                    string         `json:"ordId"`
 	OrderType                  string         `json:"ordType"`
 	ProfitAndLoss              string         `json:"pnl"`
@@ -1672,8 +1236,8 @@ type TradeOrder struct {
 	RebateCurrency             string         `json:"rebateCcy"`
 	ReduceOnly                 bool           `json:"reduceOnly,string"`
 	Side                       string         `json:"side"`
-	StopLossOrdPrice           string         `json:"slOrdPx"`
-	StopLossTriggerPrice       string         `json:"slTriggerPx"`
+	StopLossOrdPrice           okcoinNumber   `json:"slOrdPx"`
+	StopLossTriggerPrice       okcoinNumber   `json:"slTriggerPx"`
 	StopLossTriggerPriceType   string         `json:"slTriggerPxType"`
 	Source                     string         `json:"source"`
 	State                      string         `json:"state"`
@@ -1681,8 +1245,8 @@ type TradeOrder struct {
 	Tag                        string         `json:"tag"`
 	TradeMode                  string         `json:"tdMode"`
 	TargetCurrency             string         `json:"tgtCcy"`
-	TakeProfitOrderPrice       string         `json:"tpOrdPx"`
-	TakeProfitTriggerPrice     string         `json:"tpTriggerPx"`
+	TakeProfitOrderPrice       okcoinNumber   `json:"tpOrdPx"`
+	TakeProfitTriggerPrice     okcoinNumber   `json:"tpTriggerPx"`
 	TakeProfitTriggerPriceType string         `json:"tpTriggerPxType"`
 	TradeID                    string         `json:"tradeId"`
 	UpdateTime                 okcoinMilliSec `json:"uTime"`
@@ -1703,7 +1267,7 @@ type TransactionFillItem struct {
 	PosSide        string         `json:"posSide"`
 	ExecType       string         `json:"execType"`
 	FeeCurrency    string         `json:"feeCcy"`
-	Fee            float64        `json:"fee,string"`
+	Fee            okcoinNumber   `json:"fee"`
 	Timestamp      okcoinMilliSec `json:"ts"`
 }
 
@@ -1759,42 +1323,42 @@ type CancelAlgoOrderRequestParam struct {
 
 // AlgoOrderDetail represents an algo-order detailed information
 type AlgoOrderDetail struct {
-	ActivePrice              string         `json:"activePx"`
-	ActualPrice              string         `json:"actualPx"`
+	ActivePrice              okcoinNumber   `json:"activePx"`
+	ActualPrice              okcoinNumber   `json:"actualPx"`
 	ActualSide               string         `json:"actualSide"`
-	ActualSize               string         `json:"actualSz"`
+	ActualSize               okcoinNumber   `json:"actualSz"`
 	AlgoID                   string         `json:"algoId"`
 	CreateTime               okcoinMilliSec `json:"cTime"`
-	CallbackRatio            string         `json:"callbackRatio"`
+	CallbackRatio            okcoinNumber   `json:"callbackRatio"`
 	CallbackSpread           string         `json:"callbackSpread"`
 	Currency                 string         `json:"ccy"`
 	ClientOrderID            string         `json:"clOrdId"`
 	InstrumentID             string         `json:"instId"`
 	InstrumentType           string         `json:"instType"`
 	Leverage                 string         `json:"lever"`
-	MoveTriggerPrice         string         `json:"moveTriggerPx"`
+	MoveTriggerPrice         okcoinNumber   `json:"moveTriggerPx"`
 	OrderID                  string         `json:"ordId"`
-	OrdPrice                 string         `json:"ordPx"`
+	OrdPrice                 okcoinNumber   `json:"ordPx"`
 	OrderType                string         `json:"ordType"`
 	PosSide                  string         `json:"posSide"`
-	PriceLimit               string         `json:"pxLimit"`
+	PriceLimit               okcoinNumber   `json:"pxLimit"`
 	PriceSpread              string         `json:"pxSpread"`
 	PriceVar                 string         `json:"pxVar"`
 	Side                     string         `json:"side"`
-	StopLossOrdPrice         string         `json:"slOrdPx"`
-	StopLossTriggerPrice     string         `json:"slTriggerPx"`
+	StopLossOrdPrice         okcoinNumber   `json:"slOrdPx"`
+	StopLossTriggerPrice     okcoinNumber   `json:"slTriggerPx"`
 	StopLossTriggerPriceType string         `json:"slTriggerPxType"`
 	State                    string         `json:"state"`
-	Size                     string         `json:"sz"`
-	SizeLimit                string         `json:"szLimit"`
+	Size                     okcoinNumber   `json:"sz"`
+	SizeLimit                okcoinNumber   `json:"szLimit"`
 	Tag                      string         `json:"tag"`
 	TdMode                   string         `json:"tdMode"`
 	TgtCcy                   string         `json:"tgtCcy"`
 	TimeInterval             string         `json:"timeInterval"`
-	TpOrdPrice               string         `json:"tpOrdPx"`
-	TpTriggerPrice           string         `json:"tpTriggerPx"`
+	TpOrdPrice               okcoinNumber   `json:"tpOrdPx"`
+	TpTriggerPrice           okcoinNumber   `json:"tpTriggerPx"`
 	TpTriggerPriceType       string         `json:"tpTriggerPxType"`
-	TriggerPrice             string         `json:"triggerPx"`
+	TriggerPrice             okcoinNumber   `json:"triggerPx"`
 	TriggerPriceType         string         `json:"triggerPxType"`
 	TriggerTime              okcoinMilliSec `json:"triggerTime"`
 }

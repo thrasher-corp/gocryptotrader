@@ -183,7 +183,7 @@ func (o *OKCoin) SendWebsocketRequest(operation string, data, result interface{}
 	}
 	if response.Code != "" && response.Code != "0" {
 		if response.Message == "" {
-			response.Message = errorCodes[response.Code]
+			response.Message = websocketErrorCodes[response.Code]
 		}
 		return fmt.Errorf("%s websocket error code: %s message: %s", o.Name, response.Code, response.Message)
 	}

@@ -200,11 +200,11 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            okcoinWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
 		URL:                  okCoinPrivateWebsocketURL,
+		RateLimit:            okcoinWsRateLimit,
+		Authenticated:        true,
 	})
 }
 
@@ -557,14 +557,8 @@ func (o *OKCoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 	for i := range currencies {
 		for x := range currencies[i].Details {
-			hold, parseErr := strconv.ParseFloat(currencies[i].Details[x].FrozenBalance, 64)
-			if parseErr != nil {
-				return resp, parseErr
-			}
-			totalValue, parseErr := strconv.ParseFloat(currencies[i].Details[x].AvailableBalance, 64)
-			if parseErr != nil {
-				return resp, parseErr
-			}
+			hold := currencies[i].Details[x].FrozenBalance.Float64()
+			totalValue := currencies[i].Details[x].AvailableBalance.Float64()
 			currencyAccount.Currencies = append(currencyAccount.Currencies,
 				account.Balance{
 					Currency: currency.NewCode(currencies[i].Details[x].Currency),
@@ -614,17 +608,17 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 	for x := range accountDepositHistory {
 		orderStatus := ""
 		switch accountDepositHistory[x].State {
-		case 0:
+		case "0":
 			orderStatus = "waiting for confirmation"
-		case 1:
+		case "1":
 			orderStatus = "deposit credited"
-		case 2:
+		case "2":
 			orderStatus = "deposit successful"
-		case 8:
+		case "8":
 			orderStatus = "pending due to temporary deposit suspension "
-		case 12:
+		case "12":
 			orderStatus = "account or deposit is frozen"
-		case 13:
+		case "13":
 			orderStatus = "sub-account deposit interception"
 		}
 		resp[x] = exchange.FundHistory{
@@ -641,23 +635,23 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 	for i := range accountWithdrawlHistory {
 		orderStatus := ""
 		switch accountWithdrawlHistory[i].State {
-		case -3:
+		case "-3":
 			orderStatus = "pending cancel"
-		case -2:
+		case "-2":
 			orderStatus = "canceled"
-		case -1:
+		case "-1":
 			orderStatus = "failed"
-		case 0:
+		case "0":
 			orderStatus = "pending"
-		case 1:
+		case "1":
 			orderStatus = "sending"
-		case 2:
+		case "2":
 			orderStatus = "sent"
-		case 3:
+		case "3":
 			orderStatus = "awaiting email verification"
-		case 4:
+		case "4":
 			orderStatus = "awaiting manual verification"
-		case 5:
+		case "5":
 			orderStatus = "awaiting identity verification"
 		}
 		resp[len(accountDepositHistory)+i] = exchange.FundHistory{
@@ -825,12 +819,12 @@ func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		ExecutedAmount:       tradeOrder.AccFillSize,
 		Status:               status,
 		Side:                 side,
-		Leverage:             tradeOrder.Leverage,
+		Leverage:             tradeOrder.Leverage.Float64(),
 		ReduceOnly:           tradeOrder.ReduceOnly,
 		Price:                tradeOrder.Price,
 		AverageExecutedPrice: tradeOrder.AveragePrice,
 		RemainingAmount:      tradeOrder.Size - tradeOrder.AccFillSize,
-		Fee:                  tradeOrder.Fee,
+		Fee:                  tradeOrder.Fee.Float64(),
 		FeeAsset:             currency.NewCode(tradeOrder.FeeCurrency),
 		OrderID:              tradeOrder.OrderID,
 		ClientOrderID:        tradeOrder.ClientOrdID,
@@ -908,23 +902,23 @@ func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 	for x := range withdrawals {
 		orderStatus := ""
 		switch withdrawals[x].State {
-		case -3:
+		case "-3":
 			orderStatus = "pending cancel"
-		case -2:
+		case "-2":
 			orderStatus = "canceled"
-		case -1:
+		case "-1":
 			orderStatus = "failed"
-		case 0:
+		case "0":
 			orderStatus = "pending"
-		case 1:
+		case "1":
 			orderStatus = "sending"
-		case 2:
+		case "2":
 			orderStatus = "sent"
-		case 3:
+		case "3":
 			orderStatus = "awaiting email verification"
-		case 4:
+		case "4":
 			orderStatus = "awaiting manual verification"
-		case 5:
+		case "5":
 			orderStatus = "awaiting identity verification"
 		}
 		wHistories[x] = exchange.WithdrawalHistory{
