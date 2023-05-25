@@ -1767,7 +1767,7 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), cp, underlying, optionsSettlement[0].Time.Unix()); err != nil {
+	if _, err := g.GetOptionsSpecifiedContractsSettlement(context.Background(), cp, underlying, optionsSettlement[0].Timestamp.Time().Unix()); err != nil {
 		t.Errorf("%s GetOptionsSpecifiedContractsSettlement() error %s", g.Name, err)
 	}
 }
@@ -3200,5 +3200,122 @@ func TestSettlement(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
+	t.Parallel()
+	timeWhenTesting := 1684981731098
+	timeWhenTestingString := "1684981731098"
+	integerJSON := `{"number": 1684981731098}`
+	float64JSON := `{"number": 1684981731098.234}`
+
+	time := time.UnixMilli(int64(timeWhenTesting))
+	var in gateioMilliSecTime
+	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !in.Time().Equal(time) {
+		t.Fatalf("found %v, but expected %v", in.Time(), time)
+	}
+	inInteger := struct {
+		Number gateioMilliSecTime `json:"number"`
+	}{}
+	err = json.Unmarshal([]byte(integerJSON), &inInteger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inInteger.Number.Time().Equal(time) {
+		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), time)
+	}
+
+	inFloat64 := struct {
+		Number gateioMilliSecTime `json:"number"`
+	}{}
+	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inFloat64.Number.Time().Equal(time) {
+		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), time)
+	}
+}
+
+func TestParseGateioTimeUnmarshal(t *testing.T) {
+	t.Parallel()
+	timeWhenTesting := 1684981731
+	timeWhenTestingString := "1684981731"
+	integerJSON := `{"number": 1684981731}`
+	float64JSON := `{"number": 1684981731.234}`
+
+	time := time.Unix(int64(timeWhenTesting), 0)
+	var in gateioTime
+	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !in.Time().Equal(time) {
+		t.Fatalf("found %v, but expected %v", in.Time(), time)
+	}
+	inInteger := struct {
+		Number gateioTime `json:"number"`
+	}{}
+	err = json.Unmarshal([]byte(integerJSON), &inInteger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inInteger.Number.Time().Equal(time) {
+		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), time)
+	}
+
+	inFloat64 := struct {
+		Number gateioTime `json:"number"`
+	}{}
+	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inFloat64.Number.Time().Equal(time) {
+		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), time)
+	}
+}
+
+func TestGateioNumericalValue(t *testing.T) {
+	t.Parallel()
+	in := &struct {
+		Number gateioNumericalValue `json:"number"`
+	}{}
+
+	numberJSON := `{"number":123442.231}`
+	err := json.Unmarshal([]byte(numberJSON), in)
+	if err != nil {
+		t.Fatal(err)
+	} else if in.Number != 123442.231 {
+		t.Fatalf("found %f, but expected %f", in.Number, 123442.231)
+	}
+
+	numberJSON = `{"number":"123442.231"}`
+	err = json.Unmarshal([]byte(numberJSON), in)
+	if err != nil {
+		t.Fatal(err)
+	} else if in.Number != 123442.231 {
+		t.Fatalf("found %f, but expected %s", in.Number, "123442.231")
+	}
+
+	numberJSON = `{"number":""}`
+	err = json.Unmarshal([]byte(numberJSON), in)
+	if err != nil {
+		t.Fatal(err)
+	} else if in.Number != 0 {
+		t.Fatalf("found %f, but expected %d", in.Number, 0)
+	}
+
+	numberJSON = `{"number":0}`
+	err = json.Unmarshal([]byte(numberJSON), in)
+	if err != nil {
+		t.Fatal(err)
+	} else if in.Number != 0 {
+		t.Fatalf("found %f, but expected %d", in.Number, 0)
 	}
 }

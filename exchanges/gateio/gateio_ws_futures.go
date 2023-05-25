@@ -464,7 +464,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 			return err
 		}
 		trades[x] = trade.Data{
-			Timestamp:    time.UnixMilli(int64(resp.Result[x].CreateTimeMs)),
+			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			CurrencyPair: currencyPair,
 			AssetType:    assetType,
 			Exchange:     g.Name,

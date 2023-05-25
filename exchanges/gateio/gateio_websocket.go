@@ -531,7 +531,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			Cost:           resp.Result[x].Fee,
 			AssetType:      a,
 			Price:          resp.Result[x].Price,
-			ExecutedAmount: resp.Result[x].Amount - resp.Result[x].Left,
+			ExecutedAmount: resp.Result[x].Amount - resp.Result[x].Left.Float64(),
 			Date:           resp.Result[x].CreateTimeMs.Time(),
 			LastUpdated:    resp.Result[x].UpdateTimeMs.Time(),
 		}
