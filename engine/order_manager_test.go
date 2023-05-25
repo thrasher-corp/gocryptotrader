@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -25,6 +28,17 @@ import (
 // we're not testing an actual exchange's implemented functions
 type omfExchange struct {
 	exchange.IBotExchange
+}
+
+var btcusdPair currency.Pair
+
+func TestMain(m *testing.M) {
+	var err error
+	btcusdPair, err = currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(m.Run())
 }
 
 // CancelOrder overrides testExchange's cancel order function
@@ -476,17 +490,12 @@ func TestCancelOrder(t *testing.T) {
 		t.Error("Expected error due to no order found")
 	}
 
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	cancel := &order.Cancel{
 		Exchange:  testExchange,
 		OrderID:   "1337",
 		Side:      order.Sell,
 		AssetType: asset.Spot,
-		Pair:      pair,
+		Pair:      btcusdPair,
 	}
 	err = m.Cancel(context.Background(), cancel)
 	if !errors.Is(err, nil) {
@@ -580,14 +589,9 @@ func TestSubmit(t *testing.T) {
 		t.Error("Expected error from validation")
 	}
 
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	m.cfg.EnforceLimitConfig = true
 	m.cfg.AllowMarketOrders = false
-	o.Pair = pair
+	o.Pair = btcusdPair
 	o.AssetType = asset.Spot
 	o.Side = order.Buy
 	o.Amount = 1
@@ -642,6 +646,37 @@ func TestSubmit(t *testing.T) {
 	}
 	if o2.InternalOrderID.IsNil() {
 		t.Error("Failed to assign internal order id")
+	}
+}
+
+// TestSubmitOrderAlreadyInStore ensures that if an order is submitted, but the WS sees the conf before processSubmittedOrder
+// then we don't error that it was there already, and we merge together the details
+func TestSubmitOrderAlreadyInStore(t *testing.T) {
+	m := OrdersSetup(t)
+	submitReq := &order.Submit{
+		Type:      order.Market,
+		Pair:      btcusdPair,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Amount:    1,
+		Price:     1,
+		Exchange:  testExchange,
+	}
+	submitResp, err := submitReq.DeriveSubmitResponse("batman.obvs")
+	assert.Nil(t, err, "Deriving a SubmitResp should not error")
+
+	id, err := uuid.NewV4()
+	assert.Nil(t, err, "uuid should not error")
+	d, err := submitResp.DeriveDetail(id)
+	assert.Nil(t, err, "Derive Detail should not error")
+
+	d.ClientOrderID = "SecretSquirrelSauce"
+	assert.Nil(t, m.orderStore.add(d), "Adding an order should not error")
+
+	resp, err := m.SubmitFakeOrder(submitReq, submitResp, false)
+
+	if assert.Nil(t, err, "SumbitFakeOrder should not error that the order is already in the store") {
+		assert.Equal(t, d.ClientOrderID, resp.ClientOrderID, "resp should contain the ClientOrderID from the store")
 	}
 }
 
