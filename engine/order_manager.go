@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -73,12 +72,8 @@ func (m *OrderManager) Start() error {
 	}
 	log.Debugln(log.OrderMgr, "Order manager starting...")
 	m.shutdown = make(chan struct{})
-	go func() {
-		m.processOrders()
-		m.run()
-	}()
-	runtime.Gosched()
 	m.orderStore.wg.Add(1)
+	go m.run()
 	return nil
 }
 
@@ -113,6 +108,7 @@ func (m *OrderManager) gracefulShutdown() {
 // run will periodically process orders
 func (m *OrderManager) run() {
 	log.Debugln(log.OrderMgr, "Order manager started.")
+	m.processOrders()
 	for {
 		select {
 		case <-m.shutdown:
