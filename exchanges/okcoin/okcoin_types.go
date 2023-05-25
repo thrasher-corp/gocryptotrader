@@ -254,7 +254,7 @@ type WebsocketOrderBook struct {
 	Asks      [][]string     `json:"asks"` // [ Price, Quantity, depreciated, number of orders at the price ]
 	Bids      [][]string     `json:"bids"` // [ Price, Quantity, depreciated, number of orders at the price ]
 	Timestamp okcoinMilliSec `json:"ts"`
-	Checksum  int64          `json:"checksum"`
+	Checksum  int32          `json:"checksum"`
 }
 
 // WebsocketDataResponse formats all response data for a websocket event

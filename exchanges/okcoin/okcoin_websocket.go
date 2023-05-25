@@ -36,16 +36,13 @@ const (
 		"candle2H", "candle1H", "candle30m", "candle15m", "candle5m",
 		"candle3m", "candle1m", "candle3Mutc", "candle1Mutc", "candle1Wutc",
 		"candle1Dutc", "candle2Dutc", "candle3Dutc", "candle5Dutc", "candle12Hutc", "candle6Hutc"
-	wsTrades = "trades"
-
+	wsTrades                  = "trades"
 	wsOrderbooks              = "books"
 	wsOrderbooksL5            = "book5"
 	wsOrderbookL1             = "bbo-tbt"
 	wsOrderbookTickByTickL400 = "books-l2-tbt"
 	wsOrderbookTickByTickL50  = "books50-l2-tbt"
-
-	wsStatus = "status"
-
+	wsStatus                  = "status"
 	// Private subscriptions
 	wsAccount     = "account"
 	wsOrder       = "orders"
@@ -54,11 +51,11 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	wsTickers,
-	wsCandle1D,
-	wsTrades,
+	// wsTickers,
+	// wsCandle1D,
+	// wsTrades,
 	wsOrderbooks,
-	wsStatus,
+	// wsStatus,
 }
 
 func isAuthenticatedChannel(channel string) bool {
@@ -212,6 +209,7 @@ func (o *OKCoin) WsReadData() {
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (o *OKCoin) WsHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
@@ -389,6 +387,7 @@ func StringToOrderStatus(num int64) (order.Status, error) {
 }
 
 func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
+	println(" Orderbook data ")
 	var resp WebsocketOrderbookResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -443,7 +442,7 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 			if err != nil {
 				return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 			}
-			if int64(signedChecksum) != resp.Data[0].Checksum {
+			if signedChecksum != resp.Data[0].Checksum {
 				return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
 					o.Name,
 					cp)
@@ -453,6 +452,7 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		println(" Loading snapshot ... ")
 		return o.Websocket.Orderbook.LoadSnapshot(&base)
 	}
 
@@ -483,11 +483,14 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 				return err
 			}
 		}
-		update.Checksum = uint32(o.CalculateUpdateOrderbookChecksum(&update))
-		if update.Checksum != uint32(resp.Data[x].Checksum) {
+		// println(string(respRaw))
+		updateChecksum := o.CalculateUpdateOrderbookChecksum(&update)
+		println("Sent checksum: ", updateChecksum, "Calculated checksum: ", uint32(resp.Data[x].Checksum))
+		if uint32(updateChecksum) != uint32(resp.Data[x].Checksum) {
 			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 		}
 	}
+	println(" Update orderbook ")
 	return o.Websocket.Orderbook.Update(&update)
 }
 
@@ -580,13 +583,12 @@ func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	tickers := make([]ticker.Price, len(response))
 	for x := range response {
 		pair, err := currency.NewPairFromString(response[x].InstrumentID)
 		if err != nil {
 			return err
 		}
-		tickers[x] = ticker.Price{
+		o.Websocket.DataHandler <- &ticker.Price{
 			AssetType:    asset.Spot,
 			Last:         response[x].Last,
 			Open:         response[x].Open24H,
@@ -603,7 +605,6 @@ func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
 			Pair:         pair,
 		}
 	}
-	o.Websocket.DataHandler <- tickers
 	return nil
 }
 
@@ -712,7 +713,7 @@ func (o *OKCoin) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrder
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKCoin) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Update) int32 {
+func (o *OKCoin) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Update) uint32 {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
@@ -727,7 +728,7 @@ func (o *OKCoin) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Updat
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), delimiterColon)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
+	return crc32.ChecksumIEEE([]byte(checksumStr))
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
@@ -752,10 +753,10 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		if o.Websocket.CanUseAuthenticatedEndpoints() {
 			channels = append(
 				channels,
-				wsAccount,
-				wsOrder,
-				wsOrdersAlgo,
-				wsAlgoAdvance,
+				// wsAccount,
+				// wsOrder,
+				// wsOrdersAlgo,
+				// wsAlgoAdvance,
 			)
 		}
 		for s := range channels {
