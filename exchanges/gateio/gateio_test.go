@@ -3205,12 +3205,12 @@ func TestSettlement(t *testing.T) {
 
 func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	t.Parallel()
-	timeWhenTesting := 1684981731098
+	var timeWhenTesting int64 = 1684981731098
 	timeWhenTestingString := "1684981731098"
 	integerJSON := `{"number": 1684981731098}`
 	float64JSON := `{"number": 1684981731098.234}`
 
-	time := time.UnixMilli(int64(timeWhenTesting))
+	time := time.UnixMilli(timeWhenTesting)
 	var in gateioMilliSecTime
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
@@ -3244,12 +3244,12 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 
 func TestParseGateioTimeUnmarshal(t *testing.T) {
 	t.Parallel()
-	timeWhenTesting := 1684981731
+	var timeWhenTesting int64 = 1684981731
 	timeWhenTestingString := "1684981731"
 	integerJSON := `{"number": 1684981731}`
 	float64JSON := `{"number": 1684981731.234}`
 
-	time := time.Unix(int64(timeWhenTesting), 0)
+	time := time.Unix(timeWhenTesting, 0)
 	var in gateioTime
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
