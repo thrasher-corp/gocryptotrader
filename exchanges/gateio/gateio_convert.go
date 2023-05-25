@@ -108,8 +108,8 @@ func (a *gateioNumericalValue) Float64() float64 { return float64(*a) }
 func (a *Orderbook) UnmarshalJSON(data []byte) error {
 	type Alias Orderbook
 	type askorbid struct {
-		Price string  `json:"p"`
-		Size  float64 `json:"s"`
+		Price gateioNumericalValue `json:"p"`
+		Size  float64              `json:"s"`
 	}
 	chil := &struct {
 		*Alias
@@ -131,19 +131,13 @@ func (a *Orderbook) UnmarshalJSON(data []byte) error {
 	for x := range chil.Asks {
 		a.Asks[x] = OrderbookItem{
 			Amount: chil.Asks[x].Size,
-		}
-		a.Asks[x].Price, err = strconv.ParseFloat(chil.Asks[x].Price, 64)
-		if err != nil {
-			return err
+			Price:  chil.Asks[x].Price.Float64(),
 		}
 	}
 	for x := range chil.Bids {
 		a.Bids[x] = OrderbookItem{
 			Amount: chil.Bids[x].Size,
-		}
-		a.Bids[x].Price, err = strconv.ParseFloat(chil.Bids[x].Price, 64)
-		if err != nil {
-			return err
+			Price:  chil.Bids[x].Price.Float64(),
 		}
 	}
 	return nil
