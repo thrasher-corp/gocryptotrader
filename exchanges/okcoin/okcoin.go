@@ -164,23 +164,6 @@ func (o *OKCoin) GetOrderbook(ctx context.Context, instrumentID string, sideDept
 	return &resp[0], nil
 }
 
-// GetOrderbookLitebook retrieve order top 25 book of the instrument more quickly
-func (o *OKCoin) GetOrderbookLitebook(ctx context.Context, instrumentID string) (*GetOrderBookResponse, error) {
-	if instrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	params := url.Values{}
-	params.Set("instId", instrumentID)
-	var resp []GetOrderBookResponse
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderliteBookEPL, http.MethodGet, typeMarket, common.EncodeURLValues("books-lite", params), nil, &resp, false)
-	if err != nil {
-		return nil, err
-	} else if len(resp) == 0 {
-		return nil, fmt.Errorf("%w for instrument %s", errNoOrderbookData, instrumentID)
-	}
-	return &resp[0], nil
-}
-
 // GetCandlesticks retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, after, before time.Time, limit int64) ([]CandlestickData, error) {
 	if instrumentID == "" {

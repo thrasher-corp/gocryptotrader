@@ -140,17 +140,9 @@ func TestGetOrderbooks(t *testing.T) {
 	}
 }
 
-func TestGetLiteOrderbook(t *testing.T) {
-	t.Parallel()
-	_, err := o.GetOrderbookLitebook(context.Background(), spotTradablePair.String())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetCandlestick(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetCandlesticks(context.Background(), "BTC-USD", kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*30), 0)
+	_, err := o.GetCandlesticks(context.Background(), spotTradablePair.String(), kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*30), 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1702,7 +1694,7 @@ func TestWsAmendMultipleOrder(t *testing.T) {
 			InstrumentID:    "BTC-USD",
 			OrderID:         "3452",
 			ClientRequestID: "9879",
-			NewSize:         2,
+			NewSize:         0.0001,
 		},
 	})
 	if err != nil {
