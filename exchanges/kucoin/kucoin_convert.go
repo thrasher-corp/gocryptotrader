@@ -5,38 +5,29 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"time"
 )
 
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *WsOrderbookLevel5) UnmarshalJSON(data []byte) error {
-	type Alias WsOrderbookLevel5
-	chil := &struct {
-		*Alias
-		Asks [][2]float64 `json:"asks"`
-		Bids [][2]float64 `json:"bids"`
-	}{
-		Alias: (*Alias)(a),
+// kucoinTimeSec provides an internal conversion helper
+type kucoinTimeSec int64
+
+// Time returns a time.Time object
+func (k kucoinTimeSec) Time() time.Time {
+	if k < 0 {
+		return time.Time{}
 	}
-	if err := json.Unmarshal(data, &chil); err != nil {
-		return err
+	return time.Unix(int64(k), 0)
+}
+
+// kucoinTimeNanoSec provides an internal conversion helper
+type kucoinTimeNanoSec int64
+
+// Time returns a time.Time object
+func (k *kucoinTimeNanoSec) Time() time.Time {
+	if *k < 0 {
+		return time.Time{}
 	}
-	a.Asks = make([]orderbook.Item, len(chil.Asks))
-	for x := range chil.Asks {
-		a.Asks[x] = orderbook.Item{
-			Price:  chil.Asks[x][0],
-			Amount: chil.Asks[x][1],
-		}
-	}
-	a.Bids = make([]orderbook.Item, len(chil.Bids))
-	for x := range chil.Bids {
-		a.Bids[x] = orderbook.Item{
-			Price:  chil.Bids[x][0],
-			Amount: chil.Bids[x][1],
-		}
-	}
-	return nil
+	return time.Unix(0, int64(*k))
 }
 
 // UnmarshalJSON is custom type json unmarshaller for kucoinTimeSec

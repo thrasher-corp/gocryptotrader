@@ -1237,17 +1237,20 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
+	if feeBuilder.Pair.IsEmpty() {
+		return 0, currency.ErrCurrencyPairEmpty
+	}
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyWithdrawalFee,
 		exchange.CryptocurrencyTradeFee:
-		fee, err := ku.GetBasicFee(ctx, "0")
+		fee, err := ku.GetTradingFee(ctx, feeBuilder.Pair.String())
 		if err != nil {
 			return 0, err
 		}
 		if feeBuilder.IsMaker {
-			return feeBuilder.Amount * fee.MakerFeeRate, nil
+			return feeBuilder.Amount * fee[0].MakerFeeRate, nil
 		}
-		return feeBuilder.Amount * fee.TakerFeeRate, nil
+		return feeBuilder.Amount * fee[0].TakerFeeRate, nil
 	case exchange.OfflineTradeFee:
 		return feeBuilder.Amount * 0.001, nil
 	case exchange.CryptocurrencyDepositFee:

@@ -103,7 +103,8 @@ const (
 	kucoinCancelStopOrderByClientID = "/v1/stop-order/cancelOrderByClientOid"
 
 	// user info endpoints
-	kucoinSubUser = "/v2/sub/user"
+	kucoinSubUserCreated = "/v2/sub/user/created"
+	kucoinSubUser        = "/v2/sub/user"
 
 	kucoinSubAccountSpotAPIs             = "/v1/sub/api-key"
 	kucoinUpdateModifySubAccountSpotAPIs = "/v1/sub/api-key/update"
@@ -112,7 +113,7 @@ const (
 	kucoinAccount                        = "/v1/accounts"
 	kucoinGetAccount                     = "/v1/accounts/"
 	kucoinGetAccountLedgers              = "/v1/accounts/ledgers"
-	kucoinUserInfo                       = "/v1/user-info"
+	kucoinUserInfo                       = "/v2/user-info"
 	kucoinGetSubAccountBalance           = "/v1/sub-accounts/"
 	kucoinGetAggregatedSubAccountBalance = "/v1/sub-accounts"
 	kucoinGetTransferableBalance         = "/v1/accounts/transferable"
@@ -865,9 +866,6 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 	default:
 		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
 	}
-	if orderType != "" {
-		params["type"] = orderType
-	}
 	resp := struct {
 		OrderID string `json:"orderId"`
 		Error
@@ -923,13 +921,15 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, 
 			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
 		}
 	case "market":
+		sum := size + funds
+		if sum <= 0 || (sum != size && sum != funds) {
+			return nil, fmt.Errorf("%w, either 'size' or 'funds' has to be set, but not both", errSizeOrFundIsRequired)
+		}
 		switch {
 		case size > 0:
 			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 		case funds > 0:
 			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
-		default:
-			return nil, errSizeOrFundIsRequired
 		}
 	default:
 		return nil, fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
@@ -1266,7 +1266,7 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 		params["access"] = access
 	}
 	var resp *SubAccount
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinSubUser, params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinSubUserCreated, params, &resp)
 }
 
 // GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-account.

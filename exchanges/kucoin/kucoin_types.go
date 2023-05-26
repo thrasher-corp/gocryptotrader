@@ -70,28 +70,6 @@ func (k kucoinTimeMilliSec) Time() time.Time {
 	return time.UnixMilli(int64(k))
 }
 
-// kucoinTimeSec provides an internal conversion helper
-type kucoinTimeSec int64
-
-// Time returns a time.Time object
-func (k kucoinTimeSec) Time() time.Time {
-	if k < 0 {
-		return time.Time{}
-	}
-	return time.Unix(int64(k), 0)
-}
-
-// kucoinTimeNanoSec provides an internal conversion helper
-type kucoinTimeNanoSec int64
-
-// Time returns a time.Time object
-func (k *kucoinTimeNanoSec) Time() time.Time {
-	if *k < 0 {
-		return time.Time{}
-	}
-	return time.Unix(0, int64(*k))
-}
-
 // SymbolInfo stores symbol information
 type SymbolInfo struct {
 	Symbol          string  `json:"symbol"`
@@ -544,7 +522,7 @@ type OrderDetail struct {
 	OrderRequest
 	Channel       string             `json:"channel"`
 	ID            string             `json:"id"`
-	OpType        string             `json:"opType"` // operation type: DEAL
+	OperationType string             `json:"opType"` // operation type: DEAL
 	Funds         string             `json:"funds"`
 	DealFunds     string             `json:"dealFunds"`
 	DealSize      float64            `json:"dealSize,string"`
@@ -655,20 +633,19 @@ type MainAccountInfo struct {
 
 // AccountSummaryInformation represents account summary information detail.
 type AccountSummaryInformation struct {
-	Level             int64 `json:"level"`
-	SubQuantity       int64 `json:"subQuantity"`
-	SubQuantityByType struct {
-		GeneralSubQuantity int64 `json:"generalSubQuantity"`
-		MarginSubQuantity  int64 `json:"marginSubQuantity"`
-		FuturesSubQuantity int64 `json:"futuresSubQuantity"`
-	} `json:"subQuantityByType"`
-	MaxSubQuantity       int64 `json:"maxSubQuantity"`
-	MaxSubQuantityByType struct {
-		MaxDefaultSubQuantity int64 `json:"maxDefaultSubQuantity"`
-		MaxGeneralSubQuantity int64 `json:"maxGeneralSubQuantity"`
-		MaxMarginSubQuantity  int64 `json:"maxMarginSubQuantity"`
-		MaxFuturesSubQuantity int64 `json:"maxFuturesSubQuantity"`
-	} `json:"maxSubQuantityByType"`
+	Data struct {
+		Level                 float64 `json:"level"`
+		SubQuantity           float64 `json:"subQuantity"`
+		MaxDefaultSubQuantity float64 `json:"maxDefaultSubQuantity"`
+		MaxSubQuantity        float64 `json:"maxSubQuantity"`
+		SpotSubQuantity       float64 `json:"spotSubQuantity"`
+		MarginSubQuantity     float64 `json:"marginSubQuantity"`
+		FuturesSubQuantity    float64 `json:"futuresSubQuantity"`
+		MaxSpotSubQuantity    float64 `json:"maxSpotSubQuantity"`
+		MaxMarginSubQuantity  float64 `json:"maxMarginSubQuantity"`
+		MaxFuturesSubQuantity float64 `json:"maxFuturesSubQuantity"`
+	} `json:"data"`
+	Code string `json:"code"`
 }
 
 // SubAccountsResponse represents a sub-accounts items response instance.
@@ -704,11 +681,10 @@ type DepositAddress struct {
 }
 
 type baseDeposit struct {
-	Currency   string  `json:"currency"`
-	Amount     float64 `json:"amount"`
-	WalletTxID string  `json:"walletTxId"`
-	IsInner    bool    `json:"isInner"`
-	Status     string  `json:"status"`
+	Currency   string `json:"currency"`
+	WalletTxID string `json:"walletTxId"`
+	IsInner    bool   `json:"isInner"`
+	Status     string `json:"status"`
 }
 
 // DepositResponse represents a detailed response for list of deposit.
@@ -1136,6 +1112,39 @@ type WsOrderbookLevel5 struct {
 	Timestamp     kucoinTimeMilliSec `json:"timestamp"`
 }
 
+// WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5.
+type WsOrderbookLevel5Response struct {
+	Timestamp     kucoinTimeMilliSec `json:"timestamp"`
+	Sequence      int64              `json:"sequence"`
+	Bids          [][2]float64       `json:"bids"`
+	Asks          [][2]float64       `json:"asks"`
+	PushTimestamp kucoinTimeMilliSec `json:"ts"`
+}
+
+// ExtractOrderbookItems returns WsOrderbookLevel5 instance from WsOrderbookLevel5Response
+func (a *WsOrderbookLevel5Response) ExtractOrderbookItems() *WsOrderbookLevel5 {
+	resp := WsOrderbookLevel5{
+		Timestamp:     a.Timestamp,
+		Sequence:      a.Sequence,
+		PushTimestamp: a.PushTimestamp,
+	}
+	resp.Asks = make([]orderbook.Item, len(a.Asks))
+	for x := range a.Asks {
+		resp.Asks[x] = orderbook.Item{
+			Price:  a.Asks[x][0],
+			Amount: a.Asks[x][1],
+		}
+	}
+	resp.Bids = make([]orderbook.Item, len(a.Bids))
+	for x := range a.Bids {
+		resp.Bids[x] = orderbook.Item{
+			Price:  a.Bids[x][0],
+			Amount: a.Bids[x][1],
+		}
+	}
+	return &resp
+}
+
 // WsFundingRate represents the funding rate push data information through the websocket channel.
 type WsFundingRate struct {
 	Symbol      string             `json:"symbol"`
@@ -1358,6 +1367,14 @@ type SubAccount struct {
 	Status    int64              `json:"status"`
 	Access    string             `json:"access"`
 	CreatedAt kucoinTimeMilliSec `json:"createdAt"`
+}
+
+// SubAccountCreatedResponse represents the sub-account response.
+type SubAccountCreatedResponse struct {
+	UID     int64  `json:"uid"`
+	SubName string `json:"subName"`
+	Remarks string `json:"remarks"`
+	Access  string `json:"access"`
 }
 
 // SpotAPISubAccount represents a Spot APIs for sub-accounts.

@@ -2077,22 +2077,18 @@ func TestPublicFuturesTickerV2PushData(t *testing.T) {
 
 func TestPublicFuturesMarketData(t *testing.T) {
 	t.Parallel()
-	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
-		if err := ku.wsHandleData([]byte(publicFuturesLevel2OrderbookPushDataJSON)); err != nil {
-			t.Error(err)
-		}
+	if err := ku.wsHandleData([]byte(publicFuturesLevel2OrderbookPushDataJSON)); err != nil {
+		t.Error(err)
 	}
 }
 
 func TestPublicFuturesExecutionData(t *testing.T) {
 	t.Parallel()
-	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
-		if err := ku.wsHandleData([]byte(publicFuturesExecutionDataJSON)); err != nil {
-			t.Error(err)
-		}
-		if err := ku.wsHandleData([]byte(publicFuturesOrderbookWithDepth5PushDataJSON)); err != nil {
-			t.Error(err)
-		}
+	if err := ku.wsHandleData([]byte(publicFuturesExecutionDataJSON)); err != nil {
+		t.Error(err)
+	}
+	if err := ku.wsHandleData([]byte(publicFuturesOrderbookWithDepth5PushDataJSON)); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -2292,38 +2288,32 @@ func TestSubmitOrder(t *testing.T) {
 		t.Errorf("Kucoin SubmitOrder() expecting %v, but found %v", asset.ErrNotSupported, err)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		orderSubmission.AssetType = asset.Spot
-		orderSubmission.Side = order.Buy
-		_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-		if err != nil {
-			t.Errorf("Kucoin SubmitOrder() %v", err)
-		}
-		orderSubmission.AssetType = asset.Spot
-		_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-		if err != nil {
-			t.Errorf("Kucoin SubmitOrder() %v", err)
-		}
+	orderSubmission.AssetType = asset.Spot
+	orderSubmission.Side = order.Buy
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
 	}
-	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		orderSubmission.AssetType = asset.Margin
-		_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-		if err != nil {
-			t.Errorf("Kucoin SubmitOrder() %v", err)
-		}
+	orderSubmission.AssetType = asset.Spot
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
 	}
-	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
-		orderSubmission.AssetType = asset.Futures
-		orderSubmission.Pair = futuresTradablePair
-		_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-		if !errors.Is(err, errInvalidLeverage) {
-			t.Errorf("Kucoin SubmitOrder() %v", err)
-		}
-		orderSubmission.Leverage = 0.01
-		_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-		if err != nil {
-			t.Errorf("Kucoin SubmitOrder() %v", err)
-		}
+	orderSubmission.AssetType = asset.Margin
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
+	}
+	orderSubmission.AssetType = asset.Futures
+	orderSubmission.Pair = futuresTradablePair
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if !errors.Is(err, errInvalidLeverage) {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
+	}
+	orderSubmission.Leverage = 0.01
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Errorf("Kucoin SubmitOrder() %v", err)
 	}
 }
 

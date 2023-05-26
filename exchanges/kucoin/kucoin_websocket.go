@@ -496,10 +496,11 @@ func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrume
 }
 
 func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument string) error {
-	resp := WsOrderbookLevel5{}
-	if err := json.Unmarshal(respData, &resp); err != nil {
+	response := WsOrderbookLevel5Response{}
+	if err := json.Unmarshal(respData, &response); err != nil {
 		return err
 	}
+	resp := response.ExtractOrderbookItems()
 	cp, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
