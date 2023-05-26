@@ -35,6 +35,8 @@ var (
 	ErrNoPositionsFound = errors.New("no positions found")
 	// ErrGetFundingDataRequired is returned when requesting funding rate data without the prerequisite
 	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
+	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
+	ErrOrderHistoryTooLarge = errors.New("order history start date too long ago")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")
@@ -393,6 +395,8 @@ type PositionsRequest struct {
 // PositionResponse are used to track open positions
 // in the order manager
 type PositionResponse struct {
+	Pair   currency.Pair
+	Asset  asset.Item
 	Orders []Detail
 }
 
@@ -402,8 +406,8 @@ type PositionSummary struct {
 	Asset          asset.Item
 	MarginType     margin.Type
 	CollateralType CollateralType
-	// BaseAsQuote means that the figures below are valued in the base currency
-	// Binance for example with CoinMarginedFutures is valued in the base currency, eg BTC
+	// The currency in which the values are quoted against. Isn't always pair.Quote
+	// eg BTC-USDC-230929's quote in GCT is 230929, but the currency should be USDC
 	Currency                     currency.Code
 	IsolatedMargin               decimal.Decimal
 	NotionalSize                 decimal.Decimal

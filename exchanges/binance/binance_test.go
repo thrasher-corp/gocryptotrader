@@ -2918,7 +2918,7 @@ func TestGetPositionSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	bb := currency.NewBTCUSDT()
-	_, err := b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err := b.GetActiveFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
@@ -2927,7 +2927,7 @@ func TestGetPositionSummary(t *testing.T) {
 	}
 
 	bb.Quote = currency.BUSD
-	_, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetActiveFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
@@ -2940,7 +2940,7 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	bb.Quote = currency.USD
-	_, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetActiveFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset:          asset.CoinMarginedFutures,
 		Pair:           p,
 		UnderlyingPair: bb,
@@ -2949,7 +2949,7 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetActiveFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset:          asset.Spot,
 		Pair:           p,
 		UnderlyingPair: bb,

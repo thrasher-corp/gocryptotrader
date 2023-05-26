@@ -2025,7 +2025,7 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 
 // GetPositionSummary returns the account's position summary for the asset type and pair
 // it can be used to calculate potential positions
-func (b *Binance) GetPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Binance) GetActiveFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
@@ -2279,7 +2279,10 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			}
 
 			for y := range result {
-				var currencyPosition order.PositionResponse
+				currencyPosition := order.PositionResponse{
+					Asset: req.Asset,
+					Pair:  req.Pairs[x],
+				}
 				timeRanges := &kline.IntervalRangeHolder{} //nolint:staticcheck // prevents need for additional nil check
 				// Binance splits up
 				timeRanges, err = kline.CalculateCandleDateRanges(req.StartDate, time.Now(), kline.OneDay, 1000)
@@ -2336,7 +2339,10 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 				return nil, fmt.Errorf("%w %v", errHedgeModeUnsupported, b.Name)
 			}
 
-			var currencyPosition order.PositionResponse
+			currencyPosition := order.PositionResponse{
+				Asset: req.Asset,
+				Pair:  req.Pairs[x],
+			}
 			timeRanges, err := kline.CalculateCandleDateRanges(req.StartDate, time.Now(), kline.OneHour, 100)
 			if err != nil {
 				return nil, err

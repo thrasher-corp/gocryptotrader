@@ -1257,7 +1257,7 @@ func TestGetNonZeroAccountBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetNonZeroBalances(contextGenerate(), ""); err != nil {
+	if _, err := ok.AccountBalance(contextGenerate(), ""); err != nil {
 		t.Error("Okx GetBalance() error", err)
 	}
 }
@@ -3171,15 +3171,15 @@ func TestChangePositionMargin(t *testing.T) {
 func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	_, err := ok.GetCollateralMode(context.Background(), asset.Spot)
+	_, err := ok.GetCollateralMode(contextGenerate(), asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
-	_, err = ok.GetCollateralMode(context.Background(), asset.CoinMarginedFutures)
+	_, err = ok.GetCollateralMode(contextGenerate(), asset.CoinMarginedFutures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
-	_, err = ok.GetCollateralMode(context.Background(), asset.USDTMarginedFutures)
+	_, err = ok.GetCollateralMode(contextGenerate(), asset.USDTMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -3188,19 +3188,19 @@ func TestGetCollateralMode(t *testing.T) {
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	err := ok.SetCollateralMode(context.Background(), asset.Spot, order.SingleCollateral)
+	err := ok.SetCollateralMode(contextGenerate(), asset.Spot, order.SingleCollateral)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
-	err = ok.SetCollateralMode(context.Background(), asset.CoinMarginedFutures, order.SingleCollateral)
+	err = ok.SetCollateralMode(contextGenerate(), asset.CoinMarginedFutures, order.SingleCollateral)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
-	err = ok.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, order.SingleCollateral)
+	err = ok.SetCollateralMode(contextGenerate(), asset.USDTMarginedFutures, order.SingleCollateral)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = ok.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, order.GlobalCollateral)
+	err = ok.SetCollateralMode(contextGenerate(), asset.USDTMarginedFutures, order.GlobalCollateral)
 	if !errors.Is(err, order.ErrCollateralInvalid) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
 	}
@@ -3210,79 +3210,71 @@ func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	bb := currency.NewBTCUSDT()
-	_, err := ok.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
-		Asset: asset.USDTMarginedFutures,
-		Pair:  bb,
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	bb.Quote = currency.BUSD
-	_, err = ok.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
-		Asset: asset.USDTMarginedFutures,
-		Pair:  bb,
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	p, err := currency.NewPairFromString("BTC-USDT-230526")
 	if err != nil {
 		t.Fatal(err)
 	}
-	bb.Quote = currency.USD
-	_, err = ok.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
-		Asset:          asset.CoinMarginedFutures,
+	ok.Verbose = true
+	resp, err := ok.GetActiveFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+		Asset:          asset.Futures,
 		Pair:           p,
-		UnderlyingPair: bb,
+		UnderlyingPair: currency.NewBTCUSDT(),
 	})
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = ok.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
-		Asset:          asset.Spot,
-		Pair:           p,
-		UnderlyingPair: bb,
-	})
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	t.Logf("%+v", resp)
 }
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	_, err := ok.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
-		Asset:     asset.USDTMarginedFutures,
-		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
-		StartDate: time.Now().Add(time.Hour * 24 * -7),
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	ok.Verbose = true
-	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	p, err := currency.NewPairFromString("BTC-USDT-230526")
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := ok.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
-		Asset:     asset.CoinMarginedFutures,
+
+	ok.Verbose = true
+	resp, err := ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRezquest{
+		Asset:     asset.Futures,
 		Pairs:     []currency.Pair{p},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%+v", a)
-	//https://testnet.binancefuture.com/dapi/v1/allOrders?limit=2&recvWindow=5000&symbol=BTCUSD_PERP&timestamp=1684820235856&signature=5dc40ae6ec30ba00104dd5119ea83563184c0e6628c38566f53fb0a490e95b9f
-	//_, err = ok.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
-	//	Asset:     asset.Spot,
-	//	Pairs:     []currency.Pair{currency.NewBTCUSDT()},
-	//	StartDate: time.Now(),
-	//})
 
+	t.Logf("%+v", resp)
+}
+
+func TestButts(t *testing.T) {
+	t.Parallel()
+	ok.Verbose = true
+	cp, err := currency.NewPairFromString("BTC-USDT-230526")
+	if err != nil {
+		t.Fatal(err)
+	}
+	instrumentType := ok.GetInstrumentTypeFromAssetItem(asset.Futures)
+	resp, err := ok.GetPositions(contextGenerate(), instrumentType, cp.String(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", resp)
+
+	resp2, err := ok.GetPositionsHistory(contextGenerate(), instrumentType, cp.String(), "", 0, 0, time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", resp2)
+
+	resp3, err := ok.Get3MonthOrderHistory(contextGenerate(), &OrderHistoryRequestParams{
+		OrderListRequestParams: OrderListRequestParams{
+			InstrumentType: instrumentType,
+			InstrumentID:   cp.String(),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", resp3)
 }

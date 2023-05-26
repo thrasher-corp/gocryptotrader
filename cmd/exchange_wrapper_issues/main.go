@@ -919,7 +919,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Pair:  p,
 		}
 		var positionSummaryResponse *order.PositionSummary
-		positionSummaryResponse, err = e.GetPositionSummary(context.TODO(), positionSummaryRequest)
+		positionSummaryResponse, err = e.GetActiveFuturesPositionSummary(context.TODO(), positionSummaryRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -927,7 +927,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			SentParams: jsonifyInterface([]interface{}{positionSummaryRequest}),
-			Function:   "GetPositionSummary",
+			Function:   "GetActiveFuturesPositionSummary",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{positionSummaryResponse}),
 		})

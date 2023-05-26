@@ -4519,12 +4519,12 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		totalUnrealisedPNL = totalUnrealisedPNL.Add(pos[i].UnrealisedPNL)
 		if r.GetPositionStats {
 			var stats *order.PositionSummary
-			stats, err = exch.GetPositionSummary(ctx, &order.PositionSummaryRequest{
+			stats, err = exch.GetActiveFuturesPositionSummary(ctx, &order.PositionSummaryRequest{
 				Asset: pos[i].Asset,
 				Pair:  pos[i].Pair,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("cannot GetPositionSummary %w %v", err, subAccount)
+				return nil, fmt.Errorf("cannot GetActiveFuturesPositionSummary %w %v", err, subAccount)
 			}
 			details.PositionStats = &gctrpc.FuturesPositionStats{
 				MaintenanceMarginRequirement: stats.MaintenanceMarginRequirement.String(),

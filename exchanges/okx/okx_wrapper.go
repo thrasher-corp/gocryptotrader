@@ -88,8 +88,9 @@ func (ok *Okx) SetDefaults() {
 	// Fill out the capabilities/features that the exchange supports
 	ok.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
+			REST:                true,
+			Websocket:           true,
+			MaximumOrderHistory: kline.OneDay.Duration() * 30,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:        true,
 				OrderbookFetching:     true,
@@ -527,7 +528,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	if !ok.SupportsAsset(assetType) {
 		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-	accountBalances, err := ok.GetNonZeroBalances(ctx, "")
+	accountBalances, err := ok.AccountBalance(ctx, "")
 	if err != nil {
 		return info, err
 	}
@@ -1519,10 +1520,12 @@ func (ok *Okx) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _
 	return fmt.Errorf("%w margin type is set per order", common.ErrFunctionNotSupported)
 }
 
+// SetCollateralMode sets the collateral type for your account
 func (ok *Okx) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralType) error {
 	return fmt.Errorf("%w must be set via website", common.ErrFunctionNotSupported)
 }
 
+// GetCollateralMode returns the collateral type for your account
 func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error) {
 	cfg, err := ok.GetAccountConfiguration(ctx)
 	if err != nil {
@@ -1598,7 +1601,8 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 	}, nil
 }
 
-func (ok *Okx) GetPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+// GetActiveFuturesPositionSummary returns position summary details for an active position
+func (ok *Okx) GetActiveFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
@@ -1612,31 +1616,68 @@ func (ok *Okx) GetPositionSummary(ctx context.Context, req *order.PositionSummar
 	if err != nil {
 		return nil, err
 	}
-	_, err := ok.GetBalance(ctx, fPair.String())
+	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+	positionSummaries, err := ok.GetPositions(ctx, instrumentType, fPair.String(), "")
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
-	resp := &order.PositionSummary{
+	var positionSummary *AccountPosition
+	for i := range positionSummaries {
+		if positionSummaries[i].QuantityOfPosition.Float64() <= 0 {
+			continue
+		}
+		positionSummary = &positionSummaries[i]
+		break
+	}
+	if positionSummary == nil {
+		return nil, fmt.Errorf("%w received '%v', no open positions found", errOnlyOneResponseExpected, len(positionSummaries))
+	}
+	marginMode := margin.Isolated
+	if positionSummary.MarginMode == "cross" {
+		marginMode = margin.Multi
+	}
+
+	acc, err := ok.AccountBalance(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	if len(acc) != 1 {
+		return nil, fmt.Errorf("%w received '%v'", errOnlyOneResponseExpected, len(acc))
+	}
+	var freeCollateral, totalCollateral decimal.Decimal
+	for i := range acc[0].Details {
+		if acc[0].Details[i].Currency != positionSummary.Currency {
+			continue
+		}
+		freeCollateral = acc[0].Details[i].AvailableBalance.Decimal()
+		totalCollateral = freeCollateral.Add(acc[0].Details[i].FrozenBalance.Decimal())
+		break
+	}
+	collateralMode, err := ok.GetCollateralMode(ctx, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	return &order.PositionSummary{
 		Pair:                         req.Pair,
 		Asset:                        req.Asset,
-		CollateralType:               order.UnknownCollateral,
-		IsolatedMargin:               decimal.Decimal{},
-		NotionalSize:                 decimal.Decimal{},
-		Leverage:                     decimal.Decimal{},
-		MaintenanceMarginRequirement: decimal.Decimal{},
-		InitialMarginRequirement:     decimal.Decimal{},
-		EstimatedLiquidationPrice:    decimal.Decimal{},
-		CollateralUsed:               decimal.Decimal{},
-		MarkPrice:                    decimal.Decimal{},
-		CurrentSize:                  decimal.Decimal{},
-		AverageOpenPrice:             decimal.Decimal{},
-		PositionPNL:                  decimal.Decimal{},
-		MaintenanceMarginFraction:    decimal.Decimal{},
-		FreeCollateral:               decimal.Decimal{},
-		TotalCollateral:              decimal.Decimal{},
-	}
-	return resp, nil
+		MarginType:                   marginMode,
+		CollateralType:               collateralMode,
+		Currency:                     currency.NewCode(positionSummary.Currency),
+		IsolatedMargin:               positionSummary.Margin.Decimal(),
+		NotionalSize:                 positionSummary.NotionalUsd.Decimal(),
+		Leverage:                     positionSummary.Leverage.Decimal(),
+		MaintenanceMarginRequirement: positionSummary.MaintenanceMarginRequirement.Decimal(),
+		InitialMarginRequirement:     positionSummary.InitialMarginRequirement.Decimal(),
+		EstimatedLiquidationPrice:    positionSummary.LiquidationPrice.Decimal(),
+		CollateralUsed:               positionSummary.NotionalUsd.Decimal(),
+		MarkPrice:                    positionSummary.MarkPrice.Decimal(),
+		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal(),
+		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
+		PositionPNL:                  positionSummary.UPNL.Decimal(),
+		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
+		FreeCollateral:               freeCollateral,
+		TotalCollateral:              totalCollateral,
+	}, nil
 }
 
 // GetFuturesPositionOrders returns the orders for futures positions
@@ -1647,39 +1688,87 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 	if !ok.SupportsAsset(req.Asset) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 	}
-	fPair, err := ok.FormatExchangeCurrency(req.Pair, req.Asset)
-	if err != nil {
-		return nil, err
+	if time.Since(req.StartDate) > ok.Features.Supports.MaximumOrderHistory {
+		return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
 	}
-	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
 
-	positions, err := ok.GetPositions(ctx, instrumentType, fPair.String(), "")
-	if err != nil {
-		return nil, err
-	}
-	resp := &order.PositionSummary{
-		Pair:                         currency.Pair{},
-		Asset:                        0,
-		MarginType:                   0,
-		CollateralType:               0,
-		Currency:                     currency.Code{},
-		IsolatedMargin:               decimal.Decimal{},
-		NotionalSize:                 decimal.Decimal{},
-		Leverage:                     decimal.Decimal{},
-		MaintenanceMarginRequirement: decimal.Decimal{},
-		InitialMarginRequirement:     decimal.Decimal{},
-		EstimatedLiquidationPrice:    decimal.Decimal{},
-		CollateralUsed:               decimal.Decimal{},
-		MarkPrice:                    decimal.Decimal{},
-		CurrentSize:                  decimal.Decimal{},
-		AverageOpenPrice:             decimal.Decimal{},
-		PositionPNL:                  decimal.Decimal{},
-		MaintenanceMarginFraction:    decimal.Decimal{},
-		FreeCollateral:               decimal.Decimal{},
-		TotalCollateral:              decimal.Decimal{},
-	}
-	for i := range positions {
+	resp := make([]order.PositionResponse, len(req.Pairs))
+	for i := range req.Pairs {
+		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
+		if err != nil {
+			return nil, err
+		}
+		instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+		resp[i] = order.PositionResponse{
+			Pair:  req.Pairs[i],
+			Asset: req.Asset,
+		}
 
+		var positions []OrderDetail
+		historyRequest := &OrderHistoryRequestParams{
+			OrderListRequestParams: OrderListRequestParams{
+				InstrumentType: instrumentType,
+				InstrumentID:   fPair.String(),
+			},
+		}
+		if time.Since(req.StartDate) <= time.Hour*24*7 {
+			positions, err = ok.Get7DayOrderHistory(ctx, historyRequest)
+		} else {
+			positions, err = ok.Get3MonthOrderHistory(ctx, historyRequest)
+		}
+		if err != nil {
+			return nil, err
+		}
+		for j := range positions {
+			if req.Pairs[i].String() != positions[j].InstrumentID {
+				continue
+			}
+			var orderStatus order.Status
+			orderStatus, err = order.StringToOrderStatus(strings.ToUpper(positions[j].State))
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
+			}
+			if orderStatus == order.Active {
+				continue
+			}
+			orderSide := positions[j].Side
+			var oType order.Type
+			oType, err = ok.OrderTypeFromString(positions[j].OrderType)
+			if err != nil {
+				return nil, err
+			}
+			orderAmount := positions[j].Size
+			if positions[j].QuantityType == "quote_ccy" {
+				// Size is quote amount.
+				orderAmount /= positions[j].AveragePrice
+			}
+
+			remainingAmount := float64(0)
+			if orderStatus != order.Filled {
+				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
+			}
+			resp[i].Orders = append(resp[i].Orders, order.Detail{
+				Price:                positions[j].Price.Float64(),
+				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
+				Amount:               orderAmount.Float64(),
+				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
+				RemainingAmount:      remainingAmount,
+				Fee:                  positions[j].TransactionFee.Float64(),
+				FeeAsset:             currency.NewCode(positions[j].FeeCurrency),
+				Exchange:             ok.Name,
+				OrderID:              positions[j].OrderID,
+				ClientOrderID:        positions[j].ClientSupplierOrderID,
+				Type:                 oType,
+				Side:                 orderSide,
+				Status:               orderStatus,
+				AssetType:            req.Asset,
+				Date:                 positions[j].CreationTime,
+				LastUpdated:          positions[j].UpdateTime,
+				Pair:                 req.Pairs[i],
+				Cost:                 positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64(),
+				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
+			})
+		}
 	}
-	return nil, nil
+	return resp, nil
 }

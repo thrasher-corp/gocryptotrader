@@ -57,7 +57,7 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
-func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (f fExchange) GetActiveFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	leet := decimal.NewFromInt(1337)
 	return &order.PositionSummary{
 		MaintenanceMarginRequirement: leet,

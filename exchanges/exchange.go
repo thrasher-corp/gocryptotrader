@@ -1473,7 +1473,7 @@ func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest
 }
 
 // GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Base) GetActiveFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

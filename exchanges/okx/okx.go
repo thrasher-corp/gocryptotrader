@@ -339,6 +339,7 @@ var (
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 	errExceedLimit                                   = errors.New("limit exceeded")
 	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
+	errOnlyOneResponseExpected                       = errors.New("multiple items returned, only one expected")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -1858,9 +1859,9 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 
 /********************************** Account endpoints ***************************************************/
 
-// GetNonZeroBalances retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
+// AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
 // Interest-free quota and discount rates are public data and not displayed on the account interface.
-func (ok *Okx) GetNonZeroBalances(ctx context.Context, currency string) ([]Account, error) {
+func (ok *Okx) AccountBalance(ctx context.Context, currency string) ([]Account, error) {
 	var resp []Account
 	params := url.Values{}
 	if currency != "" {

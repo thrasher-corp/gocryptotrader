@@ -1251,49 +1251,49 @@ type AccountDetail struct {
 	UnrealizedProfit              okxNumericalValue `json:"upl"`
 	UnrealizedCurrencyLiabilities okxNumericalValue `json:"uplLiab"`
 	StrategyEquity                okxNumericalValue `json:"stgyEq"`  // strategy equity
-	TotalEquity                   okxNumericalValue `json:"totalEq"` // Total equity in USD level
+	TotalEquity                   okxNumericalValue `json:"totalEq"` // Total equity in USD level. Appears unused
 }
 
 // AccountPosition account position.
 type AccountPosition struct {
-	AutoDeleveraging             string           `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
-	AvailablePosition            string           `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
-	AveragePrice                 string           `json:"avgPx"`
-	CreationTime                 okxUnixMilliTime `json:"cTime"`
-	Currency                     string           `json:"ccy"`
-	DeltaBS                      string           `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	DeltaPA                      string           `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
-	GammaBS                      string           `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
-	GammaPA                      string           `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
-	InitialMarginRequirement     string           `json:"imr"`     // Initial margin requirement, only applicable to cross.
-	InstrumentID                 string           `json:"instId"`
-	InstrumentType               asset.Item       `json:"instType"`
-	Interest                     string           `json:"interest"`
-	USDPrice                     string           `json:"usdPx"`
-	LastTradePrice               string           `json:"last"`
-	Leverage                     string           `json:"lever"`   // Leverage, not applicable to OPTION seller
-	Liabilities                  string           `json:"liab"`    // Liabilities, only applicable to MARGIN.
-	LiabilitiesCurrency          string           `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
-	LiquidationPrice             string           `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
-	MarkPx                       string           `json:"markPx"`
-	Margin                       string           `json:"margin"`
-	MgnMode                      string           `json:"mgnMode"`
-	MgnRatio                     string           `json:"mgnRatio"`
-	MaintenanceMarginRequirement string           `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
-	NotionalUsd                  string           `json:"notionalUsd"` // Quality of Positions -- usd
-	OptionValue                  string           `json:"optVal"`      // Option Value, only application to position.
-	QuantityOfPosition           string           `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
-	PositionCurrency             string           `json:"posCcy"`
-	PositionID                   string           `json:"posId"`
-	PositionSide                 string           `json:"posSide"`
-	ThetaBS                      string           `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	ThetaPA                      string           `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
-	TradeID                      string           `json:"tradeId"`
-	UpdatedTime                  okxUnixMilliTime `json:"uTime"`                     // Latest time position was adjusted,
-	Upl                          float64          `json:"upl,string,omitempty"`      // Unrealized profit and loss
-	UPLRatio                     float64          `json:"uplRatio,string,omitempty"` // Unrealized profit and loss ratio
-	VegaBS                       string           `json:"vegaBS"`                    // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
-	VegaPA                       string           `json:"vegaPA"`                    // vega：Greeks in coins,only applicable to OPTION
+	AutoDeleveraging             string            `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
+	AvailablePosition            string            `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
+	AveragePrice                 okxNumericalValue `json:"avgPx"`
+	CreationTime                 okxUnixMilliTime  `json:"cTime"`
+	Currency                     string            `json:"ccy"`
+	DeltaBS                      string            `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	DeltaPA                      string            `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
+	GammaBS                      string            `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
+	GammaPA                      string            `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
+	InitialMarginRequirement     okxNumericalValue `json:"imr"`     // Initial margin requirement, only applicable to cross.
+	InstrumentID                 string            `json:"instId"`
+	InstrumentType               asset.Item        `json:"instType"`
+	Interest                     okxNumericalValue `json:"interest"`
+	USDPrice                     okxNumericalValue `json:"usdPx"`
+	LastTradePrice               okxNumericalValue `json:"last"`
+	Leverage                     okxNumericalValue `json:"lever"`   // Leverage, not applicable to OPTION seller
+	Liabilities                  string            `json:"liab"`    // Liabilities, only applicable to MARGIN.
+	LiabilitiesCurrency          string            `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
+	LiquidationPrice             okxNumericalValue `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
+	MarkPrice                    okxNumericalValue `json:"markPx"`
+	Margin                       okxNumericalValue `json:"margin"`
+	MarginMode                   string            `json:"mgnMode"`
+	MarginRatio                  okxNumericalValue `json:"mgnRatio"`
+	MaintenanceMarginRequirement okxNumericalValue `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
+	NotionalUsd                  okxNumericalValue `json:"notionalUsd"` // Quality of Positions -- usd
+	OptionValue                  okxNumericalValue `json:"optVal"`      // Option Value, only application to position.
+	QuantityOfPosition           okxNumericalValue `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
+	PositionCurrency             string            `json:"posCcy"`
+	PositionID                   string            `json:"posId"`
+	PositionSide                 string            `json:"posSide"`
+	ThetaBS                      string            `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	ThetaPA                      string            `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
+	TradeID                      string            `json:"tradeId"`
+	UpdatedTime                  okxUnixMilliTime  `json:"uTime"`    // Latest time position was adjusted,
+	UPNL                         okxNumericalValue `json:"upl"`      // Unrealized profit and loss
+	UPLRatio                     okxNumericalValue `json:"uplRatio"` // Unrealized profit and loss ratio
+	VegaBS                       string            `json:"vegaBS"`   // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
+	VegaPA                       string            `json:"vegaPA"`   // vega：Greeks in coins,only applicable to OPTION
 
 	// PushTime added feature in the websocket push data.
 
