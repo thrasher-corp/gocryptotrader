@@ -230,7 +230,7 @@ func (b *Bitmex) Run(ctx context.Context) {
 	if b.Verbose {
 		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.Errorln(log.ExchangeSys, err)
 		}
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",

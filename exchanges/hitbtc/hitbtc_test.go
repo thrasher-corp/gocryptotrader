@@ -56,6 +56,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("HitBTC setup error", err)
 	}
+
+	err = h.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		log.Fatal("HitBTC setup error", err)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -161,7 +167,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	pairs, err := currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USD"})
+	pairs, err := currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USDT"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,24 +175,37 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = h.UpdateTicker(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD),
-		asset.Spot)
+	_, err = h.UpdateTicker(context.Background(), pairs[0], asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-
-	_, err = h.FetchTicker(context.Background(),
-		currency.NewPair(currency.XRP, currency.USD), asset.Spot)
+	_, err = h.FetchTicker(context.Background(), pairs[1], asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestUpdateTickers(t *testing.T) {
-	err := h.UpdateTickers(context.Background(), asset.Spot)
+	avail, err := h.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = h.CurrencyPairs.StorePairs(asset.Spot, avail, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = h.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+
+	for j := range avail {
+		_, err = h.FetchTicker(context.Background(), avail[j], asset.Spot)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -1048,5 +1067,12 @@ func TestGetHistoricTrades(t *testing.T) {
 		time.Now().Add(-time.Minute*60*199))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	if _, err := h.FetchTradablePairs(context.Background(), asset.Spot); err != nil {
+		t.Fatal(err)
 	}
 }

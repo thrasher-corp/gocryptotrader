@@ -211,7 +211,7 @@ func (w *Websocket) connectionMonitor() error {
 				if w.IsConnected() {
 					err := w.Shutdown()
 					if err != nil {
-						log.Error(log.WebsocketMgr, err)
+						log.Errorln(log.WebsocketMgr, err)
 					}
 				}
 				if w.verbose {
@@ -239,7 +239,7 @@ func (w *Websocket) connectionMonitor() error {
 				if !w.IsConnecting() && !w.IsConnected() {
 					err := w.Connect()
 					if err != nil {
-						log.Error(log.WebsocketMgr, err)
+						log.Errorln(log.WebsocketMgr, err)
 					}
 				}
 				if !timer.Stop() {

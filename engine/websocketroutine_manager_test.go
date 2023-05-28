@@ -3,7 +3,9 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -48,7 +50,7 @@ func TestWebsocketRoutineManagerSetup(t *testing.T) {
 }
 
 func TestWebsocketRoutineManagerStart(t *testing.T) {
-	var m *websocketRoutineManager
+	var m *WebsocketRoutineManager
 	err := m.Start()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
@@ -72,7 +74,7 @@ func TestWebsocketRoutineManagerStart(t *testing.T) {
 }
 
 func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
-	var m *websocketRoutineManager
+	var m *WebsocketRoutineManager
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
@@ -89,13 +91,16 @@ func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
+	for atomic.LoadInt32(&m.state) == startingState {
+		<-time.After(time.Second / 100)
+	}
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
 }
 
 func TestWebsocketRoutineManagerStop(t *testing.T) {
-	var m *websocketRoutineManager
+	var m *WebsocketRoutineManager
 	err := m.Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
@@ -258,13 +263,13 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 
 func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	t.Parallel()
-	var m *websocketRoutineManager
+	var m *WebsocketRoutineManager
 	err := m.registerWebsocketDataHandler(nil, false)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
 	}
 
-	m = new(websocketRoutineManager)
+	m = new(WebsocketRoutineManager)
 	m.shutdown = make(chan struct{})
 
 	err = m.registerWebsocketDataHandler(nil, false)
@@ -294,7 +299,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 
 	mock := stream.NewWrapper()
 	mock.ToRoutine = make(chan interface{})
-	m.started = 1
+	m.state = readyState
 	err = m.websocketDataReceiver(mock)
 	if err != nil {
 		t.Fatal(err)
@@ -314,13 +319,13 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 
 func TestSetWebsocketDataHandler(t *testing.T) {
 	t.Parallel()
-	var m *websocketRoutineManager
+	var m *WebsocketRoutineManager
 	err := m.setWebsocketDataHandler(nil)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
 	}
 
-	m = new(websocketRoutineManager)
+	m = new(WebsocketRoutineManager)
 	m.shutdown = make(chan struct{})
 
 	err = m.setWebsocketDataHandler(nil)

@@ -242,7 +242,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		}
 		err := spotWebsocket.AuthConn.SendJSONMessage(authPing)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.Errorln(log.ExchangeSys, err)
 		}
 		return nil
 	}
@@ -466,7 +466,7 @@ func (h *HUOBI) sendPingResponse(pong int64) {
 	}
 	err = spotWebsocket.Conn.SendJSONMessage(WsPong{Pong: pong})
 	if err != nil {
-		log.Error(log.ExchangeSys, err)
+		log.Errorln(log.ExchangeSys, err)
 	}
 }
 

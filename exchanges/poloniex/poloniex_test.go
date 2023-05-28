@@ -1065,3 +1065,11 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := p.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
