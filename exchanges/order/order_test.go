@@ -1260,11 +1260,11 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 
 func TestClassificationError_Error(t *testing.T) {
 	class := ClassificationError{OrderID: "1337", Exchange: "test", Err: errors.New("test error")}
-	if class.Error() != "test - OrderID: 1337 classification error: test error" {
+	if class.Error() != "Exchange test: OrderID: 1337 classification error: test error" {
 		t.Fatal("unexpected output")
 	}
 	class.OrderID = ""
-	if class.Error() != "test - classification error: test error" {
+	if class.Error() != "Exchange test: classification error: test error" {
 		t.Fatal("unexpected output")
 	}
 }
@@ -1957,5 +1957,77 @@ func TestIsValidOrderSubmissionSide(t *testing.T) {
 	}
 	if IsValidOrderSubmissionSide(CouldNotBuy) {
 		t.Error("expected false")
+	}
+}
+
+func TestAdjustBaseAmount(t *testing.T) {
+	t.Parallel()
+
+	var s *SubmitResponse
+	err := s.AdjustBaseAmount(0)
+	if !errors.Is(err, errOrderSubmitResponseIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitResponseIsNil)
+	}
+
+	s = &SubmitResponse{}
+	err = s.AdjustBaseAmount(0)
+	if !errors.Is(err, errAmountIsZero) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountIsZero)
+	}
+
+	s.Amount = 1.7777777777
+	err = s.AdjustBaseAmount(1.7777777777)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.Amount != 1.7777777777 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 1.7777777777)
+	}
+
+	s.Amount = 1.7777777777
+	err = s.AdjustBaseAmount(1.777)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.Amount != 1.777 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 1.777)
+	}
+}
+
+func TestAdjustQuoteAmount(t *testing.T) {
+	t.Parallel()
+
+	var s *SubmitResponse
+	err := s.AdjustQuoteAmount(0)
+	if !errors.Is(err, errOrderSubmitResponseIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitResponseIsNil)
+	}
+
+	s = &SubmitResponse{}
+	err = s.AdjustQuoteAmount(0)
+	if !errors.Is(err, errAmountIsZero) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountIsZero)
+	}
+
+	s.QuoteAmount = 5.222222222222
+	err = s.AdjustQuoteAmount(5.222222222222)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.QuoteAmount != 5.222222222222 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 5.222222222222)
+	}
+
+	s.QuoteAmount = 5.222222222222
+	err = s.AdjustQuoteAmount(5.22222222)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if s.QuoteAmount != 5.22222222 {
+		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 5.22222222)
 	}
 }

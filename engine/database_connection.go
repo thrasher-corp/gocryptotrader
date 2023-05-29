@@ -160,7 +160,7 @@ func (m *DatabaseConnectionManager) run(wg *sync.WaitGroup) {
 		case <-t.C:
 			err := m.checkConnection()
 			if err != nil {
-				log.Error(log.DatabaseMgr, "Database connection error:", err)
+				log.Errorln(log.DatabaseMgr, "Database connection error:", err)
 			}
 		}
 	}
@@ -186,7 +186,7 @@ func (m *DatabaseConnectionManager) checkConnection() error {
 	}
 
 	if !m.dbConn.IsConnected() {
-		log.Info(log.DatabaseMgr, "Database connection reestablished")
+		log.Infoln(log.DatabaseMgr, "Database connection reestablished")
 		m.dbConn.SetConnected(true)
 	}
 	return nil

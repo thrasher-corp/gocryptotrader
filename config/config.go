@@ -142,7 +142,7 @@ func (c *Config) CheckClientBankAccounts() {
 			err := c.BankAccounts[i].Validate()
 			if err != nil {
 				c.BankAccounts[i].Enabled = false
-				log.Warn(log.ConfigMgr, err.Error())
+				log.Warnln(log.ConfigMgr, err.Error())
 			}
 		}
 	}
@@ -1047,7 +1047,7 @@ func (c *Config) CheckBankAccountConfig() {
 			err := c.BankAccounts[x].Validate()
 			if err != nil {
 				c.BankAccounts[x].Enabled = false
-				log.Warn(log.ConfigMgr, err.Error())
+				log.Warnln(log.ConfigMgr, err.Error())
 			}
 		}
 	}
@@ -1559,7 +1559,7 @@ func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, 
 		var c *Config
 		c, err = readEncryptedConf(bytes.NewReader(fileData), key)
 		if err != nil {
-			log.Error(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
+			log.Errorln(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
 			continue
 		}
 		return c, nil
@@ -1594,7 +1594,7 @@ func (c *Config) SaveConfigToFile(configPath string) error {
 		if writer != nil {
 			err = writer.Close()
 			if err != nil {
-				log.Error(log.ConfigMgr, err)
+				log.Errorln(log.ConfigMgr, err)
 			}
 		}
 	}()
