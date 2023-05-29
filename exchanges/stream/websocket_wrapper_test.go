@@ -132,7 +132,7 @@ func TestGetAssetWebsocket(t *testing.T) {
 
 func TestWebsocketWrapper(t *testing.T) {
 	t.Parallel()
-	wsInit := WrapperWebsocket{}
+	wsInit := NewWrapper()
 	err := wsInit.Setup(&WebsocketWrapperSetup{
 		ExchangeConfig: &config.Exchange{
 			Features: &config.FeaturesConfig{
@@ -140,12 +140,17 @@ func TestWebsocketWrapper(t *testing.T) {
 			},
 			Name: "test",
 		},
+		Features: &protocol.Features{
+			Subscribe:   true,
+			Unsubscribe: true,
+		},
 	})
 	if !errors.Is(err, errWebsocketAlreadyInitialised) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
 	}
 
 	ws := *NewWrapper()
+
 	err = ws.SetProxyAddress("garbagio")
 	if err == nil {
 		t.Error("error cannot be nil")

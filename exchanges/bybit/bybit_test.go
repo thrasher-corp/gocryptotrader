@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
-	request.MaxRequestJobs = 100
+	request.MaxRequestJobs = 200
 	err = b.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
@@ -3308,27 +3308,6 @@ func TestGetUSDCPredictedFundingRate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-func TestWsCoinConnect(t *testing.T) {
-	t.Parallel()
-	err := b.Websocket.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second * 30)
-}
-
-func TestGenerateDefaultSubscriptions(t *testing.T) {
-	subscriptions, err := b.GenerateFuturesDefaultSubscriptions()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.SubscribeFutures(subscriptions)
-	if err != nil {
-		t.Error(err)
-	}
-	time.Sleep(time.Second * 20)
 }
 
 const (

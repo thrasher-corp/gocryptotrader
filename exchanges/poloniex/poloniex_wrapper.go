@@ -190,6 +190,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},
+		Features: &exch.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
