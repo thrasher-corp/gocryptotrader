@@ -7,39 +7,6 @@ import (
 	"time"
 )
 
-type gateioMilliSecTime time.Time
-
-func (a *gateioMilliSecTime) UnmarshalJSON(data []byte) error {
-	var value interface{}
-	err := json.Unmarshal(data, &value)
-	if err != nil {
-		return err
-	}
-	switch val := value.(type) {
-	case float64:
-		*a = gateioMilliSecTime(time.UnixMilli(int64(val)))
-	case int64:
-		*a = gateioMilliSecTime(time.UnixMilli(val))
-	case int32:
-		*a = gateioMilliSecTime(time.UnixMilli(int64(val)))
-	case string:
-		if val == "" {
-			return nil
-		}
-		parsedValue, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return err
-		}
-		*a = gateioMilliSecTime(time.UnixMilli(int64(parsedValue)))
-	default:
-		return fmt.Errorf("cannot unmarshal %T into gateioMilliSecTime", val)
-	}
-	return nil
-}
-
-// Time represents a time instance.
-func (a *gateioMilliSecTime) Time() time.Time { return time.Time(*a) }
-
 type gateioTime time.Time
 
 // UnmarshalJSON deserializes json, and timestamp information.
@@ -49,13 +16,14 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	var standard int64
 	switch val := value.(type) {
-	case int64:
-		*a = gateioTime(time.Unix(val, 0))
-	case int32:
-		*a = gateioTime(time.Unix(int64(val), 0))
 	case float64:
-		*a = gateioTime(time.Unix(int64(val), 0))
+		standard = int64(val)
+	case int64:
+		standard = val
+	case int32:
+		standard = int64(val)
 	case string:
 		if val == "" {
 			return nil
@@ -64,9 +32,14 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		*a = gateioTime(time.Unix(int64(parsedValue), 0))
+		standard = int64(parsedValue)
 	default:
 		return fmt.Errorf("cannot unmarshal %T into gateioTime", val)
+	}
+	if standard > 9999999999 {
+		*a = gateioTime(time.UnixMilli(standard))
+	} else {
+		*a = gateioTime(time.Unix(standard, 0))
 	}
 	return nil
 }
