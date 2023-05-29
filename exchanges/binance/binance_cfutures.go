@@ -1242,7 +1242,7 @@ func (b *Binance) GetFuturesAccountInfo(ctx context.Context) (FuturesAccountInfo
 }
 
 // FuturesChangeInitialLeverage changes initial leverage for the account
-func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol currency.Pair, leverage int64) (FuturesLeverageData, error) {
+func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (FuturesLeverageData, error) {
 	var resp FuturesLeverageData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1253,7 +1253,7 @@ func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol curre
 	if leverage < 1 || leverage > 125 {
 		return resp, errors.New("invalid leverage")
 	}
-	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, cfuturesChangeInitialLeverage, params, cFuturesDefaultRate, &resp)
 }
 

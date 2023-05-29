@@ -13,6 +13,11 @@ func NewBTCUSDT() Pair {
 	return NewPair(BTC, USDT)
 }
 
+// NewBTCUSD is a shortcut for NewPair(BTC, USD)
+func NewBTCUSD() Pair {
+	return NewPair(BTC, USD)
+}
+
 // NewPairDelimiter splits the desired currency string at delimiter, the returns
 // a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {

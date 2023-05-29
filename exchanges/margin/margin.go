@@ -10,6 +10,7 @@ func (t Type) Valid() bool {
 	return t != Unset && supported&t == t
 }
 
+// UnmarshalJSON converts json into margin type
 func (t *Type) UnmarshalJSON(d []byte) error {
 	var marginType string
 	err := json.Unmarshal(d, &marginType)
@@ -38,22 +39,13 @@ func (t Type) String() string {
 
 // Upper returns the upper case string representation of the margin type
 func (t Type) Upper() string {
-	switch t {
-	case Unset:
-		return "UNSET"
-	case Isolated:
-		return "ISOLATED"
-	case Multi:
-		return "MULTI"
-	default:
-		return "UNKNOWN"
-	}
+	return strings.ToUpper(t.String())
 }
 
 // IsValidString checks to see if the supplied string is a valid margin type
 func IsValidString(m string) bool {
 	switch strings.ToLower(m) {
-	case isolatedStr, multiStr, unsetStr:
+	case isolatedStr, multiStr, unsetStr, crossedStr, crossStr:
 		return true
 	}
 	return false
@@ -65,7 +57,7 @@ func StringToMarginType(m string) Type {
 	switch strings.ToLower(m) {
 	case isolatedStr:
 		return Isolated
-	case multiStr, crossedStr:
+	case multiStr, crossedStr, crossStr:
 		return Multi
 	case "":
 		return Unset

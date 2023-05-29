@@ -272,6 +272,7 @@ type UAccountInformationV2Data struct {
 	Positions                   []UPosition `json:"positions"`
 }
 
+// UAsset holds account asset information
 type UAsset struct {
 	Asset                  string  `json:"asset"`
 	WalletBalance          float64 `json:"walletBalance,string"`
@@ -287,6 +288,7 @@ type UAsset struct {
 	MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
 }
 
+// UPosition holds account position information
 type UPosition struct {
 	Symbol                 string      `json:"symbol"`
 	InitialMargin          float64     `json:"initialMargin,string"`

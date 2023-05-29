@@ -339,7 +339,7 @@ var (
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 	errExceedLimit                                   = errors.New("limit exceeded")
 	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
-	errOnlyOneResponseExpected                       = errors.New("multiple items returned, only one expected")
+	errOnlyOneResponseExpected                       = errors.New("one response item expected")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -2010,8 +2010,8 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string
 	return "", errNoValidResponseFromServer
 }
 
-// SetLeverage sets a leverage setting for instrument id.
-func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
+// SetLeverageRate sets a leverage setting for instrument id.
+func (ok *Okx) SetLeverageRate(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
 	if arg.InstrumentID == "" && arg.Currency == "" {
 		return nil, errors.New("either instrument id or currency is required")
 	}
@@ -2117,8 +2117,8 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 	return nil, errNoValidResponseFromServer
 }
 
-// GetLeverage retrieves leverage data for different instrument id or margin mode.
-func (ok *Okx) GetLeverage(ctx context.Context, instrumentID, marginMode string) ([]LeverageResponse, error) {
+// GetLeverageRate retrieves leverage data for different instrument id or margin mode.
+func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode string) ([]LeverageResponse, error) {
 	params := url.Values{}
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -4246,7 +4246,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		if _, okay := ctx.Value("testnet").(bool); okay {
+		if _, okay := ctx.Value(testNetKey("testnet")).(bool); okay {
 			headers["x-simulated-trading"] = "1"
 		}
 		if authenticated {

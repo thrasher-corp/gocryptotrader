@@ -583,8 +583,8 @@ func (by *Bybit) SetTradingAndStop(ctx context.Context, positionMode int64, symb
 	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetTradingStop, params, nil, &resp, futuresSetTradingStopRate)
 }
 
-// SetLeverage sets leverage
-func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) (float64, error) {
+// SetLeverageLevel sets leverage
+func (by *Bybit) SetLeverageLevel(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) (float64, error) {
 	resp := struct {
 		Result float64 `json:"result"`
 		Error

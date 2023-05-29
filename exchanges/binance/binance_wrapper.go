@@ -120,8 +120,9 @@ func (b *Binance) SetDefaults() {
 	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
+			REST:                true,
+			Websocket:           true,
+			MaximumOrderHistory: kline.OneDay.Duration() * 7,
 			RESTCapabilities: protocol.Features{
 				TickerBatching:                 true,
 				TickerFetching:                 true,
@@ -914,6 +915,9 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	var orderID string
 	status := order.New
 	var trades []order.TradeHistory
+	if s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
 	switch s.AssetType {
 	case asset.Spot, asset.Margin:
 		var sideType string
@@ -2023,9 +2027,9 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 	return "", fmt.Errorf("%w %v", margin.ErrInvalidMarginType, mt)
 }
 
-// GetPositionSummary returns the account's position summary for the asset type and pair
+// GetFuturesPositionSummary returns the account's position summary for the asset type and pair
 // it can be used to calculate potential positions
-func (b *Binance) GetActiveFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
@@ -2068,11 +2072,11 @@ func (b *Binance) GetActiveFuturesPositionSummary(ctx context.Context, req *orde
 			if usdtAsset != nil && busdAsset != nil {
 				break
 			}
-			if strings.ToUpper(ai.Assets[i].Asset) == currency.USDT.Item.Symbol {
+			if strings.EqualFold(ai.Assets[i].Asset, currency.USDT.Item.Symbol) {
 				usdtAsset = &ai.Assets[i]
 				continue
 			}
-			if strings.ToUpper(ai.Assets[i].Asset) == currency.BUSD.Item.Symbol {
+			if strings.EqualFold(ai.Assets[i].Asset, currency.BUSD.Item.Symbol) {
 				busdAsset = &ai.Assets[i]
 			}
 		}
@@ -2261,6 +2265,9 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 	if len(req.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
+	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory {
+		return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
+	}
 	var resp []order.PositionResponse
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
@@ -2283,14 +2290,17 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 					Asset: req.Asset,
 					Pair:  req.Pairs[x],
 				}
-				timeRanges := &kline.IntervalRangeHolder{} //nolint:staticcheck // prevents need for additional nil check
+				var timeRanges *kline.IntervalRangeHolder
 				// Binance splits up
 				timeRanges, err = kline.CalculateCandleDateRanges(req.StartDate, time.Now(), kline.OneDay, 1000)
 				if err != nil {
 					return nil, err
 				}
+				if timeRanges == nil {
+					return nil, fmt.Errorf("%w IntervalRangeHolder", common.ErrNilPointer)
+				}
 				for z := range timeRanges.Ranges {
-					orders := make([]UFuturesOrderData, 0, 1000)
+					var orders []UFuturesOrderData
 					orders, err = b.UAllAccountOrders(ctx, fPair, 0, 1000, timeRanges.Ranges[z].Start.Time, timeRanges.Ranges[z].End.Time)
 					if err != nil {
 						return nil, err
@@ -2349,8 +2359,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			}
 			for y := range result {
 				for z := range timeRanges.Ranges {
-					orders := make([]FuturesOrderData, 0, 1000)
-
+					var orders []FuturesOrderData
 					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, timeRanges.Ranges[z].Start.Time, timeRanges.Ranges[z].End.Time, 0, 100)
 					if err != nil {
 						return nil, err
@@ -2392,4 +2401,49 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 	}
 	return resp, nil
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair, _ currency.Pair, _ margin.Type, amount float64) error {
+	switch item {
+	case asset.USDTMarginedFutures:
+		_, err := b.UChangeInitialLeverageRequest(ctx, pair, amount)
+		return err
+	case asset.CoinMarginedFutures:
+		_, err := b.FuturesChangeInitialLeverage(ctx, pair, amount)
+		return err
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+}
+
+// GetLeverage gets the account's initial leverage for the asset type and pair
+func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair, underlyingPair currency.Pair, _ margin.Type) (float64, error) {
+	switch item {
+	case asset.USDTMarginedFutures:
+		resp, err := b.UPositionsInfoV2(ctx, pair)
+		if err != nil {
+			return -1, err
+		}
+		if len(resp) == 0 {
+			return -1, fmt.Errorf("%w %v %v", order.ErrPositionNotFound, item, pair)
+		}
+		// leverage is the same across positions
+		return resp[0].Leverage, nil
+	case asset.CoinMarginedFutures:
+		if underlyingPair.IsEmpty() {
+			return -1, order.ErrUnderlyingPairRequired
+		}
+		resp, err := b.FuturesPositionsInfo(ctx, currency.EMPTYPAIR, underlyingPair)
+		if err != nil {
+			return -1, err
+		}
+		if len(resp) == 0 {
+			return -1, fmt.Errorf("%w %v %v", order.ErrPositionNotFound, item, pair)
+		}
+		// leverage is the same across positions
+		return resp[0].Leverage, nil
+	default:
+		return -1, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
 }

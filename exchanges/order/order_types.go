@@ -25,6 +25,8 @@ var (
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
+	ErrSubmitLeverageNotSupported = errors.New("leverage is not supported via order submission")
+	ErrUnderlyingPairRequired     = errors.New("underlying pair required")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates = errors.New("no rates")
 
@@ -64,6 +66,9 @@ type Submit struct {
 	TriggerPrice  float64
 	ClientID      string // TODO: Shift to credentials
 	ClientOrderID string
+	// MarginType such as isolated or cross margin for when an exchange
+	// supports margin type definition when submitting an order eg okx
+	MarginType margin.Type
 	// RetrieveFees use if an API submit order response does not return fees
 	// enabling this will perform additional request(s) to retrieve them
 	// and set it in the SubmitResponse
@@ -93,15 +98,15 @@ type SubmitResponse struct {
 	ClientID          string
 	ClientOrderID     string
 
-	LastUpdated     time.Time
-	Date            time.Time
-	Status          Status
-	OrderID         string
-	Trades          []TradeHistory
-	Fee             float64
-	FeeAsset        currency.Code
-	Cost            float64
-	AllocatedMargin float64
+	LastUpdated time.Time
+	Date        time.Time
+	Status      Status
+	OrderID     string
+	Trades      []TradeHistory
+	Fee         float64
+	FeeAsset    currency.Code
+	Cost        float64
+	MarginType  margin.Type
 }
 
 // Modify contains all properties of an order
@@ -124,8 +129,6 @@ type Modify struct {
 	Price             float64
 	Amount            float64
 	TriggerPrice      float64
-	MarginType        margin.Type
-	AllocatedMargin   float64
 }
 
 // ModifyResponse is an order modifying return type
@@ -146,7 +149,6 @@ type ModifyResponse struct {
 	Price             float64
 	Amount            float64
 	TriggerPrice      float64
-	AllocatedMargin   float64
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable

@@ -57,7 +57,7 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
-func (f fExchange) GetActiveFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (f fExchange) GetFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	leet := decimal.NewFromInt(1337)
 	return &order.PositionSummary{
 		MaintenanceMarginRequirement: leet,
@@ -83,11 +83,8 @@ func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *order.Positi
 	tt := time.Now()
 	for i := range req.Pairs {
 		resp[i] = order.PositionResponse{
-			Exchange: f.GetName(),
-			PositionSummary: order.PositionSummary{
-				Asset: req.Asset,
-				Pair:  req.Pairs[i],
-			},
+			Asset: req.Asset,
+			Pair:  req.Pairs[i],
 			Orders: []order.Detail{
 				{
 					Exchange:        f.GetName(),

@@ -14,9 +14,9 @@ var (
 	ErrInvalidMarginType = errors.New("invalid margin type")
 	// ErrMarginTypeUnsupported returned when the margin type is unsupported
 	ErrMarginTypeUnsupported = errors.New("unsupported margin type")
-	// ErrNewAllocatedMarginRequired returned when the new allocated margin is missing
+	// ErrNewAllocatedMarginRequired returned when the new allocated margin is missing and is required
 	ErrNewAllocatedMarginRequired = errors.New("new allocated margin required")
-	// ErrOriginalPositionMarginRequired
+	// ErrOriginalPositionMarginRequired is returned when original position margin is empty and is required
 	ErrOriginalPositionMarginRequired = errors.New("original allocated margin required")
 )
 
@@ -42,18 +42,20 @@ type RateHistoryRequest struct {
 	Rates []Rate
 }
 
+// PositionChangeRequest used for wrapper functions to change margin fields for a position
 type PositionChangeRequest struct {
 	// Required fields
 	Exchange string
 	Pair     currency.Pair
 	Asset    asset.Item
-	// Optional fields depending on desired outcome
+	// Optional fields depending on desired outcome/exchange requirements
 	MarginType              Type
 	OriginalAllocatedMargin float64
 	NewAllocatedMargin      float64
 	MarginSide              string
 }
 
+// PositionChangeResponse holds response data for margin change requests
 type PositionChangeResponse struct {
 	Exchange        string
 	Pair            currency.Pair
@@ -72,6 +74,7 @@ const (
 	// Isolated means a margin trade is isolated from other margin trades
 	Isolated Type = 1 << (iota - 1)
 	// Multi means a margin trade is not isolated from other margin trades
+	// it can sometimes be referred to as "cross"
 	Multi
 	// Unknown is an unknown margin type but is not unset
 	Unknown
@@ -84,6 +87,7 @@ const (
 	isolatedStr = "isolated"
 	multiStr    = "multi"
 	crossedStr  = "crossed"
+	crossStr    = "cross"
 	unknownStr  = "unknown"
 )
 

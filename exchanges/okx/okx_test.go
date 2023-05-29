@@ -68,6 +68,10 @@ func TestMain(m *testing.M) {
 		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 		setupWS()
 	}
+	err = ok.UpdateTradablePairs(contextGenerate(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
 
@@ -76,7 +80,7 @@ func TestMain(m *testing.M) {
 func contextGenerate() context.Context {
 	ctx := context.Background()
 	if useTestNet {
-		ctx = context.WithValue(ctx, "testnet", useTestNet)
+		ctx = context.WithValue(ctx, testNetKey("testnet"), useTestNet)
 	}
 	return ctx
 }
@@ -1318,17 +1322,17 @@ func TestSetPositionMode(t *testing.T) {
 	}
 }
 
-func TestSetLeverage(t *testing.T) {
+func TestSetLeverageRate(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.SetLeverage(contextGenerate(), SetLeverageInput{
+	if _, err := ok.SetLeverageRate(contextGenerate(), SetLeverageInput{
 		Currency:     "USDT",
 		Leverage:     5,
 		MarginMode:   "cross",
 		InstrumentID: "BTC-USDT",
 	}); err != nil && !errors.Is(err, errNoValidResponseFromServer) {
-		t.Error("Okx SetLeverage() error", err)
+		t.Error("Okx SetLeverageRate() error", err)
 	}
 }
 
@@ -1365,12 +1369,12 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 	}
 }
 
-func TestGetLeverage(t *testing.T) {
+func TestGetLeverageRate(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetLeverage(contextGenerate(), "BTC-USDT", "cross"); err != nil {
-		t.Error("Okx GetLeverage() error", err)
+	if _, err := ok.GetLeverageRate(contextGenerate(), "BTC-USDT", "cross"); err != nil {
+		t.Error("Okx GetLeverageRate() error", err)
 	}
 }
 
@@ -2037,6 +2041,26 @@ func TestSubmitOrder(t *testing.T) {
 		Amount:    1000000000,
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
+	}
+	_, err = ok.SubmitOrder(contextGenerate(), orderSubmission)
+	if err != nil {
+		t.Error("Okx SubmitOrder() error", err)
+	}
+
+	cp, err := currency.NewPairFromString("BTC-USDT-230630")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderSubmission = &order.Submit{
+		Pair:       cp,
+		Exchange:   ok.Name,
+		Side:       order.Buy,
+		Type:       order.Market,
+		Amount:     1,
+		ClientID:   "hellomoto",
+		AssetType:  asset.Futures,
+		MarginType: margin.Multi,
 	}
 	_, err = ok.SubmitOrder(contextGenerate(), orderSubmission)
 	if err != nil {
@@ -3090,7 +3114,6 @@ func TestGetServerTime(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	if _, err := ok.GetAvailableTransferChains(contextGenerate(), currency.BTC); err != nil {
 		t.Error(err)
 	}
@@ -3145,16 +3168,15 @@ func TestGetIntervalEnum(t *testing.T) {
 
 func TestSetMarginType(t *testing.T) {
 	t.Parallel()
-	err := ok.SetMarginType(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT), margin.Isolated)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
+	err := ok.SetMarginType(context.Background(), asset.Spot, currency.NewBTCUSDT(), margin.Isolated)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	ok.Verbose = true
 	cp, _ := currency.NewPairFromString("eth/btc")
 	_, err := ok.ChangePositionMargin(contextGenerate(), &margin.PositionChangeRequest{
 		Pair:                    cp,
@@ -3172,16 +3194,16 @@ func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetCollateralMode(contextGenerate(), asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
-	_, err = ok.GetCollateralMode(contextGenerate(), asset.CoinMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
-	_, err = ok.GetCollateralMode(contextGenerate(), asset.USDTMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	_, err = ok.GetCollateralMode(contextGenerate(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	_, err = ok.GetCollateralMode(contextGenerate(), asset.USDTMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
 
@@ -3189,92 +3211,95 @@ func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	err := ok.SetCollateralMode(contextGenerate(), asset.Spot, order.SingleCollateral)
-	if !errors.Is(err, asset.ErrNotSupported) {
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
-	err = ok.SetCollateralMode(contextGenerate(), asset.CoinMarginedFutures, order.SingleCollateral)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
-	err = ok.SetCollateralMode(contextGenerate(), asset.USDTMarginedFutures, order.SingleCollateral)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
-	err = ok.SetCollateralMode(contextGenerate(), asset.USDTMarginedFutures, order.GlobalCollateral)
-	if !errors.Is(err, order.ErrCollateralInvalid) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
 	}
 }
 
 func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	p, err := currency.NewPairFromString("BTC-USDT-230526")
+	pp, err := ok.CurrencyPairs.GetPairs(asset.Futures, true)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	ok.Verbose = true
-	resp, err := ok.GetActiveFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
 		Asset:          asset.Futures,
-		Pair:           p,
-		UnderlyingPair: currency.NewBTCUSDT(),
+		Pair:           pp[0],
+		UnderlyingPair: currency.EMPTYPAIR,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%+v", resp)
+
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+		Asset:          asset.Spot,
+		Pair:           pp[0],
+		UnderlyingPair: currency.NewBTCUSDT(),
+	})
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	}
 }
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	p, err := currency.NewPairFromString("BTC-USDT-230526")
+	pp, err := ok.CurrencyPairs.GetPairs(asset.Futures, true)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
-	ok.Verbose = true
-	resp, err := ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRezquest{
+	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRequest{
 		Asset:     asset.Futures,
-		Pairs:     []currency.Pair{p},
+		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	t.Logf("%+v", resp)
+	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRequest{
+		Asset:     asset.Spot,
+		Pairs:     []currency.Pair{pp[0]},
+		StartDate: time.Now().Add(time.Hour * 24 * -7),
+	})
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
 }
 
-func TestButts(t *testing.T) {
+func TestGetLeverage(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
-	cp, err := currency.NewPairFromString("BTC-USDT-230526")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	pp, err := ok.CurrencyPairs.GetPairs(asset.Futures, true)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	instrumentType := ok.GetInstrumentTypeFromAssetItem(asset.Futures)
-	resp, err := ok.GetPositions(contextGenerate(), instrumentType, cp.String(), "")
+	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], currency.EMPTYPAIR, margin.Multi)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	t.Logf("%+v", resp)
 
-	resp2, err := ok.GetPositionsHistory(contextGenerate(), instrumentType, cp.String(), "", 0, 0, time.Time{}, time.Time{})
-	if err != nil {
-		t.Fatal(err)
+	_, err = ok.GetLeverage(contextGenerate(), asset.Spot, pp[0], currency.EMPTYPAIR, margin.Multi)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
-	t.Logf("%+v", resp2)
+}
 
-	resp3, err := ok.Get3MonthOrderHistory(contextGenerate(), &OrderHistoryRequestParams{
-		OrderListRequestParams: OrderListRequestParams{
-			InstrumentType: instrumentType,
-			InstrumentID:   cp.String(),
-		},
-	})
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	pp, err := ok.CurrencyPairs.GetPairs(asset.Futures, true)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	t.Logf("%+v", resp3)
+	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], currency.EMPTYPAIR, margin.Multi, 5)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], currency.EMPTYPAIR, margin.Multi, 5)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
 }

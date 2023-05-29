@@ -129,11 +129,8 @@ func (f omfExchange) GetFuturesPositionOrders(_ context.Context, req *order.Posi
 	tt := time.Now()
 	for i := range req.Pairs {
 		resp[i] = order.PositionResponse{
-			Exchange: f.GetName(),
-			PositionSummary: order.PositionSummary{
-				Asset: req.Asset,
-				Pair:  req.Pairs[i],
-			},
+			Asset: req.Asset,
+			Pair:  req.Pairs[i],
 			Orders: []order.Detail{
 				{
 					Exchange:        f.GetName(),
@@ -1625,11 +1622,8 @@ func TestProcessFuturesPositions(t *testing.T) {
 	}
 
 	position := &order.PositionResponse{
-		Exchange: b.Name,
-		PositionSummary: order.PositionSummary{
-			Asset: asset.Spot,
-			Pair:  cp,
-		},
+		Asset:  asset.Spot,
+		Pair:   cp,
 		Orders: nil,
 	}
 	err = o.processFuturesPositions(fakeExchange, position)

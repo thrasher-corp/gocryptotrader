@@ -1472,8 +1472,8 @@ func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetPositionSummary returns stats for a future position
-func (b *Base) GetActiveFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+// GetFuturesPositionSummary returns stats for a future position
+func (b *Base) GetFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1482,7 +1482,7 @@ func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequ
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFuturesPositions returns futures positions for all currencies
+// GetFuturesPositionOrders returns futures positions for supplied currencies
 func (b *Base) GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
@@ -1639,11 +1639,21 @@ func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (order.Collate
 }
 
 // SetMarginType sets the account's margin type for the asset type
-func (b *Base) SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error {
+func (b *Base) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) error {
 	return common.ErrFunctionNotSupported
 }
 
 // ChangePositionMargin changes the margin type for a position
-func (b *Base) ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+func (b *Base) ChangePositionMargin(_ context.Context, _ *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _, _ currency.Pair, _ margin.Type, _ float64) error {
+	return common.ErrFunctionNotSupported
+}
+
+// GetLeverage gets the account's initial leverage for the asset type and pair
+func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _, _ currency.Pair, _ margin.Type) (float64, error) {
+	return -1, common.ErrFunctionNotSupported
 }

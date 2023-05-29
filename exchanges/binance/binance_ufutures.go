@@ -889,7 +889,7 @@ func (b *Binance) UAccountInformationV2(ctx context.Context) (UAccountInformatio
 }
 
 // UChangeInitialLeverageRequest sends a request to change account's initial leverage
-func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol currency.Pair, leverage int64) (UChangeInitialLeverage, error) {
+func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol currency.Pair, leverage float64) (UChangeInitialLeverage, error) {
 	var resp UChangeInitialLeverage
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -900,7 +900,7 @@ func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol curr
 	if leverage < 1 || leverage > 125 {
 		return resp, errors.New("invalid leverage")
 	}
-	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesChangeInitialLeverage, params, uFuturesDefaultRate, &resp)
 }
 
@@ -983,8 +983,8 @@ func (b *Binance) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPositionInfo, params, uFuturesDefaultRate, &resp)
 }
 
+// UGetCommissionRates returns the commission rates for USDTMarginedFutures
 func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair) ([]UPositionInformationV2, error) {
-	// commissionRate
 	var resp []UPositionInformationV2
 	params := url.Values{}
 	if !symbol.IsEmpty() {

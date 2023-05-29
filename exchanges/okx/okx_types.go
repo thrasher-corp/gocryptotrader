@@ -63,6 +63,11 @@ const (
 	operationLogin       = "login"
 )
 
+// testNetKey this key is designed for using the testnet endpoints
+// setting context.WithValue(ctx, testNetKey("testnet"), useTestNet)
+// will ensure the appropriate headers are sent to OKx to use the testnet
+type testNetKey string
+
 // Market Data Endoints
 
 // TickerResponse represents the market data endpoint ticker detail
@@ -295,12 +300,12 @@ type Instrument struct {
 	ContractType                    string            `json:"ctType"`
 	Alias                           string            `json:"alias"`
 	State                           string            `json:"state"`
-	MaxQuantityOfSpotLimitOrder     float64           `json:"maxLmtSz,string"`
-	MaxQuantityOfMarketLimitOrder   float64           `json:"maxMktSz,string"`
-	MaxQuantityOfSpotTwapLimitOrder float64           `json:"maxTwapSz,string"`
-	MaxSpotIcebergSize              float64           `json:"maxIcebergSz,string"`
-	MaxTriggerSize                  float64           `json:"maxTriggerSz,string"`
-	MaxStopSize                     float64           `json:"maxStopSz,string"`
+	MaxQuantityOfSpotLimitOrder     okxNumericalValue `json:"maxLmtSz"`
+	MaxQuantityOfMarketLimitOrder   okxNumericalValue `json:"maxMktSz"`
+	MaxQuantityOfSpotTwapLimitOrder okxNumericalValue `json:"maxTwapSz"`
+	MaxSpotIcebergSize              okxNumericalValue `json:"maxIcebergSz"`
+	MaxTriggerSize                  okxNumericalValue `json:"maxTriggerSz"`
+	MaxStopSize                     okxNumericalValue `json:"maxStopSz"`
 }
 
 // DeliveryHistoryDetail holds instrument id and delivery price information detail
@@ -1412,19 +1417,19 @@ type PositionMode struct {
 
 // SetLeverageInput represents set leverage request input
 type SetLeverageInput struct {
-	Leverage     int    `json:"lever,string"`     // set leverage for isolated
-	MarginMode   string `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
-	InstrumentID string `json:"instId,omitempty"` // Optional:
-	Currency     string `json:"ccy,omitempty"`    // Optional:
-	PositionSide string `json:"posSide,omitempty"`
+	Leverage     float64 `json:"lever,string"`     // set leverage for isolated
+	MarginMode   string  `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
+	InstrumentID string  `json:"instId,omitempty"` // Optional:
+	Currency     string  `json:"ccy,omitempty"`    // Optional:
+	PositionSide string  `json:"posSide,omitempty"`
 }
 
 // SetLeverageResponse represents set leverage response
 type SetLeverageResponse struct {
-	Leverage     string `json:"lever"`
-	MarginMode   string `json:"mgnMode"` // Margin Mode "cross" and "isolated"
-	InstrumentID string `json:"instId"`
-	PositionSide string `json:"posSide"` // "long", "short", and "net"
+	Leverage     okxNumericalValue `json:"lever"`
+	MarginMode   string            `json:"mgnMode"` // Margin Mode "cross" and "isolated"
+	InstrumentID string            `json:"instId"`
+	PositionSide string            `json:"posSide"` // "long", "short", and "net"
 }
 
 // MaximumBuyAndSell get maximum buy , sell amount or open amount
@@ -1465,10 +1470,10 @@ type IncreaseDecreaseMargin struct {
 
 // LeverageResponse instrument id leverage response.
 type LeverageResponse struct {
-	InstrumentID string `json:"instId"`
-	MarginMode   string `json:"mgnMode"`
-	PositionSide string `json:"posSide"`
-	Leverage     uint   `json:"lever,string"`
+	InstrumentID string            `json:"instId"`
+	MarginMode   string            `json:"mgnMode"`
+	PositionSide string            `json:"posSide"`
+	Leverage     okxNumericalValue `json:"lever"`
 }
 
 // MaximumLoanInstrument represents maximum loan of an instrument id.

@@ -390,6 +390,7 @@ type FuturesAccountInformation struct {
 	UpdateTime  time.Time                           `json:"updateTime"`
 }
 
+// FuturesAccountAsset holds account asset information
 type FuturesAccountAsset struct {
 	Asset                  string  `json:"asset"`
 	WalletBalance          float64 `json:"walletBalance,string"`

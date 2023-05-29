@@ -148,10 +148,12 @@ type FuturesManagement interface {
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	order.PNLCalculation
 
-	GetActiveFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
+	GetFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
 	GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error)
 	SetCollateralMode(ctx context.Context, item asset.Item, mode order.CollateralType) error
 	GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error)
+	SetLeverage(ctx context.Context, item asset.Item, pair, underlyingPair currency.Pair, marginType margin.Type, amount float64) error
+	GetLeverage(ctx context.Context, item asset.Item, pair, underlyingPair currency.Pair, marginType margin.Type) (float64, error)
 }
 
 // MarginManagement manages margin positions and rates
