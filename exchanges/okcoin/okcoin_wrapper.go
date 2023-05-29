@@ -343,33 +343,31 @@ func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	for p := range enabledPairs {
-		for i := range tickers {
-			cp, err := currency.NewPairFromString(tickers[i].InstrumentID)
-			if err != nil {
-				return err
-			}
-			if !enabledPairs[p].Equal(cp) {
-				continue
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tickers[i].LastTradedPrice,
-				High:         tickers[i].High24H,
-				Bid:          tickers[i].BestBidPrice,
-				BidSize:      tickers[i].BestBidSize,
-				Ask:          tickers[i].BestAskPrice,
-				AskSize:      tickers[i].BestAskPrice,
-				QuoteVolume:  tickers[i].VolCcy24H,
-				LastUpdated:  tickers[i].Timestamp.Time(),
-				Volume:       tickers[i].Vol24H,
-				Open:         tickers[i].Open24H,
-				AssetType:    asset.Spot,
-				ExchangeName: o.Name,
-				Pair:         cp,
-			})
-			if err != nil {
-				return err
-			}
+	for i := range tickers {
+		cp, err := o.Config.AvailablePairs.DeriveFrom(tickers[i].InstrumentID)
+		if err != nil {
+			return err
+		}
+		if !enabledPairs.Contains(cp, true) {
+			continue
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tickers[i].LastTradedPrice,
+			High:         tickers[i].High24H,
+			Bid:          tickers[i].BestBidPrice,
+			BidSize:      tickers[i].BestBidSize,
+			Ask:          tickers[i].BestAskPrice,
+			AskSize:      tickers[i].BestAskPrice,
+			QuoteVolume:  tickers[i].VolCcy24H,
+			LastUpdated:  tickers[i].Timestamp.Time(),
+			Volume:       tickers[i].Vol24H,
+			Open:         tickers[i].Open24H,
+			AssetType:    asset.Spot,
+			ExchangeName: o.Name,
+			Pair:         cp,
+		})
+		if err != nil {
+			return err
 		}
 	}
 	return nil

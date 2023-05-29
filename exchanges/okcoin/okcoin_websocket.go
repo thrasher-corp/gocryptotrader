@@ -1,6 +1,7 @@
 package okcoin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+var pongBytes = []byte("pong")
 
 const (
 	// Public endpoint subscriptions
@@ -123,10 +126,7 @@ func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 		Message:     []byte("ping"),
 		MessageType: websocket.TextMessage,
 	})
-	systemTime, err := o.GetSystemTime(context.Background())
-	if err != nil {
-		systemTime = time.Now().UTC()
-	}
+	systemTime := time.Now().UTC()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(strconv.FormatInt(systemTime.UTC().Unix(), 10)+http.MethodGet+signPath),
@@ -194,14 +194,7 @@ func (o *OKCoin) WsReadData() {
 			}
 			err = o.WsHandleData(data.Raw)
 			if err != nil {
-				select {
-				case o.Websocket.DataHandler <- err:
-				default:
-					log.Errorf(log.WebsocketMgr,
-						"%s websocket handle data error: %v",
-						o.Name,
-						err)
-				}
+				o.Websocket.DataHandler <- err
 			}
 		}
 	}
@@ -209,7 +202,7 @@ func (o *OKCoin) WsReadData() {
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (o *OKCoin) WsHandleData(respRaw []byte) error {
-	if string(respRaw) == "pong" {
+	if bytes.Equal(respRaw, pongBytes) {
 		return nil
 	}
 	var dataResponse WebsocketDataResponse
@@ -327,7 +320,7 @@ func (o *OKCoin) wsProcessOrders(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(resp.Arg.InstID)
+	cp, err := currency.NewPairFromString(resp.Arg.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -394,7 +387,7 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	cp, err := currency.NewPairFromString(resp.Arg.InstID)
+	cp, err := currency.NewPairFromString(resp.Arg.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -430,7 +423,7 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 			base.Bids[b].Price = resp.Data[0].Bids[b][1].Float64()
 		}
 		var signedChecksum uint32
-		signedChecksum, err = o.CalculatePartialOrderbookChecksum(&resp.Data[0])
+		signedChecksum, err = o.CalculateChecksum(&resp.Data[0])
 		if err != nil {
 			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 		}
@@ -556,12 +549,13 @@ func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	tickers := make([]ticker.Price, len(response))
 	for x := range response {
 		pair, err := currency.NewPairFromString(response[x].InstrumentID)
 		if err != nil {
 			return err
 		}
-		o.Websocket.DataHandler <- &ticker.Price{
+		tickers[x] = ticker.Price{
 			AssetType:    asset.Spot,
 			Last:         response[x].Last,
 			Open:         response[x].Open24H,
@@ -578,6 +572,7 @@ func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
 			Pair:         pair,
 		}
 	}
+	o.Websocket.DataHandler <- tickers
 	return nil
 }
 
@@ -625,8 +620,7 @@ func (o *OKCoin) wsProcessCandles(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-
-	candlesticks, err := response.GetCandlesData(o.Name)
+	candlesticks, err := o.GetCandlesData(&response)
 	if err != nil {
 		return err
 	}
@@ -652,12 +646,13 @@ func (o *OKCoin) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.It
 	return items, nil
 }
 
-// CalculatePartialOrderbookChecksum alternates over the first 25 bid and ask
+// CalculateChecksum alternates over the first 25 bid and ask
 // entries from websocket data. The checksum is made up of the price and the
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKCoin) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) (uint32, error) {
+func (o *OKCoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (uint32, error) {
+	orderbookData.prepareOrderbook()
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
@@ -681,115 +676,86 @@ func (o *OKCoin) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrder
 	return crc32.ChecksumIEEE([]byte(checksumStr)), nil
 }
 
-// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
-// entries of a merged orderbook. The checksum is made up of the price and the
-// quantity with a semicolon (:) deliminating them. This will also work when
-// there are less than 25 entries (for whatever reason)
-// eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKCoin) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Update) uint32 {
-	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
-		if len(orderbookData.Bids)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + currency.ColonDelimiter + amount + currency.ColonDelimiter)
-		}
-		if len(orderbookData.Asks)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + currency.ColonDelimiter + amount + currency.ColonDelimiter)
-		}
-	}
-	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
-	return crc32.ChecksumIEEE([]byte(checksumStr))
-}
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
 func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	assets := o.GetAssetTypes(true)
-	for x := range assets {
-		if assets[x] != asset.Spot {
-			continue
-		}
-		pairs, err := o.GetEnabledPairs(assets[x])
-		if err != nil {
-			return nil, err
-		}
-		spotFormat, err := o.GetPairFormat(assets[x], true)
-		if err != nil {
-			return nil, err
-		}
-		pairs = pairs.Format(spotFormat)
-		channels := defaultSubscriptions
-		if o.Websocket.CanUseAuthenticatedEndpoints() {
-			channels = append(
-				channels,
-				wsAccount,
-				wsOrder,
-				wsOrdersAlgo,
-				wsAlgoAdvance,
-			)
-		}
-		for s := range channels {
-			switch channels[s] {
-			case wsInstruments:
+	pairs, err := o.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	spotFormat, err := o.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	pairs = pairs.Format(spotFormat)
+	channels := defaultSubscriptions
+	if o.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(
+			channels,
+			wsAccount,
+			wsOrder,
+			wsOrdersAlgo,
+			wsAlgoAdvance,
+		)
+	}
+	for s := range channels {
+		switch channels[s] {
+		case wsInstruments:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: channels[s],
+				Asset:   asset.Spot,
+			})
+		case wsTickers, wsTrades, wsOrderbooks, wsOrderbooksL5, wsOrderbookL1, wsOrderbookTickByTickL50,
+			wsOrderbookTickByTickL400, wsCandle3M, wsCandle1M, wsCandle1W, wsCandle1D,
+			wsCandle2D, wsCandle3D, wsCandle5D,
+			wsCandle12H, wsCandle6H, wsCandle4H, wsCandle2H, wsCandle1H, wsCandle30m, wsCandle15m,
+			wsCandle5m, wsCandle3m, wsCandle1m, wsCandle3Mutc, wsCandle1Mutc, wsCandle1Wutc, wsCandle1Dutc,
+			wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc:
+			for p := range pairs {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel: channels[s],
-					Asset:   assets[x],
+					Channel:  channels[s],
+					Currency: pairs[p],
 				})
-			case wsTickers, wsTrades, wsOrderbooks, wsOrderbooksL5, wsOrderbookL1, wsOrderbookTickByTickL50,
-				wsOrderbookTickByTickL400, wsCandle3M, wsCandle1M, wsCandle1W, wsCandle1D,
-				wsCandle2D, wsCandle3D, wsCandle5D,
-				wsCandle12H, wsCandle6H, wsCandle4H, wsCandle2H, wsCandle1H, wsCandle30m, wsCandle15m,
-				wsCandle5m, wsCandle3m, wsCandle1m, wsCandle3Mutc, wsCandle1Mutc, wsCandle1Wutc, wsCandle1Dutc,
-				wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc:
-				for p := range pairs {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  channels[s],
-						Currency: pairs[p],
-					})
-				}
-			case wsStatus:
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel: channels[s],
-				})
-			case wsAccount:
-				currenciesMap := map[currency.Code]bool{}
-				for p := range pairs {
-					if reserved, okay := currenciesMap[pairs[p].Base]; !okay && !reserved {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
-							Channel: channels[s],
-							Params: map[string]interface{}{
-								"ccy": pairs[p].Base,
-							},
-						})
-						currenciesMap[pairs[p].Base] = true
-					}
-				}
-				for p := range pairs {
-					if reserved, okay := currenciesMap[pairs[p].Quote]; !okay && !reserved {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
-							Channel: channels[s],
-							Params: map[string]interface{}{
-								"ccy": pairs[p].Quote,
-							},
-						})
-						currenciesMap[pairs[p].Quote] = true
-					}
-				}
-			case wsOrder, wsOrdersAlgo, wsAlgoAdvance:
-				for p := range pairs {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  channels[s],
-						Currency: pairs[p],
-						Asset:    assets[x],
-					})
-				}
-			default:
-				return nil, errors.New("unsupported websocket channel")
 			}
+		case wsStatus:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: channels[s],
+			})
+		case wsAccount:
+			currenciesMap := map[currency.Code]bool{}
+			for p := range pairs {
+				if reserved, okay := currenciesMap[pairs[p].Base]; !okay && !reserved {
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel: channels[s],
+						Params: map[string]interface{}{
+							"ccy": pairs[p].Base,
+						},
+					})
+					currenciesMap[pairs[p].Base] = true
+				}
+			}
+			for p := range pairs {
+				if reserved, okay := currenciesMap[pairs[p].Quote]; !okay && !reserved {
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel: channels[s],
+						Params: map[string]interface{}{
+							"ccy": pairs[p].Quote,
+						},
+					})
+					currenciesMap[pairs[p].Quote] = true
+				}
+			}
+		case wsOrder, wsOrdersAlgo, wsAlgoAdvance:
+			for p := range pairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  channels[s],
+					Currency: pairs[p],
+					Asset:    asset.Spot,
+				})
+			}
+		default:
+			return nil, errors.New("unsupported websocket channel")
 		}
 	}
 	return subscriptions, nil

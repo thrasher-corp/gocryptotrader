@@ -2,42 +2,50 @@ package okcoin
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 )
 
-type okcoinMilliSec time.Time
+type okcoinTime time.Time
 
 // UnmarshalJSON deserializes timestamp information to time.Time
-func (o *okcoinMilliSec) UnmarshalJSON(data []byte) error {
+func (o *okcoinTime) UnmarshalJSON(data []byte) error {
 	var timeMilliSecond interface{}
 	err := json.Unmarshal(data, &timeMilliSecond)
 	if err != nil {
 		return err
 	}
+	var timestamp int64
 	switch value := timeMilliSecond.(type) {
 	case string:
 		if value == "" {
-			*o = okcoinMilliSec(time.Time{})
+			*o = okcoinTime(time.Time{})
 			return nil
 		}
-		timeInteger, err := strconv.ParseInt(value, 10, 64)
+		timestamp, err = strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return err
 		}
-		*o = okcoinMilliSec(time.UnixMilli(timeInteger))
 	case int64:
-		*o = okcoinMilliSec(time.UnixMilli(value))
+		timestamp = value
 	case float64:
-		*o = okcoinMilliSec(time.UnixMilli(int64(value)))
+		timestamp = int64(value)
 	case float32:
-		*o = okcoinMilliSec(time.UnixMilli(int64(value)))
+		timestamp = int64(value)
+	default:
+		return fmt.Errorf("cannot unmarshal %T into okcoinTime", value)
+	}
+	if timestamp > 9999999999 {
+		*o = okcoinTime(time.UnixMilli(timestamp))
+	} else {
+		*o = okcoinTime(time.Unix(timestamp, 0))
 	}
 	return nil
 }
 
 // Time returns a time.Time instance from okcoinMilliSec instance
-func (o *okcoinMilliSec) Time() time.Time {
+func (o *okcoinTime) Time() time.Time {
 	return time.Time(*o)
 }
 

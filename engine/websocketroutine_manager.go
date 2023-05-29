@@ -234,6 +234,24 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			return err
 		}
 		m.syncer.PrintTickerSummary(d, "websocket", err)
+	case []ticker.Price:
+		for x := range d {
+			if m.syncer.IsRunning() {
+				err := m.syncer.Update(exchName,
+					d[x].Pair,
+					d[x].AssetType,
+					SyncItemTicker,
+					nil)
+				if err != nil {
+					return err
+				}
+			}
+			err := ticker.ProcessTicker(&d[x])
+			if err != nil {
+				return err
+			}
+			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
+		}
 	case stream.KlineData:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",

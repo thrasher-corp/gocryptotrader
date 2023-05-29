@@ -101,7 +101,7 @@ func (o *OKCoin) GetInstruments(ctx context.Context, instrumentType, instrumentI
 // GetSystemStatus system maintenance status,scheduled: waiting; ongoing: processing; pre_open: pre_open; completed: completed ;canceled: canceled.
 // Generally, pre_open last about 10 minutes. There will be pre_open when the time of upgrade is too long.
 // If this parameter is not filled, the data with status scheduled, ongoing and pre_open will be returned by default
-func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) (interface{}, error) {
+func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) ([]SystemStatus, error) {
 	params := url.Values{}
 	if state != "" {
 		params.Set("state", state)
@@ -113,7 +113,7 @@ func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) (interface{}
 // GetSystemTime retrieve API server time.
 func (o *OKCoin) GetSystemTime(ctx context.Context) (time.Time, error) {
 	timestampResponse := []struct {
-		Timestamp okcoinMilliSec `json:"ts"`
+		Timestamp okcoinTime `json:"ts"`
 	}{}
 	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, typePublic, "time", nil, &timestampResponse, false)
 	if err != nil {
@@ -134,6 +134,9 @@ func (o *OKCoin) GetTickers(ctx context.Context, instrumentType string) ([]Ticke
 
 // GetTicker retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
 func (o *OKCoin) GetTicker(ctx context.Context, instrumentID string) (*TickerData, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
 	var resp []TickerData
 	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getTickerEPL, http.MethodGet, typeMarket, "ticker"+"?instId="+instrumentID, nil, &resp, false)
 	if err != nil {
@@ -557,7 +560,7 @@ func (o *OKCoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningW
 		return nil, errors.New("missing invoice text")
 	}
 	var resp []LightningWithdrawals
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, postLightningWithdrawalEPL, http.MethodPost, typeAssets, "withdrawal-lightning", arg, resp, true)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, postLightningWithdrawalEPL, http.MethodPost, typeAssets, "withdrawal-lightning", arg, &resp, true)
 }
 
 // CancelWithdrawal cancel normal withdrawal requests, but you cannot cancel withdrawal requests on Lightning.
@@ -617,17 +620,16 @@ func (o *OKCoin) GetAccountBalance(ctx context.Context, currencies ...currency.C
 	params := url.Values{}
 	if len(currencies) > 0 {
 		currencyString := ""
-		found := false
-		for x := range currencies {
-			if found {
+		var x int
+		for x = range currencies {
+			if x > 0 {
 				currencyString += ","
 			}
-			if !currencies[x].IsEmpty() {
-				currencyString += currencies[x].String()
-				found = true
+			if currencies[x].IsEmpty() {
+				return nil, currency.ErrCurrencyPairEmpty
 			}
 		}
-		if found {
+		if len(currencies) > 0 {
 			params.Set("ccy", currencyString)
 		}
 	}
@@ -740,6 +742,8 @@ func (o *OKCoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMod
 	params := url.Values{}
 	if len(instrumentIDs) == 0 {
 		return nil, errMissingInstrumentID
+	} else if len(instrumentIDs) > 5 {
+		return nil, errors.New("instrument IDs can not be more than 5")
 	}
 	params.Set("instId", strings.Join(instrumentIDs, ","))
 	if tradeMode == "" {
@@ -966,7 +970,7 @@ func (o *OKCoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) 
 	var resp []struct {
 		WithdrawalID string `json:"wdId"`
 	}
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, fiatCancelWithdrawalEPL, http.MethodPost, typeFiat, "cancel-withdrawal", &map[string]string{"wdId": withdrawalID}, &resp, true)
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, fiatCancelWithdrawalEPL, http.MethodPost, typeFiat, "cancel-withdrawal", map[string]string{"wdId": withdrawalID}, &resp, true)
 	if err != nil {
 		return "", err
 	}
@@ -1047,7 +1051,7 @@ func (o *OKCoin) PlaceOrder(ctx context.Context, arg *PlaceTradeOrderParam) (*Tr
 		return nil, err
 	}
 	var resp []TradeOrderResponse
-	err = o.SendHTTPRequest(ctx, exchange.RestSpot, placeTradeOrderEPL, http.MethodPost, typeTrade, "order", &arg, &resp, true)
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, placeTradeOrderEPL, http.MethodPost, typeTrade, "order", arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1088,7 +1092,7 @@ func (o *OKCoin) CancelTradeOrder(ctx context.Context, arg *CancelTradeOrderRequ
 		return nil, errOrderIDOrClientOrderIDRequired
 	}
 	var resp []TradeOrderResponse
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, cancelTradeOrderEPL, http.MethodPost, typeTrade, "cancel-order", &arg, &resp, true)
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, cancelTradeOrderEPL, http.MethodPost, typeTrade, "cancel-order", arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1154,7 +1158,7 @@ func (o *OKCoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestPara
 		return nil, err
 	}
 	var resp []AmendTradeOrderResponse
-	err = o.SendHTTPRequest(ctx, exchange.RestSpot, amendTradeOrderEPL, http.MethodPost, typeTrade, "amend-order", &arg, &resp, true)
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, amendTradeOrderEPL, http.MethodPost, typeTrade, "amend-order", arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1401,7 +1405,7 @@ func (o *OKCoin) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderRequestParam)
 		return nil, err
 	}
 	var resp []AlgoOrderResponse
-	err = o.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, typeTrade, "order-algo", &arg, &resp, true)
+	err = o.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, typeTrade, "order-algo", arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}

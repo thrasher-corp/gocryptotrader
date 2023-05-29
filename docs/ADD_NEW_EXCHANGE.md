@@ -216,7 +216,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| OKCoin International | Yes | Yes | No |
+| OKCOIN International | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
