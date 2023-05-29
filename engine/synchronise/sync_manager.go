@@ -194,13 +194,13 @@ func (m *Manager) sendJob(exch exchange.IBotExchange, agent *Agent) {
 		select {
 		case m.orderbookJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset}:
 		default:
-			log.Error(log.SyncMgr, "Jobs channel is at max capacity for orderbooks, data integrity cannot be trusted.")
+			log.Errorln(log.SyncMgr, "Jobs channel is at max capacity for orderbooks, data integrity cannot be trusted.")
 		}
 	case subsystem.Ticker:
 		select {
 		case m.tickerJobs <- RESTJob{exch: exch, Pair: agent.Pair, Asset: agent.Asset}:
 		default:
-			log.Error(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
+			log.Errorln(log.SyncMgr, "Jobs channel is at max capacity for tickers, data integrity cannot be trusted.")
 		}
 	}
 	agent.mu.Unlock()
@@ -294,7 +294,7 @@ func (m *Manager) orderbookWorker(ctx context.Context) {
 		}
 		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, subsystem.Orderbook, err)
 		if err != nil {
-			log.Error(log.SyncMgr, err)
+			log.Errorln(log.SyncMgr, err)
 		}
 	}
 }
@@ -350,7 +350,7 @@ func (m *Manager) tickerWorker(ctx context.Context) {
 		}
 		err = m.Update(exchName, subsystem.Rest, j.Pair, j.Asset, subsystem.Ticker, err)
 		if err != nil {
-			log.Error(log.SyncMgr, err)
+			log.Errorln(log.SyncMgr, err)
 		}
 	}
 }

@@ -55,6 +55,8 @@ type MarketSummary []struct {
 	MaxRiskLimit        int      `json:"maxRiskLimit"`
 	AvailableSettlement []string `json:"availableSettlement"`
 	Futures             bool     `json:"futures"`
+	IsMarketOpenToSpot  bool     `json:"isMarketOpenToSpot"`
+	IsMarketOpentoOTC   bool     `json:"isMarketOpenToOtc"`
 }
 
 // OHLCV holds Open, High Low, Close, Volume data for set symbol

@@ -18,9 +18,15 @@ var (
 	errRoutineManagerNotStarted        = errors.New("websocket routine manager not started")
 )
 
-// websocketRoutineManager is used to process websocket updates from a unified location
-type websocketRoutineManager struct {
-	started         int32
+const (
+	stoppedState int32 = iota
+	startingState
+	readyState
+)
+
+// WebsocketRoutineManager is used to process websocket updates from a unified location
+type WebsocketRoutineManager struct {
+	state           int32
 	verbose         bool
 	exchangeManager subsystem.ExchangeManager
 	orderManager    subsystem.OrderManager

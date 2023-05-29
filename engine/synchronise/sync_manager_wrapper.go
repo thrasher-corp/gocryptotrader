@@ -80,7 +80,7 @@ func (m *Manager) Start() error {
 		log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
 		err := m.Stop()
 		if err != nil {
-			log.Error(log.SyncMgr, err)
+			log.Errorln(log.SyncMgr, err)
 		}
 	}()
 	m.initSyncWG.Done()

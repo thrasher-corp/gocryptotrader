@@ -321,7 +321,7 @@ func (p Pairs) DeriveFrom(symbol, delimiter string) (Pair, error) {
 		if symbolLength == len(symbol) {
 			return EMPTYPAIR, fmt.Errorf("%v %w for %v", delimiter, errDelimiterNotRemoved, symbol)
 		}
-		symbolLength = len(symbol)
+		symbolLength--
 	}
 
 pairs:

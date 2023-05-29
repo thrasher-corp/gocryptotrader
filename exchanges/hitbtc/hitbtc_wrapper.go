@@ -291,8 +291,9 @@ func (h *HitBTC) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency
 
 	pairs := make([]currency.Pair, len(symbols))
 	for x := range symbols {
+		quote := strings.Replace(symbols[x].ID, symbols[x].BaseCurrency, "", 1)
 		var pair currency.Pair
-		pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency, symbols[x].QuoteCurrency)
+		pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency, quote)
 		if err != nil {
 			return nil, err
 		}
@@ -317,45 +318,41 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	pairs, err := h.GetEnabledPairs(a)
+	avail, err := h.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
-	for i := range pairs {
-		for j := range tick {
-			pairFmt, err := h.FormatExchangeCurrency(pairs[i], a)
-			if err != nil {
-				return err
-			}
 
-			if tick[j].Symbol != pairFmt.String() {
-				found := false
-				if strings.Contains(tick[j].Symbol, "USDT") {
-					if pairFmt.String() == tick[j].Symbol[0:len(tick[j].Symbol)-1] {
-						found = true
-					}
-				}
-				if !found {
-					continue
-				}
-			}
+	enabled, err := h.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[j].Last,
-				High:         tick[j].High,
-				Low:          tick[j].Low,
-				Bid:          tick[j].Bid,
-				Ask:          tick[j].Ask,
-				Volume:       tick[j].Volume,
-				QuoteVolume:  tick[j].VolumeQuote,
-				Open:         tick[j].Open,
-				Pair:         pairs[i],
-				LastUpdated:  tick[j].Timestamp,
-				ExchangeName: h.Name,
-				AssetType:    a})
-			if err != nil {
-				return err
-			}
+	for x := range tick {
+		pair, err := avail.DeriveFrom(tick[x].Symbol, "")
+		if err != nil {
+			return err
+		}
+
+		if !enabled.Contains(pair, true) {
+			continue
+		}
+
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick[x].Last,
+			High:         tick[x].High,
+			Low:          tick[x].Low,
+			Bid:          tick[x].Bid,
+			Ask:          tick[x].Ask,
+			Volume:       tick[x].Volume,
+			QuoteVolume:  tick[x].VolumeQuote,
+			Open:         tick[x].Open,
+			Pair:         pair,
+			LastUpdated:  tick[x].Timestamp,
+			ExchangeName: h.Name,
+			AssetType:    a})
+		if err != nil {
+			return err
 		}
 	}
 	return nil

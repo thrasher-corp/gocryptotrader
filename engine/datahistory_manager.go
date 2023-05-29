@@ -133,7 +133,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 		}
 		err = m.validateJob(dbJob)
 		if err != nil {
-			log.Error(log.DataHistory, err)
+			log.Errorln(log.DataHistory, err)
 			continue
 		}
 		response = append(response, dbJob)
@@ -157,7 +157,7 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 		defer func() {
 			err = m.Stop()
 			if err != nil {
-				log.Error(log.DataHistory, err)
+				log.Errorln(log.DataHistory, err)
 			}
 		}()
 		return nil, fmt.Errorf("error retrieving jobs, has everything been setup? Data history manager will shut down. %w", err)
@@ -238,7 +238,7 @@ func (m *DataHistoryManager) run() {
 				if m.databaseConnectionInstance != nil && m.databaseConnectionInstance.IsConnected() {
 					go func() {
 						if err := m.runJobs(); err != nil {
-							log.Error(log.DataHistory, err)
+							log.Errorln(log.DataHistory, err)
 						}
 					}()
 				}
@@ -275,7 +275,7 @@ func (m *DataHistoryManager) runJobs() error {
 	for i := 0; (i < int(m.maxJobsPerCycle) || m.maxJobsPerCycle == -1) && i < len(validJobs); i++ {
 		err := m.runJob(validJobs[i])
 		if err != nil {
-			log.Error(log.DataHistory, err)
+			log.Errorln(log.DataHistory, err)
 		}
 		if m.verbose {
 			log.Debugf(log.DataHistory, "completed run of data history job %v", validJobs[i].Nickname)

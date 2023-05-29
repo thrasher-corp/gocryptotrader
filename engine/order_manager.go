@@ -148,12 +148,12 @@ func (m *OrderManager) CancelAllOrders(ctx context.Context, exchanges []exchange
 			log.Debugf(log.OrderMgr, "Cancelling order(s) for exchange %s.", exchanges[i].GetName())
 			cancel, err := orders[j].DeriveCancel()
 			if err != nil {
-				log.Error(log.OrderMgr, err)
+				log.Errorln(log.OrderMgr, err)
 				continue
 			}
 			err = m.Cancel(ctx, cancel)
 			if err != nil {
-				log.Error(log.OrderMgr, err)
+				log.Errorln(log.OrderMgr, err)
 			}
 		}
 	}
@@ -686,7 +686,7 @@ func (m *OrderManager) processOrders() {
 				var upsertResponse *OrderUpsertResponse
 				upsertResponse, err = m.UpsertOrder(&result[z])
 				if err != nil {
-					log.Error(log.OrderMgr, err)
+					log.Errorln(log.OrderMgr, err)
 					continue
 				}
 				for i := range orders {
@@ -709,7 +709,7 @@ func (m *OrderManager) processOrders() {
 				var sd time.Time
 				sd, err = m.orderStore.futuresPositionController.LastUpdated()
 				if err != nil {
-					log.Error(log.OrderMgr, err)
+					log.Errorln(log.OrderMgr, err)
 					return
 				}
 				if sd.IsZero() {
@@ -722,7 +722,7 @@ func (m *OrderManager) processOrders() {
 				})
 				if err != nil {
 					if !errors.Is(err, common.ErrNotYetImplemented) {
-						log.Error(log.OrderMgr, err)
+						log.Errorln(log.OrderMgr, err)
 					}
 					return
 				}
@@ -818,7 +818,7 @@ func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders 
 		}
 		err := m.FetchAndUpdateExchangeOrder(exch, &orders[x], orders[x].AssetType)
 		if err != nil {
-			log.Error(log.OrderMgr, err)
+			log.Errorln(log.OrderMgr, err)
 		}
 	}
 	if wg != nil {
@@ -920,10 +920,10 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
 		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type, upsertResponse.OrderDetails.Status)
 	if upsertResponse.IsNewOrder {
-		log.Info(log.OrderMgr, msg)
+		log.Infoln(log.OrderMgr, msg)
 		return upsertResponse, nil
 	}
-	log.Debug(log.OrderMgr, msg)
+	log.Debugln(log.OrderMgr, msg)
 	return upsertResponse, nil
 }
 
