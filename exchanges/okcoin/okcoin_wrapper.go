@@ -344,7 +344,7 @@ func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 	for i := range tickers {
-		cp, err := o.Config.AvailablePairs.DeriveFrom(tickers[i].InstrumentID)
+		cp, err := currency.NewPairFromString(tickers[i].InstrumentID)
 		if err != nil {
 			return err
 		}
