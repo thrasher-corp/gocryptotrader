@@ -1077,6 +1077,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 			AverageExecutedPrice: response.Data[x].AveragePrice.Float64(),
 			Exchange:             ok.Name,
 			OrderID:              response.Data[x].OrderID,
+			ClientOrderID:        response.Data[x].ClientOrderID,
 			Type:                 orderType,
 			Side:                 response.Data[x].Side,
 			Status:               orderStatus,
