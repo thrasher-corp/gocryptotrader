@@ -187,7 +187,7 @@ func (b *BaseCodes) Register(c string, newRole Role) Code {
 	var format bool
 	// Digits fool upper and lower casing. So find first letter and check case.
 	for x := range c {
-		if !unicode.IsDigit(rune(c[x])) {
+		if unicode.IsLetter(rune(c[x])) {
 			format = unicode.IsUpper(rune(c[x]))
 			break
 		}

@@ -260,6 +260,16 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				d.AssetType,
 				d)
 		}
+	case []stream.KlineData:
+		for x := range d {
+			if m.verbose {
+				log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
+					exchName,
+					m.FormatCurrency(d[x].Pair),
+					d[x].AssetType,
+					d)
+			}
+		}
 	case *orderbook.Depth:
 		base, err := d.Retrieve()
 		if err != nil {
@@ -299,6 +309,30 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			}
 			m.printOrderSummary(d, true)
 		}
+	case []order.Detail:
+		for x := range d {
+			if !m.orderManager.Exists(&d[x]) {
+				err := m.orderManager.Add(&d[x])
+				if err != nil {
+					return err
+				}
+				m.printOrderSummary(&d[x], false)
+			} else {
+				od, err := m.orderManager.GetByExchangeAndID(d[x].Exchange, d[x].OrderID)
+				if err != nil {
+					return err
+				}
+				err = od.UpdateOrderFromDetail(&d[x])
+				if err != nil {
+					return err
+				}
+				err = m.orderManager.UpdateExistingOrder(od)
+				if err != nil {
+					return err
+				}
+				m.printOrderSummary(&d[x], true)
+			}
+		}
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case stream.UnhandledMessageWarning:
@@ -306,6 +340,12 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 	case account.Change:
 		if m.verbose {
 			m.printAccountHoldingsChangeSummary(d)
+		}
+	case []account.Change:
+		if m.verbose {
+			for x := range d {
+				m.printAccountHoldingsChangeSummary(d[x])
+			}
 		}
 	case []trade.Data:
 		if m.verbose {
