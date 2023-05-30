@@ -113,7 +113,7 @@ const (
 	GoCryptoTraderService_CurrencyStateDeposit_FullMethodName              = "/gctrpc.GoCryptoTraderService/CurrencyStateDeposit"
 	GoCryptoTraderService_CurrencyStateWithdraw_FullMethodName             = "/gctrpc.GoCryptoTraderService/CurrencyStateWithdraw"
 	GoCryptoTraderService_CurrencyStateTradingPair_FullMethodName          = "/gctrpc.GoCryptoTraderService/CurrencyStateTradingPair"
-	GoCryptoTraderService_GetFuturesPositions_FullMethodName               = "/gctrpc.GoCryptoTraderService/GetFuturesPositionOrders"
+	GoCryptoTraderService_GetFuturesPositions_FullMethodName               = "/gctrpc.GoCryptoTraderService/GetFuturesPositions"
 	GoCryptoTraderService_GetCollateral_FullMethodName                     = "/gctrpc.GoCryptoTraderService/GetCollateral"
 	GoCryptoTraderService_Shutdown_FullMethodName                          = "/gctrpc.GoCryptoTraderService/Shutdown"
 	GoCryptoTraderService_GetTechnicalAnalysis_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetTechnicalAnalysis"
@@ -124,6 +124,12 @@ const (
 	GoCryptoTraderService_GetOrderbookMovement_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetOrderbookMovement"
 	GoCryptoTraderService_GetOrderbookAmountByNominal_FullMethodName       = "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByNominal"
 	GoCryptoTraderService_GetOrderbookAmountByImpact_FullMethodName        = "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByImpact"
+	GoCryptoTraderService_GetCollateralType_FullMethodName                 = "/gctrpc.GoCryptoTraderService/GetCollateralType"
+	GoCryptoTraderService_GetMarginType_FullMethodName                     = "/gctrpc.GoCryptoTraderService/GetMarginType"
+	GoCryptoTraderService_GetLeverage_FullMethodName                       = "/gctrpc.GoCryptoTraderService/GetLeverage"
+	GoCryptoTraderService_SetCollateralType_FullMethodName                 = "/gctrpc.GoCryptoTraderService/SetCollateralType"
+	GoCryptoTraderService_SetMarginType_FullMethodName                     = "/gctrpc.GoCryptoTraderService/SetMarginType"
+	GoCryptoTraderService_SetLeverage_FullMethodName                       = "/gctrpc.GoCryptoTraderService/SetLeverage"
 )
 
 // GoCryptoTraderServiceClient is the client API for GoCryptoTraderService service.
@@ -235,6 +241,12 @@ type GoCryptoTraderServiceClient interface {
 	GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(ctx context.Context, in *GetOrderbookAmountByNominalRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(ctx context.Context, in *GetOrderbookAmountByImpactRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByImpactResponse, error)
+	GetCollateralType(ctx context.Context, in *GetCollateralTypeRequest, opts ...grpc.CallOption) (*GetCollateralTypeResponse, error)
+	GetMarginType(ctx context.Context, in *GetMarginTypeRequest, opts ...grpc.CallOption) (*GetMarginTypeResponse, error)
+	GetLeverage(ctx context.Context, in *GetLeverageRequest, opts ...grpc.CallOption) (*GetLeverageResponse, error)
+	SetCollateralType(ctx context.Context, in *SetCollateralTypeRequest, opts ...grpc.CallOption) (*SetCollateralTypeResponse, error)
+	SetMarginType(ctx context.Context, in *SetMarginTypeRequest, opts ...grpc.CallOption) (*SetMarginTypeResponse, error)
+	SetLeverage(ctx context.Context, in *SetLeverageRequest, opts ...grpc.CallOption) (*SetLeverageResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1328,6 +1340,60 @@ func (c *goCryptoTraderServiceClient) GetOrderbookAmountByImpact(ctx context.Con
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetCollateralType(ctx context.Context, in *GetCollateralTypeRequest, opts ...grpc.CallOption) (*GetCollateralTypeResponse, error) {
+	out := new(GetCollateralTypeResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetCollateralType_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetMarginType(ctx context.Context, in *GetMarginTypeRequest, opts ...grpc.CallOption) (*GetMarginTypeResponse, error) {
+	out := new(GetMarginTypeResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetMarginType_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetLeverage(ctx context.Context, in *GetLeverageRequest, opts ...grpc.CallOption) (*GetLeverageResponse, error) {
+	out := new(GetLeverageResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetLeverage_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) SetCollateralType(ctx context.Context, in *SetCollateralTypeRequest, opts ...grpc.CallOption) (*SetCollateralTypeResponse, error) {
+	out := new(SetCollateralTypeResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_SetCollateralType_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) SetMarginType(ctx context.Context, in *SetMarginTypeRequest, opts ...grpc.CallOption) (*SetMarginTypeResponse, error) {
+	out := new(SetMarginTypeResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_SetMarginType_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) SetLeverage(ctx context.Context, in *SetLeverageRequest, opts ...grpc.CallOption) (*SetLeverageResponse, error) {
+	out := new(SetLeverageResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_SetLeverage_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServiceServer is the server API for GoCryptoTraderService service.
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility
@@ -1437,6 +1503,12 @@ type GoCryptoTraderServiceServer interface {
 	GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(context.Context, *GetOrderbookAmountByNominalRequest) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error)
+	GetCollateralType(context.Context, *GetCollateralTypeRequest) (*GetCollateralTypeResponse, error)
+	GetMarginType(context.Context, *GetMarginTypeRequest) (*GetMarginTypeResponse, error)
+	GetLeverage(context.Context, *GetLeverageRequest) (*GetLeverageResponse, error)
+	SetCollateralType(context.Context, *SetCollateralTypeRequest) (*SetCollateralTypeResponse, error)
+	SetMarginType(context.Context, *SetMarginTypeRequest) (*SetMarginTypeResponse, error)
+	SetLeverage(context.Context, *SetLeverageRequest) (*SetLeverageResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1727,7 +1799,7 @@ func (UnimplementedGoCryptoTraderServiceServer) CurrencyStateTradingPair(context
 	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateTradingPair not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetFuturesPositions(context.Context, *GetFuturesPositionsRequest) (*GetFuturesPositionsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFuturesPositionOrders not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method GetFuturesPositions not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCollateral not implemented")
@@ -1758,6 +1830,24 @@ func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookAmountByNominal(cont
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbookAmountByImpact not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetCollateralType(context.Context, *GetCollateralTypeRequest) (*GetCollateralTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCollateralType not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetMarginType(context.Context, *GetMarginTypeRequest) (*GetMarginTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMarginType not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetLeverage(context.Context, *GetLeverageRequest) (*GetLeverageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLeverage not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) SetCollateralType(context.Context, *SetCollateralTypeRequest) (*SetCollateralTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetCollateralType not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) SetMarginType(context.Context, *SetMarginTypeRequest) (*SetMarginTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMarginType not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) SetLeverage(context.Context, *SetLeverageRequest) (*SetLeverageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetLeverage not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3680,6 +3770,114 @@ func _GoCryptoTraderService_GetOrderbookAmountByImpact_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetCollateralType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCollateralTypeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetCollateralType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_GetCollateralType_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetCollateralType(ctx, req.(*GetCollateralTypeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetMarginType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMarginTypeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetMarginType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_GetMarginType_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetMarginType(ctx, req.(*GetMarginTypeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetLeverage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLeverageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetLeverage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_GetLeverage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetLeverage(ctx, req.(*GetLeverageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_SetCollateralType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetCollateralTypeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).SetCollateralType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_SetCollateralType_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).SetCollateralType(ctx, req.(*SetCollateralTypeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_SetMarginType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetMarginTypeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).SetMarginType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_SetMarginType_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).SetMarginType(ctx, req.(*SetMarginTypeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_SetLeverage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetLeverageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).SetLeverage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_SetLeverage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).SetLeverage(ctx, req.(*SetLeverageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTraderService_ServiceDesc is the grpc.ServiceDesc for GoCryptoTraderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4040,7 +4238,7 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTraderService_CurrencyStateTradingPair_Handler,
 		},
 		{
-			MethodName: "GetFuturesPositionOrders",
+			MethodName: "GetFuturesPositions",
 			Handler:    _GoCryptoTraderService_GetFuturesPositions_Handler,
 		},
 		{
@@ -4082,6 +4280,30 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOrderbookAmountByImpact",
 			Handler:    _GoCryptoTraderService_GetOrderbookAmountByImpact_Handler,
+		},
+		{
+			MethodName: "GetCollateralType",
+			Handler:    _GoCryptoTraderService_GetCollateralType_Handler,
+		},
+		{
+			MethodName: "GetMarginType",
+			Handler:    _GoCryptoTraderService_GetMarginType_Handler,
+		},
+		{
+			MethodName: "GetLeverage",
+			Handler:    _GoCryptoTraderService_GetLeverage_Handler,
+		},
+		{
+			MethodName: "SetCollateralType",
+			Handler:    _GoCryptoTraderService_SetCollateralType_Handler,
+		},
+		{
+			MethodName: "SetMarginType",
+			Handler:    _GoCryptoTraderService_SetMarginType_Handler,
+		},
+		{
+			MethodName: "SetLeverage",
+			Handler:    _GoCryptoTraderService_SetLeverage_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

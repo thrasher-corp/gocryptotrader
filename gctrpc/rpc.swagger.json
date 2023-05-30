@@ -1325,6 +1325,72 @@
         ]
       }
     },
+    "/v1/getcollateraltype": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetCollateralType",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCollateralTypeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      },
+      "post": {
+        "operationId": "GoCryptoTraderService_SetCollateralType",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetCollateralTypeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetCollateralTypeRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GoCryptoTraderService_GetCommunicationRelayers",
@@ -2256,6 +2322,90 @@
         ]
       }
     },
+    "/v1/getleverage": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetLeverage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetLeverageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      },
+      "post": {
+        "operationId": "GoCryptoTraderService_SetLeverage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetLeverageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetLeverageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getloggerdetails": {
       "get": {
         "operationId": "GoCryptoTraderService_GetLoggerDetails",
@@ -2485,6 +2635,90 @@
             "in": "query",
             "required": false,
             "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getmargintype": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetMarginType",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetMarginTypeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      },
+      "post": {
+        "operationId": "GoCryptoTraderService_SetMarginType",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetMarginTypeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetMarginTypeRequest"
+            }
           }
         ],
         "tags": [
@@ -5379,6 +5613,20 @@
         }
       }
     },
+    "gctrpcGetCollateralTypeResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "collateralType": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcGetCommunicationRelayersResponse": {
       "type": "object",
       "properties": {
@@ -5693,6 +5941,23 @@
         }
       }
     },
+    "gctrpcGetLeverageResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "leverage": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcGetLoggerDetailsResponse": {
       "type": "object",
       "properties": {
@@ -5755,6 +6020,23 @@
           "$ref": "#/definitions/gctrpcMarginRate"
         },
         "takerFeeRate": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetMarginTypeResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
           "type": "string"
         }
       }
@@ -6450,6 +6732,34 @@
         }
       }
     },
+    "gctrpcSetCollateralTypeRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "collateralType": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcSetCollateralTypeResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
     "gctrpcSetDataHistoryJobStatusRequest": {
       "type": "object",
       "properties": {
@@ -6486,6 +6796,40 @@
         }
       }
     },
+    "gctrpcSetLeverageRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "leverage": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcSetLeverageResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
     "gctrpcSetLoggerDetailsRequest": {
       "type": "object",
       "properties": {
@@ -6494,6 +6838,40 @@
         },
         "level": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcSetMarginTypeRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcSetMarginTypeResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "success": {
+          "type": "boolean"
         }
       }
     },
@@ -6514,6 +6892,9 @@
           "format": "double"
         },
         "side": {
+          "type": "string"
+        },
+        "marginType": {
           "type": "string"
         }
       }
