@@ -436,7 +436,7 @@ func (g *Gateio) processOptionsContractTickers(data []byte) error {
 	}
 	g.Websocket.DataHandler <- &ticker.Price{
 		Pair:         currencyPair,
-		Last:         tickerData.LastPrice,
+		Last:         tickerData.LastPrice.Float64(),
 		Bid:          tickerData.Bid1Price,
 		Ask:          tickerData.Ask1Price,
 		AskSize:      tickerData.Ask1Size,

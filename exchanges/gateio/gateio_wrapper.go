@@ -367,11 +367,11 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		}
 		tickerData = &ticker.Price{
 			Pair:         fPair,
-			Low:          tickerNew.Low24H,
-			High:         tickerNew.High24H,
-			Bid:          tickerNew.HighestBid,
-			Ask:          tickerNew.LowestAsk,
-			Last:         tickerNew.Last,
+			Low:          tickerNew.Low24H.Float64(),
+			High:         tickerNew.High24H.Float64(),
+			Bid:          tickerNew.HighestBid.Float64(),
+			Ask:          tickerNew.LowestAsk.Float64(),
+			Last:         tickerNew.Last.Float64(),
 			ExchangeName: g.Name,
 			AssetType:    a,
 		}
@@ -432,7 +432,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			}
 			tickerData = &ticker.Price{
 				Pair:         cp,
-				Last:         tickers[x].LastPrice,
+				Last:         tickers[x].LastPrice.Float64(),
 				Bid:          tickers[x].Bid1Price,
 				Ask:          tickers[x].Ask1Price,
 				AskSize:      tickers[x].Ask1Size,
@@ -665,13 +665,13 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tickers[x].Last,
-				High:         tickers[x].High24H,
-				Low:          tickers[x].Low24H,
-				Bid:          tickers[x].HighestBid,
-				Ask:          tickers[x].LowestAsk,
-				QuoteVolume:  tickers[x].QuoteVolume,
-				Volume:       tickers[x].BaseVolume,
+				Last:         tickers[x].Last.Float64(),
+				High:         tickers[x].High24H.Float64(),
+				Low:          tickers[x].Low24H.Float64(),
+				Bid:          tickers[x].HighestBid.Float64(),
+				Ask:          tickers[x].LowestAsk.Float64(),
+				QuoteVolume:  tickers[x].QuoteVolume.Float64(),
+				Volume:       tickers[x].BaseVolume.Float64(),
 				ExchangeName: g.Name,
 				Pair:         currencyPair,
 				AssetType:    a,
@@ -736,7 +736,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 					return err
 				}
 				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tickers[x].LastPrice,
+					Last:         tickers[x].LastPrice.Float64(),
 					Ask:          tickers[x].Ask1Price,
 					AskSize:      tickers[x].Ask1Size,
 					Bid:          tickers[x].Bid1Price,
@@ -1514,7 +1514,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			AssetType:      a,
 			Status:         orderStatus,
 			Price:          spotOrder.Price,
-			ExecutedAmount: spotOrder.Amount - spotOrder.Left,
+			ExecutedAmount: spotOrder.Amount - spotOrder.Left.Float64(),
 			Date:           spotOrder.CreateTimeMs.Time(),
 			LastUpdated:    spotOrder.UpdateTimeMs.Time(),
 		}, nil
@@ -1704,21 +1704,22 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 				}
 				orders = append(orders, order.Detail{
-					Side:            side,
-					Type:            oType,
-					Status:          status,
-					Pair:            symbol,
-					OrderID:         spotOrders[x].Orders[y].OrderID,
-					Amount:          spotOrders[x].Orders[y].Amount,
-					ExecutedAmount:  spotOrders[x].Orders[y].Amount - spotOrders[x].Orders[y].Left,
-					RemainingAmount: spotOrders[x].Orders[y].Left,
-					Price:           spotOrders[x].Orders[y].Price,
-					Date:            spotOrders[x].Orders[y].CreateTimeMs.Time(),
-					LastUpdated:     spotOrders[x].Orders[y].UpdateTimeMs.Time(),
-					Exchange:        g.Name,
-					AssetType:       req.AssetType,
-					ClientOrderID:   spotOrders[x].Orders[y].Text,
-					FeeAsset:        currency.NewCode(spotOrders[x].Orders[y].FeeCurrency),
+					Side:                 side,
+					Type:                 oType,
+					Status:               status,
+					Pair:                 symbol,
+					OrderID:              spotOrders[x].Orders[y].OrderID,
+					Amount:               spotOrders[x].Orders[y].Amount,
+					ExecutedAmount:       spotOrders[x].Orders[y].Amount - spotOrders[x].Orders[y].Left.Float64(),
+					RemainingAmount:      spotOrders[x].Orders[y].Left.Float64(),
+					Price:                spotOrders[x].Orders[y].Price,
+					AverageExecutedPrice: spotOrders[x].Orders[y].AverageFillPrice,
+					Date:                 spotOrders[x].Orders[y].CreateTimeMs.Time(),
+					LastUpdated:          spotOrders[x].Orders[y].UpdateTimeMs.Time(),
+					Exchange:             g.Name,
+					AssetType:            req.AssetType,
+					ClientOrderID:        spotOrders[x].Orders[y].Text,
+					FeeAsset:             currency.NewCode(spotOrders[x].Orders[y].FeeCurrency),
 				})
 			}
 		}
