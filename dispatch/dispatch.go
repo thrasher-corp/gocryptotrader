@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -213,14 +214,6 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	if !d.running {
 		return nil
 	}
-	hasListener, err := d.hasListener(id)
-	if err != nil {
-		return err
-	}
-	if !hasListener {
-		// no subscribers
-		return nil
-	}
 
 	select {
 	case d.jobs <- job{data, id}: // Push job into job channel.
@@ -231,24 +224,6 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 			len(d.jobs),
 			d.maxWorkers)
 	}
-}
-
-// hasListener checks whether its worth publishing a job to a
-// limited job pool where many validation checks occur
-func (d *Dispatcher) hasListener(id uuid.UUID) (bool, error) {
-	if d == nil {
-		return false, errDispatcherNotInitialized
-	}
-	if id.IsNil() {
-		return false, errChannelIsNil
-	}
-	d.rMtx.RLock()
-	defer d.rMtx.RUnlock()
-	if d.routes == nil {
-		return false, fmt.Errorf("%w routes property unset", errDispatcherNotInitialized)
-	}
-	routes := d.routes[id]
-	return len(routes) > 0, nil
 }
 
 // Subscribe subscribes a system and returns a communication chan, this does not
@@ -282,6 +257,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (<-chan interface{}, error) {
 	}
 
 	d.routes[id] = append(d.routes[id], ch)
+	atomic.AddInt32(&d.subscriberCount, 1)
 	return ch, nil
 }
 
@@ -322,6 +298,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan <-chan interface{}) erro
 		pipes[i] = pipes[len(pipes)-1]
 		pipes[len(pipes)-1] = nil
 		d.routes[id] = pipes[:len(pipes)-1]
+		atomic.AddInt32(&d.subscriberCount, -1)
 
 		// Drain and put the used chan back in pool; only if it is not closed.
 		select {

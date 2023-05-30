@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"errors"
+	"sync/atomic"
 
 	"github.com/gofrs/uuid"
 )
@@ -62,6 +63,9 @@ func (m *Mux) Publish(data interface{}, ids ...uuid.UUID) error {
 
 	if len(ids) == 0 {
 		return errNoIDs
+	}
+	if atomic.LoadInt32(&m.d.subscriberCount) == 0 {
+		return nil
 	}
 
 	for i := range ids {
