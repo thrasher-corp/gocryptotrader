@@ -258,19 +258,6 @@ func TestPublish(t *testing.T) {
 	// need to reset before next test
 	err = nil
 
-	// demonstrate that jobs do not get published when the limit should be reached
-	// but there is no listener associated with job
-	for x := 0; x < 200; x++ {
-		err2 := d.publish(nonEmptyUUID, "test")
-		if !errors.Is(err2, nil) {
-			err = err2
-			break
-		}
-	}
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
 	// demonstrate job limit error
 	d.routes[nonEmptyUUID] = []chan interface{}{
 		make(chan interface{}),
@@ -499,6 +486,19 @@ func TestMuxPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// demonstrate that jobs do not get published when the limit should be reached
+	// but there is no listener associated with job
+	for x := 0; x < 200; x++ {
+		err2 := mux.Publish("test", itemID)
+		if !errors.Is(err2, nil) {
+			err = err2
+			break
+		}
+	}
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	pipe, err := mux.Subscribe(itemID)
 	if err != nil {
 		t.Error(err)
@@ -514,6 +514,35 @@ func TestMuxPublish(t *testing.T) {
 	}(mux)
 
 	<-pipe.C
+
+	// demonstrate that jobs can be limited when subscribed
+	for x := 0; x < 200; x++ {
+		err2 := mux.Publish("test", itemID)
+		if !errors.Is(err2, nil) {
+			err = err2
+			break
+		}
+	}
+	if !errors.Is(err, errDispatcherJobsAtLimit) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherJobsAtLimit)
+	}
+
+	// demonstrate that jobs go back to not being sent after unsubscribing
+	err = mux.Unsubscribe(itemID, pipe.C)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	for x := 0; x < 200; x++ {
+		err2 := mux.Publish("test", itemID)
+		if !errors.Is(err2, nil) {
+			err = err2
+			break
+		}
+	}
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	// Shut down dispatch system
 	err = d.stop()
