@@ -11,32 +11,36 @@ import (
 
 // Consts here define basic time intervals
 const (
-	FifteenSecond = Interval(15 * time.Second)
-	OneMin        = Interval(time.Minute)
-	ThreeMin      = 3 * OneMin
-	FiveMin       = 5 * OneMin
-	TenMin        = 10 * OneMin
-	FifteenMin    = 15 * OneMin
-	ThirtyMin     = 30 * OneMin
-	OneHour       = Interval(time.Hour)
-	TwoHour       = 2 * OneHour
-	ThreeHour     = 3 * OneHour
-	FourHour      = 4 * OneHour
-	SixHour       = 6 * OneHour
-	EightHour     = 8 * OneHour
-	TwelveHour    = 12 * OneHour
-	OneDay        = 24 * OneHour
-	TwoDay        = 2 * OneDay
-	ThreeDay      = 3 * OneDay
-	FiveDay       = 5 * OneDay
-	SevenDay      = 7 * OneDay
-	FifteenDay    = 15 * OneDay
-	OneWeek       = 7 * OneDay
-	TwoWeek       = 2 * OneWeek
-	OneMonth      = 30 * OneDay
-	ThreeMonth    = 3 * OneMonth
-	SixMonth      = 6 * OneMonth
-	OneYear       = 365 * OneDay
+	HundredMilliseconds  = Interval(100 * time.Millisecond)
+	ThousandMilliseconds = 10 * HundredMilliseconds
+	TenSecond            = Interval(10 * time.Second)
+	FifteenSecond        = Interval(15 * time.Second)
+	ThirtySecond         = 2 * FifteenSecond
+	OneMin               = Interval(time.Minute)
+	ThreeMin             = 3 * OneMin
+	FiveMin              = 5 * OneMin
+	TenMin               = 10 * OneMin
+	FifteenMin           = 15 * OneMin
+	ThirtyMin            = 30 * OneMin
+	OneHour              = Interval(time.Hour)
+	TwoHour              = 2 * OneHour
+	ThreeHour            = 3 * OneHour
+	FourHour             = 4 * OneHour
+	SixHour              = 6 * OneHour
+	EightHour            = 8 * OneHour
+	TwelveHour           = 12 * OneHour
+	OneDay               = 24 * OneHour
+	TwoDay               = 2 * OneDay
+	ThreeDay             = 3 * OneDay
+	SevenDay             = 7 * OneDay
+	FifteenDay           = 15 * OneDay
+	OneWeek              = 7 * OneDay
+	TwoWeek              = 2 * OneWeek
+	OneMonth             = 30 * OneDay
+	ThreeMonth           = 90 * OneDay
+	SixMonth             = 2 * ThreeMonth
+	OneYear              = 365 * OneDay
+	FiveDay              = 5 * OneDay
 )
 
 var (
@@ -84,6 +88,9 @@ var (
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
+		HundredMilliseconds,
+		ThousandMilliseconds,
+		TenSecond,
 		FifteenSecond,
 		OneMin,
 		ThreeMin,
@@ -100,6 +107,7 @@ var (
 		TwelveHour,
 		OneDay,
 		ThreeDay,
+		FiveDay,
 		SevenDay,
 		FifteenDay,
 		OneWeek,
@@ -108,6 +116,8 @@ var (
 		ThreeMonth,
 		SixMonth,
 		OneYear,
+		ThreeMonth,
+		SixMonth,
 	}
 )
 

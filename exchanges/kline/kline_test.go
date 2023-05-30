@@ -154,6 +154,18 @@ func TestDurationToWord(t *testing.T) {
 		interval Interval
 	}{
 		{
+			"hundredmillisec",
+			HundredMilliseconds,
+		},
+		{
+			"thousandmillisec",
+			ThousandMilliseconds,
+		},
+		{
+			"tensec",
+			TenSecond,
+		},
+		{
 			"FifteenSecond",
 			FifteenSecond,
 		},
@@ -232,6 +244,14 @@ func TestDurationToWord(t *testing.T) {
 		{
 			"OneMonth",
 			OneMonth,
+		},
+		{
+			"ThreeMonth",
+			ThreeMonth,
+		},
+		{
+			"SixMonth",
+			SixMonth,
 		},
 		{
 			"OneYear",
