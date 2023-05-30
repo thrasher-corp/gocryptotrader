@@ -64,6 +64,12 @@ func (t *Telegram) Setup(cfg *base.CommunicationsConfig) {
 	t.Enabled = cfg.TelegramConfig.Enabled
 	t.Token = cfg.TelegramConfig.VerificationToken
 	t.Verbose = cfg.TelegramConfig.Verbose
+	t.AuthorisedClients = make(map[string]int64)
+
+	users := strings.Split(cfg.TelegramConfig.AuthorisedClients, ",")
+	for x := range users {
+		t.AuthorisedClients[users[x]] = 0
+	}
 }
 
 // Connect starts an initial connection
@@ -142,9 +148,13 @@ func (t *Telegram) InitialConnect() error {
 		return errors.New(resp.Description)
 	}
 
-	t.AuthorisedClients = make(map[string]int64)
 	for i := range resp.Result {
 		if resp.Result[i].Message.From.UserName != "" && resp.Result[i].Message.From.ID != 0 {
+			_, ok := t.AuthorisedClients[resp.Result[i].Message.From.UserName]
+			if !ok {
+				log.Warnf(log.CommunicationMgr, "Telegram: Received message from unauthorised user: %s\n", resp.Result[i].Message.From.UserName)
+				continue
+			}
 			t.AuthorisedClients[resp.Result[i].Message.From.UserName] = resp.Result[i].Message.From.ID
 		}
 	}

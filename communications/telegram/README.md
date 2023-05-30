@@ -38,19 +38,22 @@ developed by Telegram Messenger LLP
 	+ Individual package example below:
 	```go
 	import (
-	"github.com/thrasher-corp/gocryptotrader/communications/telegram"
-	"github.com/thrasher-corp/gocryptotrader/config"
+		"github.com/thrasher-corp/gocryptotrader/communications/base"
+		"github.com/thrasher-corp/gocryptotrader/communications/telegram"
 	)
 
 	t := new(telegram.Telegram)
 
 	// Define Telegram configuration
-	commsConfig := config.CommunicationsConfig{TelegramConfig: config.TelegramConfig{
-	Name: "Telegram",
-		Enabled: true,
-		Verbose: false,
-	VerificationToken: "token",
-	}}
+	commsConfig := &base.CommunicationsConfig{
+		TelegramConfig: base.TelegramConfig{
+			Name:              "Telegram",
+			Enabled:           true,
+			Verbose:           false,
+			VerificationToken: "token",
+			AuthorisedClients: "pepe,bob",
+		},
+	}
 
 	t.Setup(commsConfig)
 	err := t.Connect

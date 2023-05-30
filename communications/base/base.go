@@ -121,4 +121,5 @@ type TelegramConfig struct {
 	Enabled           bool   `json:"enabled"`
 	Verbose           bool   `json:"verbose"`
 	VerificationToken string `json:"verificationToken"`
+	AuthorisedClients string `json:"authorisedClients"`
 }

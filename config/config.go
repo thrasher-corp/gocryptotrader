@@ -334,7 +334,8 @@ func (c *Config) CheckCommunicationsConfig() {
 		}
 	}
 	if c.Communications.TelegramConfig.Enabled {
-		if c.Communications.TelegramConfig.VerificationToken == "" {
+		if c.Communications.TelegramConfig.VerificationToken == "" ||
+			c.Communications.TelegramConfig.AuthorisedClients == "" {
 			c.Communications.TelegramConfig.Enabled = false
 			log.Warnln(log.ConfigMgr, "Telegram enabled in config but variable data not set, disabling.")
 		}

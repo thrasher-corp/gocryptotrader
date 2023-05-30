@@ -19,12 +19,13 @@ func TestSetup(t *testing.T) {
 			Enabled:           false,
 			Verbose:           false,
 			VerificationToken: "testest",
+			AuthorisedClients: "sender",
 		},
 	}}
 	commsCfg := cfg.GetCommunicationsConfig()
 	var T Telegram
 	T.Setup(&commsCfg)
-	if T.Name != "Telegram" || T.Enabled || T.Token != "testest" || T.Verbose {
+	if T.Name != "Telegram" || T.Enabled || T.Token != "testest" || T.Verbose || len(T.AuthorisedClients) != 1 {
 		t.Error("telegram Setup() error, unexpected setup values",
 			T.Name,
 			T.Enabled,

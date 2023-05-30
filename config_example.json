@@ -173,7 +173,8 @@
    "name": "Telegram",
    "enabled": false,
    "verbose": false,
-   "verificationToken": "testest"
+   "verificationToken": "testest",
+   "authorisedClients": ""
   }
  },
  "remoteControl": {
