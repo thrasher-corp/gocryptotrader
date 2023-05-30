@@ -150,7 +150,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 	if exch.UseSandbox {
 		err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.Errorln(log.ExchangeSys, err)
 		}
 	}
 
@@ -806,9 +806,9 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	return req.Filter(g.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (g *Gemini) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (g *Gemini) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
 }

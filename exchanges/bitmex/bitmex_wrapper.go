@@ -224,7 +224,7 @@ func (b *Bitmex) Run(ctx context.Context) {
 	if b.Verbose {
 		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
+			log.Errorln(log.ExchangeSys, err)
 		}
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
@@ -925,9 +925,9 @@ func (b *Bitmex) AuthenticateWebsocket(ctx context.Context) error {
 	return b.websocketSendAuth(ctx)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitmex) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *Bitmex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }

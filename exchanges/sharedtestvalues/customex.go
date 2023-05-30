@@ -53,8 +53,8 @@ func (c *CustomEx) IsEnabled() bool {
 func (c *CustomEx) SetEnabled(bool) {
 }
 
-// ValidateCredentials is a mock method for CustomEx
-func (c *CustomEx) ValidateCredentials(_ context.Context, _ asset.Item) error {
+// ValidateAPICredentials is a mock method for CustomEx
+func (c *CustomEx) ValidateAPICredentials(_ context.Context, _ asset.Item) error {
 	return nil
 }
 

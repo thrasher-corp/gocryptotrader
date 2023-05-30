@@ -592,7 +592,29 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(tempResp.OrderID)
+
+	submitResp, err := s.DeriveSubmitResponse(tempResp.OrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if tempResp.Amount != 0 {
+		err = submitResp.AdjustBaseAmount(tempResp.Amount)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "Exchange %s: OrderID: %s base amount conversion error: %s\n", b.Name, submitResp.OrderID, err)
+		}
+	}
+
+	if tempResp.TargetAmount != 0 {
+		err = submitResp.AdjustQuoteAmount(tempResp.TargetAmount)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "Exchange %s: OrderID: %s quote amount conversion error: %s\n", b.Name, submitResp.OrderID, err)
+		}
+	}
+	// With market orders the price is optional, so we can set it to the
+	// actual price that was filled.
+	submitResp.Price = tempResp.Price
+	return submitResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -968,9 +990,9 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 	return req.Filter(b.Name, resp), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *BTCMarkets) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *BTCMarkets) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	if err != nil {
 		if b.CheckTransientError(err) == nil {

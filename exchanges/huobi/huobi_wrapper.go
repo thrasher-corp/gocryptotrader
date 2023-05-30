@@ -1720,9 +1720,9 @@ func (h *HUOBI) AuthenticateWebsocket(ctx context.Context) error {
 	return h.wsLogin(ctx)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (h *HUOBI) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (h *HUOBI) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := h.UpdateAccountInfo(ctx, assetType)
 	return h.CheckTransientError(err)
 }

@@ -507,6 +507,25 @@ func TestNewPairFromString(t *testing.T) {
 			actual, expected,
 		)
 	}
+	pairMap := map[string]Pair{
+		"BTC_USDT-20230630-45000-C": {Base: NewCode("BTC"), Delimiter: UnderscoreDelimiter, Quote: NewCode("USDT-20230630-45000-C")},
+		"BTC-USD-221007":            {Base: NewCode("BTC"), Delimiter: DashDelimiter, Quote: NewCode("USD-221007")},
+		"IHT_ETH":                   {Base: NewCode("IHT"), Delimiter: UnderscoreDelimiter, Quote: NewCode("ETH")},
+		"BTC-USD-220930-30000-P":    {Base: NewCode("BTC"), Delimiter: DashDelimiter, Quote: NewCode("USD-220930-30000-P")},
+		"XBTUSDTM":                  {Base: NewCode("XBT"), Delimiter: "", Quote: NewCode("USDTM")},
+		"BTC-PERPETUAL":             {Base: NewCode("BTC"), Delimiter: DashDelimiter, Quote: NewCode("PERPETUAL")},
+		"SOL-21OCT22-20-C":          {Base: NewCode("SOL"), Delimiter: DashDelimiter, Quote: NewCode("21OCT22-20-C")},
+		"SOL-FS-30DEC22_28OCT22":    {Base: NewCode("SOL"), Delimiter: DashDelimiter, Quote: NewCode("FS-30DEC22_28OCT22")},
+	}
+	for key, expectedPair := range pairMap {
+		pair, err = NewPairFromString(key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !pair.Equal(expectedPair) || pair.Delimiter != expectedPair.Delimiter {
+			t.Errorf("Pair(): %s was not equal to expected value: %s", pair.String(), expectedPair.String())
+		}
+	}
 }
 
 func TestNewPairFromFormattedPairs(t *testing.T) {
