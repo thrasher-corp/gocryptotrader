@@ -3007,6 +3007,7 @@ var (
 	XDC              = NewCode("XDC")
 	MHC              = NewCode("MHC")
 	OXEN             = NewCode("OXEN")
+	STETH            = NewCode("STETH")
 
 	stables = Currencies{
 		USDT,

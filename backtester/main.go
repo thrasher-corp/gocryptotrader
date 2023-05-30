@@ -138,7 +138,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = log.SetupGlobalLogger()
+	err = log.SetupGlobalLogger("gct/backtester", false)
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v\n", err)
 		os.Exit(1)
@@ -218,7 +218,7 @@ func main() {
 	runManager := backtest.NewTaskManager()
 
 	go func(c *config.BacktesterConfig) {
-		log.Info(log.GRPCSys, "Starting RPC server")
+		log.Infoln(log.GRPCSys, "Starting RPC server")
 		var s *backtest.GRPCServer
 		s, err = backtest.SetupRPCServer(c, runManager)
 		err = backtest.StartRPCServer(s)
@@ -226,7 +226,7 @@ func main() {
 			fmt.Printf("Could not start RPC server. Error: %v\n", err)
 			os.Exit(1)
 		}
-		log.Info(log.GRPCSys, "Ready to receive commands")
+		log.Infoln(log.GRPCSys, "Ready to receive commands")
 	}(btCfg)
 	interrupt := signaler.WaitForInterrupt()
 	log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)
@@ -235,7 +235,7 @@ func main() {
 		var stopped []*backtest.TaskSummary
 		stopped, err = runManager.StopAllTasks()
 		if err != nil {
-			log.Error(common.Backtester, err)
+			log.Errorln(common.Backtester, err)
 		}
 		for i := range stopped {
 			log.Infof(common.Backtester, "Task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
@@ -244,13 +244,13 @@ func main() {
 		var tasks []*backtest.TaskSummary
 		tasks, err = runManager.List()
 		if err != nil {
-			log.Error(common.Backtester, err)
+			log.Errorln(common.Backtester, err)
 		}
 		for i := range tasks {
 			if tasks[i].MetaData.ClosePositionsOnStop && !tasks[i].MetaData.Closed {
 				err = runManager.StopTask(tasks[i].MetaData.ID)
 				if err != nil {
-					log.Error(common.Backtester, err)
+					log.Errorln(common.Backtester, err)
 					continue
 				}
 				log.Infof(common.Backtester, "Task %v %v was stopped", tasks[i].MetaData.ID, tasks[i].MetaData.Strategy)

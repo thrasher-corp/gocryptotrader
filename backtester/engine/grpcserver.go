@@ -86,7 +86,7 @@ func StartRPCServer(server *GRPCServer) error {
 
 	go func() {
 		if err = s.Serve(lis); err != nil {
-			log.Error(log.GRPCSys, err)
+			log.Errorln(log.GRPCSys, err)
 			return
 		}
 	}()
@@ -133,7 +133,7 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 		}
 	}()
 
-	log.Debug(log.GRPCSys, "GRPC proxy server started!")
+	log.Debugln(log.GRPCSys, "GRPC proxy server started!")
 	return nil
 }
 
