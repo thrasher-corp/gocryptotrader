@@ -1049,7 +1049,7 @@ func (f *fakeEvent) GetInterval() gctkline.Interval           { return gctkline.
 func (f *fakeEvent) GetAssetType() asset.Item                 { return asset.Spot }
 func (f *fakeEvent) AppendReason(string)                      {}
 func (f *fakeEvent) GetClosePrice() decimal.Decimal           { return elite }
-func (f *fakeEvent) AppendReasonf(s string, i ...interface{}) {}
+func (f *fakeEvent) AppendReasonf(_ string, _ ...interface{}) {}
 func (f *fakeEvent) GetBase() *event.Base                     { return &event.Base{} }
 func (f *fakeEvent) GetUnderlyingPair() currency.Pair         { return pair }
 func (f *fakeEvent) GetConcatReasons() string                 { return "" }

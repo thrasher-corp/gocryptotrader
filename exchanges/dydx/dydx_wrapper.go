@@ -99,15 +99,15 @@ func (dy *DYDX) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.FourHour,
-					kline.OneDay,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
 				),
-				ResultLimit: 5000,
+				GlobalResultLimit: 5000,
 			},
 		},
 	}
@@ -901,15 +901,15 @@ func (dy *DYDX) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 	return fee, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (dy *DYDX) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+func (dy *DYDX) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := dy.UpdateAccountInfo(ctx, assetType)
 	return dy.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := dy.GetKlineRequest(pair, a, interval, start, end)
+	req, err := dy.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}

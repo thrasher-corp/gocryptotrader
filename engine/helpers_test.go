@@ -1034,7 +1034,7 @@ func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c cur
 	return []string{"BITCOIN"}, nil
 }
 
-func (f fakeDepositExchange) GetDepositAddress(_ context.Context, c currency.Code, chain, accountID string) (*deposit.Address, error) {
+func (f fakeDepositExchange) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
 	if f.ThrowDepositAddressError {
 		return nil, errors.New("unable to get deposit address")
 	}

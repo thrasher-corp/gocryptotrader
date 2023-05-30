@@ -75,7 +75,7 @@ func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryReq
 	}, nil
 }
 
-func (f fExchange) GetFuturesPositions(ctx context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (f fExchange) GetFuturesPositions(ctx context.Context, req *order.Positions
 	return resp, nil
 }
 
-func (f fExchange) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+func (f fExchange) GetFundingRates(_ context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
 	leet := decimal.NewFromInt(1337)
 	return []order.FundingRates{
 		{
@@ -141,7 +141,7 @@ func (f fExchange) GetFundingRates(ctx context.Context, request *order.FundingRa
 	}, nil
 }
 
-func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
+func (f fExchange) GetHistoricCandles(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
 	return &kline.Item{
 		Exchange: fakeExchangeName,
 		Pair:     p,
@@ -176,7 +176,7 @@ func generateCandles(amount int, timeStart time.Time, interval kline.Interval) [
 	return candy
 }
 
-func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
+func (f fExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
 	if interval == 0 {
 		return nil, errExpectedTestError
 	}
@@ -220,7 +220,7 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 	return resp, nil
 }
 
-func (f fExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (f fExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return &ticker.Price{
 		Last:         1337,
 		High:         1337,
@@ -311,7 +311,7 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 
 // UpdateAccountInfo overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
 	if a == asset.Futures {
 		return account.Holdings{}, errAssetTypeDisabled
 	}
@@ -338,22 +338,22 @@ func (f fExchange) GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error) 
 }
 
 // CanTradePair overrides interface function
-func (f fExchange) CanTradePair(p currency.Pair, a asset.Item) error {
+func (f fExchange) CanTradePair(_ currency.Pair, _ asset.Item) error {
 	return nil
 }
 
 // CanTrade overrides interface function
-func (f fExchange) CanTrade(c currency.Code, a asset.Item) error {
+func (f fExchange) CanTrade(_ currency.Code, _ asset.Item) error {
 	return nil
 }
 
 // CanWithdraw overrides interface function
-func (f fExchange) CanWithdraw(c currency.Code, a asset.Item) error {
+func (f fExchange) CanWithdraw(_ currency.Code, _ asset.Item) error {
 	return nil
 }
 
 // CanDeposit overrides interface function
-func (f fExchange) CanDeposit(c currency.Code, a asset.Item) error {
+func (f fExchange) CanDeposit(_ currency.Code, _ asset.Item) error {
 	return nil
 }
 
@@ -1132,8 +1132,8 @@ func (d *dummyServer) SetHeader(metadata.MD) error            { return nil }
 func (d *dummyServer) SendHeader(metadata.MD) error           { return nil }
 func (d *dummyServer) SetTrailer(metadata.MD)                 {}
 func (d *dummyServer) Context() context.Context               { return context.Background() }
-func (d *dummyServer) SendMsg(m interface{}) error            { return nil }
-func (d *dummyServer) RecvMsg(m interface{}) error            { return nil }
+func (d *dummyServer) SendMsg(_ interface{}) error            { return nil }
+func (d *dummyServer) RecvMsg(_ interface{}) error            { return nil }
 
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
@@ -2530,7 +2530,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Enabled:      currency.Pairs{cp},
 	}
 
-	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.OneDay)
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneDay})
 	err = em.Add(fExchange{IBotExchange: exch})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

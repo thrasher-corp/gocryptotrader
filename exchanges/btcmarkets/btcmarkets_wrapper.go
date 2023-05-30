@@ -116,21 +116,21 @@ func (b *BTCMarkets) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.OneMin,
-					kline.ThreeMin,
-					kline.FiveMin,
-					kline.FifteenMin,
-					kline.ThirtyMin,
-					kline.OneHour,
-					kline.TwoHour,
-					kline.ThreeHour,
-					kline.FourHour,
-					kline.SixHour,
-					kline.OneDay,
-					kline.OneWeek,
-					kline.OneMonth,
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.ThreeHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				ResultLimit: 1000,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -491,12 +491,12 @@ func (b *BTCMarkets) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTCMarkets) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *BTCMarkets) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTCMarkets) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -592,7 +592,29 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(tempResp.OrderID)
+
+	submitResp, err := s.DeriveSubmitResponse(tempResp.OrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if tempResp.Amount != 0 {
+		err = submitResp.AdjustBaseAmount(tempResp.Amount)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "Exchange %s: OrderID: %s base amount conversion error: %s\n", b.Name, submitResp.OrderID, err)
+		}
+	}
+
+	if tempResp.TargetAmount != 0 {
+		err = submitResp.AdjustQuoteAmount(tempResp.TargetAmount)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "Exchange %s: OrderID: %s quote amount conversion error: %s\n", b.Name, submitResp.OrderID, err)
+		}
+	}
+	// With market orders the price is optional, so we can set it to the
+	// actual price that was filled.
+	submitResp.Price = tempResp.Price
+	return submitResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -644,7 +666,7 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (b *BTCMarkets) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
@@ -679,7 +701,7 @@ func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (orde
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	o, err := b.FetchOrder(ctx, orderID)
 	if err != nil {
@@ -738,7 +760,7 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTCMarkets) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, _ string) (*deposit.Address, error) {
+func (b *BTCMarkets) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	depositAddr, err := b.FetchDepositAddress(ctx, cryptocurrency, -1, -1, -1)
 	if err != nil {
 		return nil, err
@@ -968,9 +990,9 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 	return req.Filter(b.Name, resp), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *BTCMarkets) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *BTCMarkets) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	if err != nil {
 		if b.CheckTransientError(err) == nil {
@@ -1016,7 +1038,7 @@ func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := b.GetKlineRequest(pair, a, interval, start, end)
+	req, err := b.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}

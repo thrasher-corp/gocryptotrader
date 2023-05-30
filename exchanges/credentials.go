@@ -90,7 +90,7 @@ func (b *Base) CheckCredentials(creds *account.Credentials, isContext bool) erro
 	// Individual package usage, allow request if API credentials are valid a
 	// and without needing to set AuthenticatedSupport to true
 	if !b.LoadedByConfig {
-		return b.ValidateAPICredentials(creds)
+		return b.VerifyAPICredentials(creds)
 	}
 
 	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so
@@ -102,13 +102,13 @@ func (b *Base) CheckCredentials(creds *account.Credentials, isContext bool) erro
 
 	// Check to see if the user has enabled AuthenticatedSupport, but has
 	// invalid API credentials set and loaded by config
-	return b.ValidateAPICredentials(creds)
+	return b.VerifyAPICredentials(creds)
 }
 
 // AreCredentialsValid returns if the supplied credentials are valid.
 func (b *Base) AreCredentialsValid(ctx context.Context) bool {
 	creds, err := b.GetCredentials(ctx)
-	return err == nil && b.ValidateAPICredentials(creds) == nil
+	return err == nil && b.VerifyAPICredentials(creds) == nil
 }
 
 // GetDefaultCredentials returns the exchange.Base api credentials loaded by
@@ -158,8 +158,8 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	return &creds, nil
 }
 
-// ValidateAPICredentials validates the exchanges API credentials
-func (b *Base) ValidateAPICredentials(creds *account.Credentials) error {
+// VerifyAPICredentials verifies the exchanges API credentials
+func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
 	b.API.credMu.RLock()
 	defer b.API.credMu.RUnlock()
 	if creds.IsEmpty() {

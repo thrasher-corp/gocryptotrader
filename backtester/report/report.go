@@ -21,7 +21,7 @@ func (d *Data) GenerateReport() error {
 	if d.TemplatePath == "" || d.OutputPath == "" {
 		return nil
 	}
-	log.Info(common.Report, "Generating report")
+	log.Infoln(common.Report, "Generating report")
 	err := d.enhanceCandles()
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (d *Data) GenerateReport() error {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Error(common.Report, err)
+			log.Errorln(common.Report, err)
 		}
 	}()
 
@@ -144,7 +144,7 @@ func (d *Data) enhanceCandles() error {
 			Asset:     lookup.Asset,
 			Pair:      lookup.Pair,
 			Interval:  lookup.Interval,
-			Watermark: fmt.Sprintf("%s - %s - %s", strings.Title(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()), //nolint:staticcheck // Ignore Title usage warning
+			Watermark: fmt.Sprintf("%s - %s - %s", strings.Title(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()),
 		}
 
 		statsForCandles :=

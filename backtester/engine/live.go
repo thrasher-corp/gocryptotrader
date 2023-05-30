@@ -82,7 +82,7 @@ func (d *dataChecker) Start() error {
 		if err != nil {
 			stopErr := d.SignalStopFromError(err)
 			if stopErr != nil {
-				log.Error(common.LiveStrategy, stopErr)
+				log.Errorln(common.LiveStrategy, stopErr)
 			}
 		}
 	}()
@@ -118,7 +118,7 @@ func (d *dataChecker) SignalStopFromError(err error) error {
 	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
 		return engine.ErrSubSystemNotStarted
 	}
-	log.Error(common.LiveStrategy, err)
+	log.Errorln(common.LiveStrategy, err)
 	d.shutdownErr <- true
 	return nil
 }
@@ -399,7 +399,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		err = d.UpdateFunding(false)
 		if err != nil {
 			if err != nil {
-				log.Error(common.LiveStrategy, err)
+				log.Errorln(common.LiveStrategy, err)
 			}
 		}
 	}
@@ -495,9 +495,8 @@ func (c *liveDataSourceDataHandler) loadCandleData(timeToRetrieve time.Time) (bo
 			if i < c.dataRequestRetryTolerance {
 				log.Errorf(common.Data, "%v %v %v failed to retrieve data %v of %v attempts: %v", c.exchangeName, c.asset, c.pair, i, c.dataRequestRetryTolerance, err)
 				continue
-			} else {
-				return false, err
 			}
+			return false, err
 		}
 		break
 	}

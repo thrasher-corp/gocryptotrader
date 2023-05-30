@@ -1,6 +1,7 @@
 package log
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
@@ -76,7 +78,7 @@ func setupTestLoggers() error {
 	if err != nil {
 		return err
 	}
-	err = SetupGlobalLogger()
+	err = SetupGlobalLogger("test", false)
 	if err != nil {
 		return err
 	}
@@ -88,7 +90,7 @@ func SetupDisabled() error {
 	if err != nil {
 		return err
 	}
-	err = SetupGlobalLogger()
+	err = SetupGlobalLogger("test", false)
 	if err != nil {
 		return err
 	}
@@ -180,13 +182,13 @@ func TestAddWriter(t *testing.T) {
 
 type WriteShorter struct{}
 
-func (w *WriteShorter) Write(p []byte) (int, error) {
+func (w *WriteShorter) Write(_ []byte) (int, error) {
 	return 1, nil
 }
 
 type WriteError struct{}
 
-func (w *WriteError) Write(p []byte) (int, error) {
+func (w *WriteError) Write(_ []byte) (int, error) {
 	return 0, errWriteError
 }
 
@@ -195,17 +197,17 @@ var errWriteError = errors.New("write error")
 func TestMultiWriterWrite(t *testing.T) {
 	t.Parallel()
 
-	fields := &logFields{}
+	f := &fields{}
 	buff := newTestBuffer()
 
 	var err error
-	fields.output, err = multiWriter(io.Discard, buff)
+	f.output, err = multiWriter(io.Discard, buff)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	payload := "woooooooooooooooooooooooooooooooooooow"
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false, false)
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,17 +217,17 @@ func TestMultiWriterWrite(t *testing.T) {
 		t.Errorf("received: '%v' but expected: '%v'", contents, payload)
 	}
 
-	fields.output, err = multiWriter(&WriteShorter{}, io.Discard)
+	f.output, err = multiWriter(&WriteShorter{}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false, false) // Will display error: Logger write error: *log.WriteShorter short write
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteShorter short write
 
-	fields.output, err = multiWriter(&WriteError{}, io.Discard)
+	f.output, err = multiWriter(&WriteError{}, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields.output.StageLogEvent(func() string { return payload }, "", "", "", "", false, false) // Will display error: Logger write error: *log.WriteError write error
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteError write error
 }
 
 func TestGetWriters(t *testing.T) {
@@ -343,8 +345,8 @@ func TestStageNewLogEvent(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	fields := &logFields{output: mw}
-	fields.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", false, false)
+	f := &fields{output: mw}
+	f.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", "", "", false, false, false, nil)
 
 	<-w.Finished
 	if contents := w.Read(); contents != "header space  space out\n" { //nolint:dupword // False positive
@@ -354,6 +356,7 @@ func TestStageNewLogEvent(t *testing.T) {
 
 func TestInfo(t *testing.T) {
 	t.Parallel()
+
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
@@ -367,26 +370,22 @@ func TestInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Info(sl, "Hello")
-	<-w.Finished
-	contents := w.Read()
-
-	if !strings.Contains(contents, "Hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "Hello")
-	}
+	Infof(nil, "%s", "bad")
 
 	Infof(sl, "%s", "hello")
 	<-w.Finished
-	contents = w.Read()
+	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
+	Infoln(nil, "hello", "bad")
+
 	Infoln(sl, "hello", "goodbye")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, "hello goodbye") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "hello goodbye")
+	if !strings.Contains(contents, "hellogoodbye") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, "hellogoodbye")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTINFO", "")
@@ -396,12 +395,6 @@ func TestInfo(t *testing.T) {
 
 	// Should not write to buffer at all as it should return if functionality
 	// is not enabled.
-	Info(sl, "HelloHello")
-	contents = w.Read()
-	if contents != "" {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "")
-	}
-
 	Infoln(sl, "HelloHello")
 	contents = w.Read()
 	if contents != "" {
@@ -424,26 +417,22 @@ func TestDebug(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Debug(sl, "Hello")
-	<-w.Finished
-	contents := w.Read()
-
-	if !strings.Contains(contents, "Hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "Hello")
-	}
+	Debugf(nil, "%s", "bad")
 
 	Debugf(sl, "%s", "hello")
 	<-w.Finished
-	contents = w.Read()
+	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
+	Debugln(nil, ":sun_with_face:", "bad")
+
 	Debugln(sl, ":sun_with_face:", ":angrysun:")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, ":sun_with_face: :angrysun:") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, ":sun_with_face: :angrysun:")
+	if !strings.Contains(contents, ":sun_with_face::angrysun:") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, ":sun_with_face::angrysun:")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTDEBUG", "")
@@ -453,12 +442,6 @@ func TestDebug(t *testing.T) {
 
 	// Should not write to buffer at all as it should return if functionality
 	// is not enabled.
-	Debug(sl, "HelloHello")
-	contents = w.Read()
-	if contents != "" {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "")
-	}
-
 	Debugln(sl, "HelloHello")
 	contents = w.Read()
 	if contents != "" {
@@ -481,26 +464,22 @@ func TestWarn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Warn(sl, "Hello")
-	<-w.Finished
-	contents := w.Read()
-
-	if !strings.Contains(contents, "Hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "Hello")
-	}
+	Warnf(nil, "%s", "silly")
 
 	Warnf(sl, "%s", "hello")
 	<-w.Finished
-	contents = w.Read()
+	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
+	Warnln(nil, "super", "silly")
+
 	Warnln(sl, "hello", "world")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, "hello world") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "hello world")
+	if !strings.Contains(contents, "helloworld") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, "helloworld")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTWARN", "")
@@ -510,12 +489,6 @@ func TestWarn(t *testing.T) {
 
 	// Should not write to buffer at all as it shhould return if functionality
 	// is not enabled.
-	Warn(sl, "HelloHello")
-	contents = w.Read()
-	if contents != "" {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "")
-	}
-
 	Warnln(sl, "HelloHello")
 	contents = w.Read()
 	if contents != "" {
@@ -543,26 +516,22 @@ func TestError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Error(sl, "Hello")
-	<-w.Finished
-	contents := w.Read()
-
-	if !strings.Contains(contents, "Hello") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "Hello")
-	}
+	Errorf(nil, "%s", "oh wow")
 
 	Errorf(sl, "%s", "hello")
 	<-w.Finished
-	contents = w.Read()
+	contents := w.Read()
 	if !strings.Contains(contents, "hello") {
 		t.Errorf("received: '%v' but expected: '%v'", contents, "hello")
 	}
 
+	Errorln(nil, "nil", "days")
+
 	Errorln(sl, "hello", "goodbye")
 	<-w.Finished
 	contents = w.Read()
-	if !strings.Contains(contents, "hello goodbye") {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "hello goodbye")
+	if !strings.Contains(contents, "hellogoodbye") {
+		t.Errorf("received: '%v' but expected: '%v'", contents, "hellogoodbye")
 	}
 
 	_, err = SetLevel("TESTYMCTESTALOTERROR", "")
@@ -572,12 +541,6 @@ func TestError(t *testing.T) {
 
 	// Should not write to buffer at all as it shhould return if functionality
 	// is not enabled.
-	Error(sl, "HelloHello")
-	contents = w.Read()
-	if contents != "" {
-		t.Errorf("received: '%v' but expected: '%v'", contents, "")
-	}
-
 	Errorln(sl, "HelloHello")
 	contents = w.Read()
 	if contents != "" {
@@ -602,14 +565,14 @@ func TestSubLoggerName(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", time.RFC3339, true, false)
+	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", "", "", time.RFC3339, true, false, false, nil)
 	<-w.Finished
 	contents := w.Read()
 	if !strings.Contains(contents, "SUBLOGGER") {
 		t.Error("Expected SUBLOGGER in output")
 	}
 
-	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", time.RFC3339, false, false)
+	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", "", "", time.RFC3339, false, false, false, nil)
 	<-w.Finished
 	contents = w.Read()
 	if strings.Contains(contents, "SUBLOGGER") {
@@ -629,7 +592,7 @@ func TestNewSubLogger(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 
-	Debug(sl, "testerinos")
+	Debugln(sl, "testerinos")
 
 	_, err = NewSubLogger("TESTERINOS")
 	if !errors.Is(err, ErrSubLoggerAlreadyRegistered) {
@@ -694,19 +657,28 @@ func TestOpenNew(t *testing.T) {
 }
 
 type testBuffer struct {
-	value    string
+	value    []byte
 	Finished chan struct{}
 }
 
 func (tb *testBuffer) Write(p []byte) (int, error) {
-	tb.value = string(p)
+	cpy := make([]byte, len(p))
+	copy(cpy, p)
+	tb.value = cpy
 	tb.Finished <- struct{}{}
 	return len(p), nil
 }
 
 func (tb *testBuffer) Read() string {
-	defer func() { tb.value = "" }()
-	return tb.value
+	defer func() { tb.value = tb.value[:0] }()
+	return string(tb.value)
+}
+
+func (tb *testBuffer) ReadRaw() []byte {
+	defer func() { tb.value = tb.value[:0] }()
+	cpy := make([]byte, len(tb.value))
+	copy(cpy, tb.value)
+	return cpy
 }
 
 func newTestBuffer() *testBuffer {
@@ -717,7 +689,7 @@ func newTestBuffer() *testBuffer {
 func BenchmarkNewLogEvent(b *testing.B) {
 	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
 	for i := 0; i < b.N; i++ {
-		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", time.RFC3339, true, false)
+		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", "", "", time.RFC3339, true, false, false, nil)
 	}
 }
 
@@ -725,7 +697,7 @@ func BenchmarkNewLogEvent(b *testing.B) {
 func BenchmarkInfo(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Info(Global, "Hello this is an info benchmark")
+		Infoln(Global, "Hello this is an info benchmark")
 	}
 }
 
@@ -737,7 +709,7 @@ func BenchmarkInfoDisabled(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		Info(Global, "Hello this is an info benchmark")
+		Infoln(Global, "Hello this is an info benchmark")
 	}
 }
 
@@ -754,5 +726,146 @@ func BenchmarkInfoln(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Infoln(Global, "Hello this is an infoln benchmark")
+	}
+}
+
+type testCapture struct {
+	Message   string    `json:"message"`
+	Timestamp int64     `json:"timestamp"`
+	Severity  string    `json:"severity"`
+	SubLogger string    `json:"sublogger"`
+	BotName   string    `json:"botname"`
+	ID        uuid.UUID `json:"id"`
+}
+
+func TestWithFields(t *testing.T) {
+	t.Parallel()
+	writer := newTestBuffer()
+	mwh := &multiWriterHolder{writers: []io.Writer{writer}}
+
+	sl, err := NewSubLogger("TESTSTRUCTUREDLOGGING")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sl.structuredLogging = true
+	sl.setLevelsProtected(splitLevel("DEBUG|ERROR|INFO|WARN"))
+	err = sl.setOutputProtected(mwh)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ErrorlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
+	ErrorlnWithFields(sl, ExtraFields{"id": id}, "hello")
+	<-writer.Finished
+	var captured testCapture
+	bro := writer.ReadRaw()
+	err = json.Unmarshal(bro, &captured)
+	if err != nil {
+		t.Fatal(err, string(bro))
+	}
+	checkCapture(t, &captured, id, "hello", "error")
+
+	ErrorfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	ErrorfWithFields(sl, ExtraFields{"id": id}, "%v", "good")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCapture(t, &captured, id, "good", "error")
+
+	DebuglnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
+	DebuglnWithFields(sl, ExtraFields{"id": id}, "sir")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCapture(t, &captured, id, "sir", "debug")
+
+	DebugfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	DebugfWithFields(sl, ExtraFields{"id": id}, "%v", "how")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCapture(t, &captured, id, "how", "debug")
+
+	WarnlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
+	WarnlnWithFields(sl, ExtraFields{"id": id}, "are")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCapture(t, &captured, id, "are", "warn")
+
+	WarnfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	WarnfWithFields(sl, ExtraFields{"id": id}, "%v", "you")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCapture(t, &captured, id, "you", "warn")
+
+	InfolnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
+	InfolnWithFields(sl, ExtraFields{"id": id}, "today")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCapture(t, &captured, id, "today", "info")
+
+	InfofWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	InfofWithFields(sl, ExtraFields{"id": id}, "%v", "?")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkCapture(t, &captured, id, "?", "info")
+
+	// Conflicting fields
+	InfofWithFields(nil, ExtraFields{botName: "lol"}, "%v", "nilerinos")
+	InfofWithFields(sl, ExtraFields{botName: "lol"}, "%v", "?")
+	<-writer.Finished
+	err = json.Unmarshal(writer.ReadRaw(), &captured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if captured.BotName != "test" {
+		t.Fatalf("received: '%v' but expected: '%v'", captured.BotName, "test")
+	}
+}
+
+func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, expSeverity string) {
+	t.Helper()
+
+	if c.ID != expID {
+		t.Errorf("received: '%v' but expected: '%v'", c.ID, expID)
+	}
+
+	if c.Message != expMessage {
+		t.Errorf("received: '%v' but expected: '%v'", c.Message, expMessage)
+	}
+
+	if c.Severity != expSeverity {
+		t.Errorf("received: '%v' but expected: '%v'", c.Severity, expSeverity)
+	}
+
+	if c.SubLogger != "TESTSTRUCTUREDLOGGING" {
+		t.Errorf("received: '%v' but expected: '%v'", c.SubLogger, "TESTSTRUCTUREDLOGGING")
+	}
+
+	if c.BotName != "test" {
+		t.Errorf("received: '%v' but expected: '%v'", c.BotName, "test")
 	}
 }

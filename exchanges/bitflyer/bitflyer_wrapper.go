@@ -202,7 +202,7 @@ func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (b *Bitflyer) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (b *Bitflyer) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -472,9 +472,9 @@ func (b *Bitflyer) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	return b.GetFee(feeBuilder)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitflyer) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *Bitflyer) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }

@@ -31,7 +31,7 @@ var (
 
 	// Note: Logger state within logFields will be persistent until it's garbage
 	// collected. This is a little bit more efficient.
-	logFieldsPool = &sync.Pool{New: func() interface{} { return &logFields{logger: logger} }}
+	logFieldsPool = &sync.Pool{New: func() interface{} { return &fields{logger: logger} }}
 
 	// LogPath system path to store log files in
 	logPath string
@@ -44,10 +44,14 @@ type job struct {
 	Writers           []io.Writer
 	fn                deferral
 	Header            string
-	SlName            string
+	SubLoggerName     string
 	Spacer            string
 	TimestampFormat   string
 	ShowLogSystemName bool
+	Instance          string
+	StructuredFields  map[Key]interface{}
+	StructuredLogging bool
+	Severity          string
 	Passback          chan<- struct{}
 }
 
@@ -66,6 +70,7 @@ type advancedSettings struct {
 	TimeStampFormat               string  `json:"timeStampFormat"`
 	Headers                       headers `json:"headers"`
 	BypassJobChannelFilledWarning bool    `json:"bypassJobChannelFilledWarning"`
+	StructuredLogging             bool    `json:"structuredLogging"`
 }
 
 type headers struct {
@@ -95,6 +100,8 @@ type Logger struct {
 	TimestampFormat                                  string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string
+	Level                                            string
+	botName                                          string
 }
 
 // Levels flags for each sub logger type
@@ -105,3 +112,11 @@ type Levels struct {
 type multiWriterHolder struct {
 	writers []io.Writer
 }
+
+// ExtraFields is a map of key value pairs that can be added to a structured
+// log output.
+type ExtraFields map[Key]interface{}
+
+// Key is used for structured logging fields to ensure no collisions occur.
+// Unexported keys are default fields which cannot be overwritten.
+type Key string

@@ -146,7 +146,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
-	exch.CapitalName = strings.Title(exch.Name) //nolint:staticcheck // Ignore Title usage warning
+	exch.CapitalName = strings.Title(exch.Name)
 	exch.Variable = exch.Name[0:2]
 	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName

@@ -11,32 +11,36 @@ import (
 
 // Consts here define basic time intervals
 const (
-	FifteenSecond = Interval(15 * time.Second)
-	OneMin        = Interval(time.Minute)
-	ThreeMin      = 3 * OneMin
-	FiveMin       = 5 * OneMin
-	TenMin        = 10 * OneMin
-	FifteenMin    = 15 * OneMin
-	ThirtyMin     = 30 * OneMin
-	OneHour       = Interval(time.Hour)
-	TwoHour       = 2 * OneHour
-	ThreeHour     = 3 * OneHour
-	FourHour      = 4 * OneHour
-	SixHour       = 6 * OneHour
-	EightHour     = 8 * OneHour
-	TwelveHour    = 12 * OneHour
-	OneDay        = 24 * OneHour
-	TwoDay        = 2 * OneDay
-	ThreeDay      = 3 * OneDay
-	FiveDay       = 5 * OneDay
-	SevenDay      = 7 * OneDay
-	FifteenDay    = 15 * OneDay
-	OneWeek       = 7 * OneDay
-	TwoWeek       = 2 * OneWeek
-	OneMonth      = 30 * OneDay
-	ThreeMonth    = 3 * OneMonth
-	SixMonth      = 6 * OneMonth
-	OneYear       = 365 * OneDay
+	HundredMilliseconds  = Interval(100 * time.Millisecond)
+	ThousandMilliseconds = 10 * HundredMilliseconds
+	TenSecond            = Interval(10 * time.Second)
+	FifteenSecond        = Interval(15 * time.Second)
+	ThirtySecond         = 2 * FifteenSecond
+	OneMin               = Interval(time.Minute)
+	ThreeMin             = 3 * OneMin
+	FiveMin              = 5 * OneMin
+	TenMin               = 10 * OneMin
+	FifteenMin           = 15 * OneMin
+	ThirtyMin            = 30 * OneMin
+	OneHour              = Interval(time.Hour)
+	TwoHour              = 2 * OneHour
+	ThreeHour            = 3 * OneHour
+	FourHour             = 4 * OneHour
+	SixHour              = 6 * OneHour
+	EightHour            = 8 * OneHour
+	TwelveHour           = 12 * OneHour
+	OneDay               = 24 * OneHour
+	TwoDay               = 2 * OneDay
+	ThreeDay             = 3 * OneDay
+	SevenDay             = 7 * OneDay
+	FifteenDay           = 15 * OneDay
+	OneWeek              = 7 * OneDay
+	TwoWeek              = 2 * OneWeek
+	OneMonth             = 30 * OneDay
+	ThreeMonth           = 90 * OneDay
+	SixMonth             = 2 * ThreeMonth
+	OneYear              = 365 * OneDay
+	FiveDay              = 5 * OneDay
 )
 
 var (
@@ -71,15 +75,22 @@ var (
 	// back further than what is allowed.
 	ErrRequestExceedsMaxLookback = errors.New("the requested time window exceeds the maximum lookback period available in the historical data, please reduce window between start and end date of your request")
 
-	errInsufficientTradeData     = errors.New("insufficient trade data")
-	errCandleDataNotPadded       = errors.New("candle data not padded")
-	errCannotEstablishTimeWindow = errors.New("cannot establish time window")
-	errNilKline                  = errors.New("kline item is nil")
+	errInsufficientTradeData            = errors.New("insufficient trade data")
+	errCandleDataNotPadded              = errors.New("candle data not padded")
+	errCannotEstablishTimeWindow        = errors.New("cannot establish time window")
+	errNilKline                         = errors.New("kline item is nil")
+	errExchangeCapabilitiesEnabledIsNil = errors.New("exchange capabilities enabled is nil")
+	errCannotFetchIntervalLimit         = errors.New("cannot fetch interval limit")
+	errIntervalNotSupported             = errors.New("interval not supported")
+	errCandleOpenTimeIsNotUTCAligned    = errors.New("candle open time is not UTC aligned")
 
 	oneYearDurationInNano = float64(OneYear.Duration().Nanoseconds())
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
+		HundredMilliseconds,
+		ThousandMilliseconds,
+		TenSecond,
 		FifteenSecond,
 		OneMin,
 		ThreeMin,
@@ -96,6 +107,7 @@ var (
 		TwelveHour,
 		OneDay,
 		ThreeDay,
+		FiveDay,
 		SevenDay,
 		FifteenDay,
 		OneWeek,
@@ -104,6 +116,8 @@ var (
 		ThreeMonth,
 		SixMonth,
 		OneYear,
+		ThreeMonth,
+		SixMonth,
 	}
 )
 
@@ -138,15 +152,20 @@ type ExchangeCapabilitiesSupported struct {
 
 // ExchangeCapabilitiesEnabled all kline related exchange enabled options
 type ExchangeCapabilitiesEnabled struct {
-	Intervals   ExchangeIntervals
-	ResultLimit uint32
+	// Intervals defines whether the exchange supports interval kline requests.
+	Intervals ExchangeIntervals
+	// GlobalResultLimit is the maximum amount of candles that can be returned
+	// across all intervals. This is used to determine if a request will exceed
+	// the exchange limits. Indivudal interval limits are stored in the
+	// ExchangeIntervals struct. If this is set to 0, it will be ignored.
+	GlobalResultLimit uint32
 }
 
 // ExchangeIntervals stores the supported intervals in an optimized lookup table
 // with a supplementary aligned retrieval list
 type ExchangeIntervals struct {
-	supported map[Interval]bool
-	aligned   []Interval
+	supported map[Interval]int64
+	aligned   []IntervalCapacity
 }
 
 // Interval type for kline Interval usage
@@ -182,4 +201,10 @@ type IntervalData struct {
 type IntervalTime struct {
 	Time  time.Time
 	Ticks int64
+}
+
+// IntervalCapacity is used to store the interval and capacity for a candle return
+type IntervalCapacity struct {
+	Interval Interval
+	Capacity int64
 }
