@@ -4382,6 +4382,10 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, err
 	}
+	features := exch.GetSupportedFeatures()
+	if !features.FuturesPositionsTracking {
+		return nil, common.ErrFunctionNotSupported
+	}
 	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
@@ -4427,9 +4431,10 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		subAccount = "for subaccount: " + creds.SubAccount
 	}
 	positionDetails, err := exch.GetFuturesPositionOrders(ctx, &order.PositionsRequest{
-		Asset:     ai,
-		Pairs:     currency.Pairs{cp},
-		StartDate: start,
+		Asset:                     ai,
+		Pairs:                     currency.Pairs{cp},
+		StartDate:                 start,
+		RespectOrderHistoryLimits: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w %v", err, subAccount)
@@ -5549,5 +5554,307 @@ func (s *RPCServer) GetOrderbookAmountByImpact(_ context.Context, r *gctrpc.GetO
 		StartPrice:                          impact.StartPrice,
 		EndPrice:                            impact.EndPrice,
 		AverageOrderCost:                    impact.AverageOrderCost,
+	}, nil
+}
+
+// GetCollateralType returns the collateral type for the account asset
+func (s *RPCServer) GetCollateralType(ctx context.Context, r *gctrpc.GetCollateralTypeRequest) (*gctrpc.GetCollateralTypeResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetCollateralTypeRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	if !exch.IsEnabled() {
+		return nil, fmt.Errorf("%s %w", exch.GetName(), errExchangeNotEnabled)
+	}
+	if !item.IsValid() {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	b := exch.GetBase()
+	if b == nil {
+		return nil, fmt.Errorf("%s %w", exch.GetName(), errExchangeBaseNotFound)
+	}
+	err = b.CurrencyPairs.IsAssetEnabled(item)
+	if err != nil {
+		return nil, fmt.Errorf("%v %w", item, errAssetTypeDisabled)
+	}
+	collateralMode, err := exch.GetCollateralMode(ctx, item)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GetCollateralTypeResponse{
+		Exchange:       r.Exchange,
+		Asset:          r.Asset,
+		CollateralType: collateralMode.String(),
+	}, nil
+}
+
+// SetCollateralType sets the collateral type for the account asset
+func (s *RPCServer) SetCollateralType(ctx context.Context, r *gctrpc.SetCollateralTypeRequest) (*gctrpc.SetCollateralTypeResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w SetCollateralTypeRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	if !exch.IsEnabled() {
+		return nil, fmt.Errorf("%s %w", exch.GetName(), errExchangeNotEnabled)
+	}
+	if !item.IsValid() {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	b := exch.GetBase()
+	if b == nil {
+		return nil, fmt.Errorf("%s %w", exch.GetName(), errExchangeBaseNotFound)
+	}
+	err = b.CurrencyPairs.IsAssetEnabled(item)
+	if err != nil {
+		return nil, fmt.Errorf("%v %w", item, errAssetTypeDisabled)
+	}
+	ct := order.StringToCollateralType(r.CollateralType)
+	if !ct.Valid() {
+		return nil, fmt.Errorf("%w %v", order.ErrCollateralInvalid, r.CollateralType)
+	}
+	err = exch.SetCollateralMode(ctx, item, ct)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.SetCollateralTypeResponse{
+		Exchange: r.Exchange,
+		Asset:    r.Asset,
+		Success:  true,
+	}, nil
+}
+
+// SetMarginType sets the margin type for the account asset pair
+func (s *RPCServer) SetMarginType(ctx context.Context, r *gctrpc.SetMarginTypeRequest) (*gctrpc.SetMarginTypeResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w SetMarginTypeRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := margin.StringToMarginType(r.MarginType)
+	if !mt.Valid() {
+		return nil, fmt.Errorf("%w %v", margin.ErrInvalidMarginType, r.MarginType)
+	}
+
+	err = exch.SetMarginType(ctx, as, pair, mt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.SetMarginTypeResponse{
+		Exchange: r.Exchange,
+		Asset:    r.Asset,
+		Pair:     r.Pair,
+		Success:  true,
+	}, nil
+}
+
+// GetLeverage returns the leverage for the account asset pair
+func (s *RPCServer) GetLeverage(ctx context.Context, r *gctrpc.GetLeverageRequest) (*gctrpc.GetLeverageResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetLeverageRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	underlyingPair, err := currency.NewPairFromStrings(r.UnderlyingPair.Base, r.UnderlyingPair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if underlyingPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	mt := margin.StringToMarginType(r.MarginType)
+	if !mt.Valid() {
+		return nil, fmt.Errorf("%w %v", margin.ErrInvalidMarginType, r.MarginType)
+	}
+
+	leverage, err := exch.GetLeverage(ctx, as, pair, underlyingPair, mt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetLeverageResponse{
+		Exchange:       r.Exchange,
+		Asset:          r.Asset,
+		Pair:           r.Pair,
+		UnderlyingPair: r.UnderlyingPair,
+		MarginType:     r.MarginType,
+		Leverage:       leverage,
+	}, nil
+}
+
+// SetLeverage sets the leverage for the account asset pair
+func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageRequest) (*gctrpc.SetLeverageResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w SetLeverageRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	underlyingPair, err := currency.NewPairFromStrings(r.UnderlyingPair.Base, r.UnderlyingPair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if underlyingPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	mt := margin.StringToMarginType(r.MarginType)
+	if !mt.Valid() {
+		return nil, fmt.Errorf("%w %v", margin.ErrInvalidMarginType, r.MarginType)
+	}
+
+	err = exch.SetLeverage(ctx, as, pair, underlyingPair, mt, r.Leverage)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.SetLeverageResponse{
+		Exchange:       r.Exchange,
+		Asset:          r.Asset,
+		Pair:           r.Pair,
+		UnderlyingPair: r.UnderlyingPair,
+		MarginType:     r.MarginType,
+		Success:        true,
+	}, nil
+}
+
+// ChangePositionMargin sets a position's margin
+func (s *RPCServer) ChangePositionMargin(ctx context.Context, r *gctrpc.ChangePositionMarginRequest) (*gctrpc.ChangePositionMarginResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w ChangePositionMarginRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	err = checkParams(r.Exchange, exch, as, pair)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := margin.StringToMarginType(r.MarginType)
+	if !mt.Valid() {
+		return nil, fmt.Errorf("%w %v", margin.ErrInvalidMarginType, r.MarginType)
+	}
+
+	resp, err := exch.ChangePositionMargin(ctx, &margin.PositionChangeRequest{
+		Exchange:                exch.GetName(),
+		Pair:                    pair,
+		Asset:                   as,
+		MarginType:              mt,
+		OriginalAllocatedMargin: r.OriginalAllocatedMargin,
+		NewAllocatedMargin:      r.NewAllocatedMargin,
+		MarginSide:              r.MarginSide,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.ChangePositionMarginResponse{
+		Exchange:           r.Exchange,
+		Asset:              r.Asset,
+		Pair:               r.Pair,
+		MarginType:         r.MarginType,
+		NewAllocatedMargin: resp.AllocatedMargin,
+		MarginSide:         r.MarginSide,
 	}, nil
 }

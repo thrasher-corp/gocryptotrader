@@ -176,6 +176,38 @@
         ]
       }
     },
+    "/v1/changepositionmargin": {
+      "post": {
+        "operationId": "GoCryptoTraderService_ChangePositionMargin",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcChangePositionMarginResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcChangePositionMarginRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/converttradestocandles": {
       "get": {
         "operationId": "GoCryptoTraderService_ConvertTradesToCandles",
@@ -2369,6 +2401,30 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "underlyingPair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "underlyingPair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "underlyingPair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "marginType",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -2643,58 +2699,6 @@
       }
     },
     "/v1/getmargintype": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GetMarginType",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetMarginTypeResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.delimiter",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.base",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.quote",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      },
       "post": {
         "operationId": "GoCryptoTraderService_SetMarginType",
         "responses": {
@@ -4794,6 +4798,58 @@
         }
       }
     },
+    "gctrpcChangePositionMarginRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
+          "type": "string"
+        },
+        "originalAllocatedMargin": {
+          "type": "number",
+          "format": "double"
+        },
+        "newAllocatedMargin": {
+          "type": "number",
+          "format": "double"
+        },
+        "marginSide": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcChangePositionMarginResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
+          "type": "string"
+        },
+        "newAllocatedMargin": {
+          "type": "number",
+          "format": "double"
+        },
+        "marginSide": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCoin": {
       "type": "object",
       "properties": {
@@ -5953,8 +6009,15 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "leverage": {
+        "underlyingPair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
           "type": "string"
+        },
+        "leverage": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -6020,23 +6083,6 @@
           "$ref": "#/definitions/gctrpcMarginRate"
         },
         "takerFeeRate": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcGetMarginTypeResponse": {
-      "type": "object",
-      "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "asset": {
-          "type": "string"
-        },
-        "pair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
-        },
-        "marginType": {
           "type": "string"
         }
       }
@@ -6808,8 +6854,15 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "leverage": {
+        "underlyingPair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
           "type": "string"
+        },
+        "leverage": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -6824,6 +6877,12 @@
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "underlyingPair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
+          "type": "string"
         },
         "success": {
           "type": "boolean"

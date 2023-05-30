@@ -73,6 +73,16 @@ const (
 	UnknownCollateral
 )
 
+const (
+	unsetCollateralStr   = "unset"
+	singleCollateralStr  = "single"
+	multiCollateralStr   = "multi"
+	globalCollateralStr  = "global"
+	unknownCollateralStr = "unknown"
+)
+
+var supportedCollateralTypes = SingleCollateral | MultiCollateral | GlobalCollateral
+
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
@@ -390,6 +400,10 @@ type PositionsRequest struct {
 	Asset     asset.Item
 	Pairs     currency.Pairs
 	StartDate time.Time
+	// RespectOrderHistoryLimits is designed for the order manager
+	// it allows for orders to be tracked if the start date in the config is
+	// beyond the allowable limits by the API, rather than returning an error
+	RespectOrderHistoryLimits bool
 }
 
 // PositionResponse are used to track open positions

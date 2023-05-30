@@ -30,6 +30,8 @@ type IBotExchange interface {
 	Shutdown() error
 	GetName() string
 	SetEnabled(bool)
+	GetEnabledFeatures() FeaturesEnabled
+	GetSupportedFeatures() FeaturesSupported
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error

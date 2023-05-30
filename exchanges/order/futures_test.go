@@ -2,7 +2,9 @@ package order
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -1569,5 +1571,153 @@ func TestCheckTrackerPrerequisitesLowerExchange(t *testing.T) {
 	}
 	if lowerExch != "im uppercase" {
 		t.Error("expected lowercase")
+	}
+}
+
+func TestValidCollateralType(t *testing.T) {
+	t.Parallel()
+	if !SingleCollateral.Valid() {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if !MultiCollateral.Valid() {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if !GlobalCollateral.Valid() {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if UnsetCollateralType.Valid() {
+		t.Fatal("expected 'false', received 'true'")
+	}
+	if UnknownCollateral.Valid() {
+		t.Fatal("expected 'false', received 'true'")
+	}
+	if CollateralType(137).Valid() {
+		t.Fatal("expected 'false', received 'true'")
+	}
+}
+
+func TestUnmarshalJSONCollateralType(t *testing.T) {
+	t.Parallel()
+	type martian struct {
+		M CollateralType `json:"collateral"`
+	}
+
+	var alien martian
+	jason := []byte(`{"collateral":"single"}`)
+	err := json.Unmarshal(jason, &alien)
+	if err != nil {
+		t.Error(err)
+	}
+	if alien.M != SingleCollateral {
+		t.Errorf("received '%v' expected 'singl'", alien.M)
+	}
+
+	jason = []byte(`{"collateral":"multi"}`)
+	err = json.Unmarshal(jason, &alien)
+	if err != nil {
+		t.Error(err)
+	}
+	if alien.M != MultiCollateral {
+		t.Errorf("received '%v' expected 'Multi'", alien.M)
+	}
+
+	jason = []byte(`{"collateral":"global"}`)
+	err = json.Unmarshal(jason, &alien)
+	if err != nil {
+		t.Error(err)
+	}
+	if alien.M != GlobalCollateral {
+		t.Errorf("received '%v' expected 'Global'", alien.M)
+	}
+
+	jason = []byte(`{"collateral":"hello moto"}`)
+	err = json.Unmarshal(jason, &alien)
+	if err != nil {
+		t.Error(err)
+	}
+	if alien.M != UnknownCollateral {
+		t.Errorf("received '%v' expected 'isolated'", alien.M)
+	}
+}
+
+func TestStringCollateralType(t *testing.T) {
+	t.Parallel()
+	if UnknownCollateral.String() != unknownCollateralStr {
+		t.Errorf("received '%v' expected '%v'", UnknownCollateral.String(), unknownCollateralStr)
+	}
+	if SingleCollateral.String() != singleCollateralStr {
+		t.Errorf("received '%v' expected '%v'", SingleCollateral.String(), singleCollateralStr)
+	}
+	if MultiCollateral.String() != multiCollateralStr {
+		t.Errorf("received '%v' expected '%v'", MultiCollateral.String(), multiCollateralStr)
+	}
+	if GlobalCollateral.String() != globalCollateralStr {
+		t.Errorf("received '%v' expected '%v'", GlobalCollateral.String(), globalCollateralStr)
+	}
+	if UnsetCollateralType.String() != unsetCollateralStr {
+		t.Errorf("received '%v' expected '%v'", UnsetCollateralType.String(), unsetCollateralStr)
+	}
+}
+
+func TestUpperCollateralType(t *testing.T) {
+	t.Parallel()
+	if UnknownCollateral.Upper() != strings.ToUpper(unknownCollateralStr) {
+		t.Errorf("received '%v' expected '%v'", UnknownCollateral.Upper(), strings.ToUpper(unknownCollateralStr))
+	}
+	if SingleCollateral.Upper() != strings.ToUpper(singleCollateralStr) {
+		t.Errorf("received '%v' expected '%v'", SingleCollateral.Upper(), strings.ToUpper(singleCollateralStr))
+	}
+	if MultiCollateral.Upper() != strings.ToUpper(multiCollateralStr) {
+		t.Errorf("received '%v' expected '%v'", MultiCollateral.Upper(), strings.ToUpper(multiCollateralStr))
+	}
+	if GlobalCollateral.Upper() != strings.ToUpper(globalCollateralStr) {
+		t.Errorf("received '%v' expected '%v'", GlobalCollateral.Upper(), strings.ToUpper(globalCollateralStr))
+	}
+	if UnsetCollateralType.Upper() != strings.ToUpper(unsetCollateralStr) {
+		t.Errorf("received '%v' expected '%v'", UnsetCollateralType.Upper(), strings.ToUpper(unsetCollateralStr))
+	}
+}
+
+func TestIsValidCollateralTypeString(t *testing.T) {
+	t.Parallel()
+	if IsValidCollateralTypeString("lol") {
+		t.Fatal("expected 'false', received 'true'")
+	}
+	if !IsValidCollateralTypeString("single") {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if !IsValidCollateralTypeString("multi") {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if !IsValidCollateralTypeString("global") {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if !IsValidCollateralTypeString("unset") {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if IsValidCollateralTypeString("") {
+		t.Fatal("expected 'false', received 'true'")
+	}
+	if IsValidCollateralTypeString("unknown") {
+		t.Fatal("expected 'false', received 'true'")
+	}
+}
+
+func TestStringToCollateralType(t *testing.T) {
+	t.Parallel()
+	if resp := StringToCollateralType("lol"); resp != UnknownCollateral {
+		t.Errorf("received '%v' expected '%v'", resp, UnknownCollateral)
+	}
+	if resp := StringToCollateralType(""); resp != UnsetCollateralType {
+		t.Errorf("received '%v' expected '%v'", resp, UnsetCollateralType)
+	}
+	if resp := StringToCollateralType("single"); resp != SingleCollateral {
+		t.Errorf("received '%v' expected '%v'", resp, SingleCollateral)
+	}
+	if resp := StringToCollateralType("multi"); resp != MultiCollateral {
+		t.Errorf("received '%v' expected '%v'", resp, MultiCollateral)
+	}
+	if resp := StringToCollateralType("global"); resp != GlobalCollateral {
+		t.Errorf("received '%v' expected '%v'", resp, GlobalCollateral)
 	}
 }

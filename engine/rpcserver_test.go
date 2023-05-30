@@ -1265,7 +1265,7 @@ func TestGetOrders(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1375,7 +1375,7 @@ func TestGetOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1914,7 +1914,7 @@ func TestGetManagedOrders(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false, 0)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -2276,7 +2276,7 @@ func TestGetFuturesPositions(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -2952,7 +2952,7 @@ func TestGetFundingRates(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -3051,7 +3051,7 @@ func TestGetManagedPosition(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -3100,7 +3100,7 @@ func TestGetManagedPosition(t *testing.T) {
 	}
 
 	request.Asset = asset.Futures.String()
-	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -3193,7 +3193,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -3214,7 +3214,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 	}
 
 	request := &gctrpc.GetAllManagedPositionsRequest{}
-	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
+	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour, ActivelyTrackFuturesPositions: true})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}

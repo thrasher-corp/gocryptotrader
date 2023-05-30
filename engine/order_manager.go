@@ -14,6 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -22,7 +23,7 @@ import (
 )
 
 // SetupOrderManager will boot up the OrderManager
-func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose, activelyTrackFuturesPositions bool, futuresTrackingSeekDuration time.Duration) (*OrderManager, error) {
+func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, cfg *config.OrderManager) (*OrderManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -32,10 +33,14 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 	if wg == nil {
 		return nil, errNilWaitGroup
 	}
+	if cfg == nil {
+		return nil, fmt.Errorf("%w OrderManager", errNilConfig)
+	}
 
 	om := &OrderManager{
 		shutdown:                      make(chan struct{}),
-		activelyTrackFuturesPositions: activelyTrackFuturesPositions,
+		activelyTrackFuturesPositions: cfg.ActivelyTrackFuturesPositions,
+		respectOrderHistoryLimits:     *cfg.RespectOrderHistoryLimits,
 		orderStore: store{
 			Orders:                    make(map[string][]*order.Detail),
 			exchangeManager:           exchangeManager,
@@ -43,16 +48,19 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 			wg:                        wg,
 			futuresPositionController: order.SetupPositionController(),
 		},
-		verbose: verbose,
+		verbose: cfg.Verbose,
+		cfg: orderManagerConfig{
+			CancelOrdersOnShutdown: cfg.CancelOrdersOnShutdown,
+		},
 	}
-	if activelyTrackFuturesPositions {
-		if futuresTrackingSeekDuration > 0 {
-			futuresTrackingSeekDuration = -futuresTrackingSeekDuration
+	if cfg.ActivelyTrackFuturesPositions {
+		if cfg.FuturesTrackingSeekDuration > 0 {
+			cfg.FuturesTrackingSeekDuration *= -1
 		}
-		if futuresTrackingSeekDuration == 0 {
-			futuresTrackingSeekDuration = defaultOrderSeekTime
+		if cfg.FuturesTrackingSeekDuration == 0 {
+			cfg.FuturesTrackingSeekDuration = defaultOrderSeekTime
 		}
-		om.futuresPositionSeekDuration = futuresTrackingSeekDuration
+		om.futuresPositionSeekDuration = cfg.FuturesTrackingSeekDuration
 	}
 	return om, nil
 }
@@ -702,8 +710,8 @@ func (m *OrderManager) processOrders() {
 				wg.Add(1)
 				go m.processMatchingOrders(exchanges[x], orders, &wg)
 			}
-
-			if m.activelyTrackFuturesPositions && enabledAssets[y].IsFutures() {
+			supportedFeatures := exchanges[x].GetSupportedFeatures()
+			if m.activelyTrackFuturesPositions && enabledAssets[y].IsFutures() && supportedFeatures.FuturesPositionsTracking {
 				var positions []order.PositionResponse
 				var sd time.Time
 				sd, err = m.orderStore.futuresPositionController.LastUpdated()
@@ -715,9 +723,10 @@ func (m *OrderManager) processOrders() {
 					sd = time.Now().Add(m.futuresPositionSeekDuration)
 				}
 				positions, err = exchanges[x].GetFuturesPositionOrders(context.TODO(), &order.PositionsRequest{
-					Asset:     enabledAssets[y],
-					Pairs:     pairs,
-					StartDate: sd,
+					Asset:                     enabledAssets[y],
+					Pairs:                     pairs,
+					StartDate:                 sd,
+					RespectOrderHistoryLimits: m.respectOrderHistoryLimits,
 				})
 				if err != nil {
 					if !errors.Is(err, common.ErrNotYetImplemented) {
@@ -783,7 +792,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		return fmt.Errorf("%w when updating unrealised PNL for %v %v %v", err, exch.GetName(), position.Asset, position.Pair)
 	}
 	isPerp, err := exch.IsPerpetualFutureCurrency(position.Asset, position.Pair)
-	if err != nil {
+	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
 		return err
 	}
 	if !isPerp {

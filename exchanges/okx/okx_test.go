@@ -101,7 +101,6 @@ func TestStart(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
 	_, err := ok.GetTickers(contextGenerate(), "OPTION", "", "SOL-USD")
 	if err != nil {
 		t.Error("Okx GetTickers() error", err)

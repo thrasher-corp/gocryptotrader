@@ -536,16 +536,9 @@ func TestUAccountBalanceV2(t *testing.T) {
 func TestUAccountInformationV2(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	b.Verbose = true
-	a, err := b.UAccountInformationV2(context.Background())
+	_, err := b.UAccountInformationV2(context.Background())
 	if err != nil {
 		t.Error(err)
-	}
-	for i := range a.Assets {
-		t.Logf("%+v", a.Assets[i])
-	}
-	for i := range a.Positions {
-		t.Logf("%+v", a.Positions[i])
 	}
 }
 
@@ -588,7 +581,6 @@ func TestUPositionMarginChangeHistory(t *testing.T) {
 func TestUPositionsInfoV2(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	b.Verbose = true
 	_, err := b.UPositionsInfoV2(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
@@ -1011,7 +1003,6 @@ func TestGetFuturesAllOpenOrders(t *testing.T) {
 func TestGetAllFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	b.Verbose = true
 	_, err := b.GetAllFuturesOrders(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 2)
 	if err != nil {
 		t.Error(err)

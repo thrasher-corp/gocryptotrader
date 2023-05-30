@@ -3438,42 +3438,6 @@ func local_request_GoCryptoTraderService_GetCollateralType_0(ctx context.Context
 }
 
 var (
-	filter_GoCryptoTraderService_GetMarginType_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
-)
-
-func request_GoCryptoTraderService_GetMarginType_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetMarginTypeRequest
-	var metadata runtime.ServerMetadata
-
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetMarginType_0); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := client.GetMarginType(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_GoCryptoTraderService_GetMarginType_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetMarginTypeRequest
-	var metadata runtime.ServerMetadata
-
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetMarginType_0); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := server.GetMarginType(ctx, &protoReq)
-	return msg, metadata, err
-
-}
-
-var (
 	filter_GoCryptoTraderService_GetLeverage_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
@@ -3607,6 +3571,40 @@ func local_request_GoCryptoTraderService_SetLeverage_0(ctx context.Context, mars
 	}
 
 	msg, err := server.SetLeverage(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_GoCryptoTraderService_ChangePositionMargin_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ChangePositionMarginRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.ChangePositionMargin(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_GoCryptoTraderService_ChangePositionMargin_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ChangePositionMarginRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.ChangePositionMargin(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -6159,31 +6157,6 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("GET", pattern_GoCryptoTraderService_GetMarginType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		var err error
-		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetMarginType", runtime.WithHTTPPathPattern("/v1/getmargintype"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_GoCryptoTraderService_GetMarginType_0(annotatedContext, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_GoCryptoTraderService_GetMarginType_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("GET", pattern_GoCryptoTraderService_GetLeverage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -6281,6 +6254,31 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 		}
 
 		forward_GoCryptoTraderService_SetLeverage_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_GoCryptoTraderService_ChangePositionMargin_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/ChangePositionMargin", runtime.WithHTTPPathPattern("/v1/changepositionmargin"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_GoCryptoTraderService_ChangePositionMargin_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTraderService_ChangePositionMargin_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -8657,28 +8655,6 @@ func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("GET", pattern_GoCryptoTraderService_GetMarginType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		var err error
-		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetMarginType", runtime.WithHTTPPathPattern("/v1/getmargintype"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_GoCryptoTraderService_GetMarginType_0(annotatedContext, inboundMarshaler, client, req, pathParams)
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_GoCryptoTraderService_GetMarginType_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("GET", pattern_GoCryptoTraderService_GetLeverage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -8764,6 +8740,28 @@ func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtim
 		}
 
 		forward_GoCryptoTraderService_SetLeverage_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_GoCryptoTraderService_ChangePositionMargin_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/ChangePositionMargin", runtime.WithHTTPPathPattern("/v1/changepositionmargin"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTraderService_ChangePositionMargin_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTraderService_ChangePositionMargin_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -8983,8 +8981,6 @@ var (
 
 	pattern_GoCryptoTraderService_GetCollateralType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcollateraltype"}, ""))
 
-	pattern_GoCryptoTraderService_GetMarginType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getmargintype"}, ""))
-
 	pattern_GoCryptoTraderService_GetLeverage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getleverage"}, ""))
 
 	pattern_GoCryptoTraderService_SetCollateralType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcollateraltype"}, ""))
@@ -8992,6 +8988,8 @@ var (
 	pattern_GoCryptoTraderService_SetMarginType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getmargintype"}, ""))
 
 	pattern_GoCryptoTraderService_SetLeverage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getleverage"}, ""))
+
+	pattern_GoCryptoTraderService_ChangePositionMargin_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "changepositionmargin"}, ""))
 )
 
 var (
@@ -9207,8 +9205,6 @@ var (
 
 	forward_GoCryptoTraderService_GetCollateralType_0 = runtime.ForwardResponseMessage
 
-	forward_GoCryptoTraderService_GetMarginType_0 = runtime.ForwardResponseMessage
-
 	forward_GoCryptoTraderService_GetLeverage_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTraderService_SetCollateralType_0 = runtime.ForwardResponseMessage
@@ -9216,4 +9212,6 @@ var (
 	forward_GoCryptoTraderService_SetMarginType_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTraderService_SetLeverage_0 = runtime.ForwardResponseMessage
+
+	forward_GoCryptoTraderService_ChangePositionMargin_0 = runtime.ForwardResponseMessage
 )

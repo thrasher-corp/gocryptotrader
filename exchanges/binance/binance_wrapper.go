@@ -2266,7 +2266,11 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory {
-		return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
+		if req.RespectOrderHistoryLimits {
+			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
+		} else {
+			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
+		}
 	}
 	var resp []order.PositionResponse
 	switch req.Asset {
