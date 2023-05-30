@@ -177,16 +177,14 @@ func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		return nil, err
 	}
 
-	pairs := make([]currency.Pair, len(symbols))
-	var target int
+	pairs := make([]currency.Pair, 0, len(symbols))
 	for key := range symbols {
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(key)
 		if err != nil {
 			return nil, err
 		}
-		pairs[target] = pair
-		target++
+		pairs = append(pairs, pair)
 	}
 	return pairs, nil
 }
@@ -203,35 +201,46 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
+	avail, err := e.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	enabled, err := e.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
 	result, err := e.GetTicker(ctx)
 	if err != nil {
 		return err
 	}
-	pairs, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	for i := range pairs {
-		for j := range result {
-			if !strings.EqualFold(pairs[i].String(), j) {
-				continue
-			}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Pair:         pairs[i],
-				Last:         result[j].Last,
-				Ask:          result[j].Sell,
-				High:         result[j].High,
-				Bid:          result[j].Buy,
-				Low:          result[j].Low,
-				Volume:       result[j].Volume,
-				ExchangeName: e.Name,
-				AssetType:    a})
-			if err != nil {
-				return err
-			}
+	for symbol, tick := range result {
+		var pair currency.Pair
+		pair, err = avail.DeriveFrom(strings.Replace(symbol, "_", "", 1))
+		if err != nil {
+			return err
+		}
+		if !enabled.Contains(pair, true) {
+			continue
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Pair:         pair,
+			Last:         tick.Last,
+			Ask:          tick.Sell,
+			High:         tick.High,
+			Bid:          tick.Buy,
+			Low:          tick.Low,
+			Volume:       tick.Volume,
+			LastUpdated:  time.Unix(tick.Updated, 0),
+			ExchangeName: e.Name,
+			AssetType:    a})
+		if err != nil {
+			return err
 		}
 	}
+
 	return nil
 }
 
@@ -730,9 +739,9 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 	return req.Filter(e.Name, orders), nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (e *EXMO) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (e *EXMO) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := e.UpdateAccountInfo(ctx, assetType)
 	return e.CheckTransientError(err)
 }

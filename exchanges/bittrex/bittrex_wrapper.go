@@ -926,9 +926,9 @@ func (b *Bittrex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	return b.GetFee(ctx, feeBuilder)
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *Bittrex) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (b *Bittrex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }

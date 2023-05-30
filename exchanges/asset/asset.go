@@ -23,12 +23,14 @@ const (
 	Empty Item = 0
 	Spot  Item = 1 << iota
 	Margin
+	CrossMargin
 	MarginFunding
 	Index
 	Binary
 	PerpetualContract
 	PerpetualSwap
 	Futures
+	DeliveryFutures
 	UpsideProfitContract
 	DownsideProfitContract
 	CoinMarginedFutures
@@ -39,17 +41,19 @@ const (
 	FutureCombo
 	Combo
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo | Combo
-	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo | Combo
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo | Combo
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo | Combo
 
 	spot                   = "spot"
 	margin                 = "margin"
+	crossMargin            = "cross_margin" // for Gateio exchange
 	marginFunding          = "marginfunding"
 	index                  = "index"
 	binary                 = "binary"
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
 	futures                = "futures"
+	deliveryFutures        = "delivery"
 	upsideProfitContract   = "upsideprofitcontract"
 	downsideProfitContract = "downsideprofitcontract"
 	coinMarginedFutures    = "coinmarginedfutures"
@@ -62,7 +66,7 @@ const (
 )
 
 var (
-	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, OptionCombo, FutureCombo, Combo}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, OptionCombo, FutureCombo, Combo}
 )
 
 // Supported returns a list of supported asset types
@@ -77,6 +81,8 @@ func (a Item) String() string {
 		return spot
 	case Margin:
 		return margin
+	case CrossMargin:
+		return crossMargin
 	case MarginFunding:
 		return marginFunding
 	case Index:
@@ -89,6 +95,8 @@ func (a Item) String() string {
 		return perpetualSwap
 	case Futures:
 		return futures
+	case DeliveryFutures:
+		return deliveryFutures
 	case UpsideProfitContract:
 		return upsideProfitContract
 	case DownsideProfitContract:
@@ -182,6 +190,10 @@ func New(input string) (Item, error) {
 		return Margin, nil
 	case marginFunding:
 		return MarginFunding, nil
+	case crossMargin:
+		return CrossMargin, nil
+	case deliveryFutures:
+		return DeliveryFutures, nil
 	case index:
 		return Index, nil
 	case binary:

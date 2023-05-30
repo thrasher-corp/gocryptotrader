@@ -671,7 +671,7 @@ type OrderDetail struct {
 	Category                   string            `json:"category"` // normal, twap, adl, full_liquidation, partial_liquidation, delivery, ddh
 	AccumulatedFillSize        okxNumericalValue `json:"accFillSz"`
 	FillPrice                  okxNumericalValue `json:"fillPx"`
-	FillSize                   float64           `json:"fillSz"`
+	FillSize                   okxNumericalValue `json:"fillSz"`
 	RebateAmount               okxNumericalValue `json:"rebate"`
 	FeeCurrency                string            `json:"feeCcy"`
 	TransactionFee             okxNumericalValue `json:"fee"`
@@ -978,16 +978,16 @@ type LightningDepositItem struct {
 
 // CurrencyDepositResponseItem represents the deposit address information item.
 type CurrencyDepositResponseItem struct {
-	Tag                      string `json:"tag"`
-	Chain                    string `json:"chain"`
-	ContractAddress          string `json:"ctAddr"`
-	Currency                 string `json:"ccy"`
-	ToBeneficiaryAccount     string `json:"to"`
-	Address                  string `json:"addr"`
-	Selected                 bool   `json:"selected"`
-	Memo                     string `json:"memo"`
-	DepositAddressAttachment string `json:"addrEx"`
-	PaymentID                string `json:"pmtId"`
+	Tag                      string            `json:"tag"`
+	Chain                    string            `json:"chain"`
+	ContractAddress          string            `json:"ctAddr"`
+	Currency                 string            `json:"ccy"`
+	ToBeneficiaryAccount     string            `json:"to"`
+	Address                  string            `json:"addr"`
+	Selected                 bool              `json:"selected"`
+	Memo                     string            `json:"memo"`
+	DepositAddressAttachment map[string]string `json:"addrEx"`
+	PaymentID                string            `json:"pmtId"`
 }
 
 // DepositHistoryResponseItem deposit history response item.
@@ -1106,8 +1106,18 @@ type LendingHistory struct {
 	Timestamp okxUnixMilliTime `json:"ts"`
 }
 
-// PublicBorrowInfo holds borrow info.
+// PublicBorrowInfo holds a currency's borrow info.
 type PublicBorrowInfo struct {
+	Currency         string            `json:"ccy"`
+	AverageAmount    okxNumericalValue `json:"avgAmt"`
+	AverageAmountUSD okxNumericalValue `json:"avgAmtUsd"`
+	AverageRate      okxNumericalValue `json:"avgRate"`
+	PreviousRate     okxNumericalValue `json:"preRate"`
+	EstimatedRate    okxNumericalValue `json:"estRate"`
+}
+
+// PublicBorrowHistory holds a currencies borrow history.
+type PublicBorrowHistory struct {
 	Amount    float64          `json:"amt,string"`
 	Currency  string           `json:"ccy"`
 	Rate      float64          `json:"rate,string"`
@@ -1204,44 +1214,44 @@ type ConvertHistory struct {
 
 // Account holds currency account balance and related information
 type Account struct {
-	AdjEq       string           `json:"adjEq"`
-	Details     []AccountDetail  `json:"details"`
-	Imr         string           `json:"imr"` // Frozen equity for open positions and pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
-	IsoEq       string           `json:"isoEq"`
-	MgnRatio    string           `json:"mgnRatio"`
-	Mmr         string           `json:"mmr"` // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
-	NotionalUsd string           `json:"notionalUsd"`
-	OrdFroz     string           `json:"ordFroz"` // Margin frozen for pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
-	TotalEquity string           `json:"totalEq"` // Total Equity in USD level
-	UpdateTime  okxUnixMilliTime `json:"uTime"`   // UpdateTime
+	AdjEq       okxNumericalValue `json:"adjEq"`
+	Details     []AccountDetail   `json:"details"`
+	Imr         okxNumericalValue `json:"imr"` // Frozen equity for open positions and pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
+	IsoEq       okxNumericalValue `json:"isoEq"`
+	MgnRatio    okxNumericalValue `json:"mgnRatio"`
+	Mmr         okxNumericalValue `json:"mmr"` // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
+	NotionalUsd okxNumericalValue `json:"notionalUsd"`
+	OrdFroz     okxNumericalValue `json:"ordFroz"` // Margin frozen for pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
+	TotalEquity okxNumericalValue `json:"totalEq"` // Total Equity in USD level
+	UpdateTime  okxUnixMilliTime  `json:"uTime"`   // UpdateTime
 }
 
 // AccountDetail account detail information.
 type AccountDetail struct {
-	AvailableBalance              string           `json:"availBal"`
-	AvailableEquity               string           `json:"availEq"`
-	CashBalance                   string           `json:"cashBal"` // Cash Balance
-	Currency                      string           `json:"ccy"`
-	CrossLiab                     string           `json:"crossLiab"`
-	DiscountEquity                string           `json:"disEq"`
-	EquityOfCurrency              string           `json:"eq"`
-	EquityUsd                     string           `json:"eqUsd"`
-	FrozenBalance                 string           `json:"frozenBal"`
-	Interest                      string           `json:"interest"`
-	IsoEquity                     string           `json:"isoEq"`
-	IsolatedLiabilities           string           `json:"isoLiab"`
-	IsoUpl                        string           `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
-	LiabilitiesOfCurrency         string           `json:"liab"`
-	MaxLoan                       string           `json:"maxLoan"`
-	MarginRatio                   string           `json:"mgnRatio"`      // Equity of the currency
-	NotionalLever                 string           `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
-	OpenOrdersMarginFrozen        string           `json:"ordFrozen"`
-	Twap                          string           `json:"twap"`
-	UpdateTime                    okxUnixMilliTime `json:"uTime"`
-	UnrealizedProfit              string           `json:"upl"`
-	UnrealizedCurrencyLiabilities string           `json:"uplLiab"`
-	StrategyEquity                string           `json:"stgyEq"`  // strategy equity
-	TotalEquity                   string           `json:"totalEq"` // Total equity in USD level
+	AvailableBalance              okxNumericalValue `json:"availBal"`
+	AvailableEquity               okxNumericalValue `json:"availEq"`
+	CashBalance                   okxNumericalValue `json:"cashBal"` // Cash Balance
+	Currency                      string            `json:"ccy"`
+	CrossLiab                     okxNumericalValue `json:"crossLiab"`
+	DiscountEquity                okxNumericalValue `json:"disEq"`
+	EquityOfCurrency              okxNumericalValue `json:"eq"`
+	EquityUsd                     okxNumericalValue `json:"eqUsd"`
+	FrozenBalance                 okxNumericalValue `json:"frozenBal"`
+	Interest                      okxNumericalValue `json:"interest"`
+	IsoEquity                     okxNumericalValue `json:"isoEq"`
+	IsolatedLiabilities           okxNumericalValue `json:"isoLiab"`
+	IsoUpl                        okxNumericalValue `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
+	LiabilitiesOfCurrency         okxNumericalValue `json:"liab"`
+	MaxLoan                       okxNumericalValue `json:"maxLoan"`
+	MarginRatio                   okxNumericalValue `json:"mgnRatio"`      // Equity of the currency
+	NotionalLever                 okxNumericalValue `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
+	OpenOrdersMarginFrozen        okxNumericalValue `json:"ordFrozen"`
+	Twap                          okxNumericalValue `json:"twap"`
+	UpdateTime                    okxUnixMilliTime  `json:"uTime"`
+	UnrealizedProfit              okxNumericalValue `json:"upl"`
+	UnrealizedCurrencyLiabilities okxNumericalValue `json:"uplLiab"`
+	StrategyEquity                okxNumericalValue `json:"stgyEq"`  // strategy equity
+	TotalEquity                   okxNumericalValue `json:"totalEq"` // Total equity in USD level
 }
 
 // AccountPosition account position.

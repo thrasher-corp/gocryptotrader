@@ -102,7 +102,7 @@ func (d *Deribit) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
-					kline.IntervalCapacity{Interval: kline.HundredMilliSec},
+					kline.IntervalCapacity{Interval: kline.HundredMilliseconds},
 					kline.IntervalCapacity{Interval: kline.OneMin},
 					kline.IntervalCapacity{Interval: kline.ThreeMin},
 					kline.IntervalCapacity{Interval: kline.FiveMin},
@@ -1062,8 +1062,9 @@ func (d *Deribit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	return fee, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (d *Deribit) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+// functionality
+func (d *Deribit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := d.UpdateAccountInfo(ctx, assetType)
 	return d.CheckTransientError(err)
 }
@@ -1167,4 +1168,9 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 // GetServerTime returns the current exchange server time.
 func (d *Deribit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return d.GetTime(ctx)
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (d *Deribit) AuthenticateWebsocket(ctx context.Context) error {
+	return d.wsLogin(ctx)
 }

@@ -613,7 +613,7 @@ func (d *Deribit) GetTradingViewChartData(ctx context.Context, instrument, resol
 // GetResolutionFromInterval returns the string representation of intervals given kline.Interval instance.
 func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, error) {
 	switch interval {
-	case kline.HundredMilliSec:
+	case kline.HundredMilliseconds:
 		return "100ms", nil
 	case kline.OneMin:
 		return "1", nil

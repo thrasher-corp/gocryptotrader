@@ -236,7 +236,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		}
 
 		if resp.StatusCode < http.StatusOK ||
-			resp.StatusCode > http.StatusAccepted {
+			resp.StatusCode > http.StatusNoContent {
 			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
 				r.name,
 				resp.StatusCode,

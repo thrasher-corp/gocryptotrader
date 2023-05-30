@@ -50,32 +50,27 @@ const (
 	okxAPIWebsocketPrivateURL = okxWebsocketURL + "private"
 
 	// tradeEndpoints
-	tradeOrder                          = "trade/order"
-	placeMultipleOrderURL               = "trade/batch-orders"
-	cancelTradeOrder                    = "trade/cancel-order"
-	cancelBatchTradeOrders              = "trade/cancel-batch-orders"
-	amendOrder                          = "trade/amend-order"
-	amendBatchOrders                    = "trade/amend-batch-orders"
-	closePositionPath                   = "trade/close-position"
-	pendingTradeOrders                  = "trade/orders-pending"
-	tradeHistory                        = "trade/orders-history"
-	orderHistoryArchive                 = "trade/orders-history-archive"
-	tradeFills                          = "trade/fills"
-	tradeFillsHistory                   = "trade/fills-history"
-	assetBills                          = "asset/bills"
-	lightningDeposit                    = "asset/deposit-lightning"
-	assetDeposits                       = "asset/deposit-address"
-	pathToAssetDepositHistory           = "asset/deposit-history"
-	assetWithdrawal                     = "asset/withdrawal"
-	assetLightningWithdrawal            = "asset/withdrawal-lightning"
-	cancelWithdrawal                    = "asset/cancel-withdrawal"
-	withdrawalHistory                   = "asset/withdrawal-history"
-	smallAssetsConvert                  = "asset/convert-dust-assets"
-	assetSavingBalance                  = "asset/saving-balance"
-	assetSavingPurchaseOrRedemptionPath = "asset/purchase_redempt"
-	assetsLendingHistory                = "asset/lending-history"
-	assetSetLendingRateRoute            = "asset/set-lending-rate"
-	publicBorrowInfo                    = "asset/lending-rate-history"
+	tradeOrder                = "trade/order"
+	placeMultipleOrderURL     = "trade/batch-orders"
+	cancelTradeOrder          = "trade/cancel-order"
+	cancelBatchTradeOrders    = "trade/cancel-batch-orders"
+	amendOrder                = "trade/amend-order"
+	amendBatchOrders          = "trade/amend-batch-orders"
+	closePositionPath         = "trade/close-position"
+	pendingTradeOrders        = "trade/orders-pending"
+	tradeHistory              = "trade/orders-history"
+	orderHistoryArchive       = "trade/orders-history-archive"
+	tradeFills                = "trade/fills"
+	tradeFillsHistory         = "trade/fills-history"
+	assetBills                = "asset/bills"
+	lightningDeposit          = "asset/deposit-lightning"
+	assetDeposits             = "asset/deposit-address"
+	pathToAssetDepositHistory = "asset/deposit-history"
+	assetWithdrawal           = "asset/withdrawal"
+	assetLightningWithdrawal  = "asset/withdrawal-lightning"
+	cancelWithdrawal          = "asset/cancel-withdrawal"
+	withdrawalHistory         = "asset/withdrawal-history"
+	smallAssetsConvert        = "asset/convert-dust-assets"
 
 	// Algo order routes
 	cancelAlgoOrder               = "trade/cancel-algos"
@@ -90,7 +85,7 @@ const (
 	oneClickRepayHistory          = "trade/one-click-repay-history"
 	oneClickRepay                 = "trade/one-click-repay"
 
-	// Funding orders routes
+	// Funding account routes
 	assetCurrencies    = "asset/currencies"
 	assetBalance       = "asset/balances"
 	assetValuation     = "asset/asset-valuation"
@@ -233,6 +228,14 @@ const (
 	financeCancelPurchase = "finance/staking-defi/cancel"
 	financeActiveOrders   = "finance/staking-defi/orders-active"
 	financeOrdersHistory  = "finance/staking-defi/orders-history"
+
+	// Savings
+	financeSavingBalance       = "finance/savings/balance"
+	financePurchaseRedempt     = "finance/savings/purchase-redempt"
+	financeSetLendingRate      = "finance/savings/set-lending-rate"
+	financeLendingHistory      = "finance/savings/lending-history"
+	financePublicBorrowInfo    = "finance/savings/lending-rate-summary"
+	financePublicBorrowHistory = "finance/savings/lending-rate-history"
 
 	// Status Endpoints
 	systemStatus = "system/status"
@@ -1379,7 +1382,7 @@ func (ok *Okx) GetFundingCurrencies(ctx context.Context) ([]CurrencyResponse, er
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCurrenciesEPL, http.MethodGet, assetCurrencies, nil, &resp, true)
 }
 
-// GetBalance retrieves the balances of all the assets and the amount that is available or on hold.
+// GetBalance retrieves the funding account balances of all the assets and the amount that is available or on hold.
 func (ok *Okx) GetBalance(ctx context.Context, currency string) ([]AssetBalance, error) {
 	var resp []AssetBalance
 	params := url.Values{}
@@ -1641,7 +1644,7 @@ func (ok *Okx) GetSavingBalance(ctx context.Context, currency string) ([]SavingB
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSavingBalanceEPL, http.MethodGet, common.EncodeURLValues(assetSavingBalance, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSavingBalanceEPL, http.MethodGet, common.EncodeURLValues(financeSavingBalance, params), nil, &resp, true)
 }
 
 // SavingsPurchaseOrRedemption creates a purchase or redemption instance
@@ -1656,12 +1659,12 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	case arg.Amount <= 0:
 		return nil, errUnacceptableAmount
 	case arg.ActionType != "purchase" && arg.ActionType != "redempt":
-		return nil, errors.New("invalid side value, side has to be either \"redemption\" or \"purchase\"")
-	case arg.ActionType == "purchase" && (arg.Rate < 1 || arg.Rate > 365):
-		return nil, errors.New("the rate value range is between 1% and 365%")
+		return nil, errors.New("invalid side value, side has to be either \"redempt\" or \"purchase\"")
+	case arg.ActionType == "purchase" && (arg.Rate < 0.01 || arg.Rate > 3.65):
+		return nil, errors.New("the rate value range is between 1% (0.01) and 365% (3.65)")
 	}
 	var resp []SavingsPurchaseRedemptionResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, assetSavingPurchaseOrRedemptionPath, &arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, financePurchaseRedempt, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1687,18 +1690,18 @@ func (ok *Okx) GetLendingHistory(ctx context.Context, currency string, before, a
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []LendingHistory
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodGet, common.EncodeURLValues(assetsLendingHistory, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLendingHistoryEPL, http.MethodGet, common.EncodeURLValues(financeLendingHistory, params), nil, &resp, true)
 }
 
-// SetLendingRate sets assets Lending Rate
+// SetLendingRate sets an assets lending rate
 func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRate, error) {
 	if arg.Currency == "" {
 		return nil, errInvalidCurrencyValue
-	} else if arg.Rate < 1 || arg.Rate > 365 {
-		return nil, errors.New("invalid lending rate value. the rate value range is between 1% and 365%")
+	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
+		return nil, errors.New("invalid lending rate value. the rate value range is between 1% (0.01) and 365% (3.65)")
 	}
 	var resp []LendingRate
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLendingHistoryEPL, http.MethodPost, assetSetLendingRateRoute, &arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, financeSetLendingRate, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1708,14 +1711,33 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRat
 	return nil, errNoValidResponseFromServer
 }
 
-// GetPublicBorrowInfo return list of publix borrow history.
+// GetPublicBorrowInfo returns the public borrow info.
 func (ok *Okx) GetPublicBorrowInfo(ctx context.Context, currency string) ([]PublicBorrowInfo, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
 	var resp []PublicBorrowInfo
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicBorrowInfoEPL, http.MethodGet, common.EncodeURLValues(publicBorrowInfo, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicBorrowInfoEPL, http.MethodGet, common.EncodeURLValues(financePublicBorrowInfo, params), nil, &resp, false)
+}
+
+// GetPublicBorrowHistory return list of publix borrow history.
+func (ok *Okx) GetPublicBorrowHistory(ctx context.Context, currency string, before, after time.Time, limit int64) ([]PublicBorrowHistory, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []PublicBorrowHistory
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicBorrowHistoryEPL, http.MethodGet, common.EncodeURLValues(financePublicBorrowHistory, params), nil, &resp, false)
 }
 
 /***********************************Convert Endpoints | Authenticated s*****************************************/
@@ -2933,11 +2955,14 @@ func (ok *Okx) GetEarnActiveOrders(ctx context.Context, productID, protocolType,
 	if productID != "" {
 		params.Set("productId", productID)
 	}
-	// protocol type 'staking' and 'defi' is allowed by default
-	if protocolType != "" && protocolType != "7D" && protocolType != "9D" && protocolType != "180D" {
-		return nil, errInvalidProtocolType
+
+	if protocolType != "" {
+		// protocol type 'staking' and 'defi' is allowed by default
+		if protocolType != "staking" && protocolType != "defi" {
+			return nil, errInvalidProtocolType
+		}
+		params.Set("protocolType", protocolType)
 	}
-	params.Set("protocolType", protocolType)
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
@@ -3441,9 +3466,9 @@ func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, b
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	if limit > 0 && limit < 100 {
+	if limit > 0 && limit <= 100 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else {
+	} else if limit > 100 {
 		return nil, errLimitValueExceedsMaxOf100
 	}
 	var resp []FundingRateResponse
@@ -4200,7 +4225,13 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	var intermediary json.RawMessage
+	resp := struct {
+		Code string      `json:"code"`
+		Msg  string      `json:"msg"`
+		Data interface{} `json:"data"`
+	}{
+		Data: result,
+	}
 	newRequest := func() (*request.Item, error) {
 		utcTime := time.Now().UTC().Format(time.RFC3339)
 		payload := []byte("")
@@ -4238,7 +4269,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			Path:          path,
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
-			Result:        &intermediary,
+			Result:        &resp,
 			AuthRequest:   authenticated,
 			Verbose:       ok.Verbose,
 			HTTPDebugging: ok.HTTPDebugging,
@@ -4249,21 +4280,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	type errCap struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data interface{} `json:"data"`
-	}
-	var errMessage errCap
-	errMessage.Data = result
-	err = json.Unmarshal(intermediary, &errMessage)
-	if err != nil {
-		return err
-	}
-	code, err := strconv.ParseInt(errMessage.Code, 10, 64)
+	code, err := strconv.ParseInt(resp.Code, 10, 64)
 	if err == nil && code != 0 {
-		if errMessage.Msg != "" {
-			return fmt.Errorf(" error code: %d message: %s", code, errMessage.Msg)
+		if resp.Msg != "" {
+			return fmt.Errorf("error code: %d message: %s", code, resp.Msg)
 		}
 		err, okay := ErrorCodes[strconv.FormatInt(code, 10)]
 		if okay {

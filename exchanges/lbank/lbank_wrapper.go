@@ -99,7 +99,6 @@ func (l *Lbank) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
 					kline.IntervalCapacity{Interval: kline.FourHour},
-
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/HongKong time zone. This may lead to
 					// issues with candle quality and conversion as the
@@ -869,9 +868,9 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 	return resp, nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (l *Lbank) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (l *Lbank) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := l.UpdateAccountInfo(ctx, assetType)
 	return l.CheckTransientError(err)
 }

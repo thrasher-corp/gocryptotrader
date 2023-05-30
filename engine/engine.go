@@ -44,7 +44,7 @@ type Engine struct {
 	OrderManager            *OrderManager
 	portfolioManager        *portfolioManager
 	gctScriptManager        *gctscript.GctScriptManager
-	websocketRoutineManager *websocketRoutineManager
+	WebsocketRoutineManager *WebsocketRoutineManager
 	WithdrawManager         *WithdrawManager
 	dataHistoryManager      *DataHistoryManager
 	currencyStateManager    *CurrencyStateManager
@@ -90,7 +90,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	}
 
 	if *b.Config.Logging.Enabled {
-		err = gctlog.SetupGlobalLogger()
+		err = gctlog.SetupGlobalLogger(b.Config.Name, b.Config.Logging.AdvancedSettings.StructuredLogging)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup global logger. %w", err)
 		}
@@ -339,7 +339,7 @@ func (bot *Engine) Start() error {
 			if err != nil {
 				return fmt.Errorf("unable to set NTP check: %w", err)
 			}
-			gctlog.Info(gctlog.TimeMgr, responseMessage)
+			gctlog.Infoln(gctlog.TimeMgr, responseMessage)
 		}
 		bot.ntpManager, err = setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
 		if err != nil {
@@ -542,11 +542,11 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		bot.websocketRoutineManager, err = setupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
+		bot.WebsocketRoutineManager, err = setupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
 		} else {
-			err = bot.websocketRoutineManager.Start()
+			err = bot.WebsocketRoutineManager.Start()
 			if err != nil {
 				gctlog.Errorf(gctlog.Global, "failed to start websocket routine manager. Err: %s", err)
 			}
@@ -656,8 +656,8 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
 		}
 	}
-	if bot.websocketRoutineManager.IsRunning() {
-		if err := bot.websocketRoutineManager.Stop(); err != nil {
+	if bot.WebsocketRoutineManager.IsRunning() {
+		if err := bot.WebsocketRoutineManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
 		}
 	}
@@ -840,7 +840,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			useAsset = assetTypes[a]
 			break
 		}
-		err = exch.ValidateCredentials(context.TODO(), useAsset)
+		err = exch.ValidateAPICredentials(context.TODO(), useAsset)
 		if err != nil {
 			gctlog.Warnf(gctlog.ExchangeSys,
 				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
@@ -957,7 +957,7 @@ func (bot *Engine) RegisterWebsocketDataHandler(fn WebsocketDataHandler, interce
 	if bot == nil {
 		return errNilBot
 	}
-	return bot.websocketRoutineManager.registerWebsocketDataHandler(fn, interceptorOnly)
+	return bot.WebsocketRoutineManager.registerWebsocketDataHandler(fn, interceptorOnly)
 }
 
 // SetDefaultWebsocketDataHandler sets the default websocket handler and
@@ -966,7 +966,7 @@ func (bot *Engine) SetDefaultWebsocketDataHandler() error {
 	if bot == nil {
 		return errNilBot
 	}
-	return bot.websocketRoutineManager.setWebsocketDataHandler(bot.websocketRoutineManager.websocketDataHandler)
+	return bot.WebsocketRoutineManager.setWebsocketDataHandler(bot.WebsocketRoutineManager.websocketDataHandler)
 }
 
 // waitForGPRCShutdown routines waits for a signal from the grpc server to

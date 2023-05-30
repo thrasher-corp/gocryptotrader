@@ -357,24 +357,24 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 
 		pairs = make([]currency.Pair, 0, len(symbols))
-		for i := range symbols {
-			if strings.Contains(symbols[i].Altname, ".d") {
+		for _, info := range symbols {
+			if info.Status != "online" {
 				continue
 			}
-			base := assetTranslator.LookupAltname(symbols[i].Base)
+			base := assetTranslator.LookupAltname(info.Base)
 			if base == "" {
 				log.Warnf(log.ExchangeSys,
 					"%s unable to lookup altname for base currency %s",
 					k.Name,
-					symbols[i].Base)
+					info.Base)
 				continue
 			}
-			quote := assetTranslator.LookupAltname(symbols[i].Quote)
+			quote := assetTranslator.LookupAltname(info.Quote)
 			if quote == "" {
 				log.Warnf(log.ExchangeSys,
 					"%s unable to lookup altname for quote currency %s",
 					k.Name,
-					symbols[i].Quote)
+					info.Quote)
 				continue
 			}
 			pair, err = currency.NewPairFromStrings(base, quote)
@@ -1458,9 +1458,9 @@ func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
 	return err
 }
 
-// ValidateCredentials validates current credentials used for wrapper
+// ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (k *Kraken) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (k *Kraken) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := k.UpdateAccountInfo(ctx, assetType)
 	return k.CheckTransientError(err)
 }
