@@ -799,11 +799,11 @@ func TestCancelRFQ(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	_, err := ok.CancelRFQ(contextGenerate(), CancelRFQRequestParam{})
-	if err != nil && !errors.Is(err, errMissingRFQIDANDClientSuppliedRFQID) {
-		t.Errorf("Okx CancelRFQ() expecting %v, but found %v", errMissingRFQIDANDClientSuppliedRFQID, err)
+	if err != nil && !errors.Is(err, errMissingRFQIDANDClientRFQID) {
+		t.Errorf("Okx CancelRFQ() expecting %v, but found %v", errMissingRFQIDANDClientRFQID, err)
 	}
 	_, err = ok.CancelRFQ(contextGenerate(), CancelRFQRequestParam{
-		ClientSuppliedRFQID: "somersdjskfjsdkfjxvxv",
+		ClientRFQID: "somersdjskfjsdkfjxvxv",
 	})
 	if err != nil {
 		t.Error("Okx CancelRFQ() error", err)
@@ -815,11 +815,11 @@ func TestMultipleCancelRFQ(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	_, err := ok.CancelMultipleRFQs(contextGenerate(), CancelRFQRequestsParam{})
-	if err != nil && !errors.Is(err, errMissingRFQIDANDClientSuppliedRFQID) {
-		t.Errorf("Okx CancelMultipleRFQs() expecting %v, but found %v", errMissingRFQIDANDClientSuppliedRFQID, err)
+	if err != nil && !errors.Is(err, errMissingRFQIDANDClientRFQID) {
+		t.Errorf("Okx CancelMultipleRFQs() expecting %v, but found %v", errMissingRFQIDANDClientRFQID, err)
 	}
 	_, err = ok.CancelMultipleRFQs(contextGenerate(), CancelRFQRequestsParam{
-		ClientSuppliedRFQID: []string{"somersdjskfjsdkfjxvxv"},
+		ClientRFQID: []string{"somersdjskfjsdkfjxvxv"},
 	})
 	if err != nil {
 		t.Error("Okx CancelMultipleRFQs() error", err)
@@ -915,7 +915,7 @@ func TestCancelQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientSuppliedQuoteID) {
+	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientQuoteID) {
 		t.Error("Okx CancelQuote() error", err)
 	}
 	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{
@@ -924,7 +924,7 @@ func TestCancelQuote(t *testing.T) {
 		t.Error("Okx CancelQuote() error", err)
 	}
 	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{
-		ClientSuppliedQuoteID: "1234",
+		ClientQuoteID: "1234",
 	}); err != nil {
 		t.Error("Okx CancelQuote() error", err)
 	}
@@ -934,7 +934,7 @@ func TestCancelMultipleQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{}); err != nil && !errors.Is(errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs, err) {
+	if _, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{}); err != nil && !errors.Is(errMissingEitherQuoteIDAOrClientQuoteIDs, err) {
 		t.Error("Okx CancelQuote() error", err)
 	}
 	if _, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{

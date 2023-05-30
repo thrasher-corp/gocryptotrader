@@ -242,105 +242,105 @@ const (
 )
 
 var (
-	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
-	errOracleInformationNotFound                     = errors.New("oracle information not found")
-	errExchangeInfoNotFound                          = errors.New("exchange information not found")
-	errIndexComponentNotFound                        = errors.New("unable to fetch index components")
-	errMissingRequiredArgInstType                    = errors.New("invalid required argument instrument type")
-	errLimitValueExceedsMaxOf100                     = errors.New("limit value exceeds the maximum value 100")
-	errMissingInstrumentID                           = errors.New("missing instrument id")
-	errFundingRateHistoryNotFound                    = errors.New("funding rate history not found")
-	errMissingRequiredUnderlying                     = errors.New("error missing required parameter underlying")
-	errMissingRequiredParamInstID                    = errors.New("missing required parameter instrument id")
-	errLiquidationOrderResponseNotFound              = errors.New("liquidation order not found")
-	errEitherInstIDOrCcyIsRequired                   = errors.New("either parameter instId or ccy is required")
-	errIncorrectRequiredParameterTradeMode           = errors.New("unacceptable required argument, trade mode")
-	errInterestRateAndLoanQuotaNotFound              = errors.New("interest rate and loan quota not found")
-	errUnderlyingsForSpecifiedInstTypeNofFound       = errors.New("underlyings for the specified instrument id is not found")
-	errInsuranceFundInformationNotFound              = errors.New("insurance fund information not found")
-	errMissingExpiryTimeParameter                    = errors.New("missing expiry date parameter")
-	errInvalidTradeModeValue                         = errors.New("invalid trade mode value")
-	errInvalidOrderType                              = errors.New("invalid order type")
-	errInvalidAmount                                 = errors.New("unacceptable quantity to buy or sell")
-	errMissingClientOrderIDOrOrderID                 = errors.New("client supplier order id or order id is missing")
-	errInvalidNewSizeOrPriceInformation              = errors.New("invalid the new size or price information")
-	errMissingNewSize                                = errors.New("missing the order size information")
-	errMissingMarginMode                             = errors.New("missing required param margin mode \"mgnMode\"")
-	errInvalidTriggerPrice                           = errors.New("invalid trigger price value")
-	errInvalidPriceLimit                             = errors.New("invalid price limit value")
-	errMissingIntervalValue                          = errors.New("missing interval value")
-	errMissingTakeProfitTriggerPrice                 = errors.New("missing take profit trigger price")
-	errMissingTakeProfitOrderPrice                   = errors.New("missing take profit order price")
-	errMissingSizeLimit                              = errors.New("missing required parameter \"szLimit\"")
-	errMissingEitherAlgoIDOrState                    = errors.New("either algo id or order state is required")
-	errUnacceptableAmount                            = errors.New("amount must be greater than 0")
-	errInvalidCurrencyValue                          = errors.New("invalid currency value")
-	errInvalidDepositAmount                          = errors.New("invalid deposit amount")
-	errMissingResponseBody                           = errors.New("error missing response body")
-	errMissingValidWithdrawalID                      = errors.New("missing valid withdrawal id")
-	errNoValidResponseFromServer                     = errors.New("no valid response from server")
-	errInstrumentTypeRequired                        = errors.New("instrument type required")
-	errInvalidInstrumentType                         = errors.New("invalid instrument type")
-	errMissingValidGreeksType                        = errors.New("missing valid greeks type")
-	errMissingIsolatedMarginTradingSetting           = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
-	errInvalidOrderSide                              = errors.New("invalid order side")
-	errOrderSideRequired                             = errors.New("order side required")
-	errInvalidCounterParties                         = errors.New("missing counter parties")
-	errInvalidLegs                                   = errors.New("no legs are provided")
-	errMissingRFQIDANDClientSuppliedRFQID            = errors.New("missing rfq id or client supplied rfq id")
-	errMissingRfqIDOrQuoteID                         = errors.New("either RFQ ID or Quote ID is missing")
-	errMissingRfqID                                  = errors.New("error missing rfq id")
-	errMissingLegs                                   = errors.New("missing legs")
-	errMissingSizeOfQuote                            = errors.New("missing size of quote leg")
-	errMossingLegsQuotePrice                         = errors.New("error missing quote price")
-	errMissingQuoteIDOrClientSuppliedQuoteID         = errors.New("missing quote id or client supplied quote id")
-	errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs = errors.New("missing either quote ids or client supplied quote ids")
-	errMissingRequiredParameterSubaccountName        = errors.New("missing required parameter subaccount name")
-	errInvalidTransferAmount                         = errors.New("unacceptable transfer amount")
-	errInvalidSubaccount                             = errors.New("invalid account type")
-	errMissingDestinationSubaccountName              = errors.New("missing destination subaccount name")
-	errMissingInitialSubaccountName                  = errors.New("missing initial subaccount name")
-	errMissingAlgoOrderType                          = errors.New("missing algo order type \"grid\": Spot grid, \"contract_grid\": Contract grid")
-	errInvalidMaximumPrice                           = errors.New("invalid maximum price")
-	errInvalidMinimumPrice                           = errors.New("invalid minimum price")
-	errInvalidGridQuantity                           = errors.New("invalid grid quantity (grid number)")
-	errMissingSize                                   = errors.New("missing required argument, size")
-	errMissingRequiredArgumentDirection              = errors.New("missing required argument, direction")
-	errRequiredParameterMissingLeverage              = errors.New("missing required parameter, leverage")
-	errMissingAlgoOrderID                            = errors.New("missing algo orders id")
-	errMissingValidStopType                          = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
-	errMissingSubOrderType                           = errors.New("missing sub order type")
-	errMissingQuantity                               = errors.New("invalid quantity to buy or sell")
-	errDepositAddressNotFound                        = errors.New("deposit address with the specified currency code and chain not found")
-	errMissingAtLeast1CurrencyPair                   = errors.New("at least one currency is required to fetch order history")
-	errNoCandlestickDataFound                        = errors.New("no candlesticks data found")
-	errInvalidWebsocketEvent                         = errors.New("invalid websocket event")
-	errMissingValidChannelInformation                = errors.New("missing channel information")
-	errNilArgument                                   = errors.New("nil argument is not acceptable")
-	errNoOrderParameterPassed                        = errors.New("no order parameter was passed")
-	errMaxRFQOrdersToCancel                          = errors.New("no more than 100 RFQ cancel order parameter is allowed")
-	errMalformedData                                 = errors.New("malformed data")
-	errInvalidUnderlying                             = errors.New("invalid underlying")
-	errMissingRequiredParameter                      = errors.New("missing required parameter")
-	errMissingMakerInstrumentSettings                = errors.New("missing maker instrument settings")
-	errInvalidSubAccountName                         = errors.New("invalid sub-account name")
-	errInvalidAPIKey                                 = errors.New("invalid api key")
-	errInvalidAlgoID                                 = errors.New("invalid algo id")
-	errInvalidMarginTypeAdjust                       = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
-	errInvalidAlgoOrderType                          = errors.New("invalid algo order type")
-	errEmptyArgument                                 = errors.New("empty argument")
-	errInvalidIPAddress                              = errors.New("invalid ip address")
-	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
-	errInvalidResponseParam                          = errors.New("invalid response parameter, response must be non-nil pointer")
-	errEmptyPlaceOrderResponse                       = errors.New("empty place order response")
-	errTooManyArgument                               = errors.New("too many cancel request params")
-	errIncompleteCurrencyPair                        = errors.New("incomplete currency pair")
-	errInvalidDuration                               = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
-	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
-	errExceedLimit                                   = errors.New("limit exceeded")
-	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
-	errOnlyOneResponseExpected                       = errors.New("one response item expected")
-	errNoInstrumentFound                             = errors.New("no instrument found")
+	errNo24HrTradeVolumeFound                  = errors.New("no trade record found in the 24 trade volume ")
+	errOracleInformationNotFound               = errors.New("oracle information not found")
+	errExchangeInfoNotFound                    = errors.New("exchange information not found")
+	errIndexComponentNotFound                  = errors.New("unable to fetch index components")
+	errMissingRequiredArgInstType              = errors.New("invalid required argument instrument type")
+	errLimitValueExceedsMaxOf100               = errors.New("limit value exceeds the maximum value 100")
+	errMissingInstrumentID                     = errors.New("missing instrument id")
+	errFundingRateHistoryNotFound              = errors.New("funding rate history not found")
+	errMissingRequiredUnderlying               = errors.New("error missing required parameter underlying")
+	errMissingRequiredParamInstID              = errors.New("missing required parameter instrument id")
+	errLiquidationOrderResponseNotFound        = errors.New("liquidation order not found")
+	errEitherInstIDOrCcyIsRequired             = errors.New("either parameter instId or ccy is required")
+	errIncorrectRequiredParameterTradeMode     = errors.New("unacceptable required argument, trade mode")
+	errInterestRateAndLoanQuotaNotFound        = errors.New("interest rate and loan quota not found")
+	errUnderlyingsForSpecifiedInstTypeNofFound = errors.New("underlyings for the specified instrument id is not found")
+	errInsuranceFundInformationNotFound        = errors.New("insurance fund information not found")
+	errMissingExpiryTimeParameter              = errors.New("missing expiry date parameter")
+	errInvalidTradeModeValue                   = errors.New("invalid trade mode value")
+	errInvalidOrderType                        = errors.New("invalid order type")
+	errInvalidAmount                           = errors.New("unacceptable quantity to buy or sell")
+	errMissingClientOrderIDOrOrderID           = errors.New("client order id or order id is missing")
+	errInvalidNewSizeOrPriceInformation        = errors.New("invalid the new size or price information")
+	errMissingNewSize                          = errors.New("missing the order size information")
+	errMissingMarginMode                       = errors.New("missing required param margin mode \"mgnMode\"")
+	errInvalidTriggerPrice                     = errors.New("invalid trigger price value")
+	errInvalidPriceLimit                       = errors.New("invalid price limit value")
+	errMissingIntervalValue                    = errors.New("missing interval value")
+	errMissingTakeProfitTriggerPrice           = errors.New("missing take profit trigger price")
+	errMissingTakeProfitOrderPrice             = errors.New("missing take profit order price")
+	errMissingSizeLimit                        = errors.New("missing required parameter \"szLimit\"")
+	errMissingEitherAlgoIDOrState              = errors.New("either algo id or order state is required")
+	errUnacceptableAmount                      = errors.New("amount must be greater than 0")
+	errInvalidCurrencyValue                    = errors.New("invalid currency value")
+	errInvalidDepositAmount                    = errors.New("invalid deposit amount")
+	errMissingResponseBody                     = errors.New("error missing response body")
+	errMissingValidWithdrawalID                = errors.New("missing valid withdrawal id")
+	errNoValidResponseFromServer               = errors.New("no valid response from server")
+	errInstrumentTypeRequired                  = errors.New("instrument type required")
+	errInvalidInstrumentType                   = errors.New("invalid instrument type")
+	errMissingValidGreeksType                  = errors.New("missing valid greeks type")
+	errMissingIsolatedMarginTradingSetting     = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
+	errInvalidOrderSide                        = errors.New("invalid order side")
+	errOrderSideRequired                       = errors.New("order side required")
+	errInvalidCounterParties                   = errors.New("missing counter parties")
+	errInvalidLegs                             = errors.New("no legs are provided")
+	errMissingRFQIDANDClientRFQID              = errors.New("missing rfq id or client rfq id")
+	errMissingRfqIDOrQuoteID                   = errors.New("either RFQ ID or Quote ID is missing")
+	errMissingRfqID                            = errors.New("error missing rfq id")
+	errMissingLegs                             = errors.New("missing legs")
+	errMissingSizeOfQuote                      = errors.New("missing size of quote leg")
+	errMossingLegsQuotePrice                   = errors.New("error missing quote price")
+	errMissingQuoteIDOrClientQuoteID           = errors.New("missing quote id or client quote id")
+	errMissingEitherQuoteIDAOrClientQuoteIDs   = errors.New("missing either quote ids or client quote ids")
+	errMissingRequiredParameterSubaccountName  = errors.New("missing required parameter subaccount name")
+	errInvalidTransferAmount                   = errors.New("unacceptable transfer amount")
+	errInvalidSubaccount                       = errors.New("invalid account type")
+	errMissingDestinationSubaccountName        = errors.New("missing destination subaccount name")
+	errMissingInitialSubaccountName            = errors.New("missing initial subaccount name")
+	errMissingAlgoOrderType                    = errors.New("missing algo order type \"grid\": Spot grid, \"contract_grid\": Contract grid")
+	errInvalidMaximumPrice                     = errors.New("invalid maximum price")
+	errInvalidMinimumPrice                     = errors.New("invalid minimum price")
+	errInvalidGridQuantity                     = errors.New("invalid grid quantity (grid number)")
+	errMissingSize                             = errors.New("missing required argument, size")
+	errMissingRequiredArgumentDirection        = errors.New("missing required argument, direction")
+	errRequiredParameterMissingLeverage        = errors.New("missing required parameter, leverage")
+	errMissingAlgoOrderID                      = errors.New("missing algo orders id")
+	errMissingValidStopType                    = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
+	errMissingSubOrderType                     = errors.New("missing sub order type")
+	errMissingQuantity                         = errors.New("invalid quantity to buy or sell")
+	errDepositAddressNotFound                  = errors.New("deposit address with the specified currency code and chain not found")
+	errMissingAtLeast1CurrencyPair             = errors.New("at least one currency is required to fetch order history")
+	errNoCandlestickDataFound                  = errors.New("no candlesticks data found")
+	errInvalidWebsocketEvent                   = errors.New("invalid websocket event")
+	errMissingValidChannelInformation          = errors.New("missing channel information")
+	errNilArgument                             = errors.New("nil argument is not acceptable")
+	errNoOrderParameterPassed                  = errors.New("no order parameter was passed")
+	errMaxRFQOrdersToCancel                    = errors.New("no more than 100 RFQ cancel order parameter is allowed")
+	errMalformedData                           = errors.New("malformed data")
+	errInvalidUnderlying                       = errors.New("invalid underlying")
+	errMissingRequiredParameter                = errors.New("missing required parameter")
+	errMissingMakerInstrumentSettings          = errors.New("missing maker instrument settings")
+	errInvalidSubAccountName                   = errors.New("invalid sub-account name")
+	errInvalidAPIKey                           = errors.New("invalid api key")
+	errInvalidAlgoID                           = errors.New("invalid algo id")
+	errInvalidMarginTypeAdjust                 = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
+	errInvalidAlgoOrderType                    = errors.New("invalid algo order type")
+	errEmptyArgument                           = errors.New("empty argument")
+	errInvalidIPAddress                        = errors.New("invalid ip address")
+	errInvalidAPIKeyPermission                 = errors.New("invalid API Key permission")
+	errInvalidResponseParam                    = errors.New("invalid response parameter, response must be non-nil pointer")
+	errEmptyPlaceOrderResponse                 = errors.New("empty place order response")
+	errTooManyArgument                         = errors.New("too many cancel request params")
+	errIncompleteCurrencyPair                  = errors.New("incomplete currency pair")
+	errInvalidDuration                         = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
+	errInvalidProtocolType                     = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
+	errExceedLimit                             = errors.New("limit exceeded")
+	errOnlyThreeMonthsSupported                = errors.New("only three months of trade data retrieval supported")
+	errOnlyOneResponseExpected                 = errors.New("one response item expected")
+	errNoInstrumentFound                       = errors.New("no instrument found")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -483,8 +483,8 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
-		return nil, fmt.Errorf("either order id or client supplier id is required")
+	if arg.OrderID == "" && arg.ClientOrderID == "" {
+		return nil, fmt.Errorf("either order id or client id is required")
 	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
@@ -508,8 +508,8 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
-			return nil, fmt.Errorf("either order id or client supplier id is required")
+		if arg.OrderID == "" && arg.ClientOrderID == "" {
+			return nil, fmt.Errorf("either order id or client id is required")
 		}
 	}
 	var resp []OrderData
@@ -535,7 +535,7 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*O
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if arg.ClientSuppliedOrderID == "" && arg.OrderID == "" {
+	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID
 	}
 	if arg.NewQuantity < 0 && arg.NewPrice < 0 {
@@ -558,7 +558,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if args[x].ClientSuppliedOrderID == "" && args[x].OrderID == "" {
+		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, errMissingClientOrderIDOrOrderID
 		}
 		if args[x].NewQuantity < 0 && args[x].NewPrice < 0 {
@@ -601,12 +601,12 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 	}
 	params.Set("instId", arg.InstrumentID)
 	switch {
-	case arg.OrderID == "" && arg.ClientSupplierOrderID == "":
+	case arg.OrderID == "" && arg.ClientOrderID == "":
 		return nil, errMissingClientOrderIDOrOrderID
-	case arg.ClientSupplierOrderID == "":
+	case arg.ClientOrderID == "":
 		params.Set("ordId", arg.OrderID)
 	default:
-		params.Set("clOrdId", arg.ClientSupplierOrderID)
+		params.Set("clOrdId", arg.ClientOrderID)
 	}
 	var resp []OrderDetail
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, common.EncodeURLValues(tradeOrder, params), nil, &resp, true)
@@ -906,7 +906,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
-func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientSuppliedOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
+func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	params := url.Values{}
 	orderType = strings.ToLower(orderType)
 	if orderType == "" {
@@ -917,8 +917,8 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 	if algoOrderID != "" {
 		params.Set("algoId", algoOrderID)
 	}
-	if clientSuppliedOrderID != "" {
-		params.Set("clOrdId", clientSuppliedOrderID)
+	if clientOrderID != "" {
+		params.Set("clOrdId", clientOrderID)
 	}
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType != "" {
@@ -1086,8 +1086,8 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse,
 
 // CancelRFQ Cancel an existing active RFQ that you has previously created.
 func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*CancelRFQResponse, error) {
-	if arg.RfqID == "" && arg.ClientSuppliedRFQID == "" {
-		return nil, errMissingRFQIDANDClientSuppliedRFQID
+	if arg.RfqID == "" && arg.ClientRFQID == "" {
+		return nil, errMissingRFQIDANDClientRFQID
 	}
 	var resp []CancelRFQResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
@@ -1102,9 +1102,9 @@ func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*Cance
 
 // CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be canceled at a time.
 func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg CancelRFQRequestsParam) ([]CancelRFQResponse, error) {
-	if len(arg.RfqID) == 0 && len(arg.ClientSuppliedRFQID) == 0 {
-		return nil, errMissingRFQIDANDClientSuppliedRFQID
-	} else if len(arg.RfqID)+len(arg.ClientSuppliedRFQID) > 100 {
+	if len(arg.RfqID) == 0 && len(arg.ClientRFQID) == 0 {
+		return nil, errMissingRFQIDANDClientRFQID
+	} else if len(arg.RfqID)+len(arg.ClientRFQID) > 100 {
 		return nil, errMaxRFQOrdersToCancel
 	}
 	var resp []CancelRFQResponse
@@ -1227,8 +1227,8 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 // rfqCancelQuote = "rfq/cancel-quote"
 func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*CancelQuoteResponse, error) {
 	var resp []CancelQuoteResponse
-	if arg.ClientSuppliedQuoteID == "" && arg.QuoteID == "" {
-		return nil, errMissingQuoteIDOrClientSuppliedQuoteID
+	if arg.ClientQuoteID == "" && arg.QuoteID == "" {
+		return nil, errMissingQuoteIDOrClientQuoteID
 	}
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
 	if err != nil {
@@ -1242,8 +1242,8 @@ func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*
 
 // CancelMultipleQuote cancel multiple active Quotes in a single batch. Maximum 100 quote orders can be canceled at a time.
 func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestParams) ([]CancelQuoteResponse, error) {
-	if len(arg.QuoteIDs) == 0 && len(arg.ClientSuppliedQuoteIDs) == 0 {
-		return nil, errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs
+	if len(arg.QuoteIDs) == 0 && len(arg.ClientQuoteIDs) == 0 {
+		return nil, errMissingEitherQuoteIDAOrClientQuoteIDs
 	}
 	var resp []CancelQuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, rfqCancelBatchQuotes, &arg, &resp, true)
@@ -1271,8 +1271,8 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQRespons
 	if arg.RfqID != "" {
 		params.Set("rfqId", arg.RfqID)
 	}
-	if arg.ClientSuppliedRfqID != "" {
-		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	if arg.ClientRfqID != "" {
+		params.Set("clRfqId", arg.ClientRfqID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
@@ -1299,14 +1299,14 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	if arg.RfqID != "" {
 		params.Set("rfqId", arg.RfqID)
 	}
-	if arg.ClientSuppliedRfqID != "" {
-		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	if arg.ClientRfqID != "" {
+		params.Set("clRfqId", arg.ClientRfqID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
 	}
-	if arg.ClientSuppliedQuoteID != "" {
-		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
+	if arg.ClientQuoteID != "" {
+		params.Set("clQuoteId", arg.ClientQuoteID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
@@ -1333,14 +1333,14 @@ func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([
 	if arg.RfqID != "" {
 		params.Set("rfqId", arg.RfqID)
 	}
-	if arg.ClientSuppliedRfqID != "" {
-		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	if arg.ClientRfqID != "" {
+		params.Set("clRfqId", arg.ClientRfqID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
 	}
-	if arg.ClientSuppliedQuoteID != "" {
-		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
+	if arg.ClientQuoteID != "" {
+		params.Set("clQuoteId", arg.ClientQuoteID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
