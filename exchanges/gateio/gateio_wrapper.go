@@ -1216,11 +1216,11 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	var response order.CancelBatchResponse
 	response.Status = map[string]string{}
 	if len(o) == 0 {
-		return response, errors.New("no cancel order passed")
+		return nil, errors.New("no cancel order passed")
 	}
 	var err error
 	var cancelSpotOrdersParam []CancelOrderByIDParam
@@ -1228,11 +1228,11 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 	for x := range o {
 		o[x].Pair, err = g.FormatExchangeCurrency(o[x].Pair, a)
 		if err != nil {
-			return response, err
+			return nil, err
 		}
 		o[x].Pair = o[x].Pair.Upper()
 		if a != o[x].AssetType {
-			return response, errors.New("cannot cancel orders of different asset types")
+			return nil, errors.New("cannot cancel orders of different asset types")
 		}
 		if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
 			cancelSpotOrdersParam = append(cancelSpotOrdersParam, CancelOrderByIDParam{
@@ -1243,7 +1243,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		}
 		err = o[x].Validate(o[x].StandardCancel())
 		if err != nil {
-			return response, err
+			return nil, err
 		}
 	}
 	switch a {
@@ -1259,7 +1259,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 			var cancel []CancelOrderByIDResponse
 			cancel, err = g.CancelBatchOrdersWithIDList(ctx, input)
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[cancel[x].OrderID] = func() string {
@@ -1274,7 +1274,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		for a := range o {
 			cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, o[a].Pair, o[a].Side.Lower(), o[a].Pair.Quote.String())
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
@@ -1284,11 +1284,11 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		for a := range o {
 			settle, err := g.getSettlementFromCurrency(o[a].Pair, false)
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			cancel, err := g.CancelMultipleDeliveryOrders(ctx, o[a].Pair, o[a].Side.Lower(), settle)
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
@@ -1298,16 +1298,16 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		for a := range o {
 			cancel, err := g.CancelMultipleOptionOpenOrders(ctx, o[a].Pair, o[a].Pair.String(), o[a].Side.Lower())
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
 			}
 		}
 	default:
-		return response, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
-	return response, nil
+	return &response, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
