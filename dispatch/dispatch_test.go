@@ -255,8 +255,6 @@ func TestPublish(t *testing.T) {
 	if !errors.Is(err, errNoData) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
 	}
-	// need to reset before next test
-	err = nil
 
 	// demonstrate job limit error
 	d.routes[nonEmptyUUID] = []chan interface{}{
