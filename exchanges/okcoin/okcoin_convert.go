@@ -20,7 +20,7 @@ func (o *okcoinTime) UnmarshalJSON(data []byte) error {
 	switch value := timeMilliSecond.(type) {
 	case string:
 		if value == "" {
-			*o = okcoinTime(time.Time{})
+			*o = okcoinTime(time.Time{}) // in case timestamp information is empty string("") reset okcoinTime to zero.
 			return nil
 		}
 		timestamp, err = strconv.ParseInt(value, 10, 64)

@@ -416,7 +416,7 @@ type WebsocketCandlesResponse struct {
 // GetCandlesData represents a candlestick instances list.
 func (o *OKCoin) GetCandlesData(arg *WebsocketCandlesResponse) ([]stream.KlineData, error) {
 	candlesticks := make([]stream.KlineData, len(arg.Data))
-	cp, err := o.Config.EnabledPairs.DeriveFrom(arg.Arg.InstrumentID)
+	cp, err := currency.NewPairFromString(arg.Arg.InstrumentID)
 	if err != nil {
 		return nil, err
 	}

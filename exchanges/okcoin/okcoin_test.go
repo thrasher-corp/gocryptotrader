@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("%s populateTradablePairs error %v", o.Name, err)
 	}
-	// setupWS()
+	setupWS()
 	os.Exit(m.Run())
 }
 
