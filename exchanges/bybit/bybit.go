@@ -438,8 +438,7 @@ func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol string) ([]T
 
 	result := struct {
 		Data struct {
-			Catagory string   `json:"catagory"` // Not neccesary to return
-			List     []Ticker `json:"list"`
+			List []Ticker `json:"list"`
 		} `json:"result"`
 		Error
 	}{}
