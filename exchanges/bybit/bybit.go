@@ -333,7 +333,6 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 			return nil, err
 		}
 		return []PriceChangeStats{resp.Data}, nil
-
 	}
 
 	resp := struct {
@@ -958,7 +957,7 @@ type Error struct {
 }
 
 // GetError checks and returns an error if it is supplied.
-func (e Error) GetError() error {
+func (e *Error) GetError() error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
 		return errors.New(e.ReturnMsg)
 	}
