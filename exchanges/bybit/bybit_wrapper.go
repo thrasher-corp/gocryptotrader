@@ -306,7 +306,6 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures:
-		// ctx = request.WithVerbose(ctx)
 		allPairs, err := by.GetSymbolsInfo(ctx)
 		if err != nil {
 			return nil, err
