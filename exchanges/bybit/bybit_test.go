@@ -3354,7 +3354,6 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetTickersV5(context.Background(), "spot", "")
 	if err != nil {
 		t.Error(err)
@@ -3398,9 +3397,7 @@ func TestGetAccountFee(t *testing.T) {
 		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
 	}
 
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err = b.GetAccountFee(context.Background(), "bruh", "", "bruh")
 	if !errors.Is(err, nil) {
