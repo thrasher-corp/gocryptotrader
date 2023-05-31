@@ -1893,9 +1893,6 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				Volume: candles[x].Volume,
 			}
 		}
-	case asset.Options:
-		// TODO: add support for options when endpoint is returning data
-		return nil, common.ErrNotYetImplemented
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
@@ -1959,9 +1956,6 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 					Volume: candles[x].Volume,
 				})
 			}
-		case asset.Options:
-			// TODO: add support for options when endpoint is returning data
-			return nil, common.ErrNotYetImplemented
 		default:
 			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 		}
