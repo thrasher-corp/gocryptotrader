@@ -2,70 +2,52 @@ package cryptodotcom
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 )
 
-type cryptoDotComMilliSec int64
-type cryptoDotComMilliSecString int64
+type cryptoDotComTime time.Time
 
-// UnmarshalJSON decerializes timestamp information into a cryptoDotComMilliSec instance.
-func (d *cryptoDotComMilliSec) UnmarshalJSON(data []byte) error {
-	var value int64
+// UnmarshalJSON converts string embedded unix nano-second timestamp information into cryptoDotComTime instance.
+func (a *cryptoDotComTime) UnmarshalJSON(data []byte) error {
+	var value interface{}
 	err := json.Unmarshal(data, &value)
 	if err != nil {
 		return err
 	}
-	*d = cryptoDotComMilliSec(value)
-	return nil
-}
-
-// Time returns a time.Time instance from the timestamp information.
-func (d *cryptoDotComMilliSec) Time() time.Time {
-	return time.UnixMilli(int64(*d))
-}
-
-// UnmarshalJSON decerializes timestamp information into a cryptoDotComMilliSec instance.
-func (d *cryptoDotComMilliSecString) UnmarshalJSON(data []byte) error {
-	var value string
-	err := json.Unmarshal(data, &value)
-	if err != nil {
-		return err
-	}
-	val, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return err
-	}
-	*d = cryptoDotComMilliSecString(val)
-	return nil
-}
-
-// Time returns a time.Time instance from the timestamp information.
-func (d *cryptoDotComMilliSecString) Time() time.Time {
-	return time.UnixMilli(int64(*d))
-}
-
-type cryptoDotComNanoSecString int64
-
-// UnmarshalJSON converts string embedded unix nano-second timestamp information into cryptoDotComNanoSecString instance.
-func (a *cryptoDotComNanoSecString) UnmarshalJSON(data []byte) error {
-	var value string
-	err := json.Unmarshal(data, &value)
-	if err != nil {
-		return err
-	}
-	var nanoTimestamp int64
-	if value != "" {
-		nanoTimestamp, err = strconv.ParseInt(value, 10, 64)
+	var timestamp int64
+	switch val := value.(type) {
+	case int64:
+		timestamp = val
+	case int32:
+		timestamp = int64(val)
+	case float64:
+		timestamp = int64(val)
+	case string:
+		if val == "" {
+			*a = cryptoDotComTime(time.Time{})
+			return nil
+		}
+		timestamp, err = strconv.ParseInt(val, 10, 64)
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("timestamp information of type %T is not supported", value)
 	}
-	*a = cryptoDotComNanoSecString(nanoTimestamp)
+	switch {
+	case timestamp >= 1e13:
+		*a = cryptoDotComTime(time.Unix((timestamp / 1e9), timestamp%1e9))
+	case timestamp >= 1e10:
+		*a = cryptoDotComTime(time.UnixMilli(timestamp))
+	default:
+		*a = cryptoDotComTime(time.Unix(timestamp, 0))
+	}
 	return nil
 }
 
 // Time returns a time.Time instance from unix nano second timestamp information
-func (a *cryptoDotComNanoSecString) Time() time.Time {
-	return time.Unix(int64(*a)/1e9, int64(*a)%1e9)
+func (a *cryptoDotComTime) Time() time.Time {
+	return time.Time(*a)
 }

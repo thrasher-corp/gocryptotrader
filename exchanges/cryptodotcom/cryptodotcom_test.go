@@ -26,12 +26,9 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-
-	credInfoNotProvided                             = "credentials not provided"
-	credInfoNotProvidedOrCannotManipulateRealOrders = "credentials must be provided and field canManipulateRealOrders must be enabled"
 )
 
-var cr Cryptodotcom
+var cr = &Cryptodotcom{}
 
 func TestMain(m *testing.M) {
 	cr.SetDefaults()
@@ -62,10 +59,6 @@ func TestMain(m *testing.M) {
 	cr.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	setupWS()
 	os.Exit(m.Run())
-}
-
-func areTestAPIKeysSet() bool {
-	return cr.ValidateAPICredentials(cr.GetDefaultCredentials()) == nil
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -114,9 +107,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestWithdrawFunds(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	_, err := cr.WithdrawFunds(context.Background(), currency.BTC, 10, core.BitcoinDonationAddress, "", "", "")
 	if err != nil {
 		t.Error(err)
@@ -129,9 +120,7 @@ func TestWithdrawFunds(t *testing.T) {
 
 func TestGetCurrencyNetworks(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetCurrencyNetworks(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -147,9 +136,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.GetWithdrawalHistory(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -162,9 +149,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 
 func TestGetDepositHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetDepositHistory(context.Background(), currency.EMPTYCODE, time.Time{}, time.Time{}, 20, 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -173,9 +158,7 @@ func TestGetDepositHistory(t *testing.T) {
 
 func TestGetPersonalDepositAddress(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetPersonalDepositAddress(context.Background(), currency.BTC)
 	if err != nil {
 		t.Error(err)
@@ -184,9 +167,7 @@ func TestGetPersonalDepositAddress(t *testing.T) {
 
 func TestGetAccountSummary(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetAccountSummary(context.Background(), currency.USDT)
 	if err != nil {
 		t.Error(err)
@@ -199,9 +180,7 @@ func TestGetAccountSummary(t *testing.T) {
 
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	arg := &CreateOrderParam{InstrumentName: "BTC_USDT", Side: order.Buy, OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
 	_, err := cr.CreateOrder(context.Background(), arg)
 	if err != nil {
@@ -215,9 +194,7 @@ func TestCreateOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	err := cr.CancelExistingOrder(context.Background(), "BTC_USDT", "1232412")
 	if err != nil {
 		t.Error(err)
@@ -237,9 +214,7 @@ func TestGetPrivateTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.GetPrivateTrades(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -252,9 +227,7 @@ func TestGetPrivateTrades(t *testing.T) {
 
 func TestGetOrderDetail(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetOrderDetail(context.Background(), "1234")
 	if err != nil {
 		t.Error(err)
@@ -267,9 +240,7 @@ func TestGetOrderDetail(t *testing.T) {
 
 func TestGetPersonalOpenOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetPersonalOpenOrders(context.Background(), "", 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -289,9 +260,7 @@ func TestGetPersonalOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	resp, err = cr.GetPersonalOrderHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 20)
 	if err != nil {
 		t.Error(err)
@@ -304,9 +273,7 @@ func TestGetPersonalOrderHistory(t *testing.T) {
 
 func TestCreateOrderList(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	_, err := cr.CreateOrderList(context.Background(), "LIST", []CreateOrderParam{
 		{
 			InstrumentName: "BTC_USDT", ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: orderTypeToString(order.Limit), PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
@@ -325,9 +292,7 @@ func TestCreateOrderList(t *testing.T) {
 
 func TestCancelOrderList(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	_, err := cr.CancelOrderList(context.Background(), []CancelOrderParam{
 		{InstrumentName: "BTC_USDT", OrderID: "1234567"}, {InstrumentName: "BTC_USDT",
 			OrderID: "123450067"}})
@@ -344,9 +309,7 @@ func TestCancelOrderList(t *testing.T) {
 
 func TestCancelAllPersonalOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -363,9 +326,7 @@ func TestCancelAllPersonalOrders(t *testing.T) {
 
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetAccounts(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -381,9 +342,7 @@ func TestGetTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.GetTransactions(context.Background(), "BTCUSD-PERP", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
@@ -392,9 +351,7 @@ func TestGetTransactions(t *testing.T) {
 
 func TestCreateSubAccountTransfer(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	err := cr.CreateSubAccountTransfer(context.Background(), "destination_address", core.BitcoinDonationAddress, currency.USDT, 1232)
 	if err != nil {
 		t.Error(err)
@@ -410,9 +367,7 @@ func TestGetOTCUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.GetOTCUser(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -421,9 +376,7 @@ func TestGetOTCUser(t *testing.T) {
 
 func TestGetOTCInstruments(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetOTCInstruments(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -439,9 +392,7 @@ func TestRequestOTCQuote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.RequestOTCQuote(context.Background(), currency.NewPair(currency.BTC, currency.USDT), .001, 232, "BUY")
 	if err != nil {
 		t.Error(err)
@@ -457,9 +408,7 @@ func TestAcceptOTCQuote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.AcceptOTCQuote(context.Background(), "12323123", "")
 	if err != nil {
 		t.Error(err)
@@ -475,9 +424,7 @@ func TestGetOTCQuoteHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.GetOTCQuoteHistory(context.Background(), currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 10)
 	if err != nil {
 		t.Error(err)
@@ -493,9 +440,7 @@ func TestGetOTCTradeHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err = cr.GetOTCTradeHistory(context.Background(), currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -570,9 +515,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	if _, err := cr.UpdateAccountInfo(context.Background(), asset.Spot); err != nil {
 		t.Error("Cryptodotcom UpdateAccountInfo() error", err)
 	}
@@ -580,9 +523,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	if _, err := cr.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
 		t.Error("Cryptodotcom GetWithdrawalsHistory() error", err)
 	}
@@ -604,9 +545,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	if _, err := cr.GetFundingHistory(context.Background()); err != nil {
 		t.Error("Cryptodotcom GetFundingHistory() error", err)
 	}
@@ -632,9 +571,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	enabledPairs, err := cr.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -652,9 +589,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -672,9 +607,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
@@ -712,9 +645,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	var orderCancellation = &order.Cancel{
 		OrderID:   "1",
 		Pair:      currency.NewPair(currency.LTC, currency.BTC),
@@ -727,9 +658,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	var orderCancellationParams = []order.Cancel{
 		{
 			OrderID: "1",
@@ -748,9 +677,7 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	if _, err := cr.CancelAllOrders(context.Background(), &order.Cancel{}); err != nil {
 		t.Errorf("%s CancelAllOrders() error: %v", cr.Name, err)
 	}
@@ -758,9 +685,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	enabled, err := cr.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		t.Error("couldn't find enabled tradable pairs")
@@ -777,9 +702,7 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.GetDepositAddress(context.Background(), currency.ETH, "", "")
 	if err != nil {
 		t.Error(err)
@@ -788,9 +711,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Amount:   10,
 		Currency: currency.BTC,
@@ -808,7 +729,7 @@ func setupWS() {
 	if !cr.Websocket.IsEnabled() {
 		return
 	}
-	if !areTestAPIKeysSet() {
+	if !sharedtestvalues.AreAPICredentialsSet(cr) {
 		cr.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	err := cr.WsConnect()
@@ -827,9 +748,7 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 
 func TestWsRetriveCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip(credInfoNotProvided)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	_, err := cr.WsRetriveCancelOnDisconnect()
 	if err != nil {
 		t.Error(err)
@@ -837,9 +756,7 @@ func TestWsRetriveCancelOnDisconnect(t *testing.T) {
 }
 func TestWsSetCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip(credInfoNotProvidedOrCannotManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
 	_, err := cr.WsSetCancelOnDisconnect("ACCOUNT")
 	if err != nil {
 		t.Error(err)
@@ -904,7 +821,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !areTestAPIKeysSet() {
+	if !sharedtestvalues.AreAPICredentialsSet(cr) {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -956,5 +873,57 @@ func TestPushData(t *testing.T) {
 	err = cr.WsHandleData([]byte(userTradePushData), true)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCryptoDotComTimeUnmarshal(t *testing.T) {
+	cryptoTime := &struct {
+		Timestamp cryptoDotComTime `json:"ts"`
+	}{}
+	data1 := `{ "ts" : "1685523612777"}`
+	resultTime := time.UnixMilli(1685523612777)
+	err := json.Unmarshal([]byte(data1), cryptoTime)
+	if err != nil {
+		t.Fatal(err)
+	} else if !cryptoTime.Timestamp.Time().Equal(resultTime) {
+		t.Errorf("found %v, but expected %v", cryptoTime.Timestamp.Time(), resultTime)
+	}
+
+	data2 := `{ "ts" : "1685523612"}`
+	resultTime = time.Unix(1685523612, 0)
+	err = json.Unmarshal([]byte(data2), cryptoTime)
+	if err != nil {
+		t.Fatal(err)
+	} else if !cryptoTime.Timestamp.Time().Equal(resultTime) {
+		t.Errorf("found %v, but expected %v", cryptoTime.Timestamp.Time(), resultTime)
+	}
+	data3 := `{ "ts" : ""}`
+	resultTime = time.Time{}
+	err = json.Unmarshal([]byte(data3), cryptoTime)
+	if err != nil {
+		t.Fatal(err)
+	} else if !cryptoTime.Timestamp.Time().Equal(resultTime) {
+		t.Errorf("found %v, but expected %v", cryptoTime.Timestamp.Time(), resultTime)
+	}
+	data4 := `{ "ts" : "1685523612781790000"}`
+	resultTime = time.Unix((int64(1685523612781790000) / 1e9), int64(1685523612781790000)%1e9)
+	err = json.Unmarshal([]byte(data4), cryptoTime)
+	if err != nil {
+		t.Fatal(err)
+	} else if !cryptoTime.Timestamp.Time().Equal(resultTime) {
+		t.Errorf("found %v, but expected %v", cryptoTime.Timestamp.Time(), resultTime)
+	}
+	data5 := `{ "ts" : 1685523612777}`
+	resultTime = time.UnixMilli(1685523612777)
+	err = json.Unmarshal([]byte(data5), cryptoTime)
+	if err != nil {
+		t.Fatal(err)
+	} else if !cryptoTime.Timestamp.Time().Equal(resultTime) {
+		t.Errorf("found %v, but expected %v", cryptoTime.Timestamp.Time(), resultTime.String())
+	}
+	data6 := `{ "ts" : "abcdef"}`
+	err = json.Unmarshal([]byte(data6), cryptoTime)
+	if err == nil {
+		t.Errorf("expecting an error, but got nil")
 	}
 }

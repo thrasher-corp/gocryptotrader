@@ -1037,11 +1037,6 @@ func (cr *Cryptodotcom) GetFeeByType(ctx context.Context, feeBuilder *exchange.F
 	return fee, nil
 }
 
-func (cr *Cryptodotcom) checkCredentials(ctx context.Context) bool {
-	creds, err := cr.GetCredentials(ctx)
-	return err == nil && cr.ValidateAPICredentials(creds) == nil
-}
-
 // getOfflineTradeFee calculates the worst case-scenario trading fee
 func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.0750 * price * amount
@@ -1104,8 +1099,8 @@ func (cr *Cryptodotcom) GetHistoricCandlesExtended(_ context.Context, _ currency
 	return nil, common.ErrFunctionNotSupported
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (cr *Cryptodotcom) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+// ValidateAPICredentials validates current credentials used for wrapper
+func (cr *Cryptodotcom) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := cr.UpdateAccountInfo(ctx, assetType)
 	return cr.CheckTransientError(err)
 }
