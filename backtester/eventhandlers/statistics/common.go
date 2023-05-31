@@ -169,7 +169,7 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		}
 		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
 		if err != nil {
-			log.Error(common.CurrencyStatistics, err)
+			log.Errorln(common.CurrencyStatistics, err)
 		}
 		drawdownPercent := decimal.Zero
 		if highestPrice.GreaterThan(decimal.Zero) {
