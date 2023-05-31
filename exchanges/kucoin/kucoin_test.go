@@ -1870,7 +1870,7 @@ func TestGetFeeByType(t *testing.T) {
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}); err != nil {
-		t.Errorf("%s GetFeeByType() error %v", ku.Name, err)
+		t.Error(err)
 	}
 }
 
@@ -1880,7 +1880,7 @@ func TestValidateCredentials(t *testing.T) {
 	assetTypes := ku.CurrencyPairs.GetAssetTypes(true)
 	for _, at := range assetTypes {
 		if err := ku.ValidateCredentials(context.Background(), at); err != nil {
-			t.Errorf("%s ValidateCredentials() error %v", ku.Name, err)
+			t.Error(err)
 		}
 	}
 }
@@ -2199,17 +2199,17 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
 		if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures); err != nil {
-			t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
+			t.Error(err)
 		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 		if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot); err != nil {
-			t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
+			t.Error(err)
 		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		if _, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Margin); !errors.Is(err, asset.ErrNotSupported) {
-			t.Errorf("%s GetWithdrawalsHistory() error %v", ku.Name, err)
+			t.Error(err)
 		}
 	}
 }
@@ -2221,19 +2221,19 @@ func TestGetOrderInfo(t *testing.T) {
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
 		_, err = ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Futures)
 		if err != nil {
-			t.Errorf("Kucoin GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
+			t.Errorf("expected %s, but found %v", "Order does not exist", err)
 		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 		_, err = ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Spot)
 		if err != nil {
-			t.Errorf("Kucoin GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
+			t.Errorf("expected %s, but found %v", "Order does not exist", err)
 		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		_, err = ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Margin)
 		if err != nil {
-			t.Errorf("Kucoin GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
+			t.Errorf("expected %s, but found %v", "Order does not exist", err)
 		}
 	}
 }
@@ -2242,7 +2242,7 @@ func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	if _, err := ku.GetDepositAddress(context.Background(), currency.BTC, "", ""); err != nil && !errors.Is(err, errNoDepositAddress) {
-		t.Error("Kucoin GetDepositAddress() error", err)
+		t.Error(err)
 	}
 }
 
@@ -2258,7 +2258,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		},
 	}
 	if _, err := ku.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest); err != nil {
-		t.Error("Kucoin WithdrawCryptoCurrencyFunds() error", err)
+		t.Error(err)
 	}
 }
 
@@ -2279,41 +2279,41 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	_, err := ku.SubmitOrder(context.Background(), orderSubmission)
 	if !errors.Is(err, order.ErrSideIsInvalid) {
-		t.Errorf("Kucoin SubmitOrder() expecting %v, but found %v", asset.ErrNotSupported, err)
+		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}
 	orderSubmission.Side = order.Buy
 	orderSubmission.AssetType = asset.Options
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("Kucoin SubmitOrder() expecting %v, but found %v", asset.ErrNotSupported, err)
+		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	orderSubmission.AssetType = asset.Spot
 	orderSubmission.Side = order.Buy
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
-		t.Errorf("Kucoin SubmitOrder() %v", err)
+		t.Error(err)
 	}
 	orderSubmission.AssetType = asset.Spot
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
-		t.Errorf("Kucoin SubmitOrder() %v", err)
+		t.Error(err)
 	}
 	orderSubmission.AssetType = asset.Margin
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
-		t.Errorf("Kucoin SubmitOrder() %v", err)
+		t.Error(err)
 	}
 	orderSubmission.AssetType = asset.Futures
 	orderSubmission.Pair = futuresTradablePair
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if !errors.Is(err, errInvalidLeverage) {
-		t.Errorf("Kucoin SubmitOrder() %v", err)
+		t.Error(err)
 	}
 	orderSubmission.Leverage = 0.01
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
-		t.Errorf("Kucoin SubmitOrder() %v", err)
+		t.Error(err)
 	}
 }
 
@@ -2366,7 +2366,7 @@ func TestCancelAllOrders(t *testing.T) {
 			AssetType:  asset.Futures,
 			MarginMode: "isolated",
 		}); err != nil {
-			t.Errorf("%s CancelAllOrders() error: %v", ku.Name, err)
+			t.Error(err)
 		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
@@ -2374,7 +2374,7 @@ func TestCancelAllOrders(t *testing.T) {
 			AssetType:  asset.Margin,
 			MarginMode: "isolated",
 		}); err != nil {
-			t.Errorf("%s CancelAllOrders() error: %v", ku.Name, err)
+			t.Error(err)
 		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
@@ -2382,7 +2382,7 @@ func TestCancelAllOrders(t *testing.T) {
 			AssetType:  asset.Spot,
 			MarginMode: "isolated",
 		}); err != nil {
-			t.Errorf("%s CancelAllOrders() error: %v", ku.Name, err)
+			t.Error(err)
 		}
 	}
 }
@@ -2398,11 +2398,11 @@ func TestGeneratePayloads(t *testing.T) {
 		t.Error(err)
 	}
 	if len(payload) != len(subscriptions) {
-		t.Error(errors.New("derived payload is not same as generated channel subscription instances"))
+		t.Error("derived payload is not same as generated channel subscription instances")
 	}
 }
 
-var subUserResponseJSON = `{"userId":"635002438793b80001dcc8b3", "uid":62356, "subName":"margin01", "status":2, "type":4, "access":"Margin", "createdAt":1666187844000, "remarks":null }`
+const subUserResponseJSON = `{"userId":"635002438793b80001dcc8b3", "uid":62356, "subName":"margin01", "status":2, "type":4, "access":"Margin", "createdAt":1666187844000, "remarks":null }`
 
 func TestCreateSubUser(t *testing.T) {
 	t.Parallel()
@@ -2548,5 +2548,119 @@ func TestPushPositionSettlemenPushData(t *testing.T) {
 	err := ku.wsHandleData([]byte(positionSettlementPushDataJSON))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestKucoinTimeUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	unmarshaledResult := &struct {
+		Timestamp kucoinTime `json:"ts"`
+	}{}
+	data1 := `{"ts":""}`
+	result := time.Time{}
+	err := json.Unmarshal([]byte(data1), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data2 := `{"ts":"1685564775371"}`
+	result = time.UnixMilli(1685564775371)
+	err = json.Unmarshal([]byte(data2), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data3 := `{"ts":1685564775371}`
+	err = json.Unmarshal([]byte(data3), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data4 := `{"ts":"1685564775"}`
+	result = time.Unix(1685564775, 0)
+	err = json.Unmarshal([]byte(data4), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data5 := `{"ts":1685564775}`
+	err = json.Unmarshal([]byte(data5), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data6 := `{"ts":"1685564775371320000"}`
+	result = time.Unix(int64(1685564775371320000)/1e9, int64(1685564775371320000)%1e9)
+	err = json.Unmarshal([]byte(data6), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data7 := `{"ts":"abcdefg"}`
+	err = json.Unmarshal([]byte(data7), &unmarshaledResult)
+	if err == nil {
+		t.Fatal("expecting error but found nil")
+	}
+}
+
+func TestKucoinNumberUnmarshal(t *testing.T) {
+	t.Parallel()
+	data := &struct {
+		Number kucoinNumber `json:"number"`
+	}{}
+	data1 := `{"number": 123.33}`
+	err := json.Unmarshal([]byte(data1), &data)
+	if err != nil {
+		t.Fatal(err)
+	} else if data.Number.Float64() != 123.33 {
+		t.Errorf("expecting %.2f, got %.2f", 123.33, data.Number)
+	}
+	data2 := `{"number": "123.33"}`
+	err = json.Unmarshal([]byte(data2), &data)
+	if err != nil {
+		t.Fatal(err)
+	} else if data.Number.Float64() != 123.33 {
+		t.Errorf("expecting %.2f, got %.2f", 123.33, data.Number)
+	}
+	data3 := `{"number": ""}`
+	err = json.Unmarshal([]byte(data3), &data)
+	if err != nil {
+		t.Fatal(err)
+	} else if data.Number.Float64() != 0 {
+		t.Errorf("expecting %d, got %.2f", 0, data.Number)
+	}
+	data4 := `{"number": "123"}`
+	err = json.Unmarshal([]byte(data4), &data)
+	if err != nil {
+		t.Fatal(err)
+	} else if data.Number.Float64() != 123 {
+		t.Errorf("expecting %d, got %.2f", 123, data.Number)
+	}
+	data5 := `{"number": 0}`
+	err = json.Unmarshal([]byte(data5), &data)
+	if err != nil {
+		t.Fatal(err)
+	} else if data.Number.Float64() != 0 {
+		t.Errorf("expecting %d, got %.2f", 0, data.Number)
+	}
+	data6 := `{"number": 123789}`
+	err = json.Unmarshal([]byte(data6), &data)
+	if err != nil {
+		t.Fatal(err)
+	} else if data.Number.Float64() != 123789 {
+		t.Errorf("expecting %d, got %.2f", 123789, data.Number)
+	}
+	data7 := `{"number": 12321312312312312}`
+	err = json.Unmarshal([]byte(data7), &data)
+	if err != nil {
+		t.Fatal(err)
+	} else if data.Number.Float64() != 12321312312312312 {
+		t.Errorf("expecting %d, got %.2f", 12321312312312312, data.Number)
 	}
 }

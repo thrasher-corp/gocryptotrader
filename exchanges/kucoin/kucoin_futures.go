@@ -247,7 +247,7 @@ func (ku *Kucoin) GetFuturesCurrentFundingRate(ctx context.Context, symbol strin
 // GetFuturesServerTime get server time
 func (ku *Kucoin) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
-		Data kucoinTimeMilliSec `json:"data"`
+		Data kucoinTime `json:"data"`
 		Error
 	}{}
 	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, kucoinFuturesServerTime, &resp)

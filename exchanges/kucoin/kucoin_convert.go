@@ -2,157 +2,61 @@ package kucoin
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
 )
 
-// kucoinTimeSec provides an internal conversion helper
-type kucoinTimeSec int64
-
-// Time returns a time.Time object
-func (k kucoinTimeSec) Time() time.Time {
-	if k < 0 {
-		return time.Time{}
-	}
-	return time.Unix(int64(k), 0)
-}
-
-// kucoinTimeNanoSec provides an internal conversion helper
-type kucoinTimeNanoSec int64
-
-// Time returns a time.Time object
-func (k *kucoinTimeNanoSec) Time() time.Time {
-	if *k < 0 {
-		return time.Time{}
-	}
-	return time.Unix(0, int64(*k))
-}
+// kucoinTime provides an internal conversion helper
+type kucoinTime time.Time
 
 // UnmarshalJSON is custom type json unmarshaller for kucoinTimeSec
-func (k *kucoinTimeSec) UnmarshalJSON(data []byte) error {
+func (k *kucoinTime) UnmarshalJSON(data []byte) error {
 	var timestamp interface{}
 	err := json.Unmarshal(data, &timestamp)
 	if err != nil {
 		return err
 	}
+	var standard uint64
 	switch value := timestamp.(type) {
-	case int64:
-		*k = kucoinTimeSec(value)
-	case int:
-		*k = kucoinTimeSec(int64(value))
-	case float64:
-		*k = kucoinTimeSec(int64(value))
 	case string:
 		if value == "" {
-			// Setting the time to zero because some timestamp fields could return an empty string while there is no error
-			// So, in such cases, kucoinTimeSec returns 0 timestamp.
-			*k = kucoinTimeSec(-1)
+			// Setting the time to zero value because some timestamp fields could return an empty string while there is no error
+			// So, in such cases, kucoinTime returns zero timestamp.
+			*k = kucoinTime(time.Time{})
 			return nil
 		}
-		tmsp, err := strconv.ParseInt(value, 10, 64)
+		standard, err = strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			return err
 		}
-		*k = kucoinTimeSec(tmsp)
-	default:
-		*k = kucoinTimeSec(0)
-	}
-	return nil
-}
-
-// UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSec
-func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
-	var timestamp interface{}
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	switch value := timestamp.(type) {
-	case int64:
-		*k = kucoinTimeMilliSec(value)
-	case int:
-		*k = kucoinTimeMilliSec(int64(value))
+	case uint64:
+		standard = value
 	case float64:
-		*k = kucoinTimeMilliSec(int64(value))
-	case string:
-		if value == "" {
-			// Setting the time to zero because some timestamp fields could return an empty string while there is no error
-			// So, in such cases, kucoinTimeMilliSec returns 0 timestamp.
-			*k = kucoinTimeMilliSec(-1)
-			return nil
-		}
-		tmsp, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return err
-		}
-		*k = kucoinTimeMilliSec(tmsp)
+		standard = uint64(value)
+	case uint32:
+		standard = uint64(value)
+	case nil:
+		// for some kucoin timestamp fields, if the timestamp information is not specified,
+		// the data is 'nil' instead of zero value string or integer value.
 	default:
-		*k = kucoinTimeMilliSec(0)
+		return fmt.Errorf("unsupported timestamp type %T", timestamp)
+	}
+
+	switch {
+	case standard >= 1e13:
+		*k = kucoinTime(time.Unix(int64(standard/1e9), int64(standard%1e9)))
+	case standard > 9999999999:
+		*k = kucoinTime(time.UnixMilli(int64(standard)))
+	default:
+		*k = kucoinTime(time.Unix(int64(standard), 0))
 	}
 	return nil
 }
 
-// UnmarshalJSON is custom type json unmarshaller for kucoinTimeNanoSec
-func (k *kucoinTimeNanoSec) UnmarshalJSON(data []byte) error {
-	var timestamp interface{}
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	switch val := timestamp.(type) {
-	case int64:
-		*k = kucoinTimeNanoSec(val)
-	case string:
-		if val == "" {
-			// Setting the time to zero because some timestamp fields could return an empty string while there is no error
-			// So, in such cases, kucoinTimeNanoSec returns 0 timestamp.
-			*k = kucoinTimeNanoSec(-1)
-			return nil
-		}
-		tmsp, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return err
-		}
-		*k = kucoinTimeNanoSec(tmsp)
-	case int:
-		*k = kucoinTimeNanoSec(int64(val))
-	case float64:
-		*k = kucoinTimeNanoSec(int64(val))
-	default:
-		*k = kucoinTimeNanoSec(0)
-	}
-	return nil
-}
-
-type kucoinAmbiguousFloat float64
-
-// UnmarshalJSON is custom type json unmarshaller for kucoinUmbiguousFloat
-func (k *kucoinAmbiguousFloat) UnmarshalJSON(data []byte) error {
-	var newVal interface{}
-	err := json.Unmarshal(data, &newVal)
-	if err != nil {
-		return err
-	}
-	switch payload := newVal.(type) {
-	case float64:
-		*k = kucoinAmbiguousFloat(payload)
-	case string:
-		value, err := strconv.ParseFloat(payload, 64)
-		if err != nil {
-			return err
-		}
-		*k = kucoinAmbiguousFloat(value)
-	default:
-		return fmt.Errorf("unhandled type %T", newVal)
-	}
-	return nil
-}
-
-// Float64 returns floating values from kucoinUmbiguousFloat.
-func (k *kucoinAmbiguousFloat) Float64() float64 {
-	return float64(*k)
+// Time returns a time.Time instance from kucoinTime instance object.
+func (k *kucoinTime) Time() time.Time {
+	return time.Time(*k)
 }
 
 // UnmarshalJSON valid data to SubAccountsResponse of return nil if the data is empty list.
@@ -175,41 +79,42 @@ func (a *SubAccountsResponse) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("%w can not unmarshal to SubAccountsResponse", errMalformedData)
 }
 
-// kucoinInteger created to convert into int64 from string or int and hold the data
-type kucoinInteger int64
+// kucoinNumber unmarshals and extract numeric value from a byte slice.
+type kucoinNumber float64
 
-// Value returns an int64 value from kucoinInteger instance
-func (a *kucoinInteger) Value() int64 {
-	return int64(*a)
+// Float64 returns an float64 value from kucoinNumeric instance
+func (a *kucoinNumber) Float64() float64 {
+	return float64(*a)
 }
 
 // UnmarshalJSON decerializes integer and string data having an integer value to int64
-func (a *kucoinInteger) UnmarshalJSON(data []byte) error {
-	var integer interface{}
-	err := json.Unmarshal(data, &integer)
+func (a *kucoinNumber) UnmarshalJSON(data []byte) error {
+	var value interface{}
+	err := json.Unmarshal(data, &value)
 	if err != nil {
 		return err
 	}
-	switch val := integer.(type) {
-	case int64:
-		*a = kucoinInteger(val)
-	case int:
-		*a = kucoinInteger(int64(val))
+	switch val := value.(type) {
+	case float64:
+		*a = kucoinNumber(val)
+	case float32:
+		*a = kucoinNumber(val)
 	case string:
 		if val == "" {
-			return errors.New("empty string as integer")
+			*a = kucoinNumber(0) // setting empty string value to zero to reset previous value if exist.
+			return nil
 		}
-		value, err := strconv.ParseInt(val, 10, 64)
+		value, err := strconv.ParseFloat(val, 64)
 		if err != nil {
 			return err
 		}
-		*a = kucoinInteger(value)
-	case float64:
-		*a = kucoinInteger(int64(val))
-	case float32:
-		*a = kucoinInteger(int64(val))
+		*a = kucoinNumber(value)
+	case int64:
+		*a = kucoinNumber(val)
+	case int32:
+		*a = kucoinNumber(val)
 	default:
-		return errors.New("unsupported integer value")
+		return fmt.Errorf("unsupported input numeric type %T", value)
 	}
 	return nil
 }

@@ -793,7 +793,7 @@ func (ku *Kucoin) InitiateIsolatedMarginSingleRepayment(ctx context.Context, sym
 // GetCurrentServerTime gets the server time
 func (ku *Kucoin) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
-		Timestamp kucoinTimeMilliSec `json:"data"`
+		Timestamp kucoinTime `json:"data"`
 		Error
 	}{}
 	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetServerTime, &resp)

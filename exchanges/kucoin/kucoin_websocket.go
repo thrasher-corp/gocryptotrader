@@ -824,7 +824,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 			},
 			Symbol:      instrument,
 			TimeMS:      response.TimeMS,
-			SequenceEnd: int64(response.TimeMS),
+			SequenceEnd: response.TimeMS.Time().UnixMilli(),
 		}, asset.Spot)
 		if err != nil {
 			if init {
@@ -844,7 +844,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 			},
 			Symbol:      instrument,
 			TimeMS:      response.TimeMS,
-			SequenceEnd: int64(response.TimeMS),
+			SequenceEnd: response.TimeMS.Time().UnixMilli(),
 		}, asset.Margin)
 		if err != nil {
 			if init {
