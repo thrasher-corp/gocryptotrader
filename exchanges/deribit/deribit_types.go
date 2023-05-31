@@ -227,9 +227,9 @@ type MarkPriceHistory struct {
 
 // Orderbook stores orderbook data
 type Orderbook struct {
-	UnderlyingPrice float64   `json:"underlying_price"`
-	UnderlyingIndex string    `json:"underlying_index"`
-	Timestamp       time.Time `json:"timestamp"`
+	UnderlyingPrice float64             `json:"underlying_price"`
+	UnderlyingIndex string              `json:"underlying_index"`
+	Timestamp       deribitMilliSecTime `json:"timestamp"`
 	Stats           struct {
 		Volume      float64 `json:"volume"`
 		PriceChange float64 `json:"price_change"`
@@ -784,18 +784,18 @@ type wsSubscriptionResponse struct {
 
 // RequestForQuote RFQs for instruments in given currency.
 type RequestForQuote struct {
-	TradedVolume     float64   `json:"traded_volume"`
-	Amount           float64   `json:"amount"`
-	Side             string    `json:"side"`
-	LastRFQTimestamp time.Time `json:"last_rfq_tstamp"`
-	InstrumentName   string    `json:"instrument_name"`
+	TradedVolume     float64             `json:"traded_volume"`
+	Amount           float64             `json:"amount"`
+	Side             string              `json:"side"`
+	LastRFQTimestamp deribitMilliSecTime `json:"last_rfq_tstamp"`
+	InstrumentName   string              `json:"instrument_name"`
 }
 
 // ComboDetail retrieves information about a combo
 type ComboDetail struct {
 	ID                string              `json:"id"`
 	InstrumentID      int64               `json:"instrument_id"`
-	CreationTimestamp time.Time           `json:"creation_timestamp"`
+	CreationTimestamp deribitMilliSecTime `json:"creation_timestamp"`
 	StateTimestamp    deribitMilliSecTime `json:"state_timestamp"`
 	State             string              `json:"state"`
 	Legs              []struct {
@@ -844,11 +844,11 @@ type BlockTradeData struct {
 
 // Announcement represents public announcements.
 type Announcement struct {
-	Title                string    `json:"title"`
-	PublicationTimestamp time.Time `json:"publication_timestamp"`
-	Important            bool      `json:"important"`
-	ID                   int64     `json:"id"`
-	Body                 string    `json:"body"`
+	Title                string              `json:"title"`
+	PublicationTimestamp deribitMilliSecTime `json:"publication_timestamp"`
+	Important            bool                `json:"important"`
+	ID                   int64               `json:"id"`
+	Body                 string              `json:"body"`
 
 	// Action taken by the platform administrators.
 	Action string `json:"action"`
@@ -907,12 +907,12 @@ type AccessLog struct {
 
 // AccessLogDetail represents detailed access log information.
 type AccessLogDetail struct {
-	Timestamp time.Time `json:"timestamp"`
-	Result    string    `json:"result"`
-	IP        string    `json:"ip"`
-	ID        int64     `json:"id"`
-	Country   string    `json:"country"`
-	City      string    `json:"city"`
+	Timestamp deribitMilliSecTime `json:"timestamp"`
+	Result    string              `json:"result"`
+	IP        string              `json:"ip"`
+	ID        int64               `json:"id"`
+	Country   string              `json:"country"`
+	City      string              `json:"city"`
 }
 
 // SubAccountDetail represents subaccount positions detail.
@@ -965,27 +965,27 @@ type TogglePortfolioMarginResponse struct {
 
 // BlockTradeResponse represents a block trade response.
 type BlockTradeResponse struct {
-	TradeSeq       int64     `json:"trade_seq"`
-	TradeID        string    `json:"trade_id"`
-	Timestamp      time.Time `json:"timestamp"`
-	TickDirection  int64     `json:"tick_direction"`
-	State          string    `json:"state"`
-	SelfTrade      bool      `json:"self_trade"`
-	ReduceOnly     bool      `json:"reduce_only"`
-	Price          float64   `json:"price"`
-	PostOnly       bool      `json:"post_only"`
-	OrderType      string    `json:"order_type"`
-	OrderID        string    `json:"order_id"`
-	MatchingID     string    `json:"matching_id"`
-	MarkPrice      float64   `json:"mark_price"`
-	Liquidity      string    `json:"liquidity"`
-	InstrumentName string    `json:"instrument_name"`
-	IndexPrice     float64   `json:"index_price"`
-	FeeCurrency    string    `json:"fee_currency"`
-	Fee            float64   `json:"fee"`
-	Direction      string    `json:"direction"`
-	BlockTradeID   string    `json:"block_trade_id"`
-	Amount         float64   `json:"amount"`
+	TradeSeq       int64               `json:"trade_seq"`
+	TradeID        string              `json:"trade_id"`
+	Timestamp      deribitMilliSecTime `json:"timestamp"`
+	TickDirection  int64               `json:"tick_direction"`
+	State          string              `json:"state"`
+	SelfTrade      bool                `json:"self_trade"`
+	ReduceOnly     bool                `json:"reduce_only"`
+	Price          float64             `json:"price"`
+	PostOnly       bool                `json:"post_only"`
+	OrderType      string              `json:"order_type"`
+	OrderID        string              `json:"order_id"`
+	MatchingID     string              `json:"matching_id"`
+	MarkPrice      float64             `json:"mark_price"`
+	Liquidity      string              `json:"liquidity"`
+	InstrumentName string              `json:"instrument_name"`
+	IndexPrice     float64             `json:"index_price"`
+	FeeCurrency    string              `json:"fee_currency"`
+	Fee            float64             `json:"fee"`
+	Direction      string              `json:"direction"`
+	BlockTradeID   string              `json:"block_trade_id"`
+	Amount         float64             `json:"amount"`
 }
 
 // BlockTradeMoveResponse represents block trade move response.

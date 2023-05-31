@@ -30,9 +30,6 @@ const (
 
 	canManipulateRealOrders = false
 	btcPerpInstrument       = "BTC-PERPETUAL"
-
-	authenticationSkipMessage         = "missing API credentials"
-	endpointAuthorizationToManipulate = "endpoint requires API credentials and 'canManipulateRealOrders' to be enabled"
 )
 
 var d = &Deribit{}
@@ -283,6 +280,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	println(resp[0].Timestamp.Time().String())
 	_, err = d.GetMarkPriceHistory(context.Background(), optionsTradablePair.String(), time.Now().Add(-5*time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -2569,5 +2567,54 @@ func TestProcessPushData(t *testing.T) {
 	}
 	if err = d.wsHandleData([]byte(instrumentsTickerPushDataJSON)); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestDeribitMillisecTimestampUnmarshal(t *testing.T) {
+	t.Parallel()
+	result := &struct {
+		Timestamp deribitMilliSecTime `json:"ts"`
+	}{}
+	data1 := `{"ts": 1685575212074}`
+	resultTimestamp := time.UnixMilli(1685575212074)
+	err := json.Unmarshal([]byte(data1), &result)
+	if err != nil {
+		t.Fatal(err)
+	} else if !result.Timestamp.Time().Equal(resultTimestamp) {
+		t.Errorf("found %v, but expected %v", result.Timestamp.Time(), resultTimestamp)
+	}
+	data2 := `{"ts": 1685575212074}`
+	err = json.Unmarshal([]byte(data2), &result)
+	if err != nil {
+		t.Fatal(err)
+	} else if !result.Timestamp.Time().Equal(resultTimestamp) {
+		t.Errorf("found %v, but expected %v", result.Timestamp.Time(), resultTimestamp)
+	}
+	data3 := `{"ts": 0}`
+	resultTimestamp = time.Time{}
+	err = json.Unmarshal([]byte(data3), &result)
+	if err != nil {
+		t.Fatal(err)
+	} else if !result.Timestamp.Time().Equal(resultTimestamp) {
+		t.Errorf("found %v, but expected %v", result.Timestamp.Time(), resultTimestamp)
+	}
+	data4 := `{"ts": null}`
+	err = json.Unmarshal([]byte(data4), &result)
+	if err != nil {
+		t.Fatal(err)
+	} else if !result.Timestamp.Time().Equal(resultTimestamp) {
+		t.Errorf("found %v, but expected %v", result.Timestamp.Time(), resultTimestamp)
+	}
+	data5 := `{"ts": ""}`
+	err = json.Unmarshal([]byte(data5), &result)
+	if err != nil {
+		t.Fatal(err)
+	} else if !result.Timestamp.Time().Equal(resultTimestamp) {
+		t.Errorf("found %v, but expected %v", result.Timestamp.Time(), resultTimestamp)
+	}
+	data6 := `{"ts": "abcd"}`
+	err = json.Unmarshal([]byte(data6), &result)
+	if err == nil {
+		t.Error("expecting error but found nil")
 	}
 }

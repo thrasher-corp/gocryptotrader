@@ -2,11 +2,12 @@ package deribit
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 )
 
-type deribitMilliSecTime int64
+type deribitMilliSecTime time.Time
 
 // UnmarshalJSON deserializes a byte data into timestamp information
 func (a *deribitMilliSecTime) UnmarshalJSON(data []byte) error {
@@ -19,125 +20,35 @@ func (a *deribitMilliSecTime) UnmarshalJSON(data []byte) error {
 	switch val := value.(type) {
 	case int64:
 		millisecTimestamp = val
-	case int:
+	case int32:
 		millisecTimestamp = int64(val)
 	case float64:
 		millisecTimestamp = int64(val)
 	case string:
+		if val == "" {
+			*a = deribitMilliSecTime(time.Time{}) // reset previous timestamp information if exist
+			return nil
+		}
 		millisecTimestamp, err = strconv.ParseInt(val, 10, 64)
 		if err != nil {
 			return err
 		}
+	case nil:
+		// for some cases when deribit send a nil value as a zero value timestamp information.
 	default:
-		*a = deribitMilliSecTime(-1)
+		return fmt.Errorf("unsupported timestamp type %T", val)
 	}
-	*a = deribitMilliSecTime(millisecTimestamp)
+	if millisecTimestamp > 0 {
+		*a = deribitMilliSecTime(time.UnixMilli(millisecTimestamp))
+	} else {
+		*a = deribitMilliSecTime(time.Time{})
+	}
 	return nil
 }
 
 // Time returns a time.Time instance information from deribitMilliSecTime timestamp.
 func (a *deribitMilliSecTime) Time() time.Time {
-	if val := int64(*a); val >= 0 {
-		return time.UnixMilli(int64(*a))
-	}
-	return time.Time{}
-}
-
-// UnmarshalJSON deserializes a JSON object to an orderbook struct.
-func (a *Orderbook) UnmarshalJSON(data []byte) error {
-	type Alias Orderbook
-	chil := &struct {
-		*Alias
-		Timestamp int64 `json:"timestamp"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	return nil
-}
-
-// UnmarshalJSON deserializes timestamp information to RFQ instance.
-func (a *RequestForQuote) UnmarshalJSON(data []byte) error {
-	type Alias RequestForQuote
-	chil := &struct {
-		*Alias
-		LastRfqTimestamp int64 `json:"last_rfq_tstamp"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.LastRFQTimestamp = time.UnixMilli(chil.LastRfqTimestamp)
-	return nil
-}
-
-// UnmarshalJSON deserializes json data, including timestamp information
-func (a *ComboDetail) UnmarshalJSON(data []byte) error {
-	type Alias ComboDetail
-	chil := &struct {
-		*Alias
-		CreationTimestamp int64 `json:"creation_timestamp"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreationTimestamp = time.UnixMilli(chil.CreationTimestamp)
-	return nil
-}
-
-// UnmarshalJSON deserializes json data, including timestamp information
-func (a *Announcement) UnmarshalJSON(data []byte) error {
-	type Alias Announcement
-	chil := &struct {
-		*Alias
-		PublicationTimestamp int64 `json:"publication_timestamp"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	err := json.Unmarshal(data, chil)
-	if err != nil {
-		return err
-	}
-	a.PublicationTimestamp = time.UnixMilli(chil.PublicationTimestamp)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp.
-func (a *AccessLogDetail) UnmarshalJSON(data []byte) error {
-	type Alias AccessLogDetail
-	chil := &struct {
-		*Alias
-		Timestamp int64 `json:"timestamp"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp.
-func (a *BlockTradeResponse) UnmarshalJSON(data []byte) error {
-	type Alias BlockTradeResponse
-	chil := &struct {
-		*Alias
-		Timestamp int64 `json:"timestamp"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	return nil
+	return time.Time(*a)
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp.
@@ -147,7 +58,7 @@ func (a *MarkPriceHistory) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.Timestamp = deribitMilliSecTime(int64(resp[0]))
+	a.Timestamp = deribitMilliSecTime(time.UnixMilli(int64(resp[0])))
 	a.MarkPriceValue = resp[1]
 	return nil
 }
