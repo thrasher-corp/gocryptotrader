@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -157,10 +158,10 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]TradeItem, error) {
 	resp := struct {
 		Data []struct {
-			Price        float64           `json:"price,string"`
-			Time         bybitTimeMilliSec `json:"time"`
-			Quantity     float64           `json:"qty,string"`
-			IsBuyerMaker bool              `json:"isBuyerMaker"`
+			Price        convert.NullableFloat64 `json:"price"`
+			Time         bybitTimeMilliSec       `json:"time"`
+			Quantity     convert.NullableFloat64 `json:"qty"`
+			IsBuyerMaker bool                    `json:"isBuyerMaker"`
 		} `json:"result"`
 		Error
 	}{}
@@ -190,9 +191,9 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 
 		trades[x] = TradeItem{
 			CurrencyPair: symbol,
-			Price:        resp.Data[x].Price,
+			Price:        resp.Data[x].Price.Float64(),
 			Side:         tradeSide,
-			Volume:       resp.Data[x].Quantity,
+			Volume:       resp.Data[x].Quantity.Float64(),
 			Time:         resp.Data[x].Time.Time(),
 		}
 	}
@@ -318,23 +319,9 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 // Get24HrsChange returns price change statistics for the last 24 hours
 // If symbol not passed then it will return price change statistics for all pairs
 func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChangeStats, error) {
-	type priceChangeStats struct {
-		Time         bybitTimeMilliSec `json:"time"`
-		Symbol       string            `json:"symbol"`
-		BestBidPrice float64           `json:"bestBidPrice,string"`
-		BestAskPrice float64           `json:"bestAskPrice,string"`
-		LastPrice    float64           `json:"lastPrice,string"`
-		OpenPrice    float64           `json:"openPrice,string"`
-		HighPrice    float64           `json:"highPrice,string"`
-		LowPrice     float64           `json:"lowPrice,string"`
-		Volume       float64           `json:"volume,string"`
-		QuoteVolume  float64           `json:"quoteVolume,string"`
-	}
-
-	var stats []PriceChangeStats
 	if symbol != "" {
 		resp := struct {
-			Data priceChangeStats `json:"result"`
+			Data PriceChangeStats `json:"result"`
 			Error
 		}{}
 
@@ -345,46 +332,21 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 		if err != nil {
 			return nil, err
 		}
+		return []PriceChangeStats{resp.Data}, nil
 
-		stats = append(stats, PriceChangeStats{
-			resp.Data.Time.Time(),
-			resp.Data.Symbol,
-			resp.Data.BestAskPrice,
-			resp.Data.BestAskPrice,
-			resp.Data.LastPrice,
-			resp.Data.OpenPrice,
-			resp.Data.HighPrice,
-			resp.Data.LowPrice,
-			resp.Data.Volume,
-			resp.Data.QuoteVolume,
-		})
-	} else {
-		resp := struct {
-			Data []priceChangeStats `json:"result"`
-			Error
-		}{}
-
-		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
-		if err != nil {
-			return nil, err
-		}
-
-		for x := range resp.Data {
-			stats = append(stats, PriceChangeStats{
-				resp.Data[x].Time.Time(),
-				resp.Data[x].Symbol,
-				resp.Data[x].BestAskPrice,
-				resp.Data[x].BestAskPrice,
-				resp.Data[x].LastPrice,
-				resp.Data[x].OpenPrice,
-				resp.Data[x].HighPrice,
-				resp.Data[x].LowPrice,
-				resp.Data[x].Volume,
-				resp.Data[x].QuoteVolume,
-			})
-		}
 	}
-	return stats, nil
+
+	resp := struct {
+		Data []PriceChangeStats `json:"result"`
+		Error
+	}{}
+
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Data, nil
 }
 
 // GetLastTradedPrice returns last trading price
@@ -431,19 +393,9 @@ func (by *Bybit) GetLastTradedPrice(ctx context.Context, symbol string) ([]LastT
 // GetBestBidAskPrice returns best BID and ASK price
 // If symbol not passed then it will return best BID and ASK price for all pairs
 func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]TickerData, error) {
-	type bestTicker struct {
-		Symbol      string            `json:"symbol"`
-		BidPrice    float64           `json:"bidPrice,string"`
-		BidQuantity float64           `json:"bidQty,string"`
-		AskPrice    float64           `json:"askPrice,string"`
-		AskQuantity float64           `json:"askQty,string"`
-		Time        bybitTimeMilliSec `json:"time"`
-	}
-
-	var tickers []TickerData
 	if symbol != "" {
 		resp := struct {
-			Data bestTicker `json:"result"`
+			Data TickerData `json:"result"`
 			Error
 		}{}
 
@@ -454,36 +406,20 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 		if err != nil {
 			return nil, err
 		}
-		tickers = append(tickers, TickerData{
-			resp.Data.Symbol,
-			resp.Data.BidPrice,
-			resp.Data.BidQuantity,
-			resp.Data.AskPrice,
-			resp.Data.AskQuantity,
-			resp.Data.Time.Time(),
-		})
-	} else {
-		resp := struct {
-			Data []bestTicker `json:"result"`
-			Error
-		}{}
-
-		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
-		if err != nil {
-			return nil, err
-		}
-		for x := range resp.Data {
-			tickers = append(tickers, TickerData{
-				resp.Data[x].Symbol,
-				resp.Data[x].BidPrice,
-				resp.Data[x].BidQuantity,
-				resp.Data[x].AskPrice,
-				resp.Data[x].AskQuantity,
-				resp.Data[x].Time.Time(),
-			})
-		}
+		return []TickerData{resp.Data}, nil
 	}
-	return tickers, nil
+
+	resp := struct {
+		Data []TickerData `json:"result"`
+		Error
+	}{}
+
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Data, nil
 }
 
 // GetTickersV5 returns tickers for either "spot", "option" or "inverse".
