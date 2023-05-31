@@ -3,7 +3,6 @@ package bybit
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -3340,8 +3339,6 @@ func TestUpdateTickers(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v %v\n", supportedAssets[x], err)
 		}
-
-		fmt.Println(supportedAssets[x], avail[:4], len(avail))
 
 		for y := range avail {
 			_, err = ticker.GetTicker(b.GetName(), avail[y], supportedAssets[x])
