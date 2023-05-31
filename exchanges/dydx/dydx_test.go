@@ -7,7 +7,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -176,7 +175,7 @@ func TestGetPublicRetroactiveMiningReqards(t *testing.T) {
 
 func TestVerifyEmailAddress(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.VerifyEmailAddress(context.Background(), "1234"); err != nil && !strings.Contains(err.Error(), "Not Found") {
+	if _, err := dy.VerifyEmailAddress(context.Background(), "1234"); err != nil {
 		t.Error(err)
 	}
 }
@@ -204,7 +203,7 @@ func TestGetInsuranceFundBalance(t *testing.T) {
 
 func TestGetPublicProfile(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.GetPublicProfile(context.Background(), "some_public_profile"); err != nil && !strings.Contains(err.Error(), "User not found") {
+	if _, err := dy.GetPublicProfile(context.Background(), "some_public_profile"); err != nil {
 		t.Error(err)
 	}
 }
@@ -221,7 +220,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	pair := currency.NewPair(currency.BTC, currency.USD)
 	_, err := dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Minute*5), time.Now().Add(-time.Minute*20), time.Now())
 	if err != nil && !errors.Is(err, kline.ErrUnsupportedInterval) {
-		t.Errorf("%s GetHistoricCandles() expected %v, but found %v", kline.ErrUnsupportedInterval, dy.Name, err)
+		t.Error(err)
 	}
 	_, err = dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
@@ -232,56 +231,56 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.GetHistoricTrades(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot, time.Time{}, time.Now().Add(-time.Minute*2)); err != nil {
-		t.Errorf("%s GetHistoricTrades() error %v", dy.Name, err)
+		t.Error(err)
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.GetRecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
-		t.Errorf("%s GetRecentTrades() error %s", dy.Name, err)
+		t.Error(err)
 	}
 }
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("USD")), asset.Spot); err != nil {
-		t.Errorf("%s UpdateOrderbook() error %s", err, dy.Name)
+		t.Error(err)
 	}
 }
 
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.FetchOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
-		t.Errorf("%v FetchOrderbook() error %v", dy.Name, err)
+		t.Error(err)
 	}
 }
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
-		t.Errorf("%s FetchTicker() error %v", dy.Name, err)
+		t.Error(err)
 	}
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	if err := dy.UpdateTickers(context.Background(), asset.Spot); err != nil {
-		t.Errorf("%s UpdateTicker() error %v", dy.Name, err)
+		t.Error(err)
 	}
 }
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	if _, err := dy.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot); err != nil {
-		t.Errorf("%s UpdateTicker() error %v", dy.Name, err)
+		t.Error(err)
 	}
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	if err := dy.UpdateTradablePairs(context.Background(), true); err != nil {
-		t.Errorf("%s UpdateTradablePairs() error %v", dy.Name, err)
+		t.Error(err)
 	}
 }
 
@@ -432,7 +431,7 @@ func TestSendUserLinkRequest(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
 	_, err := dy.SendUserLinkRequest(context.Background(), UserLinkParams{Action: "CREATE_SECONDARY_REQUEST", Address: "0xb794f5ea0ba39494ce839613fffba74279579268"})
-	if err != nil && !strings.Contains(err.Error(), "No receiving user found with address") {
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -545,7 +544,7 @@ func TestCancelOrderByID(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy, canManipulateRealOrders)
 	_, err := dy.CancelOrderByID(context.Background(), "1234")
-	if err != nil && !strings.Contains(err.Error(), "No order exists with id: 1234") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = dy.CancelOrderByID(context.Background(), ""); !errors.Is(err, order.ErrOrderIDNotSet) {
@@ -592,7 +591,7 @@ func TestGetOrderByID(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
 	_, err := dy.GetOrderByID(context.Background(), "1234")
-	if err != nil && !strings.Contains(err.Error(), "No order found with id: 1234") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = dy.GetOrderByID(context.Background(), "1234"); !errors.Is(err, order.ErrOrderIDNotSet) {
@@ -604,7 +603,7 @@ func TestGetOrderByClientID(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
 	_, err := dy.GetOrderByClientID(context.Background(), "1234")
-	if err != nil && !strings.Contains(err.Error(), "No order found with clientId: 1234") {
+	if err != nil {
 		t.Error(err)
 	}
 	if _, err = dy.GetOrderByClientID(context.Background(), ""); !errors.Is(err, order.ErrOrderIDNotSet) {
@@ -698,8 +697,8 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
 	_, err := dy.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
-	if err == nil {
-		t.Error("GetWithdrawalsHistory() Spot Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -722,9 +721,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	_, err := dy.SubmitOrder(context.Background(), oSpot)
 	if err != nil {
-		if strings.TrimSpace(err.Error()) != "Balance insufficient" {
-			t.Error(err)
-		}
+		t.Error(err)
 	}
 }
 
@@ -735,8 +732,8 @@ func TestCancelOrder(t *testing.T) {
 		AssetType: asset.Spot,
 		OrderID:   "1234",
 	})
-	if err == nil {
-		t.Error("CancelOrder() Spot Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -762,8 +759,8 @@ func TestCancelBatchOrders(t *testing.T) {
 		},
 	}
 	_, err = dy.CancelBatchOrders(context.Background(), orderCancellationParams)
-	if err != nil && !strings.Contains(err.Error(), "order does not exist.") {
-		t.Error("CancelBatchOrders() error", err)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -772,14 +769,14 @@ func TestGetOrderInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, dy)
 	enabled, err := dy.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		t.Error("couldn't find enabled tradable pairs")
+		t.Error(err)
 	}
 	if len(enabled) == 0 {
 		t.SkipNow()
 	}
 	_, err = dy.GetOrderInfo(context.Background(), "123", enabled[0], asset.Spot)
-	if err != nil && !strings.Contains(err.Error(), "Order does not exist") {
-		t.Errorf("GetOrderInfo() expecting %s, but found %v", "Order does not exist", err)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -808,7 +805,7 @@ func TestWithdraw(t *testing.T) {
 		},
 	}
 	if _, err := dy.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest); err != nil {
-		t.Error("WithdrawCryptoCurrencyFunds() error", err)
+		t.Error(err)
 	}
 }
 
@@ -826,7 +823,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Side:      order.Buy,
 	}
 	if _, err := dy.GetActiveOrders(context.Background(), &getOrdersRequest); err != nil {
-		t.Error("GetActiveOrders() error", err)
+		t.Error(err)
 	}
 }
 
@@ -844,11 +841,11 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	_, err = dy.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
-		t.Error("GetOrderHistory() error", err)
+		t.Error(err)
 	}
 	getOrdersRequest.Pairs = enabledPairs[:3]
 	if _, err := dy.GetOrderHistory(context.Background(), &getOrdersRequest); err != nil {
-		t.Error("GetOrderHistory() error", err)
+		t.Error(err)
 	}
 }
 
@@ -861,7 +858,7 @@ func TestGetFeeByType(t *testing.T) {
 		PurchasePrice: 1000000,
 		IsMaker:       true,
 	}); err != nil {
-		t.Errorf("GetFeeByType() error %v", err)
+		t.Error(err)
 	}
 }
 
