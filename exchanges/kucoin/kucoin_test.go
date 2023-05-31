@@ -2607,6 +2607,14 @@ func TestKucoinTimeUnmarshalJSON(t *testing.T) {
 	if err == nil {
 		t.Fatal("expecting error but found nil")
 	}
+	data8 := `{"ts":0}`
+	result = time.Time{}
+	err = json.Unmarshal([]byte(data8), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
 }
 
 func TestKucoinNumberUnmarshal(t *testing.T) {

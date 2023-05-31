@@ -44,6 +44,8 @@ func (k *kucoinTime) UnmarshalJSON(data []byte) error {
 	}
 
 	switch {
+	case standard == 0:
+		*k = kucoinTime(time.Time{})
 	case standard >= 1e13:
 		*k = kucoinTime(time.Unix(int64(standard/1e9), int64(standard%1e9)))
 	case standard > 9999999999:
