@@ -74,6 +74,16 @@ func (f fExchange) GetFuturesPositionSummary(context.Context, *order.PositionSum
 	}, nil
 }
 
+func (f fExchange) ChangePositionMargin(_ context.Context, req *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	return &margin.PositionChangeResponse{
+		Exchange:        f.GetName(),
+		Pair:            req.Pair,
+		Asset:           req.Asset,
+		AllocatedMargin: req.NewAllocatedMargin,
+		MarginType:      req.MarginType,
+	}, nil
+}
+
 func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -3574,5 +3584,68 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	if impact.AmountRequired != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 1)
+	}
+}
+
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-mad")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	_, err = s.ChangePositionMargin(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+
+	req := &gctrpc.ChangePositionMarginRequest{}
+	_, err = s.ChangePositionMargin(context.Background(), req)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      cp.Base.String(),
+		Quote:     cp.Quote.String(),
+	}
+	req.Asset = asset.USDTMarginedFutures.String()
+	req.MarginSide = "BOTH"
+	req.OriginalAllocatedMargin = 1337
+	req.NewAllocatedMargin = 1338
+	req.MarginType = "isolated"
+	_, err = s.ChangePositionMargin(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
