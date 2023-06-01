@@ -1130,24 +1130,24 @@ message GetFuturesPositionsResponse {
   repeated FuturePosition positions = 6;
 }
 
-message GetCollateralTypeRequest {
+message GetCollateralModeRequest {
   string exchange = 1;
   string asset = 2;
 }
 
-message GetCollateralTypeResponse {
+message GetCollateralModeResponse {
   string exchange = 1;
   string asset = 2;
-  string collateral_type = 3;
+  string collateral_mode = 3;
 }
 
-message SetCollateralTypeRequest {
+message SetCollateralModeRequest {
   string exchange = 1;
   string asset = 2;
-  string collateral_type = 3;
+  string collateral_mode = 3;
 }
 
-message SetCollateralTypeResponse {
+message SetCollateralModeResponse {
   string exchange = 1;
   string asset = 2;
   bool success = 3;
@@ -1967,15 +1967,15 @@ service GoCryptoTraderService {
   rpc GetOrderbookAmountByImpact(GetOrderbookAmountByImpactRequest) returns (GetOrderbookAmountByImpactResponse) {
     option (google.api.http) = {get: "/v1/getorderbookamountbyimpact"};
   }
-  rpc GetCollateralType(GetCollateralTypeRequest) returns (GetCollateralTypeResponse) {
-    option (google.api.http) = {get: "/v1/getcollateraltype"};
+  rpc GetCollateralMode(GetCollateralModeRequest) returns (GetCollateralModeResponse) {
+    option (google.api.http) = {get: "/v1/getcollateralmode"};
   }
   rpc GetLeverage(GetLeverageRequest) returns (GetLeverageResponse) {
     option (google.api.http) = {get: "/v1/getleverage"};
   }
-  rpc SetCollateralType(SetCollateralTypeRequest) returns (SetCollateralTypeResponse) {
+  rpc SetCollateralMode(SetCollateralModeRequest) returns (SetCollateralModeResponse) {
     option (google.api.http) = {
-      post: "/v1/getcollateraltype"
+      post: "/v1/getcollateralmode"
       body: "*"
     };
   }

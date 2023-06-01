@@ -1532,12 +1532,12 @@ func (ok *Okx) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _
 }
 
 // SetCollateralMode sets the collateral type for your account
-func (ok *Okx) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralType) error {
+func (ok *Okx) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralMode) error {
 	return fmt.Errorf("%w must be set via website", common.ErrFunctionNotSupported)
 }
 
 // GetCollateralMode returns the collateral type for your account
-func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralType, error) {
+func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralMode, error) {
 	if !ok.SupportsAsset(item) {
 		return 0, fmt.Errorf("%w: %v", asset.ErrNotSupported, item)
 	}
@@ -1681,7 +1681,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		Pair:                         req.Pair,
 		Asset:                        req.Asset,
 		MarginType:                   marginMode,
-		CollateralType:               collateralMode,
+		CollateralMode:               collateralMode,
 		Currency:                     currency.NewCode(positionSummary.Currency),
 		IsolatedMargin:               positionSummary.Margin.Decimal(),
 		NotionalSize:                 positionSummary.NotionalUsd.Decimal(),

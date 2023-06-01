@@ -1111,26 +1111,26 @@ func checkTrackerPrerequisitesLowerExchange(exch string, item asset.Item, cp cur
 }
 
 // Valid returns whether the margin type is valid
-func (t CollateralType) Valid() bool {
-	return t != UnsetCollateralType && supportedCollateralTypes&t == t
+func (t CollateralMode) Valid() bool {
+	return t != UnsetCollateralMode && supportedCollateralModes&t == t
 }
 
 // UnmarshalJSON converts json into margin type
-func (t *CollateralType) UnmarshalJSON(d []byte) error {
-	var collateralType string
-	err := json.Unmarshal(d, &collateralType)
+func (t *CollateralMode) UnmarshalJSON(d []byte) error {
+	var collateralMode string
+	err := json.Unmarshal(d, &collateralMode)
 	if err != nil {
 		return err
 	}
-	*t = StringToCollateralType(collateralType)
+	*t = StringToCollateralType(collateralMode)
 	return nil
 }
 
 // String returns the string representation of the margin type in lowercase
 // the absence of a lower func should hopefully highlight that String is lower
-func (t CollateralType) String() string {
+func (t CollateralMode) String() string {
 	switch t {
-	case UnsetCollateralType:
+	case UnsetCollateralMode:
 		return unsetCollateralStr
 	case SingleCollateral:
 		return singleCollateralStr
@@ -1145,7 +1145,7 @@ func (t CollateralType) String() string {
 }
 
 // Upper returns the upper case string representation of the margin type
-func (t CollateralType) Upper() string {
+func (t CollateralMode) Upper() string {
 	return strings.ToUpper(t.String())
 }
 
@@ -1160,7 +1160,7 @@ func IsValidCollateralTypeString(m string) bool {
 
 // StringToCollateralType converts a string to a collateral type
 // doesn't error, just returns unknown if the string is not recognised
-func StringToCollateralType(m string) CollateralType {
+func StringToCollateralType(m string) CollateralMode {
 	switch strings.ToLower(m) {
 	case singleCollateralStr:
 		return SingleCollateral
@@ -1169,7 +1169,7 @@ func StringToCollateralType(m string) CollateralType {
 	case globalCollateralStr:
 		return GlobalCollateral
 	case "":
-		return UnsetCollateralType
+		return UnsetCollateralMode
 	}
 	return UnknownCollateral
 }

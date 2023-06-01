@@ -1585,13 +1585,13 @@ func TestValidCollateralType(t *testing.T) {
 	if !GlobalCollateral.Valid() {
 		t.Fatal("expected 'true', received 'false'")
 	}
-	if UnsetCollateralType.Valid() {
+	if UnsetCollateralMode.Valid() {
 		t.Fatal("expected 'false', received 'true'")
 	}
 	if UnknownCollateral.Valid() {
 		t.Fatal("expected 'false', received 'true'")
 	}
-	if CollateralType(137).Valid() {
+	if CollateralMode(137).Valid() {
 		t.Fatal("expected 'false', received 'true'")
 	}
 }
@@ -1599,7 +1599,7 @@ func TestValidCollateralType(t *testing.T) {
 func TestUnmarshalJSONCollateralType(t *testing.T) {
 	t.Parallel()
 	type martian struct {
-		M CollateralType `json:"collateral"`
+		M CollateralMode `json:"collateral"`
 	}
 
 	var alien martian
@@ -1654,8 +1654,8 @@ func TestStringCollateralType(t *testing.T) {
 	if GlobalCollateral.String() != globalCollateralStr {
 		t.Errorf("received '%v' expected '%v'", GlobalCollateral.String(), globalCollateralStr)
 	}
-	if UnsetCollateralType.String() != unsetCollateralStr {
-		t.Errorf("received '%v' expected '%v'", UnsetCollateralType.String(), unsetCollateralStr)
+	if UnsetCollateralMode.String() != unsetCollateralStr {
+		t.Errorf("received '%v' expected '%v'", UnsetCollateralMode.String(), unsetCollateralStr)
 	}
 }
 
@@ -1673,8 +1673,8 @@ func TestUpperCollateralType(t *testing.T) {
 	if GlobalCollateral.Upper() != strings.ToUpper(globalCollateralStr) {
 		t.Errorf("received '%v' expected '%v'", GlobalCollateral.Upper(), strings.ToUpper(globalCollateralStr))
 	}
-	if UnsetCollateralType.Upper() != strings.ToUpper(unsetCollateralStr) {
-		t.Errorf("received '%v' expected '%v'", UnsetCollateralType.Upper(), strings.ToUpper(unsetCollateralStr))
+	if UnsetCollateralMode.Upper() != strings.ToUpper(unsetCollateralStr) {
+		t.Errorf("received '%v' expected '%v'", UnsetCollateralMode.Upper(), strings.ToUpper(unsetCollateralStr))
 	}
 }
 
@@ -1708,8 +1708,8 @@ func TestStringToCollateralType(t *testing.T) {
 	if resp := StringToCollateralType("lol"); resp != UnknownCollateral {
 		t.Errorf("received '%v' expected '%v'", resp, UnknownCollateral)
 	}
-	if resp := StringToCollateralType(""); resp != UnsetCollateralType {
-		t.Errorf("received '%v' expected '%v'", resp, UnsetCollateralType)
+	if resp := StringToCollateralType(""); resp != UnsetCollateralMode {
+		t.Errorf("received '%v' expected '%v'", resp, UnsetCollateralMode)
 	}
 	if resp := StringToCollateralType("single"); resp != SingleCollateral {
 		t.Errorf("received '%v' expected '%v'", resp, SingleCollateral)

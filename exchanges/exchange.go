@@ -1629,12 +1629,12 @@ func (b *Base) Shutdown() error {
 }
 
 // SetCollateralMode sets the account's collateral mode for the asset type
-func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralType) error {
+func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralMode) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
-func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (order.CollateralType, error) {
+func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (order.CollateralMode, error) {
 	return 0, common.ErrFunctionNotSupported
 }
 

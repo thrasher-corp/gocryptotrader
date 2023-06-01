@@ -711,7 +711,7 @@ func (m *OrderManager) processOrders() {
 				go m.processMatchingOrders(exchanges[x], orders, &wg)
 			}
 			supportedFeatures := exchanges[x].GetSupportedFeatures()
-			if m.activelyTrackFuturesPositions && enabledAssets[y].IsFutures() && supportedFeatures.FuturesPositionsTracking {
+			if m.activelyTrackFuturesPositions && enabledAssets[y].IsFutures() && supportedFeatures.FuturesCapabilities.OrderManagerPositionTracking {
 				var positions []order.PositionResponse
 				var sd time.Time
 				sd, err = m.orderStore.futuresPositionController.LastUpdated()
@@ -769,6 +769,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	sort.Slice(position.Orders, func(i, j int) bool {
 		return position.Orders[i].Date.Before(position.Orders[j].Date)
 	})
+	feat := exch.GetSupportedFeatures()
 	var err error
 	for i := range position.Orders {
 		err = m.orderStore.futuresPositionController.TrackNewOrder(&position.Orders[i])
@@ -791,8 +792,11 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if err != nil {
 		return fmt.Errorf("%w when updating unrealised PNL for %v %v %v", err, exch.GetName(), position.Asset, position.Pair)
 	}
+	if !feat.FuturesCapabilities.FundingRates {
+		return nil
+	}
 	isPerp, err := exch.IsPerpetualFutureCurrency(position.Asset, position.Pair)
-	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+	if err != nil {
 		return err
 	}
 	if !isPerp {

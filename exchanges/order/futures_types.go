@@ -54,17 +54,17 @@ var (
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
-// CollateralType defines the different collateral types supported by exchanges
+// CollateralMode defines the different collateral types supported by exchanges
 // For example, FTX had a global collateral pool
 // Binance has either singular position collateral calculation
 // or cross aka asset level collateral calculation
-type CollateralType uint8
+type CollateralMode uint8
 
 const (
-	// UnsetCollateralType is the default value
-	UnsetCollateralType CollateralType = 0
+	// UnsetCollateralMode is the default value
+	UnsetCollateralMode CollateralMode = 0
 	// SingleCollateral has allocated collateral per position
-	SingleCollateral CollateralType = 1 << (iota - 1)
+	SingleCollateral CollateralMode = 1 << (iota - 1)
 	// MultiCollateral has collateral allocated across the whole asset
 	MultiCollateral
 	// GlobalCollateral has collateral allocated across account
@@ -81,7 +81,7 @@ const (
 	unknownCollateralStr = "unknown"
 )
 
-var supportedCollateralTypes = SingleCollateral | MultiCollateral | GlobalCollateral
+var supportedCollateralModes = SingleCollateral | MultiCollateral | GlobalCollateral
 
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
@@ -419,7 +419,7 @@ type PositionSummary struct {
 	Pair           currency.Pair
 	Asset          asset.Item
 	MarginType     margin.Type
-	CollateralType CollateralType
+	CollateralMode CollateralMode
 	// The currency in which the values are quoted against. Isn't always pair.Quote
 	// eg BTC-USDC-230929's quote in GCT is 230929, but the currency should be USDC
 	Currency                     currency.Code

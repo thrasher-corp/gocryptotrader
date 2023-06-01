@@ -1357,14 +1357,14 @@
         ]
       }
     },
-    "/v1/getcollateraltype": {
+    "/v1/getcollateralmode": {
       "get": {
-        "operationId": "GoCryptoTraderService_GetCollateralType",
+        "operationId": "GoCryptoTraderService_GetCollateralMode",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetCollateralTypeResponse"
+              "$ref": "#/definitions/gctrpcGetCollateralModeResponse"
             }
           },
           "default": {
@@ -1393,12 +1393,12 @@
         ]
       },
       "post": {
-        "operationId": "GoCryptoTraderService_SetCollateralType",
+        "operationId": "GoCryptoTraderService_SetCollateralMode",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcSetCollateralTypeResponse"
+              "$ref": "#/definitions/gctrpcSetCollateralModeResponse"
             }
           },
           "default": {
@@ -1414,7 +1414,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/gctrpcSetCollateralTypeRequest"
+              "$ref": "#/definitions/gctrpcSetCollateralModeRequest"
             }
           }
         ],
@@ -5623,6 +5623,20 @@
         }
       }
     },
+    "gctrpcGetCollateralModeResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "collateralMode": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcGetCollateralResponse": {
       "type": "object",
       "properties": {
@@ -5666,20 +5680,6 @@
             "type": "object",
             "$ref": "#/definitions/gctrpcCollateralByPosition"
           }
-        }
-      }
-    },
-    "gctrpcGetCollateralTypeResponse": {
-      "type": "object",
-      "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "asset": {
-          "type": "string"
-        },
-        "collateralType": {
-          "type": "string"
         }
       }
     },
@@ -6778,7 +6778,7 @@
         }
       }
     },
-    "gctrpcSetCollateralTypeRequest": {
+    "gctrpcSetCollateralModeRequest": {
       "type": "object",
       "properties": {
         "exchange": {
@@ -6787,12 +6787,12 @@
         "asset": {
           "type": "string"
         },
-        "collateralType": {
+        "collateralMode": {
           "type": "string"
         }
       }
     },
-    "gctrpcSetCollateralTypeResponse": {
+    "gctrpcSetCollateralModeResponse": {
       "type": "object",
       "properties": {
         "exchange": {

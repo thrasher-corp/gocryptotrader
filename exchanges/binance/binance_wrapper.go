@@ -120,6 +120,9 @@ func (b *Binance) SetDefaults() {
 	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				PositionTracking: true,
+			},
 			REST:                true,
 			Websocket:           true,
 			MaximumOrderHistory: kline.OneDay.Duration() * 7,
@@ -1920,18 +1923,18 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 }
 
 // SetCollateralMode sets the account's collateral mode for the asset type
-func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collateralType order.CollateralType) error {
+func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collateralMode order.CollateralMode) error {
 	if a != asset.USDTMarginedFutures {
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	if collateralType != order.MultiCollateral && collateralType != order.SingleCollateral {
-		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralType)
+	if collateralMode != order.MultiCollateral && collateralMode != order.SingleCollateral {
+		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralMode)
 	}
-	return b.SetAssetsMode(ctx, collateralType == order.MultiCollateral)
+	return b.SetAssetsMode(ctx, collateralMode == order.MultiCollateral)
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
-func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.CollateralType, error) {
+func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.CollateralMode, error) {
 	if a != asset.USDTMarginedFutures {
 		return order.UnknownCollateral, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -2046,9 +2049,9 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		if err != nil {
 			return nil, err
 		}
-		collateralType := order.SingleCollateral
+		collateralMode := order.SingleCollateral
 		if ai.MultiAssetsMargin {
-			collateralType = order.MultiCollateral
+			collateralMode = order.MultiCollateral
 		}
 		var accountPosition *UPosition
 		var leverage, maintenanceMargin, initialMargin,
@@ -2094,7 +2097,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		}
 
 		var c currency.Code
-		if collateralType == order.SingleCollateral {
+		if collateralMode == order.SingleCollateral {
 			var collateralAsset *UAsset
 			if strings.Contains(accountPosition.Symbol, usdtAsset.Asset) {
 				collateralAsset = usdtAsset
@@ -2112,7 +2115,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 				isolatedMargin = accountPosition.IsolatedWallet
 				collateralUsed = isolatedMargin
 			}
-		} else if collateralType == order.MultiCollateral {
+		} else if collateralMode == order.MultiCollateral {
 			collateralTotal = ai.TotalWalletBalance
 			collateralUsed = ai.TotalWalletBalance - ai.AvailableBalance
 			collateralAvailable = ai.AvailableBalance
@@ -2139,7 +2142,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
-			CollateralType:               collateralType,
+			CollateralMode:               collateralMode,
 			Currency:                     c,
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			Leverage:                     decimal.NewFromFloat(leverage),
@@ -2161,7 +2164,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		if err != nil {
 			return nil, err
 		}
-		collateralType := order.SingleCollateral
+		collateralMode := order.SingleCollateral
 		var leverage, maintenanceMargin, initialMargin,
 			liquidationPrice, markPrice, positionSize,
 			collateralTotal, collateralUsed, collateralAvailable,
@@ -2235,7 +2238,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
-			CollateralType:               collateralType,
+			CollateralMode:               collateralMode,
 			Currency:                     currency.NewCode(accountAsset.Asset),
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			Leverage:                     decimal.NewFromFloat(leverage),

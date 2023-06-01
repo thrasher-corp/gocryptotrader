@@ -259,6 +259,27 @@ var futuresCommands = &cli.Command{
 				},
 			},
 		},
+		{
+			Name: "getcollateralmode",
+		},
+		{
+			Name: "setcollateralmode",
+		},
+		{
+			Name: "setleverage",
+		},
+		{
+			Name: "getleverage",
+		},
+		{
+			Name: "setmargin",
+		},
+		{
+			Name: "getmargin",
+		},
+		{
+			Name: "getfuturespositions",
+		},
 	},
 }
 

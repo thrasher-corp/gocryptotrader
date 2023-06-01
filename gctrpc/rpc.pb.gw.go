@@ -3402,37 +3402,37 @@ func local_request_GoCryptoTraderService_GetOrderbookAmountByImpact_0(ctx contex
 }
 
 var (
-	filter_GoCryptoTraderService_GetCollateralType_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+	filter_GoCryptoTraderService_GetCollateralMode_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
-func request_GoCryptoTraderService_GetCollateralType_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetCollateralTypeRequest
+func request_GoCryptoTraderService_GetCollateralMode_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetCollateralModeRequest
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetCollateralType_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetCollateralMode_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.GetCollateralType(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetCollateralMode(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_GoCryptoTraderService_GetCollateralType_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetCollateralTypeRequest
+func local_request_GoCryptoTraderService_GetCollateralMode_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetCollateralModeRequest
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetCollateralType_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetCollateralMode_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.GetCollateralType(ctx, &protoReq)
+	msg, err := server.GetCollateralMode(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -3473,8 +3473,8 @@ func local_request_GoCryptoTraderService_GetLeverage_0(ctx context.Context, mars
 
 }
 
-func request_GoCryptoTraderService_SetCollateralType_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq SetCollateralTypeRequest
+func request_GoCryptoTraderService_SetCollateralMode_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq SetCollateralModeRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -3485,13 +3485,13 @@ func request_GoCryptoTraderService_SetCollateralType_0(ctx context.Context, mars
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.SetCollateralType(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.SetCollateralMode(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_GoCryptoTraderService_SetCollateralType_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq SetCollateralTypeRequest
+func local_request_GoCryptoTraderService_SetCollateralMode_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq SetCollateralModeRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -3502,7 +3502,7 @@ func local_request_GoCryptoTraderService_SetCollateralType_0(ctx context.Context
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.SetCollateralType(ctx, &protoReq)
+	msg, err := server.SetCollateralMode(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -6132,7 +6132,7 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("GET", pattern_GoCryptoTraderService_GetCollateralType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_GoCryptoTraderService_GetCollateralMode_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -6140,12 +6140,12 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetCollateralType", runtime.WithHTTPPathPattern("/v1/getcollateraltype"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetCollateralMode", runtime.WithHTTPPathPattern("/v1/getcollateralmode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_GoCryptoTraderService_GetCollateralType_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_GoCryptoTraderService_GetCollateralMode_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -6153,7 +6153,7 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 			return
 		}
 
-		forward_GoCryptoTraderService_GetCollateralType_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GoCryptoTraderService_GetCollateralMode_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -6182,7 +6182,7 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("POST", pattern_GoCryptoTraderService_SetCollateralType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GoCryptoTraderService_SetCollateralMode_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -6190,12 +6190,12 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/SetCollateralType", runtime.WithHTTPPathPattern("/v1/getcollateraltype"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/SetCollateralMode", runtime.WithHTTPPathPattern("/v1/getcollateralmode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_GoCryptoTraderService_SetCollateralType_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_GoCryptoTraderService_SetCollateralMode_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -6203,7 +6203,7 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 			return
 		}
 
-		forward_GoCryptoTraderService_SetCollateralType_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GoCryptoTraderService_SetCollateralMode_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -8633,25 +8633,25 @@ func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("GET", pattern_GoCryptoTraderService_GetCollateralType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_GoCryptoTraderService_GetCollateralMode_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetCollateralType", runtime.WithHTTPPathPattern("/v1/getcollateraltype"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetCollateralMode", runtime.WithHTTPPathPattern("/v1/getcollateralmode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GoCryptoTraderService_GetCollateralType_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GoCryptoTraderService_GetCollateralMode_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GoCryptoTraderService_GetCollateralType_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GoCryptoTraderService_GetCollateralMode_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -8677,25 +8677,25 @@ func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("POST", pattern_GoCryptoTraderService_SetCollateralType_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GoCryptoTraderService_SetCollateralMode_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/SetCollateralType", runtime.WithHTTPPathPattern("/v1/getcollateraltype"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/SetCollateralMode", runtime.WithHTTPPathPattern("/v1/getcollateralmode"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GoCryptoTraderService_SetCollateralType_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GoCryptoTraderService_SetCollateralMode_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GoCryptoTraderService_SetCollateralType_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GoCryptoTraderService_SetCollateralMode_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -8979,11 +8979,11 @@ var (
 
 	pattern_GoCryptoTraderService_GetOrderbookAmountByImpact_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getorderbookamountbyimpact"}, ""))
 
-	pattern_GoCryptoTraderService_GetCollateralType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcollateraltype"}, ""))
+	pattern_GoCryptoTraderService_GetCollateralMode_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcollateralmode"}, ""))
 
 	pattern_GoCryptoTraderService_GetLeverage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getleverage"}, ""))
 
-	pattern_GoCryptoTraderService_SetCollateralType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcollateraltype"}, ""))
+	pattern_GoCryptoTraderService_SetCollateralMode_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcollateralmode"}, ""))
 
 	pattern_GoCryptoTraderService_SetMarginType_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getmargintype"}, ""))
 
@@ -9203,11 +9203,11 @@ var (
 
 	forward_GoCryptoTraderService_GetOrderbookAmountByImpact_0 = runtime.ForwardResponseMessage
 
-	forward_GoCryptoTraderService_GetCollateralType_0 = runtime.ForwardResponseMessage
+	forward_GoCryptoTraderService_GetCollateralMode_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTraderService_GetLeverage_0 = runtime.ForwardResponseMessage
 
-	forward_GoCryptoTraderService_SetCollateralType_0 = runtime.ForwardResponseMessage
+	forward_GoCryptoTraderService_SetCollateralMode_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTraderService_SetMarginType_0 = runtime.ForwardResponseMessage
 
