@@ -53,15 +53,10 @@ const (
 	wsOrderbookChecksumDelimiter = ":"
 	// allowableIterations use the first 25 bids and asks in the full load to form a string
 	allowableIterations = 25
-
 	// wsOrderbookSnapshot orderbook push data type 'snapshot'
 	wsOrderbookSnapshot = "snapshot"
 	// wsOrderbookUpdate orderbook push data type 'update'
 	wsOrderbookUpdate = "update"
-
-	// ColonDelimiter to be used in validating checksum
-	ColonDelimiter = ":"
-
 	// maxConnByteLen total length of multiple channels cannot exceed 4096 bytes.
 	maxConnByteLen = 4096
 

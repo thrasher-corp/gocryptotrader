@@ -2457,7 +2457,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	var MultiOrderRequest = order.MultiOrderRequest{
+	var multiOrderRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
@@ -2466,36 +2466,36 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	MultiOrderRequest.Pairs = enabledPairs[:3]
-	_, err = g.GetOrderHistory(context.Background(), &MultiOrderRequest)
+	multiOrderRequest.Pairs = enabledPairs[:3]
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
-	MultiOrderRequest.AssetType = asset.Futures
-	MultiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.Futures)
+	multiOrderRequest.AssetType = asset.Futures
+	multiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	MultiOrderRequest.Pairs = MultiOrderRequest.Pairs[len(MultiOrderRequest.Pairs)-4:]
-	_, err = g.GetOrderHistory(context.Background(), &MultiOrderRequest)
+	multiOrderRequest.Pairs = multiOrderRequest.Pairs[len(multiOrderRequest.Pairs)-4:]
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
-	MultiOrderRequest.AssetType = asset.DeliveryFutures
-	MultiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.DeliveryFutures)
+	multiOrderRequest.AssetType = asset.DeliveryFutures
+	multiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.DeliveryFutures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.GetOrderHistory(context.Background(), &MultiOrderRequest)
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
-	MultiOrderRequest.AssetType = asset.Options
-	MultiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.Options)
+	multiOrderRequest.AssetType = asset.Options
+	multiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.GetOrderHistory(context.Background(), &MultiOrderRequest)
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
