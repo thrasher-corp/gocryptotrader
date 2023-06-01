@@ -239,11 +239,11 @@ func (b *Base) Verify() error {
 			len(b.Bids),
 			len(b.Asks))
 	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, dsc)
+	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, dsc, b.Exchange)
 	if err != nil {
 		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, asc)
+	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, asc, b.Exchange)
 	if err != nil {
 		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
@@ -271,9 +271,9 @@ var dsc = func(current Item, previous Item) error {
 }
 
 // checkAlignment validates full orderbook
-func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool, c checker) error {
+func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool, c checker, exch string) error {
 	for i := range depth {
-		if depth[i].Price == 0 {
+		if depth[i].Price == 0 && !fundingRate && exch != "Bitfinex" /* funding rate can be 0 it seems on Bitfinex */ {
 			return errPriceNotSet
 		}
 		if depth[i].Amount <= 0 {

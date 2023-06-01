@@ -413,13 +413,16 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if assetType != asset.Spot && assetType != asset.Margin && assetType != asset.MarginFunding {
 		return o, fmt.Errorf("assetType not supported: %v", assetType)
 	}
+	if assetType == asset.Margin {
+		fPair.Delimiter = ""
+	}
 	b.appendOptionalDelimiter(&fPair)
 	var prefix = "t"
 	if assetType == asset.MarginFunding {
 		prefix = "f"
 	}
-	var orderbookNew Orderbook
-	orderbookNew, err = b.GetOrderbook(ctx, prefix+fPair.String(), "R0", 100)
+
+	orderbookNew, err := b.GetOrderbook(ctx, prefix+fPair.String(), "R0", 100)
 	if err != nil {
 		return o, err
 	}
@@ -1031,8 +1034,8 @@ func (b *Bitfinex) AuthenticateWebsocket(ctx context.Context) error {
 
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies
 func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
-	if len(p.Quote.String()) > 3 ||
-		len(p.Base.String()) > 3 {
+	if (len(p.Base.String()) > 3 && len(p.Quote.String()) > 0) ||
+		len(p.Quote.String()) > 3 {
 		p.Delimiter = ":"
 	}
 }
