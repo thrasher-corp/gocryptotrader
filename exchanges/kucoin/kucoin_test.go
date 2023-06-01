@@ -1153,7 +1153,7 @@ func TestGetFuturesServerTime(t *testing.T) {
 
 func TestGetFuturesServiceStatus(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetFuturesServiceStatus(context.Background(), "XBTUSDTM")
+	_, err := ku.GetFuturesServiceStatus(context.Background())
 	if err != nil {
 		t.Error("GetFuturesServiceStatus() error", err)
 	}
@@ -2668,7 +2668,7 @@ func TestKucoinNumberUnmarshal(t *testing.T) {
 	err = json.Unmarshal([]byte(data7), &data)
 	if err != nil {
 		t.Fatal(err)
-	} else if data.Number.Float64() != 12321312312312312 {
-		t.Errorf("expecting %d, got %.2f", 12321312312312312, data.Number)
+	} else if data.Number.Float64() != float64(12321312312312312) {
+		t.Errorf("expecting %.f, got %.2f", float64(12321312312312312), data.Number)
 	}
 }

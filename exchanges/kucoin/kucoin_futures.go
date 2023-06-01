@@ -258,7 +258,7 @@ func (ku *Kucoin) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 }
 
 // GetFuturesServiceStatus get service status
-func (ku *Kucoin) GetFuturesServiceStatus(ctx context.Context, _ string) (*FuturesServiceStatus, error) {
+func (ku *Kucoin) GetFuturesServiceStatus(ctx context.Context) (*FuturesServiceStatus, error) {
 	var resp *FuturesServiceStatus
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, kucoinFuturesServiceStatus, &resp)
 }
@@ -309,7 +309,7 @@ func (ku *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol,
 	stop, stopPriceType, timeInForce string, size, price, stopPrice,
 	leverage, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
 	if leverage < 0.01 {
-		return "", fmt.Errorf("%v must be greater than 0.01", errInvalidLeverage)
+		return "", fmt.Errorf("%w must be greater than 0.01", errInvalidLeverage)
 	}
 	args := make(map[string]interface{})
 	if clientOID == "" {

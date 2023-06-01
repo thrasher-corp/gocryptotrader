@@ -248,7 +248,7 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		}
 		pairs := make(currency.Pairs, len(myPairs))
 		for x := range myPairs {
-			pairs[x], err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Symbol))
+			pairs[x], err = currency.NewPairFromString(myPairs[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -313,17 +313,16 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		if err != nil {
 			return err
 		}
-		enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+		pairs, err := ku.GetAvailablePairs(asset.Futures)
 		if err != nil {
 			return err
 		}
 		for x := range ticks {
-			pair, err := currency.NewPairFromString(ticks[x].Symbol)
-			if err != nil {
-				return err
-			}
-			if !enabledPairs.Contains(pair, true) {
+			pair, err := pairs.DeriveFrom(ticks[x].Symbol)
+			if errors.Is(err, currency.ErrPairNotFound) {
 				continue
+			} else if err != nil {
+				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[x].LastTradePrice,
@@ -346,18 +345,16 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		if err != nil {
 			return err
 		}
-		pairs, err := ku.GetEnabledPairs(assetType)
+		pairs, err := ku.GetAvailablePairs(assetType)
 		if err != nil {
 			return err
 		}
-
 		for t := range ticks.Tickers {
-			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
-			if err != nil {
-				return err
-			}
-			if !pairs.Contains(pair, true) {
+			pair, err := pairs.DeriveFrom(ticks.Tickers[t].Symbol)
+			if errors.Is(err, currency.ErrPairNotFound) {
 				continue
+			} else if err != nil {
+				return err
 			}
 			tick := ticker.Price{
 				Last:         ticks.Tickers[t].Last,

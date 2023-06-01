@@ -848,9 +848,15 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 		if cancelAfter > 0 && timeInForce == "GTT" {
 			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
 		}
-		params["postOnly"] = postOnly
-		params["hidden"] = hidden
-		params["iceberg"] = iceberg
+		if postOnly {
+			params["postOnly"] = postOnly
+		}
+		if hidden {
+			params["hidden"] = hidden
+		}
+		if iceberg {
+			params["iceberg"] = iceberg
+		}
 		if visibleSize > 0 {
 			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
 		}
@@ -865,6 +871,9 @@ func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderT
 		}
 	default:
 		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
+	}
+	if orderType != "" {
+		params["type"] = orderType
 	}
 	resp := struct {
 		OrderID string `json:"orderId"`
