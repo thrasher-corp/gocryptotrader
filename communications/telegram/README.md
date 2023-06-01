@@ -51,7 +51,7 @@ developed by Telegram Messenger LLP
 			Enabled:           true,
 			Verbose:           false,
 			VerificationToken: "token",
-			AuthorisedClients: "pepe,bob",
+			AuthorisedClients: map[string]int64{"pepe": 0} // 0 represents a placeholder for the user's ID
 		},
 	}
 
@@ -67,7 +67,6 @@ via Telegram:
 /start			- Will authenticate your ID
 /status			- Displays the status of the bot
 /help			- Displays current command list
-/settings		- Displays current bot settings
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

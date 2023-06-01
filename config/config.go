@@ -299,6 +299,7 @@ func (c *Config) CheckCommunicationsConfig() {
 		c.Communications.TelegramConfig = base.TelegramConfig{
 			Name:              "Telegram",
 			VerificationToken: "testest",
+			AuthorisedClients: map[string]int64{"user_example": 0},
 		}
 	}
 
@@ -334,8 +335,10 @@ func (c *Config) CheckCommunicationsConfig() {
 		}
 	}
 	if c.Communications.TelegramConfig.Enabled {
-		if c.Communications.TelegramConfig.VerificationToken == "" ||
-			c.Communications.TelegramConfig.AuthorisedClients == "" {
+		if _, ok := c.Communications.TelegramConfig.AuthorisedClients["user_example"]; ok ||
+			len(c.Communications.TelegramConfig.AuthorisedClients) == 0 ||
+			c.Communications.TelegramConfig.VerificationToken == "" ||
+			c.Communications.TelegramConfig.VerificationToken == "testest" {
 			c.Communications.TelegramConfig.Enabled = false
 			log.Warnln(log.ConfigMgr, "Telegram enabled in config but variable data not set, disabling.")
 		}

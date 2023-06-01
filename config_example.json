@@ -174,7 +174,9 @@
    "enabled": false,
    "verbose": false,
    "verificationToken": "testest",
-   "authorisedClients": ""
+   "authorisedClients": {
+    "user_example": 0
+   }
   }
  },
  "remoteControl": {

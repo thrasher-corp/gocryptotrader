@@ -117,9 +117,9 @@ type SMTPConfig struct {
 
 // TelegramConfig holds all variables to start and run the Telegram package
 type TelegramConfig struct {
-	Name              string `json:"name"`
-	Enabled           bool   `json:"enabled"`
-	Verbose           bool   `json:"verbose"`
-	VerificationToken string `json:"verificationToken"`
-	AuthorisedClients string `json:"authorisedClients"`
+	Name              string           `json:"name"`
+	Enabled           bool             `json:"enabled"`
+	Verbose           bool             `json:"verbose"`
+	VerificationToken string           `json:"verificationToken"`
+	AuthorisedClients map[string]int64 `json:"authorisedClients"`
 }
