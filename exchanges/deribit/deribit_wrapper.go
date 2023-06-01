@@ -272,15 +272,22 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	p, err := d.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
+	var instrumentID string
+	var err error
+	if assetType == asset.Futures {
+		instrumentID = d.formatFuturesTradablePair(p)
+	} else {
+		p, err = d.FormatExchangeCurrency(p, assetType)
+		if err != nil {
+			return nil, err
+		}
+		instrumentID = p.String()
 	}
 	var tickerData *TickerData
 	if d.Websocket.IsConnected() {
-		tickerData, err = d.WSRetrievePublicTicker(p.String())
+		tickerData, err = d.WSRetrievePublicTicker(instrumentID)
 	} else {
-		tickerData, err = d.GetPublicTicker(ctx, p.String())
+		tickerData, err = d.GetPublicTicker(ctx, instrumentID)
 	}
 	if err != nil {
 		return nil, err
@@ -331,15 +338,22 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		Asset:           assetType,
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
-	fmtPair, err := d.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
+	var instrumentID string
+	var err error
+	if assetType == asset.Futures {
+		instrumentID = d.formatFuturesTradablePair(p)
+	} else {
+		p, err = d.FormatExchangeCurrency(p, assetType)
+		if err != nil {
+			return nil, err
+		}
+		instrumentID = p.String()
 	}
 	var obData *Orderbook
 	if d.Websocket.IsConnected() {
-		obData, err = d.WSRetrieveOrderbookData(fmtPair.String(), 50)
+		obData, err = d.WSRetrieveOrderbookData(instrumentID, 50)
 	} else {
-		obData, err = d.GetOrderbookData(ctx, fmtPair.String(), 50)
+		obData, err = d.GetOrderbookData(ctx, instrumentID, 50)
 	}
 	if err != nil {
 		return nil, err
@@ -361,7 +375,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 			Amount: obData.Bids[x][1],
 		}
 		if book.Bids[x].Price == 0 {
-			return nil, fmt.Errorf("%w, bid price=%f", errInvalidPrice, book.Bids[x].Price)
+			book.Bids[x].Price = obData.BestBidPrice
 		}
 	}
 	err = book.Process()
@@ -1083,9 +1097,9 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	case asset.Futures:
 		var tradingViewData *TVChartData
 		if d.Websocket.IsConnected() {
-			tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, start, end)
+			tradingViewData, err = d.WSRetrievesTradingViewChartData(d.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
 		} else {
-			tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, start, end)
+			tradingViewData, err = d.GetTradingViewChartData(ctx, d.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
 		}
 		if err != nil {
 			return nil, err
@@ -1132,9 +1146,9 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				return nil, err
 			}
 			if d.Websocket.IsConnected() {
-				tradingViewData, err = d.WSRetrievesTradingViewChartData(req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+				tradingViewData, err = d.WSRetrievesTradingViewChartData(d.formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			} else {
-				tradingViewData, err = d.GetTradingViewChartData(ctx, req.RequestFormatted.String(), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+				tradingViewData, err = d.GetTradingViewChartData(ctx, d.formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			}
 			if err != nil {
 				return nil, err
@@ -1145,7 +1159,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				len(tradingViewData.Low) != checkLen ||
 				len(tradingViewData.Close) != checkLen ||
 				len(tradingViewData.Volume) != checkLen {
-				return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
+				return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, d.formatFuturesTradablePair(req.RequestFormatted))
 			}
 			for x := range tradingViewData.Ticks {
 				timeSeries = append(timeSeries, kline.Candle{

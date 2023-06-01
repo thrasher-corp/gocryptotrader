@@ -2509,3 +2509,13 @@ func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.0003 * price * amount
 }
+
+func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
+	var instrumentID string
+	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 && result[2] == "PERPETUAL" {
+		instrumentID = strings.Join(result[:2], currency.UnderscoreDelimiter) + currency.DashDelimiter + result[2]
+	} else {
+		instrumentID = pair.String()
+	}
+	return instrumentID
+}

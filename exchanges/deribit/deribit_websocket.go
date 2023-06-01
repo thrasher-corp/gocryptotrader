@@ -66,9 +66,9 @@ const (
 
 var defaultSubscriptions = []string{
 	chartTradesChannel, // chart trades channel to fetch candlestick data.
-	orderbookChannel,
-	tickerChannel,
-	tradesWithKindChannel,
+	// orderbookChannel,
+	// tickerChannel,
+	// tradesWithKindChannel,
 }
 
 var indexENUMS = []string{"ada_usd", "algo_usd", "avax_usd", "bch_usd", "bnb_usd", "btc_usd", "doge_usd", "dot_usd", "eth_usd", "link_usd", "ltc_usd", "luna_usd", "matic_usd", "near_usd", "shib_usd", "sol_usd", "trx_usd", "uni_usd", "usdc_usd", "xrp_usd", "ada_usdc", "bch_usdc", "algo_usdc", "avax_usdc", "btc_usdc", "doge_usdc", "dot_usdc", "bch_usdc", "bnb_usdc", "eth_usdc", "link_usdc", "ltc_usdc", "luna_usdc", "matic_usdc", "near_usdc", "shib_usdc", "sol_usdc", "trx_usdc", "uni_usdc", "xrp_usdc", "btcdvol_usdc", "ethdvol_usdc"}
@@ -177,6 +177,7 @@ func (d *Deribit) wsReadData() {
 }
 
 func (d *Deribit) wsHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	var response WsResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -846,7 +847,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 							Channel:  subscriptionChannels[x],
 							Currency: assetPairs[a][z],
 							Params: map[string]interface{}{
-								"resolution": "1",
+								"resolution": "60",
 							},
 						})
 				}
@@ -1081,7 +1082,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if !okay {
 				resolution = "1D"
 			}
-			subscription.Params["channels"] = []string{chartTradesChannel + "." + subscs[x].Currency.String() + "." + resolution}
+			subscription.Params["channels"] = []string{chartTradesChannel + "." + d.formatFuturesTradablePair(subscs[x].Currency) + "." + resolution}
 		case priceIndexChannel,
 			priceRankingChannel,
 			priceStatisticsChannel,
