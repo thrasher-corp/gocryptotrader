@@ -35,7 +35,10 @@ developed by Telegram Messenger LLP
 
 	+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
 
-	+ Individual package example below:
+	+ See the individual package example below. NOTE: For privacy considerations, it's not possible to directly request a user's ID through the 
+	Telegram Bot API unless the user interacts first. The user must message the bot directly. This allows the bot to identify and save the user's ID. 
+	If this wasn't set initially, the user's ID will be stored by this package following a successful authentication when any supported command is issued.
+	
 	```go
 	import (
 		"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -51,7 +54,7 @@ developed by Telegram Messenger LLP
 			Enabled:           true,
 			Verbose:           false,
 			VerificationToken: "token",
-			AuthorisedClients: map[string]int64{"pepe": 0} // 0 represents a placeholder for the user's ID
+			AuthorisedClients: map[string]int64{"pepe": 0}, // 0 represents a placeholder for the user's ID, see note above for more info.
 		},
 	}
 
