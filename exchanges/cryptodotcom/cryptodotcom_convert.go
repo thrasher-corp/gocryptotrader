@@ -33,10 +33,14 @@ func (a *cryptoDotComTime) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
+	case nil:
+		// for some cases when cryptoCom sends a nil value as a zero value timestamp information.
 	default:
 		return fmt.Errorf("timestamp information of type %T is not supported", value)
 	}
 	switch {
+	case timestamp == 0:
+		*a = cryptoDotComTime(time.Time{})
 	case timestamp >= 1e13:
 		*a = cryptoDotComTime(time.Unix((timestamp / 1e9), timestamp%1e9))
 	case timestamp >= 1e10:
