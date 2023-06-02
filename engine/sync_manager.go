@@ -601,95 +601,94 @@ func (m *syncManager) worker() {
 								time.Sleep(time.Millisecond * 50)
 							}
 						}
-
-						if m.config.SynchronizeTicker {
-							if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) {
-								if c.Ticker.LastUpdated.IsZero() ||
-									(time.Since(c.Ticker.LastUpdated) > m.config.TimeoutREST && c.Ticker.IsUsingREST) ||
-									(time.Since(c.Ticker.LastUpdated) > m.config.TimeoutWebsocket && c.Ticker.IsUsingWebsocket) {
-									if c.Ticker.IsUsingWebsocket {
-										if time.Since(c.Created) < m.config.TimeoutWebsocket {
-											continue
-										}
-
-										if supportsREST {
-											m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
-											c.Ticker.IsUsingWebsocket = false
-											c.Ticker.IsUsingREST = true
-											log.Warnf(log.SyncMgr,
-												"%s %s %s: No ticker update after %s, switching from websocket to rest",
-												c.Exchange,
-												m.FormatCurrency(enabledPairs[i]).String(),
-												strings.ToUpper(c.AssetType.String()),
-												m.config.TimeoutWebsocket,
-											)
-											switchedToRest = true
-											m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
-										}
+					}
+					if m.config.SynchronizeTicker {
+						if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) {
+							if c.Ticker.LastUpdated.IsZero() ||
+								(time.Since(c.Ticker.LastUpdated) > m.config.TimeoutREST && c.Ticker.IsUsingREST) ||
+								(time.Since(c.Ticker.LastUpdated) > m.config.TimeoutWebsocket && c.Ticker.IsUsingWebsocket) {
+								if c.Ticker.IsUsingWebsocket {
+									if time.Since(c.Created) < m.config.TimeoutWebsocket {
+										continue
 									}
 
-									if c.Ticker.IsUsingREST {
+									if supportsREST {
 										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
-										var result *ticker.Price
-										var err error
+										c.Ticker.IsUsingWebsocket = false
+										c.Ticker.IsUsingREST = true
+										log.Warnf(log.SyncMgr,
+											"%s %s %s: No ticker update after %s, switching from websocket to rest",
+											c.Exchange,
+											m.FormatCurrency(enabledPairs[i]).String(),
+											strings.ToUpper(c.AssetType.String()),
+											m.config.TimeoutWebsocket,
+										)
+										switchedToRest = true
+										m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
+									}
+								}
 
-										if supportsRESTTickerBatching {
+								if c.Ticker.IsUsingREST {
+									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, true)
+									var result *ticker.Price
+									var err error
+
+									if supportsRESTTickerBatching {
+										m.mux.Lock()
+										batchLastDone, ok := m.tickerBatchLastRequested[exchangeName]
+										if !ok {
+											m.tickerBatchLastRequested[exchangeName] = time.Time{}
+										}
+										m.mux.Unlock()
+
+										if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.TimeoutREST {
 											m.mux.Lock()
-											batchLastDone, ok := m.tickerBatchLastRequested[exchangeName]
-											if !ok {
-												m.tickerBatchLastRequested[exchangeName] = time.Time{}
+											if m.config.Verbose {
+												log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
 											}
+											err = exchanges[x].UpdateTickers(context.TODO(), c.AssetType)
+											if err == nil {
+												result, err = exchanges[x].FetchTicker(context.TODO(), c.Pair, c.AssetType)
+											}
+											m.tickerBatchLastRequested[exchangeName] = time.Now()
 											m.mux.Unlock()
-
-											if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.TimeoutREST {
-												m.mux.Lock()
-												if m.config.Verbose {
-													log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
-												}
-												err = exchanges[x].UpdateTickers(context.TODO(), c.AssetType)
-												if err == nil {
-													result, err = exchanges[x].FetchTicker(context.TODO(), c.Pair, c.AssetType)
-												}
-												m.tickerBatchLastRequested[exchangeName] = time.Now()
-												m.mux.Unlock()
-											} else {
-												if m.config.Verbose {
-													log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
-												}
-												result, err = exchanges[x].FetchTicker(context.TODO(),
-													c.Pair,
-													c.AssetType)
-											}
 										} else {
-											result, err = exchanges[x].UpdateTicker(context.TODO(),
+											if m.config.Verbose {
+												log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
+											}
+											result, err = exchanges[x].FetchTicker(context.TODO(),
 												c.Pair,
 												c.AssetType)
 										}
-										m.PrintTickerSummary(result, "REST", err)
-										if err == nil {
-											if m.remoteConfig.WebsocketRPC.Enabled {
-												relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
-											}
-										}
-										updateErr := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, err)
-										if updateErr != nil {
-											log.Errorln(log.SyncMgr, updateErr)
+									} else {
+										result, err = exchanges[x].UpdateTicker(context.TODO(),
+											c.Pair,
+											c.AssetType)
+									}
+									m.PrintTickerSummary(result, "REST", err)
+									if err == nil {
+										if m.remoteConfig.WebsocketRPC.Enabled {
+											relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
 										}
 									}
-								} else {
-									time.Sleep(time.Millisecond * 50)
+									updateErr := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, err)
+									if updateErr != nil {
+										log.Errorln(log.SyncMgr, updateErr)
+									}
 								}
+							} else {
+								time.Sleep(time.Millisecond * 50)
 							}
 						}
+					}
 
-						if m.config.SynchronizeTrades {
-							if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
-								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > m.config.TimeoutREST {
-									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
-									err := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
-									if err != nil {
-										log.Errorln(log.SyncMgr, err)
-									}
+					if m.config.SynchronizeTrades {
+						if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
+							if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > m.config.TimeoutREST {
+								m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
+								err := m.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
+								if err != nil {
+									log.Errorln(log.SyncMgr, err)
 								}
 							}
 						}
