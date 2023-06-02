@@ -552,7 +552,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		if bytes.Equal(respRaw, pongMsg) {
 			return nil
 		}
-		return err
+		return fmt.Errorf("%w unmarshalling %v", err, respRaw)
 	}
 	if (resp.Event != "" && (resp.Event == "login" || resp.Event == "error")) || resp.Operation != "" {
 		ok.WsResponseMultiplexer.Message <- &resp
