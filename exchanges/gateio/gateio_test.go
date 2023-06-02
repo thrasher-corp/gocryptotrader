@@ -2519,11 +2519,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	if _, err := g.GetHistoricCandles(context.Background(), deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneDay, startTime, time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
-	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
-	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
 }
 
@@ -2554,8 +2554,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
+	if _, err = g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
 }
 func TestGetAvailableTransferTrains(t *testing.T) {
