@@ -45,7 +45,7 @@ func (b *Base) GetName() string {
 func (b *Base) GetStatus() string {
 	return `
 	GoCryptoTrader Service: Online
-	Service Started: ` + b.ServiceStarted.String()
+	Service Started: ` + b.ServiceStarted.UTC().String()
 }
 
 // SetServiceStarted sets the time the service started
