@@ -55,6 +55,18 @@ const (
 
 var pingRequest = WsFuturesReq{Topic: stream.Ping}
 
+const (
+	bybitWebsocketCoinMarginedFuturesPublicV2 = "wss://stream.bybit.com/realtime"
+)
+
+var defaultCoinMarginedFuturesSubscriptionChannels = []string{
+	wsInstrument,
+	wsOrder200,
+	wsTrade,
+	wsKlineV2,
+	wsLiquidation,
+}
+
 // WsCoinConnect connects to a CMF websocket feed
 func (by *Bybit) WsCoinConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
@@ -124,6 +136,68 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
 	return cfuturesWebsocket.Conn.SendJSONMessage(req)
+}
+
+// GenerateCoinMarginedFuturesDefaultSubscriptions returns channel subscriptions for futures instruments
+func (by *Bybit) GenerateCoinMarginedFuturesDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	channels := defaultCoinMarginedFuturesSubscriptionChannels
+	if by.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(channels,
+			wsWallet,
+			wsOrder,
+			wsStopOrder)
+	}
+	subscriptions := []stream.ChannelSubscription{}
+	coinMarginedFuturesPairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	coinMarginedFuturesPairFormat, err := by.GetPairFormat(asset.CoinMarginedFutures, true)
+	if err != nil {
+		return nil, err
+	}
+	coinMarginedFuturesPairs = coinMarginedFuturesPairs.Format(coinMarginedFuturesPairFormat)
+	for x := range channels {
+		switch channels[x] {
+		case wsTrade, wsInsurance, wsLiquidation, wsPosition,
+			wsExecution, wsOrder, wsStopOrder, wsWallet:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Asset:   asset.CoinMarginedFutures,
+				Channel: channels[x],
+			})
+		case wsOrder25:
+			for p := range coinMarginedFuturesPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Asset:    asset.CoinMarginedFutures,
+					Channel:  channels[x],
+					Currency: coinMarginedFuturesPairs[p],
+				})
+			}
+		case wsKlineV2:
+			for p := range coinMarginedFuturesPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Asset:    asset.CoinMarginedFutures,
+					Channel:  channels[x],
+					Currency: coinMarginedFuturesPairs[p],
+					Params: map[string]interface{}{
+						"interval": "1",
+					},
+				})
+			}
+		case wsInstrument, wsOrder200:
+			for p := range coinMarginedFuturesPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Asset:    asset.CoinMarginedFutures,
+					Channel:  channels[x],
+					Currency: coinMarginedFuturesPairs[p],
+					Params: map[string]interface{}{
+						"frequency_interval": "100ms",
+					},
+				})
+			}
+		}
+	}
+	return subscriptions, nil
 }
 
 // SubscribeCoin sends a websocket message to receive data from the channel

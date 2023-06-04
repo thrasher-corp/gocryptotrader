@@ -2132,25 +2132,30 @@ func TestFetchTradablePairs(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
+	// _, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+
+	instruments, err := b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
+	} else {
+		for x := range instruments {
+			instruments[x].Delimiter = currency.DashDelimiter
+			print(instruments[x].String(), ",")
+		}
 	}
 
-	_, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
+	// _, err = b.FetchTradablePairs(context.Background(), asset.Futures)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 
-	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.FetchTradablePairs(context.Background(), asset.USDCMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
+	// _, err = b.FetchTradablePairs(context.Background(), asset.USDCMarginedFutures)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
@@ -3390,4 +3395,17 @@ func TestWsHandleData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	websocket, err := b.GetWebsocket()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = websocket.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 25)
 }

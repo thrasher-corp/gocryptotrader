@@ -26,6 +26,17 @@ const (
 	wsUSDTKline = "candle"
 )
 
+const (
+	bybitWebsocketUSDTMarginedFuturesPublicV2 = "wss://stream.bybit.com/realtime_public"
+)
+
+var defaultUSDTMarginedFuturesSubscriptionChannels = []string{
+	wsInstrument,
+	wsOrder200,
+	wsTrade,
+	wsUSDTKline,
+}
+
 // WsUSDTConnect connects to a USDT websocket feed
 func (by *Bybit) WsUSDTConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
@@ -97,7 +108,7 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context) error {
 
 // SubscribeUSDT sends a websocket message to receive data from the channel
 func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription) error {
-	ufuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
+	usdtMarginedFuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.USDTMarginedFutures)
 	}
@@ -107,22 +118,85 @@ func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription)
 		sub.Topic = subscribe
 
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
-		err := ufuturesWebsocket.Conn.SendJSONMessage(sub)
+		switch channelsToSubscribe[i].Channel {
+		case wsOrder25, wsUSDTKline, wsInstrument, wsOrder200, wsTrade:
+			sub.Args[0] += dot + channelsToSubscribe[i].Currency.String()
+		}
+		err := usdtMarginedFuturesWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		ufuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		usdtMarginedFuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	if errs != nil {
-		return errs
+	return errs
+}
+
+// GenerateUSDTMarginedFuturesDefaultSubscriptions returns channel subscriptions for futures instruments
+func (by *Bybit) GenerateUSDTMarginedFuturesDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	channels := defaultUSDTMarginedFuturesSubscriptionChannels
+	if by.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(channels,
+			wsWallet,
+			wsOrder,
+			wsStopOrder)
 	}
-	return nil
+	subscriptions := []stream.ChannelSubscription{}
+	usdtMarginedFuturesPairs, err := by.GetEnabledPairs(asset.USDTMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	futuresPairFormat, err := by.GetPairFormat(asset.Futures, true)
+	if err != nil {
+		return nil, err
+	}
+	usdtMarginedFuturesPairs = usdtMarginedFuturesPairs.Format(futuresPairFormat)
+	for x := range channels {
+		switch channels[x] {
+		case wsInsurance, wsLiquidation, wsPosition,
+			wsExecution, wsOrder, wsStopOrder, wsWallet:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Asset:   asset.USDTMarginedFutures,
+				Channel: channels[x],
+			})
+		case wsOrder25, wsTrade:
+			for p := range usdtMarginedFuturesPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Asset:    asset.USDTMarginedFutures,
+					Channel:  channels[x],
+					Currency: usdtMarginedFuturesPairs[p],
+				})
+			}
+		case wsUSDTKline:
+			for p := range usdtMarginedFuturesPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Asset:    asset.USDTMarginedFutures,
+					Channel:  channels[x],
+					Currency: usdtMarginedFuturesPairs[p],
+					Params: map[string]interface{}{
+						"interval": "30",
+					},
+				})
+			}
+		case wsInstrument, wsOrder200:
+			for p := range usdtMarginedFuturesPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Asset:    asset.USDTMarginedFutures,
+					Channel:  channels[x],
+					Currency: usdtMarginedFuturesPairs[p],
+					Params: map[string]interface{}{
+						"frequency_interval": "100ms",
+					},
+				})
+			}
+		}
+	}
+	return subscriptions, nil
 }
 
 // UnsubscribeUSDT sends a websocket message to stop receiving data from the channel
 func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	ufuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
+	usdtMarginedFuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.USDTMarginedFutures)
 	}
@@ -137,17 +211,14 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 			continue
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
-		err = ufuturesWebsocket.Conn.SendJSONMessage(unSub)
+		err = usdtMarginedFuturesWebsocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		ufuturesWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		usdtMarginedFuturesWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // wsUSDTReadData gets and passes on websocket messages for processing

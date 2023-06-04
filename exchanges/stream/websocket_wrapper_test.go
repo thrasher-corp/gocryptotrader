@@ -132,30 +132,27 @@ func TestGetAssetWebsocket(t *testing.T) {
 
 func TestWebsocketWrapper(t *testing.T) {
 	t.Parallel()
-	wsInit := NewWrapper()
-	err := wsInit.Setup(&WebsocketWrapperSetup{
+	ws := NewWrapper()
+	err := ws.Setup(&WebsocketWrapperSetup{
 		ExchangeConfig: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{Websocket: true},
 			},
-			Name: "test",
+			Name:                    "test",
+			WebsocketTrafficTimeout: defaultTrafficPeriod,
 		},
 		Features: &protocol.Features{
 			Subscribe:   true,
 			Unsubscribe: true,
 		},
 	})
-	if !errors.Is(err, errWebsocketAlreadyInitialised) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	ws := *NewWrapper()
-
 	err = ws.SetProxyAddress("garbagio")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
-
 	_, err = ws.AddWebsocket(&WebsocketSetup{
 		DefaultURL:   "testDefaultURL",
 		RunningURL:   "wss://testRunningURL",
@@ -204,21 +201,21 @@ func TestWebsocketWrapper(t *testing.T) {
 	}
 	// -- Not connected shutdown
 	err = ws.Shutdown()
-	if err == nil {
-		t.Fatal("should not be connected to able to shut down")
+	if err != nil {
+		t.Error(err)
 	}
 
 	err = ws.SetWebsocketURL("", false, false)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, errInvalidWebsocketURL) {
+		t.Fatalf("found %v, but expected %v", err, errInvalidWebsocketURL)
 	}
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = ws.SetWebsocketURL("", true, false)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, errInvalidWebsocketURL) {
+		t.Fatalf("found %v, but expected %v", err, errInvalidWebsocketURL)
 	}
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, false)
 	if err != nil {
@@ -231,8 +228,8 @@ func TestWebsocketWrapper(t *testing.T) {
 	}
 	// -- initiate the reconnect which is usually handled by connection monitor
 	err = ws.Connect()
-	if err == nil {
-		t.Fatal("should already be connected")
+	if err != nil {
+		t.Fatal(err)
 	}
 	// -- Normal shutdown
 	ws.Wg.Wait()
