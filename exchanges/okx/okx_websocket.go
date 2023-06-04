@@ -234,7 +234,7 @@ func (ok *Okx) WsConnect() error {
 	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
-		Delay:       time.Second * 27,
+		Delay:       time.Second * 20,
 	})
 	if ok.IsWebsocketAuthenticationSupported() {
 		var authDialer websocket.Dialer
@@ -263,7 +263,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
-		Delay:       time.Second * 27,
+		Delay:       time.Second * 20,
 	})
 	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
