@@ -63,11 +63,6 @@ func TestMain(m *testing.M) {
 	}
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 
-	err = b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		log.Fatal("Bitfinex UpdateTradablePairs error", err)
-	}
-
 	os.Exit(m.Run())
 }
 
@@ -433,6 +428,8 @@ func TestNewOrder(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -446,6 +443,12 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+
+	err := b.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		log.Fatal("Bitfinex UpdateTradablePairs error", err)
+	}
+
 	assets := b.GetAssetTypes(false)
 	for x := range assets {
 		avail, err := b.GetAvailablePairs(assets[x])
