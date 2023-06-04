@@ -446,12 +446,13 @@ func TestUpdateTickers(t *testing.T) {
 
 	err := b.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
-		log.Fatal("Bitfinex UpdateTradablePairs error", err)
+		t.Fatal(err)
 	}
 
 	assets := b.GetAssetTypes(false)
 	for x := range assets {
-		avail, err := b.GetAvailablePairs(assets[x])
+		var avail []currency.Pair
+		avail, err = b.GetAvailablePairs(assets[x])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -467,7 +468,7 @@ func TestUpdateTickers(t *testing.T) {
 		}
 
 		for y := range avail {
-			_, err := ticker.GetTicker(b.Name, avail[y], assets[x])
+			_, err = ticker.GetTicker(b.Name, avail[y], assets[x])
 			if err != nil {
 				t.Fatal(err)
 			}
