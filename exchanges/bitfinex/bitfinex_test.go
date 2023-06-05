@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -61,6 +62,7 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = true
 	}
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+
 	os.Exit(m.Run())
 }
 
@@ -139,11 +141,20 @@ func TestGetDerivativeStatusInfo(t *testing.T) {
 	}
 }
 
-func TestGetMarginPairs(t *testing.T) {
+func TestGetPairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarginPairs(context.Background())
-	if err != nil {
-		t.Error(err)
+
+	_, err := b.GetPairs(context.Background(), asset.Binary)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	assets := b.GetAssetTypes(false)
+	for x := range assets {
+		_, err := b.GetPairs(context.Background(), assets[x])
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -419,6 +430,8 @@ func TestNewOrder(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -431,9 +444,37 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
-	err := b.UpdateTickers(context.Background(), asset.Spot)
+	t.Parallel()
+
+	err := b.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+
+	assets := b.GetAssetTypes(false)
+	for x := range assets {
+		var avail []currency.Pair
+		avail, err = b.GetAvailablePairs(assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = b.CurrencyPairs.StorePairs(assets[x], avail, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = b.UpdateTickers(context.Background(), assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for y := range avail {
+			_, err = ticker.GetTicker(b.Name, avail[y], assets[x])
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }
 
@@ -1129,13 +1170,6 @@ func TestWsCancelOffer(t *testing.T) {
 	}
 }
 
-func TestUpdateTradablePairs(t *testing.T) {
-	err := b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestWsSubscribedResponse(t *testing.T) {
 	pressXToJSON := `{"event":"subscribed","channel":"ticker","chanId":224555,"symbol":"tBTCUSD","pair":"BTCUSD"}`
 	err := b.wsHandleData([]byte(pressXToJSON))
@@ -1394,7 +1428,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ret != "tBTC:USD" {
+	if ret != "tBTCUSD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
 	pair, err = currency.NewPairFromString("BTCUSD")
@@ -1718,6 +1752,24 @@ func TestAccetableMethodStore(t *testing.T) {
 	}
 	if name := a.lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
 		t.Error("incorrect values")
+	}
+}
+
+func TestGetSiteListConfigData(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetSiteListConfigData(context.Background(), "")
+	if !errors.Is(err, errSetCannotBeEmpty) {
+		t.Fatalf("received: %v, expected: %v", err, errSetCannotBeEmpty)
+	}
+
+	pairs, err := b.GetSiteListConfigData(context.Background(), bitfinexSecuritiesPairs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, expected: %v", err, nil)
+	}
+
+	if len(pairs) == 0 {
+		t.Fatal("expected pairs")
 	}
 }
 

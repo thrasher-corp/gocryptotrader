@@ -263,12 +263,14 @@ func (w *Websocket) Connect() error {
 	w.setConnectingStatus(false)
 	w.setInit(true)
 
-	err = w.connectionMonitor()
-	if err != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s cannot start websocket connection monitor %v",
-			w.GetName(),
-			err)
+	if !w.IsConnectionMonitorRunning() {
+		err = w.connectionMonitor()
+		if err != nil {
+			log.Errorf(log.WebsocketMgr,
+				"%s cannot start websocket connection monitor %v",
+				w.GetName(),
+				err)
+		}
 	}
 
 	subs, err := w.GenerateSubs() // regenerate state on new connection
