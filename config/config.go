@@ -302,6 +302,10 @@ func (c *Config) CheckCommunicationsConfig() {
 		}
 	}
 
+	if c.Communications.TelegramConfig.AuthorisedClients == nil {
+		c.Communications.TelegramConfig.AuthorisedClients = map[string]int64{"user_example": 0}
+	}
+
 	if c.Communications.SlackConfig.Name != "Slack" ||
 		c.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
 		c.Communications.SMTPConfig.Name != "SMTP" ||
@@ -334,7 +338,10 @@ func (c *Config) CheckCommunicationsConfig() {
 		}
 	}
 	if c.Communications.TelegramConfig.Enabled {
-		if c.Communications.TelegramConfig.VerificationToken == "" {
+		if _, ok := c.Communications.TelegramConfig.AuthorisedClients["user_example"]; ok ||
+			len(c.Communications.TelegramConfig.AuthorisedClients) == 0 ||
+			c.Communications.TelegramConfig.VerificationToken == "" ||
+			c.Communications.TelegramConfig.VerificationToken == "testest" {
 			c.Communications.TelegramConfig.Enabled = false
 			log.Warnln(log.ConfigMgr, "Telegram enabled in config but variable data not set, disabling.")
 		}
