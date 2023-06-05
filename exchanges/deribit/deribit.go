@@ -2512,7 +2512,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 
 func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 	var instrumentID string
-	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 && result[2] == "PERPETUAL" {
+	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 {
 		instrumentID = strings.Join(result[:2], currency.UnderscoreDelimiter) + currency.DashDelimiter + result[2]
 	} else {
 		instrumentID = pair.String()

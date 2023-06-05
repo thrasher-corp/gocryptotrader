@@ -364,18 +364,12 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 			Price:  obData.Asks[x][0],
 			Amount: obData.Asks[x][1],
 		}
-		if book.Asks[x].Price == 0 {
-			return nil, fmt.Errorf("%w, ask price=%f", errInvalidPrice, book.Asks[x].Price)
-		}
 	}
 	book.Bids = make([]orderbook.Item, len(obData.Bids))
 	for x := range book.Bids {
 		book.Bids[x] = orderbook.Item{
 			Price:  obData.Bids[x][0],
 			Amount: obData.Bids[x][1],
-		}
-		if book.Bids[x].Price == 0 {
-			book.Bids[x].Price = obData.BestBidPrice
 		}
 	}
 	err = book.Process()

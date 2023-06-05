@@ -116,9 +116,15 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := d.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
+	availabelPairs, err := d.GetAvailablePairs(asset.Futures)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+	for x := range availabelPairs {
+		_, err = d.UpdateOrderbook(context.Background(), availabelPairs[x], asset.Futures)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 	_, err = d.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
@@ -559,6 +565,14 @@ func TestGetOrderbookData(t *testing.T) {
 		t.Error(err)
 	}
 	if _, err = d.WSRetrieveOrderbookData(btcPerpInstrument, 0); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetOrderbookData(context.Background(), futureComboTradablePair.String(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetOrderbookData(context.Background(), optionComboTradablePair.String(), 0)
+	if err != nil {
 		t.Error(err)
 	}
 }
@@ -2615,5 +2629,22 @@ func TestDeribitMillisecTimestampUnmarshal(t *testing.T) {
 	err = json.Unmarshal([]byte(data6), &result)
 	if err == nil {
 		t.Error("expecting error but found nil")
+	}
+}
+
+func TestFormatFuturesTradablePair(t *testing.T) {
+	t.Parallel()
+	futuresInstrumentsOutputList := map[currency.Pair]string{
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("PERPETUAL")}:                   "BTC-PERPETUAL",
+		{Delimiter: currency.DashDelimiter, Base: currency.AVAX, Quote: currency.NewCode("USDC-PERPETUAL")}:             "AVAX_USDC-PERPETUAL",
+		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("30DEC22")}:                     "ETH-30DEC22",
+		{Delimiter: currency.DashDelimiter, Base: currency.SOL, Quote: currency.NewCode("30DEC22")}:                     "SOL-30DEC22",
+		{Delimiter: currency.DashDelimiter, Base: currency.NewCode("BTCDVOL"), Quote: currency.NewCode("USDC-28JUN23")}: "BTCDVOL_USDC-28JUN23",
+	}
+	for pair, instrumentID := range futuresInstrumentsOutputList {
+		instrument := d.formatFuturesTradablePair(pair)
+		if instrument != instrumentID {
+			t.Errorf("found %s, but expected %s", instrument, instrumentID)
+		}
 	}
 }
