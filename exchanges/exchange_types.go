@@ -233,6 +233,8 @@ type Base struct {
 
 	AssetWebsocketSupport
 	*currencystate.States
+
+	order.SubmissionConfig
 }
 
 // url lookup consts

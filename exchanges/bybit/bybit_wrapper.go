@@ -155,6 +155,12 @@ func (by *Bybit) SetDefaults() {
 		},
 	}
 
+	by.SubmissionConfig = order.SubmissionConfig{
+		SpecificSellingAmountsRequired: true,
+		FeeAppliedToPurchasedCurrency:  true,
+		RequiresParameterLimits:        true,
+	}
+
 	by.Requester, err = request.New(by.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
