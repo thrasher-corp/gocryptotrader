@@ -1408,7 +1408,7 @@ func TestFixCasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ret != "tBTC:USD" {
+	if ret != "tBTCUSD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
 	pair, err = currency.NewPairFromString("BTCUSD")
