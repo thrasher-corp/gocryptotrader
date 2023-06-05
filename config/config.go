@@ -299,8 +299,11 @@ func (c *Config) CheckCommunicationsConfig() {
 		c.Communications.TelegramConfig = base.TelegramConfig{
 			Name:              "Telegram",
 			VerificationToken: "testest",
-			AuthorisedClients: map[string]int64{"user_example": 0},
 		}
+	}
+
+	if c.Communications.TelegramConfig.AuthorisedClients == nil {
+		c.Communications.TelegramConfig.AuthorisedClients = map[string]int64{"user_example": 0}
 	}
 
 	if c.Communications.SlackConfig.Name != "Slack" ||
