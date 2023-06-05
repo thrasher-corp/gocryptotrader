@@ -273,9 +273,14 @@ var dsc = func(current Item, previous Item) error {
 // checkAlignment validates full orderbook
 func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool, c checker, exch string) error {
 	for i := range depth {
-		if depth[i].Price == 0 && !fundingRate && exch != "Bitfinex" /* funding rate can be 0 it seems on Bitfinex */ {
-			return errPriceNotSet
+		if depth[i].Price == 0 {
+			switch {
+			case exch == "Bitfinex" && fundingRate: /* funding rate can be 0 it seems on Bitfinex */
+			default:
+				return errPriceNotSet
+			}
 		}
+
 		if depth[i].Amount <= 0 {
 			return errAmountInvalid
 		}
