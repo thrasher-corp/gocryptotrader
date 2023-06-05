@@ -120,9 +120,6 @@ func (b *Binance) SetDefaults() {
 	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
-			FuturesCapabilities: exchange.FuturesCapabilities{
-				PositionTracking: true,
-			},
 			REST:                true,
 			Websocket:           true,
 			MaximumOrderHistory: kline.OneDay.Duration() * 7,
@@ -167,6 +164,11 @@ func (b *Binance) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				Positions:      true,
+				Leverage:       true,
+				CollateralMode: true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -2411,7 +2413,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair, _ currency.Pair, _ margin.Type, amount float64) error {
+func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64) error {
 	switch item {
 	case asset.USDTMarginedFutures:
 		_, err := b.UChangeInitialLeverageRequest(ctx, pair, amount)
@@ -2425,7 +2427,10 @@ func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair, _ curr
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair, underlyingPair currency.Pair, _ margin.Type) (float64, error) {
+func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type) (float64, error) {
+	if pair.IsEmpty() {
+		return -1, currency.ErrCurrencyPairEmpty
+	}
 	switch item {
 	case asset.USDTMarginedFutures:
 		resp, err := b.UPositionsInfoV2(ctx, pair)
@@ -2438,10 +2443,7 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair, underl
 		// leverage is the same across positions
 		return resp[0].Leverage, nil
 	case asset.CoinMarginedFutures:
-		if underlyingPair.IsEmpty() {
-			return -1, order.ErrUnderlyingPairRequired
-		}
-		resp, err := b.FuturesPositionsInfo(ctx, currency.EMPTYPAIR, underlyingPair)
+		resp, err := b.FuturesPositionsInfo(ctx, currency.EMPTYPAIR, pair)
 		if err != nil {
 			return -1, err
 		}

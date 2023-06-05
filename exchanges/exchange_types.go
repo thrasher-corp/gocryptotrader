@@ -174,10 +174,21 @@ type FeaturesSupported struct {
 	FuturesCapabilities   FuturesCapabilities
 }
 
+// FuturesCapabilities stores the exchange's futures capabilities
 type FuturesCapabilities struct {
 	FundingRates                 bool
-	PositionTracking             bool
+	Positions                    bool
 	OrderManagerPositionTracking bool
+	Collateral                   bool
+	CollateralMode               bool
+	Leverage                     bool
+}
+
+// MarginCapabilities stores the exchange's margin capabilities
+type MarginCapabilities struct {
+	SetMarginType        bool
+	ChangePositionMargin bool
+	GetMarginRateHistory bool
 }
 
 // Endpoints stores running url endpoints for exchanges

@@ -4393,8 +4393,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, err
 	}
-	features := exch.GetSupportedFeatures()
-	if !features.FuturesCapabilities.PositionTracking {
+	feat := exch.GetSupportedFeatures()
+	if !feat.FuturesCapabilities.Positions {
 		return nil, fmt.Errorf("%w futures position tracking", common.ErrFunctionNotSupported)
 	}
 	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -4482,14 +4482,14 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			positionStats.EstimatedLiquidationPrice = stats.EstimatedLiquidationPrice.String()
 		}
 	}
-	if !features.FuturesCapabilities.OrderManagerPositionTracking {
+	if feat.FuturesCapabilities.Positions {
 		details := &gctrpc.FuturePosition{
-			Exchange: positionDetails[0].Orders[i].Exchange,
-			Asset:    positionDetails[0].Orders[i].AssetType.String(),
+			Exchange: exch.GetName(),
+			Asset:    positionDetails[0].Asset.String(),
 			Pair: &gctrpc.CurrencyPair{
-				Delimiter: positionDetails[0].Orders[i].Pair.Delimiter,
-				Base:      positionDetails[0].Orders[i].Pair.Base.String(),
-				Quote:     positionDetails[0].Orders[i].Pair.Quote.String(),
+				Delimiter: positionDetails[0].Pair.Delimiter,
+				Base:      positionDetails[0].Pair.Base.String(),
+				Quote:     positionDetails[0].Pair.Quote.String(),
 			},
 			Status:           "",
 			OpeningDate:      "",
@@ -4507,11 +4507,33 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			PositionStats:    positionStats,
 		}
 		for i := range positionDetails[0].Orders {
-			details.Orders = append(details.Orders, &gctrpc.FutureOrder{})
+			details.Orders = append(details.Orders, &gctrpc.OrderDetails{
+				Exchange:      exch.GetName(),
+				Id:            positionDetails[0].Orders[i].OrderID,
+				ClientOrderId: positionDetails[0].Orders[i].ClientOrderID,
+				BaseCurrency:  positionDetails[0].Orders[i].Pair.Base.String(),
+				QuoteCurrency: positionDetails[0].Orders[i].Pair.Quote.String(),
+				AssetType:     positionDetails[0].Orders[i].AssetType.String(),
+				OrderSide:     positionDetails[0].Orders[i].Side.String(),
+				OrderType:     positionDetails[0].Orders[i].Type.String(),
+				CreationTime:  positionDetails[0].Orders[i].Date.Format(common.SimpleTimeFormatWithTimezone),
+				UpdateTime:    positionDetails[0].Orders[i].LastUpdated.Format(common.SimpleTimeFormatWithTimezone),
+				Status:        positionDetails[0].Orders[i].Status.String(),
+				Price:         positionDetails[0].Orders[i].Price,
+				Amount:        positionDetails[0].Orders[i].Amount,
+				OpenVolume:    positionDetails[0].Orders[i].RemainingAmount,
+				Fee:           positionDetails[0].Orders[i].Fee,
+				Cost:          positionDetails[0].Orders[i].Cost,
+			})
 		}
 		response.Positions = append(response.Positions, details)
-
-	} else {
+		if r.GetFundingPayments {
+			if !feat.FuturesCapabilities.FundingRates {
+				return nil, fmt.Errorf("%w funding rates", common.ErrFunctionNotSupported)
+			}
+		}
+	}
+	if feat.FuturesCapabilities.OrderManagerPositionTracking {
 		if r.Overwrite {
 			err = s.OrderManager.ClearFuturesTracking(r.Exchange, ai, cp)
 			if err != nil {
@@ -4591,7 +4613,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			totalUnrealisedPNL = totalUnrealisedPNL.Add(pos[i].UnrealisedPNL)
 
 			if r.GetFundingPayments {
-				if !features.FuturesCapabilities.FundingRates {
+				if !feat.FuturesCapabilities.FundingRates {
 					return nil, fmt.Errorf("cannot get funding payments for %v %v %v %v %w", pos[i].Exchange, pos[i].Asset, pos[i].Pair, subAccount, common.ErrFunctionNotSupported)
 				}
 				var endDate = time.Now()
@@ -4698,8 +4720,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		if !totalUnrealisedPNL.IsZero() && !totalRealisedPNL.IsZero() {
 			response.TotalPnl = totalRealisedPNL.Add(totalUnrealisedPNL).String()
 		}
-		return response, nil
 	}
+
+	return response, nil
 }
 
 // GetFundingRates returns the funding rates for a slice of pairs of an exchange, asset
@@ -4810,6 +4833,10 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
+	}
+	feat := exch.GetSupportedFeatures()
+	if !feat.FuturesCapabilities.Collateral {
+		return nil, common.ErrFunctionNotSupported
 	}
 
 	a, err := asset.New(r.Asset)
@@ -5762,32 +5789,22 @@ func (s *RPCServer) GetLeverage(ctx context.Context, r *gctrpc.GetLeverageReques
 		return nil, err
 	}
 
-	underlyingPair, err := currency.NewPairFromStrings(r.UnderlyingPair.Base, r.UnderlyingPair.Quote)
-	if err != nil {
-		return nil, err
-	}
-
-	if underlyingPair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-
 	mt := margin.StringToMarginType(r.MarginType)
 	if !mt.Valid() {
 		return nil, fmt.Errorf("%w %v", margin.ErrInvalidMarginType, r.MarginType)
 	}
 
-	leverage, err := exch.GetLeverage(ctx, as, pair, underlyingPair, mt)
+	leverage, err := exch.GetLeverage(ctx, as, pair, mt)
 	if err != nil {
 		return nil, err
 	}
 
 	return &gctrpc.GetLeverageResponse{
-		Exchange:       r.Exchange,
-		Asset:          r.Asset,
-		Pair:           r.Pair,
-		UnderlyingPair: r.UnderlyingPair,
-		MarginType:     r.MarginType,
-		Leverage:       leverage,
+		Exchange:   r.Exchange,
+		Asset:      r.Asset,
+		Pair:       r.Pair,
+		MarginType: r.MarginType,
+		Leverage:   leverage,
 	}, nil
 }
 
@@ -5820,34 +5837,22 @@ func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageReques
 		return nil, err
 	}
 
-	var underlyingPair currency.Pair
-	if r.UnderlyingPair != nil {
-		underlyingPair, err = currency.NewPairFromStrings(r.UnderlyingPair.Base, r.UnderlyingPair.Quote)
-		if err != nil {
-			return nil, err
-		}
-
-		if underlyingPair.IsEmpty() {
-			return nil, currency.ErrCurrencyPairEmpty
-		}
-	}
 	mt := margin.StringToMarginType(r.MarginType)
 	if !mt.Valid() {
 		return nil, fmt.Errorf("%w %v", margin.ErrInvalidMarginType, r.MarginType)
 	}
 
-	err = exch.SetLeverage(ctx, as, pair, underlyingPair, mt, r.Leverage)
+	err = exch.SetLeverage(ctx, as, pair, mt, r.Leverage)
 	if err != nil {
 		return nil, err
 	}
 
 	return &gctrpc.SetLeverageResponse{
-		Exchange:       r.Exchange,
-		Asset:          r.Asset,
-		Pair:           r.Pair,
-		UnderlyingPair: r.UnderlyingPair,
-		MarginType:     r.MarginType,
-		Success:        true,
+		Exchange:   r.Exchange,
+		Asset:      r.Asset,
+		Pair:       r.Pair,
+		MarginType: r.MarginType,
+		Success:    true,
 	}, nil
 }
 

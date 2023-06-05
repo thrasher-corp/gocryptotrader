@@ -130,6 +130,11 @@ func (ok *Okx) SetDefaults() {
 				CancelOrders:           true,
 				ModifyOrder:            true,
 			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				Positions:      true,
+				Leverage:       true,
+				CollateralMode: true,
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1797,23 +1802,19 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair, underlyingPair currency.Pair, marginType margin.Type, amount float64) error {
+func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64) error {
 	switch item {
 	case asset.Futures, asset.Margin, asset.Options, asset.PerpetualSwap:
-		var instrumentID string
-		if underlyingPair.IsEmpty() {
-			var err error
-			instrumentID, err = ok.FormatSymbol(pair, item)
-			if err != nil {
-				return err
-			}
+		instrumentID, err := ok.FormatSymbol(pair, item)
+		if err != nil {
+			return err
 		}
 		marginMode := ok.marginTypeToString(marginType)
-		_, err := ok.SetLeverageRate(ctx, SetLeverageInput{
+		_, err = ok.SetLeverageRate(ctx, SetLeverageInput{
 			Leverage:     amount,
 			MarginMode:   marginMode,
 			InstrumentID: instrumentID,
-			Currency:     underlyingPair.Base.String(),
+			//Currency:     underlyingPair.Base.String(),
 		})
 		return err
 	default:
@@ -1822,7 +1823,7 @@ func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair, underlyin
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair, _ currency.Pair, marginType margin.Type) (float64, error) {
+func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type) (float64, error) {
 	switch item {
 	case asset.Futures, asset.Margin, asset.Options, asset.PerpetualSwap:
 		instrumentID, err := ok.FormatSymbol(pair, item)

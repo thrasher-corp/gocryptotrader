@@ -3274,12 +3274,12 @@ func TestGetLeverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], currency.EMPTYPAIR, margin.Multi)
+	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ok.GetLeverage(contextGenerate(), asset.Spot, pp[0], currency.EMPTYPAIR, margin.Multi)
+	_, err = ok.GetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
@@ -3292,12 +3292,12 @@ func TestSetLeverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], currency.EMPTYPAIR, margin.Multi, 5)
+	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], currency.EMPTYPAIR, margin.Multi, 5)
+	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}

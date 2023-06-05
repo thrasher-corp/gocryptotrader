@@ -26,7 +26,6 @@ var (
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
 	ErrSubmitLeverageNotSupported = errors.New("leverage is not supported via order submission")
-	ErrUnderlyingPairRequired     = errors.New("underlying pair required")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates = errors.New("no rates")
 

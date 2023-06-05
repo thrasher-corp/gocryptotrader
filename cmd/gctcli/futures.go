@@ -95,88 +95,6 @@ var futuresCommands = &cli.Command{
 				},
 			},
 		},
-
-		{
-			Name:      "getfuturespositions",
-			Aliases:   []string{"positions", "p"},
-			Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
-			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <limit> <status> <overwrite> <includeorderdetails> <getpositionstats> <getfundingdata> <includefundingentries> <includepredictedrate>",
-			Action:    getFuturesPositions,
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
-				},
-				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
-				},
-				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
-				},
-				&cli.StringFlag{
-					Name:        "start",
-					Aliases:     []string{"sd"},
-					Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
-					Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
-					Destination: &startTime,
-				},
-				&cli.StringFlag{
-					Name:        "end",
-					Aliases:     []string{"ed"},
-					Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
-					Destination: &endTime,
-				},
-				&cli.IntFlag{
-					Name:        "limit",
-					Aliases:     []string{"l"},
-					Usage:       "the number of positions (not orders) to return",
-					Value:       86400,
-					Destination: &limit,
-				},
-				&cli.StringFlag{
-					Name:    "status",
-					Aliases: []string{"s"},
-					Usage:   "limit return to position statuses - open, closed, any",
-					Value:   "ANY",
-				},
-				&cli.BoolFlag{
-					Name:    "overwrite",
-					Aliases: []string{"o"},
-					Usage:   "if true, will overwrite futures results for the provided exchange, asset, pair",
-				},
-				&cli.BoolFlag{
-					Name:    "includeorderdetails",
-					Aliases: []string{"orders"},
-					Usage:   "includes all orders that make up a position in the response",
-				},
-				&cli.BoolFlag{
-					Name:    "getpositionstats",
-					Aliases: []string{"stats"},
-					Usage:   "if true, will return extra stats on the position from the exchange",
-				},
-				&cli.BoolFlag{
-					Name:    "getfundingdata",
-					Aliases: []string{"funding", "fd"},
-					Usage:   "if true, will return funding rate summary",
-				},
-				&cli.BoolFlag{
-					Name:    "includefundingentries",
-					Aliases: []string{"allfunding", "af"},
-					Usage:   "if true, will return all funding rate entries - requires --getfundingdata",
-				},
-				&cli.BoolFlag{
-					Name:    "includepredictedrate",
-					Aliases: []string{"predicted", "pr"},
-					Usage:   "if true, will return the predicted funding rate - requires --getfundingdata",
-				},
-			},
-		},
 		{
 			Name:      "getcollateral",
 			Aliases:   []string{"collateral", "c"},
@@ -260,25 +178,220 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name: "getcollateralmode",
+			Name:      "getcollateralmode",
+			Aliases:   []string{"gcm"},
+			Usage:     "gets the collateral mode for an exchange asset",
+			ArgsUsage: "<exchange> <asset>",
+			Action:    getCollateralModel,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+			},
 		},
 		{
-			Name: "setcollateralmode",
+			Name:      "setcollateralmode",
+			Aliases:   []string{"scm"},
+			Usage:     "sets the collateral mode for an exchange asset",
+			ArgsUsage: "<exchange> <asset> <collateralmode>",
+			Action:    setCollateralModel,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+
+				&cli.StringFlag{
+					Name:    "collateralmode",
+					Aliases: []string{"collateral", "cm", "c"},
+					Usage:   "the collateral mode type, such as 'single', 'multi' or 'global'",
+				},
+			},
 		},
 		{
-			Name: "setleverage",
+			Name:      "setleverage",
+			Aliases:   []string{"sl"},
+			Usage:     "sets the initial leverage level for an exchange currency pair",
+			ArgsUsage: "<exchange> <asset> <pair> <margintype> <leverage>",
+			Action:    setLeverage,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair",
+				},
+				&cli.StringFlag{
+					Name:    "margintype",
+					Aliases: []string{"margin", "mt", "m"},
+					Usage:   "the margin type, such as 'isolated', 'multi' or 'cross'",
+				},
+				&cli.Float64Flag{
+					Name:    "leverage",
+					Aliases: []string{"leverage", "l", "riskon", "uponly", "dontgetmargincalled", "glhf", "yolo", "carolineellisonlevel"},
+					Usage:   "the level of leverage you want, increase it to lose your capital faster",
+				},
+			},
 		},
 		{
-			Name: "getleverage",
+			Name:      "getleverage",
+			Aliases:   []string{"gl"},
+			Usage:     "gets the initial leverage level for an exchange currency pair",
+			ArgsUsage: "<exchange> <asset> <pair> <margintype>",
+			Action:    getLeverage,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair",
+				},
+				&cli.StringFlag{
+					Name:    "margintype",
+					Aliases: []string{"margin", "mt", "m"},
+					Usage:   "the margin type, such as 'isolated', 'multi' or 'cross'",
+				},
+			},
 		},
 		{
-			Name: "setmargin",
+			Name:      "changepositionmargin",
+			Aliases:   []string{"cpm"},
+			Usage:     "sets isolated margin levels for an existing position",
+			ArgsUsage: "<exchange> <asset> <pair> <start>",
+			Action:    changePositionMargin,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair",
+				},
+				&cli.StringFlag{
+					Name:    "margintype",
+					Aliases: []string{"margin", "mt", "m"},
+					Usage:   "optional - the margin type, most likely 'isolated'",
+				},
+				&cli.Float64Flag{
+					Name:    "originalallocatedmargin",
+					Aliases: []string{"oac"},
+					Usage:   "optional - the original allocated margin, is used by some exchanges to determine differences to apply",
+				},
+				&cli.Float64Flag{
+					Name:    "newallocatedmargin",
+					Aliases: []string{"nac"},
+					Usage:   "optional - the new allocated margin level you desire",
+				},
+				&cli.StringFlag{
+					Name:    "marginside",
+					Aliases: []string{"side", "ms"},
+					Usage:   "optional - the margin side, typically buy or sell",
+				},
+			},
 		},
 		{
-			Name: "getmargin",
+			Name:      "getfuturespositionsummary",
+			Aliases:   []string{"summary", "fps"},
+			Usage:     "return a summary of your futures position",
+			ArgsUsage: "<exchange> <asset> <pair> <start>",
+			Action:    getFuturesPositionSummary,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair",
+				},
+				&cli.StringFlag{
+					Name:    "underlying pair",
+					Aliases: []string{"up"},
+					Usage:   "optional - the underlying currency pair",
+				},
+			},
 		},
 		{
-			Name: "getfuturespositions",
+			Name:      "getfuturepositionorders",
+			Aliases:   []string{"orders", "fpo"},
+			Usage:     "return a slice of orders that make up your position",
+			ArgsUsage: "<exchange> <asset> <pair> <start>",
+			Action:    getFuturePositionOrders,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "the currency pair",
+				},
+				&cli.StringFlag{
+					Name:        "start",
+					Aliases:     []string{"sd"},
+					Usage:       "<start> rounded down to the nearest hour",
+					Value:       time.Now().AddDate(0, 0, -7).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Destination: &startTime,
+				},
+				&cli.StringFlag{
+					Name:    "underlyingpair",
+					Aliases: []string{"up"},
+					Usage:   "optional - the underlying currency pair",
+				},
+			},
 		},
 	},
 }
@@ -824,6 +937,102 @@ func getFundingRates(c *cli.Context) error {
 			EndDate:          e.Format(common.SimpleTimeFormatWithTimezone),
 			IncludePredicted: includePredicted,
 			IncludePayments:  includePayments,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+func getFuturePositionOrders(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+	var (
+		exchangeName, assetType,
+		currencyPair, underlyingPair string
+		s   time.Time
+		err error
+	)
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	err = isFuturesAsset(assetType)
+	if err != nil {
+		return err
+	}
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if c.IsSet("underlyingpair") {
+		underlyingPair = c.String("underlyingpair")
+	} else {
+		underlyingPair = c.Args().Get(4)
+	}
+
+	if !validPair(currencyPair) {
+		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
+	}
+	if underlyingPair != "" && !validPair(underlyingPair) {
+		return fmt.Errorf("%w currencypair:%v", errInvalidPair, underlyingPair)
+	}
+	pair, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+	underlying, err := currency.NewPairDelimiter(underlyingPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	if s.IsZero() {
+		return common.ErrDateUnset
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetFuturesPositions(c.Context,
+		&gctrpc.GetFuturesPositionsRequest{
+			Exchange: exchangeName,
+			Asset:    assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: pair.Delimiter,
+				Base:      pair.Base.String(),
+				Quote:     pair.Quote.String(),
+			},
+			UnderlyingPair: &gctrpc.CurrencyPair{
+				Delimiter: underlying.Delimiter,
+				Base:      underlying.Base.String(),
+				Quote:     underlying.Quote.String(),
+			},
+			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
 		})
 	if err != nil {
 		return err

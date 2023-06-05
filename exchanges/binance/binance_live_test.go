@@ -1,5 +1,5 @@
-//go:build mock_test_off
-// +build mock_test_off
+//go:build !mock_test_off
+// +build !mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
