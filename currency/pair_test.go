@@ -961,3 +961,78 @@ func TestIsPopulated(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestGetAspect(t *testing.T) {
+	t.Parallel()
+
+	p := NewPair(BTC, USDT)
+	testCases := []struct {
+		Pair     Pair
+		currency Code
+
+		market  bool
+		selling bool
+
+		expectedAspect *OrderAspect
+		expectedError  error
+	}{
+		{expectedError: ErrCurrencyPairEmpty},
+		{Pair: p, expectedError: ErrCurrencyCodeEmpty},
+		{Pair: p, currency: XRP, selling: true, market: true, expectedError: errCurrencyNotAssociatedWithPair},
+		{Pair: p, currency: BTC, selling: true, market: true, expectedAspect: &OrderAspect{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, BuySide: false, AskLiquidity: false}},
+		{Pair: p, currency: BTC, selling: false, market: true, expectedAspect: &OrderAspect{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, BuySide: true, AskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: true, market: false, expectedAspect: &OrderAspect{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, BuySide: false, AskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: false, market: false, expectedAspect: &OrderAspect{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, BuySide: true, AskLiquidity: false}},
+
+		{Pair: p, currency: USDT, selling: true, market: true, expectedAspect: &OrderAspect{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, BuySide: true, AskLiquidity: true}},
+		{Pair: p, currency: USDT, selling: false, market: true, expectedAspect: &OrderAspect{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, BuySide: false, AskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: true, market: false, expectedAspect: &OrderAspect{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, BuySide: true, AskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: false, market: false, expectedAspect: &OrderAspect{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, BuySide: false, AskLiquidity: true}},
+	}
+
+	for i, tc := range testCases {
+		var aspect *OrderAspect
+		var err error
+		switch {
+		case tc.market && tc.selling:
+			aspect, err = tc.Pair.MarketSellOrderAspect(tc.currency)
+		case tc.market && !tc.selling:
+			aspect, err = tc.Pair.MarketBuyOrderAspect(tc.currency)
+		case !tc.market && tc.selling:
+			aspect, err = tc.Pair.LimitSellOrderAspect(tc.currency)
+		case !tc.market && !tc.selling:
+			aspect, err = tc.Pair.LimitBuyOrderAspect(tc.currency)
+		}
+
+		if !errors.Is(err, tc.expectedError) {
+			t.Fatalf("test case %d: received %v, expected %v", i, err, tc.expectedError)
+		}
+
+		if tc.expectedAspect == nil {
+			if aspect != nil {
+				t.Fatalf("test case %d: received %v, expected nil", i, aspect)
+			}
+			continue
+		}
+
+		if aspect.SellingCurrency != tc.expectedAspect.SellingCurrency {
+			t.Fatalf("SellingCurrency test case %d: received %v, expected %v", i, aspect.SellingCurrency, tc.expectedAspect.SellingCurrency)
+		}
+
+		if aspect.PurchasingCurrency != tc.expectedAspect.PurchasingCurrency {
+			t.Fatalf("PurchasingCurrency test case %d: received %v, expected %v", i, aspect.PurchasingCurrency, tc.expectedAspect.PurchasingCurrency)
+		}
+
+		if aspect.BuySide != tc.expectedAspect.BuySide {
+			t.Fatalf("BuySide test case %d: received %v, expected %v", i, aspect.BuySide, tc.expectedAspect.BuySide)
+		}
+
+		if aspect.AskLiquidity != tc.expectedAspect.AskLiquidity {
+			t.Fatalf("AskLiquidity test case %d: received %v, expected %v", i, aspect.AskLiquidity, tc.expectedAspect.AskLiquidity)
+		}
+
+		if aspect.Pair != tc.expectedAspect.Pair {
+			t.Fatalf("Pair test case %d: received %v, expected %v", i, aspect.Pair, tc.expectedAspect.Pair)
+		}
+	}
+}
