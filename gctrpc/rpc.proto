@@ -1105,28 +1105,31 @@ message GetManagedPositionsResponse {
   repeated FuturePosition positions = 1;
 }
 
-message GetFuturesPositionsRequest {
+message GetFuturesPositionsSummaryRequest {
   string exchange = 1;
   string asset = 2;
   CurrencyPair pair = 3;
-  string start_date = 4;
-  string end_date = 5;
-  string status = 6;
-  int64 position_limit = 7;
-  bool overwrite = 8;
-  bool get_position_stats = 9;
-  bool include_full_order_data = 10;
-  bool get_funding_payments = 11;
-  bool include_full_funding_rates = 12;
-  bool include_predicted_rate = 13;
+  CurrencyPair underlying_pair = 4;
 }
 
-message GetFuturesPositionsResponse {
-  int64 total_orders = 1;
-  string sub_account = 2;
-  string total_realised_pnl = 3;
-  string total_unrealised_pnl = 4;
-  string total_pnl = 5;
+message GetFuturesPositionsSummaryResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  FuturesPositionStats position_stats = 4;
+}
+
+message GetFuturesPositionsOrdersRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  CurrencyPair underlying_pair = 4;
+  string start_date = 5;
+  string end_date = 6;
+  bool respect_order_history_limits = 7;
+}
+
+message GetFuturesPositionsOrdersResponse {
   repeated FuturePosition positions = 6;
 }
 
@@ -1934,8 +1937,11 @@ service GoCryptoTraderService {
   rpc CurrencyStateTradingPair(CurrencyStateTradingPairRequest) returns (GenericResponse) {
     option (google.api.http) = {get: "/v1/currencystatetradingpair"};
   }
-  rpc GetFuturesPositions(GetFuturesPositionsRequest) returns (GetFuturesPositionsResponse) {
-    option (google.api.http) = {get: "/v1/getfuturespositions"};
+  rpc GetFuturesPositionsSummary(GetFuturesPositionsSummaryRequest) returns (GetFuturesPositionsSummaryResponse) {
+    option (google.api.http) = {get: "/v1/getfuturespositionssummary"};
+  }
+  rpc GetFuturesPositionsOrders(GetFuturesPositionsOrdersRequest) returns (GetFuturesPositionsOrdersResponse) {
+    option (google.api.http) = {get: "/v1/getfuturespositionsorders"};
   }
   rpc GetCollateral(GetCollateralRequest) returns (GetCollateralResponse) {
     option (google.api.http) = {get: "/v1/getcollateral"};

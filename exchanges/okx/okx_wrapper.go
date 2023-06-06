@@ -90,7 +90,7 @@ func (ok *Okx) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
 			Websocket:           true,
-			MaximumOrderHistory: kline.OneDay.Duration() * 30,
+			MaximumOrderHistory: kline.OneDay.Duration() * 90,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:        true,
 				OrderbookFetching:     true,
@@ -1717,7 +1717,11 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 		return nil, fmt.Errorf("%w %v", order.ErrNotFuturesAsset, req.Asset)
 	}
 	if time.Since(req.StartDate) > ok.Features.Supports.MaximumOrderHistory {
-		return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
+		if req.RespectOrderHistoryLimits {
+			req.StartDate = time.Now().Add(-ok.Features.Supports.MaximumOrderHistory)
+		} else {
+			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
+		}
 	}
 
 	resp := make([]order.PositionResponse, len(req.Pairs))

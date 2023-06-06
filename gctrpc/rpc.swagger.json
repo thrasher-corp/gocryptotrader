@@ -2039,14 +2039,14 @@
         ]
       }
     },
-    "/v1/getfuturespositions": {
+    "/v1/getfuturespositionsorders": {
       "get": {
-        "operationId": "GoCryptoTraderService_GetFuturesPositions",
+        "operationId": "GoCryptoTraderService_GetFuturesPositionsOrders",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetFuturesPositionsResponse"
+              "$ref": "#/definitions/gctrpcGetFuturesPositionsOrdersResponse"
             }
           },
           "default": {
@@ -2088,6 +2088,24 @@
             "type": "string"
           },
           {
+            "name": "underlyingPair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "underlyingPair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "underlyingPair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "startDate",
             "in": "query",
             "required": false,
@@ -2100,53 +2118,82 @@
             "type": "string"
           },
           {
-            "name": "status",
+            "name": "respectOrderHistoryLimits",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getfuturespositionssummary": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetFuturesPositionsSummary",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetFuturesPositionsSummaryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "positionLimit",
+            "name": "asset",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
-            "name": "overwrite",
+            "name": "pair.delimiter",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "string"
           },
           {
-            "name": "getPositionStats",
+            "name": "pair.base",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "string"
           },
           {
-            "name": "includeFullOrderData",
+            "name": "pair.quote",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "string"
           },
           {
-            "name": "getFundingPayments",
+            "name": "underlyingPair.delimiter",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "string"
           },
           {
-            "name": "includeFullFundingRates",
+            "name": "underlyingPair.base",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "string"
           },
           {
-            "name": "includePredictedRate",
+            "name": "underlyingPair.quote",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "string"
           }
         ],
         "tags": [
@@ -5908,31 +5955,32 @@
         }
       }
     },
-    "gctrpcGetFuturesPositionsResponse": {
+    "gctrpcGetFuturesPositionsOrdersResponse": {
       "type": "object",
       "properties": {
-        "totalOrders": {
-          "type": "string",
-          "format": "int64"
-        },
-        "subAccount": {
-          "type": "string"
-        },
-        "totalRealisedPnl": {
-          "type": "string"
-        },
-        "totalUnrealisedPnl": {
-          "type": "string"
-        },
-        "totalPnl": {
-          "type": "string"
-        },
         "positions": {
           "type": "array",
           "items": {
             "type": "object",
             "$ref": "#/definitions/gctrpcFuturePosition"
           }
+        }
+      }
+    },
+    "gctrpcGetFuturesPositionsSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "positionStats": {
+          "$ref": "#/definitions/gctrpcFuturesPositionStats"
         }
       }
     },

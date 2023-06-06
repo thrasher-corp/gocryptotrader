@@ -43,7 +43,7 @@ func getInfo(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func getSubsystems(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -119,7 +119,7 @@ func enableSubsystem(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -169,7 +169,7 @@ func disableSubsystem(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -195,7 +195,7 @@ func getRPCEndpoints(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -221,7 +221,7 @@ func getCommunicationRelayers(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -261,7 +261,7 @@ func getExchanges(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -307,7 +307,7 @@ func enableExchange(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -353,7 +353,7 @@ func disableExchange(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -399,7 +399,7 @@ func getExchangeOTPCode(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -424,7 +424,7 @@ func getExchangeOTPCodes(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -470,7 +470,7 @@ func getExchangeInfo(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -559,7 +559,7 @@ func getTicker(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -582,7 +582,7 @@ func getTickers(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -642,7 +642,7 @@ func getAccountInfo(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -774,7 +774,7 @@ func updateAccountInfo(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -797,7 +797,7 @@ func getConfig(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -820,7 +820,7 @@ func getPortfolio(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -843,7 +843,7 @@ func getPortfolioSummary(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -956,7 +956,7 @@ func addPortfolioAddress(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1027,7 +1027,7 @@ func removePortfolioAddress(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1050,7 +1050,7 @@ func getForexProviders(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1073,7 +1073,7 @@ func getForexRates(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1198,7 +1198,7 @@ func getOrders(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1284,7 +1284,7 @@ func getManagedOrders(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1379,7 +1379,7 @@ func getOrder(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1563,7 +1563,7 @@ func submitOrder(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1668,7 +1668,7 @@ func simulateOrder(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1810,7 +1810,7 @@ func cancelOrder(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -1952,7 +1952,7 @@ func cancelBatchOrders(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2024,7 +2024,7 @@ func cancelAllOrders(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2113,7 +2113,7 @@ func modifyOrder(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2136,7 +2136,7 @@ func getEvents(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2298,7 +2298,7 @@ func addEvent(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2348,7 +2348,7 @@ func removeEvent(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2390,7 +2390,7 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2480,7 +2480,7 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2542,7 +2542,7 @@ func getAvailableTransferChains(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2672,7 +2672,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2765,7 +2765,7 @@ func withdrawFiatFunds(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2889,7 +2889,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -2966,7 +2966,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -3040,7 +3040,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -3089,7 +3089,7 @@ func getLoggerDetails(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -3155,7 +3155,7 @@ func setLoggerDetails(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -3435,7 +3435,7 @@ func getAuditEvent(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -3597,7 +3597,7 @@ func gctScriptAutoload(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 	return nil
 }
 
@@ -3637,7 +3637,7 @@ func gctScriptExecute(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 
 	return nil
 }
@@ -3657,7 +3657,7 @@ func gctScriptStatus(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 	return nil
 }
 
@@ -3676,7 +3676,7 @@ func gctScriptList(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 	return nil
 }
 
@@ -3707,7 +3707,7 @@ func gctScriptStop(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 	return nil
 }
 
@@ -3726,7 +3726,7 @@ func gctScriptStopAll(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 	return nil
 }
 
@@ -3759,7 +3759,7 @@ func gctScriptRead(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 	return nil
 }
 
@@ -3792,7 +3792,7 @@ func gctScriptQuery(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(executeCommand)
+	jsonOutput(c, executeCommand)
 
 	return nil
 }
@@ -3861,7 +3861,7 @@ func gctScriptUpload(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(uploadCommand)
+	jsonOutput(c, uploadCommand)
 	return nil
 }
 
@@ -4001,7 +4001,7 @@ func getHistoricCandles(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -4193,7 +4193,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -4337,7 +4337,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -4360,7 +4360,7 @@ func shutdown(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -4559,6 +4559,6 @@ func getMarginRatesHistory(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }

@@ -346,7 +346,7 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -502,7 +502,7 @@ func getBollingerBands(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -642,7 +642,7 @@ func getMACD(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -795,6 +795,6 @@ func getCoco(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }

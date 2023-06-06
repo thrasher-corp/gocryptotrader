@@ -1680,44 +1680,44 @@ func TestUpperCollateralType(t *testing.T) {
 
 func TestIsValidCollateralTypeString(t *testing.T) {
 	t.Parallel()
-	if IsValidCollateralTypeString("lol") {
+	if IsValidCollateralModeString("lol") {
 		t.Fatal("expected 'false', received 'true'")
 	}
-	if !IsValidCollateralTypeString("single") {
+	if !IsValidCollateralModeString("single") {
 		t.Fatal("expected 'true', received 'false'")
 	}
-	if !IsValidCollateralTypeString("multi") {
+	if !IsValidCollateralModeString("multi") {
 		t.Fatal("expected 'true', received 'false'")
 	}
-	if !IsValidCollateralTypeString("global") {
+	if !IsValidCollateralModeString("global") {
 		t.Fatal("expected 'true', received 'false'")
 	}
-	if !IsValidCollateralTypeString("unset") {
+	if !IsValidCollateralModeString("unset") {
 		t.Fatal("expected 'true', received 'false'")
 	}
-	if IsValidCollateralTypeString("") {
+	if IsValidCollateralModeString("") {
 		t.Fatal("expected 'false', received 'true'")
 	}
-	if IsValidCollateralTypeString("unknown") {
+	if IsValidCollateralModeString("unknown") {
 		t.Fatal("expected 'false', received 'true'")
 	}
 }
 
 func TestStringToCollateralType(t *testing.T) {
 	t.Parallel()
-	if resp := StringToCollateralType("lol"); resp != UnknownCollateral {
+	if resp := StringToCollateralMode("lol"); resp != UnknownCollateral {
 		t.Errorf("received '%v' expected '%v'", resp, UnknownCollateral)
 	}
-	if resp := StringToCollateralType(""); resp != UnsetCollateralMode {
+	if resp := StringToCollateralMode(""); resp != UnsetCollateralMode {
 		t.Errorf("received '%v' expected '%v'", resp, UnsetCollateralMode)
 	}
-	if resp := StringToCollateralType("single"); resp != SingleCollateral {
+	if resp := StringToCollateralMode("single"); resp != SingleCollateral {
 		t.Errorf("received '%v' expected '%v'", resp, SingleCollateral)
 	}
-	if resp := StringToCollateralType("multi"); resp != MultiCollateral {
+	if resp := StringToCollateralMode("multi"); resp != MultiCollateral {
 		t.Errorf("received '%v' expected '%v'", resp, MultiCollateral)
 	}
-	if resp := StringToCollateralType("global"); resp != GlobalCollateral {
+	if resp := StringToCollateralMode("global"); resp != GlobalCollateral {
 		t.Errorf("received '%v' expected '%v'", resp, GlobalCollateral)
 	}
 }

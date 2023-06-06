@@ -106,7 +106,7 @@ func stateGetAll(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 
 	return nil
 }
@@ -154,7 +154,7 @@ func stateGetDeposit(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -201,7 +201,7 @@ func stateGetWithdrawal(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -248,7 +248,7 @@ func stateGetTrading(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -295,6 +295,6 @@ func stateGetPairTrading(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }

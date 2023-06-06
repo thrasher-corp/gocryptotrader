@@ -1122,7 +1122,7 @@ func (t *CollateralMode) UnmarshalJSON(d []byte) error {
 	if err != nil {
 		return err
 	}
-	*t = StringToCollateralType(collateralMode)
+	*t = StringToCollateralMode(collateralMode)
 	return nil
 }
 
@@ -1149,8 +1149,8 @@ func (t CollateralMode) Upper() string {
 	return strings.ToUpper(t.String())
 }
 
-// IsValidCollateralTypeString checks to see if the supplied string is a valid collateral type
-func IsValidCollateralTypeString(m string) bool {
+// IsValidCollateralModeString checks to see if the supplied string is a valid collateral type
+func IsValidCollateralModeString(m string) bool {
 	switch strings.ToLower(m) {
 	case singleCollateralStr, multiCollateralStr, globalCollateralStr, unsetCollateralStr:
 		return true
@@ -1158,9 +1158,9 @@ func IsValidCollateralTypeString(m string) bool {
 	return false
 }
 
-// StringToCollateralType converts a string to a collateral type
+// StringToCollateralMode converts a string to a collateral type
 // doesn't error, just returns unknown if the string is not recognised
-func StringToCollateralType(m string) CollateralMode {
+func StringToCollateralMode(m string) CollateralMode {
 	switch strings.ToLower(m) {
 	case singleCollateralStr:
 		return SingleCollateral

@@ -146,7 +146,7 @@ func executeStrategyFromFile(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -173,7 +173,7 @@ func listAllTasks(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -219,7 +219,7 @@ func startTask(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -246,7 +246,7 @@ func startAllTasks(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -293,7 +293,7 @@ func stopTask(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -320,7 +320,7 @@ func stopAllTasks(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -367,7 +367,7 @@ func clearTask(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -394,7 +394,7 @@ func clearAllTasks(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -625,6 +625,6 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }

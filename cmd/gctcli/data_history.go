@@ -333,7 +333,7 @@ func getDataHistoryJob(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -351,7 +351,7 @@ func getActiveDataHistoryJobs(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -525,7 +525,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -572,7 +572,7 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -626,7 +626,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -657,7 +657,7 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -700,6 +700,6 @@ func setPrerequisiteJob(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }

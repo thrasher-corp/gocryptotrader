@@ -232,7 +232,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -277,7 +277,7 @@ func getExchangePairs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -324,7 +324,7 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -357,7 +357,7 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -388,7 +388,7 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
 
@@ -419,6 +419,6 @@ func getExchangeAssets(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(result)
+	jsonOutput(c, result)
 	return nil
 }
