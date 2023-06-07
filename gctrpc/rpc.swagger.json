@@ -2122,6 +2122,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "syncWithOrderManager",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [

@@ -116,7 +116,7 @@ func getwebsocketInfo(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -145,7 +145,7 @@ func enableDisableWebsocket(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -173,7 +173,7 @@ func getSubscriptions(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -208,7 +208,7 @@ func setProxy(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -243,6 +243,6 @@ func setURL(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }

@@ -1127,6 +1127,7 @@ message GetFuturesPositionsOrdersRequest {
   string start_date = 5;
   string end_date = 6;
   bool respect_order_history_limits = 7;
+  bool sync_with_order_manager = 8;
 }
 
 message GetFuturesPositionsOrdersResponse {

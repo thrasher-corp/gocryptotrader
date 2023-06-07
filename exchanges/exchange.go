@@ -1649,11 +1649,11 @@ func (b *Base) ChangePositionMargin(_ context.Context, _ *margin.PositionChangeR
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _, _ currency.Pair, _ margin.Type, _ float64) error {
+func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _, _ currency.Pair, _ margin.Type) (float64, error) {
+func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) (float64, error) {
 	return -1, common.ErrFunctionNotSupported
 }

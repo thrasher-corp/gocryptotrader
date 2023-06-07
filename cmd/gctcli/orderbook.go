@@ -134,7 +134,7 @@ func getNominal(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -220,7 +220,7 @@ func getImpact(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -344,7 +344,7 @@ func getMovement(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 
 	return nil
 }
@@ -434,7 +434,7 @@ func getOrderbook(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -457,7 +457,7 @@ func getOrderbooks(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -763,6 +763,6 @@ func whaleBomb(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }

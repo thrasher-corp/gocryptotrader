@@ -37,10 +37,14 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 		return nil, fmt.Errorf("%w OrderManager", errNilConfig)
 	}
 
+	var respectOrderHistoryLimits bool
+	if cfg.RespectOrderHistoryLimits != nil {
+		respectOrderHistoryLimits = *cfg.RespectOrderHistoryLimits
+	}
 	om := &OrderManager{
 		shutdown:                      make(chan struct{}),
 		activelyTrackFuturesPositions: cfg.ActivelyTrackFuturesPositions,
-		respectOrderHistoryLimits:     *cfg.RespectOrderHistoryLimits,
+		respectOrderHistoryLimits:     respectOrderHistoryLimits,
 		orderStore: store{
 			Orders:                    make(map[string][]*order.Detail),
 			exchangeManager:           exchangeManager,

@@ -1720,10 +1720,12 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 		if req.RespectOrderHistoryLimits {
 			req.StartDate = time.Now().Add(-ok.Features.Supports.MaximumOrderHistory)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
+			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-ok.Features.Supports.MaximumOrderHistory))
 		}
 	}
-
+	if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+		return nil, err
+	}
 	resp := make([]order.PositionResponse, len(req.Pairs))
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
@@ -1741,6 +1743,8 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 			OrderListRequestParams: OrderListRequestParams{
 				InstrumentType: instrumentType,
 				InstrumentID:   fPair.String(),
+				Start:          req.StartDate,
+				End:            req.EndDate,
 			},
 		}
 		if time.Since(req.StartDate) <= time.Hour*24*7 {

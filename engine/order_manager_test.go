@@ -1657,6 +1657,12 @@ func TestProcessFuturesPositions(t *testing.T) {
 	position.Orders[0].AssetType = asset.Futures
 	position.Asset = asset.Futures
 	err = o.processFuturesPositions(fakeExchange, position)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.Features.Supports.FuturesCapabilities.FundingRates = true
+	err = o.processFuturesPositions(fakeExchange, position)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received '%v', expected '%v'", err, common.ErrNotYetImplemented)
 	}

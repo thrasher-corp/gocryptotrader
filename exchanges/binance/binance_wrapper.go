@@ -2270,16 +2270,24 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 	if len(req.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
+	req.StartDate = req.StartDate.Truncate(time.Hour)
+	req.EndDate = req.EndDate.Truncate(time.Hour)
 	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory {
 		if req.RespectOrderHistoryLimits {
-			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
+			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory).Round(time.Hour)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, req.StartDate)
+			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
 		}
 	}
+
+	if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+		return nil, err
+	}
 	var resp []order.PositionResponse
+	sd := req.StartDate
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
+		var orderLimit = 1000
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -2289,33 +2297,22 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			if err != nil {
 				return nil, err
 			}
-			if len(result) > 1 {
-				// TODO: Support hedge mode
-				return nil, fmt.Errorf("%w %v", errHedgeModeUnsupported, b.Name)
-			}
-
 			for y := range result {
 				currencyPosition := order.PositionResponse{
 					Asset: req.Asset,
 					Pair:  req.Pairs[x],
 				}
-				var timeRanges *kline.IntervalRangeHolder
-				// Binance splits up
-				timeRanges, err = kline.CalculateCandleDateRanges(req.StartDate, time.Now(), kline.OneDay, 1000)
-				if err != nil {
-					return nil, err
-				}
-				if timeRanges == nil {
-					return nil, fmt.Errorf("%w IntervalRangeHolder", common.ErrNilPointer)
-				}
-				for z := range timeRanges.Ranges {
+				for {
 					var orders []UFuturesOrderData
-					orders, err = b.UAllAccountOrders(ctx, fPair, 0, 1000, timeRanges.Ranges[z].Start.Time, timeRanges.Ranges[z].End.Time)
+					orders, err = b.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), time.Time{}, time.Time{})
 					if err != nil {
 						return nil, err
 					}
 					for i := range orders {
 						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						if orders[i].Time.After(req.EndDate) {
+							continue
+						}
 						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
 							ReduceOnly:           orders[i].ClosePosition,
 							Price:                orders[i].Price,
@@ -2339,11 +2336,16 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 							MarginType:           result[y].MarginType,
 						})
 					}
+					if len(orders) < orderLimit {
+						break
+					}
+					sd = currencyPosition.Orders[len(currencyPosition.Orders)-1].Date
 				}
 				resp = append(resp, currencyPosition)
 			}
 		}
 	case asset.CoinMarginedFutures:
+		var orderLimit = 100
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -2353,28 +2355,20 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			if err != nil {
 				return nil, err
 			}
-			if len(result) > 1 {
-				// TODO: Support hedge mode
-				return nil, fmt.Errorf("%w %v", errHedgeModeUnsupported, b.Name)
-			}
-
 			currencyPosition := order.PositionResponse{
 				Asset: req.Asset,
 				Pair:  req.Pairs[x],
 			}
-			timeRanges, err := kline.CalculateCandleDateRanges(req.StartDate, time.Now(), kline.OneHour, 100)
-			if err != nil {
-				return nil, err
-			}
 			for y := range result {
-				for z := range timeRanges.Ranges {
+				for {
 					var orders []FuturesOrderData
-					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, timeRanges.Ranges[z].Start.Time, timeRanges.Ranges[z].End.Time, 0, 100)
+					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, int64(orderLimit))
 					if err != nil {
 						return nil, err
 					}
 					for i := range orders {
-						orderPair, err := currency.NewPairFromString(orders[i].Pair)
+						var orderPair currency.Pair
+						orderPair, err = currency.NewPairFromString(orders[i].Pair)
 						if err != nil {
 							return nil, err
 						}
@@ -2402,6 +2396,10 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 							MarginType:           result[y].MarginType,
 						})
 					}
+					if len(orders) < orderLimit {
+						break
+					}
+					sd = currencyPosition.Orders[len(currencyPosition.Orders)-1].Date
 				}
 				resp = append(resp, currencyPosition)
 			}

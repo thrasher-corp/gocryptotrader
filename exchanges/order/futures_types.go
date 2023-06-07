@@ -400,6 +400,7 @@ type PositionsRequest struct {
 	Asset     asset.Item
 	Pairs     currency.Pairs
 	StartDate time.Time
+	EndDate   time.Time
 	// RespectOrderHistoryLimits is designed for the order manager
 	// it allows for orders to be tracked if the start date in the config is
 	// beyond the allowable limits by the API, rather than returning an error

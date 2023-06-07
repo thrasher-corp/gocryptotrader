@@ -84,11 +84,11 @@ func (f fExchange) ChangePositionMargin(_ context.Context, req *margin.PositionC
 	}, nil
 }
 
-func (f fExchange) SetLeverage(_ context.Context, _ asset.Item, _, _ currency.Pair, _ margin.Type, _ float64) error {
+func (f fExchange) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64) error {
 	return nil
 }
 
-func (f fExchange) GetLeverage(_ context.Context, _ asset.Item, _, _ currency.Pair, _ margin.Type) (float64, error) {
+func (f fExchange) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) (float64, error) {
 	return 1337, nil
 }
 
@@ -2265,7 +2265,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	}
 }
 
-func TestGetFuturesPositions(t *testing.T) {
+func TestGetFuturesPositionsOrders(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("binance")
@@ -2322,7 +2322,7 @@ func TestGetFuturesPositions(t *testing.T) {
 		},
 	}
 
-	_, err = s.GetFuturesPositions(context.Background(), &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositionsOrders(context.Background(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2342,7 +2342,7 @@ func TestGetFuturesPositions(t *testing.T) {
 		},
 	)
 
-	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositionsOrders(ctx, &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: "test",
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2350,11 +2350,6 @@ func TestGetFuturesPositions(t *testing.T) {
 			Base:      cp.Base.String(),
 			Quote:     cp.Quote.String(),
 		},
-		IncludeFullOrderData:    true,
-		IncludeFullFundingRates: true,
-		IncludePredictedRate:    true,
-		GetPositionStats:        true,
-		GetFundingPayments:      true,
 	})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
@@ -2376,7 +2371,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
-	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositionsOrders(ctx, &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2384,13 +2379,12 @@ func TestGetFuturesPositions(t *testing.T) {
 			Base:      cp.Base.String(),
 			Quote:     cp.Quote.String(),
 		},
-		IncludeFullOrderData: true,
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
 
-	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositionsOrders(ctx, &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2433,6 +2427,7 @@ func TestGetCollateral(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
+	b.Features.Supports.FuturesCapabilities.Collateral = true
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
@@ -2974,6 +2969,7 @@ func TestGetFundingRates(t *testing.T) {
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
 	}
+	b.Features.Supports.FuturesCapabilities.FundingRates = true
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
@@ -3073,6 +3069,7 @@ func TestGetManagedPosition(t *testing.T) {
 		Available:     currency.Pairs{cp, cp2},
 		Enabled:       currency.Pairs{cp, cp2},
 	}
+	b.Features.Supports.FuturesCapabilities.OrderManagerPositionTracking = true
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}

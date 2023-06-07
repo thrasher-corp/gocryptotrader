@@ -27,7 +27,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	useTestNet              = !false
+	useTestNet              = false
 )
 
 var (
@@ -2950,25 +2950,24 @@ func TestGetPositionSummary(t *testing.T) {
 	}
 }
 
-func TestGetFuturesPositions(t *testing.T) {
+func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	b.Verbose = true
-	hello, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
-		Asset:     asset.USDTMarginedFutures,
-		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
-		StartDate: time.Now().Add(-time.Hour * 24 * 6),
+	_, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
+		Asset:                     asset.USDTMarginedFutures,
+		Pairs:                     []currency.Pair{currency.NewBTCUSDT()},
+		StartDate:                 time.Now().Add(-time.Hour * 24 * 70),
+		RespectOrderHistoryLimits: true,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(hello)
 
 	p, err := currency.NewPairFromString("BTCUSD_PERP")
 	if err != nil {
 		t.Fatal(err)
 	}
-	hello, err = b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
+	_, err = b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
 		Asset:     asset.CoinMarginedFutures,
 		Pairs:     []currency.Pair{p},
 		StartDate: time.Now().Add(time.Hour * 24 * -6),
@@ -2976,7 +2975,6 @@ func TestGetFuturesPositions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(hello)
 }
 
 func TestSetMarginType(t *testing.T) {

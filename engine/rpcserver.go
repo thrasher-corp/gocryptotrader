@@ -70,7 +70,6 @@ var (
 	errCurrencyNotSpecified    = errors.New("a currency must be specified")
 	errCurrencyPairInvalid     = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades                = errors.New("no trades returned from supplied params")
-	errUnexpectedResponseSize  = errors.New("unexpected slice size")
 	errNilRequestData          = errors.New("nil request data received, cannot continue")
 	errNoAccountInformation    = errors.New("account information does not exist")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
@@ -4331,7 +4330,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	}
 	feat := exch.GetSupportedFeatures()
 	if !feat.FuturesCapabilities.OrderManagerPositionTracking {
-		return nil, common.ErrFunctionNotSupported
+		return nil, fmt.Errorf("%w OrderManagerPositionTracking for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
 	}
 	ai, err = asset.New(r.Asset)
 	if err != nil {
@@ -4381,6 +4380,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	return &gctrpc.GetManagedPositionsResponse{Positions: response}, nil
 }
 
+// GetFuturesPositionsSummary returns a summary of futures positions for an exchange asset pair from the API
 func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.GetFuturesPositionsSummaryRequest) (*gctrpc.GetFuturesPositionsSummaryResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w GetFuturesPositionsSummary", common.ErrNilPointer)
@@ -4391,13 +4391,20 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	}
 	feat := exch.GetSupportedFeatures()
 	if !feat.FuturesCapabilities.Positions {
-		return nil, fmt.Errorf("%w futures position tracking", common.ErrFunctionNotSupported)
+		return nil, fmt.Errorf("%w futures position tracking for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
 	}
 	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
 
+	var underlying currency.Pair
+	if r.UnderlyingPair != nil {
+		underlying, err = currency.NewPairFromStrings(r.UnderlyingPair.Base, r.UnderlyingPair.Quote)
+		if err != nil {
+			return nil, err
+		}
+	}
 	ai, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
@@ -4413,24 +4420,44 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	var stats *order.PositionSummary
 
 	stats, err = exch.GetFuturesPositionSummary(ctx, &order.PositionSummaryRequest{
-		Asset: ai,
-		Pair:  cp,
+		Asset:          ai,
+		Pair:           cp,
+		UnderlyingPair: underlying,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("cannot GetFuturesPositionSummary %w %v", err)
+		return nil, fmt.Errorf("cannot GetFuturesPositionSummary %w", err)
 	}
 
-	positionStats := &gctrpc.FuturesPositionStats{
-		MaintenanceMarginRequirement: stats.MaintenanceMarginRequirement.String(),
-		InitialMarginRequirement:     stats.InitialMarginRequirement.String(),
-		CollateralUsed:               stats.CollateralUsed.String(),
-		MarkPrice:                    stats.MarkPrice.String(),
-		CurrentSize:                  stats.CurrentSize.String(),
-		AverageOpenPrice:             stats.AverageOpenPrice.String(),
-		RecentPnl:                    stats.PositionPNL.String(),
-		MarginFraction:               stats.MaintenanceMarginFraction.String(),
-		FreeCollateral:               stats.FreeCollateral.String(),
-		TotalCollateral:              stats.TotalCollateral.String(),
+	positionStats := &gctrpc.FuturesPositionStats{}
+	if !stats.MaintenanceMarginRequirement.IsZero() {
+		positionStats.MaintenanceMarginRequirement = stats.MaintenanceMarginRequirement.String()
+	}
+	if !stats.InitialMarginRequirement.IsZero() {
+		positionStats.InitialMarginRequirement = stats.InitialMarginRequirement.String()
+	}
+	if !stats.CollateralUsed.IsZero() {
+		positionStats.CollateralUsed = stats.CollateralUsed.String()
+	}
+	if !stats.MarkPrice.IsZero() {
+		positionStats.MarkPrice = stats.MarkPrice.String()
+	}
+	if !stats.CurrentSize.IsZero() {
+		positionStats.CurrentSize = stats.CurrentSize.String()
+	}
+	if !stats.AverageOpenPrice.IsZero() {
+		positionStats.AverageOpenPrice = stats.AverageOpenPrice.String()
+	}
+	if !stats.PositionPNL.IsZero() {
+		positionStats.RecentPnl = stats.PositionPNL.String()
+	}
+	if !stats.MaintenanceMarginFraction.IsZero() {
+		positionStats.MarginFraction = stats.MaintenanceMarginFraction.String()
+	}
+	if !stats.FreeCollateral.IsZero() {
+		positionStats.FreeCollateral = stats.FreeCollateral.String()
+	}
+	if !stats.TotalCollateral.IsZero() {
+		positionStats.TotalCollateral = stats.TotalCollateral.String()
 	}
 	if !stats.EstimatedLiquidationPrice.IsZero() {
 		positionStats.EstimatedLiquidationPrice = stats.EstimatedLiquidationPrice.String()
@@ -4458,7 +4485,10 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 	}
 	feat := exch.GetSupportedFeatures()
 	if !feat.FuturesCapabilities.Positions {
-		return nil, fmt.Errorf("%w futures position tracking", common.ErrFunctionNotSupported)
+		return nil, fmt.Errorf("%w futures position tracking for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
+	}
+	if r.SyncWithOrderManager && !feat.FuturesCapabilities.OrderManagerPositionTracking {
+		return nil, fmt.Errorf("%w OrderManagerPositionTracking", common.ErrFunctionNotSupported)
 	}
 	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
@@ -4495,23 +4525,15 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 		return nil, err
 	}
 
-	b := exch.GetBase()
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var subAccount string
-	if creds.SubAccount != "" {
-		subAccount = "for subaccount: " + creds.SubAccount
-	}
 	positionDetails, err := exch.GetFuturesPositionOrders(ctx, &order.PositionsRequest{
 		Asset:                     ai,
 		Pairs:                     currency.Pairs{cp},
 		StartDate:                 start,
+		EndDate:                   end,
 		RespectOrderHistoryLimits: r.RespectOrderHistoryLimits,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w %v", err, subAccount)
+		return nil, err
 	}
 	response := &gctrpc.GetFuturesPositionsOrdersResponse{}
 	positions := make([]*gctrpc.FuturePosition, len(positionDetails))
@@ -4548,6 +4570,15 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 		}
 		positions[i] = details
 	}
+	response.Positions = positions
+	if r.SyncWithOrderManager {
+		for i := range positionDetails {
+			err = s.OrderManager.processFuturesPositions(exch, &positionDetails[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	return response, nil
 }
 
@@ -4562,7 +4593,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 	}
 	feat := exch.GetSupportedFeatures()
 	if !feat.FuturesCapabilities.FundingRates {
-		return nil, fmt.Errorf("%w FundingRates", common.ErrFunctionNotSupported)
+		return nil, fmt.Errorf("%w FundingRates for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
 	}
 	a, err := asset.New(r.Asset)
 	if err != nil {
@@ -4665,7 +4696,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 	feat := exch.GetSupportedFeatures()
 	if !feat.FuturesCapabilities.Collateral {
-		return nil, fmt.Errorf("%w Get Collateral", common.ErrFunctionNotSupported)
+		return nil, fmt.Errorf("%w Get Collateral for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
 	}
 
 	a, err := asset.New(r.Asset)
@@ -5469,6 +5500,10 @@ func (s *RPCServer) GetCollateralMode(ctx context.Context, r *gctrpc.GetCollater
 	if err != nil {
 		return nil, err
 	}
+	feat := exch.GetSupportedFeatures()
+	if !feat.FuturesCapabilities.CollateralMode {
+		return nil, fmt.Errorf("%w GetCollateralMode for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
+	}
 
 	item, err := asset.New(r.Asset)
 	if err != nil {
@@ -5508,7 +5543,10 @@ func (s *RPCServer) SetCollateralMode(ctx context.Context, r *gctrpc.SetCollater
 	if err != nil {
 		return nil, err
 	}
-
+	feat := exch.GetSupportedFeatures()
+	if !feat.FuturesCapabilities.CollateralMode {
+		return nil, fmt.Errorf("%w SetCollateralMode for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
+	}
 	item, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
@@ -5598,7 +5636,10 @@ func (s *RPCServer) GetLeverage(ctx context.Context, r *gctrpc.GetLeverageReques
 	if err != nil {
 		return nil, err
 	}
-
+	feat := exch.GetSupportedFeatures()
+	if !feat.FuturesCapabilities.Leverage {
+		return nil, fmt.Errorf("%w GetLeverage for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
+	}
 	as, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
@@ -5646,7 +5687,10 @@ func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageReques
 	if err != nil {
 		return nil, err
 	}
-
+	feat := exch.GetSupportedFeatures()
+	if !feat.FuturesCapabilities.Leverage {
+		return nil, fmt.Errorf("%w SetLeverage for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
+	}
 	as, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err

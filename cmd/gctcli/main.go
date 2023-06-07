@@ -34,20 +34,12 @@ var (
 
 const defaultTimeout = time.Second * 30
 
-func jsonOutput(ctx *cli.Context, in interface{}) {
+func jsonOutput(in interface{}) {
 	j, err := json.MarshalIndent(in, "", " ")
 	if err != nil {
 		return
 	}
 
-	value := ctx.Value(string(account.ContextCredentialsFlag))
-	if value != nil {
-		ctxCredStore, ok := value.(*account.ContextCredentialsStore)
-		if ok {
-			creds := ctxCredStore.Get()
-			fmt.Print(creds.String())
-		}
-	}
 	fmt.Print(string(j))
 }
 

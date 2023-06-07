@@ -299,7 +299,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -342,7 +342,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -432,7 +432,7 @@ func getSavedTrades(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -494,7 +494,7 @@ func getRecentTrades(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
 
@@ -724,6 +724,6 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(c, result)
+	jsonOutput(result)
 	return nil
 }
