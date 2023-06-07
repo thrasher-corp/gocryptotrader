@@ -3364,6 +3364,7 @@ func TestGetTickersV5(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+
 	// other assets not currently implemented.
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {

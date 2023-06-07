@@ -447,7 +447,7 @@ func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol string) ([]T
 		return nil, err
 	}
 
-	return result.Data.List, result.GetError()
+	return result.Data.List, nil
 }
 
 // CreatePostOrder create and post order
@@ -792,7 +792,7 @@ func (by *Bybit) GetAccountFee(ctx context.Context, category, symbol, baseCoin s
 		return nil, err
 	}
 
-	return result.Data.List, result.GetError()
+	return result.Data.List, nil
 }
 
 // SendHTTPRequest sends an unauthenticated request

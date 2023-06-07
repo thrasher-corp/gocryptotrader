@@ -2103,11 +2103,12 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				Asset:                   a,
 				Pair:                    pair,
 				AmountStepIncrementSize: pairsData[x].BasePrecision.Float64(),
-				PriceStepIncrementSize:  pairsData[x].QuotePrecision.Float64(),
-				// MinTradeQuantity refers to the minimum in base terms
-				MinAmount: pairsData[x].MinTradeQuantity.Float64(),
-				// MaxTradeQuantity	refers to the maximum in base terms
-				MaxAmount: pairsData[x].MaxTradeQuantity.Float64(),
+				QuoteStepIncrementSize:  pairsData[x].QuotePrecision.Float64(),
+				MinimumBaseAmount:       pairsData[x].MinTradeQuantity.Float64(),
+				MaximumBaseAmount:       pairsData[x].MaxTradeQuantity.Float64(),
+				MinimumQuoteAmount:      pairsData[x].MinTradeAmount.Float64(),
+				MaximumQuoteAmount:      pairsData[x].MaxTradeAmount.Float64(),
+				PriceStepIncrementSize:  pairsData[x].MinPricePrecision.Float64(),
 			})
 		}
 	default:

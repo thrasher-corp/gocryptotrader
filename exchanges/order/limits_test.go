@@ -25,11 +25,11 @@ func TestLoadLimits(t *testing.T) {
 
 	invalidAsset := []MinMaxLevel{
 		{
-			Pair:      btcusd,
-			MinPrice:  100000,
-			MaxPrice:  1000000,
-			MinAmount: 1,
-			MaxAmount: 10,
+			Pair:              btcusd,
+			MinPrice:          100000,
+			MaxPrice:          1000000,
+			MinimumBaseAmount: 1,
+			MaximumBaseAmount: 10,
 		},
 	}
 	err = e.LoadLimits(invalidAsset)
@@ -41,11 +41,11 @@ func TestLoadLimits(t *testing.T) {
 
 	invalidPairLoading := []MinMaxLevel{
 		{
-			Asset:     asset.Spot,
-			MinPrice:  100000,
-			MaxPrice:  1000000,
-			MinAmount: 1,
-			MaxAmount: 10,
+			Asset:             asset.Spot,
+			MinPrice:          100000,
+			MaxPrice:          1000000,
+			MinimumBaseAmount: 1,
+			MaximumBaseAmount: 10,
 		},
 	}
 
@@ -56,12 +56,12 @@ func TestLoadLimits(t *testing.T) {
 
 	newLimits := []MinMaxLevel{
 		{
-			Pair:      btcusd,
-			Asset:     asset.Spot,
-			MinPrice:  100000,
-			MaxPrice:  1000000,
-			MinAmount: 1,
-			MaxAmount: 10,
+			Pair:              btcusd,
+			Asset:             asset.Spot,
+			MinPrice:          100000,
+			MaxPrice:          1000000,
+			MinimumBaseAmount: 1,
+			MaximumBaseAmount: 10,
 		},
 	}
 
@@ -72,12 +72,12 @@ func TestLoadLimits(t *testing.T) {
 
 	badLimit := []MinMaxLevel{
 		{
-			Pair:      btcusd,
-			Asset:     asset.Spot,
-			MinPrice:  2,
-			MaxPrice:  1,
-			MinAmount: 1,
-			MaxAmount: 10,
+			Pair:              btcusd,
+			Asset:             asset.Spot,
+			MinPrice:          2,
+			MaxPrice:          1,
+			MinimumBaseAmount: 1,
+			MaximumBaseAmount: 10,
 		},
 	}
 
@@ -88,12 +88,12 @@ func TestLoadLimits(t *testing.T) {
 
 	badLimit = []MinMaxLevel{
 		{
-			Pair:      btcusd,
-			Asset:     asset.Spot,
-			MinPrice:  1,
-			MaxPrice:  2,
-			MinAmount: 10,
-			MaxAmount: 9,
+			Pair:              btcusd,
+			Asset:             asset.Spot,
+			MinPrice:          1,
+			MaxPrice:          2,
+			MinimumBaseAmount: 10,
+			MaximumBaseAmount: 9,
 		},
 	}
 
@@ -116,9 +116,9 @@ func TestLoadLimits(t *testing.T) {
 
 	noCompare := []MinMaxLevel{
 		{
-			Pair:      btcusd,
-			Asset:     asset.Spot,
-			MinAmount: 10,
+			Pair:              btcusd,
+			Asset:             asset.Spot,
+			MinimumBaseAmount: 10,
 		},
 	}
 
@@ -151,12 +151,12 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 
 	newLimits := []MinMaxLevel{
 		{
-			Pair:      btcusd,
-			Asset:     asset.Spot,
-			MinPrice:  100000,
-			MaxPrice:  1000000,
-			MinAmount: 1,
-			MaxAmount: 10,
+			Pair:              btcusd,
+			Asset:             asset.Spot,
+			MinPrice:          100000,
+			MaxPrice:          1000000,
+			MinimumBaseAmount: 1,
+			MaximumBaseAmount: 10,
 		},
 	}
 
@@ -185,8 +185,8 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	if tt.MaxAmount != newLimits[0].MaxAmount ||
-		tt.MinAmount != newLimits[0].MinAmount ||
+	if tt.MaximumBaseAmount != newLimits[0].MaximumBaseAmount ||
+		tt.MinimumBaseAmount != newLimits[0].MinimumBaseAmount ||
 		tt.MaxPrice != newLimits[0].MaxPrice ||
 		tt.MinPrice != newLimits[0].MinPrice {
 		t.Fatal("unexpected values")
@@ -203,12 +203,12 @@ func TestCheckLimit(t *testing.T) {
 
 	newLimits := []MinMaxLevel{
 		{
-			Pair:      btcusd,
-			Asset:     asset.Spot,
-			MinPrice:  100000,
-			MaxPrice:  1000000,
-			MinAmount: 1,
-			MaxAmount: 10,
+			Pair:              btcusd,
+			Asset:             asset.Spot,
+			MinPrice:          100000,
+			MaxPrice:          1000000,
+			MinimumBaseAmount: 1,
+			MaximumBaseAmount: 10,
 		},
 	}
 
@@ -305,8 +305,8 @@ func TestConforms(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	tt.MinAmount = 1
-	tt.MaxAmount = 10
+	tt.MinimumBaseAmount = 1
+	tt.MaximumBaseAmount = 10
 	tt.MarketMinQty = 1.1
 	tt.MarketMaxQty = 9.9
 

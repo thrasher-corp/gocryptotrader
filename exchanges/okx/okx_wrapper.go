@@ -342,7 +342,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			Pair:                   pair,
 			Asset:                  a,
 			PriceStepIncrementSize: insts[x].TickSize.Float64(),
-			MinAmount:              insts[x].MinimumOrderSize.Float64(),
+			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
 		}
 	}
 
