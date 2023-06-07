@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -148,76 +149,76 @@ func (p Pair) IsPopulated() bool {
 	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
 }
 
-// MarketSellOrderAspect returns an order aspect for when you want to sell a
-// currency which purchases another currency. This specifically returns what
-// liquidity side you will be affecting, what order side you will be placing and
-// what currency you will be purchasing.
-func (p Pair) MarketSellOrderAspect(wantingToSell Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToSell, true, true)
+// MarketSellOrderDecisionDetails returns an order decision details for when you
+// want to sell a currency which purchases another currency. This specifically
+// returns what liquidity side you will be affecting, what order side you will
+// be placing and what currency you will be purchasing.
+func (p Pair) MarketSellOrderDecisionDetails(wantingToSell Code) (*OrderDecisionDetails, error) {
+	return p.getOrderDecisionDetails(wantingToSell, true, true)
 }
 
-// MarketBuyOrderAspect returns the order aspect for when you want to buy a
-// currency which sells another currency. This specifically returns what
-// liquidity side you will be affecting, what order side you will be placing and
-// what currency you will be selling.
-func (p Pair) MarketBuyOrderAspect(wantingToBuy Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToBuy, false, true)
+// MarketBuyOrderDecisionDetails returns the order decision details for when you
+// want to buy a currency which sells another currency. This specifically
+// returns what liquidity side you will be affecting, what order side you will
+// be placing and what currency you will be selling.
+func (p Pair) MarketBuyOrderDecisionDetails(wantingToBuy Code) (*OrderDecisionDetails, error) {
+	return p.getOrderDecisionDetails(wantingToBuy, false, true)
 }
 
-// LimitSellOrderAspect returns the order aspect for when you want to sell a
-// currency which purchases another currency. This specifically returns what
-// liquidity side you will be affecting, what order side you will be placing and
-// what currency you will be purchasing.
-func (p Pair) LimitSellOrderAspect(wantingToSell Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToSell, true, false)
+// LimitSellOrderDecisionDetails returns the order decision details for when you
+// want to sell a currency which purchases another currency. This specifically
+// returns what liquidity side you will be affecting, what order side you will
+// be placing and what currency you will be purchasing.
+func (p Pair) LimitSellOrderDecisionDetails(wantingToSell Code) (*OrderDecisionDetails, error) {
+	return p.getOrderDecisionDetails(wantingToSell, true, false)
 }
 
-// LimitBuyOrderAspect returns the order aspect for when you want to buy a
-// currency which sells another currency. This specifically returns what
-// liquidity side you will be affecting, what order side you will be placing and
-// what currency you will be selling.
-func (p Pair) LimitBuyOrderAspect(wantingToBuy Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToBuy, false, false)
+// LimitBuyOrderDecisionDetails returns the order decision details for when you
+// want to buy a currency which sells another currency. This specifically
+// returns what liquidity side you will be affecting, what order side you will
+// be placing and what currency you will be selling.
+func (p Pair) LimitBuyOrderDecisionDetails(wantingToBuy Code) (*OrderDecisionDetails, error) {
+	return p.getOrderDecisionDetails(wantingToBuy, false, false)
 }
 
-// getAspect returns the order aspect for the currency pair using the provided
-// currency code, whether or not you are selling and whether or not you are
-// placing a market order.
-func (p Pair) getAspect(c Code, selling, market bool) (*OrderAspect, error) {
+// getOrderDecisionDetails returns the order decision details for the currency pair using
+// the provided currency code, whether or not you are selling and whether or not
+// you are placing a market order.
+func (p Pair) getOrderDecisionDetails(c Code, selling, market bool) (*OrderDecisionDetails, error) {
 	if p.IsEmpty() {
 		return nil, ErrCurrencyPairEmpty
 	}
 	if c.IsEmpty() {
 		return nil, ErrCurrencyCodeEmpty
 	}
-	aspect := OrderAspect{Pair: p}
+	dec := OrderDecisionDetails{Pair: p}
 	switch {
 	case p.Base.Equal(c):
 		if selling {
-			aspect.SellingCurrency = p.Base
-			aspect.PurchasingCurrency = p.Quote
-			aspect.BuySide = false
-			aspect.AskLiquidity = !market
+			dec.SellingCurrency = p.Base
+			dec.PurchasingCurrency = p.Quote
+			dec.IsBuySide = false
+			dec.IsAskLiquidity = !market
 		} else {
-			aspect.SellingCurrency = p.Quote
-			aspect.PurchasingCurrency = p.Base
-			aspect.BuySide = true
-			aspect.AskLiquidity = market
+			dec.SellingCurrency = p.Quote
+			dec.PurchasingCurrency = p.Base
+			dec.IsBuySide = true
+			dec.IsAskLiquidity = market
 		}
 	case p.Quote.Equal(c):
 		if selling {
-			aspect.SellingCurrency = p.Quote
-			aspect.PurchasingCurrency = p.Base
-			aspect.BuySide = true
-			aspect.AskLiquidity = market
+			dec.SellingCurrency = p.Quote
+			dec.PurchasingCurrency = p.Base
+			dec.IsBuySide = true
+			dec.IsAskLiquidity = market
 		} else {
-			aspect.SellingCurrency = p.Base
-			aspect.PurchasingCurrency = p.Quote
-			aspect.BuySide = false
-			aspect.AskLiquidity = !market
+			dec.SellingCurrency = p.Base
+			dec.PurchasingCurrency = p.Quote
+			dec.IsBuySide = false
+			dec.IsAskLiquidity = !market
 		}
 	default:
-		return nil, fmt.Errorf("%w %v: %v", errCurrencyNotAssociatedWithPair,  c, p)
+		return nil, fmt.Errorf("%w %v: %v", errCurrencyNotAssociatedWithPair, c, p)
 	}
-	return &aspect, nil
+	return &dec, nil
 }

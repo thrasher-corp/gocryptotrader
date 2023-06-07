@@ -18,18 +18,19 @@ type PairDifference struct {
 	FormatDifference bool
 }
 
-// OrderAspect defines the information that describes an order implementation
-// to the actual liquidity. This is used to determine the order side, the
-// liquidity side, the currency pair and the selling and purchasing currency.
-type OrderAspect struct {
+// OrderDecisionDetails defines the information that describes an order
+// implementation to the actual liquidity. This is used to determine the order
+// side, the liquidity side, the currency pair and the selling and purchasing
+// currency.
+type OrderDecisionDetails struct {
 	// SellingCurrency is the currency that will be sold first
 	SellingCurrency Code
 	// Purchasing is the currency that will be purchased last
 	PurchasingCurrency Code
-	// BuySide is the side of the order that will be placed true for buy/long,
+	// IsBuySide is the side of the order that will be placed true for buy/long,
 	// false for sell/short.
-	BuySide bool
-	// AskLiquidity is the side of the orderbook that will be used, false for
+	IsBuySide bool
+	// IsAskLiquidity is the side of the orderbook that will be used, false for
 	// bid liquidity.
 	IsAskLiquidity bool
 	// Pair is the currency pair that will be used
