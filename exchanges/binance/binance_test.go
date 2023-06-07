@@ -2771,11 +2771,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		if limits.PriceStepIncrementSize == 0 {
 			t.Errorf("Binance UpdateOrderExecutionLimits empty PriceStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.PriceStepIncrementSize)
 		}
-		if limits.MinAmount == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MinAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinAmount)
+		if limits.MinimumBaseAmount == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MinAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinimumBaseAmount)
 		}
-		if limits.MaxAmount == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxAmount)
+		if limits.MaximumBaseAmount == 0 {
+			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaximumBaseAmount)
 		}
 		if limits.AmountStepIncrementSize == 0 {
 			t.Errorf("Binance UpdateOrderExecutionLimits empty AmountStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.AmountStepIncrementSize)
