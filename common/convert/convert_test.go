@@ -1,6 +1,8 @@
 package convert
 
 import (
+	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -313,5 +315,56 @@ func TestInterfaceToStringOrZeroValue(t *testing.T) {
 	x = string("meow")
 	if r := InterfaceToStringOrZeroValue(x); r != "meow" {
 		t.Errorf("expected meow, got: %v", x)
+	}
+}
+
+func TestNullableFloat64(t *testing.T) {
+	t.Parallel()
+	resp := struct {
+		Data NullableFloat64 `json:"data"`
+	}{}
+
+	err := json.Unmarshal([]byte(`{"data":"0.00000001"}`), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Data.Float64() != 1e-8 {
+		t.Fatalf("expected 1e-8, got %v", resp.Data.Float64())
+	}
+
+	err = json.Unmarshal([]byte(`{"data":""}`), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = json.Unmarshal([]byte(`{"data":1337.37}`), &resp)
+	if !errors.Is(err, errUnhandledType) {
+		t.Fatalf("received %v but expected %v", err, errUnhandledType)
+	}
+
+	// Demonstrates that a suffix check is not needed.
+	err = json.Unmarshal([]byte(`{"data":"1337.37}`), &resp)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = json.Unmarshal([]byte(`{"data":"MEOW"}`), &resp)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+}
+
+// 2677173	       428.9 ns/op	     240 B/op	       5 allocs/op
+func BenchmarkXX(b *testing.B) {
+	resp := struct {
+		Data NullableFloat64 `json:"data"`
+	}{}
+
+	for i := 0; i < b.N; i++ {
+		err := json.Unmarshal([]byte(`{"data":"0.00000001"}`), &resp)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }

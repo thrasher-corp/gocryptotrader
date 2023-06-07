@@ -387,13 +387,16 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		pairs := make([]currency.Pair, len(allPairs))
+		pairs := make([]currency.Pair, 0, len(allPairs))
 		for x := range allPairs {
+			if allPairs[x].Status != "ONLINE" {
+				continue
+			}
 			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, "PERP")
 			if err != nil {
 				return nil, err
 			}
-			pairs[x] = pair
+			pairs = append(pairs, pair)
 		}
 		return pairs, nil
 	}
@@ -419,58 +422,62 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	allPairs, err := by.GetEnabledPairs(assetType)
+	avail, err := by.GetAvailablePairs(assetType)
 	if err != nil {
 		return err
 	}
+
+	enabled, err := by.GetEnabledPairs(assetType)
+	if err != nil {
+		return err
+	}
+
 	switch assetType {
 	case asset.Spot:
-		tick, err := by.Get24HrsChange(ctx, "")
+		ticks, err := by.GetTickersV5(ctx, "spot", "")
 		if err != nil {
 			return err
 		}
-		for p := range allPairs {
-			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+
+		for x := range ticks {
+			pair, err := avail.DeriveFrom(ticks[x].Symbol)
 			if err != nil {
+				// These symbols below do not have a spot market but are in fact
+				// perpetuals.
+				if ticks[x].Symbol == "ZECUSDT" || ticks[x].Symbol == "DASHUSDT" {
+					continue
+				}
 				return err
 			}
 
-			for y := range tick {
-				if tick[y].Symbol != formattedPair.String() {
-					continue
-				}
+			if !enabled.Contains(pair, true) {
+				continue
+			}
 
-				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
-				if err != nil {
-					return err
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tick[y].BestBidPrice,
-					Ask:          tick[y].BestAskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Pair:         cp,
-					LastUpdated:  tick[y].Time,
-					ExchangeName: by.Name,
-					AssetType:    assetType})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks[x].LastPrice.Float64(),
+				High:         ticks[x].HighPrice24Hr.Float64(),
+				Low:          ticks[x].LowPrice24Hr.Float64(),
+				Bid:          ticks[x].TopBidPrice.Float64(),
+				BidSize:      ticks[x].TopBidSize.Float64(),
+				Ask:          ticks[x].TopAskPrice.Float64(),
+				AskSize:      ticks[x].TopAskSize.Float64(),
+				Volume:       ticks[x].Volume24Hr.Float64(),
+				Pair:         pair,
+				ExchangeName: by.Name,
+				AssetType:    assetType})
+			if err != nil {
+				return err
 			}
 		}
-
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.Pair{})
 		if err != nil {
 			return err
 		}
 
-		for p := range allPairs {
-			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+		for p := range enabled {
+			formattedPair, err := by.FormatExchangeCurrency(enabled[p], assetType)
 			if err != nil {
 				return err
 			}
@@ -499,10 +506,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				}
 			}
 		}
-
 	case asset.USDCMarginedFutures:
-		for p := range allPairs {
-			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+		for x := range enabled {
+			formattedPair, err := by.FormatExchangeCurrency(enabled[x], assetType)
 			if err != nil {
 				return err
 			}
@@ -530,11 +536,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				return err
 			}
 		}
-
 	default:
 		return fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-
 	return nil
 }
 
@@ -558,16 +562,16 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				return nil, err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice,
-				High:         tick[y].HighPrice,
-				Low:          tick[y].LowPrice,
-				Bid:          tick[y].BestBidPrice,
-				Ask:          tick[y].BestAskPrice,
-				Volume:       tick[y].Volume,
-				QuoteVolume:  tick[y].QuoteVolume,
-				Open:         tick[y].OpenPrice,
+				Last:         tick[y].LastPrice.Float64(),
+				High:         tick[y].HighPrice.Float64(),
+				Low:          tick[y].LowPrice.Float64(),
+				Bid:          tick[y].BestBidPrice.Float64(),
+				Ask:          tick[y].BestAskPrice.Float64(),
+				Volume:       tick[y].Volume.Float64(),
+				QuoteVolume:  tick[y].QuoteVolume.Float64(),
+				Open:         tick[y].OpenPrice.Float64(),
 				Pair:         cp,
-				LastUpdated:  tick[y].Time,
+				LastUpdated:  tick[y].Time.Time(),
 				ExchangeName: by.Name,
 				AssetType:    assetType})
 			if err != nil {
@@ -725,9 +729,9 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for i := range balances {
 			currencyBalance[i] = account.Balance{
 				Currency: currency.NewCode(balances[i].CoinName),
-				Total:    balances[i].Total,
-				Hold:     balances[i].Locked,
-				Free:     balances[i].Total - balances[i].Locked,
+				Total:    balances[i].Total.Float64(),
+				Hold:     balances[i].Locked.Float64(),
+				Free:     balances[i].Total.Float64() - balances[i].Locked.Float64(),
 			}
 		}
 
@@ -1236,18 +1240,18 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		return order.Detail{
-			Amount:         resp.Quantity,
+			Amount:         resp.Quantity.Float64(),
 			Exchange:       by.Name,
 			OrderID:        resp.OrderID,
 			ClientOrderID:  resp.OrderLinkID,
 			Side:           getSide(resp.Side),
 			Type:           getTradeType(resp.TradeType),
 			Pair:           pair,
-			Cost:           resp.CummulativeQuoteQty,
+			Cost:           resp.CummulativeQuoteQty.Float64(),
 			AssetType:      assetType,
 			Status:         getOrderStatus(resp.Status),
-			Price:          resp.Price,
-			ExecutedAmount: resp.ExecutedQty,
+			Price:          resp.Price.Float64(),
+			ExecutedAmount: resp.ExecutedQty.Float64(),
 			Date:           resp.Time.Time(),
 			LastUpdated:    resp.UpdateTime.Time(),
 		}, nil
@@ -1459,14 +1463,14 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			for i := range req.Pairs {
 				if req.Pairs[i].String() == openOrders[x].SymbolName {
 					orders = append(orders, order.Detail{
-						Amount:        openOrders[x].Quantity,
+						Amount:        openOrders[x].Quantity.Float64(),
 						Date:          openOrders[x].Time.Time(),
 						Exchange:      by.Name,
 						OrderID:       openOrders[x].OrderID,
 						ClientOrderID: openOrders[x].OrderLinkID,
 						Side:          getSide(openOrders[x].Side),
 						Type:          getTradeType(openOrders[x].TradeType),
-						Price:         openOrders[x].Price,
+						Price:         openOrders[x].Price.Float64(),
 						Status:        getOrderStatus(openOrders[x].Status),
 						Pair:          req.Pairs[i],
 						AssetType:     req.AssetType,
@@ -1616,17 +1620,17 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 				return nil, err
 			}
 			detail := order.Detail{
-				Amount:          resp[i].Quantity,
-				ExecutedAmount:  resp[i].ExecutedQty,
-				RemainingAmount: resp[i].Quantity - resp[i].ExecutedQty,
-				Cost:            resp[i].CummulativeQuoteQty,
+				Amount:          resp[i].Quantity.Float64(),
+				ExecutedAmount:  resp[i].ExecutedQty.Float64(),
+				RemainingAmount: resp[i].Quantity.Float64() - resp[i].ExecutedQty.Float64(),
+				Cost:            resp[i].CummulativeQuoteQty.Float64(),
 				Date:            resp[i].Time.Time(),
 				LastUpdated:     resp[i].UpdateTime.Time(),
 				Exchange:        by.Name,
 				OrderID:         resp[i].OrderID,
 				Side:            side,
 				Type:            getTradeType(resp[i].TradeType),
-				Price:           resp[i].Price,
+				Price:           resp[i].Price.Float64(),
 				Pair:            pair,
 				Status:          getOrderStatus(resp[i].Status),
 			}
@@ -2069,4 +2073,46 @@ func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.P
 		return currency.Pair{}, err
 	}
 	return pairs.DeriveFrom(symbol)
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	avail, err := by.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		var pairsData []PairData
+		pairsData, err = by.GetAllSpotPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		for x := range pairsData {
+			var pair currency.Pair
+			pair, err = avail.DeriveFrom(pairsData[x].Name)
+			if err != nil {
+				return err
+			}
+
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                   a,
+				Pair:                    pair,
+				AmountStepIncrementSize: pairsData[x].BasePrecision.Float64(),
+				PriceStepIncrementSize:  pairsData[x].QuotePrecision.Float64(),
+				// MinTradeQuantity refers to the minimum in base terms
+				MinAmount: pairsData[x].MinTradeQuantity.Float64(),
+				// MaxTradeQuantity	refers to the maximum in base terms
+				MaxAmount: pairsData[x].MaxTradeQuantity.Float64(),
+			})
+		}
+	default:
+		// TODO: Add in other assets
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+	return by.LoadLimits(limits)
 }

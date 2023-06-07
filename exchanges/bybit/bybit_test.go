@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -58,6 +59,20 @@ func TestMain(m *testing.M) {
 	err = b.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// Turn on all pairs for testing
+	supportedAssets := b.GetAssetTypes(false)
+	for x := range supportedAssets {
+		avail, err := b.GetAvailablePairs(supportedAssets[x])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	os.Exit(m.Run())
@@ -3307,5 +3322,82 @@ func TestGetUSDCPredictedFundingRate(t *testing.T) {
 	_, _, err = b.GetUSDCPredictedFundingRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	supportedAssets := b.GetAssetTypes(false)
+	ctx := context.Background()
+	for x := range supportedAssets {
+		err := b.UpdateTickers(ctx, supportedAssets[x])
+		if err != nil {
+			t.Fatalf("%v %v\n", supportedAssets[x], err)
+		}
+
+		avail, err := b.GetAvailablePairs(supportedAssets[x])
+		if err != nil {
+			t.Fatalf("%v %v\n", supportedAssets[x], err)
+		}
+
+		for y := range avail {
+			_, err = ticker.GetTicker(b.GetName(), avail[y], supportedAssets[x])
+			if err != nil {
+				t.Fatalf("%v %v %v\n", avail[y], supportedAssets[x], err)
+			}
+		}
+	}
+}
+
+func TestGetTickersV5(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTickersV5(context.Background(), "spot", "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "spot", "BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	// other assets not currently implemented.
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error("Okx UpdateOrderExecutionLimits() error", err)
+	}
+
+	avail, err := b.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal("Okx GetAvailablePairs() error", err)
+	}
+
+	for x := range avail {
+		limits, err := b.GetOrderExecutionLimits(asset.Spot, avail[x])
+		if err != nil {
+			t.Fatal("Okx GetOrderExecutionLimits() error", err)
+		}
+		if limits == (order.MinMaxLevel{}) {
+			t.Fatal("Okx GetOrderExecutionLimits() error cannot be nil")
+		}
+	}
+}
+
+func TestGetAccountFee(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetAccountFee(context.Background(), "", "", "")
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err = b.GetAccountFee(context.Background(), "bruh", "", "bruh")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v but expected %v", err, nil)
 	}
 }
