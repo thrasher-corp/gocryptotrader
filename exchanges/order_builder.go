@@ -238,6 +238,9 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 		return nil, err
 	}
 
+	// TODO: Balance check pre-order hook. If the balance is not sufficient to
+	// cover the order return an error.
+
 	termAdjusted, err := o.convertOrderAmountToTerm(o.currencyAmount)
 	if err != nil {
 		return nil, err
@@ -282,6 +285,8 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: Balance check post-order hook. See what has actually been purchased.
 
 	var actualAmount float64
 	if o.orderType == order.Market {
@@ -443,6 +448,7 @@ func (o *OrderBuilder) postOrderAdjustToPurchased(amount, price float64) (float6
 
 // AdjustToFixedDecimal adjusts the amount to the required precision. Uses
 // decimal package to ensure precision is maintained.
+// TODO: Shift to math package
 func AdjustToFixedDecimal(amount, precision float64) float64 {
 	decAmount := decimal.NewFromFloat(amount)
 	step := decimal.NewFromFloat(precision)
