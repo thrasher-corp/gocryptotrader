@@ -271,7 +271,7 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	var standardMessage []byte
 	var err error
 	// Detect GZIP
-	if resp[0] == 31 && resp[1] == 139 {
+	if len(resp) >= 2 && resp[0] == 31 && resp[1] == 139 {
 		b := bytes.NewReader(resp)
 		var gReader *gzip.Reader
 		gReader, err = gzip.NewReader(b)
