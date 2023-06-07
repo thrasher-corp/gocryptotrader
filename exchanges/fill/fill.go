@@ -1,5 +1,8 @@
 package fill
 
+// ErrFeedDisabled is an error that indicates the fill feed is disabled
+var ErrFeedDisabled = "fill feed disabled"
+
 // Setup sets up the fill processor
 func (f *Fills) Setup(fillsFeedEnabled bool, c chan interface{}) {
 	f.dataHandler = c
