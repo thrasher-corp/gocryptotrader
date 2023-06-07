@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+// TODO: Add *order.Submit pre allocation and subsequent Submit call.
 
 var (
 	// ErrExchangeIsNil is a common error
@@ -23,6 +26,9 @@ var (
 	errOrderTypeUnsupported    = errors.New("order type unsupported")
 	errSubmissionConfigInvalid = errors.New("submission config invalid")
 	errAmountInvalid           = errors.New("amount invalid")
+	errAmountTooLow            = errors.New("amount too low")
+	errAmountTooHigh           = errors.New("amount too high")
+	errPriceInvalid            = errors.New("price invalid")
 )
 
 // OrderAmounts is the result of the order builder calculations.
@@ -37,6 +43,9 @@ type OrderAmounts struct {
 	// PreOrderPrecisionAdjustedAmount is the PreOrderFeeAdjustedAmount adjusted
 	// to the exchange precision.
 	PreOrderPrecisionAdjustedAmount float64
+	// PreOrderPrecisionAdjustedPrice is the price adjusted to the exchange
+	// precision.
+	PreOrderPrecisionAdjustedPrice float64
 	// PostOrderExpectedPurchasedAmount is the expected amount of currency
 	// purchased after the order is executed.
 	PostOrderExpectedPurchasedAmount float64
@@ -217,8 +226,8 @@ type Receipt struct {
 	Outbound *order.Submit
 	// Response is the response from the exchange
 	Response *order.SubmitResponse
-	// Amounts is the calculated amounts for the order
-	Amounts *OrderAmounts
+	// OrderAmounts is the calculated amounts for the order
+	OrderAmounts
 }
 
 // Submit will attempt to submit the order to the exchange. If the exchange
@@ -239,27 +248,61 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 		return nil, err
 	}
 
-	fmt.Println(preOrderFeeAdjusted)
+	preOrderPrecisionAdjustedAmount, preOrderPrecisionAdjustedPrice, err := o.orderAmountPriceAdjustToPrecision(preOrderFeeAdjusted, o.price, exch)
+	if err != nil {
+		return nil, err
+	}
 
-	// TODO: Adjust to precision
+	side := order.Buy
+	if !o.aspect.BuySide {
+		side = order.Sell
+	}
 
-	// return &Receipt{
-	// 	Price:                            price,
-	// 	PreOrderSellingAmount:            amount,
-	// 	PreOrderFeeAdjustedAmount:        feeAdjustedAmount,
-	// 	PreOrderBaseAdjustedAmount:       baseAdjustedAmount,
-	// 	PreOrderPrecisionAdjustedAmount:  precisionAdjustedAmount,
-	// 	PostOrderExpectedPurchasedAmount: expectedPurchase,
-	// 	PostOrderFeeAdjustedAmount:       purchasedFeeAdjusted,
-	// 	Response:                         resp,
-	// 	PostResponseFeeAdjustedAmount:    respFeeAdjusted,
-	// 	ActualPurchasedAmount:            actualBalance,
-	// }, nil
+	submit := &order.Submit{
+		Exchange:  exch.GetName(),
+		Pair:      o.pair,
+		Side:      side,
+		Amount:    preOrderPrecisionAdjustedAmount,
+		AssetType: asset.Spot,
+		Type:      o.orderType,
+		Price:     preOrderPrecisionAdjustedPrice,
+	}
 
-	return nil, nil
+	expectedPurchasedAmount, err := o.postOrderAdjustToPurchased(preOrderPrecisionAdjustedAmount, preOrderPrecisionAdjustedPrice)
+	if err != nil {
+		return nil, err
+	}
+
+	expectedPurchasedAmountFeeAdjusted, err := o.reduceOrderAmountByFee(expectedPurchasedAmount, false /*IsPreOrder*/)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := exch.SubmitOrder(ctx, submit)
+	if err != nil {
+		return nil, err
+	}
+
+	var actualAmount float64
+	if o.orderType == order.Market {
+		actualAmount = resp.Amount
+	}
+
+	return &Receipt{
+		Builder:  o,
+		Outbound: submit,
+		Response: resp,
+		OrderAmounts: OrderAmounts{
+			PreOrderAmount:                   termAdjusted,
+			PreOrderFeeAdjustedAmount:        preOrderFeeAdjusted,
+			PreOrderPrecisionAdjustedAmount:  preOrderPrecisionAdjustedAmount,
+			PreOrderPrecisionAdjustedPrice:   preOrderPrecisionAdjustedPrice,
+			PostOrderExpectedPurchasedAmount: expectedPurchasedAmount,
+			PostOrderFeeAdjustedAmount:       expectedPurchasedAmountFeeAdjusted,
+			ActualPurchasedAmount:            actualAmount,
+		},
+	}, nil
 }
-
-// TODO: Add *order.Submit pre allocation and subsequent Submit call.
 
 // convertOrderAmountToTerm adjusts the order amount to the required term
 // (base or quote) based on the exchange configuration.
@@ -306,7 +349,6 @@ func (o *OrderBuilder) reduceOrderAmountByFee(amount float64, preOrder bool) (fl
 	if amount <= 0 {
 		return 0, fmt.Errorf("reduceOrderAmountByFee %w: %v", errAmountInvalid, amount)
 	}
-
 	switch {
 	case o.config.FeeAppliedToSellingCurrency:
 		if !preOrder {
@@ -319,17 +361,113 @@ func (o *OrderBuilder) reduceOrderAmountByFee(amount float64, preOrder bool) (fl
 	default:
 		return 0, fmt.Errorf("reduceOrderAmountByFee %w", errSubmissionConfigInvalid)
 	}
-
 	return math.ReduceByPercentage(amount, o.feePercentage), nil
 }
 
 // orderAmountAdjustToPrecision changes the amount to the required exchange
 // defined precision.
-func (o *OrderBuilder) orderAmountAdjustToPrecision(amount float64) (float64, error) {
-	return 0, nil // TODO
+func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64, exch IBotExchange) (float64, float64, error) {
+	if amount <= 0 {
+		return 0, 0, fmt.Errorf("orderAmountAdjustToPrecision %w: %v", errAmountInvalid, amount)
+	}
+
+	if price <= 0 {
+		return 0, 0, fmt.Errorf("orderAmountAdjustToPrecision %w: %v", errPriceInvalid, amount)
+	}
+
+	limits, err := exch.GetOrderExecutionLimits(o.assetType, o.pair)
+	if err != nil {
+		if !o.config.RequiresParameterLimits && errors.Is(err, order.ErrExchangeLimitNotLoaded) {
+			return amount, price, nil
+		}
+		return 0, 0, err
+	}
+
+	switch {
+	case o.config.OrderBaseAmountsRequired:
+		if limits.AmountStepIncrementSize != 0 {
+			amount = AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
+		}
+		err = CheckAmounts(&limits, amount, false /*isQuote*/)
+	case o.config.OrderSellingAmountsRequired:
+		if o.aspect.SellingCurrency.Equal(o.pair.Base) {
+			if limits.AmountStepIncrementSize != 0 {
+				amount = AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
+			}
+			err = CheckAmounts(&limits, amount, false /*isQuote*/)
+		} else {
+			if limits.QuoteStepIncrementSize != 0 {
+				amount = AdjustToFixedDecimal(amount, limits.QuoteStepIncrementSize)
+			}
+			err = CheckAmounts(&limits, amount, true /*isQuote*/)
+		}
+	default:
+		return 0, 0, fmt.Errorf("orderAmountAdjustToPrecision %w", errSubmissionConfigInvalid)
+	}
+	if err != nil {
+		return 0, 0, fmt.Errorf("orderAmountAdjustToPrecision %w", err)
+	}
+
+	if o.orderType != order.Market && limits.PriceStepIncrementSize != 0 {
+		// Client inputed limit order price needs to be adjusted to the required
+		// precision.
+		price = AdjustToFixedDecimal(price, limits.PriceStepIncrementSize)
+	}
+
+	return amount, price, nil
 }
 
 // PostOrderAdjustToPurchased converts the amount to the purchased amount.
 func (o *OrderBuilder) postOrderAdjustToPurchased(amount, price float64) (float64, error) {
-	return 0, nil // TODO
+	if amount <= 0 {
+		return 0, fmt.Errorf("PostOrderAdjustToPurchased %w: %v", errAmountInvalid, amount)
+	}
+	if price <= 0 {
+		return 0, fmt.Errorf("PostOrderAdjustToPurchased %w: %v", errPriceInvalid, price)
+	}
+	switch {
+	case o.config.OrderBaseAmountsRequired:
+		if !o.aspect.PurchasingCurrency.Equal(o.pair.Base) {
+			return amount * price, nil
+		}
+		return amount, nil
+	case o.config.OrderSellingAmountsRequired:
+		if o.aspect.SellingCurrency.Equal(o.pair.Base) {
+			return amount * price, nil
+		}
+		return amount / price, nil
+	default:
+		return 0, fmt.Errorf("PostOrderAdjustToPurchased %w", errSubmissionConfigInvalid)
+	}
+}
+
+// AdjustToFixedDecimal adjusts the amount to the required precision. Uses
+// decimal package to ensure precision is maintained.
+func AdjustToFixedDecimal(amount, precision float64) float64 {
+	decAmount := decimal.NewFromFloat(amount)
+	step := decimal.NewFromFloat(precision)
+	// derive modulus
+	mod := decAmount.Mod(step)
+	// subtract modulus to get floor
+	return decAmount.Sub(mod).InexactFloat64()
+}
+
+// CheckAmounts checks the amount against the limits.
+func CheckAmounts(limits *order.MinMaxLevel, amount float64, quote bool) error {
+	if quote {
+		if limits.MinimumQuoteAmount != 0 && amount < limits.MinimumQuoteAmount {
+			return fmt.Errorf("check amounts quote %w: amount to deploy: %v minimum amount: %v", errAmountTooLow, amount, limits.MinimumQuoteAmount)
+		}
+		if limits.MaximumQuoteAmount != 0 && amount > limits.MaximumQuoteAmount {
+			return fmt.Errorf("check amounts quote %w: amount to deploy: %v maximum amount: %v", errAmountTooHigh, amount, limits.MaximumQuoteAmount)
+		}
+	} else {
+		if limits.MinimumBaseAmount != 0 && amount < limits.MinimumBaseAmount {
+			return fmt.Errorf("check amounts base %w: amount to deploy: %v minimum amount: %v", errAmountTooLow, amount, limits.MinimumBaseAmount)
+		}
+		if limits.MaximumBaseAmount != 0 && amount > limits.MaximumBaseAmount {
+			return fmt.Errorf("check amounts base %w: amount to deploy: %v maximum amount: %v", errAmountTooHigh, amount, limits.MaximumBaseAmount)
+		}
+	}
+	return nil
 }

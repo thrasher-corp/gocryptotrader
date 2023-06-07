@@ -12,7 +12,26 @@ import (
 )
 
 type TestExchange struct {
+	limitError error
 	IBotExchange
+}
+
+// {"name":"BTCUSDT","alias":"BTCUSDT","baseCurrency":"BTC","quoteCurrency":"USDT","basePrecision":"0.000001","quotePrecision":"0.00000001","minTradeQuantity":"0.000048","minTradeAmount":"1","maxTradeQuantity":"71.73956243","maxTradeAmount":"2000000","minPricePrecision":"0.01","category":1,"showStatus":true,"innovation":false}
+func (t *TestExchange) GetOrderExecutionLimits(a asset.Item, p currency.Pair) (order.MinMaxLevel, error) {
+	if t.limitError != nil {
+		return order.MinMaxLevel{}, t.limitError
+	}
+	return order.MinMaxLevel{
+		Asset:                   a,
+		Pair:                    p,
+		AmountStepIncrementSize: 0.000001,
+		QuoteStepIncrementSize:  0.00000001,
+		MinimumBaseAmount:       0.000048,
+		MaximumBaseAmount:       71.73956243,
+		MinimumQuoteAmount:      1,
+		MaximumQuoteAmount:      2000000,
+		PriceStepIncrementSize:  0.01,
+	}, nil
 }
 
 func TestNewOrderBuilder(t *testing.T) {
@@ -315,6 +334,211 @@ func TestReduceOrderAmountByFee(t *testing.T) {
 	}
 }
 
+func TestOrderAmountAdjustToPrecision(t *testing.T) {
+	t.Parallel()
+
+	var builder = &OrderBuilder{pair: currency.NewPair(currency.BTC, currency.USDT)}
+	_, _, err := builder.orderAmountPriceAdjustToPrecision(0, 0, nil)
+	if !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errAmountInvalid)
+	}
+
+	_, _, err = builder.orderAmountPriceAdjustToPrecision(1, 0, nil)
+	if !errors.Is(err, errPriceInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errPriceInvalid)
+	}
+
+	var errTest = errors.New("test error") // Return strange error
+	_, _, err = builder.orderAmountPriceAdjustToPrecision(1, 25000, &TestExchange{limitError: errTest})
+	if !errors.Is(err, errTest) {
+		t.Fatalf("received: %v expected: %v", err, errTest)
+	}
+
+	builder.config.RequiresParameterLimits = true // Do not skip if not deployed
+	_, _, err = builder.orderAmountPriceAdjustToPrecision(1, 25000, &TestExchange{limitError: order.ErrExchangeLimitNotLoaded})
+	if !errors.Is(err, order.ErrExchangeLimitNotLoaded) {
+		t.Fatalf("received: %v expected: %v", err, order.ErrExchangeLimitNotLoaded)
+	}
+
+	builder.config.RequiresParameterLimits = false // Skip if not deployed
+	amount, price, err := builder.orderAmountPriceAdjustToPrecision(1, 25000, &TestExchange{limitError: order.ErrExchangeLimitNotLoaded})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 1 {
+		t.Fatalf("received: %v expected: %v", amount, 1)
+	}
+
+	if price != 25000 {
+		t.Fatalf("received: %v expected: %v", price, 25000)
+	}
+
+	// purchase/sell 1 BTC market order
+	builder.config.OrderBaseAmountsRequired = true
+	builder.orderType = order.Market
+	amount, price, err = builder.orderAmountPriceAdjustToPrecision(1.0000000000001, 25000.0033, &TestExchange{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 1 {
+		t.Fatalf("received: %v expected: %v", amount, 1)
+	}
+
+	if price != 25000.0033 { // This shouldn't be adjusted in a market order because this technically should be a ticker or ob price.
+		t.Fatalf("received: %v expected: %v", price, 25000.0033)
+	}
+
+	// purchase/sell 1 BTC limit order
+	builder.orderType = order.Limit
+	amount, price, err = builder.orderAmountPriceAdjustToPrecision(1.0000000000001, 25000.0033, &TestExchange{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 1 {
+		t.Fatalf("received: %v expected: %v", amount, 1)
+	}
+
+	if price != 25000 {
+		t.Fatalf("received: %v expected: %v", price, 25000)
+	}
+
+	// base under minimum 0.000048
+	_, _, err = builder.orderAmountPriceAdjustToPrecision(0.0000477777, 25000.0033, &TestExchange{})
+	if !errors.Is(err, errAmountTooLow) {
+		t.Fatalf("received: %v expected: %v", err, errAmountTooLow)
+	}
+
+	// base over maximum 71.73956243
+	_, _, err = builder.orderAmountPriceAdjustToPrecision(71.7395633333, 25000.0033, &TestExchange{})
+	if !errors.Is(err, errAmountTooHigh) {
+		t.Fatalf("received: %v expected: %v", err, errAmountTooHigh)
+	}
+
+	builder.config.OrderBaseAmountsRequired = false
+	builder.config.OrderSellingAmountsRequired = true
+	builder.aspect = &currency.OrderAspect{
+		SellingCurrency: currency.BTC,
+	}
+
+	amount, price, err = builder.orderAmountPriceAdjustToPrecision(1.0000000000001, 25000.0033, &TestExchange{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 1 {
+		t.Fatalf("received: %v expected: %v", amount, 1)
+	}
+
+	if price != 25000 {
+		t.Fatalf("received: %v expected: %v", price, 25000)
+	}
+
+	builder.aspect = &currency.OrderAspect{
+		SellingCurrency: currency.USDT,
+	}
+
+	amount, price, err = builder.orderAmountPriceAdjustToPrecision(25000.0000000001, 25000.0033, &TestExchange{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 25000 {
+		t.Fatalf("received: %v expected: %v", amount, 25000)
+	}
+
+	if price != 25000 {
+		t.Fatalf("received: %v expected: %v", price, 25000)
+	}
+
+	// quote under minimum 1
+	_, _, err = builder.orderAmountPriceAdjustToPrecision(0.50000000001, 25000.0033, &TestExchange{})
+	if !errors.Is(err, errAmountTooLow) {
+		t.Fatalf("received: %v expected: %v", err, errAmountTooLow)
+	}
+
+	// quote over maximum 2000000
+	_, _, err = builder.orderAmountPriceAdjustToPrecision(2000001.0000000001, 25000.0033, &TestExchange{})
+	if !errors.Is(err, errAmountTooHigh) {
+		t.Fatalf("received: %v expected: %v", err, errAmountTooHigh)
+	}
+}
+
+func TestPostOrderAdjustToPurchased(t *testing.T) {
+	t.Parallel()
+
+	builder := &OrderBuilder{pair: currency.NewPair(currency.BTC, currency.USDT)}
+	_, err := builder.postOrderAdjustToPurchased(0, 0)
+	if !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errAmountInvalid)
+	}
+
+	_, err = builder.postOrderAdjustToPurchased(1, 0)
+	if !errors.Is(err, errPriceInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errPriceInvalid)
+	}
+
+	_, err = builder.postOrderAdjustToPurchased(1, 1)
+	if !errors.Is(err, errSubmissionConfigInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errSubmissionConfigInvalid)
+	}
+
+	// Sell 1 BTC at 25000
+	builder.aspect = &currency.OrderAspect{
+		PurchasingCurrency: currency.USDT,
+	}
+	builder.config.OrderBaseAmountsRequired = true
+	balance, err := builder.postOrderAdjustToPurchased(1, 25000)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if balance != 25000 {
+		t.Fatalf("received: %v expected: %v", balance, 25000)
+	}
+
+	// Purchase 1 BTC at 25000
+	builder.aspect = &currency.OrderAspect{
+		PurchasingCurrency: currency.BTC,
+	}
+	balance, err = builder.postOrderAdjustToPurchased(1, 25000) // Already converted to base
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+	if balance != 1 {
+		t.Fatalf("received: %v expected: %v", balance, 25000)
+	}
+
+	builder.config.OrderBaseAmountsRequired = false
+
+	// Selling amounts are used for these orders so they always need to be
+	// converted.
+	builder.config.OrderSellingAmountsRequired = true
+	builder.aspect = &currency.OrderAspect{
+		SellingCurrency: currency.USDT,
+	}
+	balance, err = builder.postOrderAdjustToPurchased(25000, 25000)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+	if balance != 1 {
+		t.Fatalf("received: %v expected: %v", balance, 25000)
+	}
+
+	builder.aspect = &currency.OrderAspect{
+		SellingCurrency: currency.BTC,
+	}
+	balance, err = builder.postOrderAdjustToPurchased(1, 25000)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+	if balance != 25000 {
+		t.Fatalf("received: %v expected: %v", balance, 25000)
+	}
+}
+
 func TestSubmit(t *testing.T) {
 	t.Parallel()
 
@@ -432,61 +656,3 @@ func checkReceipts(t *testing.T, received, expected *Receipt) {
 	}
 
 }
-
-// var testExchange IBotExchange
-
-// btcusdt := currency.NewPair(currency.BTC, currency.USDT)
-
-// receipt, err := builder.
-// 	Pair(btcusdt).
-// 	Market().
-// 	Sell(currency.BTC, 1).
-// 	Asset(asset.Spot).
-// 	FeePercentage(0.1).
-// 	Submit(context.Background(), testExchange)
-// if err != nil {
-// 	t.Fatal(err)
-// }
-
-// fmt.Println(receipt)
-
-// receipt, err = builder.
-// 	Pair(btcusdt).
-// 	Market().
-// 	Purchase(currency.BTC, 1).
-// 	Asset(asset.Spot).
-// 	FeePercentage(0.1).
-// 	Submit(context.Background(), testExchange)
-// if err != nil {
-// 	t.Fatal(err)
-// }
-
-// fmt.Println(receipt)
-
-// receipt, err = builder.
-// 	Pair(btcusdt).
-// 	Limit().
-// 	Price(40000).
-// 	Sell(currency.USDT, 100).
-// 	Asset(asset.Spot).
-// 	FeePercentage(0.1).
-// 	Submit(context.Background(), testExchange)
-// if err != nil {
-// 	t.Fatal(err)
-// }
-
-// fmt.Println(receipt)
-
-// receipt, err = builder.
-// 	Pair(btcusdt).
-// 	Limit().
-// 	Price(35000).
-// 	Purchase(currency.USDT, 100).
-// 	Asset(asset.Spot).
-// 	FeePercentage(0.1).
-// 	Submit(context.Background(), testExchange)
-// if err != nil {
-// 	t.Fatal(err)
-// }
-
-// fmt.Println(receipt)
