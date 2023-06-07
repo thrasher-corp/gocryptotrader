@@ -31,7 +31,7 @@ type OrderAspect struct {
 	BuySide bool
 	// AskLiquidity is the side of the orderbook that will be used, false for
 	// bid liquidity.
-	AskLiquidity bool
+	IsAskLiquidity bool
 	// Pair is the currency pair that will be used
 	Pair Pair
 }
