@@ -897,3 +897,43 @@ func TestDecimalPow(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", pow, 0)
 	}
 }
+
+func TestReduceByPercentage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		value      float64
+		percentage float64
+		expected   float64
+	}{
+		{100, 10, 90},
+		{50, 25, 37.5},
+		{75.5, 50, 37.75},
+		{200, 20, 160},
+	}
+
+	for _, test := range tests {
+		if result := ReduceByPercentage(test.value, test.percentage); math.Abs(result-test.expected) > 0.0001 {
+			t.Errorf("Unexpected result. received: %f, expected: %f", result, test.expected)
+		}
+	}
+}
+
+func TestIncreaseByPercentage(t *testing.T) {
+	tests := []struct {
+		value      float64
+		percentage float64
+		expected   float64
+	}{
+		{100, 10, 110},
+		{50, 25, 62.5},
+		{75.5, 50, 113.25},
+		{200, 20, 240},
+	}
+
+	for _, test := range tests {
+		if result := IncreaseByPercentage(test.value, test.percentage); math.Abs(result-test.expected) > 0.0001 {
+			t.Errorf("Unexpected result. received: %v, expected: %v", result, test.expected)
+		}
+	}
+}

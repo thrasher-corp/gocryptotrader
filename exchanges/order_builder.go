@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -13,14 +14,45 @@ import (
 
 var (
 	// ErrExchangeIsNil is a common error
-	ErrExchangeIsNil        = errors.New("exchange is nil")
-	errOrderBuilderIsNil    = errors.New("order builder is nil")
-	errPriceUnset           = errors.New("price is unset")
-	errAmountUnset          = errors.New("amount is unset")
-	errOrderTypeUnset       = errors.New("order type is unset")
-	errAssetTypeUnset       = errors.New("asset type is unset")
-	errOrderTypeUnsupported = errors.New("order type unsupported")
+	ErrExchangeIsNil           = errors.New("exchange is nil")
+	errOrderBuilderIsNil       = errors.New("order builder is nil")
+	errPriceUnset              = errors.New("price is unset")
+	errAmountUnset             = errors.New("amount is unset")
+	errOrderTypeUnset          = errors.New("order type is unset")
+	errAssetTypeUnset          = errors.New("asset type is unset")
+	errOrderTypeUnsupported    = errors.New("order type unsupported")
+	errSubmissionConfigInvalid = errors.New("submission config invalid")
+	errAmountInvalid           = errors.New("amount invalid")
 )
+
+// OrderAmounts is the result of the order builder calculations.
+type OrderAmounts struct {
+	// PreOrderAmount depending on the exchange requirements could be a base or
+	// quote amount.
+	PreOrderAmount float64
+	// PreOrderFeeAdjustedAmount is the PreOrderAmount adjusted to the fee if
+	// the fee is taken from the selling currency. This will restrict the amount
+	// to account for that fee percentage, so that the order will execute.
+	PreOrderFeeAdjustedAmount float64
+	// PreOrderPrecisionAdjustedAmount is the PreOrderFeeAdjustedAmount adjusted
+	// to the exchange precision.
+	PreOrderPrecisionAdjustedAmount float64
+	// PostOrderExpectedPurchasedAmount is the expected amount of currency
+	// purchased after the order is executed.
+	PostOrderExpectedPurchasedAmount float64
+	// PostOrderFeeAdjustedAmount is the PostOrderExpectedPurchasedAmount
+	// adjusted to the fee if the fee is taken from the purchasing currency.
+	PostOrderFeeAdjustedAmount float64
+	// PostOrderPrecisionAdjustedAmount is the submit.SubmitResponse.Amount
+	// adjusted to the fee if the fee is taken from the purchasing currency.
+	PostResponseFeeAdjustedAmount float64
+	// ActualPurchasedAmount is the actual amount of currency purchased after
+	// the order is executed. This can be taken from a hook or the exchange
+	// might return this value. The hook can be sending a HTTP request for
+	// balance which is expensive or if a websocket connection is active should
+	// be updated via a callback.
+	ActualPurchasedAmount float64
+}
 
 // OrderBuilder is a helper struct to assist in building orders. All values
 // will be checked in validate and/or Submit. If the exchange does not support
@@ -33,12 +65,9 @@ type OrderBuilder struct {
 	purchasing         bool
 	exchangingCurrency currency.Code
 	currencyAmount     float64
-	fee                float64
+	feePercentage      float64
 	config             order.SubmissionConfig
-
-	aspect   *currency.OrderAspect
-	outbound *order.Submit
-
+	aspect             *currency.OrderAspect
 	// TODO: Add pre and post order hooks
 }
 
@@ -110,7 +139,7 @@ func (o *OrderBuilder) Asset(a asset.Item) *OrderBuilder {
 // due to insufficient funds and or the returned amount might not be closer to
 // the expected amount.
 func (o *OrderBuilder) FeePercentage(f float64) *OrderBuilder {
-	o.fee = f
+	o.feePercentage = f
 	return o
 }
 
@@ -119,7 +148,7 @@ func (o *OrderBuilder) FeePercentage(f float64) *OrderBuilder {
 // due to insufficient funds and or the returned amount might not be closer to
 // the expected amount.
 func (o *OrderBuilder) FeeRate(f float64) *OrderBuilder {
-	o.fee = f * 100
+	o.feePercentage = f * 100
 	return o
 }
 
@@ -180,21 +209,16 @@ func (o *OrderBuilder) validate(exch IBotExchange) error {
 	return err
 }
 
-// Receipt ...
+// Receipt is the result of submitting an order to the exchange.
 type Receipt struct {
-	Price                           float64
-	PreOrderSellingAmount           float64
-	PreOrderFeeAdjustedAmount       float64
-	PreOrderBaseAdjustedAmount      float64
-	PreOrderPrecisionAdjustedAmount float64
-
-	PostOrderExpectedPurchasedAmount float64
-	PostOrderFeeAdjustedAmount       float64
-
-	Response                      *order.SubmitResponse
-	PostResponseFeeAdjustedAmount float64 // Check diff to ActualPurchasedAmount
-
-	ActualPurchasedAmount float64
+	// Builder is the pre-order initial state
+	Builder *OrderBuilder
+	// Outbound is the order that was submitted to the exchange
+	Outbound *order.Submit
+	// Response is the response from the exchange
+	Response *order.SubmitResponse
+	// Amounts is the calculated amounts for the order
+	Amounts *OrderAmounts
 }
 
 // Submit will attempt to submit the order to the exchange. If the exchange
@@ -205,9 +229,17 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 		return nil, err
 	}
 
-	// TODO: Purchase -> Sell
+	termAdjusted, err := o.convertOrderAmountToTerm(o.currencyAmount)
+	if err != nil {
+		return nil, err
+	}
 
-	// TODO: Adjust to fee
+	preOrderFeeAdjusted, err := o.reduceOrderAmountByFee(termAdjusted, true /*IsPreOrder*/)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(preOrderFeeAdjusted)
 
 	// TODO: Adjust to precision
 
@@ -229,28 +261,75 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 
 // TODO: Add *order.Submit pre allocation and subsequent Submit call.
 
-// AdjustByFee reduces the selling amount by the fee percentage to ensure either
-// the order is not rejected due to insufficient funds `pre order` or the
+// convertOrderAmountToTerm adjusts the order amount to the required term
+// (base or quote) based on the exchange configuration.
+func (o *OrderBuilder) convertOrderAmountToTerm(amount float64) (float64, error) {
+	if amount <= 0 {
+		return 0, fmt.Errorf("convertOrderAmountToTerm %w: %v", errAmountInvalid, amount)
+	}
+	switch {
+	case o.config.OrderBaseAmountsRequired:
+		if o.pair.Quote.Equal(o.exchangingCurrency) {
+			// Amount is currently in quote terms and needs to be converted to
+			// base terms. For example, if 1 BTC is priced at 25k USD, the
+			// amount in base terms (USD) needed to be sold to purchase 1 BTC is
+			// 25k USD.
+			amount /= o.price
+		}
+	case o.config.OrderSellingAmountsRequired:
+		if o.purchasing {
+			// Selling amount is needed for this specific exchange.
+			if o.pair.Base.Equal(o.exchangingCurrency) {
+				// Amount is currently in base terms and needs to be converted
+				// to quote terms. For example, if 25k USD (wishing to be
+				// purchased) is priced at 1 BTC, the amount in quote terms (USD)
+				// needed to be sold to purchase 1 BTC is 25k USD.
+				amount *= o.price
+			} else {
+				// Amount is currently in quote terms and needs to be converted
+				// to base terms. For example, if 1 BTC is priced at 25k USD,
+				// the amount in base terms (BTC) needed to be sold to purchase
+				// 1 BTC is 25k USD.
+				amount /= o.price
+			}
+		}
+	default:
+		return 0, fmt.Errorf("convertOrderAmountToTerm %w", errSubmissionConfigInvalid)
+	}
+	return amount, nil
+}
+
+// reduceOrderAmountByFee reduces the amount by the fee percentage to ensure
+// either the order is not rejected due to insufficient funds `pre order` or the
 // purchased amount is correctly reduced.
-func (o *OrderBuilder) preOrderAdjustByFee(amount float64, preOrder bool) (float64, error) {
-	return 0, nil // TODO
+func (o *OrderBuilder) reduceOrderAmountByFee(amount float64, preOrder bool) (float64, error) {
+	if amount <= 0 {
+		return 0, fmt.Errorf("reduceOrderAmountByFee %w: %v", errAmountInvalid, amount)
+	}
+
+	switch {
+	case o.config.FeeAppliedToSellingCurrency:
+		if !preOrder {
+			return amount, nil // No fee reduction required
+		}
+	case o.config.FeeAppliedToPurchasedCurrency:
+		if preOrder {
+			return amount, nil // No fee reduction required
+		}
+	default:
+		return 0, fmt.Errorf("reduceOrderAmountByFee %w", errSubmissionConfigInvalid)
+	}
+
+	return math.ReduceByPercentage(amount, o.feePercentage), nil
 }
 
-// PreOrderAdjustToBase changes the amount to base currency if required.
-func (o *OrderBuilder) preOrderAdjustToBase(amount, price float64) (float64, error) {
-	return 0, nil // TODO
-}
-
-// PreOrderAdjustToPrecision changes the amount to the required precision.
-func (o *OrderBuilder) preOrderAdjustToPrecision(amount float64) (float64, error) {
+// orderAmountAdjustToPrecision changes the amount to the required exchange
+// defined precision.
+func (o *OrderBuilder) orderAmountAdjustToPrecision(amount float64) (float64, error) {
 	return 0, nil // TODO
 }
 
 // PostOrderAdjustToPurchased converts the amount to the purchased amount.
 func (o *OrderBuilder) postOrderAdjustToPurchased(amount, price float64) (float64, error) {
-	return 0, nil // TODO
-}
-
-func (o *OrderBuilder) postOrderAdjustByFee(amount float64, preOrder bool) (float64, error) {
 	return 0, nil // TODO
 }

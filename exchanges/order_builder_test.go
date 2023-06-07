@@ -141,6 +141,180 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestConvertOrderAmountToTerm(t *testing.T) {
+	t.Parallel()
+
+	var builder = &OrderBuilder{
+		pair:  currency.NewPair(currency.BTC, currency.USDT),
+		price: 25000, // 1 BTC = 25000 USDT
+	}
+
+	_, err := builder.convertOrderAmountToTerm(0)
+	if !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errAmountInvalid)
+	}
+
+	_, err = builder.convertOrderAmountToTerm(25000)
+	if !errors.Is(err, errSubmissionConfigInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errSubmissionConfigInvalid)
+	}
+
+	builder.config.OrderBaseAmountsRequired = true
+
+	// 25k USD wanting to be sold
+	builder.exchangingCurrency = currency.USDT
+	term, err := builder.convertOrderAmountToTerm(25000)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 1 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+
+	// 1 BTC wanting to be sold
+	builder.exchangingCurrency = currency.BTC
+	term, err = builder.convertOrderAmountToTerm(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 1 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+
+	builder.purchasing = true
+
+	// 25k USD wanting to be purchased
+	builder.exchangingCurrency = currency.USDT
+	term, err = builder.convertOrderAmountToTerm(25000)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 1 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+
+	// 1 BTC wanting to be purchased
+	builder.exchangingCurrency = currency.BTC
+	term, err = builder.convertOrderAmountToTerm(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 1 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+
+	builder.config.OrderBaseAmountsRequired = false
+	builder.config.OrderSellingAmountsRequired = true
+	builder.purchasing = false
+
+	// 25k USD wanting to be sold
+	builder.exchangingCurrency = currency.USDT
+	term, err = builder.convertOrderAmountToTerm(25000)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 25000 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+
+	// 1 BTC wanting to be sold
+	builder.exchangingCurrency = currency.BTC
+	term, err = builder.convertOrderAmountToTerm(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 1 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+
+	builder.purchasing = true
+
+	// 25k USD wanting to be purchased
+	builder.exchangingCurrency = currency.USDT
+	term, err = builder.convertOrderAmountToTerm(25000)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 1 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+
+	// 1 BTC wanting to be purchased
+	builder.exchangingCurrency = currency.BTC
+	term, err = builder.convertOrderAmountToTerm(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if term != 25000 {
+		t.Fatalf("received: %v expected: %v", term, 1)
+	}
+}
+
+func TestReduceOrderAmountByFee(t *testing.T) {
+	t.Parallel()
+
+	var builder = &OrderBuilder{}
+	_, err := builder.reduceOrderAmountByFee(0, false)
+	if !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errAmountInvalid)
+	}
+
+	_, err = builder.reduceOrderAmountByFee(1, false)
+	if !errors.Is(err, errSubmissionConfigInvalid) {
+		t.Fatalf("received: %v expected: %v", err, errSubmissionConfigInvalid)
+	}
+
+	builder.config.FeeAppliedToSellingCurrency = true
+	builder.feePercentage = 10
+
+	amount, err := builder.reduceOrderAmountByFee(100, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 90 {
+		t.Fatalf("received: %v expected: %v", amount, 90)
+	}
+
+	amount, err = builder.reduceOrderAmountByFee(100, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 100 {
+		t.Fatalf("received: %v expected: %v", amount, 100)
+	}
+
+	builder.config.FeeAppliedToSellingCurrency = false
+	builder.config.FeeAppliedToPurchasedCurrency = true
+
+	amount, err = builder.reduceOrderAmountByFee(100, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 100 {
+		t.Fatalf("received: %v expected: %v", amount, 90)
+	}
+
+	amount, err = builder.reduceOrderAmountByFee(100, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v expected: %v", err, nil)
+	}
+
+	if amount != 90 {
+		t.Fatalf("received: %v expected: %v", amount, 100)
+	}
+}
+
 func TestSubmit(t *testing.T) {
 	t.Parallel()
 
@@ -163,9 +337,9 @@ func TestSubmit(t *testing.T) {
 			switch tc.ExchangeName {
 			case "bybit":
 				b = &Base{SubmissionConfig: order.SubmissionConfig{
-					SpecificSellingAmountsRequired: true,
-					FeeAppliedToPurchasedCurrency:  true,
-					RequiresParameterLimits:        true,
+					OrderSellingAmountsRequired:   true,
+					FeeAppliedToPurchasedCurrency: true,
+					RequiresParameterLimits:       true,
 				}}
 			default:
 				t.Fatal("exchange not found")
@@ -253,9 +427,10 @@ func checkReceipts(t *testing.T, received, expected *Receipt) {
 		return
 	}
 
-	if received.Price != expected.Price {
-		t.Fatalf("received: %v expected: %v", received.Price, expected.Price)
+	if received.Builder == nil {
+		t.Fatal("builder is nil")
 	}
+
 }
 
 // var testExchange IBotExchange

@@ -3,14 +3,14 @@ package order
 // SubmissionConfig defines the order submission configuration for an exchange.
 // This allows for a more generic approach to submitting orders.
 type SubmissionConfig struct {
-	// BaseAmountsRequired refers to an exchange that uses the base currency
+	// OrderBaseAmountsRequired refers to an exchange that uses the base currency
 	// only as the amount for an order.
-	BaseAmountsRequired bool
-	// SpecificAmountsRequired refers to an exchange that changes the the
+	OrderBaseAmountsRequired bool
+	// OrderSellingAmountsRequired refers to an exchange that changes the the
 	// amount identity when selling or buying. E.g. Bybit BTC-USD when
 	// bidding/buying BTC the amount is the selling currency USDT, but when
 	// asking/selling, the amount is BTC.
-	SpecificSellingAmountsRequired bool
+	OrderSellingAmountsRequired bool
 	// FeeAppliedToSellingCurrency refers to an exchange that applies the fee to
 	// the selling currency. E.g. when buying 1 BTC with 100 USDT, the fee is
 	// applied to the 100 USDT. You will receive the entire amount of BTC.
