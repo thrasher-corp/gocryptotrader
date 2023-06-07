@@ -165,7 +165,7 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 	params.Set("symbol", symbol)
 
 	strLimit := "60" // default limit
-	if limit > 0 && limit < 60 {
+	if limit > 0 {
 		strLimit = strconv.FormatInt(limit, 10)
 	}
 	params.Set("limit", strLimit)

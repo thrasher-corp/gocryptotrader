@@ -2304,7 +2304,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 				}
 				for {
 					var orders []UFuturesOrderData
-					orders, err = b.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), time.Time{}, time.Time{})
+					orders, err = b.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), sd, time.Time{})
 					if err != nil {
 						return nil, err
 					}

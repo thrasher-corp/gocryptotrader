@@ -130,7 +130,7 @@ func (by *Bybit) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, 
 	}
 	params.Set("symbol", symbolValue)
 
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -177,7 +177,7 @@ func (by *Bybit) GetPublicTrades(ctx context.Context, symbol currency.Pair, limi
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -207,7 +207,7 @@ func (by *Bybit) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, in
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -236,7 +236,7 @@ func (by *Bybit) GetIndexPriceKline(ctx context.Context, symbol currency.Pair, i
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -265,7 +265,7 @@ func (by *Bybit) GetPremiumIndexPriceKline(ctx context.Context, symbol currency.
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -294,7 +294,7 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, symbol currency.Pair, peri
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesPeriods, period) {
@@ -319,7 +319,7 @@ func (by *Bybit) GetLatestBigDeal(ctx context.Context, symbol currency.Pair, lim
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -340,7 +340,7 @@ func (by *Bybit) GetAccountRatio(ctx context.Context, symbol currency.Pair, peri
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesPeriods, period) {
@@ -490,7 +490,7 @@ func (by *Bybit) GetActiveCoinFuturesOrders(ctx context.Context, symbol currency
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if cursor != "" {
@@ -708,7 +708,7 @@ func (by *Bybit) GetConditionalCoinFuturesOrders(ctx context.Context, symbol cur
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if cursor != "" {
@@ -998,7 +998,7 @@ func (by *Bybit) GetCoinTradeRecords(ctx context.Context, symbol currency.Pair, 
 	if page != 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -1035,7 +1035,7 @@ func (by *Bybit) GetClosedCoinTrades(ctx context.Context, symbol currency.Pair, 
 	if page > 0 && page <= 50 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -1249,7 +1249,7 @@ func (by *Bybit) GetWalletFundRecords(ctx context.Context, startDate, endDate, c
 	if page != 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -1282,7 +1282,7 @@ func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endD
 	if page != 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -1305,7 +1305,7 @@ func (by *Bybit) GetAssetExchangeRecords(ctx context.Context, direction string, 
 	if from != 0 {
 		params.Set("from", strconv.FormatInt(from, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
