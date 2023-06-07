@@ -978,15 +978,15 @@ func TestGetAspect(t *testing.T) {
 		{Pair: p, expectedError: ErrCurrencyCodeEmpty},
 		{Pair: p, currency: XRP, selling: true, market: true, expectedError: errCurrencyNotAssociatedWithPair},
 
-		{Pair: p, currency: BTC, selling: true, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, IsBuySide: false, IsAskLiquidity: false}},
-		{Pair: p, currency: BTC, selling: false, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, IsBuySide: true, IsAskLiquidity: true}},
-		{Pair: p, currency: BTC, selling: true, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, IsBuySide: false, IsAskLiquidity: true}},
-		{Pair: p, currency: BTC, selling: false, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, IsBuySide: true, IsAskLiquidity: false}},
+		{Pair: p, currency: BTC, selling: true, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
+		{Pair: p, currency: BTC, selling: false, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: true, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: false, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
 
-		{Pair: p, currency: USDT, selling: true, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, IsBuySide: true, IsAskLiquidity: true}},
-		{Pair: p, currency: USDT, selling: false, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, IsBuySide: false, IsAskLiquidity: false}},
-		{Pair: p, currency: USDT, selling: true, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, Pair: p, IsBuySide: true, IsAskLiquidity: false}},
-		{Pair: p, currency: USDT, selling: false, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, Pair: p, IsBuySide: false, IsAskLiquidity: true}},
+		{Pair: p, currency: USDT, selling: true, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
+		{Pair: p, currency: USDT, selling: false, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: true, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: false, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
 	}
 
 	for i, tc := range testCases {
@@ -1028,10 +1028,6 @@ func TestGetAspect(t *testing.T) {
 
 		if dec.IsAskLiquidity != tc.expectedDetails.IsAskLiquidity {
 			t.Fatalf("AskLiquidity test case %d: received %v, expected %v", i, dec.IsAskLiquidity, tc.expectedDetails.IsAskLiquidity)
-		}
-
-		if dec.Pair != tc.expectedDetails.Pair {
-			t.Fatalf("Pair test case %d: received %v, expected %v", i, dec.Pair, tc.expectedDetails.Pair)
 		}
 	}
 }

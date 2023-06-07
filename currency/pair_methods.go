@@ -185,13 +185,13 @@ func (p Pair) LimitBuyOrderDecisionDetails(wantingToBuy Code) (*OrderDecisionDet
 // the provided currency code, whether or not you are selling and whether or not
 // you are placing a market order.
 func (p Pair) getOrderDecisionDetails(c Code, selling, market bool) (*OrderDecisionDetails, error) {
-	if p.IsEmpty() {
+	if !p.IsPopulated() {
 		return nil, ErrCurrencyPairEmpty
 	}
 	if c.IsEmpty() {
 		return nil, ErrCurrencyCodeEmpty
 	}
-	dec := OrderDecisionDetails{Pair: p}
+	dec := OrderDecisionDetails{}
 	switch {
 	case p.Base.Equal(c):
 		if selling {
