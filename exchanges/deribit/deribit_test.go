@@ -199,7 +199,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	info, err := d.GetInstrumentData(context.Background(), futuresTradablePair.String())
+	info, err := d.GetInstrumentData(context.Background(), d.formatFuturesTradablePair(futuresTradablePair))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +290,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetrieveMarkPriceHistory(futuresTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+	if _, err := d.WSRetrieveMarkPriceHistory(d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -325,11 +325,11 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 
 func TestGetContractSize(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetContractSize(context.Background(), futuresTradablePair.String())
+	_, err := d.GetContractSize(context.Background(), d.formatFuturesTradablePair(futuresTradablePair))
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveContractSize(futuresTradablePair.String()); err != nil {
+	if _, err = d.WSRetrieveContractSize(d.formatFuturesTradablePair(futuresTradablePair)); err != nil {
 		t.Error(err)
 	}
 }
@@ -358,22 +358,22 @@ func TestGetDeliveryPrices(t *testing.T) {
 
 func TestGetFundingChartData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingChartData(context.Background(), futuresTradablePair.String(), "8h")
+	_, err := d.GetFundingChartData(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "8h")
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveFundingChartData(futuresTradablePair.String(), "8h"); err != nil {
+	if _, err = d.WSRetrieveFundingChartData(d.formatFuturesTradablePair(futuresTradablePair), "8h"); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetFundingRateHistory(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateHistory(context.Background(), futuresTradablePair.String(), time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetFundingRateHistory(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetrieveFundingRateHistory(futuresTradablePair.String(), time.Now().Add(-time.Hour), time.Now())
+	_, err = d.WSRetrieveFundingRateHistory(d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -381,19 +381,19 @@ func TestGetFundingRateHistory(t *testing.T) {
 
 func TestGetFundingRateValue(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateValue(context.Background(), futuresTradablePair.String(), time.Now().Add(-time.Hour*8), time.Now())
+	_, err := d.GetFundingRateValue(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-time.Hour*8), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetFundingRateValue(context.Background(), futuresTradablePair.String(), time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.GetFundingRateValue(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), time.Now(), time.Now().Add(-time.Hour*8))
 	if err != nil && !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
-	_, err = d.WSRetrieveFundingRateValue(futuresTradablePair.String(), time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.WSRetrieveFundingRateValue(d.formatFuturesTradablePair(futuresTradablePair), time.Now(), time.Now().Add(-time.Hour*8))
 	if err != nil && !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf("expected: %v, received %v", errStartTimeCannotBeAfterEndTime, err)
 	}
-	if _, err = d.WSRetrieveFundingRateValue(futuresTradablePair.String(), time.Now().Add(-time.Hour*8), time.Now()); err != nil {
+	if _, err = d.WSRetrieveFundingRateValue(d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-time.Hour*8), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -477,11 +477,11 @@ func TestGetLastSettlementsByCurrency(t *testing.T) {
 
 func TestGetLastSettlementsByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastSettlementsByInstrument(context.Background(), futuresTradablePair.String(), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	_, err := d.GetLastSettlementsByInstrument(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveLastSettlementsByInstrument(futuresTradablePair.String(), "settlement", "5", 0, time.Now().Add(-2*time.Hour)); err != nil {
+	if _, err = d.WSRetrieveLastSettlementsByInstrument(d.formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1357,11 +1357,11 @@ func TestSubmitCancelByLabel(t *testing.T) {
 func TestSubmitClosePosition(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.SubmitClosePosition(context.Background(), futuresTradablePair.String(), "limit", 35000)
+	_, err := d.SubmitClosePosition(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "limit", 35000)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSSubmitClosePosition(futuresTradablePair.String(), "limit", 35000); err != nil {
+	if _, err = d.WSSubmitClosePosition(d.formatFuturesTradablePair(futuresTradablePair), "limit", 35000); err != nil {
 		t.Error(err)
 	}
 }
@@ -1369,11 +1369,11 @@ func TestSubmitClosePosition(t *testing.T) {
 func TestGetMargins(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	_, err := d.GetMargins(context.Background(), futuresTradablePair.String(), 5, 35000)
+	_, err := d.GetMargins(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), 5, 35000)
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveMargins(futuresTradablePair.String(), 5, 35000); err != nil {
+	if _, err = d.WSRetrieveMargins(d.formatFuturesTradablePair(futuresTradablePair), 5, 35000); err != nil {
 		t.Error(err)
 	}
 }
@@ -1563,11 +1563,11 @@ func TestResetMMP(t *testing.T) {
 func TestSendRequestForQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	err := d.SendRequestForQuote(context.Background(), futuresTradablePair.String(), 1000, order.Buy)
+	err := d.SendRequestForQuote(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
 	if err != nil {
 		t.Error(err)
 	}
-	if err = d.WSSendRequestForQuote(futuresTradablePair.String(), 1000, order.Buy); err != nil {
+	if err = d.WSSendRequestForQuote(d.formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy); err != nil {
 		t.Error(err)
 	}
 }
@@ -1822,14 +1822,14 @@ func TestInvalidateBlockTradeSignature(t *testing.T) {
 func TestExecuteBlockTrade(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	info, err := d.GetInstrumentData(context.Background(), futuresTradablePair.String())
+	info, err := d.GetInstrumentData(context.Background(), d.formatFuturesTradablePair(futuresTradablePair))
 	if err != nil {
 		t.Skip(err)
 	}
 	_, err = d.ExecuteBlockTrade(context.Background(), time.Now(), "something", "maker", "", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
-			InstrumentName: futuresTradablePair.String(),
+			InstrumentName: d.formatFuturesTradablePair(futuresTradablePair),
 			Direction:      "buy",
 			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
 		},
@@ -1937,29 +1937,29 @@ func TestFetchTicker(t *testing.T) {
 	if _, err := d.FetchTicker(context.Background(), futuresTradablePair, asset.Futures); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.FetchTicker(context.Background(), futuresTradablePair, asset.Options); err != nil {
+	if _, err := d.FetchTicker(context.Background(), optionsTradablePair, asset.Options); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.FetchTicker(context.Background(), futuresTradablePair, asset.OptionCombo); err != nil {
+	if _, err := d.FetchTicker(context.Background(), optionComboTradablePair, asset.OptionCombo); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.FetchTicker(context.Background(), futuresTradablePair, asset.FutureCombo); err != nil {
+	if _, err := d.FetchTicker(context.Background(), futureComboTradablePair, asset.FutureCombo); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
-	if _, err := d.FetchOrderbook(context.Background(), futuresTradablePair, asset.FutureCombo); err != nil {
+	if _, err := d.FetchOrderbook(context.Background(), futureComboTradablePair, asset.FutureCombo); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.FetchOrderbook(context.Background(), futuresTradablePair, asset.OptionCombo); err != nil {
+	if _, err := d.FetchOrderbook(context.Background(), optionComboTradablePair, asset.OptionCombo); err != nil {
 		t.Error(err)
 	}
 	if _, err := d.FetchOrderbook(context.Background(), futuresTradablePair, asset.Futures); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.FetchOrderbook(context.Background(), futuresTradablePair, asset.Options); err != nil {
+	if _, err := d.FetchOrderbook(context.Background(), optionsTradablePair, asset.Options); err != nil {
 		t.Error(err)
 	}
 }
@@ -2018,7 +2018,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
 	t.Parallel()
-	info, err := d.GetInstrumentData(context.Background(), futuresTradablePair.String())
+	info, err := d.GetInstrumentData(context.Background(), d.formatFuturesTradablePair(futuresTradablePair))
 	if err != nil {
 		t.Skip(err)
 	}

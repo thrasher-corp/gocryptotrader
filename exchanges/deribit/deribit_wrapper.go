@@ -532,15 +532,19 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
+	instrumentID := format.Format(p)
+	if assetType == asset.Futures {
+		instrumentID = d.formatFuturesTradablePair(p)
+	}
 	resp := []trade.Data{}
 	var trades *PublicTradesData
 	if d.Websocket.IsConnected() {
 		trades, err = d.WSRetrieveLastTradesByInstrument(
-			format.Format(p), "", "", "", 0, false)
+			instrumentID, "", "", "", 0, false)
 	} else {
 		trades, err = d.GetLastTradesByInstrument(
 			ctx,
-			format.Format(p), "", "", "", 0, false)
+			instrumentID, "", "", "", 0, false)
 	}
 	if err != nil {
 		return nil, err
@@ -571,18 +575,21 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 			timestampStart,
 			timestampEnd)
 	}
-	fmtPair, err := d.FormatExchangeCurrency(p, assetType)
+	instrumentID, err := d.FormatSymbol(p, assetType)
 	if err != nil {
 		return nil, err
+	}
+	if assetType == asset.Futures {
+		instrumentID = d.formatFuturesTradablePair(p)
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData
 	var hasMore = true
 	for hasMore {
 		if d.Websocket.IsConnected() {
-			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(fmtPair.String(), "asc", 100, true, timestampStart, timestampEnd)
+			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(instrumentID, "asc", 100, true, timestampStart, timestampEnd)
 		} else {
-			tradesData, err = d.GetLastTradesByInstrumentAndTime(ctx, fmtPair.String(), "asc", 100, timestampStart, timestampEnd)
+			tradesData, err = d.GetLastTradesByInstrumentAndTime(ctx, instrumentID, "asc", 100, timestampStart, timestampEnd)
 		}
 		if err != nil {
 			return nil, err
