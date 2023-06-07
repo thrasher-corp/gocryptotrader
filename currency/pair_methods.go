@@ -217,7 +217,7 @@ func (p Pair) getAspect(c Code, selling, market bool) (*OrderAspect, error) {
 			aspect.AskLiquidity = !market
 		}
 	default:
-		return nil, errCurrencyNotAssociatedWithPair
+		return nil, fmt.Errorf("%w %v: %v", errCurrencyNotAssociatedWithPair,  c, p)
 	}
 	return &aspect, nil
 }
