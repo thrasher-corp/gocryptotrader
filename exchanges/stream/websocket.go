@@ -391,16 +391,15 @@ func (w *Websocket) connectionMonitor() error {
 			}
 			select {
 			case err := <-w.ReadMessageErrors:
-				if isDisconnectionError(err) {
+				if IsDisconnectionError(err) {
 					w.setInit(false)
 					log.Warnf(log.WebsocketMgr,
 						"%v websocket has been disconnected. Reason: %v",
 						w.exchangeName, err)
 					w.setConnectedStatus(false)
-				} else {
-					// pass off non disconnect errors to datahandler to manage
-					w.DataHandler <- err
 				}
+
+				w.DataHandler <- err
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
 					err := w.Connect()
@@ -984,7 +983,7 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 }
 
 // isDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error
-func isDisconnectionError(err error) bool {
+func IsDisconnectionError(err error) bool {
 	if websocket.IsUnexpectedCloseError(err) {
 		return true
 	}
