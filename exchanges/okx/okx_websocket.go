@@ -1232,18 +1232,20 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	assets := ok.GetAssetTypes(true)
+	subs := make([]string, len(defaultSubscribedChannels))
+	copy(subs, defaultSubscribedChannels)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		defaultSubscribedChannels = append(defaultSubscribedChannels,
+		subs = append(subs,
 			okxChannelAccount,
 			okxChannelOrders,
 		)
 	}
-	for c := range defaultSubscribedChannels {
-		switch defaultSubscribedChannels[c] {
+	for c := range subs {
+		switch subs[c] {
 		case okxChannelOrders:
 			for x := range assets {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel: defaultSubscribedChannels[c],
+					Channel: subs[c],
 					Asset:   assets[x],
 				})
 			}
@@ -1255,7 +1257,7 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 				}
 				for p := range pairs {
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  defaultSubscribedChannels[c],
+						Channel:  subs[c],
 						Asset:    assets[x],
 						Currency: pairs[p],
 					})
@@ -1263,7 +1265,7 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 			}
 		default:
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: defaultSubscribedChannels[c],
+				Channel: subs[c],
 			})
 		}
 	}
