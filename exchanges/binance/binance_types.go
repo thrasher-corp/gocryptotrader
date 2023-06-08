@@ -299,7 +299,7 @@ type IndexMarkPrice struct {
 	MarkPrice            float64 `json:"markPrice,string"`
 	IndexPrice           float64 `json:"indexPrice,string"`
 	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
-	LastFundingRate      string  `json:"lastFundingRate"`
+	LastFundingRate      float64 `json:"lastFundingRate,string"`
 	NextFundingTime      int64   `json:"nextFundingTime"`
 	Time                 int64   `json:"time"`
 }

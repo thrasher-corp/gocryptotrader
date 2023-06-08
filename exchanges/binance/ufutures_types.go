@@ -72,12 +72,13 @@ type UCompressedTradeData struct {
 
 // UMarkPrice stores mark price data
 type UMarkPrice struct {
-	Symbol          string  `json:"symbol"`
-	MarkPrice       float64 `json:"markPrice,string"`
-	IndexPrice      float64 `json:"indexPrice,string"`
-	LastFundingRate float64 `json:"lastFundingRate,string"`
-	NextFundingTime int64   `json:"nextFundingTime"`
-	Time            int64   `json:"time"`
+	Symbol               string  `json:"symbol"`
+	MarkPrice            float64 `json:"markPrice,string"`
+	IndexPrice           float64 `json:"indexPrice,string"`
+	LastFundingRate      float64 `json:"lastFundingRate,string"`
+	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
+	NextFundingTime      int64   `json:"nextFundingTime"`
+	Time                 int64   `json:"time"`
 }
 
 // FundingRateHistory stores funding rate history

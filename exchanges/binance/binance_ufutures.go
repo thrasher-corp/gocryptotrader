@@ -388,7 +388,7 @@ func (b *Binance) UGetFundingHistory(ctx context.Context, symbol currency.Pair, 
 		}
 		params.Set("symbol", symbolValue)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1099,7 +1099,7 @@ func (b *Binance) GetPerpMarkets(ctx context.Context) (PerpsExchangeInfo, error)
 }
 
 // FundingRates gets funding rate history for perpetual contracts
-func (b *Binance) FundingRates(ctx context.Context, symbol currency.Pair, limit string, startTime, endTime time.Time) ([]FundingRateData, error) {
+func (b *Binance) FundingRates(ctx context.Context, symbol currency.Pair, limit int64, startTime, endTime time.Time) ([]FundingRateData, error) {
 	var resp []FundingRateData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -1107,8 +1107,8 @@ func (b *Binance) FundingRates(ctx context.Context, symbol currency.Pair, limit 
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit != "" {
-		params.Set("limit", limit)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))

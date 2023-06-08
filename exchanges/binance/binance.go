@@ -37,18 +37,19 @@ const (
 	ufuturesAPIURL = "https://fapi.binance.com"
 
 	// Public endpoints
-	exchangeInfo      = "/api/v3/exchangeInfo"
-	orderBookDepth    = "/api/v3/depth"
-	recentTrades      = "/api/v3/trades"
-	aggregatedTrades  = "/api/v3/aggTrades"
-	candleStick       = "/api/v3/klines"
-	averagePrice      = "/api/v3/avgPrice"
-	priceChange       = "/api/v3/ticker/24hr"
-	symbolPrice       = "/api/v3/ticker/price"
-	bestPrice         = "/api/v3/ticker/bookTicker"
-	userAccountStream = "/api/v3/userDataStream"
-	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
-	historicalTrades  = "/api/v3/historicalTrades"
+	exchangeInfo          = "/api/v3/exchangeInfo"
+	orderBookDepth        = "/api/v3/depth"
+	recentTrades          = "/api/v3/trades"
+	aggregatedTrades      = "/api/v3/aggTrades"
+	candleStick           = "/api/v3/klines"
+	averagePrice          = "/api/v3/avgPrice"
+	priceChange           = "/api/v3/ticker/24hr"
+	symbolPrice           = "/api/v3/ticker/price"
+	bestPrice             = "/api/v3/ticker/bookTicker"
+	userAccountStream     = "/api/v3/userDataStream"
+	perpExchangeInfo      = "/fapi/v1/exchangeInfo"
+	historicalTrades      = "/api/v3/historicalTrades"
+	marginInterestHistory = "/sapi/v1/margin/interestHistory"
 
 	// Authenticated endpoints
 	newOrderTest      = "/api/v3/order/test"
@@ -78,8 +79,8 @@ const (
 	binanceSAPITimeLayout = "2006-01-02 15:04:05"
 )
 
-// GetInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetInterestHistory(ctx context.Context) (MarginInfoData, error) {
+// GetUndocumentedInterestHistory gets interest history for currency/currencies provided
+func (b *Binance) GetUndocumentedInterestHistory(ctx context.Context) (MarginInfoData, error) {
 	var resp MarginInfoData
 	if err := b.SendHTTPRequest(ctx, exchange.EdgeCase1, undocumentedInterestHistory, spotDefaultRate, &resp); err != nil {
 		return resp, err
@@ -212,6 +213,41 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	path := historicalTrades + "?" + params.Encode()
 	return resp,
 		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+}
+
+// GetUserMarginInterestHistory does the thing
+func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (interface{}, error) {
+	var resp interface{}
+	params := url.Values{}
+
+	if !assetCurrency.IsEmpty() {
+		params.Set("asset", assetCurrency.String())
+	}
+	if !isolatedSymbol.IsEmpty() {
+		fPair, err := b.FormatSymbol(isolatedSymbol, asset.Margin)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("isolatedSymbol", fPair)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if currentPage > 0 {
+		params.Set("current", strconv.FormatInt(currentPage, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if archived {
+		params.Set("archived", "true")
+	}
+
+	path := marginInterestHistory + "?" + params.Encode()
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.

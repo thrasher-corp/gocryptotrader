@@ -13,6 +13,7 @@ type RateHistoryRequest struct {
 	Exchange           string
 	Asset              asset.Item
 	Currency           currency.Code
+	Pair               currency.Pair
 	StartDate          time.Time
 	EndDate            time.Time
 	GetPredictedRate   bool
