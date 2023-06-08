@@ -721,3 +721,26 @@ func BenchmarkCopySlice(b *testing.B) {
 		copy(cpy, s)
 	}
 }
+
+func TestCheckAlignment(t *testing.T) {
+	t.Parallel()
+	itemWithFunding := Items{
+		{
+			Amount: 1337,
+			Price:  0,
+			Period: 1337,
+		},
+	}
+	err := checkAlignment(itemWithFunding, true, true, false, dsc, "Bitfinex")
+	if err != nil {
+		t.Error(err)
+	}
+	err = checkAlignment(itemWithFunding, false, true, false, dsc, "Bitfinex")
+	if !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
+	}
+	err = checkAlignment(itemWithFunding, true, true, false, dsc, "Binance")
+	if !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
+	}
+}
