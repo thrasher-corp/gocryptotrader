@@ -1627,3 +1627,6 @@ func (b *Base) Shutdown() error {
 	}
 	return b.Requester.Shutdown()
 }
+
+// ConstructOrder submits an order to the exchange
+func (b *Base) ConstructOrder() (*OrderBuilder, error) { return nil, common.ErrNotYetImplemented }

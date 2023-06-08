@@ -28,6 +28,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+	executeOrderBuilder     = false // Warning: This is dangerous. Will execute real at market trades if set to true.
 )
 
 var b = &Bybit{}
@@ -3400,5 +3401,99 @@ func TestGetAccountFee(t *testing.T) {
 	_, err = b.GetAccountFee(context.Background(), "bruh", "", "bruh")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v but expected %v", err, nil)
+	}
+}
+
+func TestNewOrder(t *testing.T) {
+	t.Parallel()
+
+	// Warning: This will leave dust due to price drift, floating point
+	// irregularities, insufficient funds, etc.
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders && executeOrderBuilder)
+
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error("Okx UpdateOrderExecutionLimits() error", err)
+	}
+
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	tickyTacky, err := b.UpdateTicker(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Market orders -----------------------------------------------------------------------------------------------
+	orderOne, err := b.ConstructOrder()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v but expected %v", err, nil)
+	}
+
+	receiptOne, err := orderOne.
+		Pair(pair).
+		Asset(asset.Spot).
+		Price(tickyTacky.Ask). // Lifting that ask price
+		Market().
+		Sell(currency.USDT, 5).
+		FeePercentage(0.1).
+		Submit(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderTwo, err := b.ConstructOrder()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v but expected %v", err, nil)
+	}
+
+	_, err = orderTwo.
+		Pair(pair).
+		Asset(asset.Spot).
+		Price(tickyTacky.Bid). // Hitting that bid price
+		Market().
+		Sell(currency.BTC, receiptOne.PostOrderFeeAdjustedAmount).
+		FeePercentage(0.1).
+		Submit(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tickyTacky, err = b.UpdateTicker(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderThree, err := b.ConstructOrder()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v but expected %v", err, nil)
+	}
+
+	receiptThree, err := orderThree.
+		Pair(pair).
+		Asset(asset.Spot).
+		Price(tickyTacky.Ask). // Lifting that ask price
+		Market().
+		Purchase(currency.BTC, 5/tickyTacky.Ask). // Demostrating only 5 dollars worth of BTC wishing to be purchased
+		FeePercentage(0.1).
+		Submit(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderFour, err := b.ConstructOrder()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v but expected %v", err, nil)
+	}
+
+	_, err = orderFour.
+		Pair(pair).
+		Asset(asset.Spot).
+		Price(tickyTacky.Bid). // Hitting that bid price
+		Market().
+		Sell(currency.BTC, receiptThree.PostOrderFeeAdjustedAmount). // If I wanted to purchase the USDT amount rounding issues might fail this order so just sell it.
+		FeePercentage(0.1).
+		Submit(context.Background())
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -13,22 +13,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// TODO: Add *order.Submit pre allocation and subsequent Submit call.
-
 var (
-	// ErrExchangeIsNil is a common error
-	ErrExchangeIsNil           = errors.New("exchange is nil")
-	errOrderBuilderIsNil       = errors.New("order builder is nil")
-	errPriceUnset              = errors.New("price is unset")
-	errAmountUnset             = errors.New("amount is unset")
-	errOrderTypeUnset          = errors.New("order type is unset")
-	errAssetTypeUnset          = errors.New("asset type is unset")
-	errOrderTypeUnsupported    = errors.New("order type unsupported")
-	errSubmissionConfigInvalid = errors.New("submission config invalid")
-	errAmountInvalid           = errors.New("amount invalid")
-	errAmountTooLow            = errors.New("amount too low")
-	errAmountTooHigh           = errors.New("amount too high")
-	errPriceInvalid            = errors.New("price invalid")
+	// ErrExchangeIsNil refers to when an exchange is not set.
+	ErrExchangeIsNil                 = errors.New("exchange is nil")
+	errOrderBuilderIsNil             = errors.New("order builder is nil")
+	errPriceUnset                    = errors.New("price is unset")
+	errAmountUnset                   = errors.New("amount is unset")
+	errOrderTypeUnset                = errors.New("order type is unset")
+	errAssetTypeUnset                = errors.New("asset type is unset")
+	errOrderTypeUnsupported          = errors.New("order type unsupported")
+	errSubmissionConfigInvalid       = errors.New("submission config invalid")
+	errAmountInvalid                 = errors.New("amount invalid")
+	errAmountTooLow                  = errors.New("amount too low")
+	errAmountTooHigh                 = errors.New("amount too high")
+	errPriceInvalid                  = errors.New("price invalid")
+	errAmountStepIncrementSizeIsZero = errors.New("amount step increment size is zero")
+	errQuoteStepIncrementSizeIsZero  = errors.New("quote step increment size is zero")
 )
 
 // OrderAmounts is the result of the order builder calculations.
@@ -52,21 +52,19 @@ type OrderAmounts struct {
 	// PostOrderFeeAdjustedAmount is the PostOrderExpectedPurchasedAmount
 	// adjusted to the fee if the fee is taken from the purchasing currency.
 	PostOrderFeeAdjustedAmount float64
-	// PostOrderPrecisionAdjustedAmount is the submit.SubmitResponse.Amount
-	// adjusted to the fee if the fee is taken from the purchasing currency.
-	PostResponseFeeAdjustedAmount float64
-	// ActualPurchasedAmount is the actual amount of currency purchased after
+	// TODO: ActualPurchasedAmount is the actual amount of currency purchased after
 	// the order is executed. This can be taken from a hook or the exchange
 	// might return this value. The hook can be sending a HTTP request for
 	// balance which is expensive or if a websocket connection is active should
 	// be updated via a callback.
-	ActualPurchasedAmount float64
+	// ActualPurchasedAmount float64
 }
 
 // OrderBuilder is a helper struct to assist in building orders. All values
 // will be checked in validate and/or Submit. If the exchange does not support
 // the order type or order side it will return an error.
 type OrderBuilder struct {
+	exch               IBotExchange
 	pair               currency.Pair
 	orderType          order.Type
 	price              float64
@@ -77,7 +75,6 @@ type OrderBuilder struct {
 	feePercentage      float64
 	config             order.SubmissionConfig
 	aspect             *currency.OrderAspect
-	// TODO: Add pre and post order hooks
 }
 
 // NewOrderBuilder returns a new order builder which attempts to provide a more
@@ -85,14 +82,20 @@ type OrderBuilder struct {
 // orders are only supported at this time. NOTE: Market orders require a price
 // to be set, this is used to calculate the expected amount of currency to be
 // purchased or sold depending on the order side and requirements of the exchange.
-func (b *Base) NewOrderBuilder() (*OrderBuilder, error) {
+// TOOD: Add hook definitions base paramater here so that the order builder can
+// be used without the need to integrate with GCT's services. i.e. only an
+// exchange wrapper library is imported and used.
+func (b *Base) NewOrderBuilder(exch IBotExchange) (*OrderBuilder, error) { // TODO: Might not return an error and then just validate on submit
 	if b == nil {
+		return nil, ErrExchangeIsNil
+	}
+	if exch == nil {
 		return nil, ErrExchangeIsNil
 	}
 	if b.SubmissionConfig == (order.SubmissionConfig{}) {
 		return nil, common.ErrFunctionNotSupported
 	}
-	return &OrderBuilder{config: b.SubmissionConfig}, nil
+	return &OrderBuilder{exch: exch, config: b.SubmissionConfig}, nil
 }
 
 // Pair sets the currency pair
@@ -101,17 +104,21 @@ func (o *OrderBuilder) Pair(pair currency.Pair) *OrderBuilder {
 	return o
 }
 
-// Price sets the limit/market price. This is used for market orders, amounts
-// will be used to calculate the expected amount of currency to be purchased.
-// If Market use last, best bid or ask for price.
+// Price sets the price.
+// NOTE: This is currently mandatory for market orders as well,
+// depending on purchasing and selling this will convert currency amounts and
+// will be used to calculate the expected amount of currency to be purchased (NOT-ACCURATE).
+// Until price finding is implemented you should pre-calculate the price from
+// potential options below; accurate to least accurate (websocket preferred):
+//  1. Orderbook -
+//     a. Depending on liquidity side of order book and the deployment amount
+//     calculate the potential average price across tranches.
+//     b. Use best bid or ask price depending on side.
+//  2. Ticker -
+//     a. Use best bid or ask price depending on side.
+//     b. Use last price.
 func (o *OrderBuilder) Price(price float64) *OrderBuilder {
 	o.price = price
-	return o
-}
-
-// Limit sets the order type to limit order.
-func (o *OrderBuilder) Limit() *OrderBuilder {
-	o.orderType = order.Limit
 	return o
 }
 
@@ -161,18 +168,20 @@ func (o *OrderBuilder) FeeRate(f float64) *OrderBuilder {
 	return o
 }
 
+// TODO: Add *order.Submit pre allocation and subsequent Submit call.
+
 // validate will check the order builder values and return an error if values
 // are not set correctly.
-func (o *OrderBuilder) validate(exch IBotExchange) error {
+func (o *OrderBuilder) validate() error {
 	if o == nil {
 		return errOrderBuilderIsNil
 	}
 
-	if exch == nil {
+	if o.exch == nil {
 		return ErrExchangeIsNil
 	}
 
-	if o.price <= 0 {
+	if o.price <= 0 { // TODO: Price hook to get price for Market orders
 		return fmt.Errorf("%w: please use method 'Price'", errPriceUnset)
 	}
 
@@ -181,7 +190,11 @@ func (o *OrderBuilder) validate(exch IBotExchange) error {
 	}
 
 	if o.orderType == order.UnknownType {
-		return fmt.Errorf("%w: please use method(s) 'Market' or `Limit`", errOrderTypeUnset)
+		return fmt.Errorf("%w: please use method(s) 'Market'", errOrderTypeUnset)
+	}
+
+	if o.orderType != order.Market {
+		return fmt.Errorf("%w: only order type 'Market' is supported for now", errOrderTypeUnsupported)
 	}
 
 	if o.assetType == 0 {
@@ -204,17 +217,13 @@ func (o *OrderBuilder) validate(exch IBotExchange) error {
 		} else {
 			o.aspect, err = o.pair.MarketSellOrderAspect(o.exchangingCurrency)
 		}
-	case o.orderType == order.Limit:
-		if o.purchasing {
-			o.aspect, err = o.pair.LimitBuyOrderAspect(o.exchangingCurrency)
-		} else {
-			o.aspect, err = o.pair.LimitSellOrderAspect(o.exchangingCurrency)
-		}
+	// TODO: case o.orderType == order.Limit:
 	default:
-		return fmt.Errorf("%w: %v", errOrderTypeUnsupported, o.orderType)
+		return fmt.Errorf("%w: only asset type 'Spot' is supported for now", asset.ErrNotSupported)
 	}
 
 	// Note: Fee is optional and can be <= 0 for rebates.
+	// TODO: Add rebate functionality ad-hoc
 	return err
 }
 
@@ -232,11 +241,13 @@ type Receipt struct {
 
 // Submit will attempt to submit the order to the exchange. If the exchange
 // does not support the order type or order side it will return an error.
-func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt, error) {
-	err := o.validate(exch)
+func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
+	err := o.validate()
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: Add fee pre-order hook.
 
 	// TODO: Balance check pre-order hook. If the balance is not sufficient to
 	// cover the order return an error.
@@ -251,7 +262,7 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 		return nil, err
 	}
 
-	preOrderPrecisionAdjustedAmount, preOrderPrecisionAdjustedPrice, err := o.orderAmountPriceAdjustToPrecision(preOrderFeeAdjusted, o.price, exch)
+	preOrderPrecisionAdjustedAmount, preOrderPrecisionAdjustedPrice, err := o.orderAmountPriceAdjustToPrecision(preOrderFeeAdjusted, o.price)
 	if err != nil {
 		return nil, err
 	}
@@ -261,14 +272,20 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 		side = order.Sell
 	}
 
+	postOnly := false // TODO: PostOnly option to be added to order builder
+	if o.orderType == order.Limit {
+		postOnly = true
+	}
+
 	submit := &order.Submit{
-		Exchange:  exch.GetName(),
+		Exchange:  o.exch.GetName(),
 		Pair:      o.pair,
 		Side:      side,
 		Amount:    preOrderPrecisionAdjustedAmount,
 		AssetType: asset.Spot,
 		Type:      o.orderType,
 		Price:     preOrderPrecisionAdjustedPrice,
+		PostOnly:  postOnly,
 	}
 
 	expectedPurchasedAmount, err := o.postOrderAdjustToPurchased(preOrderPrecisionAdjustedAmount, preOrderPrecisionAdjustedPrice)
@@ -281,18 +298,15 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 		return nil, err
 	}
 
-	resp, err := exch.SubmitOrder(ctx, submit)
+	resp, err := o.exch.SubmitOrder(ctx, submit)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: Order check post-order hook. See if the order has actually been
+	// placed and get details.
+
 	// TODO: Balance check post-order hook. See what has actually been purchased.
-
-	var actualAmount float64
-	if o.orderType == order.Market {
-		actualAmount = resp.Amount
-	}
-
 	return &Receipt{
 		Builder:  o,
 		Outbound: submit,
@@ -304,7 +318,6 @@ func (o *OrderBuilder) Submit(ctx context.Context, exch IBotExchange) (*Receipt,
 			PreOrderPrecisionAdjustedPrice:   preOrderPrecisionAdjustedPrice,
 			PostOrderExpectedPurchasedAmount: expectedPurchasedAmount,
 			PostOrderFeeAdjustedAmount:       expectedPurchasedAmountFeeAdjusted,
-			ActualPurchasedAmount:            actualAmount,
 		},
 	}, nil
 }
@@ -363,6 +376,13 @@ func (o *OrderBuilder) reduceOrderAmountByFee(amount float64, preOrder bool) (fl
 		if preOrder {
 			return amount, nil // No fee reduction required
 		}
+		if o.config.FeePostOrderRequiresPrecisionOnAmount {
+			var err error
+			amount, err = o.orderPurchasedAmountAdjustToPrecision(amount)
+			if err != nil {
+				return 0, err
+			}
+		}
 	default:
 		return 0, fmt.Errorf("reduceOrderAmountByFee %w", errSubmissionConfigInvalid)
 	}
@@ -371,7 +391,7 @@ func (o *OrderBuilder) reduceOrderAmountByFee(amount float64, preOrder bool) (fl
 
 // orderAmountAdjustToPrecision changes the amount to the required exchange
 // defined precision.
-func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64, exch IBotExchange) (float64, float64, error) {
+func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) (float64, float64, error) {
 	if amount <= 0 {
 		return 0, 0, fmt.Errorf("orderAmountAdjustToPrecision %w: %v", errAmountInvalid, amount)
 	}
@@ -380,7 +400,7 @@ func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64, 
 		return 0, 0, fmt.Errorf("orderAmountAdjustToPrecision %w: %v", errPriceInvalid, amount)
 	}
 
-	limits, err := exch.GetOrderExecutionLimits(o.assetType, o.pair)
+	limits, err := o.exch.GetOrderExecutionLimits(o.assetType, o.pair)
 	if err != nil {
 		if !o.config.RequiresParameterLimits && errors.Is(err, order.ErrExchangeLimitNotLoaded) {
 			return amount, price, nil
@@ -420,6 +440,42 @@ func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64, 
 	}
 
 	return amount, price, nil
+}
+
+// orderPurchasedAmountAdjustToPrecision changes the amount to the required
+// exchange defined precision. This is for when an exchange slams your expected
+// purchased amount with a holy math.floor bat. If this is occuring you will
+// actually incur a higher fee rate as a result. Happy days.
+func (o *OrderBuilder) orderPurchasedAmountAdjustToPrecision(amount float64) (float64, error) {
+	if amount <= 0 {
+		return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w: %v", errAmountInvalid, amount)
+	}
+
+	limits, err := o.exch.GetOrderExecutionLimits(o.assetType, o.pair)
+	if err != nil { // Precision in this case is definately needed.
+		return 0, err
+	}
+
+	switch {
+	case o.config.OrderBaseAmountsRequired:
+		return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", common.ErrNotYetImplemented)
+	case o.config.OrderSellingAmountsRequired:
+		if o.aspect.PurchasingCurrency.Equal(o.pair.Base) {
+			if limits.AmountStepIncrementSize == 0 {
+				return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", errAmountStepIncrementSizeIsZero)
+			}
+			amount = AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
+		} else {
+			if limits.QuoteStepIncrementSize == 0 {
+				return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", errQuoteStepIncrementSizeIsZero)
+			}
+			amount = AdjustToFixedDecimal(amount, limits.QuoteStepIncrementSize)
+		}
+	default:
+		return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", errSubmissionConfigInvalid)
+	}
+
+	return amount, nil
 }
 
 // PostOrderAdjustToPurchased converts the amount to the purchased amount.

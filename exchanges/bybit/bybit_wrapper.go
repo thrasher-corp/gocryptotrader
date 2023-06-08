@@ -156,9 +156,10 @@ func (by *Bybit) SetDefaults() {
 	}
 
 	by.SubmissionConfig = order.SubmissionConfig{
-		OrderSellingAmountsRequired:   true,
-		FeeAppliedToPurchasedCurrency: true,
-		RequiresParameterLimits:       true,
+		OrderSellingAmountsRequired:           true,
+		FeeAppliedToPurchasedCurrency:         true,
+		RequiresParameterLimits:               true,
+		FeePostOrderRequiresPrecisionOnAmount: true,
 	}
 
 	by.Requester, err = request.New(by.Name,
@@ -578,7 +579,6 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				return nil, err
 			}
 		}
-
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		tick, err := by.GetFuturesSymbolPriceTicker(ctx, formattedPair)
 		if err != nil {
@@ -605,7 +605,6 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				return nil, err
 			}
 		}
-
 	case asset.USDCMarginedFutures:
 		tick, err := by.GetUSDCSymbols(ctx, formattedPair)
 		if err != nil {
@@ -629,7 +628,6 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		if err != nil {
 			return nil, err
 		}
-
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
@@ -2116,4 +2114,15 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	return by.LoadLimits(limits)
+}
+
+// ConstructOrder creates a new order builder for constructing orders. Please
+// note that this functionality is not available on all exchanges. Currently, only
+// spot market orders are supported.
+// It is important to note that market orders require a price to be set.
+// The specified price is used to calculate the expected amount of currency
+// to be purchased or sold based on the order side and the exchange's
+// requirements.
+func (b *Bybit) ConstructOrder() (*exchange.OrderBuilder, error) {
+	return b.NewOrderBuilder(b)
 }
