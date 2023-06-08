@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -990,44 +991,48 @@ func TestGetOrderParameters(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		var resp *OrderParameters
-		var err error
-		switch {
-		case tc.market && tc.selling:
-			resp, err = tc.Pair.MarketSellOrderParameters(tc.currency)
-		case tc.market && !tc.selling:
-			resp, err = tc.Pair.MarketBuyOrderParameters(tc.currency)
-		case !tc.market && tc.selling:
-			resp, err = tc.Pair.LimitSellOrderParameters(tc.currency)
-		case !tc.market && !tc.selling:
-			resp, err = tc.Pair.LimitBuyOrderParameters(tc.currency)
-		}
-
-		if !errors.Is(err, tc.expectedError) {
-			t.Fatalf("test case %d: received %v, expected %v", i, err, tc.expectedError)
-		}
-
-		if tc.expectedParams == nil {
-			if resp != nil {
-				t.Fatalf("test case %d: received %v, expected nil", i, resp)
+		tc := tc
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			t.Parallel()
+			var resp *OrderParameters
+			var err error
+			switch {
+			case tc.market && tc.selling:
+				resp, err = tc.Pair.MarketSellOrderParameters(tc.currency)
+			case tc.market && !tc.selling:
+				resp, err = tc.Pair.MarketBuyOrderParameters(tc.currency)
+			case !tc.market && tc.selling:
+				resp, err = tc.Pair.LimitSellOrderParameters(tc.currency)
+			case !tc.market && !tc.selling:
+				resp, err = tc.Pair.LimitBuyOrderParameters(tc.currency)
 			}
-			continue
-		}
 
-		if resp.SellingCurrency != tc.expectedParams.SellingCurrency {
-			t.Fatalf("SellingCurrency test case %d: received %v, expected %v", i, resp.SellingCurrency, tc.expectedParams.SellingCurrency)
-		}
+			if !errors.Is(err, tc.expectedError) {
+				t.Fatalf("received %v, expected %v", err, tc.expectedError)
+			}
 
-		if resp.PurchasingCurrency != tc.expectedParams.PurchasingCurrency {
-			t.Fatalf("PurchasingCurrency test case %d: received %v, expected %v", i, resp.PurchasingCurrency, tc.expectedParams.PurchasingCurrency)
-		}
+			if tc.expectedParams == nil {
+				if resp != nil {
+					t.Fatalf("received %v, expected nil", resp)
+				}
+				return
+			}
 
-		if resp.IsBuySide != tc.expectedParams.IsBuySide {
-			t.Fatalf("BuySide test case %d: received %v, expected %v", i, resp.IsBuySide, tc.expectedParams.IsBuySide)
-		}
+			if resp.SellingCurrency != tc.expectedParams.SellingCurrency {
+				t.Fatalf("SellingCurrency received %v, expected %v", resp.SellingCurrency, tc.expectedParams.SellingCurrency)
+			}
 
-		if resp.IsAskLiquidity != tc.expectedParams.IsAskLiquidity {
-			t.Fatalf("AskLiquidity test case %d: received %v, expected %v", i, resp.IsAskLiquidity, tc.expectedParams.IsAskLiquidity)
-		}
+			if resp.PurchasingCurrency != tc.expectedParams.PurchasingCurrency {
+				t.Fatalf("PurchasingCurrency received %v, expected %v", resp.PurchasingCurrency, tc.expectedParams.PurchasingCurrency)
+			}
+
+			if resp.IsBuySide != tc.expectedParams.IsBuySide {
+				t.Fatalf("BuySide received %v, expected %v", resp.IsBuySide, tc.expectedParams.IsBuySide)
+			}
+
+			if resp.IsAskLiquidity != tc.expectedParams.IsAskLiquidity {
+				t.Fatalf("AskLiquidity received %v, expected %v", resp.IsAskLiquidity, tc.expectedParams.IsAskLiquidity)
+			}
+		})
 	}
 }

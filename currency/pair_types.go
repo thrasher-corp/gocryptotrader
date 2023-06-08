@@ -18,10 +18,8 @@ type PairDifference struct {
 	FormatDifference bool
 }
 
-// OrderParameters defines the information that describes an order
-// implementation to the actual liquidity. This is used to determine the order
-// side, the liquidity side, the currency pair and the selling and purchasing
-// currency.
+// OrderParameters is used to determine the order side, liquidity side and the
+// selling & purchasing currency derived from the currency pair.
 type OrderParameters struct {
 	// SellingCurrency is the currency that will be sold first
 	SellingCurrency Code

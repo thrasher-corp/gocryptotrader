@@ -144,36 +144,37 @@ func (p Pair) Other(c Code) (Code, error) {
 	return EMPTYCODE, ErrCurrencyCodeEmpty
 }
 
-// IsPopulated returns true if the currency pair have both non-empty values for base and quote.
+// IsPopulated returns true if the currency pair have both non-empty values for
+// base and quote.
 func (p Pair) IsPopulated() bool {
 	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
 }
 
-// MarketSellOrderParameters returns an order parameters for when you want to
-// sell a currency which purchases another currency. This specifically returns
-// what liquidity side you will be affecting, what order side you will be
-// placing and what currency you will be purchasing.
+// MarketSellOrderParameters returns order parameters for when you want to sell
+// a currency which purchases another currency. This specifically returns what
+// liquidity side you will be affecting, what order side you will be placing and
+// what currency you will be purchasing.
 func (p Pair) MarketSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
 	return p.getOrderParameters(wantingToSell, true, true)
 }
 
-// MarketBuyOrderParameters returns the order parameters for when you want to
-// sell a currency which purchases another currency. This specifically returns
-// what liquidity side you will be affecting, what order side you will be
-// placing and what currency you will be purchasing.
+// MarketBuyOrderParameters returns order parameters for when you want to sell a
+// currency which purchases another currency. This specifically returns what
+// liquidity side you will be affecting, what order side you will be placing and
+// what currency you will be purchasing.
 func (p Pair) MarketBuyOrderParameters(wantingToBuy Code) (*OrderParameters, error) {
 	return p.getOrderParameters(wantingToBuy, false, true)
 }
 
-// LimitSellOrderParameters returns the order parameters for when you want to
-// sell a currency which purchases another currency. This specifically returns
-// what liquidity side you will be affecting, what order side you will be
-// placing and what currency you will be purchasing.
+// LimitSellOrderParameters returns order parameters for when you want to sell a
+// currency which purchases another currency. This specifically returns what
+// liquidity side you will be affecting, what order side you will be placing and
+// what currency you will be purchasing.
 func (p Pair) LimitSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
 	return p.getOrderParameters(wantingToSell, true, false)
 }
 
-// LimitBuyOrderParameters returns the order parameters for when you want to
+// LimitBuyOrderParameters returns order parameters for when you want to
 // sell a currency which purchases another currency. This specifically returns
 // what liquidity side you will be affecting, what order side you will be
 // placing and what currency you will be purchasing.
@@ -181,9 +182,9 @@ func (p Pair) LimitBuyOrderParameters(wantingToBuy Code) (*OrderParameters, erro
 	return p.getOrderParameters(wantingToBuy, false, false)
 }
 
-// getOrderDecisionDetails returns the order parameters for the currency pair
-// using the provided currency code, whether or not you are selling and whether
-// or not  you are placing a market order.
+// getOrderDecisionDetails returns order parameters for the currency pair using
+// the provided currency code, whether or not you are selling and whether or not
+// you are placing a market order.
 func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters, error) {
 	if !p.IsPopulated() {
 		return nil, ErrCurrencyPairEmpty
