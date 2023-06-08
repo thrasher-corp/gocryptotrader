@@ -1195,16 +1195,19 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	}, err
 }
 
-// SubmitOrder submits an order specified by exchange, currency pair and asset
-// type
+// SubmitOrder submits an order specified by exchange, currency pair and asset type
 func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	if r.MarginType != "" && !margin.IsValidString(r.MarginType) {
-		return nil, fmt.Errorf("%w %s", margin.ErrInvalidMarginType, r.MarginType)
+	var marginType margin.Type
+	if r.MarginType != "" {
+		marginType = margin.StringToMarginType(r.MarginType)
+		if !marginType.Valid() {
+			return nil, fmt.Errorf("%w %s", margin.ErrInvalidMarginType, r.MarginType)
+		}
 	}
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
@@ -1248,10 +1251,6 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		AssetType:     a,
 	}
 	if r.MarginType != "" {
-		marginType := margin.StringToMarginType(r.MarginType)
-		if !marginType.Valid() {
-			return nil, fmt.Errorf("%w %s", margin.ErrInvalidMarginType, r.MarginType)
-		}
 		submission.MarginType = marginType
 	}
 

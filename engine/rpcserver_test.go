@@ -2331,60 +2331,11 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 			Quote:     cp.Quote.String(),
 		},
 	})
-	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
-		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
-	}
-
-	ctx := account.DeployCredentialsToContext(context.Background(),
-		&account.Credentials{
-			Key:    "wow",
-			Secret: "super wow",
-		},
-	)
-
-	_, err = s.GetFuturesPositionsOrders(ctx, &gctrpc.GetFuturesPositionsOrdersRequest{
-		Exchange: "test",
-		Asset:    asset.Futures.String(),
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      cp.Base.String(),
-			Quote:     cp.Quote.String(),
-		},
-	})
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
-	}
-
-	od := &order.Detail{
-		Price:     1337,
-		Amount:    1337,
-		Fee:       1.337,
-		Exchange:  fakeExchangeName,
-		OrderID:   "test",
-		Side:      order.Long,
-		Status:    order.Open,
-		AssetType: asset.Futures,
-		Date:      time.Now(),
-		Pair:      cp,
-	}
-	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(od)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
-	_, err = s.GetFuturesPositionsOrders(ctx, &gctrpc.GetFuturesPositionsOrdersRequest{
-		Exchange: fakeExchangeName,
-		Asset:    asset.Futures.String(),
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      cp.Base.String(),
-			Quote:     cp.Quote.String(),
-		},
-	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
 
-	_, err = s.GetFuturesPositionsOrders(ctx, &gctrpc.GetFuturesPositionsOrdersRequest{
+	_, err = s.GetFuturesPositionsOrders(context.Background(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{

@@ -73,7 +73,7 @@ func TestLoadTrades(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	data, err = LoadData(context.Background(), time.Now(), exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
+	data, err = LoadData(context.Background(), time.Now().Add(-time.Hour), exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if err != nil {
 		t.Fatal(err)
 	}

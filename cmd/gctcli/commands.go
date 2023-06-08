@@ -1529,7 +1529,7 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	marginType = strings.ToLower(marginType)
-	if !validMargin(marginType) {
+	if !margin.IsValidString(marginType) {
 		return margin.ErrInvalidMarginType
 	}
 

@@ -41,6 +41,7 @@ func (a *okxNumericalValue) UnmarshalJSON(data []byte) error {
 // Float64 returns a float64 value for okxNumericalValue
 func (a *okxNumericalValue) Float64() float64 { return float64(*a) }
 
+// Decimal returns a decimal of the value
 func (a *okxNumericalValue) Decimal() decimal.Decimal { return decimal.NewFromFloat(float64(*a)) }
 
 type okxUnixMilliTime int64

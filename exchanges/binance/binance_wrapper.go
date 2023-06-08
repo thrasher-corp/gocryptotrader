@@ -2279,10 +2279,10 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
 		}
 	}
-
-	if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
-		return nil, err
+	if req.EndDate.IsZero() {
+		req.EndDate = time.Now()
 	}
+
 	var resp []order.PositionResponse
 	sd := req.StartDate
 	switch req.Asset {
@@ -2309,10 +2309,10 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 						return nil, err
 					}
 					for i := range orders {
-						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
 						if orders[i].Time.After(req.EndDate) {
 							continue
 						}
+						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
 						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
 							ReduceOnly:           orders[i].ClosePosition,
 							Price:                orders[i].Price,
@@ -2367,6 +2367,9 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 						return nil, err
 					}
 					for i := range orders {
+						if orders[i].Time.After(req.EndDate) {
+							continue
+						}
 						var orderPair currency.Pair
 						orderPair, err = currency.NewPairFromString(orders[i].Pair)
 						if err != nil {

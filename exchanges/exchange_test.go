@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -2928,5 +2930,59 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 
 	if len(r.RangeHolder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
 		t.Fatalf("received: '%v' but expected: '%v'", len(r.RangeHolder.Ranges), 15)
+	}
+}
+
+func TestSetCollateralMode(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	err := b.SetCollateralMode(context.Background(), asset.Spot, order.SingleCollateral)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestGetCollateralMode(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.GetCollateralMode(context.Background(), asset.Spot)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestSetMarginType(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	err := b.SetMarginType(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.ChangePositionMargin(context.Background(), nil)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	err := b.SetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestGetLeverage(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
 	}
 }

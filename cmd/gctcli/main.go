@@ -39,7 +39,6 @@ func jsonOutput(in interface{}) {
 	if err != nil {
 		return
 	}
-
 	fmt.Print(string(j))
 }
 

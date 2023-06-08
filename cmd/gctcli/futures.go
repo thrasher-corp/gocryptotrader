@@ -251,7 +251,7 @@ var futuresCommands = &cli.Command{
 				},
 				&cli.Float64Flag{
 					Name:    "leverage",
-					Aliases: []string{"l", "riskon", "uponly", "glhf", "yolo"},
+					Aliases: []string{"l", "riskon", "uponly", "yolo", "steadylads"},
 					Usage:   "the level of leverage you want, increase it to lose your capital faster",
 				},
 			},
@@ -320,7 +320,7 @@ var futuresCommands = &cli.Command{
 				&cli.Float64Flag{
 					Name:    "newallocatedmargin",
 					Aliases: []string{"nac"},
-					Usage:   " the new allocated margin level you desire",
+					Usage:   "the new allocated margin level you desire",
 				},
 				&cli.StringFlag{
 					Name:    "marginside",
@@ -354,7 +354,7 @@ var futuresCommands = &cli.Command{
 				&cli.StringFlag{
 					Name:    "underlyingpair",
 					Aliases: []string{"up"},
-					Usage:   "optional - the underlying currency pair",
+					Usage:   "optional - the underlying currency pair eg if pair is BTCUSD-1984-C, the underlying pair could be BTC-USD",
 				},
 			},
 		},
@@ -397,7 +397,7 @@ var futuresCommands = &cli.Command{
 				&cli.BoolFlag{
 					Name:    "respectorderhistorylimits",
 					Aliases: []string{"r"},
-					Usage:   "recommended true - if set to true, will not request orders beyond its API limits",
+					Usage:   "recommended true - if set to true, will not request orders beyond its API limits, preventing errors",
 				},
 				&cli.StringFlag{
 					Name:    "underlyingpair",
@@ -407,7 +407,7 @@ var futuresCommands = &cli.Command{
 				&cli.BoolFlag{
 					Name:    "syncwithordermanager",
 					Aliases: []string{"sync", "s"},
-					Usage:   "recommended true - if set to true, will not request orders beyond its API limits",
+					Usage:   "if true, will sync the orders with the order manager if supported",
 				},
 			},
 		},
@@ -644,11 +644,11 @@ func getCollateral(c *cli.Context) error {
 	} else {
 		assetType = c.Args().Get(1)
 	}
-
 	err = isFuturesAsset(assetType)
 	if err != nil {
 		return err
 	}
+
 	if c.IsSet("calculateoffline") {
 		calculateOffline = c.Bool("calculateoffline")
 	} else if c.Args().Get(2) != "" {
