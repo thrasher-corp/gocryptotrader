@@ -149,76 +149,76 @@ func (p Pair) IsPopulated() bool {
 	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
 }
 
-// MarketSellOrderDecisionDetails returns an order decision details for when you
-// want to sell a currency which purchases another currency. This specifically
-// returns what liquidity side you will be affecting, what order side you will
-// be placing and what currency you will be purchasing.
-func (p Pair) MarketSellOrderDecisionDetails(wantingToSell Code) (*OrderDecisionDetails, error) {
-	return p.getOrderDecisionDetails(wantingToSell, true, true)
+// MarketSellOrderParameters returns an order parameters for when you want to
+// sell a currency which purchases another currency. This specifically returns
+// what liquidity side you will be affecting, what order side you will be
+// placing and what currency you will be purchasing.
+func (p Pair) MarketSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToSell, true, true)
 }
 
-// MarketBuyOrderDecisionDetails returns the order decision details for when you
-// want to buy a currency which sells another currency. This specifically
-// returns what liquidity side you will be affecting, what order side you will
-// be placing and what currency you will be selling.
-func (p Pair) MarketBuyOrderDecisionDetails(wantingToBuy Code) (*OrderDecisionDetails, error) {
-	return p.getOrderDecisionDetails(wantingToBuy, false, true)
+// MarketBuyOrderParameters returns the order parameters for when you want to
+// sell a currency which purchases another currency. This specifically returns
+// what liquidity side you will be affecting, what order side you will be
+// placing and what currency you will be purchasing.
+func (p Pair) MarketBuyOrderParameters(wantingToBuy Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToBuy, false, true)
 }
 
-// LimitSellOrderDecisionDetails returns the order decision details for when you
-// want to sell a currency which purchases another currency. This specifically
-// returns what liquidity side you will be affecting, what order side you will
-// be placing and what currency you will be purchasing.
-func (p Pair) LimitSellOrderDecisionDetails(wantingToSell Code) (*OrderDecisionDetails, error) {
-	return p.getOrderDecisionDetails(wantingToSell, true, false)
+// LimitSellOrderParameters returns the order parameters for when you want to
+// sell a currency which purchases another currency. This specifically returns
+// what liquidity side you will be affecting, what order side you will be
+// placing and what currency you will be purchasing.
+func (p Pair) LimitSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToSell, true, false)
 }
 
-// LimitBuyOrderDecisionDetails returns the order decision details for when you
-// want to buy a currency which sells another currency. This specifically
-// returns what liquidity side you will be affecting, what order side you will
-// be placing and what currency you will be selling.
-func (p Pair) LimitBuyOrderDecisionDetails(wantingToBuy Code) (*OrderDecisionDetails, error) {
-	return p.getOrderDecisionDetails(wantingToBuy, false, false)
+// LimitBuyOrderParameters returns the order parameters for when you want to
+// sell a currency which purchases another currency. This specifically returns
+// what liquidity side you will be affecting, what order side you will be
+// placing and what currency you will be purchasing.
+func (p Pair) LimitBuyOrderParameters(wantingToBuy Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToBuy, false, false)
 }
 
-// getOrderDecisionDetails returns the order decision details for the currency pair using
-// the provided currency code, whether or not you are selling and whether or not
-// you are placing a market order.
-func (p Pair) getOrderDecisionDetails(c Code, selling, market bool) (*OrderDecisionDetails, error) {
+// getOrderDecisionDetails returns the order parameters for the currency pair
+// using the provided currency code, whether or not you are selling and whether
+// or not  you are placing a market order.
+func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters, error) {
 	if !p.IsPopulated() {
 		return nil, ErrCurrencyPairEmpty
 	}
 	if c.IsEmpty() {
 		return nil, ErrCurrencyCodeEmpty
 	}
-	dec := OrderDecisionDetails{}
+	params := OrderParameters{}
 	switch {
 	case p.Base.Equal(c):
 		if selling {
-			dec.SellingCurrency = p.Base
-			dec.PurchasingCurrency = p.Quote
-			dec.IsBuySide = false
-			dec.IsAskLiquidity = !market
+			params.SellingCurrency = p.Base
+			params.PurchasingCurrency = p.Quote
+			params.IsBuySide = false
+			params.IsAskLiquidity = !market
 		} else {
-			dec.SellingCurrency = p.Quote
-			dec.PurchasingCurrency = p.Base
-			dec.IsBuySide = true
-			dec.IsAskLiquidity = market
+			params.SellingCurrency = p.Quote
+			params.PurchasingCurrency = p.Base
+			params.IsBuySide = true
+			params.IsAskLiquidity = market
 		}
 	case p.Quote.Equal(c):
 		if selling {
-			dec.SellingCurrency = p.Quote
-			dec.PurchasingCurrency = p.Base
-			dec.IsBuySide = true
-			dec.IsAskLiquidity = market
+			params.SellingCurrency = p.Quote
+			params.PurchasingCurrency = p.Base
+			params.IsBuySide = true
+			params.IsAskLiquidity = market
 		} else {
-			dec.SellingCurrency = p.Base
-			dec.PurchasingCurrency = p.Quote
-			dec.IsBuySide = false
-			dec.IsAskLiquidity = !market
+			params.SellingCurrency = p.Base
+			params.PurchasingCurrency = p.Quote
+			params.IsBuySide = false
+			params.IsAskLiquidity = !market
 		}
 	default:
 		return nil, fmt.Errorf("%w %v: %v", errCurrencyNotAssociatedWithPair, c, p)
 	}
-	return &dec, nil
+	return &params, nil
 }

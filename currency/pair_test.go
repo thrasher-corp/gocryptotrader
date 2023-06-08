@@ -967,67 +967,67 @@ func TestGetAspect(t *testing.T) {
 
 	p := NewPair(BTC, USDT)
 	testCases := []struct {
-		Pair            Pair
-		currency        Code
-		market          bool
-		selling         bool
-		expectedDetails *OrderDecisionDetails
-		expectedError   error
+		Pair           Pair
+		currency       Code
+		market         bool
+		selling        bool
+		expectedParams *OrderParameters
+		expectedError  error
 	}{
 		{expectedError: ErrCurrencyPairEmpty},
 		{Pair: p, expectedError: ErrCurrencyCodeEmpty},
 		{Pair: p, currency: XRP, selling: true, market: true, expectedError: errCurrencyNotAssociatedWithPair},
 
-		{Pair: p, currency: BTC, selling: true, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
-		{Pair: p, currency: BTC, selling: false, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
-		{Pair: p, currency: BTC, selling: true, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
-		{Pair: p, currency: BTC, selling: false, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
+		{Pair: p, currency: BTC, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
+		{Pair: p, currency: BTC, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
 
-		{Pair: p, currency: USDT, selling: true, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
-		{Pair: p, currency: USDT, selling: false, market: true, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
-		{Pair: p, currency: USDT, selling: true, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
-		{Pair: p, currency: USDT, selling: false, market: false, expectedDetails: &OrderDecisionDetails{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
+		{Pair: p, currency: USDT, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
+		{Pair: p, currency: USDT, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
 	}
 
 	for i, tc := range testCases {
-		var dec *OrderDecisionDetails
+		var resp *OrderParameters
 		var err error
 		switch {
 		case tc.market && tc.selling:
-			dec, err = tc.Pair.MarketSellOrderDecisionDetails(tc.currency)
+			resp, err = tc.Pair.MarketSellOrderParameters(tc.currency)
 		case tc.market && !tc.selling:
-			dec, err = tc.Pair.MarketBuyOrderDecisionDetails(tc.currency)
+			resp, err = tc.Pair.MarketBuyOrderParameters(tc.currency)
 		case !tc.market && tc.selling:
-			dec, err = tc.Pair.LimitSellOrderDecisionDetails(tc.currency)
+			resp, err = tc.Pair.LimitSellOrderParameters(tc.currency)
 		case !tc.market && !tc.selling:
-			dec, err = tc.Pair.LimitBuyOrderDecisionDetails(tc.currency)
+			resp, err = tc.Pair.LimitBuyOrderParameters(tc.currency)
 		}
 
 		if !errors.Is(err, tc.expectedError) {
 			t.Fatalf("test case %d: received %v, expected %v", i, err, tc.expectedError)
 		}
 
-		if tc.expectedDetails == nil {
-			if dec != nil {
-				t.Fatalf("test case %d: received %v, expected nil", i, dec)
+		if tc.expectedParams == nil {
+			if resp != nil {
+				t.Fatalf("test case %d: received %v, expected nil", i, resp)
 			}
 			continue
 		}
 
-		if dec.SellingCurrency != tc.expectedDetails.SellingCurrency {
-			t.Fatalf("SellingCurrency test case %d: received %v, expected %v", i, dec.SellingCurrency, tc.expectedDetails.SellingCurrency)
+		if resp.SellingCurrency != tc.expectedParams.SellingCurrency {
+			t.Fatalf("SellingCurrency test case %d: received %v, expected %v", i, resp.SellingCurrency, tc.expectedParams.SellingCurrency)
 		}
 
-		if dec.PurchasingCurrency != tc.expectedDetails.PurchasingCurrency {
-			t.Fatalf("PurchasingCurrency test case %d: received %v, expected %v", i, dec.PurchasingCurrency, tc.expectedDetails.PurchasingCurrency)
+		if resp.PurchasingCurrency != tc.expectedParams.PurchasingCurrency {
+			t.Fatalf("PurchasingCurrency test case %d: received %v, expected %v", i, resp.PurchasingCurrency, tc.expectedParams.PurchasingCurrency)
 		}
 
-		if dec.IsBuySide != tc.expectedDetails.IsBuySide {
-			t.Fatalf("BuySide test case %d: received %v, expected %v", i, dec.IsBuySide, tc.expectedDetails.IsBuySide)
+		if resp.IsBuySide != tc.expectedParams.IsBuySide {
+			t.Fatalf("BuySide test case %d: received %v, expected %v", i, resp.IsBuySide, tc.expectedParams.IsBuySide)
 		}
 
-		if dec.IsAskLiquidity != tc.expectedDetails.IsAskLiquidity {
-			t.Fatalf("AskLiquidity test case %d: received %v, expected %v", i, dec.IsAskLiquidity, tc.expectedDetails.IsAskLiquidity)
+		if resp.IsAskLiquidity != tc.expectedParams.IsAskLiquidity {
+			t.Fatalf("AskLiquidity test case %d: received %v, expected %v", i, resp.IsAskLiquidity, tc.expectedParams.IsAskLiquidity)
 		}
 	}
 }
