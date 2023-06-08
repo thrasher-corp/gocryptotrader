@@ -962,7 +962,7 @@ func TestIsPopulated(t *testing.T) {
 	}
 }
 
-func TestGetAspect(t *testing.T) {
+func TestGetOrderParameters(t *testing.T) {
 	t.Parallel()
 
 	p := NewPair(BTC, USDT)
