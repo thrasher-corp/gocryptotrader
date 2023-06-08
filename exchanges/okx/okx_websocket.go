@@ -1232,7 +1232,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	assets := ok.GetAssetTypes(true)
-	subs := make([]string, len(defaultSubscribedChannels))
+	var subs []string
 	copy(subs, defaultSubscribedChannels)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
 		subs = append(subs,
