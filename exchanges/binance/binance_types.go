@@ -842,6 +842,7 @@ type WsOrderUpdateData struct {
 	IsMaker                           bool      `json:"m"`
 	Ignored2                          bool      `json:"M"` // See the comment for "I".
 	OrderCreationTime                 time.Time `json:"O"`
+	WorkingTime                       time.Time `json:"W"`
 	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
 	LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
 	QuoteOrderQuantity                float64   `json:"Q,string"`
