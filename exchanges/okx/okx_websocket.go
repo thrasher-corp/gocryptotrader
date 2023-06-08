@@ -1735,7 +1735,7 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	var format currency.PairFormat
 	var err error
 	if tInstrumentType {
-		instrumentType = strings.ToLower(ok.GetInstrumentTypeFromAssetItem(assetType))
+		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
 		if instrumentType != okxInstTypeSpot &&
 			instrumentType != okxInstTypeMargin &&
 			instrumentType != okxInstTypeSwap &&
@@ -1792,7 +1792,7 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	var err error
 	var format currency.PairFormat
 	if params.InstrumentType {
-		instrumentType = strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(assetType))
+		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
 		if instrumentType != okxInstTypeMargin &&
 			instrumentType != okxInstTypeSwap &&
 			instrumentType != okxInstTypeFutures &&
