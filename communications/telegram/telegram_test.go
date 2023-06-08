@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -19,12 +20,13 @@ func TestSetup(t *testing.T) {
 			Enabled:           false,
 			Verbose:           false,
 			VerificationToken: "testest",
+			AuthorisedClients: map[string]int64{"sender": 0},
 		},
 	}}
 	commsCfg := cfg.GetCommunicationsConfig()
 	var T Telegram
 	T.Setup(&commsCfg)
-	if T.Name != "Telegram" || T.Enabled || T.Token != "testest" || T.Verbose {
+	if T.Name != "Telegram" || T.Enabled || T.Token != "testest" || T.Verbose || len(T.AuthorisedClients) != 1 {
 		t.Error("telegram Setup() error, unexpected setup values",
 			T.Name,
 			T.Enabled,
@@ -45,10 +47,18 @@ func TestPushEvent(t *testing.T) {
 	t.Parallel()
 	var T Telegram
 	err := T.PushEvent(base.Event{})
-	if err != nil {
-		t.Error("telegram PushEvent() error", err)
+	if !errors.Is(err, ErrNotConnected) {
+		t.Errorf("expected %s, got %s", ErrNotConnected, err)
 	}
-	T.AuthorisedClients = append(T.AuthorisedClients, 1337)
+
+	T.Connected = true
+	T.AuthorisedClients = map[string]int64{"sender": 0}
+	err = T.PushEvent(base.Event{})
+	if err != nil {
+		t.Errorf("expected nil, got %s", err)
+	}
+
+	T.AuthorisedClients = map[string]int64{"sender": 1337}
 	err = T.PushEvent(base.Event{})
 	if err.Error() != testErrNotFound {
 		t.Errorf("telegram PushEvent() error, expected 'Not found' got '%s'",
@@ -71,11 +81,6 @@ func TestHandleMessages(t *testing.T) {
 			err)
 	}
 	err = T.HandleMessages(cmdStatus, chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
-	}
-	err = T.HandleMessages(cmdSettings, chatID)
 	if err.Error() != testErrNotFound {
 		t.Errorf("telegram HandleMessages() error, expected 'Not found' got '%s'",
 			err)
