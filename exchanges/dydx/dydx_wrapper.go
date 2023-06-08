@@ -920,7 +920,7 @@ func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
-			Time:   candles[x].UpdatedAt,
+			Time:   candles[x].StartedAt,
 			Open:   candles[x].Open,
 			High:   candles[x].High,
 			Low:    candles[x].Low,
@@ -928,6 +928,7 @@ func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			Volume: candles[x].BaseTokenVolume,
 		}
 	}
+
 	return req.ProcessResponse(timeSeries)
 }
 

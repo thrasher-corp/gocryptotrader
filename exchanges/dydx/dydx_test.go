@@ -175,8 +175,8 @@ func TestGetPublicRetroactiveMiningReqards(t *testing.T) {
 
 func TestVerifyEmailAddress(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.VerifyEmailAddress(context.Background(), "1234"); err != nil {
-		t.Error(err)
+	if _, err := dy.VerifyEmailAddress(context.Background(), "1234"); err == nil {
+		t.Error("expected 'Not Found' error, got nil")
 	}
 }
 
@@ -203,8 +203,11 @@ func TestGetInsuranceFundBalance(t *testing.T) {
 
 func TestGetPublicProfile(t *testing.T) {
 	t.Parallel()
-	if _, err := dy.GetPublicProfile(context.Background(), "some_public_profile"); err != nil {
-		t.Error(err)
+	if _, err := dy.GetPublicProfile(context.Background(), ""); !errors.Is(err, errMissingPublicID) {
+		t.Errorf("found %v, but expected %v", err, errMissingPublicID)
+	}
+	if _, err := dy.GetPublicProfile(context.Background(), "some_public_profile"); err == nil {
+		t.Error("expected 'User not found' error, but found nil")
 	}
 }
 
@@ -218,11 +221,11 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	pair := currency.NewPair(currency.BTC, currency.USD)
-	_, err := dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Minute*5), time.Now().Add(-time.Minute*20), time.Now())
+	_, err := dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Minute*4), time.Now().Add(-time.Minute*20), time.Now())
 	if err != nil && !errors.Is(err, kline.ErrUnsupportedInterval) {
 		t.Error(err)
 	}
-	_, err = dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, time.Now().Add(-time.Hour), time.Now())
+	_, err = dy.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*10))
 	if err != nil {
 		t.Error(err)
 	}
