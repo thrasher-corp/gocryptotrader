@@ -28,13 +28,21 @@ import (
 // responseStream a channel thought which the data coming from the two websocket connection will go through.
 var responseStream = make(chan stream.Response)
 
-// defaultSubscribedChannels list of channels which are subscribed by default
-var defaultSubscribedChannels = []string{
-	okxChannelTrades,
-	okxChannelOrderBooks,
-	okxChannelCandle5m,
-	okxChannelTickers,
-}
+var (
+	// defaultSubscribedChannels list of channels which are subscribed by default
+	defaultSubscribedChannels = []string{
+		okxChannelTrades,
+		okxChannelOrderBooks,
+		okxChannelCandle5m,
+		okxChannelTickers,
+	}
+	// defaultSubscribedChannels list of channels which are subscribed when authenticated
+	defaultAuthChannels = []string{
+		okxChannelAccount,
+		okxChannelOrders,
+	}
+)
+
 var (
 	candlestickChannelsMap    = map[string]bool{okxChannelCandle1Y: true, okxChannelCandle6M: true, okxChannelCandle3M: true, okxChannelCandle1M: true, okxChannelCandle1W: true, okxChannelCandle1D: true, okxChannelCandle2D: true, okxChannelCandle3D: true, okxChannelCandle5D: true, okxChannelCandle12H: true, okxChannelCandle6H: true, okxChannelCandle4H: true, okxChannelCandle2H: true, okxChannelCandle1H: true, okxChannelCandle30m: true, okxChannelCandle15m: true, okxChannelCandle5m: true, okxChannelCandle3m: true, okxChannelCandle1m: true, okxChannelCandle1Yutc: true, okxChannelCandle3Mutc: true, okxChannelCandle1Mutc: true, okxChannelCandle1Wutc: true, okxChannelCandle1Dutc: true, okxChannelCandle2Dutc: true, okxChannelCandle3Dutc: true, okxChannelCandle5Dutc: true, okxChannelCandle12Hutc: true, okxChannelCandle6Hutc: true}
 	candlesticksMarkPriceMap  = map[string]bool{okxChannelMarkPriceCandle1Y: true, okxChannelMarkPriceCandle6M: true, okxChannelMarkPriceCandle3M: true, okxChannelMarkPriceCandle1M: true, okxChannelMarkPriceCandle1W: true, okxChannelMarkPriceCandle1D: true, okxChannelMarkPriceCandle2D: true, okxChannelMarkPriceCandle3D: true, okxChannelMarkPriceCandle5D: true, okxChannelMarkPriceCandle12H: true, okxChannelMarkPriceCandle6H: true, okxChannelMarkPriceCandle4H: true, okxChannelMarkPriceCandle2H: true, okxChannelMarkPriceCandle1H: true, okxChannelMarkPriceCandle30m: true, okxChannelMarkPriceCandle15m: true, okxChannelMarkPriceCandle5m: true, okxChannelMarkPriceCandle3m: true, okxChannelMarkPriceCandle1m: true, okxChannelMarkPriceCandle1Yutc: true, okxChannelMarkPriceCandle3Mutc: true, okxChannelMarkPriceCandle1Mutc: true, okxChannelMarkPriceCandle1Wutc: true, okxChannelMarkPriceCandle1Dutc: true, okxChannelMarkPriceCandle2Dutc: true, okxChannelMarkPriceCandle3Dutc: true, okxChannelMarkPriceCandle5Dutc: true, okxChannelMarkPriceCandle12Hutc: true, okxChannelMarkPriceCandle6Hutc: true}
@@ -1232,13 +1240,10 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	assets := ok.GetAssetTypes(true)
-	var subs []string
-	copy(subs, defaultSubscribedChannels)
+	subs := make([]string, 0, len(defaultSubscribedChannels)+len(defaultAuthChannels))
+	subs = append(subs, defaultSubscribedChannels...)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		subs = append(subs,
-			okxChannelAccount,
-			okxChannelOrders,
-		)
+		subs = append(subs, defaultAuthChannels...)
 	}
 	for c := range subs {
 		switch subs[c] {
