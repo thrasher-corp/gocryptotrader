@@ -27,9 +27,9 @@ import (
 
 var (
 	errInvalidChecksum = errors.New("invalid checksum")
-
 	// responseStream a channel thought which the data coming from the two websocket connection will go through.
 	responseStream = make(chan stream.Response)
+)
 
 var (
 	// defaultSubscribedChannels list of channels which are subscribed by default
@@ -439,10 +439,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelSpotGridOrder ||
 			arg.Channel == okxChannelGridOrdersContract ||
 			arg.Channel == okxChannelEstimatedPrice {
-			instrumentType, err = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
-			if err != nil {
-				return err
-			}
+			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
 		}
 
 		if arg.Channel == okxChannelPositions ||
@@ -1725,9 +1722,13 @@ func (ok *Okx) wsChannelSubscription(operation, channel string, assetType asset.
 	var format currency.PairFormat
 	var err error
 	if tInstrumentType {
-		instrumentType, err = ok.GetInstrumentTypeFromAssetItem(assetType)
-		if err != nil {
-			return err
+		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
+		if instrumentType != okxInstTypeSpot &&
+			instrumentType != okxInstTypeMargin &&
+			instrumentType != okxInstTypeSwap &&
+			instrumentType != okxInstTypeFutures &&
+			instrumentType != okxInstTypeOption {
+			instrumentType = okxInstTypeANY
 		}
 	}
 	if tUnderlying {
@@ -1778,9 +1779,12 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	var err error
 	var format currency.PairFormat
 	if params.InstrumentType {
-		instrumentType, err = ok.GetInstrumentTypeFromAssetItem(assetType)
-		if err != nil {
-			return err
+		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
+		if instrumentType != okxInstTypeMargin &&
+			instrumentType != okxInstTypeSwap &&
+			instrumentType != okxInstTypeFutures &&
+			instrumentType != okxInstTypeOption {
+			instrumentType = okxInstTypeANY
 		}
 	}
 	if params.Underlying {
