@@ -109,21 +109,17 @@ func (m *OrderManager) gracefulShutdown() {
 // run will periodically process orders
 func (m *OrderManager) run() {
 	log.Debugln(log.OrderMgr, "Order manager started.")
-	timer := time.NewTimer(orderManagerDelay)
+	m.processOrders()
 	for {
 		select {
 		case <-m.shutdown:
 			m.gracefulShutdown()
-			if !timer.Stop() {
-				<-timer.C
-			}
 			m.orderStore.wg.Done()
 			log.Debugln(log.OrderMgr, "Order manager shutdown.")
 			return
-		case <-timer.C:
+		case <-time.After(orderManagerInterval):
 			// Process orders go routine allows shutdown procedures to continue
 			go m.processOrders()
-			timer.Reset(orderManagerDelay)
 		}
 	}
 }

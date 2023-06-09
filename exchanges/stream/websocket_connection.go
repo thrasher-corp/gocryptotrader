@@ -268,36 +268,21 @@ func (w *WebsocketConnection) ReadMessage() Response {
 
 // parseBinaryResponse parses a websocket binary response into a usable byte array
 func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
-	var standardMessage []byte
+	var reader io.ReadCloser
 	var err error
-	// Detect GZIP
-	if resp[0] == 31 && resp[1] == 139 {
-		b := bytes.NewReader(resp)
-		var gReader *gzip.Reader
-		gReader, err = gzip.NewReader(b)
+	if len(resp) >= 2 && resp[0] == 31 && resp[1] == 139 { // Detect GZIP
+		reader, err = gzip.NewReader(bytes.NewReader(resp))
 		if err != nil {
-			return standardMessage, err
-		}
-		standardMessage, err = io.ReadAll(gReader)
-		if err != nil {
-			return standardMessage, err
-		}
-		err = gReader.Close()
-		if err != nil {
-			return standardMessage, err
+			return nil, err
 		}
 	} else {
-		reader := flate.NewReader(bytes.NewReader(resp))
-		standardMessage, err = io.ReadAll(reader)
-		if err != nil {
-			return standardMessage, err
-		}
-		err = reader.Close()
-		if err != nil {
-			return standardMessage, err
-		}
+		reader = flate.NewReader(bytes.NewReader(resp))
 	}
-	return standardMessage, nil
+	standardMessage, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return standardMessage, reader.Close()
 }
 
 // GenerateMessageID Creates a messageID to checkout

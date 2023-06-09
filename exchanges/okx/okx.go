@@ -624,7 +624,7 @@ func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([
 	}
 	params := url.Values{}
 	if arg.InstrumentType != "" {
-		params.Set("instType", strings.ToUpper(arg.InstrumentType))
+		params.Set("instType", arg.InstrumentType)
 	}
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
@@ -3065,7 +3065,7 @@ func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) (string, error) {
 	case asset.Futures:
 		return okxInstTypeFutures, nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return strings.ToUpper(assetType.String())
 	}
 }
 
