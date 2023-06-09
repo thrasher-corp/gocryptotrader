@@ -36,7 +36,7 @@ var (
 		okxChannelCandle5m,
 		okxChannelTickers,
 	}
-	// defaultSubscribedChannels list of channels which are subscribed when authenticated
+	// defaultAuthChannels list of channels which are subscribed when authenticated
 	defaultAuthChannels = []string{
 		okxChannelAccount,
 		okxChannelOrders,
