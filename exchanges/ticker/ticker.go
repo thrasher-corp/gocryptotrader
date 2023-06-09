@@ -131,19 +131,24 @@ func ProcessTicker(p *Price) error {
 		return fmt.Errorf("%s %s", p.ExchangeName, errPairNotSet)
 	}
 
-	if p.Bid != 0 && p.Ask != 0 && p.AssetType != asset.MarginFunding { // Margin funding books can be crossed see Bitfinex.
-		if p.Bid == p.Ask {
-			return fmt.Errorf("%s %s %w",
-				p.ExchangeName,
-				p.Pair,
-				errBidEqualsAsk)
-		}
+	if p.Bid != 0 && p.Ask != 0 {
+		switch {
+		case p.ExchangeName == "Bitfinex" && p.AssetType == asset.MarginFunding:
+		// Margin funding books can be crossed see Bitfinex.
+		default:
+			if p.Bid == p.Ask {
+				return fmt.Errorf("%s %s %w",
+					p.ExchangeName,
+					p.Pair,
+					errBidEqualsAsk)
+			}
 
-		if p.Bid > p.Ask {
-			return fmt.Errorf("%s %s %w",
-				p.ExchangeName,
-				p.Pair,
-				errBidGreaterThanAsk)
+			if p.Bid > p.Ask {
+				return fmt.Errorf("%s %s %w",
+					p.ExchangeName,
+					p.Pair,
+					errBidGreaterThanAsk)
+			}
 		}
 	}
 

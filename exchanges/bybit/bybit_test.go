@@ -3351,12 +3351,33 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTickersV5(context.Background(), "spot", "")
+
+	_, err := b.GetTickersV5(context.Background(), "bruh", "", "")
+	if err != nil && err.Error() != "Illegal category" {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "option", "", "")
+	if !errors.Is(err, errBaseNotSet) {
+		t.Fatalf("expected: %v, received: %v", errBaseNotSet, err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "spot", "", "")
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetTickersV5(context.Background(), "spot", "BTCUSDT")
+	_, err = b.GetTickersV5(context.Background(), "option", "", "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "inverse", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "linear", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -3365,8 +3386,12 @@ func TestGetTickersV5(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
-	// other assets not currently implemented.
-	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
+	}
+
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error("Okx UpdateOrderExecutionLimits() error", err)
 	}
@@ -3395,10 +3420,35 @@ func TestGetAccountFee(t *testing.T) {
 		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
 	}
 
+	_, err = b.GetAccountFee(context.Background(), "bruh", "", "")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("received %v but expected %v", err, errInvalidCategory)
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	_, err = b.GetAccountFee(context.Background(), "bruh", "", "bruh")
+	_, err = b.GetAccountFee(context.Background(), "spot", "", "")
 	if !errors.Is(err, nil) {
-		t.Fatalf("received %v but expected %v", err, nil)
+		t.Errorf("received %v but expected %v", err, nil)
 	}
+
+	_, err = b.GetAccountFee(context.Background(), "linear", "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetAccountFee(context.Background(), "inverse", "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetAccountFee(context.Background(), "option", "", "ETH")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+}
+
+func TestForceFileStandard(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
 }

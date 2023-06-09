@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -98,12 +99,12 @@ func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 		switch data.Result[x].Side {
 		case sideBuy:
 			resp.Bids = append(resp.Bids, orderbook.Item{
-				Price:  data.Result[x].Price,
+				Price:  data.Result[x].Price.Float64(),
 				Amount: data.Result[x].Size,
 			})
 		case sideSell:
 			resp.Asks = append(resp.Asks, orderbook.Item{
-				Price:  data.Result[x].Price,
+				Price:  data.Result[x].Price.Float64(),
 				Amount: data.Result[x].Size,
 			})
 		default:
@@ -393,7 +394,7 @@ func (by *Bybit) GetLastFundingRate(ctx context.Context, symbol currency.Pair) (
 // GetFuturesServerTime returns Bybit server time in seconds
 func (by *Bybit) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
-		TimeNow float64 `json:"time_now,string"`
+		TimeNow convert.StringToFloat64 `json:"time_now"`
 		Error
 	}{}
 
@@ -401,7 +402,7 @@ func (by *Bybit) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	sec, dec := math.Modf(resp.TimeNow)
+	sec, dec := math.Modf(resp.TimeNow.Float64())
 	return time.Unix(int64(sec), int64(dec*(1e9))), nil
 }
 
@@ -1089,20 +1090,22 @@ func (by *Bybit) GetTradingFeeRate(ctx context.Context, symbol currency.Pair) (t
 	params := url.Values{}
 	resp := struct {
 		Result struct {
-			TakerFeeRate float64 `json:"taker_fee_rate,string"`
-			MakerFeeRate float64 `json:"maker_fee_rate,string"`
+			TakerFeeRate convert.StringToFloat64 `json:"taker_fee_rate"`
+			MakerFeeRate convert.StringToFloat64 `json:"maker_fee_rate"`
 		} `json:"result"`
 		Error
 	}{}
 
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
-		return resp.Result.TakerFeeRate, resp.Result.MakerFeeRate, err
+		return 0, 0, err
 	}
 	params.Set("symbol", symbolValue)
 
-	takerFee, makerFee, err = resp.Result.TakerFeeRate, resp.Result.MakerFeeRate, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTradingFeeRate, params, nil, &resp, cFuturesGetTradingFeeRate)
-	return
+	return resp.Result.TakerFeeRate.Float64(),
+		resp.Result.MakerFeeRate.Float64(),
+		by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTradingFeeRate, params, nil, &resp, cFuturesGetTradingFeeRate)
+
 }
 
 // SetCoinRiskLimit sets risk limit
