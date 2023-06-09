@@ -75,7 +75,7 @@ func (by *Bybit) WsUSDTConnect() error {
 	go by.WsUSDTFuturesReadData()
 	by.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		err = by.WsUSDTAuth(context.TODO(), dialer)
+		err = by.WsUSDTAuth(context.TODO(), &dialer)
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -127,7 +127,7 @@ func (by *Bybit) WsUSDTFuturesReadData() {
 }
 
 // WsUSDTAuth sends an authentication message to receive auth data
-func (by *Bybit) WsUSDTAuth(ctx context.Context, dialer websocket.Dialer) error {
+func (by *Bybit) WsUSDTAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	ufuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.USDTMarginedFutures)
@@ -137,7 +137,7 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context, dialer websocket.Dialer) error 
 		return err
 	}
 
-	err = ufuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
+	err = ufuturesWebsocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -277,7 +277,6 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 }
 
 func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
-	// println(string(respRaw))
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {

@@ -66,11 +66,6 @@ func (by *Bybit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	// err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
-
 	err = by.DisableAssetWebsocketSupport(asset.USDCMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -186,10 +181,10 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	// if err != nil {
-	// 	return err
-	// }
+	wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
 
 	err = by.Websocket.Setup(
 		&stream.WebsocketWrapperSetup{
@@ -205,106 +200,106 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	// if by.IsAssetWebsocketSupported(asset.Spot) {
-	// 	spotWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
-	// 		DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
-	// 		RunningURL:            wsRunningEndpoint,
-	// 		RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
-	// 		Connector:             by.WsConnect,
-	// 		Subscriber:            by.Subscribe,
-	// 		Unsubscriber:          by.Unsubscribe,
-	// 		GenerateSubscriptions: by.GenerateDefaultSubscriptions,
-	// 		AssetType:             asset.Spot,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
-	// 		URL:                  by.Websocket.GetWebsocketURL(),
-	// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
-	// 		URL:                  bybitWSBaseURL + wsSpotPrivate,
-	// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// 		Authenticated:        true,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// if by.IsAssetWebsocketSupported(asset.USDTMarginedFutures) {
-	// 	usdtMarginedFuturesWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
-	// 		DefaultURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
-	// 		RunningURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
-	// 		Connector:             by.WsUSDTConnect,
-	// 		Subscriber:            by.SubscribeUSDT,
-	// 		Unsubscriber:          by.UnsubscribeUSDT,
-	// 		GenerateSubscriptions: by.GenerateCoinMarginedFuturesDefaultSubscriptions,
-	// 		AssetType:             asset.USDTMarginedFutures,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	err = usdtMarginedFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
-	// 		URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
-	// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	err = usdtMarginedFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
-	// 		URL:                  bybitWebsocketUSDTMarginedFuturesPublicV2,
-	// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// 		Authenticated:        true,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// if by.IsAssetWebsocketSupported(asset.Futures) {
-	// 	futuresWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
-	// 		DefaultURL:            bybitWebsocketFuturesPublicV2,
-	// 		RunningURL:            bybitWebsocketFuturesPublicV2,
-	// 		Connector:             by.WsFuturesConnect,
-	// 		Subscriber:            by.SubscribeFutures,
-	// 		Unsubscriber:          by.UnsubscribeFutures,
-	// 		GenerateSubscriptions: by.GenerateFuturesDefaultSubscriptions,
-	// 		AssetType:             asset.Futures,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
-	// 		URL:                  bybitWebsocketFuturesPublicV2,
-	// 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	if by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
+	if by.IsAssetWebsocketSupported(asset.Spot) {
+		spotWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
+			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
+			RunningURL:            wsRunningEndpoint,
+			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
+			Connector:             by.WsConnect,
+			Subscriber:            by.Subscribe,
+			Unsubscriber:          by.Unsubscribe,
+			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+			AssetType:             asset.Spot,
+		})
+		if err != nil {
+			return err
+		}
+		err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  by.Websocket.GetWebsocketURL(),
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
+		err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  bybitWSBaseURL + wsSpotPrivate,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Authenticated:        true,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if by.IsAssetWebsocketSupported(asset.USDTMarginedFutures) {
+		usdtMarginedFuturesWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
+			DefaultURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
+			RunningURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
+			Connector:             by.WsUSDTConnect,
+			Subscriber:            by.SubscribeUSDT,
+			Unsubscriber:          by.UnsubscribeUSDT,
+			GenerateSubscriptions: by.GenerateCoinMarginedFuturesDefaultSubscriptions,
+			AssetType:             asset.USDTMarginedFutures,
+		})
+		if err != nil {
+			return err
+		}
+		err = usdtMarginedFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
+		err = usdtMarginedFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  bybitWebsocketUSDTMarginedFuturesPublicV2,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Authenticated:        true,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if by.IsAssetWebsocketSupported(asset.Futures) {
 		futuresWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
 			DefaultURL:            bybitWebsocketFuturesPublicV2,
 			RunningURL:            bybitWebsocketFuturesPublicV2,
-			Connector:             by.WsCoinConnect,
-			Subscriber:            by.SubscribeCoin,
-			Unsubscriber:          by.UnsubscribeCoin,
+			Connector:             by.WsFuturesConnect,
+			Subscriber:            by.SubscribeFutures,
+			Unsubscriber:          by.UnsubscribeFutures,
 			GenerateSubscriptions: by.GenerateFuturesDefaultSubscriptions,
-			AssetType:             asset.CoinMarginedFutures,
+			AssetType:             asset.Futures,
 		})
 		if err != nil {
 			return err
 		}
 		err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
 			URL:                  bybitWebsocketFuturesPublicV2,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
+		futuresWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
+			DefaultURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
+			RunningURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
+			Connector:             by.WsCoinConnect,
+			Subscriber:            by.SubscribeCoin,
+			Unsubscriber:          by.UnsubscribeCoin,
+			GenerateSubscriptions: by.GenerateCoinMarginedFuturesDefaultSubscriptions,
+			AssetType:             asset.CoinMarginedFutures,
+		})
+		if err != nil {
+			return err
+		}
+		err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		})
@@ -2126,7 +2121,7 @@ func (by *Bybit) GetServerTime(ctx context.Context, a asset.Item) (time.Time, er
 }
 
 func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
-	pairs, err := by.CurrencyPairs.GetPairs(item, true)
+	pairs, err := by.GetEnabledPairs(item)
 	if err != nil {
 		return currency.Pair{}, err
 	}

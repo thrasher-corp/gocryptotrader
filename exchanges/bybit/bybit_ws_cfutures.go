@@ -61,10 +61,10 @@ const (
 
 var defaultCoinMarginedFuturesSubscriptionChannels = []string{
 	wsInstrument,
-	wsOrder200,
-	wsTrade,
-	wsKlineV2,
-	wsLiquidation,
+	// wsOrder200,
+	// wsTrade,
+	// wsKlineV2,
+	// wsLiquidation,
 }
 
 // WsCoinConnect connects to a CMF websocket feed
@@ -535,19 +535,27 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 							if err != nil {
 								return err
 							}
-
-							by.Websocket.DataHandler <- &ticker.Price{
-								ExchangeName: by.Name,
-								Last:         response.Data.Update[x].LastPrice.Float64(),
-								High:         response.Data.Update[x].HighPrice24h.Float64(),
-								Low:          response.Data.Update[x].LowPrice24h.Float64(),
-								Bid:          response.Data.Update[x].BidPrice.Float64(),
-								Ask:          response.Data.Update[x].AskPrice.Float64(),
-								Volume:       response.Data.Update[x].Volume24h.Float64(),
-								Close:        response.Data.Update[x].PrevPrice24h.Float64(),
-								LastUpdated:  response.Data.Update[x].UpdateAt,
-								AssetType:    asset.CoinMarginedFutures,
-								Pair:         p,
+							var tick *ticker.Price
+							tick, err = by.FetchTicker(context.Background(), p, asset.CoinMarginedFutures)
+							if err != nil {
+								return err
+							}
+							var changed bool
+							if response.Data.Update[x].BidPrice != 0 && response.Data.Update[x].BidPrice.Float64() != tick.Bid {
+								changed = true
+								tick.Bid = response.Data.Update[x].BidPrice.Float64()
+							}
+							if response.Data.Update[x].AskPrice != 0 && response.Data.Update[x].AskPrice.Float64() != tick.Ask {
+								changed = true
+								tick.Ask = response.Data.Update[x].AskPrice.Float64()
+							}
+							if response.Data.Update[x].IndexPrice != 0 && response.Data.Update[x].IndexPrice.Float64() != tick.Last {
+								changed = true
+								tick.Last = response.Data.Update[x].IndexPrice.Float64()
+							}
+							tick.LastUpdated = response.Data.Update[x].UpdateAt
+							if changed {
+								by.Websocket.DataHandler <- tick
 							}
 						}
 					}
@@ -822,7 +830,6 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 		book.Pair = p
 		book.Exchange = by.Name
 		book.LastUpdated = time.Now()
-		println(book.Asset.String(), book.Pair.String(), book.Exchange, len(book.Asks), len(book.Bids))
 		err := by.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
 			return fmt.Errorf("process orderbook error -  %s", err)
@@ -833,7 +840,7 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			return err
 		}
 
-		var asks, bids []orderbook.Item = make([]orderbook.Item, 0, len(data)), make([]orderbook.Item, 0, len(data))
+		var asks, bids = make([]orderbook.Item, 0, len(data)), make([]orderbook.Item, 0, len(data))
 		for i := range data {
 			item := orderbook.Item{
 				Price:  data[i].Price,

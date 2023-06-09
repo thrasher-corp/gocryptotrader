@@ -179,8 +179,6 @@ func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscripti
 		case wsOrder25, wsKlineV2, wsInstrument, wsOrder200:
 			sub.Args[0] += dot + channelsToSubscribe[i].Currency.String()
 		}
-		val, _ := json.Marshal(sub)
-		println(string(val))
 		err := futuresWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -280,7 +278,8 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				format, err := by.GetPairFormat(asset.Futures, false)
+				var format currency.PairFormat
+				format, err = by.GetPairFormat(asset.Futures, false)
 				if err != nil {
 					return err
 				}
@@ -487,7 +486,8 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 						if err != nil {
 							return err
 						}
-						tick, err := by.FetchTicker(context.Background(), p, asset.Futures)
+						var tick *ticker.Price
+						tick, err = by.FetchTicker(context.Background(), p, asset.Futures)
 						if err != nil {
 							return err
 						}
