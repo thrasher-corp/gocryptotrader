@@ -574,11 +574,11 @@ type wsOrderFilled struct {
 
 // WsFuturesOrderbookData stores ws futures orderbook data
 type WsFuturesOrderbookData struct {
-	Price  float64 `json:"price,string"`
-	Symbol string  `json:"symbol"`
-	ID     int64   `json:"id"`
-	Side   string  `json:"side"`
-	Size   float64 `json:"size"`
+	Price  float64             `json:"price,string"`
+	Symbol string              `json:"symbol"`
+	ID     bybitNumericalValue `json:"id"`
+	Side   string              `json:"side"`
+	Size   float64             `json:"size"`
 }
 
 // WsFuturesOrderbook stores ws futures orderbook
@@ -628,16 +628,16 @@ type WsFuturesTrade struct {
 
 // WsFuturesKlineData stores ws future kline data
 type WsFuturesKlineData struct {
-	StartTime bybitTimeSec      `json:"start"`
-	EndTime   bybitTimeSec      `json:"end"`
-	Close     float64           `json:"close"`
-	Open      float64           `json:"open"`
-	High      float64           `json:"high"`
-	Low       float64           `json:"low"`
-	Volume    float64           `json:"volume"`
-	TurnOver  float64           `json:"turnover"`
-	Confirm   bool              `json:"confirm"`
-	Timestamp bybitTimeMilliSec `json:"timestamp"`
+	StartTime bybitTimeSec        `json:"start"`
+	EndTime   bybitTimeSec        `json:"end"`
+	Close     float64             `json:"close"`
+	Open      float64             `json:"open"`
+	High      float64             `json:"high"`
+	Low       float64             `json:"low"`
+	Volume    bybitNumericalValue `json:"volume"`
+	TurnOver  bybitNumericalValue `json:"turnover"`
+	Confirm   bool                `json:"confirm"`
+	Timestamp bybitTimeMilliSec   `json:"timestamp"`
 }
 
 // WsFuturesKline stores ws future kline
@@ -661,32 +661,32 @@ type WsInsurance struct {
 
 // WsTickerData stores ws ticker data
 type WsTickerData struct {
-	ID                    string    `json:"id"`
-	Symbol                string    `json:"symbol"`
-	LastPrice             float64   `json:"last_price,string"`
-	BidPrice              float64   `json:"bid1_price"`
-	AskPrice              float64   `json:"ask1_price"`
-	LastDirection         string    `json:"last_tick_direction"`
-	PrevPrice24h          float64   `json:"prev_price_24h,string"`
-	Price24hPercentChange float64   `json:"price_24h_pcnt_e6"`
-	Price1hPercentChange  float64   `json:"price_1h_pcnt_e6"`
-	HighPrice24h          float64   `json:"high_price_24h,string"`
-	LowPrice24h           float64   `json:"low_price_24h,string"`
-	PrevPrice1h           float64   `json:"prev_price_1h,string"`
-	MarkPrice             float64   `json:"mark_price,string"`
-	IndexPrice            float64   `json:"index_price,string"`
-	OpenInterest          float64   `json:"open_interest"`
-	OpenValue             float64   `json:"open_value_e8"`
-	TotalTurnOver         float64   `json:"total_turnover_e8"`
-	TurnOver24h           float64   `json:"turnover_24h_e8"`
-	TotalVolume           float64   `json:"total_volume"`
-	Volume24h             float64   `json:"volume_24h"`
-	FundingRate           int64     `json:"funding_rate_e6"`
-	PredictedFundingRate  float64   `json:"predicted_funding_rate_e6"`
-	CreatedAt             time.Time `json:"created_at"`
-	UpdateAt              time.Time `json:"updated_at"`
-	NextFundingAt         time.Time `json:"next_funding_time"`
-	CountDownHour         int64     `json:"countdown_hour"`
+	ID                    int64               `json:"id"`
+	Symbol                string              `json:"symbol"`
+	LastPrice             bybitNumericalValue `json:"last_price"`
+	BidPrice              bybitNumericalValue `json:"bid1_price"`
+	AskPrice              bybitNumericalValue `json:"ask1_price"`
+	LastDirection         string              `json:"last_tick_direction"`
+	PrevPrice24h          bybitNumericalValue `json:"prev_price_24h"`
+	Price24hPercentChange bybitNumericalValue `json:"price_24h_pcnt_e6"`
+	Price1hPercentChange  bybitNumericalValue `json:"price_1h_pcnt_e6"`
+	HighPrice24h          bybitNumericalValue `json:"high_price_24h"`
+	LowPrice24h           bybitNumericalValue `json:"low_price_24h"`
+	PrevPrice1h           bybitNumericalValue `json:"prev_price_1h"`
+	MarkPrice             bybitNumericalValue `json:"mark_price"`
+	IndexPrice            bybitNumericalValue `json:"index_price"`
+	OpenInterest          bybitNumericalValue `json:"open_interest"`
+	OpenValue             bybitNumericalValue `json:"open_value_e8"`
+	TotalTurnOver         bybitNumericalValue `json:"total_turnover_e8"`
+	TurnOver24h           bybitNumericalValue `json:"turnover_24h_e8"`
+	TotalVolume           bybitNumericalValue `json:"total_volume"`
+	Volume24h             bybitNumericalValue `json:"volume_24h"`
+	FundingRate           bybitNumericalValue `json:"funding_rate_e6"`
+	PredictedFundingRate  bybitNumericalValue `json:"predicted_funding_rate_e6"`
+	CreatedAt             time.Time           `json:"created_at"`
+	UpdateAt              time.Time           `json:"updated_at"`
+	NextFundingAt         time.Time           `json:"next_funding_time"`
+	CountDownHour         int64               `json:"countdown_hour"`
 }
 
 // WsTicker stores ws ticker

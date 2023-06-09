@@ -179,6 +179,8 @@ func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscripti
 		case wsOrder25, wsKlineV2, wsInstrument, wsOrder200:
 			sub.Args[0] += dot + channelsToSubscribe[i].Currency.String()
 		}
+		val, _ := json.Marshal(sub)
+		println(string(val))
 		err := futuresWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -278,6 +280,14 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
+				format, err := by.GetPairFormat(asset.Futures, false)
+				if err != nil {
+					return err
+				}
+				p = p.Format(format)
+				if err != nil {
+					return err
+				}
 				err = by.processOrderbook(response.OBData,
 					response.Type,
 					p,
@@ -285,7 +295,6 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-
 			case wsOperationDelta:
 				var response WsCoinDeltaOrderbook
 				err = json.Unmarshal(respRaw, &response)
@@ -408,7 +417,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				HighPrice:  response.KlineData[i].High,
 				LowPrice:   response.KlineData[i].Low,
 				ClosePrice: response.KlineData[i].Close,
-				Volume:     response.KlineData[i].Volume,
+				Volume:     response.KlineData[i].Volume.Float64(),
 				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}
@@ -478,20 +487,26 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 						if err != nil {
 							return err
 						}
-
-						by.Websocket.DataHandler <- &ticker.Price{
-							ExchangeName: by.Name,
-							Last:         response.Data.Update[x].IndexPrice,
-							High:         response.Data.Update[x].HighPrice24h,
-							Open:         response.Data.Update[x].OpenValue / 1e8,
-							Low:          response.Data.Update[x].LowPrice24h,
-							Bid:          response.Data.Update[x].BidPrice,
-							Ask:          response.Data.Update[x].AskPrice,
-							Volume:       response.Data.Update[x].Volume24h,
-							Close:        response.Data.Update[x].PrevPrice24h,
-							LastUpdated:  response.Data.Update[x].UpdateAt,
-							AssetType:    asset.Futures,
-							Pair:         p,
+						tick, err := by.FetchTicker(context.Background(), p, asset.Futures)
+						if err != nil {
+							return err
+						}
+						var changed bool
+						if response.Data.Update[x].BidPrice != 0 && response.Data.Update[x].BidPrice != tick.Bid {
+							changed = true
+							tick.Bid = response.Data.Update[x].BidPrice
+						}
+						if response.Data.Update[x].AskPrice != 0 && response.Data.Update[x].AskPrice != tick.Ask {
+							changed = true
+							tick.Ask = response.Data.Update[x].AskPrice
+						}
+						if response.Data.Update[x].IndexPrice != 0 && response.Data.Update[x].IndexPrice != tick.Last {
+							changed = true
+							tick.Last = response.Data.Update[x].IndexPrice
+						}
+						tick.LastUpdated = response.Data.Update[x].UpdateAt
+						if changed {
+							by.Websocket.DataHandler <- tick
 						}
 					}
 				}

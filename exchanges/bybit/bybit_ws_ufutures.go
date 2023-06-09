@@ -27,15 +27,20 @@ const (
 )
 
 const (
-	bybitWebsocketUSDTMarginedFuturesPublicV2 = "wss://stream.bybit.com/realtime_public"
+	bybitWebsocketUSDTMarginedFuturesPublicV2  = "wss://stream.bybit.com/realtime_public"
+	bybitWebsocketUSDTMarginedFuturesPrivateV2 = "wss://stream.bybit.com/realtime_private"
 )
 
-var defaultUSDTMarginedFuturesSubscriptionChannels = []string{
-	wsInstrument,
-	wsOrder200,
-	wsTrade,
-	wsUSDTKline,
-}
+var (
+	defaultUSDTMarginedFuturesSubscriptionChannels = []string{
+		wsInstrument,
+		wsOrder200,
+		wsTrade,
+		wsUSDTKline,
+	}
+	// responseStream a channel thought which the data coming from the two websocket connection will go through.
+	responseStream = make(chan stream.Response)
+)
 
 // WsUSDTConnect connects to a USDT websocket feed
 func (by *Bybit) WsUSDTConnect() error {
@@ -65,9 +70,12 @@ func (by *Bybit) WsUSDTConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
-	go by.wsUSDTReadData()
-	if by.IsWebsocketAuthenticationSupported() {
-		err = by.WsUSDTAuth(context.TODO())
+	by.Websocket.Wg.Add(2)
+	go by.wsFunnelUSDTConnectionData(ufuturesWebsocket.Conn)
+	go by.WsUSDTFuturesReadData()
+	by.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	if by.Websocket.CanUseAuthenticatedEndpoints() {
+		err = by.WsUSDTAuth(context.TODO(), dialer)
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -77,8 +85,49 @@ func (by *Bybit) WsUSDTConnect() error {
 	return nil
 }
 
+// wsFunnelConnectionData receives data from multiple connection and pass the data
+// to wsRead through a channel responseStream
+func (by *Bybit) wsFunnelUSDTConnectionData(ws stream.Connection) {
+	defer by.Websocket.Wg.Done()
+	for {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		responseStream <- stream.Response{Raw: resp.Raw}
+	}
+}
+
+// WsUSDTFuturesReadData read coming messages thought the websocket connection and process the data.
+func (by *Bybit) WsUSDTFuturesReadData() {
+	defer by.Websocket.Wg.Done()
+	for {
+		select {
+		case <-by.Websocket.ShutdownC:
+			select {
+			case resp := <-responseStream:
+				err := by.wsUSDTHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case by.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", by.Name, err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-responseStream:
+			err := by.wsUSDTHandleData(resp.Raw)
+			if err != nil {
+				by.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
 // WsUSDTAuth sends an authentication message to receive auth data
-func (by *Bybit) WsUSDTAuth(ctx context.Context) error {
+func (by *Bybit) WsUSDTAuth(ctx context.Context, dialer websocket.Dialer) error {
 	ufuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.USDTMarginedFutures)
@@ -88,6 +137,12 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context) error {
 		return err
 	}
 
+	err = ufuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	by.Websocket.Wg.Add(1)
+	go by.wsFunnelUSDTConnectionData(ufuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -103,7 +158,7 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return ufuturesWebsocket.Conn.SendJSONMessage(req)
+	return ufuturesWebsocket.AuthConn.SendJSONMessage(req)
 }
 
 // SubscribeUSDT sends a websocket message to receive data from the channel
@@ -221,35 +276,8 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 	return errs
 }
 
-// wsUSDTReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsUSDTReadData() {
-	ufuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.USDTMarginedFutures)
-		return
-	}
-	by.Websocket.Wg.Add(1)
-	defer by.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-ufuturesWebsocket.ShutdownC:
-			return
-		default:
-			resp := ufuturesWebsocket.Conn.ReadMessage()
-			if resp.Raw == nil {
-				return
-			}
-
-			err := by.wsUSDTHandleData(resp.Raw)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-			}
-		}
-	}
-}
-
 func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
+	// println(string(respRaw))
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -285,7 +313,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				}
 
 				err = by.processOrderbook(response.Data.OBData,
-					response.Type,
+					wsOperationSnapshot,
 					p,
 					asset.USDTMarginedFutures)
 				if err != nil {
@@ -412,7 +440,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				HighPrice:  response.KlineData[i].High,
 				LowPrice:   response.KlineData[i].Low,
 				ClosePrice: response.KlineData[i].Close,
-				Volume:     response.KlineData[i].Volume,
+				Volume:     response.KlineData[i].Volume.Float64(),
 				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}
@@ -435,13 +463,13 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 				by.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: by.Name,
-					Last:         response.Ticker.LastPrice,
-					High:         response.Ticker.HighPrice24h,
-					Low:          response.Ticker.LowPrice24h,
-					Bid:          response.Ticker.BidPrice,
-					Ask:          response.Ticker.AskPrice,
-					Volume:       response.Ticker.Volume24h,
-					Close:        response.Ticker.PrevPrice24h,
+					Last:         response.Ticker.LastPrice.Float64(),
+					High:         response.Ticker.HighPrice24h.Float64(),
+					Low:          response.Ticker.LowPrice24h.Float64(),
+					Bid:          response.Ticker.BidPrice.Float64(),
+					Ask:          response.Ticker.AskPrice.Float64(),
+					Volume:       response.Ticker.Volume24h.Float64(),
+					Close:        response.Ticker.PrevPrice24h.Float64(),
 					LastUpdated:  response.Ticker.UpdateAt,
 					AssetType:    asset.USDTMarginedFutures,
 					Pair:         p,
@@ -464,13 +492,13 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Delete[x].LastPrice,
-							High:         response.Data.Delete[x].HighPrice24h,
-							Low:          response.Data.Delete[x].LowPrice24h,
-							Bid:          response.Data.Delete[x].BidPrice,
-							Ask:          response.Data.Delete[x].AskPrice,
-							Volume:       response.Data.Delete[x].Volume24h,
-							Close:        response.Data.Delete[x].PrevPrice24h,
+							Last:         response.Data.Delete[x].LastPrice.Float64(),
+							High:         response.Data.Delete[x].HighPrice24h.Float64(),
+							Low:          response.Data.Delete[x].LowPrice24h.Float64(),
+							Bid:          response.Data.Delete[x].BidPrice.Float64(),
+							Ask:          response.Data.Delete[x].AskPrice.Float64(),
+							Volume:       response.Data.Delete[x].Volume24h.Float64(),
+							Close:        response.Data.Delete[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Delete[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
@@ -488,13 +516,13 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Update[x].LastPrice,
-							High:         response.Data.Update[x].HighPrice24h,
-							Low:          response.Data.Update[x].LowPrice24h,
-							Bid:          response.Data.Update[x].BidPrice,
-							Ask:          response.Data.Update[x].AskPrice,
-							Volume:       response.Data.Update[x].Volume24h,
-							Close:        response.Data.Update[x].PrevPrice24h,
+							Last:         response.Data.Update[x].LastPrice.Float64(),
+							High:         response.Data.Update[x].HighPrice24h.Float64(),
+							Low:          response.Data.Update[x].LowPrice24h.Float64(),
+							Bid:          response.Data.Update[x].BidPrice.Float64(),
+							Ask:          response.Data.Update[x].AskPrice.Float64(),
+							Volume:       response.Data.Update[x].Volume24h.Float64(),
+							Close:        response.Data.Update[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Update[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
@@ -512,13 +540,12 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Insert[x].LastPrice,
-							High:         response.Data.Insert[x].HighPrice24h,
-							Low:          response.Data.Insert[x].LowPrice24h,
-							Bid:          response.Data.Insert[x].BidPrice,
-							Ask:          response.Data.Insert[x].AskPrice,
-							Volume:       response.Data.Insert[x].Volume24h,
-							Close:        response.Data.Insert[x].PrevPrice24h,
+							Last:         response.Data.Insert[x].LastPrice.Float64(),
+							High:         response.Data.Insert[x].HighPrice24h.Float64(),
+							Low:          response.Data.Insert[x].LowPrice24h.Float64(),
+							Bid:          response.Data.Insert[x].BidPrice.Float64(),
+							Ask:          response.Data.Insert[x].AskPrice.Float64(),
+							Volume:       response.Data.Insert[x].Volume24h.Float64(),
 							LastUpdated:  response.Data.Insert[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,

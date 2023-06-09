@@ -212,6 +212,9 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 		sub.Topic = subscribe
 
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
+		if !channelsToSubscribe[i].Currency.IsEmpty() {
+			sub.Args[0] += "." + channelsToSubscribe[i].Currency.String()
+		}
 		err := cfuturesWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -323,7 +326,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 				err = by.processOrderbook(response.OBData,
-					response.Type,
+					wsOperationSnapshot,
 					p,
 					asset.CoinMarginedFutures)
 				if err != nil {
@@ -451,7 +454,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					HighPrice:  response.KlineData[i].High,
 					LowPrice:   response.KlineData[i].Low,
 					ClosePrice: response.KlineData[i].Close,
-					Volume:     response.KlineData[i].Volume,
+					Volume:     response.KlineData[i].Volume.Float64(),
 					Timestamp:  response.KlineData[i].Timestamp.Time(),
 				}
 			}
@@ -482,13 +485,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 					by.Websocket.DataHandler <- &ticker.Price{
 						ExchangeName: by.Name,
-						Last:         response.Ticker.LastPrice,
-						High:         response.Ticker.HighPrice24h,
-						Low:          response.Ticker.LowPrice24h,
-						Bid:          response.Ticker.BidPrice,
-						Ask:          response.Ticker.AskPrice,
-						Volume:       response.Ticker.Volume24h,
-						Close:        response.Ticker.PrevPrice24h,
+						Last:         response.Ticker.LastPrice.Float64(),
+						High:         response.Ticker.HighPrice24h.Float64(),
+						Low:          response.Ticker.LowPrice24h.Float64(),
+						Bid:          response.Ticker.BidPrice.Float64(),
+						Ask:          response.Ticker.AskPrice.Float64(),
+						Volume:       response.Ticker.Volume24h.Float64(),
+						Close:        response.Ticker.PrevPrice24h.Float64(),
 						LastUpdated:  response.Ticker.UpdateAt,
 						AssetType:    asset.CoinMarginedFutures,
 						Pair:         p,
@@ -511,13 +514,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 							by.Websocket.DataHandler <- &ticker.Price{
 								ExchangeName: by.Name,
-								Last:         response.Data.Delete[x].LastPrice,
-								High:         response.Data.Delete[x].HighPrice24h,
-								Low:          response.Data.Delete[x].LowPrice24h,
-								Bid:          response.Data.Delete[x].BidPrice,
-								Ask:          response.Data.Delete[x].AskPrice,
-								Volume:       response.Data.Delete[x].Volume24h,
-								Close:        response.Data.Delete[x].PrevPrice24h,
+								Last:         response.Data.Delete[x].LastPrice.Float64(),
+								High:         response.Data.Delete[x].HighPrice24h.Float64(),
+								Low:          response.Data.Delete[x].LowPrice24h.Float64(),
+								Bid:          response.Data.Delete[x].BidPrice.Float64(),
+								Ask:          response.Data.Delete[x].AskPrice.Float64(),
+								Volume:       response.Data.Delete[x].Volume24h.Float64(),
+								Close:        response.Data.Delete[x].PrevPrice24h.Float64(),
 								LastUpdated:  response.Data.Delete[x].UpdateAt,
 								AssetType:    asset.CoinMarginedFutures,
 								Pair:         p,
@@ -535,13 +538,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 							by.Websocket.DataHandler <- &ticker.Price{
 								ExchangeName: by.Name,
-								Last:         response.Data.Update[x].LastPrice,
-								High:         response.Data.Update[x].HighPrice24h,
-								Low:          response.Data.Update[x].LowPrice24h,
-								Bid:          response.Data.Update[x].BidPrice,
-								Ask:          response.Data.Update[x].AskPrice,
-								Volume:       response.Data.Update[x].Volume24h,
-								Close:        response.Data.Update[x].PrevPrice24h,
+								Last:         response.Data.Update[x].LastPrice.Float64(),
+								High:         response.Data.Update[x].HighPrice24h.Float64(),
+								Low:          response.Data.Update[x].LowPrice24h.Float64(),
+								Bid:          response.Data.Update[x].BidPrice.Float64(),
+								Ask:          response.Data.Update[x].AskPrice.Float64(),
+								Volume:       response.Data.Update[x].Volume24h.Float64(),
+								Close:        response.Data.Update[x].PrevPrice24h.Float64(),
 								LastUpdated:  response.Data.Update[x].UpdateAt,
 								AssetType:    asset.CoinMarginedFutures,
 								Pair:         p,
@@ -559,13 +562,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 							by.Websocket.DataHandler <- &ticker.Price{
 								ExchangeName: by.Name,
-								Last:         response.Data.Insert[x].LastPrice,
-								High:         response.Data.Insert[x].HighPrice24h,
-								Low:          response.Data.Insert[x].LowPrice24h,
-								Bid:          response.Data.Insert[x].BidPrice,
-								Ask:          response.Data.Insert[x].AskPrice,
-								Volume:       response.Data.Insert[x].Volume24h,
-								Close:        response.Data.Insert[x].PrevPrice24h,
+								Last:         response.Data.Insert[x].LastPrice.Float64(),
+								High:         response.Data.Insert[x].HighPrice24h.Float64(),
+								Low:          response.Data.Insert[x].LowPrice24h.Float64(),
+								Bid:          response.Data.Insert[x].BidPrice.Float64(),
+								Ask:          response.Data.Insert[x].AskPrice.Float64(),
+								Volume:       response.Data.Insert[x].Volume24h.Float64(),
+								Close:        response.Data.Insert[x].PrevPrice24h.Float64(),
 								LastUpdated:  response.Data.Insert[x].UpdateAt,
 								AssetType:    asset.CoinMarginedFutures,
 								Pair:         p,
@@ -796,7 +799,6 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 	if len(data) < 1 {
 		return errors.New("no orderbook data")
 	}
-
 	switch action {
 	case wsOperationSnapshot:
 		var book orderbook.Base
@@ -804,7 +806,7 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			item := orderbook.Item{
 				Price:  data[i].Price,
 				Amount: data[i].Size,
-				ID:     data[i].ID,
+				ID:     int64(data[i].ID.Float64()),
 			}
 			switch {
 			case strings.EqualFold(data[i].Side, sideSell):
@@ -819,6 +821,8 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 		book.Asset = a
 		book.Pair = p
 		book.Exchange = by.Name
+		book.LastUpdated = time.Now()
+		println(book.Asset.String(), book.Pair.String(), book.Exchange, len(book.Asks), len(book.Bids))
 		err := by.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
 			return fmt.Errorf("process orderbook error -  %s", err)
@@ -829,12 +833,12 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			return err
 		}
 
-		var asks, bids []orderbook.Item
+		var asks, bids []orderbook.Item = make([]orderbook.Item, 0, len(data)), make([]orderbook.Item, 0, len(data))
 		for i := range data {
 			item := orderbook.Item{
 				Price:  data[i].Price,
 				Amount: data[i].Size,
-				ID:     data[i].ID,
+				ID:     int64(data[i].ID.Float64()),
 			}
 
 			switch {
@@ -849,11 +853,12 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 		}
 
 		err = by.Websocket.Orderbook.Update(&orderbook.Update{
-			Bids:   bids,
-			Asks:   asks,
-			Pair:   p,
-			Asset:  a,
-			Action: updateAction,
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       p,
+			Asset:      a,
+			Action:     updateAction,
+			UpdateTime: time.Now(),
 		})
 		if err != nil {
 			return err

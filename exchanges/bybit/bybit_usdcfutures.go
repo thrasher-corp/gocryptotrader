@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -121,23 +122,29 @@ func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, dir
 }
 
 // GetUSDCSymbols gets all symbol information for USDCMarginedFutures.
-func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (USDCSymbol, error) {
-	resp := struct {
+func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (*USDCSymbol, error) {
+	resp := &struct {
 		Data USDCSymbol `json:"result"`
 		USDCError
 	}{}
 
 	params := url.Values{}
 	if symbol.IsEmpty() {
-		return USDCSymbol{}, errSymbolMissing
+		return nil, errSymbolMissing
 	}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 	if err != nil {
-		return resp.Data, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
-
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetSymbols, params), usdcPublicRate, &resp)
+	err = by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetSymbols, params), usdcPublicRate, resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.ReturnCode != 0 {
+		return nil, fmt.Errorf("code %d msg %s", resp.ReturnCode, resp.ReturnMsg)
+	}
+	return &resp.Data, nil
 }
 
 // GetUSDCKlines gets kline of symbol for USDCMarginedFutures.
