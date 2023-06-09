@@ -14,8 +14,6 @@ import (
 )
 
 var (
-	// ErrExchangeIsNil refers to when an exchange is not set.
-	ErrExchangeIsNil                 = errors.New("exchange is nil")
 	errOrderBuilderIsNil             = errors.New("order builder is nil")
 	errPriceUnset                    = errors.New("price is unset")
 	errAmountUnset                   = errors.New("amount is unset")
@@ -31,60 +29,62 @@ var (
 	errQuoteStepIncrementSizeIsZero  = errors.New("quote step increment size is zero")
 )
 
-// OrderAmounts is the result of the order builder calculations.
+// OrderAmounts represents the calculated amounts and values related to an order.
 type OrderAmounts struct {
-	// PreOrderAmount depending on the exchange requirements could be a base or
-	// quote amount.
+	// PreOrderAmount is the amount before any adjustments, which could be a
+	// base or quote amount depending on exchange requirements.
 	PreOrderAmount float64
-	// PreOrderFeeAdjustedAmount is the PreOrderAmount adjusted to the fee if
-	// the fee is taken from the selling currency. This will restrict the amount
-	// to account for that fee percentage, so that the order will execute.
+	// PreOrderFeeAdjustedAmount is the PreOrderAmount adjusted to account for
+	// the fee, if the fee is taken from the selling currency. This adjustment
+	// ensures that the order will execute correctly.
 	PreOrderFeeAdjustedAmount float64
 	// PreOrderPrecisionAdjustedAmount is the PreOrderFeeAdjustedAmount adjusted
-	// to the exchange precision.
+	// to comply with the exchange precision.
 	PreOrderPrecisionAdjustedAmount float64
-	// PreOrderPrecisionAdjustedPrice is the price adjusted to the exchange
-	// precision.
+	// PreOrderPrecisionAdjustedPrice is the price adjusted to comply with the
+	// exchange precision.
 	PreOrderPrecisionAdjustedPrice float64
-	// PostOrderExpectedPurchasedAmount is the expected amount of currency
-	// purchased after the order is executed.
+	// PostOrderExpectedPurchasedAmount is the expected amount of currency that
+	// will be purchased after the order is executed.
 	PostOrderExpectedPurchasedAmount float64
-	// PostOrderFeeAdjustedAmount is the PostOrderExpectedPurchasedAmount
-	// adjusted to the fee if the fee is taken from the purchasing currency.
+	// PostOrderFeeAdjustedAmount  is the PostOrderExpectedPurchasedAmount
+	// adjusted to account for the fee, if the fee is taken from the purchasing
+	// currency.
 	PostOrderFeeAdjustedAmount float64
-	// TODO: ActualPurchasedAmount is the actual amount of currency purchased after
-	// the order is executed. This can be taken from a hook or the exchange
-	// might return this value. The hook can be sending a HTTP request for
-	// balance which is expensive or if a websocket connection is active should
-	// be updated via a callback.
+	// TODO: ActualPurchasedAmount is the actual amount of currency purchased
+	// after the order is executed. This value can be obtained from a hook or
+	// returned by the exchange itself. The hook can involve sending an
+	// expensive HTTP request for balance, or if a websocket connection is
+	// active, it can be updated via a callback.
 	// ActualPurchasedAmount float64
 }
 
-// OrderBuilder is a helper struct to assist in building orders. All values
-// will be checked in validate and/or Submit. If the exchange does not support
-// the order type or order side it will return an error.
+// OrderBuilder provides a convenient way to construct orders. All values will
+// be validated in the `Validate` and `Submit` methods. If the exchange does not
+// support the specified order type or order side, an error will be returned.
 type OrderBuilder struct {
-	exch               IBotExchange
-	pair               currency.Pair
-	orderType          order.Type
-	price              float64
-	assetType          asset.Item
-	purchasing         bool
-	exchangingCurrency currency.Code
-	currencyAmount     float64
-	feePercentage      float64
-	config             order.SubmissionConfig
-	aspect             *currency.OrderAspect
+	exch               IBotExchange           // The exchange associated with the order
+	pair               currency.Pair          // The currency pair for the order
+	orderType          order.Type             // The type of the order (e.g., market, limit)
+	price              float64                // The price of the order (for limit orders)
+	assetType          asset.Item             // The asset type (e.g., spot, margin)
+	purchasing         bool                   // Indicates if the order is for purchasing or selling
+	exchangingCurrency currency.Code          // The currency to be exchanged
+	currencyAmount     float64                // The amount of currency to be traded
+	feePercentage      float64                // The fee percentage for the order
+	config             order.SubmissionConfig // The configuration for order submission
+	aspect             *currency.OrderAspect  // The order aspect associated with the order
 }
 
-// NewOrderBuilder returns a new order builder which attempts to provide a more
-// intuative way to build orders. This is not supported by all exchanges. Spot
-// orders are only supported at this time. NOTE: Market orders require a price
-// to be set, this is used to calculate the expected amount of currency to be
-// purchased or sold depending on the order side and requirements of the exchange.
-// TOOD: Add hook definitions base paramater here so that the order builder can
-// be used without the need to integrate with GCT's services. i.e. only an
-// exchange wrapper library is imported and used.
+// NewOrderBuilder returns a new OrderBuilder, which provides a more intuitive
+// way to construct orders. This feature is not supported by all exchanges.
+// Currently, only spot orders are supported. Note that market orders require
+// a price to be set, as it is used to calculate the expected amount of currency
+// to be purchased or sold based on the order side and exchange requirements.
+//
+// TODO: Consider adding hook definitions as parameters to allow using the
+// order builder without integrating with GCT's services. This would enable
+// using only an exchange wrapper library.
 func (b *Base) NewOrderBuilder(exch IBotExchange) (*OrderBuilder, error) { // TODO: Might not return an error and then just validate on submit
 	if b == nil {
 		return nil, ErrExchangeIsNil
@@ -104,32 +104,33 @@ func (o *OrderBuilder) Pair(pair currency.Pair) *OrderBuilder {
 	return o
 }
 
-// Price sets the price.
-// NOTE: This is currently mandatory for market orders as well,
-// depending on purchasing and selling this will convert currency amounts and
-// will be used to calculate the expected amount of currency to be purchased (NOT-ACCURATE).
-// Until price finding is implemented you should pre-calculate the price from
-// potential options below; accurate to least accurate (websocket preferred):
+// Price sets the price for the order.
+// NOTE: This is currently mandatory for market orders as well. Depending on
+// the order type (purchasing or selling), the currency amounts will be
+// converted and used to calculate the expected amount of currency to be
+// purchased (this calculation may not be accurate). Until price finding is
+// implemented, you should pre-calculate the price using the potential options
+// below, listed from most accurate to least accurate (websocket preferred):
 //  1. Orderbook -
-//     a. Depending on liquidity side of order book and the deployment amount
-//     calculate the potential average price across tranches.
-//     b. Use best bid or ask price depending on side.
+//     a. Calculate the potential average price across tranches based on the
+//     liquidity side of the order book and the deployment amount.
+//     b. Use the best bid or ask price depending on the order side.
 //  2. Ticker -
-//     a. Use best bid or ask price depending on side.
-//     b. Use last price.
+//     a. Use the best bid or ask price depending on the order side.
+//     b. Use the last price.
 func (o *OrderBuilder) Price(price float64) *OrderBuilder {
 	o.price = price
 	return o
 }
 
 // Market sets the order type to market order.
-func (o *OrderBuilder) Market() *OrderBuilder {
+func (o *OrderBuilder) Market() *OrderBuilder { // TODO: Might merge this with purchase and sell methods and then have a separate method for limit orders.
 	o.orderType = order.Market
 	return o
 }
 
 // Purchase defines the currency you would like to purchase and the amount.
-func (o *OrderBuilder) Purchase(c currency.Code, amount float64) *OrderBuilder {
+func (o *OrderBuilder) Purchase(c currency.Code, amount float64) *OrderBuilder { // TODO: Might swap params around.
 	o.purchasing = true
 	o.exchangingCurrency = c
 	o.currencyAmount = amount
@@ -137,7 +138,7 @@ func (o *OrderBuilder) Purchase(c currency.Code, amount float64) *OrderBuilder {
 }
 
 // Sell defines the currency you would like to sell and the amount.
-func (o *OrderBuilder) Sell(c currency.Code, amount float64) *OrderBuilder {
+func (o *OrderBuilder) Sell(c currency.Code, amount float64) *OrderBuilder { // TODO: Might swap params around.
 	o.purchasing = false
 	o.exchangingCurrency = c
 	o.currencyAmount = amount
@@ -229,8 +230,6 @@ func (o *OrderBuilder) validate() error {
 
 // Receipt is the result of submitting an order to the exchange.
 type Receipt struct {
-	// Builder is the pre-order initial state
-	Builder *OrderBuilder
 	// Outbound is the order that was submitted to the exchange
 	Outbound *order.Submit
 	// Response is the response from the exchange
@@ -272,8 +271,8 @@ func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
 		side = order.Sell
 	}
 
-	postOnly := false // TODO: PostOnly option to be added to order builder
-	if o.orderType == order.Limit {
+	postOnly := false               // TODO: PostOnly option to be added to order builder
+	if o.orderType == order.Limit { // This is for future use.
 		postOnly = true
 	}
 
@@ -308,7 +307,6 @@ func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
 
 	// TODO: Balance check post-order hook. See what has actually been purchased.
 	return &Receipt{
-		Builder:  o,
 		Outbound: submit,
 		Response: resp,
 		OrderAmounts: OrderAmounts{
@@ -355,7 +353,7 @@ func (o *OrderBuilder) convertOrderAmountToTerm(amount float64) (float64, error)
 			}
 		}
 	default:
-		return 0, fmt.Errorf("convertOrderAmountToTerm %w", errSubmissionConfigInvalid)
+		return 0, fmt.Errorf("convertOrderAmountToTerm: %w", errSubmissionConfigInvalid)
 	}
 	return amount, nil
 }
@@ -384,7 +382,7 @@ func (o *OrderBuilder) reduceOrderAmountByFee(amount float64, preOrder bool) (fl
 			}
 		}
 	default:
-		return 0, fmt.Errorf("reduceOrderAmountByFee %w", errSubmissionConfigInvalid)
+		return 0, fmt.Errorf("reduceOrderAmountByFee: %w", errSubmissionConfigInvalid)
 	}
 	return math.ReduceByPercentage(amount, o.feePercentage), nil
 }

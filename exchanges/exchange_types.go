@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -89,6 +90,9 @@ const (
 	NoFiatWithdrawalsText                   string = "NO FIAT WITHDRAWAL"
 	UnknownWithdrawalTypeText               string = "UNKNOWN"
 )
+
+// ErrExchangeIsNil refers to when an exchange is not set.
+var ErrExchangeIsNil = errors.New("exchange is nil")
 
 // FeeType is the type for holding a custom fee type (International withdrawal fee)
 type FeeType uint8

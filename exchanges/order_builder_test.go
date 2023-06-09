@@ -13,9 +13,9 @@ import (
 
 type TestExchange struct {
 	IBotExchange
-	limitError error
-	empty      bool
-	wow        Base
+	limitError         error
+	empty              bool
+	nikkiMinajSupaBase Base
 }
 
 // {"name":"BTCUSDT","alias":"BTCUSDT","baseCurrency":"BTC","quoteCurrency":"USDT","basePrecision":"0.000001","quotePrecision":"0.00000001","minTradeQuantity":"0.000048","minTradeAmount":"1","maxTradeQuantity":"71.73956243","maxTradeAmount":"2000000","minPricePrecision":"0.01","category":1,"showStatus":true,"innovation":false}
@@ -40,7 +40,7 @@ func (t *TestExchange) GetOrderExecutionLimits(a asset.Item, p currency.Pair) (o
 }
 
 func (t *TestExchange) ConstructOrder() (*OrderBuilder, error) {
-	return t.wow.NewOrderBuilder(t)
+	return t.nikkiMinajSupaBase.NewOrderBuilder(t)
 }
 
 func (t *TestExchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
@@ -59,6 +59,11 @@ func TestNewOrderBuilder(t *testing.T) {
 	}
 
 	b = &Base{}
+	_, err = b.NewOrderBuilder(nil)
+	if !errors.Is(err, ErrExchangeIsNil) {
+		t.Fatalf("received: %v expected: %v", err, ErrExchangeIsNil)
+	}
+
 	_, err = b.NewOrderBuilder(&TestExchange{})
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Fatalf("received: %v expected: %v", err, common.ErrFunctionNotSupported)
@@ -634,7 +639,7 @@ func TestPostOrderAdjustToPurchased(t *testing.T) {
 func TestSubmit(t *testing.T) {
 	t.Parallel()
 	exch := &TestExchange{
-		wow: Base{
+		nikkiMinajSupaBase: Base{
 			SubmissionConfig: order.SubmissionConfig{
 				OrderSellingAmountsRequired:           true,
 				FeeAppliedToPurchasedCurrency:         true,
@@ -651,32 +656,46 @@ func TestSubmit(t *testing.T) {
 	receipt, err := marketOrderOne.
 		Pair(pair).
 		Market().
-		Price(25000).
-		Sell(currency.USDT, 5).
+		Price(26411.25).
+		Sell(currency.USDT, 5.000000002).
 		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkAmounts(t, receipt, OrderAmounts{})
+	checkAmounts(t, receipt, OrderAmounts{
+		PreOrderAmount:                   5.000000002, // USDT SELLING
+		PreOrderFeeAdjustedAmount:        5.000000002, // No Change. Fee is applied to purchased currency
+		PreOrderPrecisionAdjustedAmount:  5,
+		PreOrderPrecisionAdjustedPrice:   26411.25,
+		PostOrderExpectedPurchasedAmount: 0.00018931326612712385, // BTC RETURNED
+		PostOrderFeeAdjustedAmount:       0.00018881100000000002, // TODO: Might precision adjust this in future as well. -> 0.000188
+	})
 
-	marketPurchaseQuote, err := exch.ConstructOrder()
+	marketOrderTwo, err := exch.ConstructOrder()
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt, err = marketPurchaseQuote.
+	receipt, err = marketOrderTwo.
 		Pair(pair).
 		Market().
-		Price(25000).
-		Purchase(currency.USDT, 1).
+		Price(26411.24).
+		Sell(currency.BTC, 0.00018881100000000002).
 		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkAmounts(t, receipt, OrderAmounts{})
+	checkAmounts(t, receipt, OrderAmounts{
+		PreOrderAmount:                   0.00018881100000000002, // BTC SELLING
+		PreOrderFeeAdjustedAmount:        0.00018881100000000002, // No Change. Fee is applied to purchased currency
+		PreOrderPrecisionAdjustedAmount:  0.000188,
+		PreOrderPrecisionAdjustedPrice:   26411.24,
+		PostOrderExpectedPurchasedAmount: 4.96531312, // USDT RETURNED
+		PostOrderFeeAdjustedAmount:       4.960347806880001,
+	})
 
 	marketSellBase, err := exch.ConstructOrder()
 	if err != nil {
@@ -685,15 +704,22 @@ func TestSubmit(t *testing.T) {
 	receipt, err = marketSellBase.
 		Pair(pair).
 		Market().
-		Price(25000).
-		Sell(currency.BTC, 1).
+		Price(26411.25).
+		Purchase(currency.BTC, 5/26411.25). // 5 USDT worth of BTC
 		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkAmounts(t, receipt, OrderAmounts{})
+	checkAmounts(t, receipt, OrderAmounts{
+		PreOrderAmount:                   5, // USDT SELLING
+		PreOrderFeeAdjustedAmount:        5, // No Change. Fee is applied to purchased currency
+		PreOrderPrecisionAdjustedAmount:  5,
+		PreOrderPrecisionAdjustedPrice:   26411.25,
+		PostOrderExpectedPurchasedAmount: 0.00018931326612712385, // BTC RETURNED
+		PostOrderFeeAdjustedAmount:       0.00018881100000000002, // TODO: Might precision adjust this in future as well. -> 0.000188
+	})
 
 	marketSellQuote, err := exch.ConstructOrder()
 	if err != nil {
@@ -702,15 +728,22 @@ func TestSubmit(t *testing.T) {
 	receipt, err = marketSellQuote.
 		Pair(pair).
 		Market().
-		Price(25000).
-		Sell(currency.USDT, 1).
+		Price(26411.24).
+		Purchase(currency.USDT, 5). // Automatically convert to 5 USDT worth of BTC
 		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkAmounts(t, receipt, OrderAmounts{})
+	checkAmounts(t, receipt, OrderAmounts{
+		PreOrderAmount:                   0.00018931333780617646, // BTC SELLING
+		PreOrderFeeAdjustedAmount:        0.00018931333780617646, // No Change. Fee is applied to purchased currency
+		PreOrderPrecisionAdjustedAmount:  0.000189,
+		PreOrderPrecisionAdjustedPrice:   26411.24,
+		PostOrderExpectedPurchasedAmount: 4.991724360000001, // USDT RETURNED
+		PostOrderFeeAdjustedAmount:       4.98673263564,
+	})
 
 }
 
@@ -722,10 +755,6 @@ func checkAmounts(t *testing.T, received *Receipt, expected OrderAmounts) {
 			t.Fatalf("received: %v expected: %v", received, expected)
 		}
 		return
-	}
-
-	if received.Builder == nil {
-		t.Fatal("builder is nil")
 	}
 
 	if received.Outbound == nil {
@@ -741,26 +770,26 @@ func checkAmounts(t *testing.T, received *Receipt, expected OrderAmounts) {
 	}
 
 	if received.OrderAmounts.PreOrderAmount != expected.PreOrderAmount {
-		t.Fatalf("received: %v expected: %v", received.OrderAmounts.PreOrderAmount, expected.PreOrderAmount)
+		t.Fatalf("PreOrderAmount received: %v expected: %v", received.OrderAmounts.PreOrderAmount, expected.PreOrderAmount)
 	}
 
 	if received.OrderAmounts.PreOrderFeeAdjustedAmount != expected.PreOrderFeeAdjustedAmount {
-		t.Fatalf("received: %v expected: %v", received.OrderAmounts.PreOrderFeeAdjustedAmount, expected.PreOrderFeeAdjustedAmount)
+		t.Fatalf("PreOrderFeeAdjustedAmount received: %v expected: %v", received.OrderAmounts.PreOrderFeeAdjustedAmount, expected.PreOrderFeeAdjustedAmount)
 	}
 
 	if received.OrderAmounts.PreOrderPrecisionAdjustedPrice != expected.PreOrderPrecisionAdjustedPrice {
-		t.Fatalf("received: %v expected: %v", received.OrderAmounts.PreOrderPrecisionAdjustedPrice, expected.PreOrderPrecisionAdjustedPrice)
+		t.Fatalf("PreOrderPrecisionAdjustedPrice received: %v expected: %v", received.OrderAmounts.PreOrderPrecisionAdjustedPrice, expected.PreOrderPrecisionAdjustedPrice)
 	}
 
 	if received.OrderAmounts.PreOrderPrecisionAdjustedAmount != expected.PreOrderPrecisionAdjustedAmount {
-		t.Fatalf("received: %v expected: %v", received.OrderAmounts.PreOrderPrecisionAdjustedAmount, expected.PreOrderPrecisionAdjustedAmount)
+		t.Fatalf("PreOrderPrecisionAdjustedAmount received: %v expected: %v", received.OrderAmounts.PreOrderPrecisionAdjustedAmount, expected.PreOrderPrecisionAdjustedAmount)
 	}
 
 	if received.OrderAmounts.PostOrderExpectedPurchasedAmount != expected.PostOrderExpectedPurchasedAmount {
-		t.Fatalf("received: %v expected: %v", received.OrderAmounts.PostOrderExpectedPurchasedAmount, expected.PostOrderExpectedPurchasedAmount)
+		t.Fatalf("PostOrderExpectedPurchasedAmount received: %v expected: %v", received.OrderAmounts.PostOrderExpectedPurchasedAmount, expected.PostOrderExpectedPurchasedAmount)
 	}
 
 	if received.OrderAmounts.PostOrderFeeAdjustedAmount != expected.PostOrderFeeAdjustedAmount {
-		t.Fatalf("received: %v expected: %v", received.OrderAmounts.PostOrderFeeAdjustedAmount, expected.PostOrderFeeAdjustedAmount)
+		t.Fatalf("PostOrderFeeAdjustedAmount received: %v expected: %v", received.OrderAmounts.PostOrderFeeAdjustedAmount, expected.PostOrderFeeAdjustedAmount)
 	}
 }
