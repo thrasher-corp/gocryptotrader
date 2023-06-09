@@ -1930,17 +1930,20 @@ func (b *Binance) GetMarginRatesHistory(ctx context.Context, r *margin.RateHisto
 	if err != nil {
 		return nil, err
 	}
-	sd := r.StartDate
 	var resp margin.RateHistoryResponse
-	for {
-		var rates interface{}
-		rates, err = b.GetUserMarginInterestHistory(ctx, r.Currency, r.Pair, sd, r.EndDate, 0, 100, time.Since(sd) > time.Hour*24*7)
+	ranges, err := kline.CalculateCandleDateRanges(r.StartDate, r.EndDate, kline.OneMonth, 0)
+	if err != nil {
+		return nil, err
+	}
+	for x := range ranges.Ranges {
+		var rateResponse *UserMarginInterestHistoryResponse
+		rateResponse, err = b.GetUserMarginInterestHistory(ctx, r.Currency, r.Pair, ranges.Ranges[x].Start.Time, ranges.Ranges[x].End.Time, 0, 100, time.Since(ranges.Ranges[x].Start.Time) > time.Hour*24*7)
 		if err != nil {
 			return nil, err
 		}
-		for i := range rates {
+		for i := range rateResponse.Rows {
 			resp.Rates = append(resp.Rates, margin.Rate{
-				Time:             rates[i].Time,
+				Time:             rateResponse.Rows[i].InterestAccruedTime.Time(),
 				MarketBorrowSize: decimal.Decimal{},
 				HourlyRate:       decimal.Decimal{},
 				YearlyRate:       decimal.Decimal{},
@@ -1950,10 +1953,6 @@ func (b *Binance) GetMarginRatesHistory(ctx context.Context, r *margin.RateHisto
 				BorrowCost:       margin.BorrowCost{},
 			})
 		}
-		if len(rates) < limit {
-			break
-		}
-		sd = rates[len(rates)-1].Time
 	}
 
 	return &resp, nil
@@ -1996,18 +1995,25 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 				}
 				sd = time.UnixMilli(frh[len(frh)-1].FundingTime)
 			}
-			var mp []UMarkPrice
-			mp, err = b.UGetMarkPrice(ctx, fPair)
-			if err != nil {
-				return nil, err
-			}
-			pairRate.LatestRate = order.FundingRate{
-				Time: time.UnixMilli(mp[len(mp)-1].Time),
-				Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
-			}
-			pairRate.PredictedUpcomingRate = order.FundingRate{
-				Time: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
-				Rate: decimal.NewFromFloat(mp[len(mp)-1].EstimatedSettlePrice),
+			if r.IncludePredictedRate {
+				var mp []UMarkPrice
+				mp, err = b.UGetMarkPrice(ctx, fPair)
+				if err != nil {
+					return nil, err
+				}
+				pairRate.LatestRate = order.FundingRate{
+					Time: time.UnixMilli(mp[len(mp)-1].Time),
+					Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
+				}
+				pairRate.PredictedUpcomingRate = order.FundingRate{
+					Time: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
+					Rate: decimal.NewFromFloat(mp[len(mp)-1].EstimatedSettlePrice),
+				}
+			} else {
+				pairRate.LatestRate = order.FundingRate{
+					Time: pairRate.FundingRates[len(pairRate.FundingRates)-1].Time,
+					Rate: pairRate.FundingRates[len(pairRate.FundingRates)-1].Rate,
+				}
 			}
 			resp = append(resp, pairRate)
 		}

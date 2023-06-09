@@ -215,9 +215,25 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
+type UserMarginInterestHistoryResponse struct {
+	Rows  []UserMarginInterestHistory `json:"rows"`
+	Total int64                       `json:"total"`
+}
+
+type UserMarginInterestHistory struct {
+	TxId                int64       `json:"txId"`
+	InterestAccruedTime binanceTime `json:"interestAccuredTime"`
+	Asset               string      `json:"asset"`
+	RawAsset            string      `json:"rawAsset"`
+	Principal           float64     `json:"principal,string"`
+	Interest            float64     `json:"interest,string"`
+	InterestRate        float64     `json:"interestRate,string"`
+	Type                string      `json:"type"`
+	IsolatedSymbol      string      `json:"isolatedSymbol"`
+}
+
 // GetUserMarginInterestHistory does the thing
-func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (interface{}, error) {
-	var resp interface{}
+func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (*UserMarginInterestHistoryResponse, error) {
 	params := url.Values{}
 
 	if !assetCurrency.IsEmpty() {
@@ -247,7 +263,8 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 	}
 
 	path := marginInterestHistory + "?" + params.Encode()
-	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+	var resp UserMarginInterestHistoryResponse
+	return &resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.
