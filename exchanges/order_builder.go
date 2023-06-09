@@ -432,7 +432,7 @@ func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) 
 	}
 
 	if o.orderType != order.Market && limits.PriceStepIncrementSize != 0 {
-		// Client inputed limit order price needs to be adjusted to the required
+		// Client inputted limit order price needs to be adjusted to the required
 		// precision.
 		price = AdjustToFixedDecimal(price, limits.PriceStepIncrementSize)
 	}

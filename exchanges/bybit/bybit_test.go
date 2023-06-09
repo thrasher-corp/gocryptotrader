@@ -3473,7 +3473,7 @@ func TestNewOrder(t *testing.T) {
 		Asset(asset.Spot).
 		Price(tickyTacky.Ask). // Lifting that ask price
 		Market().
-		Purchase(currency.BTC, 5/tickyTacky.Ask). // Demostrating only 5 dollars worth of BTC wishing to be purchased
+		Purchase(currency.BTC, 5/tickyTacky.Ask). // Demonstrating only 5 dollars worth of BTC wishing to be purchased
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
