@@ -43,7 +43,7 @@ func (t *TestExchange) ConstructOrder() (*OrderBuilder, error) {
 	return t.nikkiMinajSupaBase.NewOrderBuilder(t)
 }
 
-func (t *TestExchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+func (t *TestExchange) SubmitOrder(_ context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	return s.DeriveSubmitResponse("TEST")
 }
 
@@ -168,7 +168,6 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("received: %v expected: %v", err, nil)
 	}
 
-	// builder.Limit().Purchase(currency.BTC, 1)
 	err = builder.validate()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v expected: %v", err, nil)
@@ -560,7 +559,6 @@ func TestOrderPurchasedAmountAdjustToPrecision(t *testing.T) {
 	if amount != 4.99662702 {
 		t.Fatalf("received: %v expected: %v", amount, 4.99662702)
 	}
-
 }
 
 func TestPostOrderAdjustToPurchased(t *testing.T) {
@@ -744,7 +742,6 @@ func TestSubmit(t *testing.T) {
 		PostOrderExpectedPurchasedAmount: 4.991724360000001, // USDT RETURNED
 		PostOrderFeeAdjustedAmount:       4.98673263564,
 	})
-
 }
 
 func checkAmounts(t *testing.T, received *Receipt, expected OrderAmounts) {

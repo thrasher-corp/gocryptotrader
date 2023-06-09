@@ -485,11 +485,11 @@ func DecimalSharpeRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInte
 }
 
 // ReduceByPercentage reduces a value by a percentage amount
-func ReduceByPercentage(val float64, percentage float64) float64 {
+func ReduceByPercentage(val, percentage float64) float64 {
 	return val * (1 - percentage/100)
 }
 
 // IncreaseByPercentage increases a value by a percentage amount
-func IncreaseByPercentage(val float64, percentage float64) float64 {
+func IncreaseByPercentage(val, percentage float64) float64 {
 	return val * (1 + percentage/100)
 }

@@ -151,10 +151,10 @@ func (o *OrderBuilder) Asset(a asset.Item) *OrderBuilder {
 	return o
 }
 
-// Fee defines the fee percentage to be used for the order. This is used to
-// calculate the fee adjusted amount. If this is not set this might not execute
-// due to insufficient funds and or the returned amount might not be closer to
-// the expected amount.
+// FeePercentage defines the fee percentage to be used for the order. This is
+// used to calculate the fee adjusted amount. If this is not set this might not
+// execute due to insufficient funds and or the returned amount might not be
+// closer to the expected amount.
 func (o *OrderBuilder) FeePercentage(f float64) *OrderBuilder {
 	o.feePercentage = f
 	return o
@@ -389,7 +389,7 @@ func (o *OrderBuilder) reduceOrderAmountByFee(amount float64, preOrder bool) (fl
 
 // orderAmountAdjustToPrecision changes the amount to the required exchange
 // defined precision.
-func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) (float64, float64, error) {
+func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) (adjAmount, adjPrice float64, err error) {
 	if amount <= 0 {
 		return 0, 0, fmt.Errorf("orderAmountAdjustToPrecision %w: %v", errAmountInvalid, amount)
 	}
@@ -442,15 +442,15 @@ func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) 
 
 // orderPurchasedAmountAdjustToPrecision changes the amount to the required
 // exchange defined precision. This is for when an exchange slams your expected
-// purchased amount with a holy math.floor bat. If this is occuring you will
-// actually incur a higher fee rate as a result. Happy days.
+// purchased amount with a holy math.floor bat. If this is occurring you will
+// actually incur a higher fee rate as a result.
 func (o *OrderBuilder) orderPurchasedAmountAdjustToPrecision(amount float64) (float64, error) {
 	if amount <= 0 {
 		return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w: %v", errAmountInvalid, amount)
 	}
 
 	limits, err := o.exch.GetOrderExecutionLimits(o.assetType, o.pair)
-	if err != nil { // Precision in this case is definately needed.
+	if err != nil { // Precision in this case is definitely needed.
 		return 0, err
 	}
 

@@ -2123,6 +2123,6 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 // The specified price is used to calculate the expected amount of currency
 // to be purchased or sold based on the order side and the exchange's
 // requirements.
-func (b *Bybit) ConstructOrder() (*exchange.OrderBuilder, error) {
-	return b.NewOrderBuilder(b)
+func (by *Bybit) ConstructOrder() (*exchange.OrderBuilder, error) {
+	return by.NewOrderBuilder(by)
 }
