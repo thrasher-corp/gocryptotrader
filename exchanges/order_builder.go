@@ -73,7 +73,7 @@ type OrderBuilder struct {
 	currencyAmount     float64                // The amount of currency to be traded
 	feePercentage      float64                // The fee percentage for the order
 	config             order.SubmissionConfig // The configuration for order submission
-	aspect             *currency.OrderAspect  // The order aspect associated with the order
+	orderParams        *currency.OrderParameters
 }
 
 // NewOrderBuilder returns a new OrderBuilder, which provides a more intuitive
@@ -214,9 +214,9 @@ func (o *OrderBuilder) validate() error {
 	switch {
 	case o.orderType == order.Market:
 		if o.purchasing {
-			o.aspect, err = o.pair.MarketBuyOrderAspect(o.exchangingCurrency)
+			o.orderParams, err = o.pair.MarketBuyOrderParameters(o.exchangingCurrency)
 		} else {
-			o.aspect, err = o.pair.MarketSellOrderAspect(o.exchangingCurrency)
+			o.orderParams, err = o.pair.MarketSellOrderParameters(o.exchangingCurrency)
 		}
 	// TODO: case o.orderType == order.Limit:
 	default:
@@ -267,7 +267,7 @@ func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
 	}
 
 	side := order.Buy
-	if !o.aspect.BuySide {
+	if !o.orderParams.IsBuySide {
 		side = order.Sell
 	}
 
@@ -413,7 +413,7 @@ func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) 
 		}
 		err = CheckAmounts(&limits, amount, false /*isQuote*/)
 	case o.config.OrderSellingAmountsRequired:
-		if o.aspect.SellingCurrency.Equal(o.pair.Base) {
+		if o.orderParams.SellingCurrency.Equal(o.pair.Base) {
 			if limits.AmountStepIncrementSize != 0 {
 				amount = AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
 			}
@@ -458,7 +458,7 @@ func (o *OrderBuilder) orderPurchasedAmountAdjustToPrecision(amount float64) (fl
 	case o.config.OrderBaseAmountsRequired:
 		return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", common.ErrNotYetImplemented)
 	case o.config.OrderSellingAmountsRequired:
-		if o.aspect.PurchasingCurrency.Equal(o.pair.Base) {
+		if o.orderParams.PurchasingCurrency.Equal(o.pair.Base) {
 			if limits.AmountStepIncrementSize == 0 {
 				return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", errAmountStepIncrementSizeIsZero)
 			}
@@ -486,12 +486,12 @@ func (o *OrderBuilder) postOrderAdjustToPurchased(amount, price float64) (float6
 	}
 	switch {
 	case o.config.OrderBaseAmountsRequired:
-		if !o.aspect.PurchasingCurrency.Equal(o.pair.Base) {
+		if !o.orderParams.PurchasingCurrency.Equal(o.pair.Base) {
 			return amount * price, nil
 		}
 		return amount, nil
 	case o.config.OrderSellingAmountsRequired:
-		if o.aspect.SellingCurrency.Equal(o.pair.Base) {
+		if o.orderParams.SellingCurrency.Equal(o.pair.Base) {
 			return amount * price, nil
 		}
 		return amount / price, nil

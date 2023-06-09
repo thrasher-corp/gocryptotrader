@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -143,81 +144,82 @@ func (p Pair) Other(c Code) (Code, error) {
 	return EMPTYCODE, ErrCurrencyCodeEmpty
 }
 
-// IsPopulated returns true if the currency pair have both non-empty values for base and quote.
+// IsPopulated returns true if the currency pair have both non-empty values for
+// base and quote.
 func (p Pair) IsPopulated() bool {
 	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
 }
 
-// MarketSellOrderAspect returns an order aspect for when you want to sell a
+// MarketSellOrderParameters returns order parameters for when you want to sell
+// a currency which purchases another currency. This specifically returns what
+// liquidity side you will be affecting, what order side you will be placing and
+// what currency you will be purchasing.
+func (p Pair) MarketSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToSell, true, true)
+}
+
+// MarketBuyOrderParameters returns order parameters for when you want to sell a
 // currency which purchases another currency. This specifically returns what
 // liquidity side you will be affecting, what order side you will be placing and
 // what currency you will be purchasing.
-func (p Pair) MarketSellOrderAspect(wantingToSell Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToSell, true, true)
+func (p Pair) MarketBuyOrderParameters(wantingToBuy Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToBuy, false, true)
 }
 
-// MarketBuyOrderAspect returns the order aspect for when you want to buy a
-// currency which sells another currency. This specifically returns what
-// liquidity side you will be affecting, what order side you will be placing and
-// what currency you will be selling.
-func (p Pair) MarketBuyOrderAspect(wantingToBuy Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToBuy, false, true)
-}
-
-// LimitSellOrderAspect returns the order aspect for when you want to sell a
+// LimitSellOrderParameters returns order parameters for when you want to sell a
 // currency which purchases another currency. This specifically returns what
 // liquidity side you will be affecting, what order side you will be placing and
 // what currency you will be purchasing.
-func (p Pair) LimitSellOrderAspect(wantingToSell Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToSell, true, false)
+func (p Pair) LimitSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToSell, true, false)
 }
 
-// LimitBuyOrderAspect returns the order aspect for when you want to buy a
-// currency which sells another currency. This specifically returns what
-// liquidity side you will be affecting, what order side you will be placing and
-// what currency you will be selling.
-func (p Pair) LimitBuyOrderAspect(wantingToBuy Code) (*OrderAspect, error) {
-	return p.getAspect(wantingToBuy, false, false)
+// LimitBuyOrderParameters returns order parameters for when you want to
+// sell a currency which purchases another currency. This specifically returns
+// what liquidity side you will be affecting, what order side you will be
+// placing and what currency you will be purchasing.
+func (p Pair) LimitBuyOrderParameters(wantingToBuy Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToBuy, false, false)
 }
 
-// getAspect returns the order aspect for the currency pair using the provided
-// currency code, whether or not you are selling and whether or not you are
-// placing a market order.
-func (p Pair) getAspect(c Code, selling, market bool) (*OrderAspect, error) {
-	if p.IsEmpty() {
+// getOrderDecisionDetails returns order parameters for the currency pair using
+// the provided currency code, whether or not you are selling and whether or not
+// you are placing a market order.
+func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters, error) {
+	if !p.IsPopulated() {
 		return nil, ErrCurrencyPairEmpty
 	}
 	if c.IsEmpty() {
 		return nil, ErrCurrencyCodeEmpty
 	}
-	aspect := OrderAspect{Pair: p}
+	params := OrderParameters{}
 	switch {
 	case p.Base.Equal(c):
 		if selling {
-			aspect.SellingCurrency = p.Base
-			aspect.PurchasingCurrency = p.Quote
-			aspect.BuySide = false
-			aspect.AskLiquidity = !market
+			params.SellingCurrency = p.Base
+			params.PurchasingCurrency = p.Quote
+			params.IsBuySide = false
+			params.IsAskLiquidity = !market
 		} else {
-			aspect.SellingCurrency = p.Quote
-			aspect.PurchasingCurrency = p.Base
-			aspect.BuySide = true
-			aspect.AskLiquidity = market
+			params.SellingCurrency = p.Quote
+			params.PurchasingCurrency = p.Base
+			params.IsBuySide = true
+			params.IsAskLiquidity = market
 		}
 	case p.Quote.Equal(c):
 		if selling {
-			aspect.SellingCurrency = p.Quote
-			aspect.PurchasingCurrency = p.Base
-			aspect.BuySide = true
-			aspect.AskLiquidity = market
+			params.SellingCurrency = p.Quote
+			params.PurchasingCurrency = p.Base
+			params.IsBuySide = true
+			params.IsAskLiquidity = market
 		} else {
-			aspect.SellingCurrency = p.Base
-			aspect.PurchasingCurrency = p.Quote
-			aspect.BuySide = false
-			aspect.AskLiquidity = !market
+			params.SellingCurrency = p.Base
+			params.PurchasingCurrency = p.Quote
+			params.IsBuySide = false
+			params.IsAskLiquidity = !market
 		}
 	default:
-		return nil, errCurrencyNotAssociatedWithPair
+		return nil, fmt.Errorf("%w %v: %v", errCurrencyNotAssociatedWithPair, c, p)
 	}
-	return &aspect, nil
+	return &params, nil
 }

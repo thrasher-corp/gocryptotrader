@@ -443,7 +443,7 @@ func TestOrderAmountAdjustToPrecision(t *testing.T) {
 
 	builder.config.OrderBaseAmountsRequired = false
 	builder.config.OrderSellingAmountsRequired = true
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		SellingCurrency: currency.BTC,
 	}
 
@@ -460,7 +460,7 @@ func TestOrderAmountAdjustToPrecision(t *testing.T) {
 		t.Fatalf("received: %v expected: %v", price, 25000)
 	}
 
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		SellingCurrency: currency.USDT,
 	}
 
@@ -515,7 +515,7 @@ func TestOrderPurchasedAmountAdjustToPrecision(t *testing.T) {
 	}
 
 	builder.config.OrderBaseAmountsRequired = false
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		PurchasingCurrency: currency.BTC,
 	}
 	builder.config.OrderSellingAmountsRequired = true
@@ -524,7 +524,7 @@ func TestOrderPurchasedAmountAdjustToPrecision(t *testing.T) {
 		t.Fatalf("received: %v expected: %v", err, errAmountStepIncrementSizeIsZero)
 	}
 
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		PurchasingCurrency: currency.USDT,
 	}
 	_, err = builder.orderPurchasedAmountAdjustToPrecision(1)
@@ -535,7 +535,7 @@ func TestOrderPurchasedAmountAdjustToPrecision(t *testing.T) {
 	builder.exch = &TestExchange{}
 
 	// Expected purchasing amount in BTC
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		PurchasingCurrency: currency.BTC,
 	}
 	amount, err := builder.orderPurchasedAmountAdjustToPrecision(0.00018968651647541208)
@@ -549,7 +549,7 @@ func TestOrderPurchasedAmountAdjustToPrecision(t *testing.T) {
 
 	// Expected purchasing amount in USDT
 	builder.config.OrderSellingAmountsRequired = true
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		PurchasingCurrency: currency.USDT,
 	}
 	amount, err = builder.orderPurchasedAmountAdjustToPrecision(4.99662702001)
@@ -583,7 +583,7 @@ func TestPostOrderAdjustToPurchased(t *testing.T) {
 	}
 
 	// Sell 1 BTC at 25000
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		PurchasingCurrency: currency.USDT,
 	}
 	builder.config.OrderBaseAmountsRequired = true
@@ -597,7 +597,7 @@ func TestPostOrderAdjustToPurchased(t *testing.T) {
 	}
 
 	// Purchase 1 BTC at 25000
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		PurchasingCurrency: currency.BTC,
 	}
 	balance, err = builder.postOrderAdjustToPurchased(1, 25000) // Already converted to base
@@ -613,7 +613,7 @@ func TestPostOrderAdjustToPurchased(t *testing.T) {
 	// Selling amounts are used for these orders so they always need to be
 	// converted.
 	builder.config.OrderSellingAmountsRequired = true
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		SellingCurrency: currency.USDT,
 	}
 	balance, err = builder.postOrderAdjustToPurchased(25000, 25000)
@@ -624,7 +624,7 @@ func TestPostOrderAdjustToPurchased(t *testing.T) {
 		t.Fatalf("received: %v expected: %v", balance, 25000)
 	}
 
-	builder.aspect = &currency.OrderAspect{
+	builder.orderParams = &currency.OrderParameters{
 		SellingCurrency: currency.BTC,
 	}
 	balance, err = builder.postOrderAdjustToPurchased(1, 25000)
