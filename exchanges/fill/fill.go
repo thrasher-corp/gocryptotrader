@@ -1,7 +1,9 @@
 package fill
 
+import "errors"
+
 // ErrFeedDisabled is an error that indicates the fill feed is disabled
-var ErrFeedDisabled = "fill feed disabled"
+var ErrFeedDisabled = errors.New("fill feed disabled")
 
 // Setup sets up the fill processor
 func (f *Fills) Setup(fillsFeedEnabled bool, c chan interface{}) {
@@ -17,9 +19,11 @@ func (f *Fills) Update(data ...Data) error {
 		return nil
 	}
 
-	if f.fillsFeedEnabled {
-		f.dataHandler <- data
+	if !f.fillsFeedEnabled {
+		return ErrFeedDisabled
 	}
+
+	f.dataHandler <- data
 
 	return nil
 }

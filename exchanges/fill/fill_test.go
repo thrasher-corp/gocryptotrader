@@ -1,6 +1,7 @@
 package fill
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -29,7 +30,10 @@ func TestUpdateDisabledFeed(t *testing.T) {
 	testData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
 	err := fill.Update(testData)
 
-	if err != ErrFeedDisabled {
+	//if err != ErrFeedDisabled {
+	//	t.Errorf("Expected ErrFeedDisabled, got %v", err)
+	//}
+	if !errors.Is(err, ErrFeedDisabled) {
 		t.Errorf("Expected ErrFeedDisabled, got %v", err)
 	}
 
