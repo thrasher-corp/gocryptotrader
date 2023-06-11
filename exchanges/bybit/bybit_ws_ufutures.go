@@ -201,11 +201,11 @@ func (by *Bybit) GenerateUSDTMarginedFuturesDefaultSubscriptions() ([]stream.Cha
 	if err != nil {
 		return nil, err
 	}
-	futuresPairFormat, err := by.GetPairFormat(asset.Futures, true)
+	usdtMarginedFuturesPairFormat, err := by.GetPairFormat(asset.USDTMarginedFutures, true)
 	if err != nil {
 		return nil, err
 	}
-	usdtMarginedFuturesPairs = usdtMarginedFuturesPairs.Format(futuresPairFormat)
+	usdtMarginedFuturesPairs = usdtMarginedFuturesPairs.Format(usdtMarginedFuturesPairFormat)
 	for x := range channels {
 		switch channels[x] {
 		case wsInsurance, wsLiquidation, wsPosition,
@@ -285,7 +285,9 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %v\n", by.Name, multiStreamData)
+		if by.Verbose {
+			log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandle message on websocket: %v\n", by.Name, asset.USDTMarginedFutures, multiStreamData)
+		}
 		return nil
 	}
 

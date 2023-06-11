@@ -62,7 +62,7 @@ func (by *Bybit) WsFuturesConnect() error {
 	}
 
 	go by.wsFuturesReadData()
-	if by.IsWebsocketAuthenticationSupported() {
+	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		err = by.WsFuturesAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
@@ -253,7 +253,9 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %v\n", by.Name, multiStreamData)
+		if by.Verbose {
+			log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandle message on websocket: %v\n", by.Name, asset.Futures, multiStreamData)
+		}
 		return nil
 	}
 

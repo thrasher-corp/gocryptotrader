@@ -299,7 +299,9 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %v\n", by.Name, multiStreamData)
+		if by.Verbose {
+			log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandle message on websocket: %v\n", by.Name, asset.CoinMarginedFutures, multiStreamData)
+		}
 		return nil
 	}
 

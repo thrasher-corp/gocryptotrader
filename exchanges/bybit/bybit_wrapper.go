@@ -239,7 +239,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			Connector:             by.WsUSDTConnect,
 			Subscriber:            by.SubscribeUSDT,
 			Unsubscriber:          by.UnsubscribeUSDT,
-			GenerateSubscriptions: by.GenerateCoinMarginedFuturesDefaultSubscriptions,
+			GenerateSubscriptions: by.GenerateUSDTMarginedFuturesDefaultSubscriptions,
 			AssetType:             asset.USDTMarginedFutures,
 		})
 		if err != nil {

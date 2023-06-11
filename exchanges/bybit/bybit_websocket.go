@@ -207,6 +207,12 @@ func (by *Bybit) wsReadData(ws stream.Connection) {
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsKlines}
+	if by.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(channels,
+			wsAccountInfo,
+			wsOrderExecution,
+			wsTickerInfo)
+	}
 	pairs, err := by.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
