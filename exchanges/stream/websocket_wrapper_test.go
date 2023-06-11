@@ -30,27 +30,10 @@ var defaultWebsocketWrapperSetup = &WrapperWebsocket{
 	},
 }
 
-var defaultWrapperSetup = &WebsocketWrapperSetup{
-	ExchangeConfig: &config.Exchange{
-		Features: &config.FeaturesConfig{
-			Enabled: config.FeaturesEnabledConfig{Websocket: true},
-		},
-		API: config.APIConfig{
-			AuthenticatedWebsocketSupport: true,
-		},
-		WebsocketTrafficTimeout: time.Second * 5,
-		Name:                    "exchangeName",
-	},
-	Features: &protocol.Features{
-		Subscribe:   true,
-		Unsubscribe: true,
-	},
-}
-
 func TestWebsocketWrapperSetup(t *testing.T) {
 	t.Parallel()
 	var websocketWrapper *WrapperWebsocket
-	err := websocketWrapper.Setup(defaultWrapperSetup)
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if !errors.Is(err, errWebsocketWrapperIsNil) {
 		t.Fatalf("found %v, but expected %v", err, errWebsocketWrapperIsNil)
 	}
@@ -94,7 +77,7 @@ func TestWebsocketWrapperSetup(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = websocketWrapper.Setup(defaultWrapperSetup)
+	err = websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Error(err)
 	}
@@ -102,7 +85,7 @@ func TestWebsocketWrapperSetup(t *testing.T) {
 
 func TestGetAssetWebsocket(t *testing.T) {
 	websocketWrapper := NewWrapper()
-	err := websocketWrapper.Setup(defaultWrapperSetup)
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +168,7 @@ func TestWebsocketWrapper(t *testing.T) {
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
-	err = ws.Setup(defaultWrapperSetup)
+	err = ws.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}

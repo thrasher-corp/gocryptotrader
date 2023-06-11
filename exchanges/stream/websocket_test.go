@@ -52,23 +52,6 @@ type testResponse struct {
 	RequestID int64 `json:"reqid,omitempty"`
 }
 
-var defaultSetup = &WebsocketSetup{
-	DefaultURL:   "testDefaultURL",
-	RunningURL:   "wss://testRunningURL",
-	Connector:    func() error { return nil },
-	Subscriber:   func(_ []ChannelSubscription) error { return nil },
-	Unsubscriber: func(_ []ChannelSubscription) error { return nil },
-	GenerateSubscriptions: func() ([]ChannelSubscription, error) {
-		return []ChannelSubscription{
-			{Channel: "TestSub"},
-			{Channel: "TestSub2"},
-			{Channel: "TestSub3"},
-			{Channel: "TestSub4"},
-		}, nil
-	},
-	AssetType: asset.Spot,
-}
-
 type dodgyConnection struct {
 	WebsocketConnection
 }
@@ -86,7 +69,7 @@ func (d *dodgyConnection) Connect() error {
 func TestAddWebsocket(t *testing.T) {
 	t.Parallel()
 	websocketWrapper := NewWrapper()
-	err := websocketWrapper.Setup(defaultWrapperSetup)
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +77,7 @@ func TestAddWebsocket(t *testing.T) {
 	if !errors.Is(err, errWebsocketSetupIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSetupIsNil)
 	}
-	_, err = websocketWrapper.AddWebsocket(defaultSetup)
+	_, err = websocketWrapper.AddWebsocket(DefaultTestSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,11 +159,11 @@ func TestAddWebsocket(t *testing.T) {
 func TestTrafficMonitorTimeout(t *testing.T) {
 	t.Parallel()
 	websocketWrapper := NewWrapper()
-	err := websocketWrapper.Setup(defaultWrapperSetup)
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws, err := websocketWrapper.AddWebsocket(defaultSetup)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,11 +352,11 @@ func TestWebsocket(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 	websocketWrapper := NewWrapper()
-	err = websocketWrapper.Setup(defaultWrapperSetup)
+	err = websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws, err = websocketWrapper.AddWebsocket(defaultSetup)
+	ws, err = websocketWrapper.AddWebsocket(DefaultTestSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,11 +463,11 @@ func TestWebsocket(t *testing.T) {
 func TestSubscribeUnsubscribe(t *testing.T) {
 	t.Parallel()
 	websocketWrapper := NewWrapper()
-	err := websocketWrapper.Setup(defaultWrapperSetup)
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws, err := websocketWrapper.AddWebsocket(defaultSetup)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -543,11 +526,11 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
 	websocketWrapper := NewWrapper()
-	err := websocketWrapper.Setup(defaultWrapperSetup)
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws, err := websocketWrapper.AddWebsocket(defaultSetup)
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1279,11 +1262,11 @@ func TestSetupNewConnection(t *testing.T) {
 	}
 
 	websocketWrapper := NewWrapper()
-	err = websocketWrapper.Setup(defaultWrapperSetup)
+	err = websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	web, err := websocketWrapper.AddWebsocket(defaultSetup)
+	web, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
 	if err != nil {
 		t.Fatal(err)
 	}

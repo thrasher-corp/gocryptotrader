@@ -1246,8 +1246,25 @@ func TestSetupDefaults(t *testing.T) {
 	b.Websocket = stream.NewWrapper()
 	b.Features.Supports.Websocket = true
 	err = b.Websocket.Enable()
+	if !errors.Is(err, stream.ErrNoAssetWebsocketInstanceFound) {
+		t.Fatalf("expected %v, but found %v", stream.ErrNoAssetWebsocketInstanceFound, err)
+	}
+	err = b.Websocket.Setup(stream.DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
+	}
+	err = b.Websocket.Disable()
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.Websocket.AddWebsocket(stream.DefaultTestSetup)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.Websocket.Enable()
+	if err != nil {
+		t.Error(err)
 	}
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
@@ -1571,8 +1588,15 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	if b.IsWebsocketEnabled() {
 		t.Error("exchange doesn't support websocket")
 	}
-
 	b.Websocket = stream.NewWrapper()
+	err := b.Websocket.Setup(stream.DefaultWrapperSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.Websocket.AddWebsocket(stream.DefaultTestSetup)
+	if err != nil {
+		t.Error(err)
+	}
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
 	}

@@ -20,6 +20,9 @@ var (
 	// ErrWebsocketWrapperNotInitialized returned when the websocket wrapper is not initialized
 	ErrWebsocketWrapperNotInitialized = errors.New("websocket wrapper not initialized")
 
+	// ErrNoAssetWebsocketInstanceFound returned when no instantiated asset websocket instance is added
+	ErrNoAssetWebsocketInstanceFound = errors.New("no websocket instance found")
+
 	errFeaturesNotSet = errors.New("websocket wrapper features not set")
 )
 
@@ -38,7 +41,7 @@ func (w *WrapperWebsocket) IsEnabled() bool {
 // Connect connects to all websocket connections
 func (w *WrapperWebsocket) Connect() error {
 	if len(w.AssetTypeWebsockets) == 0 {
-		return fmt.Errorf("no websocket instance found")
+		return ErrNoAssetWebsocketInstanceFound
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
@@ -151,6 +154,9 @@ func (w *WrapperWebsocket) dataMonitor() {
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
 func (w *WrapperWebsocket) FlushChannels() error {
+	if len(w.AssetTypeWebsockets) == 0 {
+		return ErrAssetWebsocketNotFound
+	}
 	var errs error
 	for x := range w.AssetTypeWebsockets {
 		err := w.AssetTypeWebsockets[x].FlushChannels()
@@ -175,6 +181,10 @@ func (w *WrapperWebsocket) GetSubscriptions() []ChannelSubscription {
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *WrapperWebsocket) SubscribeToChannels(channels []ChannelSubscription) error {
+	if len(channels) == 0 {
+		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
+			w.exchangeName)
+	}
 	var err error
 	var filteredChannels []ChannelSubscription
 	for x := range w.AssetTypeWebsockets {
@@ -212,6 +222,10 @@ func (w *WrapperWebsocket) Enable() error {
 
 // UnsubscribeChannels unsubscribes from a websocket channel
 func (w *WrapperWebsocket) UnsubscribeChannels(channels []ChannelSubscription) error {
+	if len(channels) == 0 {
+		return fmt.Errorf("%s websocket: channels not populated cannot remove",
+			w.exchangeName)
+	}
 	var err error
 	for x := range w.AssetTypeWebsockets {
 		err = w.AssetTypeWebsockets[x].UnsubscribeChannels(channels)
@@ -350,8 +364,7 @@ func (w *WrapperWebsocket) Shutdown() error {
 	w.m.Lock()
 	defer w.m.Unlock()
 	if len(w.AssetTypeWebsockets) == 0 {
-		return fmt.Errorf("%v %w",
-			w.exchangeName, ErrAssetWebsocketNotFound)
+		return nil
 	}
 	if w.connectedAssetTypesFlag != asset.Empty {
 		w.ShutdownC <- w.connectedAssetTypesFlag

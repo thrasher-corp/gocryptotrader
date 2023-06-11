@@ -4,12 +4,49 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
+
+// DefaultTestSetup represents a default asset websocket connection instance setup request parameter.
+var DefaultTestSetup = &WebsocketSetup{
+	DefaultURL:   "testDefaultURL",
+	RunningURL:   "wss://testRunningURL",
+	Connector:    func() error { return nil },
+	Subscriber:   func(_ []ChannelSubscription) error { return nil },
+	Unsubscriber: func(_ []ChannelSubscription) error { return nil },
+	GenerateSubscriptions: func() ([]ChannelSubscription, error) {
+		return []ChannelSubscription{
+			{Channel: "TestSub"},
+			{Channel: "TestSub2"},
+			{Channel: "TestSub3"},
+			{Channel: "TestSub4"},
+		}, nil
+	},
+	AssetType: asset.Spot,
+}
+
+// DefaultWrapperSetup represents a default websockets wrapper setup.
+var DefaultWrapperSetup = &WebsocketWrapperSetup{
+	ExchangeConfig: &config.Exchange{
+		Features: &config.FeaturesConfig{
+			Enabled: config.FeaturesEnabledConfig{Websocket: true},
+		},
+		API: config.APIConfig{
+			AuthenticatedWebsocketSupport: true,
+		},
+		WebsocketTrafficTimeout: time.Second * 5,
+		Name:                    "exchangeName",
+	},
+	Features: &protocol.Features{
+		Subscribe:   true,
+		Unsubscribe: true,
+	},
+}
 
 // WrapperWebsocket defines a return type for websocket connections via the interface
 // wrapper for routine processing

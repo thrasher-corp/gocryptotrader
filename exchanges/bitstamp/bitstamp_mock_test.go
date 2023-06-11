@@ -17,7 +17,7 @@ import (
 
 const mockfile = "../../testdata/http_mock/bitstamp/bitstamp.json"
 
-var mockTests = false
+var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()

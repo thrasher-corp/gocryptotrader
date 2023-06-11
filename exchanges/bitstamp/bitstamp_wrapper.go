@@ -192,7 +192,7 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	}
 
 	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  b.Websocket.GetWebsocketURL(),
+		URL:                  bitstampWSURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
