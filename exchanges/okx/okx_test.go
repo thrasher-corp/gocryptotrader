@@ -3125,3 +3125,15 @@ func TestGetIntervalEnum(t *testing.T) {
 		})
 	}
 }
+
+const instrumentJSON = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
+
+func TestInstrument(t *testing.T) {
+	t.Parallel()
+
+	var i Instrument
+	err := json.Unmarshal([]byte(instrumentJSON), &i)
+	if err != nil {
+		t.Error(err)
+	}
+}
