@@ -886,7 +886,12 @@ func TestParseBinaryResponse(t *testing.T) {
 		t.Error(err3)
 	}
 	if !strings.EqualFold(string(resp2), "hello") {
-		t.Errorf("GZip conversion failed. Received: '%v', Expected: 'hello'", string(resp2))
+		t.Errorf("Deflate conversion failed. Received: '%v', Expected: 'hello'", string(resp2))
+	}
+
+	_, err4 := wc.parseBinaryResponse([]byte{})
+	if err4 == nil || err4.Error() != "unexpected EOF" {
+		t.Error("Expected error 'unexpected EOF'")
 	}
 }
 
