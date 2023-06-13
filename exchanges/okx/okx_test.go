@@ -3153,7 +3153,6 @@ func TestInstrument(t *testing.T) {
 		t.Error("expected linear contract type")
 	}
 	if i.ContractValue != "0.0001" {
-
 		t.Error("expected 0.0001 contract value")
 	}
 	if i.ContractValueCurrency != currency.BTC.String() {
