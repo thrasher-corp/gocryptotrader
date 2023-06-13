@@ -386,6 +386,7 @@ func (a *wsOrderUpdate) UnmarshalJSON(data []byte) error {
 			EventTime         binanceTime `json:"E"`
 			OrderCreationTime binanceTime `json:"O"`
 			TransactionTime   binanceTime `json:"T"`
+			WorkingTime       binanceTime `json:"W"`
 			*WsOrderUpdateData
 		} `json:"data"`
 		*Alias
@@ -399,6 +400,7 @@ func (a *wsOrderUpdate) UnmarshalJSON(data []byte) error {
 	a.Data.EventTime = aux.Data.EventTime.Time()
 	a.Data.OrderCreationTime = aux.Data.OrderCreationTime.Time()
 	a.Data.TransactionTime = aux.Data.TransactionTime.Time()
+	a.Data.WorkingTime = aux.Data.WorkingTime.Time()
 	return nil
 }
 
