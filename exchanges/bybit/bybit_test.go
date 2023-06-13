@@ -3458,5 +3458,5 @@ func TestGetAccountFee(t *testing.T) {
 
 func TestForceFileStandard(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern, "Please use convert.StringToFloat64 type as strings can be empty. Then call the Float64() method.")
+	sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern, "Please use convert.StringToFloat64 type instead of float64 as strings can be empty in unmarshal process. Then call the Float64() method.")
 }
