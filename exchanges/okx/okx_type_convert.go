@@ -91,7 +91,6 @@ type okxAssetType struct {
 }
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
-
 func (a *okxAssetType) UnmarshalJSON(data []byte) error {
 	var t string
 	err := json.Unmarshal(data, &t)

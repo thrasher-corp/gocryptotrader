@@ -3136,4 +3136,90 @@ func TestInstrument(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	if i.Alias != "" {
+		t.Error("expected empty alias")
+	}
+	if i.BaseCurrency != "" {
+		t.Error("expected empty base currency")
+	}
+	if i.Category != "1" {
+		t.Error("expected 1 category")
+	}
+	if i.ContractMultiplier != "1" {
+		t.Error("expected 1 contract multiplier")
+	}
+	if i.ContractType != "linear" {
+		t.Error("expected linear contract type")
+	}
+	if i.ContractValue != "0.0001" {
+
+		t.Error("expected 0.0001 contract value")
+	}
+	if i.ContractValueCurrency != currency.BTC.String() {
+		t.Error("expected BTC contract value currency")
+	}
+	if !i.ExpTime.IsZero() {
+		t.Error("expected empty expiry time")
+	}
+	if i.InstrumentFamily != "BTC-USDC" {
+		t.Error("expected BTC-USDC instrument family")
+	}
+	if i.InstrumentID != "BTC-USDC-SWAP" {
+		t.Error("expected BTC-USDC-SWAP instrument ID")
+	}
+	if i.InstrumentType != asset.PerpetualSwap {
+		t.Error("expected SWAP instrument type")
+	}
+	if i.MaxLeverage != 125 {
+		t.Error("expected 125 leverage")
+	}
+	if i.ListTime.UnixMilli() != 1666076190000 {
+		t.Error("expected 1666076190000 listing time")
+	}
+	if i.LotSize != 1 {
+		t.Error("expected 1 lot size")
+	}
+	if i.MaxSpotIcebergSize != 100000000.0000000000000000 {
+		t.Error("expected 100000000.0000000000000000 max iceberg order size")
+	}
+	if i.MaxQuantityOfSpotLimitOrder != 100000000 {
+		t.Error("expected 100000000 max limit order size")
+	}
+	if i.MaxQuantityOfMarketLimitOrder != 85000 {
+		t.Error("expected 85000 max market order size")
+	}
+	if i.MaxStopSize != 85000 {
+		t.Error("expected 85000 max stop order size")
+	}
+	if i.MaxTriggerSize != 100000000.0000000000000000 {
+		t.Error("expected 100000000.0000000000000000 max trigger order size")
+	}
+	if i.MaxQuantityOfSpotTwapLimitOrder != 0 {
+		t.Error("expected empty max TWAP size")
+	}
+	if i.MinimumOrderSize != 1 {
+		t.Error("expected 1 min size")
+	}
+	if i.OptionType != "" {
+		t.Error("expected empty option type")
+	}
+	if i.QuoteCurrency != "" {
+		t.Error("expected empty quote currency")
+	}
+	if i.SettlementCurrency != currency.USDC.String() {
+		t.Error("expected USDC settlement currency")
+	}
+	if i.State != "live" {
+		t.Error("expected live state")
+	}
+	if i.StrikePrice != "" {
+		t.Error("expected empty strike price")
+	}
+	if i.TickSize != 0.1 {
+		t.Error("expected 0.1 tick size")
+	}
+	if i.Underlying != "BTC-USDC" {
+		t.Error("expected BTC-USDC underlying")
+	}
 }
