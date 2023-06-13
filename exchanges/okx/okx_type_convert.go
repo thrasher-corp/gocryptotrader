@@ -2,7 +2,6 @@ package okx
 
 import (
 	"encoding/json"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -65,40 +64,84 @@ func (a *okxUnixMilliTime) Time() time.Time {
 	return time.UnixMilli(int64(*a))
 }
 
-// numbersOnlyRegexp for checking the value is numerics only
-var numbersOnlyRegexp = regexp.MustCompile(`^\d*$`)
+type okxTime struct {
+	time.Time
+}
+
+// UnmarshalJSON deserializes byte data to okxTime instance.
+func (t *okxTime) UnmarshalJSON(data []byte) error {
+	var num string
+	err := json.Unmarshal(data, &num)
+	if err != nil {
+		return err
+	}
+	if num == "" {
+		return nil
+	}
+	value, err := strconv.ParseInt(num, 10, 64)
+	if err != nil {
+		return err
+	}
+	t.Time = time.UnixMilli(value)
+	return nil
+}
+
+type okxAssetType struct {
+	asset.Item
+}
+
+// UnmarshalJSON deserializes JSON, and timestamp information.
+func (a *okxAssetType) UnmarshalJSON(data []byte) error {
+	var t string
+	err := json.Unmarshal(data, &t)
+	if err != nil {
+		return err
+	}
+
+	a.Item, err = GetAssetTypeFromInstrumentType(strings.ToUpper(t))
+
+	return err
+}
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
 func (a *Instrument) UnmarshalJSON(data []byte) error {
 	type Alias Instrument
 	chil := &struct {
 		*Alias
-		ListTime       string `json:"listTime"`
-		ExpTime        string `json:"expTime"`
-		InstrumentType string `json:"instType"`
+		ListTime                        okxTime           `json:"listTime"`
+		ExpTime                         okxTime           `json:"expTime"`
+		InstrumentType                  okxAssetType      `json:"instType"`
+		MaxLeverage                     okxNumericalValue `json:"lever"`
+		TickSize                        okxNumericalValue `json:"tickSz"`
+		LotSize                         okxNumericalValue `json:"lotSz"`
+		MinimumOrderSize                okxNumericalValue `json:"minSz"`
+		MaxQuantityOfSpotLimitOrder     okxNumericalValue `json:"maxLmtSz"`
+		MaxQuantityOfMarketLimitOrder   okxNumericalValue `json:"maxMktSz"`
+		MaxQuantityOfSpotTwapLimitOrder okxNumericalValue `json:"maxTwapSz"`
+		MaxSpotIcebergSize              okxNumericalValue `json:"maxIcebergSz"`
+		MaxTriggerSize                  okxNumericalValue `json:"maxTriggerSz"`
+		MaxStopSize                     okxNumericalValue `json:"maxStopSz"`
 	}{
 		Alias: (*Alias)(a),
 	}
-	err := json.Unmarshal(data, chil)
-	if err != nil {
+	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	if numbersOnlyRegexp.MatchString(chil.ListTime) {
-		var val int
-		if val, err = strconv.Atoi(chil.ListTime); err == nil {
-			a.ListTime = time.UnixMilli(int64(val))
-		}
-	}
-	if numbersOnlyRegexp.MatchString(chil.ExpTime) {
-		var val int
-		if val, err = strconv.Atoi(chil.ExpTime); err == nil {
-			a.ExpTime = time.UnixMilli(int64(val))
-		}
-	}
-	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	if a.InstrumentType, err = GetAssetTypeFromInstrumentType(chil.InstrumentType); err != nil {
-		return err
-	}
+
+	a.ListTime = chil.ListTime.Time
+	a.ExpTime = chil.ExpTime.Time
+	a.InstrumentType = chil.InstrumentType.Item
+	a.MaxLeverage = chil.MaxLeverage.Float64()
+	a.TickSize = chil.TickSize.Float64()
+	a.LotSize = chil.LotSize.Float64()
+	a.MinimumOrderSize = chil.MinimumOrderSize.Float64()
+	a.MaxQuantityOfSpotLimitOrder = chil.MaxQuantityOfSpotLimitOrder.Float64()
+	a.MaxQuantityOfMarketLimitOrder = chil.MaxQuantityOfMarketLimitOrder.Float64()
+	a.MaxQuantityOfSpotTwapLimitOrder = chil.MaxQuantityOfSpotTwapLimitOrder.Float64()
+	a.MaxSpotIcebergSize = chil.MaxSpotIcebergSize.Float64()
+	a.MaxTriggerSize = chil.MaxTriggerSize.Float64()
+	a.MaxStopSize = chil.MaxStopSize.Float64()
+
 	return nil
 }
 
