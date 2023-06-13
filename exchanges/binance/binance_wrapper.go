@@ -2015,6 +2015,22 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 					Rate: pairRate.FundingRates[len(pairRate.FundingRates)-1].Rate,
 				}
 			}
+			if r.IncludePayments {
+				income, err := b.UAccountIncomeHistory(ctx, fPair, "FUNDING_FEE", int64(requestLimit), r.StartDate, r.EndDate)
+				if err != nil {
+					return nil, err
+				}
+			uRates:
+				for j := range income {
+					for x := range pairRate.FundingRates {
+						if income[j].Time == pairRate.FundingRates[x].Time.UnixMilli() {
+							pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
+							continue uRates
+						}
+					}
+				}
+
+			}
 			resp = append(resp, pairRate)
 		}
 	case asset.CoinMarginedFutures:
@@ -2034,8 +2050,8 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 				EndDate:   r.EndDate,
 			}
 			for {
-				var frh []FundingRateData
-				frh, err = b.FundingRates(ctx, fPair, int64(requestLimit), sd, r.EndDate)
+				var frh []FundingRateHistory
+				frh, err = b.FuturesGetFundingHistory(ctx, fPair, int64(requestLimit), sd, r.EndDate)
 				if err != nil {
 					return nil, err
 				}
@@ -2050,18 +2066,41 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 				}
 				sd = time.UnixMilli(frh[len(frh)-1].FundingTime)
 			}
-			var mp []IndexMarkPrice
-			mp, err = b.GetIndexAndMarkPrice(ctx, fPair.String(), "")
-			if err != nil {
-				return nil, err
+			if r.IncludePredictedRate {
+				var mp []IndexMarkPrice
+				mp, err = b.GetIndexAndMarkPrice(ctx, fPair.String(), "")
+				if err != nil {
+					return nil, err
+				}
+				pairRate.LatestRate = order.FundingRate{
+					Time: time.UnixMilli(mp[len(mp)-1].Time),
+					Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
+				}
+				pairRate.PredictedUpcomingRate = order.FundingRate{
+					Time: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
+					Rate: decimal.NewFromFloat(mp[len(mp)-1].EstimatedSettlePrice),
+				}
+			} else {
+				pairRate.LatestRate = order.FundingRate{
+					Time: pairRate.FundingRates[len(pairRate.FundingRates)-1].Time,
+					Rate: pairRate.FundingRates[len(pairRate.FundingRates)-1].Rate,
+				}
 			}
-			pairRate.LatestRate = order.FundingRate{
-				Time: time.UnixMilli(mp[len(mp)-1].Time),
-				Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
-			}
-			pairRate.PredictedUpcomingRate = order.FundingRate{
-				Time: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
-				Rate: decimal.NewFromFloat(mp[len(mp)-1].EstimatedSettlePrice),
+			if r.IncludePayments {
+				income, err := b.FuturesIncomeHistory(ctx, fPair, "FUNDING_FEE", r.StartDate, r.EndDate, int64(requestLimit))
+				if err != nil {
+					return nil, err
+				}
+			cRates:
+				for j := range income {
+					for x := range pairRate.FundingRates {
+						if income[j].Timestamp == pairRate.FundingRates[x].Time.UnixMilli() {
+							pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
+							continue cRates
+						}
+					}
+				}
+
 			}
 			resp = append(resp, pairRate)
 		}

@@ -656,19 +656,6 @@ func TestGetCrossMarginInterestHistory(t *testing.T) {
 	}
 }
 
-func TestFundingRates(t *testing.T) {
-	t.Parallel()
-	_, err := b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 0, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
-	start, end := getTime()
-	_, err = b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 2, start, end)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFuturesOrderbook(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 1000)
@@ -2819,6 +2806,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetMarginRatesHistory(context.Background(), &margin.RateHistoryRequest{
 		Exchange:         b.Name,
 		Asset:            asset.Margin,
@@ -2835,25 +2823,29 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	fr, err := b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pairs:                currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)},
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
 		EndDate:              time.Now(),
-		IncludePayments:      false,
+		IncludePayments:      true,
 		IncludePredictedRate: true,
 	})
 	if err != nil {
 		t.Error(err)
 	}
 	t.Logf("%+v", fr)
-
+	cp, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Error(err)
+	}
 	fr, err = b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
 		Asset:                asset.CoinMarginedFutures,
-		Pairs:                currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)},
+		Pairs:                currency.Pairs{cp},
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
 		EndDate:              time.Now(),
-		IncludePayments:      false,
+		IncludePayments:      true,
 		IncludePredictedRate: true,
 	})
 	if err != nil {
