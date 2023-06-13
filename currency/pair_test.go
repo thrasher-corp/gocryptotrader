@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -959,5 +960,79 @@ func TestIsPopulated(t *testing.T) {
 	}
 	if receiver := NewPair(EMPTYCODE, EMPTYCODE).IsPopulated(); receiver {
 		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetOrderParameters(t *testing.T) {
+	t.Parallel()
+
+	p := NewPair(BTC, USDT)
+	testCases := []struct {
+		Pair           Pair
+		currency       Code
+		market         bool
+		selling        bool
+		expectedParams *OrderParameters
+		expectedError  error
+	}{
+		{expectedError: ErrCurrencyPairEmpty},
+		{Pair: p, expectedError: ErrCurrencyCodeEmpty},
+		{Pair: p, currency: XRP, selling: true, market: true, expectedError: errCurrencyNotAssociatedWithPair},
+
+		{Pair: p, currency: BTC, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
+		{Pair: p, currency: BTC, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
+		{Pair: p, currency: BTC, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
+
+		{Pair: p, currency: USDT, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
+		{Pair: p, currency: USDT, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
+		{Pair: p, currency: USDT, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			t.Parallel()
+			var resp *OrderParameters
+			var err error
+			switch {
+			case tc.market && tc.selling:
+				resp, err = tc.Pair.MarketSellOrderParameters(tc.currency)
+			case tc.market && !tc.selling:
+				resp, err = tc.Pair.MarketBuyOrderParameters(tc.currency)
+			case !tc.market && tc.selling:
+				resp, err = tc.Pair.LimitSellOrderParameters(tc.currency)
+			case !tc.market && !tc.selling:
+				resp, err = tc.Pair.LimitBuyOrderParameters(tc.currency)
+			}
+
+			if !errors.Is(err, tc.expectedError) {
+				t.Fatalf("received %v, expected %v", err, tc.expectedError)
+			}
+
+			if tc.expectedParams == nil {
+				if resp != nil {
+					t.Fatalf("received %v, expected nil", resp)
+				}
+				return
+			}
+
+			if resp.SellingCurrency != tc.expectedParams.SellingCurrency {
+				t.Fatalf("SellingCurrency received %v, expected %v", resp.SellingCurrency, tc.expectedParams.SellingCurrency)
+			}
+
+			if resp.PurchasingCurrency != tc.expectedParams.PurchasingCurrency {
+				t.Fatalf("PurchasingCurrency received %v, expected %v", resp.PurchasingCurrency, tc.expectedParams.PurchasingCurrency)
+			}
+
+			if resp.IsBuySide != tc.expectedParams.IsBuySide {
+				t.Fatalf("BuySide received %v, expected %v", resp.IsBuySide, tc.expectedParams.IsBuySide)
+			}
+
+			if resp.IsAskLiquidity != tc.expectedParams.IsAskLiquidity {
+				t.Fatalf("AskLiquidity received %v, expected %v", resp.IsAskLiquidity, tc.expectedParams.IsAskLiquidity)
+			}
+		})
 	}
 }

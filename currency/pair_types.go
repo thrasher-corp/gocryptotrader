@@ -17,3 +17,18 @@ type PairDifference struct {
 	Remove           Pairs
 	FormatDifference bool
 }
+
+// OrderParameters is used to determine the order side, liquidity side and the
+// selling & purchasing currency derived from the currency pair.
+type OrderParameters struct {
+	// SellingCurrency is the currency that will be sold first
+	SellingCurrency Code
+	// Purchasing is the currency that will be purchased last
+	PurchasingCurrency Code
+	// IsBuySide is the side of the order that will be placed true for buy/long,
+	// false for sell/short.
+	IsBuySide bool
+	// IsAskLiquidity is the side of the orderbook that will be used, false for
+	// bid liquidity.
+	IsAskLiquidity bool
+}
