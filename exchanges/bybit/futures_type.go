@@ -968,3 +968,10 @@ type USDCFundingInfo struct {
 	Time   bybitTimeMilliSecStr    `json:"fundingRateTimestamp"`
 	Rate   convert.StringToFloat64 `json:"fundingRate"`
 }
+
+// CFuturesTradingFeeRate stores trading fee rate
+type CFuturesTradingFeeRate struct {
+	TakerFeeRate convert.StringToFloat64 `json:"taker_fee_rate"`
+	MakerFeeRate convert.StringToFloat64 `json:"maker_fee_rate"`
+	UserID       int64                   `json:"user_id"`
+}

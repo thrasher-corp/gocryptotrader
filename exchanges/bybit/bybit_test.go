@@ -1070,9 +1070,17 @@ func TestGetTradingFeeRate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err = b.GetTradingFeeRate(context.Background(), pair)
+	feeRate, err := b.GetTradingFeeRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
+	}
+
+	if feeRate.MakerFeeRate == 0 && feeRate.TakerFeeRate == 0 {
+		t.Error("expected fee rate")
+	}
+
+	if feeRate.UserID == 0 {
+		t.Error("expected user id")
 	}
 }
 
@@ -3450,5 +3458,5 @@ func TestGetAccountFee(t *testing.T) {
 
 func TestForceFileStandard(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
+	sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern, "Please use convert.StringToFloat64 type as strings can be empty. Then call the Float64() method.")
 }

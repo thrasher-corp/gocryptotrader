@@ -1086,24 +1086,20 @@ func (by *Bybit) ChangeCoinMargin(ctx context.Context, symbol currency.Pair, buy
 }
 
 // GetTradingFeeRate returns trading taker and maker fee rate
-func (by *Bybit) GetTradingFeeRate(ctx context.Context, symbol currency.Pair) (takerFee, makerFee float64, err error) {
+func (by *Bybit) GetTradingFeeRate(ctx context.Context, symbol currency.Pair) (*CFuturesTradingFeeRate, error) {
 	params := url.Values{}
 	resp := struct {
-		Result struct {
-			TakerFeeRate convert.StringToFloat64 `json:"taker_fee_rate"`
-			MakerFeeRate convert.StringToFloat64 `json:"maker_fee_rate"`
-		} `json:"result"`
+		Result *CFuturesTradingFeeRate `json:"result"`
 		Error
 	}{}
 
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 
-	return resp.Result.TakerFeeRate.Float64(),
-		resp.Result.MakerFeeRate.Float64(),
+	return resp.Result,
 		by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTradingFeeRate, params, nil, &resp, cFuturesGetTradingFeeRate)
 
 }
