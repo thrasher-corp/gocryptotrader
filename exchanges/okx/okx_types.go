@@ -276,6 +276,7 @@ type InstrumentsFetchParams struct {
 type Instrument struct {
 	InstrumentType                  asset.Item `json:"instType"`
 	InstrumentID                    string     `json:"instId"`
+	InstrumentFamily                string     `json:"instFamily"`
 	Underlying                      string     `json:"uly"`
 	Category                        string     `json:"category"`
 	BaseCurrency                    string     `json:"baseCcy"`
