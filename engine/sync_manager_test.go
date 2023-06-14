@@ -313,7 +313,7 @@ func TestSyncManagerUpdate(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, errCouldNotSyncNewData)
 	}
 
-	m.currencyPairs = append(m.currencyPairs, currencyPairSyncAgent{AssetType: 1})
+	m.add(currencyPairKey{AssetType: 1, Pair: currency.EMPTYPAIR}, &syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match
 	err = m.Update("", currency.EMPTYPAIR, 1, 1, errors.New("test"))
