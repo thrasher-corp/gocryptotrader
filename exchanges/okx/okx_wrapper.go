@@ -485,7 +485,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID = format.Format(pair)
-	orderbookNew, err = ok.GetOrderBookDepth(ctx, instrumentID, 100)
+	orderbookNew, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)
 	if err != nil {
 		return book, err
 	}
