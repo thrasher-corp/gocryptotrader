@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -39,6 +40,9 @@ func (a *okxNumericalValue) UnmarshalJSON(data []byte) error {
 
 // Float64 returns a float64 value for okxNumericalValue
 func (a *okxNumericalValue) Float64() float64 { return float64(*a) }
+
+// Decimal returns a decimal
+func (a *okxNumericalValue) Decimal() decimal.Decimal { return decimal.NewFromFloat(float64(*a)) }
 
 type okxUnixMilliTime int64
 

@@ -51,13 +51,7 @@ const (
 	historicalTrades  = "/api/v3/historicalTrades"
 
 	// Margin endpoints
-	cryptoLoadIncomePaymentHistory = "/sapi/v1/loan/income"
-	marginInterestHistory          = "/sapi/v1/margin/interestHistory"
-	marginNextHourlyInterestRate   = "/sapi/v1/margin/next-hourly-interest-rate"
-	marginPriceIndex               = "/sapi/v1/margin/priceIndex "
-	marginIsolatedAccount          = "/sapi/v1/margin/isolated/account"
-
-	marginInterestRateHistory = "/sapi/v1/margin/interestRateHistory "
+	marginInterestHistory = "/sapi/v1/margin/interestHistory"
 
 	// Authenticated endpoints
 	newOrderTest      = "/api/v3/order/test"

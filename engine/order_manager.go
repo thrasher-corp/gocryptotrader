@@ -791,7 +791,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	}
 	frp, err := exch.GetFundingRates(context.TODO(), &order.FundingRatesRequest{
 		Asset:                position.Asset,
-		Pairs:                currency.Pairs{position.Pair},
+		Pair:                 position.Pair,
 		StartDate:            position.Orders[0].Date,
 		EndDate:              time.Now(),
 		IncludePayments:      true,
@@ -800,11 +800,9 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if err != nil {
 		return err
 	}
-	for i := range frp {
-		err = m.orderStore.futuresPositionController.TrackFundingDetails(&frp[i])
-		if err != nil {
-			return err
-		}
+	err = m.orderStore.futuresPositionController.TrackFundingDetails(frp)
+	if err != nil {
+		return err
 	}
 
 	return nil

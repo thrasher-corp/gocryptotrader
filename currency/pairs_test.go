@@ -13,7 +13,7 @@ func TestPairsUpper(t *testing.T) {
 		t.Fatal(err)
 	}
 	if expected := "BTC_USD,BTC_AUD,BTC_LTC"; pairs.Upper().Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
+		t.Errorf("Pair Join() error expected %s but received %s",
 			expected, pairs.Upper().Join())
 	}
 }
@@ -25,7 +25,7 @@ func TestPairsLower(t *testing.T) {
 		t.Fatal(err)
 	}
 	if expected := "btc_usd,btc_aud,btc_ltc"; pairs.Lower().Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
+		t.Errorf("Pair Join() error expected %s but received %s",
 			expected, pairs.Lower().Join())
 	}
 }
@@ -40,7 +40,7 @@ func TestPairsString(t *testing.T) {
 
 	for i, p := range pairs {
 		if p.String() != expected[i] {
-			t.Errorf("Pairs String() error expected %s but received %s",
+			t.Errorf("Pair String() error expected %s but received %s",
 				expected, p.String())
 		}
 	}
@@ -83,7 +83,7 @@ func TestPairsJoin(t *testing.T) {
 	expected := "btc_usd,btc_aud,btc_ltc"
 
 	if pairs.Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
+		t.Errorf("Pair Join() error expected %s but received %s",
 			expected, pairs.Join())
 	}
 }
@@ -98,20 +98,20 @@ func TestPairsFormat(t *testing.T) {
 	expected := "BTC-USD,BTC-AUD,BTC-LTC"
 	formatting := PairFormat{Delimiter: "-", Index: "", Uppercase: true}
 	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
+		t.Errorf("Pair Join() error expected %s but received %s",
 			expected, pairs.Format(formatting).Join())
 	}
 
 	expected = "btc:usd,btc:aud,btc:ltc"
 	formatting = PairFormat{Delimiter: ":", Index: "", Uppercase: false}
 	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
+		t.Errorf("Pair Join() error expected %s but received %s",
 			expected, pairs.Format(formatting).Join())
 	}
 
 	formatting = PairFormat{Delimiter: ":", Index: "KRW", Uppercase: false}
 	if pairs.Format(formatting).Join() != "" {
-		t.Errorf("Pairs Join() error expected %s but received %s",
+		t.Errorf("Pair Join() error expected %s but received %s",
 			expected, pairs.Format(formatting).Join())
 	}
 
@@ -122,7 +122,7 @@ func TestPairsFormat(t *testing.T) {
 	expected = "dash-krw,btc-krw"
 	formatting = PairFormat{Delimiter: "-", Index: "KRW", Uppercase: false}
 	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
+		t.Errorf("Pair Join() error expected %s but received %s",
 			expected, pairs.Format(formatting).Join())
 	}
 }
@@ -133,7 +133,7 @@ func TestPairsUnmarshalJSON(t *testing.T) {
 	configPairs := ""
 	encoded, err := json.Marshal(configPairs)
 	if err != nil {
-		t.Fatal("Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	err = json.Unmarshal([]byte{1, 3, 3, 7}, &unmarshalHere)
@@ -143,27 +143,27 @@ func TestPairsUnmarshalJSON(t *testing.T) {
 
 	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	configPairs = "btc_usd,btc_aud,btc_ltc"
 	encoded, err = json.Marshal(configPairs)
 	if err != nil {
-		t.Fatal("Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Pairs UnmarshalJSON() error", err)
+		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
 	if unmarshalHere.Join() != configPairs {
-		t.Errorf("Pairs UnmarshalJSON() error expected %s but received %s",
+		t.Errorf("Pair UnmarshalJSON() error expected %s but received %s",
 			configPairs, unmarshalHere.Join())
 	}
 }
@@ -183,12 +183,12 @@ func TestPairsMarshalJSON(t *testing.T) {
 
 	encoded, err := json.Marshal(quickstruct)
 	if err != nil {
-		t.Fatal("Pairs MarshalJSON() error", err)
+		t.Fatal("Pair MarshalJSON() error", err)
 	}
 
 	expected := `{"soManyPairs":"btc_usd,btc_aud,btc_ltc"}`
 	if string(encoded) != expected {
-		t.Errorf("Pairs MarshalJSON() error expected %s but received %s",
+		t.Errorf("Pair MarshalJSON() error expected %s but received %s",
 			expected, string(encoded))
 	}
 }

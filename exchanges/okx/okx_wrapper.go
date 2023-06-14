@@ -1508,3 +1508,84 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 		InstrumentType: instType,
 	})
 }
+
+// GetFundingRates returns funding rates for a given asset and currency for a time period
+func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest) (*order.FundingRates, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w FundingRatesRequest", common.ErrNilPointer)
+	}
+	requestLimit := 100
+	sd := r.StartDate
+	maxLookback := time.Now().Add(-time.Hour * 24 * 30 * 3)
+	if r.StartDate.Before(maxLookback) {
+		if r.EndDate.Before(maxLookback) {
+			return nil, order.ErrGetFundingDataRequired
+		}
+		r.StartDate = maxLookback
+	}
+	format, err := ok.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := r.Pair.Format(format)
+	pairRate := order.FundingRates{
+		Exchange:  ok.Name,
+		Asset:     r.Asset,
+		Pair:      fPair,
+		StartDate: r.StartDate,
+		EndDate:   r.EndDate,
+	}
+	for {
+		var frh []FundingRateResponse
+		frh, err = ok.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
+		if err != nil {
+			return nil, err
+		}
+		for j := range frh {
+			pairRate.FundingRates = append(pairRate.FundingRates, order.FundingRate{
+				Time: frh[j].FundingTime.Time(),
+				Rate: frh[j].FundingRate.Decimal(),
+			})
+		}
+		if len(frh) < requestLimit {
+			if r.IncludePredictedRate {
+				pairRate.PredictedUpcomingRate = order.FundingRate{
+					Time: frh[len(frh)-1].NextFundingTime.Time(),
+					Rate: frh[len(frh)-1].NextFundingRate.Decimal(),
+				}
+			}
+			break
+		}
+		sd = frh[len(frh)-1].FundingTime.Time()
+	}
+
+	if r.IncludePayments {
+		sd = r.StartDate
+		billDetailsFunc := ok.GetBillsDetail3Months
+		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
+			billDetailsFunc = ok.GetBillsDetailLast7Days
+		}
+		for {
+			billDetails, err := billDetailsFunc(ctx, &BillsDetailQueryParameter{
+				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
+				Currency:       fPair.String(),
+				BillType:       8,
+				BeginTime:      sd,
+				EndTime:        r.EndDate,
+				Limit:          int64(requestLimit),
+			})
+			if err != nil {
+				return nil, err
+			}
+			for _ = range billDetails {
+				//	billDetails[i].
+			}
+			if len(billDetails) < requestLimit {
+				break
+			}
+			sd = billDetails[len(billDetails)-1].Timestamp.Time()
+		}
+
+	}
+	return &pairRate, nil
+}

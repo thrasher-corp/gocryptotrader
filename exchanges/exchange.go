@@ -1488,7 +1488,7 @@ func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]
 }
 
 // GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error) {
+func (b *Base) GetFundingRates(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -345,9 +345,8 @@ type PositionSummary struct {
 
 // FundingRatesRequest is used to request funding rate details for a position
 type FundingRatesRequest struct {
-	Asset asset.Item
-	// TODO consider making this an individual pair, make the caller do more requests dangit
-	Pairs                currency.Pairs
+	Asset                asset.Item
+	Pair                 currency.Pair
 	StartDate            time.Time
 	EndDate              time.Time
 	IncludePayments      bool

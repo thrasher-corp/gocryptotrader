@@ -514,7 +514,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 			fundingRateRequest := &order.FundingRatesRequest{
 				Asset:     assetTypes[i],
-				Pairs:     currency.Pairs{p},
+				Pair:      currency.Pairs{p},
 				StartDate: time.Now().Add(-time.Hour),
 				EndDate:   time.Now(),
 			}
