@@ -26,7 +26,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = !false
 )
 
 var (
@@ -2808,13 +2808,16 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
 	b.Verbose = true
 	_, err := b.GetMarginRatesHistory(context.Background(), &margin.RateHistoryRequest{
-		Exchange:         b.Name,
-		Asset:            asset.Margin,
-		Currency:         currency.BTC,
-		Pair:             currency.NewPair(currency.BTC, currency.USDT),
-		StartDate:        time.Now().Add(-time.Hour * 24 * 7),
-		EndDate:          time.Now(),
-		GetPredictedRate: true,
+		Exchange:           b.Name,
+		Asset:              asset.Margin,
+		Currency:           currency.BTC,
+		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		StartDate:          time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:            time.Now(),
+		GetPredictedRate:   true,
+		GetLendingPayments: true,
+		GetBorrowCosts:     true,
+		GetBorrowRates:     true,
 	})
 	if err != nil {
 		t.Error(err)
@@ -2823,8 +2826,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
-	fr, err := b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
+	_, err := b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pairs:                currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)},
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
@@ -2835,12 +2837,11 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%+v", fr)
 	cp, err := currency.NewPairFromString("BTCUSD_PERP")
 	if err != nil {
 		t.Error(err)
 	}
-	fr, err = b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
+	_, err = b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
 		Asset:                asset.CoinMarginedFutures,
 		Pairs:                currency.Pairs{cp},
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
@@ -2851,5 +2852,4 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%+v", fr)
 }

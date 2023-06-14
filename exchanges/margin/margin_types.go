@@ -8,15 +8,31 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// RateRequest is used to request a funding rate
+type RateRequest struct {
+	Exchange         string
+	Asset            asset.Item
+	Currency         currency.Code
+	Pair             currency.Pair
+	GetPredictedRate bool
+}
+
+// RateResponse has the funding rate details
+type RateResponse struct {
+	Rate          Rate
+	PredictedRate Rate
+}
+
 // RateHistoryRequest is used to request a funding rate
 type RateHistoryRequest struct {
-	Exchange           string
-	Asset              asset.Item
-	Currency           currency.Code
-	Pair               currency.Pair
-	StartDate          time.Time
-	EndDate            time.Time
-	GetPredictedRate   bool
+	Exchange         string
+	Asset            asset.Item
+	Currency         currency.Code
+	Pair             currency.Pair
+	StartDate        time.Time
+	EndDate          time.Time
+	GetPredictedRate bool
+
 	GetLendingPayments bool
 	GetBorrowRates     bool
 	GetBorrowCosts     bool

@@ -1914,6 +1914,20 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
 
+func (b *Binance) GetMarginRate(ctx context.Context, r *margin.RateRequest) (*margin.RateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Margin {
+		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
+	}
+	var resp margin.RateResponse
+	if r.GetPredictedRate {
+
+	}
+	return &resp, nil
+}
+
 // GetMarginRatesHistory returns historical margin rates
 func (b *Binance) GetMarginRatesHistory(ctx context.Context, r *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	if r == nil {
@@ -1931,27 +1945,34 @@ func (b *Binance) GetMarginRatesHistory(ctx context.Context, r *margin.RateHisto
 		return nil, err
 	}
 	var resp margin.RateHistoryResponse
-	ranges, err := kline.CalculateCandleDateRanges(r.StartDate, r.EndDate, kline.OneMonth, 0)
-	if err != nil {
-		return nil, err
-	}
-	for x := range ranges.Ranges {
+	sd := r.StartDate
+	limit := 100
+	for {
 		var rateResponse *UserMarginInterestHistoryResponse
-		rateResponse, err = b.GetUserMarginInterestHistory(ctx, r.Currency, r.Pair, ranges.Ranges[x].Start.Time, ranges.Ranges[x].End.Time, 0, 100, time.Since(ranges.Ranges[x].Start.Time) > time.Hour*24*7)
+		rateResponse, err = b.GetUserMarginInterestHistory(ctx, r.Currency, r.Pair, sd, r.EndDate, 0, int64(limit), time.Since(sd) > time.Hour*24*7)
 		if err != nil {
 			return nil, err
 		}
 		for i := range rateResponse.Rows {
+			hourly := decimal.NewFromFloat(rateResponse.Rows[i].InterestRate)
 			resp.Rates = append(resp.Rates, margin.Rate{
 				Time:             rateResponse.Rows[i].InterestAccruedTime.Time(),
-				MarketBorrowSize: decimal.Decimal{},
-				HourlyRate:       decimal.Decimal{},
-				YearlyRate:       decimal.Decimal{},
+				HourlyRate:       hourly,
+				YearlyRate:       hourly.Mul(decimal.NewFromInt(24 * 365)),
 				HourlyBorrowRate: decimal.Decimal{},
 				YearlyBorrowRate: decimal.Decimal{},
 				LendingPayment:   margin.LendingPayment{},
 				BorrowCost:       margin.BorrowCost{},
 			})
+		}
+		if len(rateResponse.Rows) == limit {
+			sd = rateResponse.Rows[len(rateResponse.Rows)-1].InterestAccruedTime.Time()
+		}
+		if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
+			break
+		}
+		if len(rateResponse.Rows) < limit {
+			break
 		}
 	}
 

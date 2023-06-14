@@ -37,19 +37,27 @@ const (
 	ufuturesAPIURL = "https://fapi.binance.com"
 
 	// Public endpoints
-	exchangeInfo          = "/api/v3/exchangeInfo"
-	orderBookDepth        = "/api/v3/depth"
-	recentTrades          = "/api/v3/trades"
-	aggregatedTrades      = "/api/v3/aggTrades"
-	candleStick           = "/api/v3/klines"
-	averagePrice          = "/api/v3/avgPrice"
-	priceChange           = "/api/v3/ticker/24hr"
-	symbolPrice           = "/api/v3/ticker/price"
-	bestPrice             = "/api/v3/ticker/bookTicker"
-	userAccountStream     = "/api/v3/userDataStream"
-	perpExchangeInfo      = "/fapi/v1/exchangeInfo"
-	historicalTrades      = "/api/v3/historicalTrades"
-	marginInterestHistory = "/sapi/v1/margin/interestHistory"
+	exchangeInfo      = "/api/v3/exchangeInfo"
+	orderBookDepth    = "/api/v3/depth"
+	recentTrades      = "/api/v3/trades"
+	aggregatedTrades  = "/api/v3/aggTrades"
+	candleStick       = "/api/v3/klines"
+	averagePrice      = "/api/v3/avgPrice"
+	priceChange       = "/api/v3/ticker/24hr"
+	symbolPrice       = "/api/v3/ticker/price"
+	bestPrice         = "/api/v3/ticker/bookTicker"
+	userAccountStream = "/api/v3/userDataStream"
+	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
+	historicalTrades  = "/api/v3/historicalTrades"
+
+	// Margin endpoints
+	cryptoLoadIncomePaymentHistory = "/sapi/v1/loan/income"
+	marginInterestHistory          = "/sapi/v1/margin/interestHistory"
+	marginNextHourlyInterestRate   = "/sapi/v1/margin/next-hourly-interest-rate"
+	marginPriceIndex               = "/sapi/v1/margin/priceIndex "
+	marginIsolatedAccount          = "/sapi/v1/margin/isolated/account"
+
+	marginInterestRateHistory = "/sapi/v1/margin/interestRateHistory "
 
 	// Authenticated endpoints
 	newOrderTest      = "/api/v3/order/test"
