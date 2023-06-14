@@ -767,11 +767,12 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		sideType = order.Sell.Lower()
 	}
 
+	amount := s.Amount
 	var targetCurrency string
 	if s.AssetType == asset.Spot && s.Type == order.Market {
 		targetCurrency = "base_ccy" // Default to base currency
 		if s.QuoteAmount > 0 {
-			s.Amount = s.QuoteAmount
+			amount = s.QuoteAmount
 			targetCurrency = "quote_ccy"
 		}
 	}
@@ -781,7 +782,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		TradeMode:             tradeMode,
 		Side:                  sideType,
 		OrderType:             s.Type.Lower(),
-		Amount:                s.Amount,
+		Amount:                amount,
 		ClientSupplierOrderID: s.ClientOrderID,
 		Price:                 s.Price,
 		QuantityType:          targetCurrency,
