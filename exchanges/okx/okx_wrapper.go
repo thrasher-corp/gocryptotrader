@@ -341,8 +341,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		limits[x] = order.MinMaxLevel{
 			Pair:                   pair,
 			Asset:                  a,
-			PriceStepIncrementSize: insts[x].TickSize.Float64(),
-			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+			PriceStepIncrementSize: insts[x].TickSize,
+			MinimumBaseAmount:      insts[x].MinimumOrderSize,
 		}
 	}
 
@@ -403,7 +403,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 		return err
 	}
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(assetType)
-	ticks, err := ok.GetTickers(ctx, strings.ToUpper(instrumentType), "", "")
+	ticks, err := ok.GetTickers(ctx, instrumentType, "", "")
 	if err != nil {
 		return err
 	}
@@ -1260,7 +1260,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
-	instrumentType := strings.ToUpper(ok.GetInstrumentTypeFromAssetItem(req.AssetType))
+	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.AssetType)
 	endTime := req.EndTime
 	var resp []order.Detail
 allOrders:

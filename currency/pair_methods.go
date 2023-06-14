@@ -2,10 +2,14 @@ package currency
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 )
 
 // EMPTYFORMAT defines an empty pair format
 var EMPTYFORMAT = PairFormat{}
+
+var errCurrencyNotAssociatedWithPair = errors.New("currency not associated with pair")
 
 // String returns a currency pair string
 func (p Pair) String() string {
@@ -140,7 +144,82 @@ func (p Pair) Other(c Code) (Code, error) {
 	return EMPTYCODE, ErrCurrencyCodeEmpty
 }
 
-// IsPopulated returns true if the currency pair have both non-empty values for base and quote.
+// IsPopulated returns true if the currency pair have both non-empty values for
+// base and quote.
 func (p Pair) IsPopulated() bool {
 	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
+}
+
+// MarketSellOrderParameters returns order parameters for when you want to sell
+// a currency which purchases another currency. This specifically returns what
+// liquidity side you will be affecting, what order side you will be placing and
+// what currency you will be purchasing.
+func (p Pair) MarketSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToSell, true, true)
+}
+
+// MarketBuyOrderParameters returns order parameters for when you want to sell a
+// currency which purchases another currency. This specifically returns what
+// liquidity side you will be affecting, what order side you will be placing and
+// what currency you will be purchasing.
+func (p Pair) MarketBuyOrderParameters(wantingToBuy Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToBuy, false, true)
+}
+
+// LimitSellOrderParameters returns order parameters for when you want to sell a
+// currency which purchases another currency. This specifically returns what
+// liquidity side you will be affecting, what order side you will be placing and
+// what currency you will be purchasing.
+func (p Pair) LimitSellOrderParameters(wantingToSell Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToSell, true, false)
+}
+
+// LimitBuyOrderParameters returns order parameters for when you want to
+// sell a currency which purchases another currency. This specifically returns
+// what liquidity side you will be affecting, what order side you will be
+// placing and what currency you will be purchasing.
+func (p Pair) LimitBuyOrderParameters(wantingToBuy Code) (*OrderParameters, error) {
+	return p.getOrderParameters(wantingToBuy, false, false)
+}
+
+// getOrderDecisionDetails returns order parameters for the currency pair using
+// the provided currency code, whether or not you are selling and whether or not
+// you are placing a market order.
+func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters, error) {
+	if !p.IsPopulated() {
+		return nil, ErrCurrencyPairEmpty
+	}
+	if c.IsEmpty() {
+		return nil, ErrCurrencyCodeEmpty
+	}
+	params := OrderParameters{}
+	switch {
+	case p.Base.Equal(c):
+		if selling {
+			params.SellingCurrency = p.Base
+			params.PurchasingCurrency = p.Quote
+			params.IsBuySide = false
+			params.IsAskLiquidity = !market
+		} else {
+			params.SellingCurrency = p.Quote
+			params.PurchasingCurrency = p.Base
+			params.IsBuySide = true
+			params.IsAskLiquidity = market
+		}
+	case p.Quote.Equal(c):
+		if selling {
+			params.SellingCurrency = p.Quote
+			params.PurchasingCurrency = p.Base
+			params.IsBuySide = true
+			params.IsAskLiquidity = market
+		} else {
+			params.SellingCurrency = p.Base
+			params.PurchasingCurrency = p.Quote
+			params.IsBuySide = false
+			params.IsAskLiquidity = !market
+		}
+	default:
+		return nil, fmt.Errorf("%w %v: %v", errCurrencyNotAssociatedWithPair, c, p)
+	}
+	return &params, nil
 }

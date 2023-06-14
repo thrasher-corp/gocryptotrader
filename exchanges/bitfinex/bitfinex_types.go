@@ -10,7 +10,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var errTypeAssert = errors.New("type assertion failed")
+var (
+	errTypeAssert       = errors.New("type assertion failed")
+	errSetCannotBeEmpty = errors.New("set cannot be empty")
+)
 
 // AccountV2Data stores account v2 data
 type AccountV2Data struct {
