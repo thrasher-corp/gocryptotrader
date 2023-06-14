@@ -1101,7 +1101,6 @@ func (by *Bybit) GetTradingFeeRate(ctx context.Context, symbol currency.Pair) (*
 
 	return resp.Result,
 		by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTradingFeeRate, params, nil, &resp, cFuturesGetTradingFeeRate)
-
 }
 
 // SetCoinRiskLimit sets risk limit
