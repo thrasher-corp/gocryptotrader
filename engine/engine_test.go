@@ -1,12 +1,14 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 func TestLoadConfigWithSettings(t *testing.T) {
@@ -337,4 +339,29 @@ func TestSettingsPrint(t *testing.T) {
 
 	s = &Settings{}
 	s.PrintLoadedSettings()
+}
+
+func TestGetDefaultConfigurations(t *testing.T) {
+	t.Parallel()
+
+	man := NewExchangeManager()
+	for x := range exchange.Exchanges {
+		target := exchange.Exchanges[x]
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+			exch, err := man.NewExchangeByName(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			cfg, err := exch.GetDefaultConfig(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if cfg == nil {
+				t.Fatal("expected config")
+			}
+		})
+	}
 }
