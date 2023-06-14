@@ -766,6 +766,16 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	} else {
 		sideType = order.Sell.Lower()
 	}
+
+	var targetCurrency string
+	if s.AssetType == asset.Spot && s.Type == order.Market {
+		targetCurrency = "base_ccy" // Default to base currency
+		if s.QuoteAmount > 0 {
+			s.Amount = s.QuoteAmount
+			targetCurrency = "quote_ccy"
+		}
+	}
+
 	var orderRequest = &PlaceOrderRequestParam{
 		InstrumentID:          instrumentID,
 		TradeMode:             tradeMode,
@@ -774,6 +784,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		Amount:                s.Amount,
 		ClientSupplierOrderID: s.ClientOrderID,
 		Price:                 s.Price,
+		QuantityType:          targetCurrency,
 	}
 	switch s.Type.Lower() {
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
