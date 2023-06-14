@@ -1535,6 +1535,8 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 		StartDate: r.StartDate,
 		EndDate:   r.EndDate,
 	}
+	// map of time indexes, allowing for easy lookup of slice index from unix time data
+	mti := make(map[int64]int)
 	for {
 		var frh []FundingRateResponse
 		frh, err = ok.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
@@ -1542,6 +1544,9 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 			return nil, err
 		}
 		for j := range frh {
+			if r.IncludePayments {
+				mti[frh[j].FundingTime.Time().Unix()] = j
+			}
 			pairRate.FundingRates = append(pairRate.FundingRates, order.FundingRate{
 				Time: frh[j].FundingTime.Time(),
 				Rate: frh[j].FundingRate.Decimal(),
@@ -1569,7 +1574,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 			billDetails, err := billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
 				Currency:       fPair.String(),
-				BillType:       8,
+				BillType:       137,
 				BeginTime:      sd,
 				EndTime:        r.EndDate,
 				Limit:          int64(requestLimit),
@@ -1577,8 +1582,11 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 			if err != nil {
 				return nil, err
 			}
-			for _ = range billDetails {
-				//	billDetails[i].
+			for i := range billDetails {
+				if index, okay := mti[billDetails[i].Timestamp.Time().Unix()]; okay {
+					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
+					continue
+				}
 			}
 			if len(billDetails) < requestLimit {
 				break

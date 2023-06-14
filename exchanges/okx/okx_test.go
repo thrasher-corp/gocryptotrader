@@ -3125,3 +3125,20 @@ func TestGetIntervalEnum(t *testing.T) {
 		})
 	}
 }
+
+func TestGetFundingRates(t *testing.T) {
+	t.Parallel()
+	cp, _ := currency.NewPairFromString("BTC-USD-SWAP")
+	resp, err := ok.GetFundingRates(context.Background(), &order.FundingRatesRequest{
+		Asset:                asset.PerpetualSwap,
+		Pair:                 cp,
+		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:              time.Now(),
+		IncludePayments:      true,
+		IncludePredictedRate: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", resp)
+}

@@ -1370,26 +1370,26 @@ type BillsDetailQueryParameter struct {
 
 // BillsDetailResponse represents account bills information.
 type BillsDetailResponse struct {
-	Balance                    string           `json:"bal"`
-	BalanceChange              string           `json:"balChg"`
-	BillID                     string           `json:"billId"`
-	Currency                   string           `json:"ccy"`
-	ExecType                   string           `json:"execType"` // Order flow type, T：taker M：maker
-	Fee                        string           `json:"fee"`      // Fee Negative number represents the user transaction fee charged by the platform. Positive number represents rebate.
-	From                       string           `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
-	InstrumentID               string           `json:"instId"`
-	InstrumentType             asset.Item       `json:"instType"`
-	MarginMode                 string           `json:"mgnMode"`
-	Notes                      string           `json:"notes"` // notes When bill type is not transfer, the field returns "".
-	OrderID                    string           `json:"ordId"`
-	ProfitAndLoss              string           `json:"pnl"`
-	PositionLevelBalance       string           `json:"posBal"`
-	PositionLevelBalanceChange string           `json:"posBalChg"`
-	SubType                    string           `json:"subType"`
-	Size                       string           `json:"sz"`
-	To                         string           `json:"to"`
-	Timestamp                  okxUnixMilliTime `json:"ts"`
-	Type                       string           `json:"type"`
+	Balance                    okxNumericalValue `json:"bal"`
+	BalanceChange              string            `json:"balChg"`
+	BillID                     string            `json:"billId"`
+	Currency                   string            `json:"ccy"`
+	ExecType                   string            `json:"execType"` // Order flow type, T：taker M：maker
+	Fee                        okxNumericalValue `json:"fee"`      // Fee Negative number represents the user transaction fee charged by the platform. Positive number represents rebate.
+	From                       string            `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
+	InstrumentID               string            `json:"instId"`
+	InstrumentType             asset.Item        `json:"instType"`
+	MarginMode                 string            `json:"mgnMode"`
+	Notes                      string            `json:"notes"` // notes When bill type is not transfer, the field returns "".
+	OrderID                    string            `json:"ordId"`
+	ProfitAndLoss              okxNumericalValue `json:"pnl"`
+	PositionLevelBalance       okxNumericalValue `json:"posBal"`
+	PositionLevelBalanceChange okxNumericalValue `json:"posBalChg"`
+	SubType                    string            `json:"subType"`
+	Size                       okxNumericalValue `json:"sz"`
+	To                         string            `json:"to"`
+	Timestamp                  okxUnixMilliTime  `json:"ts"`
+	Type                       string            `json:"type"`
 }
 
 // AccountConfigurationResponse represents account configuration response.
