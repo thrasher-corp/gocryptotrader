@@ -63,7 +63,7 @@ const (
 	operationLogin       = "login"
 )
 
-// Market Data Endoints
+// Market Data Endpoints
 
 // TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {
