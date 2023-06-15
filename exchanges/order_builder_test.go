@@ -39,7 +39,7 @@ func (t *TestExchange) GetOrderExecutionLimits(a asset.Item, p currency.Pair) (o
 	}, nil
 }
 
-func (t *TestExchange) ConstructOrder() (*OrderBuilder, error) {
+func (t *TestExchange) ConstructOrder() OrderTypeSetter {
 	return t.nikkiMinajSupaBase.NewOrderBuilder(t)
 }
 
@@ -53,38 +53,57 @@ func TestNewOrderBuilder(t *testing.T) {
 	t.Parallel()
 
 	var b *Base
-	_, err := b.NewOrderBuilder(nil)
+	_, err := b.NewOrderBuilder(nil).
+		Market().
+		Pair(currency.EMPTYPAIR).
+		Price(0).
+		Sell(currency.EMPTYCODE, 0).
+		Asset(0).
+		PreAlloc()
 	if !errors.Is(err, ErrExchangeIsNil) {
 		t.Fatalf("received: %v expected: %v", err, ErrExchangeIsNil)
 	}
 
 	b = &Base{}
-	_, err = b.NewOrderBuilder(nil)
+	_, err = b.NewOrderBuilder(nil).
+		Market().
+		Pair(currency.EMPTYPAIR).
+		Price(0).
+		Sell(currency.EMPTYCODE, 0).
+		Asset(0).
+		PreAlloc()
 	if !errors.Is(err, ErrExchangeIsNil) {
 		t.Fatalf("received: %v expected: %v", err, ErrExchangeIsNil)
 	}
 
-	_, err = b.NewOrderBuilder(&TestExchange{})
+	_, err = b.NewOrderBuilder(&TestExchange{}).
+		Market().
+		Pair(currency.EMPTYPAIR).
+		Price(0).
+		Sell(currency.EMPTYCODE, 0).
+		Asset(0).
+		PreAlloc()
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Fatalf("received: %v expected: %v", err, common.ErrFunctionNotSupported)
 	}
 
 	b.SubmissionConfig.FeeAppliedToSellingCurrency = true
 
-	builder, err := b.NewOrderBuilder(&TestExchange{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	builder := b.NewOrderBuilder(&TestExchange{})
 	if builder == nil {
 		t.Fatal("expected builder")
 	}
 
-	if builder.config == (order.SubmissionConfig{}) {
+	wow, ok := builder.(*OrderBuilder)
+	if !ok {
+		t.Fatal("expected OrderBuilder")
+	}
+
+	if wow.config == (order.SubmissionConfig{}) {
 		t.Fatal("expected config")
 	}
 
-	if !builder.config.FeeAppliedToSellingCurrency {
+	if !wow.config.FeeAppliedToSellingCurrency {
 		t.Fatal("expected true")
 	}
 }
@@ -92,8 +111,8 @@ func TestNewOrderBuilder(t *testing.T) {
 func TestValidate(t *testing.T) {
 	var builder *OrderBuilder
 	err := builder.validate()
-	if !errors.Is(err, errOrderBuilderIsNil) {
-		t.Fatalf("received: %v expected: %v", err, errOrderBuilderIsNil)
+	if !errors.Is(err, ErrNilOrderBuilder) {
+		t.Fatalf("received: %v expected: %v", err, ErrNilOrderBuilder)
 	}
 
 	builder = &OrderBuilder{}
@@ -104,17 +123,23 @@ func TestValidate(t *testing.T) {
 
 	builder.exch = &TestExchange{}
 	err = builder.validate()
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Fatalf("received: %v expected: %v", err, common.ErrFunctionNotSupported)
+	}
+
+	builder.config = order.SubmissionConfig{FeeAppliedToSellingCurrency: true}
+	err = builder.validate()
 	if !errors.Is(err, errPriceUnset) {
 		t.Fatalf("received: %v expected: %v", err, errPriceUnset)
 	}
 
-	builder.Price(1)
+	builder.price = 1
 	err = builder.validate()
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("received: %v expected: %v", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	builder.Pair(currency.NewPair(currency.BTC, currency.USDT))
+	builder.pair = currency.NewPair(currency.BTC, currency.USDT)
 	err = builder.validate()
 	if !errors.Is(err, errOrderTypeUnset) {
 		t.Fatalf("received: %v expected: %v", err, errOrderTypeUnset)
@@ -126,7 +151,7 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("received: %v expected: %v", err, errAssetTypeUnset)
 	}
 
-	builder.Asset(asset.Spot)
+	builder.assetType = asset.Spot
 	err = builder.validate()
 	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
 		t.Fatalf("received: %v expected: %v", err, currency.ErrCurrencyCodeEmpty)
@@ -138,7 +163,9 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("received: %v expected: %v", err, errAmountUnset)
 	}
 
-	builder.Sell(currency.BTC, 1)
+	builder.purchasing = false
+	builder.exchangingCurrency = currency.BTC
+	builder.currencyAmount = 1
 	err = builder.validate()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v expected: %v", err, nil)
@@ -150,19 +177,15 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("received: %v expected: %v", err, nil)
 	}
 
-	builder.Purchase(currency.BTC, 1)
+	builder.purchasing = true
+	builder.exchangingCurrency = currency.BTC
+	builder.currencyAmount = 1
 	err = builder.validate()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v expected: %v", err, nil)
 	}
 
-	builder.FeePercentage(0.1)
-	err = builder.validate()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v expected: %v", err, nil)
-	}
-
-	builder.FeeRate(0.001)
+	builder.feePercentage = 0.1
 	err = builder.validate()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v expected: %v", err, nil)
@@ -647,13 +670,10 @@ func TestSubmit(t *testing.T) {
 		},
 	}
 	pair := currency.NewPair(currency.BTC, currency.USDT)
-	marketOrderOne, err := exch.ConstructOrder()
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt, err := marketOrderOne.
-		Pair(pair).
+
+	receipt, err := exch.ConstructOrder().
 		Market().
+		Pair(pair).
 		Price(26411.25).
 		Sell(currency.USDT, 5.000000002).
 		Asset(asset.Spot).
@@ -671,13 +691,9 @@ func TestSubmit(t *testing.T) {
 		PostOrderFeeAdjustedAmount:       0.00018881100000000002, // TODO: Might precision adjust this in future as well. -> 0.000188
 	})
 
-	marketOrderTwo, err := exch.ConstructOrder()
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt, err = marketOrderTwo.
-		Pair(pair).
+	receipt, err = exch.ConstructOrder().
 		Market().
+		Pair(pair).
 		Price(26411.24).
 		Sell(currency.BTC, 0.00018881100000000002).
 		Asset(asset.Spot).
@@ -695,13 +711,9 @@ func TestSubmit(t *testing.T) {
 		PostOrderFeeAdjustedAmount:       4.960347806880001,
 	})
 
-	marketSellBase, err := exch.ConstructOrder()
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt, err = marketSellBase.
-		Pair(pair).
+	receipt, err = exch.ConstructOrder().
 		Market().
+		Pair(pair).
 		Price(26411.25).
 		Purchase(currency.BTC, 5/26411.25). // 5 USDT worth of BTC
 		Asset(asset.Spot).
@@ -719,13 +731,9 @@ func TestSubmit(t *testing.T) {
 		PostOrderFeeAdjustedAmount:       0.00018881100000000002, // TODO: Might precision adjust this in future as well. -> 0.000188
 	})
 
-	marketSellQuote, err := exch.ConstructOrder()
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt, err = marketSellQuote.
-		Pair(pair).
+	receipt, err = exch.ConstructOrder().
 		Market().
+		Pair(pair).
 		Price(26411.24).
 		Purchase(currency.USDT, 5). // Automatically convert to 5 USDT worth of BTC
 		Asset(asset.Spot).

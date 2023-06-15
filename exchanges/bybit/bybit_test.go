@@ -3424,34 +3424,24 @@ func TestNewOrder(t *testing.T) {
 	}
 
 	// Market orders -----------------------------------------------------------------------------------------------
-	orderOne, err := b.ConstructOrder()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v but expected %v", err, nil)
-	}
-
-	receiptOne, err := orderOne.
-		Pair(pair).
-		Asset(asset.Spot).
-		Price(tickyTacky.Ask). // Lifting that ask price
+	receiptOne, err := b.ConstructOrder().
 		Market().
+		Pair(pair).
+		Price(tickyTacky.Ask).
 		Sell(currency.USDT, 5).
+		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	orderTwo, err := b.ConstructOrder()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v but expected %v", err, nil)
-	}
-
-	_, err = orderTwo.
-		Pair(pair).
-		Asset(asset.Spot).
-		Price(tickyTacky.Bid). // Hitting that bid price
+	_, err = b.ConstructOrder().
 		Market().
+		Pair(pair).
+		Price(tickyTacky.Bid).
 		Sell(currency.BTC, receiptOne.PostOrderFeeAdjustedAmount).
+		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
@@ -3463,34 +3453,24 @@ func TestNewOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orderThree, err := b.ConstructOrder()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v but expected %v", err, nil)
-	}
-
-	receiptThree, err := orderThree.
-		Pair(pair).
-		Asset(asset.Spot).
-		Price(tickyTacky.Ask). // Lifting that ask price
+	receiptThree, err := b.ConstructOrder().
 		Market().
+		Pair(pair).
+		Price(tickyTacky.Ask).
 		Purchase(currency.BTC, 5/tickyTacky.Ask). // Demonstrating only 5 dollars worth of BTC wishing to be purchased
+		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	orderFour, err := b.ConstructOrder()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v but expected %v", err, nil)
-	}
-
-	_, err = orderFour.
-		Pair(pair).
-		Asset(asset.Spot).
-		Price(tickyTacky.Bid). // Hitting that bid price
+	_, err = b.ConstructOrder().
 		Market().
+		Pair(pair).
+		Price(tickyTacky.Bid).
 		Sell(currency.BTC, receiptThree.PostOrderFeeAdjustedAmount). // If I wanted to purchase the USDT amount rounding issues might fail this order so just sell it.
+		Asset(asset.Spot).
 		FeePercentage(0.1).
 		Submit(context.Background())
 	if err != nil {

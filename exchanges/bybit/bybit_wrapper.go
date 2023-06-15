@@ -2116,13 +2116,9 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	return by.LoadLimits(limits)
 }
 
-// ConstructOrder creates a new order builder for constructing orders. Please
-// note that this functionality is not available on all exchanges. Currently, only
-// spot market orders are supported.
-// It is important to note that market orders require a price to be set.
-// The specified price is used to calculate the expected amount of currency
-// to be purchased or sold based on the order side and the exchange's
-// requirements.
-func (by *Bybit) ConstructOrder() (*exchange.OrderBuilder, error) {
+// ConstructOrder returns a new order builder for constructing orders.
+// Please note: Only spot market orders are supported and orders require a
+// price to be set.
+func (by *Bybit) ConstructOrder() exchange.OrderTypeSetter {
 	return by.NewOrderBuilder(by)
 }

@@ -51,12 +51,91 @@ type OrderAmounts struct {
 	// adjusted to account for the fee, if the fee is taken from the purchasing
 	// currency.
 	PostOrderFeeAdjustedAmount float64
-	// TODO: ActualPurchasedAmount is the actual amount of currency purchased
-	// after the order is executed. This value can be obtained from a hook or
-	// returned by the exchange itself. The hook can involve sending an
-	// expensive HTTP request for balance, or if a websocket connection is
-	// active, it can be updated via a callback.
-	// ActualPurchasedAmount float64
+}
+
+// OrderTypeSetter sets the order type
+type OrderTypeSetter interface {
+	// Market sets the order type to market order
+	Market() MarketPairSetter
+	// TODO: Limit, Stop, StopLimit, TrailingStop, Iceberg etc.
+}
+
+// MarketPairSetter sets the currency pair for a specific market order
+type MarketPairSetter interface {
+	// Pair sets the currency pair
+	Pair(pair currency.Pair) MarketPriceSetter
+}
+
+// MarketPriceSetter sets the price for a specific market order
+type MarketPriceSetter interface {
+	// Price sets the price for the order.
+	// NOTE: This is currently mandatory for market orders. Depending on what
+	// needs to be purchasedd or what needs to be sold, the currency amounts
+	// will be converted and used to calculate the expected amount of currency
+	// to be purchased (this calculation may not be accurate). Until price
+	// finding is implemented, you should pre-calculate the price using the
+	// potential options below, listed from most accurate to least accurate (websocket preferred):
+	//  1. Orderbook -
+	//     a. Calculate the potential average price across tranches based on the
+	//     liquidity side of the order book and the deployment amount.
+	//     b. Use the best bid or ask price depending on the order side.
+	//  2. Ticker -
+	//     a. Use the best bid or ask price depending on the order side.
+	//     b. Use the last price.
+	Price(price float64) MarketAmountSetter
+}
+
+// MarketAmountSetter sets the amount to sell or an amount to purchase for a
+// specific market order.
+type MarketAmountSetter interface {
+	// Purchase defines the currency you would like to purchase and the amount.
+	Purchase(c currency.Code, amount float64) MarketAssetSetter
+	// Sell defines the currency you would like to sell and the amount.
+	Sell(c currency.Code, amount float64) MarketAssetSetter
+}
+
+// MarketAssetSetter sets the asset type for a specific market order
+type MarketAssetSetter interface {
+	// Asset defines the asset type for the order.
+	Asset(a asset.Item) MarketOptionsSetter
+}
+
+// Receipt is the result of submitting an order to the exchange.
+type Receipt struct {
+	// Outbound is the order that was submitted to the exchange
+	Outbound *order.Submit
+	// Response is the response from the exchange
+	Response *order.SubmitResponse
+	// OrderAmounts is the calculated amounts for the order
+	OrderAmounts
+}
+
+// MarketOptionsSetter has a collection of optional parameters for a market
+// order. This also includes finisher methods to pre-allocate and submit the
+// order.
+type MarketOptionsSetter interface {
+	// FeePercentage defines the fee percentage to be used for the order. This is
+	// used to calculate the fee adjusted amount. If this is not set this might not
+	// execute due to insufficient funds and or the returned amount might not be
+	// closer to the expected amount.
+	FeePercentage(feePercentage float64) MarketOptionsSetter
+	// FeeRate defines the fee rate to be used for the order. This is used to
+	// calculate the fee adjusted amount. If this is not set this might not execute
+	// due to insufficient funds and or the returned amount might not be closer to
+	// the expected amount.
+	FeeRate(feeRate float64) MarketOptionsSetter
+	Submit(ctx context.Context) (*Receipt, error)
+	PreAlloc() (Submitter, error)
+}
+
+// Submitter is an interface that allows pre-allocated orders to be submitted.
+type Submitter interface {
+	Submit(ctx context.Context) (*Receipt, error)
+}
+
+// MarketOrder is a market order that can be pre-allocated and submitted.
+type MarketOrder struct {
+	*OrderBuilder
 }
 
 // OrderBuilder provides a convenient way to construct orders. All values will
@@ -74,6 +153,8 @@ type OrderBuilder struct {
 	feePercentage      float64                // The fee percentage for the order
 	config             order.SubmissionConfig // The configuration for order submission
 	orderParams        *currency.OrderParameters
+	preAllocatedSubmit *order.Submit
+	preAllocateAmounts *OrderAmounts
 }
 
 // NewOrderBuilder returns a new OrderBuilder, which provides a more intuitive
@@ -81,36 +162,54 @@ type OrderBuilder struct {
 // Currently, only spot orders are supported. Note that market orders require
 // a price to be set, as it is used to calculate the expected amount of currency
 // to be purchased or sold based on the order side and exchange requirements.
+// Interfacing has been used to force standard usage of the builder. Depending
+// on future implementations the need for required parameters will change.
+// This will handle the following:
+//  1. Precision calculations for the order. e.g. If the exchange requires a
+//     precision amount only 8 decimal places the amount request will
+//     automatically be rounded to the nearest 8 decimal places. Then the amount
+//     will be checked against the minimum  and maximum order amounts for
+//     deployability.
+//  2. Fee calculations for the order. e.g. If a fee percentage is set and the
+//     exhange fee applies to the selling currency or purchased currency then
+//     amounts are adjusted to compensate for the fee. To ensure deployability.
+//  3. Order amounts. If you define an amount you want to sell or purchase
+//     the order builder will calculate the expected amount of currency to be
+//     purchased or sold based on the order side and exchange requirements. e.g
+//     If you want to sell 1000 USDT to purchase BTC and the exchange requires
+//     base amounts for the amounts it will then calculate the expected amount
+//     of BTC to be purchased from the set 'Price' method which is required for
+//     market orders.
 //
 // TODO: Consider adding hook definitions as parameters to allow using the
 // order builder without integrating with GCT's services. This would enable
-// using only an exchange wrapper library.
-func (b *Base) NewOrderBuilder(exch IBotExchange) (*OrderBuilder, error) { // TODO: Might not return an error and then just validate on submit
+// using only needing an exchange wrapper library.
+func (b *Base) NewOrderBuilder(exch IBotExchange) OrderTypeSetter {
 	if b == nil {
-		return nil, ErrExchangeIsNil
+		return &OrderBuilder{}
 	}
-	if exch == nil {
-		return nil, ErrExchangeIsNil
-	}
-	if b.SubmissionConfig == (order.SubmissionConfig{}) {
-		return nil, common.ErrFunctionNotSupported
-	}
-	return &OrderBuilder{exch: exch, config: b.SubmissionConfig}, nil
+	return &OrderBuilder{exch: exch, config: b.SubmissionConfig}
+}
+
+// Market sets the order type to market order.
+func (o *OrderBuilder) Market() MarketPairSetter { // TODO: Might merge this with purchase and sell methods and then have a separate method for limit orders.
+	o.orderType = order.Market
+	return &MarketOrder{o}
 }
 
 // Pair sets the currency pair
-func (o *OrderBuilder) Pair(pair currency.Pair) *OrderBuilder {
-	o.pair = pair
-	return o
+func (m *MarketOrder) Pair(pair currency.Pair) MarketPriceSetter {
+	m.pair = pair
+	return m
 }
 
 // Price sets the price for the order.
-// NOTE: This is currently mandatory for market orders as well. Depending on
-// the order type (purchasing or selling), the currency amounts will be
-// converted and used to calculate the expected amount of currency to be
-// purchased (this calculation may not be accurate). Until price finding is
-// implemented, you should pre-calculate the price using the potential options
-// below, listed from most accurate to least accurate (websocket preferred):
+// NOTE: This is currently mandatory for market orders. Depending on what
+// needs to be purchasedd or what needs to be sold, the currency amounts
+// will be converted and used to calculate the expected amount of currency
+// to be purchased (this calculation may not be accurate). Until price
+// finding is implemented, you should pre-calculate the price using the
+// potential options below, listed from most accurate to least accurate (websocket preferred):
 //  1. Orderbook -
 //     a. Calculate the potential average price across tranches based on the
 //     liquidity side of the order book and the deployment amount.
@@ -118,68 +217,66 @@ func (o *OrderBuilder) Pair(pair currency.Pair) *OrderBuilder {
 //  2. Ticker -
 //     a. Use the best bid or ask price depending on the order side.
 //     b. Use the last price.
-func (o *OrderBuilder) Price(price float64) *OrderBuilder {
-	o.price = price
-	return o
-}
-
-// Market sets the order type to market order.
-func (o *OrderBuilder) Market() *OrderBuilder { // TODO: Might merge this with purchase and sell methods and then have a separate method for limit orders.
-	o.orderType = order.Market
-	return o
+func (m *MarketOrder) Price(price float64) MarketAmountSetter {
+	m.price = price
+	return m
 }
 
 // Purchase defines the currency you would like to purchase and the amount.
-func (o *OrderBuilder) Purchase(c currency.Code, amount float64) *OrderBuilder { // TODO: Might swap params around.
-	o.purchasing = true
-	o.exchangingCurrency = c
-	o.currencyAmount = amount
-	return o
+func (m *MarketOrder) Purchase(c currency.Code, amount float64) MarketAssetSetter { // TODO: Might swap params around.
+	m.purchasing = true
+	m.exchangingCurrency = c
+	m.currencyAmount = amount
+	return m
 }
 
 // Sell defines the currency you would like to sell and the amount.
-func (o *OrderBuilder) Sell(c currency.Code, amount float64) *OrderBuilder { // TODO: Might swap params around.
-	o.purchasing = false
-	o.exchangingCurrency = c
-	o.currencyAmount = amount
-	return o
+func (m *MarketOrder) Sell(c currency.Code, amount float64) MarketAssetSetter { // TODO: Might swap params around.
+	m.purchasing = false
+	m.exchangingCurrency = c
+	m.currencyAmount = amount
+	return m
 }
 
 // Asset defines the asset type
-func (o *OrderBuilder) Asset(a asset.Item) *OrderBuilder {
-	o.assetType = a
-	return o
+func (m *MarketOrder) Asset(a asset.Item) MarketOptionsSetter {
+	m.assetType = a
+	return m
 }
 
 // FeePercentage defines the fee percentage to be used for the order. This is
 // used to calculate the fee adjusted amount. If this is not set this might not
 // execute due to insufficient funds and or the returned amount might not be
 // closer to the expected amount.
-func (o *OrderBuilder) FeePercentage(f float64) *OrderBuilder {
-	o.feePercentage = f
-	return o
+func (m *MarketOrder) FeePercentage(f float64) MarketOptionsSetter {
+	m.feePercentage = f
+	return m
 }
 
 // FeeRate defines the fee rate to be used for the order. This is used to
 // calculate the fee adjusted amount. If this is not set this might not execute
 // due to insufficient funds and or the returned amount might not be closer to
 // the expected amount.
-func (o *OrderBuilder) FeeRate(f float64) *OrderBuilder {
-	o.feePercentage = f * 100
-	return o
+func (m *MarketOrder) FeeRate(f float64) MarketOptionsSetter {
+	m.feePercentage = f * 100
+	return m
 }
 
-// TODO: Add *order.Submit pre allocation and subsequent Submit call.
+var ErrNilOrderBuilder = errors.New("order builder is nil")
 
 // validate will check the order builder values and return an error if values
 // are not set correctly.
 func (o *OrderBuilder) validate() error {
 	if o == nil {
-		return errOrderBuilderIsNil
+		return ErrNilOrderBuilder
 	}
 
 	if o.exch == nil {
 		return ErrExchangeIsNil
+	}
+
+	if o.config == (order.SubmissionConfig{}) {
+		return common.ErrFunctionNotSupported
 	}
 
 	if o.price <= 0 { // TODO: Price hook to get price for Market orders
@@ -228,19 +325,14 @@ func (o *OrderBuilder) validate() error {
 	return err
 }
 
-// Receipt is the result of submitting an order to the exchange.
-type Receipt struct {
-	// Outbound is the order that was submitted to the exchange
-	Outbound *order.Submit
-	// Response is the response from the exchange
-	Response *order.SubmitResponse
-	// OrderAmounts is the calculated amounts for the order
-	OrderAmounts
-}
+// PreAlloc will attempt to pre-allocate the order for the exchange. If the
+// exchange does not support the order type or order side it will return an
+// error.
+func (o *OrderBuilder) PreAlloc() (Submitter, error) {
+	if o == nil {
+		return nil, errOrderBuilderIsNil
+	}
 
-// Submit will attempt to submit the order to the exchange. If the exchange
-// does not support the order type or order side it will return an error.
-func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
 	err := o.validate()
 	if err != nil {
 		return nil, err
@@ -276,17 +368,6 @@ func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
 		postOnly = true
 	}
 
-	submit := &order.Submit{
-		Exchange:  o.exch.GetName(),
-		Pair:      o.pair,
-		Side:      side,
-		Amount:    preOrderPrecisionAdjustedAmount,
-		AssetType: asset.Spot,
-		Type:      o.orderType,
-		Price:     preOrderPrecisionAdjustedPrice,
-		PostOnly:  postOnly,
-	}
-
 	expectedPurchasedAmount, err := o.postOrderAdjustToPurchased(preOrderPrecisionAdjustedAmount, preOrderPrecisionAdjustedPrice)
 	if err != nil {
 		return nil, err
@@ -297,7 +378,45 @@ func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
 		return nil, err
 	}
 
-	resp, err := o.exch.SubmitOrder(ctx, submit)
+	o.preAllocatedSubmit = &order.Submit{
+		Exchange:  o.exch.GetName(),
+		Pair:      o.pair,
+		Side:      side,
+		Amount:    preOrderPrecisionAdjustedAmount,
+		AssetType: asset.Spot,
+		Type:      o.orderType,
+		Price:     preOrderPrecisionAdjustedPrice,
+		PostOnly:  postOnly,
+	}
+
+	o.preAllocateAmounts = &OrderAmounts{
+		PreOrderAmount:                   termAdjusted,
+		PreOrderFeeAdjustedAmount:        preOrderFeeAdjusted,
+		PreOrderPrecisionAdjustedAmount:  preOrderPrecisionAdjustedAmount,
+		PreOrderPrecisionAdjustedPrice:   preOrderPrecisionAdjustedPrice,
+		PostOrderExpectedPurchasedAmount: expectedPurchasedAmount,
+		PostOrderFeeAdjustedAmount:       expectedPurchasedAmountFeeAdjusted,
+	}
+
+	return o, nil
+}
+
+// Submit will attempt to submit the order to the exchange. If the exchange
+// does not support the order type or order side it will return an error.
+// TODO: Add batch support
+func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
+	if o == nil {
+		return nil, errOrderBuilderIsNil
+	}
+
+	if o.preAllocatedSubmit == nil {
+		_, err := o.PreAlloc()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	resp, err := o.exch.SubmitOrder(ctx, o.preAllocatedSubmit)
 	if err != nil {
 		return nil, err
 	}
@@ -307,16 +426,9 @@ func (o *OrderBuilder) Submit(ctx context.Context) (*Receipt, error) {
 
 	// TODO: Balance check post-order hook. See what has actually been purchased.
 	return &Receipt{
-		Outbound: submit,
-		Response: resp,
-		OrderAmounts: OrderAmounts{
-			PreOrderAmount:                   termAdjusted,
-			PreOrderFeeAdjustedAmount:        preOrderFeeAdjusted,
-			PreOrderPrecisionAdjustedAmount:  preOrderPrecisionAdjustedAmount,
-			PreOrderPrecisionAdjustedPrice:   preOrderPrecisionAdjustedPrice,
-			PostOrderExpectedPurchasedAmount: expectedPurchasedAmount,
-			PostOrderFeeAdjustedAmount:       expectedPurchasedAmountFeeAdjusted,
-		},
+		Outbound:     o.preAllocatedSubmit,
+		Response:     resp,
+		OrderAmounts: *o.preAllocateAmounts,
 	}, nil
 }
 

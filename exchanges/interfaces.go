@@ -103,7 +103,7 @@ type OrderManagement interface {
 	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
 	GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error)
-	ConstructOrder() (*OrderBuilder, error)
+	ConstructOrder() OrderTypeSetter
 }
 
 // CurrencyStateManagement defines functionality for currency state management

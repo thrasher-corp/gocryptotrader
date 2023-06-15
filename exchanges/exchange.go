@@ -1629,4 +1629,4 @@ func (b *Base) Shutdown() error {
 }
 
 // ConstructOrder submits an order to the exchange
-func (b *Base) ConstructOrder() (*OrderBuilder, error) { return nil, common.ErrNotYetImplemented }
+func (b *Base) ConstructOrder() OrderTypeSetter { return nil }
