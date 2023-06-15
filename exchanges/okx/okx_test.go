@@ -104,7 +104,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetOrderBookDepth(context.Background(), "BTC-USDT", 2)
+	_, err := ok.GetOrderBookDepth(context.Background(), "BTC-USDT", 400)
 	if err != nil {
 		t.Error("OKX GetOrderBookDepth() error", err)
 	}
