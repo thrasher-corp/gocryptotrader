@@ -214,6 +214,4 @@ func TestWebsocketWrapper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// -- Normal shutdown
-	ws.Wg.Wait()
 }

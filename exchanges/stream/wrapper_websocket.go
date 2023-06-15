@@ -513,7 +513,6 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		features:               w.features,
 		runningURLAuth:         s.RunningURLAuth,
 		ShutdownC:              make(chan struct{}),
-		AssetShutdownC:         w.ShutdownC,
 		AssetType:              s.AssetType,
 	}
 	err := assetWebsocket.SetWebsocketURL(s.RunningURL, false, false)

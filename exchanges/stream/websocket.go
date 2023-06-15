@@ -272,8 +272,7 @@ func (w *Websocket) Shutdown() error {
 
 	// TODO: Interrupt connection and or close connection when it is re-established.
 	if w.IsConnecting() {
-		return fmt.Errorf("%v websocket: %w",
-			w.exchangeName, errReconnectingConnectionShutdown)
+		return fmt.Errorf("%v websocket: %w", w.exchangeName, errReconnectingConnectionShutdown)
 	}
 
 	if w.verbose {

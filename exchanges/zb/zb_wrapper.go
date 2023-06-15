@@ -174,7 +174,6 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	z.Websocket = stream.NewWrapper()
 
 	err = z.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,

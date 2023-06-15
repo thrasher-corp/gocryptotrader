@@ -70,10 +70,9 @@ type Websocket struct {
 
 	Match *Match
 
-	// shutdown synchronises shutdown event across routines
-	ShutdownC      chan struct{}
-	AssetShutdownC chan asset.Item
-	Wg             *sync.WaitGroup
+	// ShutdownC synchronises shutdown event across routines
+	ShutdownC chan struct{}
+	Wg        *sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook

@@ -143,11 +143,9 @@ func TestGetMarkets(t *testing.T) {
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
-		Amount:  1,
-		FeeType: exchange.CryptocurrencyTradeFee,
-		Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
-			currency.BTC.String(),
-			"-"),
+		Amount:              1,
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		Pair:                currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "-"),
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
