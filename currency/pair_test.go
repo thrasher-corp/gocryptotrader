@@ -1036,3 +1036,26 @@ func TestGetOrderParameters(t *testing.T) {
 		})
 	}
 }
+
+func TestIsAssociated(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		Pair           Pair
+		associate      Pair
+		expectedResult bool
+	}{
+		{Pair: NewPair(BTC, USDT), associate: NewPair(BTC, USDT), expectedResult: true},
+		{Pair: NewPair(USDT, BTC), associate: NewPair(BTC, USDT), expectedResult: true},
+		{Pair: NewPair(BTC, USDT), associate: NewPair(USDT, BTC), expectedResult: true},
+		{Pair: NewPair(BTC, USDT), associate: NewPair(XRP, USDT), expectedResult: true},
+		{Pair: NewPair(BTC, LTC), associate: NewPair(XRP, USDT), expectedResult: false},
+		{Pair: NewPair(MA, LTC), associate: NewPair(LTC, USDT), expectedResult: true},
+	}
+
+	for x := range testCases {
+		if testCases[x].Pair.IsAssociated(testCases[x].associate) != testCases[x].expectedResult {
+			t.Fatalf("Test %d failed. Expected %v, received %v", x, testCases[x].expectedResult, testCases[x].Pair.IsAssociated(testCases[x].associate))
+		}
+	}
+}

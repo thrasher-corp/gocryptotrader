@@ -223,3 +223,8 @@ func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters
 	}
 	return &params, nil
 }
+
+// IsAssociated checks to see if the pair is associated with another pair
+func (p Pair) IsAssociated(a Pair) bool {
+	return p.Base.Equal(a.Base) || p.Quote.Equal(a.Base) || p.Base.Equal(a.Quote) || p.Quote.Equal(a.Quote)
+}
