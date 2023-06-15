@@ -394,11 +394,16 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	if err != nil {
 		return err
 	}
+
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(assetType)
+	if assetType == asset.Margin {
+		instrumentType = okxInstTypeSpot
+	}
 	ticks, err := ok.GetTickers(ctx, instrumentType, "", "")
 	if err != nil {
 		return err
 	}
+
 	for y := range ticks {
 		pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
 		if err != nil {

@@ -85,23 +85,6 @@ func (t *okxTime) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type okxAssetType struct {
-	asset.Item
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *okxAssetType) UnmarshalJSON(data []byte) error {
-	var t string
-	err := json.Unmarshal(data, &t)
-	if err != nil {
-		return err
-	}
-
-	a.Item, err = GetAssetTypeFromInstrumentType(strings.ToUpper(t))
-
-	return err
-}
-
 // UnmarshalJSON deserializes JSON, and timestamp information.
 func (a *Instrument) UnmarshalJSON(data []byte) error {
 	type Alias Instrument
@@ -109,7 +92,7 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 		*Alias
 		ListTime                        okxTime           `json:"listTime"`
 		ExpTime                         okxTime           `json:"expTime"`
-		InstrumentType                  okxAssetType      `json:"instType"`
+		InstrumentType                  string            `json:"instType"`
 		MaxLeverage                     okxNumericalValue `json:"lever"`
 		TickSize                        okxNumericalValue `json:"tickSz"`
 		LotSize                         okxNumericalValue `json:"lotSz"`
@@ -129,7 +112,7 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 
 	a.ListTime = chil.ListTime.Time
 	a.ExpTime = chil.ExpTime.Time
-	a.InstrumentType = chil.InstrumentType.Item
+	a.InstrumentType = chil.InstrumentType
 	a.MaxLeverage = chil.MaxLeverage.Float64()
 	a.TickSize = chil.TickSize.Float64()
 	a.LotSize = chil.LotSize.Float64()
@@ -156,9 +139,6 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	if a.InstrumentType, err = GetAssetTypeFromInstrumentType(chil.InstrumentType); err != nil {
-		return err
-	}
 	return nil
 }
 
