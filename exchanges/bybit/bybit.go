@@ -766,9 +766,9 @@ func (by *Bybit) WithdrawFund(ctx context.Context, coin, chain, address, tag, am
 	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, nil, params, &resp, privateSpotRate)
 }
 
-// GetAccountFee returns user account fee
+// GetFeeRate returns user account fee
 // Valid  category: "spot", "linear", "inverse", "option"
-func (by *Bybit) GetAccountFee(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
+func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	}

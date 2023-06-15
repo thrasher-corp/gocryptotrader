@@ -2,6 +2,7 @@ package sharedtestvalues
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -115,7 +116,7 @@ var EmptyStringPotentialPattern = `.*float64.*json:"[^"]*,string".*`
 
 // ForceFileStandard will check all files in the current directory for a regular
 // expression pattern. If the pattern is found the test will fail.
-func ForceFileStandard(t *testing.T, pattern, reason string) {
+func ForceFileStandard(t *testing.T, pattern string) error {
 	t.Helper()
 
 	r := regexp.MustCompile(pattern)
@@ -142,11 +143,8 @@ func ForceFileStandard(t *testing.T, pattern, reason string) {
 		return nil
 	})
 
-	if t.Failed() {
-		t.Fatalf("Failed due to: %s", reason)
-	}
-
 	if err != nil {
-		t.Fatalf("Failed to walk directory: %v", err)
+		return fmt.Errorf("failed to walk directory: %w", err)
 	}
+	return nil
 }

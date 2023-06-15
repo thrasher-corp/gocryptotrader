@@ -3420,37 +3420,37 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestGetAccountFee(t *testing.T) {
+func TestGetFeeRate(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetAccountFee(context.Background(), "", "", "")
+	_, err := b.GetFeeRate(context.Background(), "", "", "")
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
 	}
 
-	_, err = b.GetAccountFee(context.Background(), "bruh", "", "")
+	_, err = b.GetFeeRate(context.Background(), "bruh", "", "")
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("received %v but expected %v", err, errInvalidCategory)
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	_, err = b.GetAccountFee(context.Background(), "spot", "", "")
+	_, err = b.GetFeeRate(context.Background(), "spot", "", "")
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v but expected %v", err, nil)
 	}
 
-	_, err = b.GetAccountFee(context.Background(), "linear", "", "")
+	_, err = b.GetFeeRate(context.Background(), "linear", "", "")
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v but expected %v", err, nil)
 	}
 
-	_, err = b.GetAccountFee(context.Background(), "inverse", "", "")
+	_, err = b.GetFeeRate(context.Background(), "inverse", "", "")
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v but expected %v", err, nil)
 	}
 
-	_, err = b.GetAccountFee(context.Background(), "option", "", "ETH")
+	_, err = b.GetFeeRate(context.Background(), "option", "", "ETH")
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v but expected %v", err, nil)
 	}
@@ -3458,5 +3458,11 @@ func TestGetAccountFee(t *testing.T) {
 
 func TestForceFileStandard(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern, "Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
+	err := sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
+	if err != nil {
+		t.Error(err)
+	}
+	if t.Failed() {
+		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
+	}
 }
