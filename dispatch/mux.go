@@ -42,7 +42,7 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 }
 
 // Unsubscribe returns channel to the pool for the full signature set
-func (m *Mux) Unsubscribe(id uuid.UUID, ch <-chan interface{}) error {
+func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 	if m == nil {
 		return errMuxIsNil
 	}

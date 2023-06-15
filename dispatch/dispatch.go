@@ -218,7 +218,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 
 // Subscribe subscribes a system and returns a communication chan, this does not
 // ensure initial push.
-func (d *Dispatcher) subscribe(id uuid.UUID) (<-chan interface{}, error) {
+func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	if d == nil {
 		return nil, errDispatcherNotInitialized
 	}
@@ -241,7 +241,8 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (<-chan interface{}, error) {
 	}
 
 	// Get an unused channel from the channel pool
-	ch, ok := d.outbound.Get().(chan interface{})
+	getResult := d.outbound.Get()
+	ch, ok := getResult.(chan interface{})
 	if !ok {
 		return nil, errTypeAssertionFailure
 	}
@@ -251,7 +252,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (<-chan interface{}, error) {
 }
 
 // Unsubscribe unsubs a routine from the dispatcher
-func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan <-chan interface{}) error {
+func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error {
 	if d == nil {
 		return errDispatcherNotInitialized
 	}

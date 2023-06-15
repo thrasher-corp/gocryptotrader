@@ -183,7 +183,7 @@ func TestUnsubscribe(t *testing.T) {
 	}
 
 	// will return nil if not running
-	err = d.unsubscribe(nonEmptyUUID, make(<-chan interface{}))
+	err = d.unsubscribe(nonEmptyUUID, make(chan interface{}))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -193,7 +193,7 @@ func TestUnsubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = d.unsubscribe(nonEmptyUUID, make(<-chan interface{}))
+	err = d.unsubscribe(nonEmptyUUID, make(chan interface{}))
 	if !errors.Is(err, errDispatcherUUIDNotFoundInRouteList) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherUUIDNotFoundInRouteList)
 	}
@@ -203,7 +203,7 @@ func TestUnsubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = d.unsubscribe(id, make(<-chan interface{}))
+	err = d.unsubscribe(id, make(chan interface{}))
 	if !errors.Is(err, errChannelNotFoundInUUIDRef) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errChannelNotFoundInUUIDRef)
 	}
