@@ -3319,7 +3319,20 @@ func TestSetCollateralMode(t *testing.T) {
 func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	pp, err := ok.CurrencyPairs.GetPairs(asset.Futures, true)
+	pp, err := ok.CurrencyPairs.GetPairs(asset.PerpetualSwap, true)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+		Asset:          asset.PerpetualSwap,
+		Pair:           pp[0],
+		UnderlyingPair: currency.EMPTYPAIR,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	pp, err = ok.CurrencyPairs.GetPairs(asset.Futures, true)
 	if err != nil {
 		t.Error(err)
 	}

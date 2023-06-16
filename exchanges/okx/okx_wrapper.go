@@ -1656,7 +1656,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		break
 	}
 	if positionSummary == nil {
-		return nil, fmt.Errorf("%w, received '%v', no open positions found", errOnlyOneResponseExpected, len(positionSummaries))
+		return nil, fmt.Errorf("%w, received '%v', no positions found", errOnlyOneResponseExpected, len(positionSummaries))
 	}
 	marginMode := margin.Isolated
 	if positionSummary.MarginMode == "cross" {

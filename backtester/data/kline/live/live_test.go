@@ -14,7 +14,7 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const testExchange = "binanceus"
+const testExchange = "okx"
 
 func TestLoadCandles(t *testing.T) {
 	t.Parallel()
@@ -73,8 +73,8 @@ func TestLoadTrades(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	// start is 1 hour in the past to ensure there are some trades to pull from the exchange
-	start := time.Now().Add(-time.Hour)
+	// start is 5 mins in the past to ensure there are some trades to pull from the exchange
+	start := time.Now().Add(-time.Minute * 5)
 	data, err = LoadData(context.Background(), start, exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if err != nil {
 		t.Fatal(err)
