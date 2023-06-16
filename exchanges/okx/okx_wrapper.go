@@ -49,7 +49,7 @@ func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	}
 
 	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = ok.UpdateTradablePairs(ctx, false)
+		err = ok.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
