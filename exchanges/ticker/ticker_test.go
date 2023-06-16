@@ -281,6 +281,39 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		t.Fatal("TestProcessTicker pair mismatch")
 	}
 
+	err = ProcessTicker(&Price{
+		ExchangeName: "Bitfinex",
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		AssetType:    asset.Margin,
+		Bid:          1337,
+		Ask:          1337,
+	})
+	if !errors.Is(err, errBidEqualsAsk) {
+		t.Errorf("received: %v but expected: %v", err, errBidEqualsAsk)
+	}
+
+	err = ProcessTicker(&Price{
+		ExchangeName: "Bitfinex",
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		AssetType:    asset.Margin,
+		Bid:          1338,
+		Ask:          1336,
+	})
+	if !errors.Is(err, errBidGreaterThanAsk) {
+		t.Errorf("received: %v but expected: %v", err, errBidGreaterThanAsk)
+	}
+
+	err = ProcessTicker(&Price{
+		ExchangeName: "Bitfinex",
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		AssetType:    asset.MarginFunding,
+		Bid:          1338,
+		Ask:          1336,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v but expected: %v", err, nil)
+	}
+
 	// now test for processing a pair with a different quote currency
 	newPair, err = currency.NewPairFromStrings("BTC", "AUD")
 	if err != nil {

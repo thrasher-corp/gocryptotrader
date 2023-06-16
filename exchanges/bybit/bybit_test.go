@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -58,6 +59,20 @@ func TestMain(m *testing.M) {
 	err = b.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// Turn on all pairs for testing
+	supportedAssets := b.GetAssetTypes(false)
+	for x := range supportedAssets {
+		avail, err := b.GetAvailablePairs(supportedAssets[x])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	os.Exit(m.Run())
@@ -1055,9 +1070,17 @@ func TestGetTradingFeeRate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err = b.GetTradingFeeRate(context.Background(), pair)
+	feeRate, err := b.GetTradingFeeRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
+	}
+
+	if feeRate.MakerFeeRate == 0 && feeRate.TakerFeeRate == 0 {
+		t.Error("expected fee rate")
+	}
+
+	if feeRate.UserID == 0 {
+		t.Error("expected user id")
 	}
 }
 
@@ -3307,5 +3330,139 @@ func TestGetUSDCPredictedFundingRate(t *testing.T) {
 	_, _, err = b.GetUSDCPredictedFundingRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	supportedAssets := b.GetAssetTypes(false)
+	ctx := context.Background()
+	for x := range supportedAssets {
+		err := b.UpdateTickers(ctx, supportedAssets[x])
+		if err != nil {
+			t.Fatalf("%v %v\n", supportedAssets[x], err)
+		}
+
+		avail, err := b.GetAvailablePairs(supportedAssets[x])
+		if err != nil {
+			t.Fatalf("%v %v\n", supportedAssets[x], err)
+		}
+
+		for y := range avail {
+			_, err = ticker.GetTicker(b.GetName(), avail[y], supportedAssets[x])
+			if err != nil {
+				t.Fatalf("%v %v %v\n", avail[y], supportedAssets[x], err)
+			}
+		}
+	}
+}
+
+func TestGetTickersV5(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetTickersV5(context.Background(), "bruh", "", "")
+	if err != nil && err.Error() != "Illegal category" {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "option", "", "")
+	if !errors.Is(err, errBaseNotSet) {
+		t.Fatalf("expected: %v, received: %v", errBaseNotSet, err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "spot", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "option", "", "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "inverse", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "linear", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
+	}
+
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error("Okx UpdateOrderExecutionLimits() error", err)
+	}
+
+	avail, err := b.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal("Okx GetAvailablePairs() error", err)
+	}
+
+	for x := range avail {
+		limits, err := b.GetOrderExecutionLimits(asset.Spot, avail[x])
+		if err != nil {
+			t.Fatal("Okx GetOrderExecutionLimits() error", err)
+		}
+		if limits == (order.MinMaxLevel{}) {
+			t.Fatal("Okx GetOrderExecutionLimits() error cannot be nil")
+		}
+	}
+}
+
+func TestGetFeeRate(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetFeeRate(context.Background(), "", "", "")
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
+	}
+
+	_, err = b.GetFeeRate(context.Background(), "bruh", "", "")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("received %v but expected %v", err, errInvalidCategory)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err = b.GetFeeRate(context.Background(), "spot", "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetFeeRate(context.Background(), "linear", "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetFeeRate(context.Background(), "inverse", "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetFeeRate(context.Background(), "option", "", "ETH")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+}
+
+func TestForceFileStandard(t *testing.T) {
+	t.Parallel()
+	err := sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
+	if err != nil {
+		t.Error(err)
+	}
+	if t.Failed() {
+		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 	}
 }

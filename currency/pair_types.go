@@ -31,4 +31,6 @@ type OrderParameters struct {
 	// IsAskLiquidity is the side of the orderbook that will be used, false for
 	// bid liquidity.
 	IsAskLiquidity bool
+	// Pair is the currency pair that the order parameters are derived from.
+	Pair Pair
 }
