@@ -68,7 +68,7 @@ const (
 // will ensure the appropriate headers are sent to OKx to use the testnet
 type testNetKey string
 
-// Market Data Endoints
+// Market Data Endpoints
 
 // TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {
@@ -279,33 +279,34 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract.
 type Instrument struct {
-	InstrumentType                  asset.Item        `json:"instType"`
-	InstrumentID                    string            `json:"instId"`
-	Underlying                      string            `json:"uly"`
-	Category                        string            `json:"category"`
-	BaseCurrency                    string            `json:"baseCcy"`
-	QuoteCurrency                   string            `json:"quoteCcy"`
-	SettlementCurrency              string            `json:"settleCcy"`
-	ContractValue                   string            `json:"ctVal"`
-	ContractMultiplier              string            `json:"ctMult"`
-	ContractValueCurrency           string            `json:"ctValCcy"`
-	OptionType                      string            `json:"optType"`
-	StrikePrice                     string            `json:"stk"`
-	ListTime                        time.Time         `json:"listTime"`
-	ExpTime                         time.Time         `json:"expTime"`
-	MaxLeverage                     okxNumericalValue `json:"lever"`
-	TickSize                        okxNumericalValue `json:"tickSz"`
-	LotSize                         okxNumericalValue `json:"lotSz"`
-	MinimumOrderSize                okxNumericalValue `json:"minSz"`
-	ContractType                    string            `json:"ctType"`
-	Alias                           string            `json:"alias"`
-	State                           string            `json:"state"`
-	MaxQuantityOfSpotLimitOrder     okxNumericalValue `json:"maxLmtSz"`
-	MaxQuantityOfMarketLimitOrder   okxNumericalValue `json:"maxMktSz"`
-	MaxQuantityOfSpotTwapLimitOrder okxNumericalValue `json:"maxTwapSz"`
-	MaxSpotIcebergSize              okxNumericalValue `json:"maxIcebergSz"`
-	MaxTriggerSize                  okxNumericalValue `json:"maxTriggerSz"`
-	MaxStopSize                     okxNumericalValue `json:"maxStopSz"`
+	InstrumentType                  asset.Item `json:"instType"`
+	InstrumentID                    string     `json:"instId"`
+	InstrumentFamily                string     `json:"instFamily"`
+	Underlying                      string     `json:"uly"`
+	Category                        string     `json:"category"`
+	BaseCurrency                    string     `json:"baseCcy"`
+	QuoteCurrency                   string     `json:"quoteCcy"`
+	SettlementCurrency              string     `json:"settleCcy"`
+	ContractValue                   string     `json:"ctVal"`
+	ContractMultiplier              string     `json:"ctMult"`
+	ContractValueCurrency           string     `json:"ctValCcy"`
+	OptionType                      string     `json:"optType"`
+	StrikePrice                     string     `json:"stk"`
+	ListTime                        time.Time  `json:"listTime"`
+	ExpTime                         time.Time  `json:"expTime"`
+	MaxLeverage                     float64    `json:"lever"`
+	TickSize                        float64    `json:"tickSz"`
+	LotSize                         float64    `json:"lotSz"`
+	MinimumOrderSize                float64    `json:"minSz"`
+	ContractType                    string     `json:"ctType"`
+	Alias                           string     `json:"alias"`
+	State                           string     `json:"state"`
+	MaxQuantityOfSpotLimitOrder     float64    `json:"maxLmtSz"`
+	MaxQuantityOfMarketLimitOrder   float64    `json:"maxMktSz"`
+	MaxQuantityOfSpotTwapLimitOrder float64    `json:"maxTwapSz"`
+	MaxSpotIcebergSize              float64    `json:"maxIcebergSz"`
+	MaxTriggerSize                  float64    `json:"maxTriggerSz"`
+	MaxStopSize                     float64    `json:"maxStopSz"`
 }
 
 // DeliveryHistoryDetail holds instrument id and delivery price information detail
