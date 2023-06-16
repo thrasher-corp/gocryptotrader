@@ -1907,7 +1907,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				t.Errorf("Okx UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", a, tt.pair, tt.step, got)
 			}
 
-			if got := limits.MinAmount; got != tt.min {
+			if got := limits.MinimumBaseAmount; got != tt.min {
 				t.Errorf("Okx UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", tt.pair, tt.min, got)
 			}
 		}
