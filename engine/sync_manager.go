@@ -184,7 +184,7 @@ func (m *syncManager) Start() error {
 					continue
 				}
 
-				sBase := &syncBase{
+				sBase := syncBase{
 					IsUsingREST:      usingREST || !wsAssetSupported,
 					IsUsingWebsocket: usingWebsocket && wsAssetSupported,
 				}
@@ -260,22 +260,25 @@ func newCurrencyPairSyncAgent(k currencyPairKey) *currencyPairSyncAgent {
 		trackers:        make([]*syncBase, SyncItemTrade+1),
 	}
 }
-func (m *syncManager) add(k currencyPairKey, s *syncBase) *currencyPairSyncAgent {
+func (m *syncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	c := newCurrencyPairSyncAgent(k)
 
 	if m.config.SynchronizeTicker {
-		c.trackers[SyncItemTicker] = s
+		s := s
+		c.trackers[SyncItemTicker] = &s
 	}
 
 	if m.config.SynchronizeOrderbook {
-		c.trackers[SyncItemOrderbook] = s
+		s := s
+		c.trackers[SyncItemOrderbook] = &s
 	}
 
 	if m.config.SynchronizeTrades {
-		c.trackers[SyncItemTrade] = s
+		s := s
+		c.trackers[SyncItemTrade] = &s
 	}
 
 	if m.config.SynchronizeTicker {
@@ -495,7 +498,7 @@ func (m *syncManager) worker() {
 						}
 						c := m.get(k)
 						if c == nil {
-							c = m.add(k, &syncBase{
+							c = m.add(k, syncBase{
 								IsUsingREST:      usingREST || !wsAssetSupported,
 								IsUsingWebsocket: usingWebsocket && wsAssetSupported,
 							})
