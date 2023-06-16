@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -1577,7 +1578,7 @@ func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*orde
 
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*collateral.ByCurrency, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1631,12 +1632,12 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 }
 
 // SetCollateralMode sets the account's collateral mode for the asset type
-func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralMode) error {
+func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
-func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (order.CollateralMode, error) {
+func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
 	return 0, common.ErrFunctionNotSupported
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -183,7 +184,7 @@ var futuresCommands = &cli.Command{
 			Aliases:   []string{"gcm"},
 			Usage:     "gets the collateral mode for an exchange asset",
 			ArgsUsage: "<exchange> <asset>",
-			Action:    getCollateralModel,
+			Action:    getCollateralMode,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "exchange",
@@ -202,7 +203,7 @@ var futuresCommands = &cli.Command{
 			Aliases:   []string{"scm"},
 			Usage:     "sets the collateral mode for an exchange asset",
 			ArgsUsage: "<exchange> <asset> <collateralmode>",
-			Action:    setCollateralModel,
+			Action:    setCollateralMode,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "exchange",
@@ -806,7 +807,7 @@ func getFundingRates(c *cli.Context) error {
 	return nil
 }
 
-func getCollateralModel(c *cli.Context) error {
+func getCollateralMode(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -851,7 +852,7 @@ func getCollateralModel(c *cli.Context) error {
 	return nil
 }
 
-func setCollateralModel(c *cli.Context) error {
+func setCollateralMode(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -882,7 +883,7 @@ func setCollateralModel(c *cli.Context) error {
 		collateralMode = c.Args().Get(2)
 	}
 
-	if !order.IsValidCollateralModeString(collateralMode) {
+	if !collateral.IsValidCollateralModeString(collateralMode) {
 		return fmt.Errorf("invalid collateral mode: %v", collateralMode)
 	}
 

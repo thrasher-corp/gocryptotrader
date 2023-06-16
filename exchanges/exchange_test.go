@@ -12,9 +12,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -2936,7 +2936,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetCollateralMode(context.Background(), asset.Spot, order.SingleCollateral)
+	err := b.SetCollateralMode(context.Background(), asset.Spot, collateral.SingleMode)
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Error(err)
 	}

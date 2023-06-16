@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
@@ -54,35 +55,6 @@ var (
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
-// CollateralMode defines the different collateral types supported by exchanges
-// For example, FTX had a global collateral pool
-// Binance has either singular position collateral calculation
-// or cross aka asset level collateral calculation
-type CollateralMode uint8
-
-const (
-	// UnsetCollateralMode is the default value
-	UnsetCollateralMode CollateralMode = 0
-	// SingleCollateral has allocated collateral per position
-	SingleCollateral CollateralMode = 1 << (iota - 1)
-	// MultiCollateral has collateral allocated across the whole asset
-	MultiCollateral
-	// GlobalCollateral has collateral allocated across account
-	GlobalCollateral
-	// UnknownCollateral has collateral allocated in an unknown manner at present, but is not unset
-	UnknownCollateral
-)
-
-const (
-	unsetCollateralStr   = "unset"
-	singleCollateralStr  = "single"
-	multiCollateralStr   = "multi"
-	globalCollateralStr  = "global"
-	unknownCollateralStr = "unknown"
-)
-
-var supportedCollateralModes = SingleCollateral | MultiCollateral | GlobalCollateral
-
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
@@ -96,57 +68,12 @@ type TotalCollateralResponse struct {
 	TotalValueOfPositiveSpotBalances            decimal.Decimal
 	CollateralContributedByPositiveSpotBalances decimal.Decimal
 	UsedCollateral                              decimal.Decimal
-	UsedBreakdown                               *UsedCollateralBreakdown
+	UsedBreakdown                               *collateral.UsedBreakdown
 	AvailableCollateral                         decimal.Decimal
 	AvailableMaintenanceCollateral              decimal.Decimal
 	UnrealisedPNL                               decimal.Decimal
-	BreakdownByCurrency                         []CollateralByCurrency
-	BreakdownOfPositions                        []CollateralByPosition
-}
-
-// CollateralByPosition shows how much collateral is used
-// from positions
-type CollateralByPosition struct {
-	PositionCurrency currency.Pair
-	Size             decimal.Decimal
-	OpenOrderSize    decimal.Decimal
-	PositionSize     decimal.Decimal
-	MarkPrice        decimal.Decimal
-	RequiredMargin   decimal.Decimal
-	CollateralUsed   decimal.Decimal
-}
-
-// CollateralByCurrency individual collateral contribution
-// along with what the potentially scaled collateral
-// currency it is represented as
-// eg in Bybit ScaledCurrency is USDC
-type CollateralByCurrency struct {
-	Currency                    currency.Code
-	SkipContribution            bool
-	TotalFunds                  decimal.Decimal
-	AvailableForUseAsCollateral decimal.Decimal
-	CollateralContribution      decimal.Decimal
-	AdditionalCollateralUsed    decimal.Decimal
-	FairMarketValue             decimal.Decimal
-	Weighting                   decimal.Decimal
-	ScaledCurrency              currency.Code
-	UnrealisedPNL               decimal.Decimal
-	ScaledUsed                  decimal.Decimal
-	ScaledUsedBreakdown         *UsedCollateralBreakdown
-	Error                       error
-}
-
-// UsedCollateralBreakdown provides a detailed
-// breakdown of where collateral is currently being allocated
-type UsedCollateralBreakdown struct {
-	LockedInStakes                  decimal.Decimal
-	LockedInNFTBids                 decimal.Decimal
-	LockedInFeeVoucher              decimal.Decimal
-	LockedInSpotMarginFundingOffers decimal.Decimal
-	LockedInSpotOrders              decimal.Decimal
-	LockedAsCollateral              decimal.Decimal
-	UsedInPositions                 decimal.Decimal
-	UsedInSpotMarginBorrows         decimal.Decimal
+	BreakdownByCurrency                         []collateral.ByCurrency
+	BreakdownOfPositions                        []collateral.ByPosition
 }
 
 // PositionController manages all futures orders
@@ -420,7 +347,7 @@ type PositionSummary struct {
 	Pair           currency.Pair
 	Asset          asset.Item
 	MarginType     margin.Type
-	CollateralMode CollateralMode
+	CollateralMode collateral.Mode
 	// The currency in which the values are quoted against. Isn't always pair.Quote
 	// eg BTC-USDC-230929's quote in GCT is 230929, but the currency should be USDC
 	Currency                     currency.Code

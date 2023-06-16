@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
 var (
@@ -341,7 +340,7 @@ type UPositionInformationV2 struct {
 	LiquidationPrice float64     `json:"liquidationPrice,string"`
 	Leverage         float64     `json:"leverage,string"`
 	MaxNotionalValue float64     `json:"maxNotionalValue,string"`
-	MarginType       margin.Type `json:"marginType"`
+	MarginType       string      `json:"marginType"`
 	IsAutoAddMargin  bool        `json:"isAutoAddMargin,string"`
 	PositionSide     string      `json:"positionSide"`
 	Notional         float64     `json:"notional,string"`

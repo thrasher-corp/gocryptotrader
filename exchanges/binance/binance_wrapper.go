@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -1058,7 +1059,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
 
-		order, err := b.UFuturesNewOrder(ctx,
+		o, err := b.UFuturesNewOrder(ctx,
 			&UFuturesNewOrderRequest{
 				Symbol:           s.Pair,
 				Side:             reqSide,
@@ -1073,7 +1074,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if err != nil {
 			return nil, err
 		}
-		orderID = strconv.FormatInt(order.OrderID, 10)
+		orderID = strconv.FormatInt(o.OrderID, 10)
 	default:
 		return nil, fmt.Errorf("assetType not supported")
 	}
@@ -1925,29 +1926,29 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 }
 
 // SetCollateralMode sets the account's collateral mode for the asset type
-func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collateralMode order.CollateralMode) error {
+func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collateralMode collateral.Mode) error {
 	if a != asset.USDTMarginedFutures {
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	if collateralMode != order.MultiCollateral && collateralMode != order.SingleCollateral {
+	if collateralMode != collateral.MultiMode && collateralMode != collateral.SingleMode {
 		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralMode)
 	}
-	return b.SetAssetsMode(ctx, collateralMode == order.MultiCollateral)
+	return b.SetAssetsMode(ctx, collateralMode == collateral.MultiMode)
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
-func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (order.CollateralMode, error) {
+func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (collateral.Mode, error) {
 	if a != asset.USDTMarginedFutures {
-		return order.UnknownCollateral, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return collateral.UnknownMode, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	isMulti, err := b.GetAssetsMode(ctx)
 	if err != nil {
-		return order.UnknownCollateral, err
+		return collateral.UnknownMode, err
 	}
 	if isMulti {
-		return order.MultiCollateral, nil
+		return collateral.MultiMode, nil
 	}
-	return order.SingleCollateral, nil
+	return collateral.SingleMode, nil
 }
 
 // SetMarginType sets the default margin type for when opening a new position
@@ -2051,9 +2052,9 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		if err != nil {
 			return nil, err
 		}
-		collateralMode := order.SingleCollateral
+		collateralMode := collateral.SingleMode
 		if ai.MultiAssetsMargin {
-			collateralMode = order.MultiCollateral
+			collateralMode = collateral.MultiMode
 		}
 		var accountPosition *UPosition
 		var leverage, maintenanceMargin, initialMargin,
@@ -2099,7 +2100,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		}
 
 		var c currency.Code
-		if collateralMode == order.SingleCollateral {
+		if collateralMode == collateral.SingleMode {
 			var collateralAsset *UAsset
 			if strings.Contains(accountPosition.Symbol, usdtAsset.Asset) {
 				collateralAsset = usdtAsset
@@ -2117,7 +2118,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 				isolatedMargin = accountPosition.IsolatedWallet
 				collateralUsed = isolatedMargin
 			}
-		} else if collateralMode == order.MultiCollateral {
+		} else if collateralMode == collateral.MultiMode {
 			collateralTotal = ai.TotalWalletBalance
 			collateralUsed = ai.TotalWalletBalance - ai.AvailableBalance
 			collateralAvailable = ai.AvailableBalance
@@ -2166,7 +2167,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		if err != nil {
 			return nil, err
 		}
-		collateralMode := order.SingleCollateral
+		collateralMode := collateral.SingleMode
 		var leverage, maintenanceMargin, initialMargin,
 			liquidationPrice, markPrice, positionSize,
 			collateralTotal, collateralUsed, collateralAvailable,
@@ -2304,7 +2305,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 				}
 				for {
 					var orders []UFuturesOrderData
-					orders, err = b.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), sd, time.Time{})
+					orders, err = b.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), sd, req.EndDate)
 					if err != nil {
 						return nil, err
 					}
@@ -2313,6 +2314,13 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 							continue
 						}
 						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						var mt margin.Type
+						mt, err = margin.StringToMarginType(result[y].MarginType)
+						if err != nil {
+							if !errors.Is(err, margin.ErrInvalidMarginType) {
+								return nil, err
+							}
+						}
 						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
 							ReduceOnly:           orders[i].ClosePosition,
 							Price:                orders[i].Price,
@@ -2333,7 +2341,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 							Date:                 orders[i].Time,
 							LastUpdated:          orders[i].UpdateTime,
 							Pair:                 req.Pairs[x],
-							MarginType:           result[y].MarginType,
+							MarginType:           mt,
 						})
 					}
 					if len(orders) < orderLimit {
@@ -2376,6 +2384,13 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 							return nil, err
 						}
 						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						var mt margin.Type
+						mt, err = margin.StringToMarginType(result[y].MarginType)
+						if err != nil {
+							if !errors.Is(err, margin.ErrInvalidMarginType) {
+								return nil, err
+							}
+						}
 						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
 							ReduceOnly:           orders[i].ClosePosition,
 							Price:                orders[i].Price,
@@ -2396,7 +2411,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 							Date:                 orders[i].Time,
 							LastUpdated:          orders[i].UpdateTime,
 							Pair:                 req.Pairs[x],
-							MarginType:           result[y].MarginType,
+							MarginType:           mt,
 						})
 					}
 					if len(orders) < orderLimit {

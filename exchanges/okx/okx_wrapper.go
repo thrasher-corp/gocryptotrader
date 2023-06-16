@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -1537,12 +1538,12 @@ func (ok *Okx) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _
 }
 
 // SetCollateralMode sets the collateral type for your account
-func (ok *Okx) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralMode) error {
+func (ok *Okx) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
 	return fmt.Errorf("%w must be set via website", common.ErrFunctionNotSupported)
 }
 
 // GetCollateralMode returns the collateral type for your account
-func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (order.CollateralMode, error) {
+func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collateral.Mode, error) {
 	if !ok.SupportsAsset(item) {
 		return 0, fmt.Errorf("%w: %v", asset.ErrNotSupported, item)
 	}
@@ -1557,13 +1558,13 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (order.Co
 		}
 		fallthrough
 	case 2:
-		return order.SingleCollateral, nil
+		return collateral.SingleMode, nil
 	case 3:
-		return order.MultiCollateral, nil
+		return collateral.MultiMode, nil
 	case 4:
-		return order.GlobalCollateral, nil
+		return collateral.GlobalMode, nil
 	default:
-		return order.UnknownCollateral, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
+		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
 	}
 }
 
@@ -1764,9 +1765,6 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 			}
-			if orderStatus == order.Active {
-				continue
-			}
 			orderSide := positions[j].Side
 			var oType order.Type
 			oType, err = ok.OrderTypeFromString(positions[j].OrderType)
@@ -1822,7 +1820,6 @@ func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.P
 			Leverage:     amount,
 			MarginMode:   marginMode,
 			InstrumentID: instrumentID,
-			//Currency:     underlyingPair.Base.String(),
 		})
 		return err
 	default:

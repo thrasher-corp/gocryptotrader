@@ -2,6 +2,7 @@ package margin
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -17,8 +18,8 @@ func (t *Type) UnmarshalJSON(d []byte) error {
 	if err != nil {
 		return err
 	}
-	*t = StringToMarginType(marginType)
-	return nil
+	*t, err = StringToMarginType(marginType)
+	return err
 }
 
 // String returns the string representation of the margin type in lowercase
@@ -53,14 +54,14 @@ func IsValidString(m string) bool {
 
 // StringToMarginType converts a string to a margin type
 // doesn't error, just returns unknown if the string is not recognised
-func StringToMarginType(m string) Type {
+func StringToMarginType(m string) (Type, error) {
 	switch strings.ToLower(m) {
 	case isolatedStr:
-		return Isolated
+		return Isolated, nil
 	case multiStr, crossedStr, crossStr:
-		return Multi
+		return Multi, nil
 	case "":
-		return Unset
+		return Unset, nil
 	}
-	return Unknown
+	return Unknown, fmt.Errorf("%w %v", ErrInvalidMarginType, m)
 }

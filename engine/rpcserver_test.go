@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -96,12 +97,12 @@ func (f fExchange) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pai
 	return nil
 }
 
-func (f fExchange) SetCollateralMode(_ context.Context, _ asset.Item, _ order.CollateralMode) error {
+func (f fExchange) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
 	return nil
 }
 
-func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (order.CollateralMode, error) {
-	return order.SingleCollateral, nil
+func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
+	return collateral.SingleMode, nil
 }
 
 func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
@@ -297,7 +298,7 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 		CollateralCurrency:             currency.USD,
 		AvailableMaintenanceCollateral: decimal.NewFromInt(1338),
 		AvailableCollateral:            decimal.NewFromInt(1337),
-		UsedBreakdown: &order.UsedCollateralBreakdown{
+		UsedBreakdown: &collateral.UsedBreakdown{
 			LockedInStakes:                  decimal.NewFromInt(3),
 			LockedInNFTBids:                 decimal.NewFromInt(3),
 			LockedInFeeVoucher:              decimal.NewFromInt(3),
@@ -305,7 +306,7 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 			LockedInSpotOrders:              decimal.NewFromInt(3),
 			LockedAsCollateral:              decimal.NewFromInt(3),
 		},
-		BreakdownByCurrency: []order.CollateralByCurrency{
+		BreakdownByCurrency: []collateral.ByCurrency{
 			{
 				Currency:               currency.USD,
 				TotalFunds:             decimal.NewFromInt(1330),
@@ -316,7 +317,7 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 				Currency:   currency.DOGE,
 				TotalFunds: decimal.NewFromInt(1000),
 				ScaledUsed: decimal.NewFromInt(6),
-				ScaledUsedBreakdown: &order.UsedCollateralBreakdown{
+				ScaledUsedBreakdown: &collateral.UsedBreakdown{
 					LockedInStakes:                  decimal.NewFromInt(1),
 					LockedInNFTBids:                 decimal.NewFromInt(1),
 					LockedInFeeVoucher:              decimal.NewFromInt(1),
@@ -3597,8 +3598,8 @@ func TestChangePositionMargin(t *testing.T) {
 
 	req := &gctrpc.ChangePositionMarginRequest{}
 	_, err = s.ChangePositionMargin(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
 	req.Exchange = fakeExchangeName
@@ -3660,7 +3661,7 @@ func TestSetLeverage(t *testing.T) {
 
 	req := &gctrpc.SetLeverageRequest{}
 	_, err = s.SetLeverage(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Error(err)
 	}
 
@@ -3726,7 +3727,7 @@ func TestGetLeverage(t *testing.T) {
 
 	req := &gctrpc.GetLeverageRequest{}
 	_, err = s.GetLeverage(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Error(err)
 	}
 
@@ -3794,7 +3795,7 @@ func TestSetMarginType(t *testing.T) {
 
 	req := &gctrpc.SetMarginTypeRequest{}
 	_, err = s.SetMarginType(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Error(err)
 	}
 

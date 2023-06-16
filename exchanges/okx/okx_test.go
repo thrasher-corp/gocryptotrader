@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -3273,8 +3274,11 @@ func TestSetMarginType(t *testing.T) {
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	cp, _ := currency.NewPairFromString("eth/btc")
-	_, err := ok.ChangePositionMargin(contextGenerate(), &margin.PositionChangeRequest{
+	cp, err := currency.NewPairFromString("eth/btc")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.ChangePositionMargin(contextGenerate(), &margin.PositionChangeRequest{
 		Pair:                    cp,
 		Asset:                   asset.Margin,
 		MarginType:              margin.Isolated,
@@ -3306,7 +3310,7 @@ func TestGetCollateralMode(t *testing.T) {
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	err := ok.SetCollateralMode(contextGenerate(), asset.Spot, order.SingleCollateral)
+	err := ok.SetCollateralMode(contextGenerate(), asset.Spot, collateral.SingleMode)
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}

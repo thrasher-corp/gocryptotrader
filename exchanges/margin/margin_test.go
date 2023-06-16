@@ -2,6 +2,7 @@ package margin
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -52,7 +53,7 @@ func TestUnmarshalJSON(t *testing.T) {
 
 	jason = []byte(`{"margin":"hello moto"}`)
 	err = json.Unmarshal(jason, &alien)
-	if err != nil {
+	if !errors.Is(err, ErrInvalidMarginType) {
 		t.Error(err)
 	}
 	if alien.M != Unknown {
@@ -119,19 +120,43 @@ func TestIsValidString(t *testing.T) {
 
 func TestStringToMarginType(t *testing.T) {
 	t.Parallel()
-	if resp := StringToMarginType("lol"); resp != Unknown {
+	resp, err := StringToMarginType("lol")
+	if !errors.Is(err, ErrInvalidMarginType) {
+		t.Error(err)
+	}
+	if resp != Unknown {
 		t.Errorf("received '%v' expected '%v'", resp, Unknown)
 	}
-	if resp := StringToMarginType(""); resp != Unset {
+
+	resp, err = StringToMarginType("")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != Unset {
 		t.Errorf("received '%v' expected '%v'", resp, Unset)
 	}
-	if resp := StringToMarginType("cross"); resp != Multi {
+
+	resp, err = StringToMarginType("cross")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != Multi {
 		t.Errorf("received '%v' expected '%v'", resp, Multi)
 	}
-	if resp := StringToMarginType("multi"); resp != Multi {
+
+	resp, err = StringToMarginType("multi")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != Multi {
 		t.Errorf("received '%v' expected '%v'", resp, Multi)
 	}
-	if resp := StringToMarginType("isolated"); resp != Isolated {
+
+	resp, err = StringToMarginType("isolated")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != Isolated {
 		t.Errorf("received '%v' expected '%v'", resp, Isolated)
 	}
 }

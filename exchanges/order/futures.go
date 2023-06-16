@@ -2,7 +2,6 @@ package order
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -1108,68 +1107,4 @@ func checkTrackerPrerequisitesLowerExchange(exch string, item asset.Item, cp cur
 		return exch, fmt.Errorf("%w %v %v", ErrPairIsEmpty, exch, item)
 	}
 	return exch, nil
-}
-
-// Valid returns whether the margin type is valid
-func (t CollateralMode) Valid() bool {
-	return t != UnsetCollateralMode && supportedCollateralModes&t == t
-}
-
-// UnmarshalJSON converts json into margin type
-func (t *CollateralMode) UnmarshalJSON(d []byte) error {
-	var collateralMode string
-	err := json.Unmarshal(d, &collateralMode)
-	if err != nil {
-		return err
-	}
-	*t = StringToCollateralMode(collateralMode)
-	return nil
-}
-
-// String returns the string representation of the margin type in lowercase
-// the absence of a lower func should hopefully highlight that String is lower
-func (t CollateralMode) String() string {
-	switch t {
-	case UnsetCollateralMode:
-		return unsetCollateralStr
-	case SingleCollateral:
-		return singleCollateralStr
-	case MultiCollateral:
-		return multiCollateralStr
-	case GlobalCollateral:
-		return globalCollateralStr
-	case UnknownCollateral:
-		return unknownCollateralStr
-	}
-	return ""
-}
-
-// Upper returns the upper case string representation of the margin type
-func (t CollateralMode) Upper() string {
-	return strings.ToUpper(t.String())
-}
-
-// IsValidCollateralModeString checks to see if the supplied string is a valid collateral type
-func IsValidCollateralModeString(m string) bool {
-	switch strings.ToLower(m) {
-	case singleCollateralStr, multiCollateralStr, globalCollateralStr, unsetCollateralStr:
-		return true
-	}
-	return false
-}
-
-// StringToCollateralMode converts a string to a collateral type
-// doesn't error, just returns unknown if the string is not recognised
-func StringToCollateralMode(m string) CollateralMode {
-	switch strings.ToLower(m) {
-	case singleCollateralStr:
-		return SingleCollateral
-	case multiCollateralStr:
-		return MultiCollateral
-	case globalCollateralStr:
-		return GlobalCollateral
-	case "":
-		return UnsetCollateralMode
-	}
-	return UnknownCollateral
 }
