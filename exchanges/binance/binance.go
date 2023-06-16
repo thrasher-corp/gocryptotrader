@@ -1205,8 +1205,8 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 					l.MultiplierDown = f.MultiplierDown
 					l.AveragePriceMinutes = f.AvgPriceMinutes
 				case lotSizeFilter:
-					l.MaxAmount = f.MaxQty
-					l.MinAmount = f.MinQty
+					l.MaximumBaseAmount = f.MaxQty
+					l.MinimumBaseAmount = f.MinQty
 					l.AmountStepIncrementSize = f.StepSize
 				case notionalFilter:
 					l.MinNotional = f.MinNotional

@@ -52,6 +52,7 @@ var (
 	errCannotLoadLimit             = errors.New("cannot load limit, levels not supplied")
 	errInvalidPriceLevels          = errors.New("invalid price levels, cannot load limits")
 	errInvalidAmountLevels         = errors.New("invalid amount levels, cannot load limits")
+	errInvalidQuoteLevels          = errors.New("invalid quote levels, cannot load limits")
 )
 
 // ExecutionLimits defines minimum and maximum values in relation to
@@ -74,9 +75,12 @@ type MinMaxLevel struct {
 	MultiplierDown          float64
 	MultiplierDecimal       float64
 	AveragePriceMinutes     int64
-	MinAmount               float64
-	MaxAmount               float64
+	MinimumBaseAmount       float64
+	MaximumBaseAmount       float64
+	MinimumQuoteAmount      float64
+	MaximumQuoteAmount      float64
 	AmountStepIncrementSize float64
+	QuoteStepIncrementSize  float64
 	MinNotional             float64
 	MaxIcebergParts         int64
 	MarketMinQty            float64
@@ -130,15 +134,26 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MaxPrice)
 		}
 
-		if levels[x].MinAmount > 0 &&
-			levels[x].MaxAmount > 0 &&
-			levels[x].MinAmount > levels[x].MaxAmount {
+		if levels[x].MinimumBaseAmount > 0 &&
+			levels[x].MaximumBaseAmount > 0 &&
+			levels[x].MinimumBaseAmount > levels[x].MaximumBaseAmount {
 			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
 				errInvalidAmountLevels,
 				levels[x].Asset,
 				levels[x].Pair,
-				levels[x].MinAmount,
-				levels[x].MaxAmount)
+				levels[x].MinimumBaseAmount,
+				levels[x].MaximumBaseAmount)
+		}
+
+		if levels[x].MinimumQuoteAmount > 0 &&
+			levels[x].MaximumQuoteAmount > 0 &&
+			levels[x].MinimumQuoteAmount > levels[x].MaximumQuoteAmount {
+			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
+				errInvalidQuoteLevels,
+				levels[x].Asset,
+				levels[x].Pair,
+				levels[x].MinimumQuoteAmount,
+				levels[x].MaximumQuoteAmount)
 		}
 
 		m2[levels[x].Pair.Quote.Item] = levels[x]
@@ -208,25 +223,26 @@ func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pa
 
 // Conforms checks outbound parameters
 func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
+	// TODO: Update to take in account Quote amounts as well as Base amounts.
 	if m == nil {
 		return nil
 	}
 
-	if m.MinAmount != 0 && amount < m.MinAmount {
+	if m.MinimumBaseAmount != 0 && amount < m.MinimumBaseAmount {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrAmountBelowMin,
-			m.MinAmount,
+			m.MinimumBaseAmount,
 			amount)
 	}
-	if m.MaxAmount != 0 && amount > m.MaxAmount {
+	if m.MaximumBaseAmount != 0 && amount > m.MaximumBaseAmount {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrAmountExceedsMax,
-			m.MaxAmount,
+			m.MaximumBaseAmount,
 			amount)
 	}
 	if m.AmountStepIncrementSize != 0 {
 		dAmount := decimal.NewFromFloat(amount)
-		dMinAmount := decimal.NewFromFloat(m.MinAmount)
+		dMinAmount := decimal.NewFromFloat(m.MaximumBaseAmount)
 		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 		if !dAmount.Sub(dMinAmount).Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
@@ -287,7 +303,7 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 	}
 
 	if m.MarketMinQty != 0 &&
-		m.MinAmount < m.MarketMinQty &&
+		m.MinimumBaseAmount < m.MarketMinQty &&
 		amount < m.MarketMinQty {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrMarketAmountBelowMin,
@@ -295,7 +311,7 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 			amount)
 	}
 	if m.MarketMaxQty != 0 &&
-		m.MaxAmount > m.MarketMaxQty &&
+		m.MaximumBaseAmount > m.MarketMaxQty &&
 		amount > m.MarketMaxQty {
 		return fmt.Errorf("%w max: %.8f supplied %.8f",
 			ErrMarketAmountExceedsMax,

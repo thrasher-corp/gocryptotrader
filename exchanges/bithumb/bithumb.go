@@ -713,9 +713,9 @@ func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel,
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:      cp,
-			Asset:     asset.Spot,
-			MinAmount: getAmountMinimum(data.ClosingPrice),
+			Pair:              cp,
+			Asset:             asset.Spot,
+			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})
 	}
 	return limits, nil
