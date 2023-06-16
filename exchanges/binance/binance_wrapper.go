@@ -2216,7 +2216,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		}
 
 		// binance so fun, some prices exclusively here
-		positionsInfo, err := b.FuturesPositionsInfo(ctx, currency.EMPTYPAIR, req.UnderlyingPair)
+		positionsInfo, err := b.FuturesPositionsInfo(ctx, currency.EMPTYCODE, req.Pair.Base)
 		if err != nil {
 			return nil, err
 		}
@@ -2275,7 +2275,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 	req.EndDate = req.EndDate.Truncate(time.Hour)
 	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory {
 		if req.RespectOrderHistoryLimits {
-			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory).Round(time.Hour)
+			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
 		} else {
 			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
 		}
@@ -2359,7 +2359,9 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			if err != nil {
 				return nil, err
 			}
-			result, err := b.FuturesPositionsInfo(ctx, fPair, currency.EMPTYPAIR)
+			// "pair" for coinmarginedfutures is the pair.Base
+			// eg ADAUSD_PERP the pair is ADAUSD
+			result, err := b.FuturesPositionsInfo(ctx, currency.EMPTYCODE, fPair.Base)
 			if err != nil {
 				return nil, err
 			}
@@ -2368,6 +2370,9 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 				Pair:  req.Pairs[x],
 			}
 			for y := range result {
+				if result[y].PositionAmount == 0 {
+					continue
+				}
 				for {
 					var orders []FuturesOrderData
 					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, int64(orderLimit))
@@ -2459,7 +2464,7 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currenc
 		// leverage is the same across positions
 		return resp[0].Leverage, nil
 	case asset.CoinMarginedFutures:
-		resp, err := b.FuturesPositionsInfo(ctx, currency.EMPTYPAIR, pair)
+		resp, err := b.FuturesPositionsInfo(ctx, currency.EMPTYCODE, pair.Base)
 		if err != nil {
 			return -1, err
 		}

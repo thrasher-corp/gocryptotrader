@@ -1071,7 +1071,7 @@ func TestFuturesPositionsInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.FuturesPositionsInfo(context.Background(), p, currency.EMPTYPAIR)
+	_, err = b.FuturesPositionsInfo(context.Background(), p.Base, currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2953,6 +2953,7 @@ func TestGetPositionSummary(t *testing.T) {
 
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
 		Asset:                     asset.USDTMarginedFutures,
@@ -2964,14 +2965,15 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	p, err := currency.NewPairFromString("ADAUSD_PERP")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
-		Asset:     asset.CoinMarginedFutures,
-		Pairs:     []currency.Pair{p},
-		StartDate: time.Now().Add(time.Hour * 24 * -6),
+		Asset:                     asset.CoinMarginedFutures,
+		Pairs:                     []currency.Pair{p},
+		StartDate:                 time.Now().Add(time.Hour * 24 * -70),
+		RespectOrderHistoryLimits: true,
 	})
 	if err != nil {
 		t.Error(err)
@@ -3010,7 +3012,11 @@ func TestGetLeverage(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetLeverage(context.Background(), asset.CoinMarginedFutures, currency.NewBTCUSD(), 0)
+	p, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetLeverage(context.Background(), asset.CoinMarginedFutures, p, 0)
 	if err != nil {
 		t.Error(err)
 	}
