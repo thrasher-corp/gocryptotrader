@@ -128,7 +128,7 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 		}
 
 		if !info.IsDir() && strings.HasSuffix(path, ".go") {
-			fileContents, err := ioutil.ReadFile(path)
+			fileContents, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("Failed to read file: %v", err)
 			}
