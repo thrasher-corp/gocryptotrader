@@ -3,7 +3,6 @@ package sharedtestvalues
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
