@@ -9,6 +9,8 @@ import (
 // EMPTYFORMAT defines an empty pair format
 var EMPTYFORMAT = PairFormat{}
 
+// ErrCurrencyNotAssociatedWithPair defines an error where a currency is not
+// associated with a pair.
 var ErrCurrencyNotAssociatedWithPair = errors.New("currency not associated with pair")
 
 // String returns a currency pair string

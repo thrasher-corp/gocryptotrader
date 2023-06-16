@@ -1058,8 +1058,12 @@ func TestIsAssociated(t *testing.T) {
 	}
 
 	for x := range testCases {
-		if testCases[x].Pair.IsAssociated(testCases[x].associate) != testCases[x].expectedResult {
-			t.Fatalf("Test %d failed. Expected %v, received %v", x, testCases[x].expectedResult, testCases[x].Pair.IsAssociated(testCases[x].associate))
-		}
+		x := x
+		t.Run(fmt.Sprintf("%d", x), func(t *testing.T) {
+			t.Parallel()
+			if testCases[x].Pair.IsAssociated(testCases[x].associate) != testCases[x].expectedResult {
+				t.Fatalf("Test %d failed. Expected %v, received %v", x, testCases[x].expectedResult, testCases[x].Pair.IsAssociated(testCases[x].associate))
+			}
+		})
 	}
 }
