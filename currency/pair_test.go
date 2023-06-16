@@ -977,17 +977,17 @@ func TestGetOrderParameters(t *testing.T) {
 	}{
 		{expectedError: ErrCurrencyPairEmpty},
 		{Pair: p, expectedError: ErrCurrencyCodeEmpty},
-		{Pair: p, currency: XRP, selling: true, market: true, expectedError: errCurrencyNotAssociatedWithPair},
+		{Pair: p, currency: XRP, selling: true, market: true, expectedError: ErrCurrencyNotAssociatedWithPair},
 
-		{Pair: p, currency: BTC, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
-		{Pair: p, currency: BTC, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
-		{Pair: p, currency: BTC, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
-		{Pair: p, currency: BTC, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
+		{Pair: p, currency: BTC, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false, Pair: p}},
+		{Pair: p, currency: BTC, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true, Pair: p}},
+		{Pair: p, currency: BTC, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true, Pair: p}},
+		{Pair: p, currency: BTC, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false, Pair: p}},
 
-		{Pair: p, currency: USDT, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true}},
-		{Pair: p, currency: USDT, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false}},
-		{Pair: p, currency: USDT, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false}},
-		{Pair: p, currency: USDT, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true}},
+		{Pair: p, currency: USDT, selling: true, market: true, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: true, Pair: p}},
+		{Pair: p, currency: USDT, selling: false, market: true, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: false, Pair: p}},
+		{Pair: p, currency: USDT, selling: true, market: false, expectedParams: &OrderParameters{SellingCurrency: USDT, PurchasingCurrency: BTC, IsBuySide: true, IsAskLiquidity: false, Pair: p}},
+		{Pair: p, currency: USDT, selling: false, market: false, expectedParams: &OrderParameters{SellingCurrency: BTC, PurchasingCurrency: USDT, IsBuySide: false, IsAskLiquidity: true, Pair: p}},
 	}
 
 	for i, tc := range testCases {
@@ -1032,6 +1032,37 @@ func TestGetOrderParameters(t *testing.T) {
 
 			if resp.IsAskLiquidity != tc.expectedParams.IsAskLiquidity {
 				t.Fatalf("AskLiquidity received %v, expected %v", resp.IsAskLiquidity, tc.expectedParams.IsAskLiquidity)
+			}
+
+			if resp.Pair != tc.expectedParams.Pair {
+				t.Fatalf("Pair received %v, expected %v", resp.Pair, tc.expectedParams.Pair)
+			}
+		})
+	}
+}
+
+func TestIsAssociated(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		Pair           Pair
+		associate      Pair
+		expectedResult bool
+	}{
+		{Pair: NewPair(BTC, USDT), associate: NewPair(BTC, USDT), expectedResult: true},
+		{Pair: NewPair(USDT, BTC), associate: NewPair(BTC, USDT), expectedResult: true},
+		{Pair: NewPair(BTC, USDT), associate: NewPair(USDT, BTC), expectedResult: true},
+		{Pair: NewPair(BTC, USDT), associate: NewPair(XRP, USDT), expectedResult: true},
+		{Pair: NewPair(BTC, LTC), associate: NewPair(XRP, USDT), expectedResult: false},
+		{Pair: NewPair(MA, LTC), associate: NewPair(LTC, USDT), expectedResult: true},
+	}
+
+	for x := range testCases {
+		x := x
+		t.Run(fmt.Sprintf("%d", x), func(t *testing.T) {
+			t.Parallel()
+			if testCases[x].Pair.IsAssociated(testCases[x].associate) != testCases[x].expectedResult {
+				t.Fatalf("Test %d failed. Expected %v, received %v", x, testCases[x].expectedResult, testCases[x].Pair.IsAssociated(testCases[x].associate))
 			}
 		})
 	}
