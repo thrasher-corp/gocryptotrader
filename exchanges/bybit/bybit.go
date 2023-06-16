@@ -941,16 +941,15 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 			Path:          endpointPath + common.EncodeURLValues(path, params),
 			Headers:       headers,
 			Result:        &result,
-			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
 
-	return result.GetError()
+	return result.GetError(true)
 }
 
 // Error defines all error information for each request

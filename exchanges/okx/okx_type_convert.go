@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -39,6 +40,22 @@ func (a *okxNumericalValue) UnmarshalJSON(data []byte) error {
 func (a *okxNumericalValue) Float64() float64 { return float64(*a) }
 
 type okxUnixMilliTime int64
+
+type okxAssetType struct {
+	asset.Item
+}
+
+// UnmarshalJSON deserializes JSON, and timestamp information.
+func (a *okxAssetType) UnmarshalJSON(data []byte) error {
+	var t string
+	err := json.Unmarshal(data, &t)
+	if err != nil {
+		return err
+	}
+
+	a.Item = GetAssetTypeFromInstrumentType(strings.ToUpper(t))
+	return nil
+}
 
 // UnmarshalJSON deserializes byte data to okxunixMilliTime instance.
 func (a *okxUnixMilliTime) UnmarshalJSON(data []byte) error {
@@ -92,7 +109,7 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 		*Alias
 		ListTime                        okxTime           `json:"listTime"`
 		ExpTime                         okxTime           `json:"expTime"`
-		InstrumentType                  string            `json:"instType"`
+		InstrumentType                  okxAssetType      `json:"instType"`
 		MaxLeverage                     okxNumericalValue `json:"lever"`
 		TickSize                        okxNumericalValue `json:"tickSz"`
 		LotSize                         okxNumericalValue `json:"lotSz"`
@@ -112,7 +129,7 @@ func (a *Instrument) UnmarshalJSON(data []byte) error {
 
 	a.ListTime = chil.ListTime.Time
 	a.ExpTime = chil.ExpTime.Time
-	a.InstrumentType = chil.InstrumentType
+	a.InstrumentType = chil.InstrumentType.Item
 	a.MaxLeverage = chil.MaxLeverage.Float64()
 	a.TickSize = chil.TickSize.Float64()
 	a.LotSize = chil.LotSize.Float64()
@@ -139,6 +156,7 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
+	a.InstrumentType = GetAssetTypeFromInstrumentType(chil.InstrumentType)
 	return nil
 }
 
