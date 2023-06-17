@@ -39,10 +39,9 @@ const (
 	Options
 	OptionCombo
 	FutureCombo
-	Combo
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo | Combo
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo | Combo
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | OptionCombo | FutureCombo
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -62,11 +61,10 @@ const (
 	options                = "options"
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
-	combo                  = "combo"
 )
 
 var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, OptionCombo, FutureCombo, Combo}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, OptionCombo, FutureCombo}
 )
 
 // Supported returns a list of supported asset types
@@ -113,8 +111,6 @@ func (a Item) String() string {
 		return optionCombo
 	case FutureCombo:
 		return futureCombo
-	case Combo:
-		return combo
 	default:
 		return ""
 	}
@@ -220,8 +216,6 @@ func New(input string) (Item, error) {
 		return OptionCombo, nil
 	case futureCombo:
 		return FutureCombo, nil
-	case combo:
-		return Combo, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,

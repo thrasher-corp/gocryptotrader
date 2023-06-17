@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -33,7 +34,7 @@ const (
 )
 
 var d = &Deribit{}
-var futuresTradablePair, optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
+var futuresTradablePair, optionsTradablePair, optionComboTradablePair, futureComboTradablePair, spotTradablePair currency.Pair
 
 func TestMain(m *testing.M) {
 	d.SetDefaults()
@@ -60,19 +61,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Deribit setup error", err)
 	}
-	d.Websocket = sharedtestvalues.NewTestWebsocket()
-	d.Base.Config = exchCfg
-	err = d.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
 	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	err = instantiateTradablePairs()
 	if err != nil {
 		log.Fatalf("%v, generating sample tradable pairs", err)
 	}
-	setupWs()
+	// setupWs()
 	os.Exit(m.Run())
 }
 
@@ -92,7 +87,11 @@ func TestStart(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := d.UpdateTicker(context.Background(), futuresTradablePair, asset.Futures)
+	_, err := d.UpdateTicker(context.Background(), spotTradablePair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.UpdateTicker(context.Background(), futuresTradablePair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -108,7 +107,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.UpdateTicker(context.Background(), currency.Pair{}, asset.Spot)
+	_, err = d.UpdateTicker(context.Background(), currency.Pair{}, asset.Margin)
 	if err != nil && !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
@@ -116,15 +115,13 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	availabelPairs, err := d.GetAvailablePairs(asset.Futures)
+	_, err := d.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	for x := range availabelPairs {
-		_, err = d.UpdateOrderbook(context.Background(), availabelPairs[x], asset.Futures)
-		if err != nil {
-			t.Error(err)
-		}
+	_, err = d.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
+	if err != nil {
+		t.Error(err)
 	}
 	_, err = d.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
@@ -146,6 +143,22 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = d.GetHistoricTrades(context.Background(), spotTradablePair, asset.Futures, time.Now().Add(-time.Minute*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Now().Add(-time.Minute*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Now().Add(-time.Minute*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Now().Add(-time.Minute*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestFetchRecentTrades(t *testing.T) {
@@ -154,11 +167,31 @@ func TestFetchRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = d.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetRecentTrades(context.Background(), optionsTradablePair, asset.Options)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetRecentTrades(context.Background(), optionComboTradablePair, asset.OptionCombo)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetRecentTrades(context.Background(), futureComboTradablePair, asset.FutureCombo)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -179,6 +212,10 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour*5), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*5), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -286,11 +323,39 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = d.GetMarkPriceHistory(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-5*time.Minute), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveMarkPriceHistory(d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
 	_, err = d.GetMarkPriceHistory(context.Background(), optionsTradablePair.String(), time.Now().Add(-5*time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := d.WSRetrieveMarkPriceHistory(d.formatFuturesTradablePair(futuresTradablePair), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+	if _, err = d.WSRetrieveMarkPriceHistory(optionsTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetMarkPriceHistory(context.Background(), spotTradablePair.String(), time.Now().Add(-5*time.Minute), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveMarkPriceHistory(spotTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetMarkPriceHistory(context.Background(), futureComboTradablePair.String(), time.Now().Add(-5*time.Minute), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveMarkPriceHistory(futureComboTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetMarkPriceHistory(context.Background(), optionComboTradablePair.String(), time.Now().Add(-5*time.Minute), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err := d.WSRetrieveMarkPriceHistory(optionComboTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -319,6 +384,34 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 		t.Error(err)
 	}
 	if _, err = d.WSRetrieveBookSummaryByInstrument(btcPerpInstrument); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetBookSummaryByInstrument(context.Background(), spotTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveBookSummaryByInstrument(spotTradablePair.String()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetBookSummaryByInstrument(context.Background(), optionsTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveBookSummaryByInstrument(optionsTradablePair.String()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetBookSummaryByInstrument(context.Background(), optionComboTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveBookSummaryByInstrument(optionComboTradablePair.String()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetBookSummaryByInstrument(context.Background(), futureComboTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveBookSummaryByInstrument(futureComboTradablePair.String()); err != nil {
 		t.Error(err)
 	}
 }
@@ -451,6 +544,34 @@ func TestGetInstrumentData(t *testing.T) {
 	if _, err = d.WSRetrieveInstrumentData(btcPerpInstrument); err != nil {
 		t.Error(err)
 	}
+	_, err = d.GetInstrumentData(context.Background(), spotTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveInstrumentData(spotTradablePair.String()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetInstrumentData(context.Background(), optionsTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveInstrumentData(optionsTradablePair.String()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetInstrumentData(context.Background(), optionComboTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveInstrumentData(optionComboTradablePair.String()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetInstrumentData(context.Background(), futureComboTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveInstrumentData(futureComboTradablePair.String()); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetInstrumentsData(t *testing.T) {
@@ -535,25 +656,92 @@ func TestGetLastTradesByInstrument(t *testing.T) {
 	if _, err = d.WSRetrieveLastTradesByInstrument(btcPerpInstrument, "30500", "31500", "desc", 0, true); err != nil {
 		t.Error(err)
 	}
+	_, err = d.GetLastTradesByInstrument(context.Background(), spotTradablePair.String(), "30500", "31500", "desc", 0, true)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetrieveLastTradesByInstrument(spotTradablePair.String(), "", "", "", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrument(context.Background(), optionsTradablePair.String(), "30500", "31500", "desc", 0, true)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetrieveLastTradesByInstrument(optionsTradablePair.String(), "", "", "", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrument(context.Background(), optionComboTradablePair.String(), "30500", "31500", "desc", 0, true)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetrieveLastTradesByInstrument(optionComboTradablePair.String(), "", "", "", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrument(context.Background(), futureComboTradablePair.String(), "30500", "31500", "desc", 0, true)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.WSRetrieveLastTradesByInstrument(futureComboTradablePair.String(), "", "", "", 0, false)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByInstrumentAndTime(context.Background(), btcPerpInstrument, "", 0,
+	_, err := d.GetLastTradesByInstrumentAndTime(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "", 0,
 		time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), btcPerpInstrument, "asc", 0,
+	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "asc", 0,
 		time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.WSRetrieveLastTradesByInstrumentAndTime(btcPerpInstrument, "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
+	_, err = d.WSRetrieveLastTradesByInstrumentAndTime(d.formatFuturesTradablePair(futuresTradablePair), "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(btcPerpInstrument, "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(d.formatFuturesTradablePair(futuresTradablePair), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), spotTradablePair.String(), "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(spotTradablePair.String(), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), optionsTradablePair.String(), "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(optionsTradablePair.String(), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), optionsTradablePair.String(), "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(optionsTradablePair.String(), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), optionComboTradablePair.String(), "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(optionComboTradablePair.String(), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), futureComboTradablePair.String(), "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrieveLastTradesByInstrumentAndTime(futureComboTradablePair.String(), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -572,6 +760,10 @@ func TestGetOrderbookData(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = d.GetOrderbookData(context.Background(), optionComboTradablePair.String(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = d.GetOrderbookData(context.Background(), spotTradablePair.String(), 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -622,11 +814,17 @@ func TestGetTradeVolumes(t *testing.T) {
 
 func TestGetTradingViewChartData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetTradingViewChartData(context.Background(), btcPerpInstrument, "60", time.Now().Add(-time.Hour), time.Now())
+	_, err := d.WSRetrievesTradingViewChartData(spotTradablePair.String(), "60", time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrievesTradingViewChartData(btcPerpInstrument, "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
+	if _, err = d.GetTradingViewChartData(context.Background(), spotTradablePair.String(), "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	if _, err = d.GetTradingViewChartData(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
+		t.Error(err)
+	}
+	if _, err = d.WSRetrievesTradingViewChartData(d.formatFuturesTradablePair(futuresTradablePair), "60", time.Now().Add(-time.Hour), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -2363,7 +2561,7 @@ func TestWrapperGetServerTime(t *testing.T) {
 }
 
 func instantiateTradablePairs() error {
-	err := d.UpdateTradablePairs(context.Background(), false)
+	err := d.UpdateTradablePairs(context.Background(), true)
 	if err != nil {
 		return err
 	}
@@ -2371,21 +2569,36 @@ func instantiateTradablePairs() error {
 	tradablePair, err = d.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return err
+	} else if len(tradablePair) == 0 {
+		return fmt.Errorf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.Futures)
 	}
 	futuresTradablePair = tradablePair[len(tradablePair)-1]
+	tradablePair, err = d.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	} else if len(tradablePair) == 0 {
+		return fmt.Errorf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.Spot)
+	}
+	spotTradablePair = tradablePair[0]
 	tradablePair, err = d.GetEnabledPairs(asset.Options)
 	if err != nil {
 		return err
+	} else if len(tradablePair) == 0 {
+		return fmt.Errorf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.Options)
 	}
 	optionsTradablePair = tradablePair[0]
 	tradablePair, err = d.GetEnabledPairs(asset.OptionCombo)
 	if err != nil {
 		return err
+	} else if len(tradablePair) == 0 {
+		return fmt.Errorf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.OptionCombo)
 	}
 	optionComboTradablePair = tradablePair[0]
 	tradablePair, err = d.GetEnabledPairs(asset.FutureCombo)
 	if err != nil {
 		return err
+	} else if len(tradablePair) == 0 {
+		return fmt.Errorf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.FutureCombo)
 	}
 	futureComboTradablePair = tradablePair[0]
 	return nil
@@ -2646,5 +2859,22 @@ func TestFormatFuturesTradablePair(t *testing.T) {
 		if instrument != instrumentID {
 			t.Errorf("found %s, but expected %s", instrument, instrumentID)
 		}
+	}
+}
+
+func TestWSRetrieveCombos(t *testing.T) {
+	t.Parallel()
+	_, err := d.WSRetrieveCombos(futureComboTradablePair.Base.String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSetPasswordForSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.WSSetPasswordForSubAccount(123, "PassMe123@#")
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -78,7 +78,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Bybit          | Y           | 
 | Coinbase Pro   | Y           |
 | Coinut         |             |
-| Deribit        |             |         
+| Deribit        | Y            |         
 | Exmo           |             |
 | GateIO         | Y           |
 | Gemini         |             |

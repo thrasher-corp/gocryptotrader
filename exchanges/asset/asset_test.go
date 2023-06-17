@@ -187,9 +187,6 @@ func TestIsFutures(t *testing.T) {
 			item:      USDCMarginedFutures,
 			isFutures: true,
 		}, {
-			item:      Combo,
-			isFutures: true,
-		}, {
 			item:      Options,
 			isFutures: true,
 		}, {

@@ -52,14 +52,28 @@ func (d *Deribit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error
 func (d *Deribit) SetDefaults() {
 	d.Name = "Deribit"
 	d.Enabled = true
-	d.Verbose = true
+	d.Verbose = false
 	d.API.CredentialsValidator.RequiresKey = true
 	d.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	err := d.SetGlobalPairsManager(requestFmt, configFmt, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo)
+	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}})
 	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	if err = d.StoreAssetPairFormat(asset.Futures, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	if err = d.StoreAssetPairFormat(asset.Options, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	if err = d.StoreAssetPairFormat(asset.OptionCombo, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	if err = d.StoreAssetPairFormat(asset.FutureCombo, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -205,7 +219,7 @@ func (d *Deribit) Run() {
 	if !d.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err := d.UpdateTradablePairs(context.TODO(), false)
+	err := d.UpdateTradablePairs(context.TODO(), true)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -217,9 +231,9 @@ func (d *Deribit) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	if !d.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType.String())
+		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
-	var resp []currency.Pair
+	var resp currency.Pairs
 	for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
 		var instrumentsData []InstrumentData
 		var err error
@@ -236,7 +250,7 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, cp)
+			resp = resp.Add(cp)
 		}
 	}
 	return resp, nil
@@ -665,9 +679,11 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if err != nil {
 			return nil, err
 		}
+		if data == nil {
+			return nil, common.ErrNoResponse
+		}
 		orderID = data.Order.OrderID
 	case s.Side.IsShort():
-		var data *PrivateTradeData
 		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			data, err = d.WSSubmitSell(reqParams)
 		} else {
@@ -675,6 +691,9 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 		if err != nil {
 			return nil, err
+		}
+		if data == nil {
+			return nil, common.ErrNoResponse
 		}
 		orderID = data.Order.OrderID
 	}
@@ -692,7 +711,7 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	if !d.SupportsAsset(action.AssetType) || action.AssetType == asset.Combo {
+	if !d.SupportsAsset(action.AssetType) {
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, action.AssetType)
 	}
 	var modify *PrivateTradeData
@@ -743,26 +762,8 @@ func (d *Deribit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (d *Deribit) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	var resp = order.CancelBatchResponse{
-		Status: make(map[string]string),
-	}
-	for x := range orders {
-		if orders[x].AssetType.IsValid() {
-			var err error
-			if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				_, err = d.WSSubmitCancel(orders[x].OrderID)
-			} else {
-				_, err = d.SubmitCancel(ctx, orders[x].OrderID)
-			}
-			if err != nil {
-				resp.Status[orders[x].OrderID] = err.Error()
-			} else {
-				resp.Status[orders[x].OrderID] = "successfully cancelled"
-			}
-		}
-	}
-	return resp, nil
+func (d *Deribit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -1095,7 +1096,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 	switch a {
-	case asset.Futures:
+	case asset.Futures, asset.Spot:
 		var tradingViewData *TVChartData
 		if d.Websocket.IsConnected() {
 			tradingViewData, err = d.WSRetrievesTradingViewChartData(d.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
@@ -1140,7 +1141,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	var tradingViewData *TVChartData
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	switch a {
-	case asset.Futures:
+	case asset.Futures, asset.Spot:
 		for x := range req.RangeHolder.Ranges {
 			intervalString, err := d.GetResolutionFromInterval(interval)
 			if err != nil {

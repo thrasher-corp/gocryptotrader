@@ -11,7 +11,6 @@ import (
 
 const (
 	// request rates per interval
-	nonMatchingBurst   = 100
 	nonMatchingRate    = 30
 	minMatchingBurst   = 20
 	minMatchingRate    = 5
@@ -34,7 +33,7 @@ type RateLimiter struct {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimiter {
 	return &RateLimiter{
-		NonMatchingEngine:      request.NewRateLimit(time.Second, nonMatchingBurst),
+		NonMatchingEngine:      request.NewRateLimit(time.Second, nonMatchingRate),
 		MatchingEngine:         request.NewRateLimit(time.Second, minMatchingBurst),
 		PortfolioMargin:        request.NewRateLimit(5*time.Second, portfoliMarginRate),
 		PrivatePortfolioMargin: request.NewRateLimit(5*time.Second, portfoliMarginRate),

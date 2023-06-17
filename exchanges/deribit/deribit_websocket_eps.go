@@ -32,7 +32,7 @@ func (d *Deribit) WSRetrieveBookBySummary(symbol, kind string) ([]BookSummaryDat
 		input.Kind = kind
 	}
 	var resp []BookSummaryData
-	return resp, d.SendWSRequest(request.Unset, getBookByCurrency, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getBookByCurrency, input, &resp, false)
 }
 
 // WSRetrieveBookSummaryByInstrument retrieves book summary data for instrument requested through the websocket connection.
@@ -46,7 +46,7 @@ func (d *Deribit) WSRetrieveBookSummaryByInstrument(instrument string) ([]BookSu
 		Instrument: instrument,
 	}
 	var resp []BookSummaryData
-	return resp, d.SendWSRequest(request.Unset, getBookByInstrument, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getBookByInstrument, input, &resp, false)
 }
 
 // WSRetrieveContractSize retrieves contract size for instrument requested through the websocket connection.
@@ -60,13 +60,13 @@ func (d *Deribit) WSRetrieveContractSize(instrument string) (*ContractSizeData, 
 		Instrument: instrument,
 	}
 	var resp *ContractSizeData
-	return resp, d.SendWSRequest(request.Unset, getContractSize, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getContractSize, input, &resp, false)
 }
 
 // WSRetrieveCurrencies retrieves all cryptocurrencies supported by the API through the websocket connection.
 func (d *Deribit) WSRetrieveCurrencies() ([]CurrencyData, error) {
 	var resp []CurrencyData
-	return resp, d.SendWSRequest(request.Unset, getCurrencies, nil, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getCurrencies, nil, &resp, false)
 }
 
 // WSRetrieveDeliveryPrices retrieves delivery prices using index name through the websocket connection.
@@ -84,7 +84,7 @@ func (d *Deribit) WSRetrieveDeliveryPrices(indexName string, offset, count int64
 		Count:     count,
 	}
 	var resp *IndexDeliveryPrice
-	return resp, d.SendWSRequest(request.Unset, getDeliveryPrices, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getDeliveryPrices, input, &resp, false)
 }
 
 // WSRetrieveFundingChartData retrieves funding chart data for the requested instrument and time length through the websocket connection.
@@ -104,7 +104,7 @@ func (d *Deribit) WSRetrieveFundingChartData(instrument, length string) (*Fundin
 		Length:         length,
 	}
 	var resp *FundingChartData
-	return resp, d.SendWSRequest(request.Unset, getFundingChartData, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getFundingChartData, input, &resp, false)
 }
 
 // WSRetrieveFundingRateHistory retrieves hourly historical interest rate for requested PERPETUAL instrument through the websocket connection.
@@ -126,7 +126,7 @@ func (d *Deribit) WSRetrieveFundingRateHistory(instrumentName string, startTime,
 		EndTime:        endTime.UnixMilli(),
 	}
 	var resp []FundingRateHistory
-	return resp, d.SendWSRequest(request.Unset, getFundingRateHistory, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getFundingRateHistory, input, &resp, false)
 }
 
 // WSRetrieveFundingRateValue retrieves funding rate value data through the websocket connection.
@@ -147,7 +147,7 @@ func (d *Deribit) WSRetrieveFundingRateValue(instrument string, startTime, endTi
 		EndTimestamp:   endTime.UnixMilli(),
 	}
 	var resp float64
-	return resp, d.SendWSRequest(request.Unset, getFundingRateValue, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getFundingRateValue, input, &resp, false)
 }
 
 // WSRetrieveHistoricalVolatility retrieves historical volatility data
@@ -161,7 +161,7 @@ func (d *Deribit) WSRetrieveHistoricalVolatility(symbol string) ([]HistoricalVol
 		Currency: symbol,
 	}
 	var data [][2]interface{}
-	err := d.SendWSRequest(request.Unset, getHistoricalVolatility, input, &data, false)
+	err := d.SendWSRequest(nonMatchingEPL, getHistoricalVolatility, input, &data, false)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (d *Deribit) WSRetrieveCurrencyIndexPrice(symbol string) (map[string]float6
 		Currency: symbol,
 	}
 	var resp map[string]float64
-	return resp, d.SendWSRequest(request.Unset, getCurrencyIndexPrice, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getCurrencyIndexPrice, input, &resp, false)
 }
 
 // WSRetrieveIndexPrice retrieves price data for the requested index through the websocket connection.
@@ -208,13 +208,13 @@ func (d *Deribit) WSRetrieveIndexPrice(index string) (*IndexPriceData, error) {
 		IndexName: index,
 	}
 	var resp *IndexPriceData
-	return resp, d.SendWSRequest(request.Unset, getIndexPrice, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getIndexPrice, input, &resp, false)
 }
 
 // WSRetrieveIndexPriceNames names of indexes through the websocket connection.
 func (d *Deribit) WSRetrieveIndexPriceNames() ([]string, error) {
 	var resp []string
-	return resp, d.SendWSRequest(request.Unset, getIndexPriceNames, nil, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getIndexPriceNames, nil, &resp, false)
 }
 
 // WSRetrieveInstrumentData retrieves data for a requested instrument through the websocket connection.
@@ -228,7 +228,7 @@ func (d *Deribit) WSRetrieveInstrumentData(instrument string) (*InstrumentData, 
 		Instrument: instrument,
 	}
 	var resp *InstrumentData
-	return resp, d.SendWSRequest(request.Unset, getInstrument, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getInstrument, input, &resp, false)
 }
 
 // WSRetrieveInstrumentsData gets data for all available instruments
@@ -246,7 +246,7 @@ func (d *Deribit) WSRetrieveInstrumentsData(symbol, kind string, expired bool) (
 		Kind:     kind,
 	}
 	var resp []InstrumentData
-	return resp, d.SendWSRequest(request.Unset, getInstruments, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getInstruments, input, &resp, false)
 }
 
 // WSRetrieveLastSettlementsByCurrency retrieves last settlement data by currency through the websocket connection.
@@ -268,7 +268,7 @@ func (d *Deribit) WSRetrieveLastSettlementsByCurrency(symbol, settlementType, co
 		SearchStartTimestamp: startTime.UnixMilli(),
 	}
 	var resp *SettlementsData
-	return resp, d.SendWSRequest(request.Unset, getLastSettlementsByCurrency, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getLastSettlementsByCurrency, input, &resp, false)
 }
 
 // WSRetrieveLastSettlementsByInstrument retrieves last settlement data for requested instrument through the websocket connection.
@@ -292,7 +292,7 @@ func (d *Deribit) WSRetrieveLastSettlementsByInstrument(instrument, settlementTy
 		input.SearchStartTimestamp = startTime.UnixMilli()
 	}
 	var resp *SettlementsData
-	return resp, d.SendWSRequest(request.Unset, getLastSettlementsByInstrument, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getLastSettlementsByInstrument, input, &resp, false)
 }
 
 // WSRetrieveLastTradesByCurrency retrieves last trades for requested currency through the websocket connection.
@@ -318,7 +318,7 @@ func (d *Deribit) WSRetrieveLastTradesByCurrency(symbol, kind, startID, endID, s
 		Sorting:    sorting,
 	}
 	var resp *PublicTradesData
-	return resp, d.SendWSRequest(request.Unset, getLastTradesByCurrency, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getLastTradesByCurrency, input, &resp, false)
 }
 
 // WSRetrieveLastTradesByCurrencyAndTime retrieves last trades for requested currency and time intervals through the websocket connection.
@@ -347,7 +347,7 @@ func (d *Deribit) WSRetrieveLastTradesByCurrencyAndTime(symbol, kind, sorting st
 		Sorting:        sorting,
 	}
 	var resp *PublicTradesData
-	return resp, d.SendWSRequest(request.Unset, getLastTradesByCurrencyAndTime, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getLastTradesByCurrencyAndTime, input, &resp, false)
 }
 
 // WSRetrieveLastTradesByInstrument retrieves last trades for requested instrument requested through the websocket connection.
@@ -371,7 +371,7 @@ func (d *Deribit) WSRetrieveLastTradesByInstrument(instrument, startSeq, endSeq,
 		IncludeOld:    includeOld,
 	}
 	var resp *PublicTradesData
-	return resp, d.SendWSRequest(request.Unset, getLastTradesByInstrument, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getLastTradesByInstrument, input, &resp, false)
 }
 
 // WSRetrieveLastTradesByInstrumentAndTime retrieves last trades for requested instrument requested and time intervals through the websocket connection.
@@ -398,7 +398,7 @@ func (d *Deribit) WSRetrieveLastTradesByInstrumentAndTime(instrument, sorting st
 	input.StartTimestamp = startTime.UnixMilli()
 	input.EndTimestamp = endTime.UnixMilli()
 	var resp *PublicTradesData
-	return resp, d.SendWSRequest(request.Unset, getLastTradesByInstrumentAndTime, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getLastTradesByInstrumentAndTime, input, &resp, false)
 }
 
 // WSRetrieveMarkPriceHistory retrieves data for mark price history through the websocket connection.
@@ -419,7 +419,7 @@ func (d *Deribit) WSRetrieveMarkPriceHistory(instrument string, startTime, endTi
 		EndTimestamp:   endTime.UnixMilli(),
 	}
 	var resp []MarkPriceHistory
-	return resp, d.SendWSRequest(request.Unset, getMarkPriceHistory, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getMarkPriceHistory, input, &resp, false)
 }
 
 // WSRetrieveOrderbookData retrieves data orderbook of requested instrument through the web-socket connection.
@@ -435,7 +435,7 @@ func (d *Deribit) WSRetrieveOrderbookData(instrument string, depth int64) (*Orde
 		Depth:      depth,
 	}
 	var resp *Orderbook
-	return resp, d.SendWSRequest(request.Unset, getOrderbook, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOrderbook, input, &resp, false)
 }
 
 // WSRetrieveOrderbookByInstrumentID retrieves orderbook by instrument ID through websocket connection.
@@ -451,7 +451,7 @@ func (d *Deribit) WSRetrieveOrderbookByInstrumentID(instrumentID int64, depth fl
 		Depth:        depth,
 	}
 	var resp *Orderbook
-	return resp, d.SendWSRequest(request.Unset, getOrderbookByInstrumentID, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOrderbookByInstrumentID, input, &resp, false)
 }
 
 // WSRetrieveRequestForQuote retrieves RFQ information.
@@ -467,7 +467,7 @@ func (d *Deribit) WSRetrieveRequestForQuote(symbol, kind string) ([]RequestForQu
 		Kind:     kind,
 	}
 	var resp []RequestForQuote
-	return resp, d.SendWSRequest(request.Unset, getRFQ, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getRFQ, input, &resp, false)
 }
 
 // WSRetrieveTradeVolumes retrieves trade volumes' data of all instruments through the websocket connection.
@@ -478,7 +478,7 @@ func (d *Deribit) WSRetrieveTradeVolumes(extended bool) ([]TradeVolumesData, err
 		Extended: extended,
 	}
 	var resp []TradeVolumesData
-	return resp, d.SendWSRequest(request.Unset, getTradeVolumes, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getTradeVolumes, input, &resp, false)
 }
 
 // WSRetrievesTradingViewChartData retrieves volatility index data for the requested instrument through the websocket connection.
@@ -504,7 +504,7 @@ func (d *Deribit) WSRetrievesTradingViewChartData(instrument, resolution string,
 		EndTimestamp:   endTime.UnixMilli(),
 	}
 	var resp *TVChartData
-	return resp, d.SendWSRequest(request.Unset, getTradingViewChartData, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getTradingViewChartData, input, &resp, false)
 }
 
 // WSRetrieveVolatilityIndexData retrieves volatility index data for the requested currency through the websocket connection.
@@ -531,7 +531,7 @@ func (d *Deribit) WSRetrieveVolatilityIndexData(symbol, resolution string, start
 		EndTimestamp:   endTime.UnixMilli(),
 	}
 	var resp VolatilityIndexRawData
-	err = d.SendWSRequest(request.Unset, getVolatilityIndexData, input, &resp, false)
+	err = d.SendWSRequest(nonMatchingEPL, getVolatilityIndexData, input, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -559,7 +559,7 @@ func (d *Deribit) WSRetrievePublicTicker(instrument string) (*TickerData, error)
 		Instrument: instrument,
 	}
 	var resp *TickerData
-	return resp, d.SendWSRequest(request.Unset, getTicker, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getTicker, input, &resp, false)
 }
 
 // WSRetrieveAccountSummary retrieves account summary data for the requested instrument through the websocket connection.
@@ -575,7 +575,7 @@ func (d *Deribit) WSRetrieveAccountSummary(symbol string, extended bool) (*Accou
 		Extended: extended,
 	}
 	var resp *AccountSummaryData
-	return resp, d.SendWSRequest(request.Unset, getAccountSummary, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getAccountSummary, input, &resp, true)
 }
 
 // WSCancelWithdrawal cancels withdrawal request for a given currency by its id through the websocket connection.
@@ -594,7 +594,7 @@ func (d *Deribit) WSCancelWithdrawal(symbol string, id int64) (*CancelWithdrawal
 		ID:       id,
 	}
 	var resp *CancelWithdrawalData
-	return resp, d.SendWSRequest(request.Unset, cancelWithdrawal, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, cancelWithdrawal, input, &resp, true)
 }
 
 // WSCancelTransferByID cancels transfer by ID through the websocket connection.
@@ -615,7 +615,7 @@ func (d *Deribit) WSCancelTransferByID(symbol, tfa string, id int64) (*AccountSu
 		TwoFactorAuthenticationCode: tfa,
 	}
 	var resp *AccountSummaryData
-	return resp, d.SendWSRequest(request.Unset, cancelTransferByID, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, cancelTransferByID, input, &resp, true)
 }
 
 // WSCreateDepositAddress creates a deposit address for the currency requested through the websocket connection.
@@ -629,7 +629,7 @@ func (d *Deribit) WSCreateDepositAddress(symbol string) (*DepositAddressData, er
 		Currency: symbol,
 	}
 	var resp *DepositAddressData
-	return resp, d.SendWSRequest(request.Unset, createDepositAddress, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, createDepositAddress, input, &resp, true)
 }
 
 // WSRetrieveDeposits retrieves the deposits of a given currency through the websocket connection.
@@ -647,7 +647,7 @@ func (d *Deribit) WSRetrieveDeposits(symbol string, count, offset int64) (*Depos
 		Offset:   offset,
 	}
 	var resp *DepositsData
-	return resp, d.SendWSRequest(request.Unset, getDeposits, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getDeposits, input, &resp, true)
 }
 
 // WSRetrieveTransfers retrieves data for the requested currency through the websocket connection.
@@ -665,7 +665,7 @@ func (d *Deribit) WSRetrieveTransfers(symbol string, count, offset int64) (*Tran
 		Offset:   offset,
 	}
 	var resp *TransfersData
-	return resp, d.SendWSRequest(request.Unset, getTransfers, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getTransfers, input, &resp, true)
 }
 
 // WSRetrieveCurrentDepositAddress retrieves the current deposit address for the requested currency through the websocket connection.
@@ -679,7 +679,7 @@ func (d *Deribit) WSRetrieveCurrentDepositAddress(symbol string) (*DepositAddres
 		Currency: symbol,
 	}
 	var resp *DepositAddressData
-	return resp, d.SendWSRequest(request.Unset, getCurrentDepositAddress, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getCurrentDepositAddress, input, &resp, true)
 }
 
 // WSRetrieveWithdrawals retrieves withdrawals data for a requested currency through the websocket connection.
@@ -697,7 +697,7 @@ func (d *Deribit) WSRetrieveWithdrawals(symbol string, count, offset int64) (*Wi
 		Offset:   offset,
 	}
 	var resp *WithdrawalsData
-	return resp, d.SendWSRequest(request.Unset, getWithdrawals, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getWithdrawals, input, &resp, true)
 }
 
 // WSSubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
@@ -721,7 +721,7 @@ func (d *Deribit) WSSubmitTransferToSubAccount(symbol string, amount float64, de
 		Amount:      amount,
 	}
 	var resp *TransferData
-	return resp, d.SendWSRequest(request.Unset, submitTransferToSubaccount, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, submitTransferToSubaccount, input, &resp, true)
 }
 
 // WSSubmitTransferToUser submits a request to transfer a currency to another user through the websocket connection.
@@ -747,7 +747,7 @@ func (d *Deribit) WSSubmitTransferToUser(symbol, tfa, destinationAddress string,
 		Amount:                      amount,
 	}
 	var resp *TransferData
-	return resp, d.SendWSRequest(request.Unset, submitTransferToUser, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, submitTransferToUser, input, &resp, true)
 }
 
 // ----------------------------------------------------------------------------
@@ -775,7 +775,7 @@ func (d *Deribit) WSSubmitWithdraw(symbol, address, priority string, amount floa
 		Amount:   amount,
 	}
 	var resp *WithdrawData
-	return resp, d.SendWSRequest(request.Unset, submitWithdraw, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, submitWithdraw, input, &resp, true)
 }
 
 // WSRetrieveAnnouncements retrieves announcements through the websocket connection. Default "start_timestamp" parameter value is current timestamp, "count" parameter value must be between 1 and 50, default is 5.
@@ -791,7 +791,7 @@ func (d *Deribit) WSRetrieveAnnouncements(startTime time.Time, count int64) ([]A
 		input.Count = count
 	}
 	var resp []Announcement
-	return resp, d.SendWSRequest(request.Unset, getAnnouncements, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getAnnouncements, input, &resp, false)
 }
 
 // WSRetrievePublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
@@ -809,7 +809,7 @@ func (d *Deribit) WSRetrievePublicPortfolioMargins(symbol string, simulatedPosit
 		input.SimulatedPositions = simulatedPositions
 	}
 	var resp *PortfolioMargin
-	return resp, d.SendWSRequest(request.Unset, getPublicPortfolioMargins, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getPublicPortfolioMargins, input, &resp, false)
 }
 
 // WSChangeAPIKeyName changes the name of the api key requested through the websocket connection.
@@ -828,7 +828,7 @@ func (d *Deribit) WSChangeAPIKeyName(id int64, name string) (*APIKeyData, error)
 		Name: name,
 	}
 	var resp *APIKeyData
-	return resp, d.SendWSRequest(request.Unset, changeAPIKeyName, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, changeAPIKeyName, input, &resp, true)
 }
 
 // WSChangeScopeInAPIKey changes the name of the requested subaccount id through the websocket connection.
@@ -844,7 +844,7 @@ func (d *Deribit) WSChangeScopeInAPIKey(id int64, maxScope string) (*APIKeyData,
 		MaxScope: maxScope,
 	}
 	var resp *APIKeyData
-	return resp, d.SendWSRequest(request.Unset, changeScopeInAPIKey, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, changeScopeInAPIKey, input, &resp, true)
 }
 
 // WSChangeSubAccountName retrieves changes the name of the requested subaccount id through the websocket connection.
@@ -863,7 +863,7 @@ func (d *Deribit) WSChangeSubAccountName(sid int64, name string) error {
 		Name: name,
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, changeSubAccountName, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, changeSubAccountName, input, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -885,7 +885,7 @@ func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (interf
 		Default:  defaultKey,
 	}
 	var result json.RawMessage
-	err := d.SendWSRequest(request.Unset, createAPIKey, input, &result, true)
+	err := d.SendWSRequest(nonMatchingEPL, createAPIKey, input, &result, true)
 	if err != nil {
 		return nil, err
 	}
@@ -905,7 +905,7 @@ func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (interf
 // WSCreateSubAccount creates a new subaccount through the websocket connection.
 func (d *Deribit) WSCreateSubAccount() (*SubAccountData, error) {
 	var resp *SubAccountData
-	return resp, d.SendWSRequest(request.Unset, createSubAccount, nil, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, createSubAccount, nil, &resp, true)
 }
 
 // WSDisableAPIKey disables the api key linked to the provided id through the websocket connection.
@@ -919,7 +919,7 @@ func (d *Deribit) WSDisableAPIKey(id int64) (interface{}, error) {
 		ID: id,
 	}
 	var response json.RawMessage
-	err := d.SendWSRequest(request.Unset, disableAPIKey, input, &response, true)
+	err := d.SendWSRequest(nonMatchingEPL, disableAPIKey, input, &response, true)
 	if err != nil {
 		return nil, err
 	}
@@ -947,7 +947,7 @@ func (d *Deribit) WSDisableTFAForSubAccount(sid int64) error {
 		SID: sid,
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, disableTFAForSubaccount, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, disableTFAForSubaccount, input, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -960,7 +960,7 @@ func (d *Deribit) WSDisableTFAForSubAccount(sid int64) error {
 // WSEnableAffiliateProgram enables the affiliate program through the websocket connection.
 func (d *Deribit) WSEnableAffiliateProgram() error {
 	var resp string
-	err := d.SendWSRequest(request.Unset, enableAffiliateProgram, nil, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, enableAffiliateProgram, nil, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -976,7 +976,7 @@ func (d *Deribit) WSEnableAPIKey(id int64) (interface{}, error) {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
 	var response json.RawMessage
-	err := d.SendWSRequest(request.Unset, enableAPIKey, map[string]int64{"id": id}, &response, true)
+	err := d.SendWSRequest(nonMatchingEPL, enableAPIKey, map[string]int64{"id": id}, &response, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1003,25 +1003,25 @@ func (d *Deribit) WSRetrieveAccessLog(offset, count int64) (*AccessLog, error) {
 		Count:  count,
 	}
 	var resp *AccessLog
-	return resp, d.SendWSRequest(request.Unset, getAccessLog, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getAccessLog, input, &resp, true)
 }
 
 // WSRetrieveAffiliateProgramInfo retrieves the affiliate program info through the websocket connection.
 func (d *Deribit) WSRetrieveAffiliateProgramInfo() (*AffiliateProgramInfo, error) {
 	var resp *AffiliateProgramInfo
-	return resp, d.SendWSRequest(request.Unset, getAffiliateProgramInfo, nil, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getAffiliateProgramInfo, nil, &resp, true)
 }
 
 // WSRetrieveEmailLanguage retrieves the current language set for the email through the websocket connection.
 func (d *Deribit) WSRetrieveEmailLanguage() (string, error) {
 	var resp string
-	return resp, d.SendWSRequest(request.Unset, getEmailLanguage, nil, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getEmailLanguage, nil, &resp, true)
 }
 
 // WSRetrieveNewAnnouncements retrieves new announcements through the websocket connection.
 func (d *Deribit) WSRetrieveNewAnnouncements() ([]Announcement, error) {
 	var resp []Announcement
-	return resp, d.SendWSRequest(request.Unset, getNewAnnouncements, nil, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getNewAnnouncements, nil, &resp, true)
 }
 
 // WSRetrievePrivatePortfolioMargins alculates portfolio margin info for simulated position or current position of the user through the websocket connection. This request has special restricted rate limit (not more than once per a second).
@@ -1050,13 +1050,13 @@ func (d *Deribit) WSRetrievePosition(instrument string) (*PositionData, error) {
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
 	}
 	var resp *PositionData
-	return resp, d.SendWSRequest(request.Unset, getPosition, map[string]string{"instrument_name": instrument}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getPosition, map[string]string{"instrument_name": instrument}, &resp, true)
 }
 
 // WSRetrieveSubAccounts retrieves all subaccounts' data through the websocket connection.
 func (d *Deribit) WSRetrieveSubAccounts(withPortfolio bool) ([]SubAccountData, error) {
 	var resp []SubAccountData
-	return resp, d.SendWSRequest(request.Unset, getSubAccounts, map[string]bool{"with_portfolio": withPortfolio}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getSubAccounts, map[string]bool{"with_portfolio": withPortfolio}, &resp, true)
 }
 
 // WSRetrieveSubAccountDetails retrieves sub-account detail information through the websocket connection.
@@ -1072,7 +1072,7 @@ func (d *Deribit) WSRetrieveSubAccountDetails(symbol string, withOpenOrders bool
 		WithOpenOrders: withOpenOrders,
 	}
 	var resp []SubAccountDetail
-	return resp, d.SendWSRequest(request.Unset, getSubAccountDetails, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getSubAccountDetails, input, &resp, true)
 }
 
 // WSRetrievePositions retrieves positions data of the user account through the websocket connection.
@@ -1088,7 +1088,7 @@ func (d *Deribit) WSRetrievePositions(symbol, kind string) ([]PositionData, erro
 		Kind:     kind,
 	}
 	var resp []PositionData
-	return resp, d.SendWSRequest(request.Unset, getPositions, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getPositions, input, &resp, true)
 }
 
 // WSRetrieveTransactionLog retrieves transaction logs data through the websocket connection.
@@ -1115,19 +1115,19 @@ func (d *Deribit) WSRetrieveTransactionLog(symbol, query string, startTime, endT
 		Continuation:   continuation,
 	}
 	var resp *TransactionsData
-	return resp, d.SendWSRequest(request.Unset, getTransactionLog, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getTransactionLog, input, &resp, true)
 }
 
 // WSRetrieveUserLocks retrieves information about locks on user account through the websocket connection.
 func (d *Deribit) WSRetrieveUserLocks() ([]UserLock, error) {
 	var resp []UserLock
-	return resp, d.SendWSRequest(request.Unset, getUserLocks, nil, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getUserLocks, nil, &resp, true)
 }
 
 // WSListAPIKeys retrieves all the api keys associated with a user account through the websocket connection.
 func (d *Deribit) WSListAPIKeys(tfa string) ([]APIKeyData, error) {
 	var resp []APIKeyData
-	return resp, d.SendWSRequest(request.Unset, listAPIKeys, map[string]string{"tfa": tfa}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, listAPIKeys, map[string]string{"tfa": tfa}, &resp, true)
 }
 
 // WSRemoveAPIKey removes api key vid ID through the websocket connection.
@@ -1136,7 +1136,7 @@ func (d *Deribit) WSRemoveAPIKey(id int64) error {
 		return fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
 	var resp interface{}
-	err := d.SendWSRequest(request.Unset, removeAPIKey, map[string]int64{"id": id}, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, removeAPIKey, map[string]int64{"id": id}, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1162,7 +1162,7 @@ func (d *Deribit) WSRemoveAPIKey(id int64) error {
 // WSRemoveSubAccount removes a subaccount given its id through the websocket connection.
 func (d *Deribit) WSRemoveSubAccount(subAccountID int64) error {
 	var resp string
-	err := d.SendWSRequest(request.Unset, removeSubAccount, map[string]int64{"subaccount_id": subAccountID}, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, removeSubAccount, map[string]int64{"subaccount_id": subAccountID}, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1178,7 +1178,7 @@ func (d *Deribit) WSResetAPIKey(id int64) error {
 		return fmt.Errorf("%w, invalid announcement id", errInvalidID)
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, setAnnouncementAsRead, map[string]int64{"announcement_id": id}, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, setAnnouncementAsRead, map[string]int64{"announcement_id": id}, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1204,7 +1204,7 @@ func (d *Deribit) WSSetEmailForSubAccount(sid int64, email string) error {
 		SID:   sid,
 	}
 	var resp interface{}
-	err := d.SendWSRequest(request.Unset, setEmailForSubAccount, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, setEmailForSubAccount, input, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1233,7 +1233,7 @@ func (d *Deribit) WSSetEmailLanguage(language string) error {
 		return errLanguageIsRequired
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, setEmailLanguage, map[string]string{"language": language}, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, setEmailLanguage, map[string]string{"language": language}, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1244,8 +1244,8 @@ func (d *Deribit) WSSetEmailLanguage(language string) error {
 }
 
 // WSSetPasswordForSubAccount sets a password for subaccount usage through the websocket connection.
-func (d *Deribit) WSSetPasswordForSubAccount(sid int64, password string) (interface{}, error) {
-	if sid <= 0 {
+func (d *Deribit) WSSetPasswordForSubAccount(subAccountID int64, password string) (interface{}, error) {
+	if subAccountID <= 0 {
 		return "", fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	if password == "" {
@@ -1256,10 +1256,10 @@ func (d *Deribit) WSSetPasswordForSubAccount(sid int64, password string) (interf
 		SID      int64  `json:"sid"`
 	}{
 		Password: password,
-		SID:      sid,
+		SID:      subAccountID,
 	}
 	var resp interface{}
-	err := d.SendWSRequest(request.Unset, setPasswordForSubAccount, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, setPasswordForSubAccount, input, &resp, true)
 	if err != nil {
 		return "", err
 	}
@@ -1277,7 +1277,7 @@ func (d *Deribit) WSSetPasswordForSubAccount(sid int64, password string) (interf
 		return respo, nil
 	}
 	if resp != "ok" {
-		return "", fmt.Errorf("could not set the provided password to subaccount %v", sid)
+		return "", fmt.Errorf("could not set the provided password to subaccount %v", subAccountID)
 	}
 	return "ok", nil
 }
@@ -1295,7 +1295,7 @@ func (d *Deribit) WSToggleNotificationsFromSubAccount(sid int64, state bool) err
 		State: state,
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, toggleNotificationsFromSubAccount, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, toggleNotificationsFromSubAccount, input, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1320,7 +1320,7 @@ func (d *Deribit) WSTogglePortfolioMargining(userID int64, enabled, dryRun bool)
 		DryRun:  dryRun,
 	}
 	var resp []TogglePortfolioMarginResponse
-	return resp, d.SendWSRequest(request.Unset, togglePortfolioMargining, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, togglePortfolioMargining, input, &resp, true)
 }
 
 // WSToggleSubAccountLogin toggles access for subaccount login through the websocket connection.
@@ -1336,7 +1336,7 @@ func (d *Deribit) WSToggleSubAccountLogin(sid int64, state bool) error {
 		State: state,
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, toggleSubAccountLogin, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, toggleSubAccountLogin, input, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1394,7 +1394,7 @@ func (d *Deribit) WSEditOrderByLabel(arg *OrderBuyAndSellParams) (*PrivateTradeD
 		return nil, errInvalidAmount
 	}
 	var resp *PrivateTradeData
-	return resp, d.SendWSRequest(request.Unset, editByLabel, &arg, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, editByLabel, &arg, &resp, true)
 }
 
 // WSSubmitCancel sends a request to cancel the order via its orderID through the websocket connection.
@@ -1502,7 +1502,7 @@ func (d *Deribit) WSRetrieveMargins(instrument string, amount, price float64) (*
 		Price:      price,
 	}
 	var resp *MarginsData
-	return resp, d.SendWSRequest(request.Unset, getMargins, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getMargins, input, &resp, true)
 }
 
 // WSRetrieveMMPConfig sends a request to fetch the config for MMP of the requested currency through the websocket connection.
@@ -1511,7 +1511,7 @@ func (d *Deribit) WSRetrieveMMPConfig(symbol string) (*MMPConfigData, error) {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
 	var resp *MMPConfigData
-	return resp, d.SendWSRequest(request.Unset, getMMPConfig, map[string]string{"currency": symbol}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getMMPConfig, map[string]string{"currency": symbol}, &resp, true)
 }
 
 // WSRetrieveOpenOrdersByCurrency sends a request to fetch open orders data sorted by requested params
@@ -1529,7 +1529,7 @@ func (d *Deribit) WSRetrieveOpenOrdersByCurrency(symbol, kind, orderType string)
 		OrderType: orderType,
 	}
 	var resp []OrderData
-	return resp, d.SendWSRequest(request.Unset, getOpenOrdersByCurrency, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOpenOrdersByCurrency, input, &resp, true)
 }
 
 // WSRetrieveOpenOrdersByInstrument sends a request to fetch open orders data sorted by requested params through the websocket connection.
@@ -1545,7 +1545,7 @@ func (d *Deribit) WSRetrieveOpenOrdersByInstrument(instrument, orderType string)
 		Type:       orderType,
 	}
 	var resp []OrderData
-	return resp, d.SendWSRequest(request.Unset, getOpenOrdersByInstrument, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOpenOrdersByInstrument, input, &resp, true)
 }
 
 // WSRetrieveOrderHistoryByCurrency sends a request to fetch order history according to given params and currency through the websocket connection.
@@ -1569,7 +1569,7 @@ func (d *Deribit) WSRetrieveOrderHistoryByCurrency(symbol, kind string, count, o
 		IncludeUnfilled: includeUnfilled,
 	}
 	var resp []OrderData
-	return resp, d.SendWSRequest(request.Unset, getOrderHistoryByCurrency, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOrderHistoryByCurrency, input, &resp, true)
 }
 
 // WSRetrieveOrderHistoryByInstrument sends a request to fetch order history according to given params and instrument through the websocket connection.
@@ -1591,7 +1591,7 @@ func (d *Deribit) WSRetrieveOrderHistoryByInstrument(instrument string, count, o
 		IncludeUnfilled: includeUnfilled,
 	}
 	var resp []OrderData
-	return resp, d.SendWSRequest(request.Unset, getOrderHistoryByInstrument, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOrderHistoryByInstrument, input, &resp, true)
 }
 
 // WSRetrieveOrderMarginsByID sends a request to fetch order margins data according to their ids through the websocket connection.
@@ -1600,7 +1600,7 @@ func (d *Deribit) WSRetrieveOrderMarginsByID(ids []string) ([]OrderData, error) 
 		return nil, fmt.Errorf("%w, order ids cannot be empty", errInvalidID)
 	}
 	var resp []OrderData
-	return resp, d.SendWSRequest(request.Unset, getOrderMarginByIDs, map[string][]string{"ids": ids}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOrderMarginByIDs, map[string][]string{"ids": ids}, &resp, true)
 }
 
 // WSRetrievesOrderState sends a request to fetch order state of the order id provided
@@ -1609,7 +1609,7 @@ func (d *Deribit) WSRetrievesOrderState(orderID string) (*OrderData, error) {
 		return nil, fmt.Errorf("%w, no order ID specified", errInvalidID)
 	}
 	var resp *OrderData
-	return resp, d.SendWSRequest(request.Unset, getOrderState, map[string]string{"order_id": orderID}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getOrderState, map[string]string{"order_id": orderID}, &resp, true)
 }
 
 // WSRetrieveTriggerOrderHistory sends a request to fetch order state of the order id provided through the websocket connection.
@@ -1629,7 +1629,7 @@ func (d *Deribit) WSRetrieveTriggerOrderHistory(symbol, instrumentName, continua
 		Count:        count,
 	}
 	var resp *OrderData
-	return resp, d.SendWSRequest(request.Unset, getTriggerOrderHistory, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getTriggerOrderHistory, input, &resp, true)
 }
 
 // WSRetrieveUserTradesByCurrency sends a request to fetch user trades sorted by currency through the websocket connection.
@@ -1655,7 +1655,7 @@ func (d *Deribit) WSRetrieveUserTradesByCurrency(symbol, kind, startID, endID, s
 		IncludeOld: includeOld,
 	}
 	var resp *UserTradesData
-	return resp, d.SendWSRequest(request.Unset, getUserTradesByCurrency, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByCurrency, input, &resp, true)
 }
 
 // WSRetrieveUserTradesByCurrencyAndTime retrieves user trades sorted by currency and time through the websocket connection.
@@ -1685,7 +1685,7 @@ func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(symbol, kind, sorting st
 		input.EndTime = endTime.UnixMilli()
 	}
 	var resp *UserTradesData
-	return resp, d.SendWSRequest(request.Unset, getUserTradesByCurrency, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByCurrency, input, &resp, true)
 }
 
 // WSRetrieveUserTradesByInstrument retrieves user trades sorted by instrument through the websocket connection.
@@ -1709,7 +1709,7 @@ func (d *Deribit) WSRetrieveUserTradesByInstrument(instrument, sorting string, s
 		IncludeOld: includeOld,
 	}
 	var resp *UserTradesData
-	return resp, d.SendWSRequest(request.Unset, getUserTradesByInstrument, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByInstrument, input, &resp, true)
 }
 
 // WSRetrieveUserTradesByInstrumentAndTime retrieves user trades sorted by instrument and time through the websocket connection.
@@ -1736,7 +1736,7 @@ func (d *Deribit) WSRetrieveUserTradesByInstrumentAndTime(instrument, sorting st
 		IncludeOld: includeOld,
 	}
 	var resp *UserTradesData
-	return resp, d.SendWSRequest(request.Unset, getUserTradesByInstrumentAndTime, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByInstrumentAndTime, input, &resp, true)
 }
 
 // WSRetrieveUserTradesByOrder retrieves user trades fetched by orderID through the web socket connection.
@@ -1752,7 +1752,7 @@ func (d *Deribit) WSRetrieveUserTradesByOrder(orderID, sorting string) (*UserTra
 		Sorting: sorting,
 	}
 	var resp *UserTradesData
-	return resp, d.SendWSRequest(request.Unset, getUserTradesByOrder, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByOrder, input, &resp, true)
 }
 
 // WSResetMMP sends a request to reset MMP for a currency provided through the websocket connection.
@@ -1761,7 +1761,7 @@ func (d *Deribit) WSResetMMP(symbol string) error {
 		return fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, resetMMP, map[string]string{"currency": symbol}, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, resetMMP, map[string]string{"currency": symbol}, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1786,7 +1786,7 @@ func (d *Deribit) WSSendRequestForQuote(instrumentName string, amount float64, s
 		Side:       side.String(),
 	}
 	var resp string
-	err := d.SendWSRequest(request.Unset, sendRFQ, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, sendRFQ, input, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1816,7 +1816,7 @@ func (d *Deribit) WSSetMMPConfig(symbol string, interval kline.Interval, frozenT
 		params["delta_limit"] = deltaLimit
 	}
 	var resp string
-	err = d.SendWSRequest(request.Unset, setMMPConfig, params, &resp, true)
+	err = d.SendWSRequest(nonMatchingEPL, setMMPConfig, params, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1847,7 +1847,7 @@ func (d *Deribit) WSRetrieveSettlementHistoryByInstrument(instrument, settlement
 		input.SearchStartTimestamp = searchStartTimeStamp.UnixMilli()
 	}
 	var resp *PrivateSettlementsHistoryData
-	return resp, d.SendWSRequest(request.Unset, getSettlementHistoryByInstrument, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getSettlementHistoryByInstrument, input, &resp, true)
 }
 
 // WSRetrieveSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency through the websocket connection.
@@ -1871,7 +1871,7 @@ func (d *Deribit) WSRetrieveSettlementHistoryByCurency(symbol, settlementType, c
 		input.SearchStartTimestamp = searchStartTimeStamp.UnixMilli()
 	}
 	var resp *PrivateSettlementsHistoryData
-	return resp, d.SendWSRequest(request.Unset, getSettlementHistoryByCurrency, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getSettlementHistoryByCurrency, input, &resp, true)
 }
 
 // WSRetrieveComboIDS Retrieves available combos.
@@ -1888,7 +1888,7 @@ func (d *Deribit) WSRetrieveComboIDS(symbol, state string) ([]string, error) {
 		State:    state,
 	}
 	var resp []string
-	return resp, d.SendWSRequest(request.Unset, getComboIDS, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getComboIDS, input, &resp, false)
 }
 
 // WSRetrieveComboDetails retrieves information about a combo through the websocket connection.
@@ -1897,7 +1897,7 @@ func (d *Deribit) WSRetrieveComboDetails(comboID string) (*ComboDetail, error) {
 		return nil, errInvalidComboID
 	}
 	var resp *ComboDetail
-	return resp, d.SendWSRequest(request.Unset, getComboDetails, map[string]string{"combo_id": comboID}, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getComboDetails, map[string]string{"combo_id": comboID}, &resp, false)
 }
 
 // WSRetrieveCombos retrieves information about active combos through the websocket connection.
@@ -1906,7 +1906,7 @@ func (d *Deribit) WSRetrieveCombos(symbol string) ([]ComboDetail, error) {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
 	var resp []ComboDetail
-	return resp, d.SendWSRequest(request.Unset, getCombos, map[string]string{"currency": symbol}, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getCombos, map[string]string{"currency": symbol}, &resp, false)
 }
 
 // WSCreateCombo verifies and creates a combo book or returns an existing combo matching given trades through the websocket connection.
@@ -1927,7 +1927,7 @@ func (d *Deribit) WSCreateCombo(args []ComboParam) (*ComboDetail, error) {
 		}
 	}
 	var resp *ComboDetail
-	return resp, d.SendWSRequest(request.Unset, createCombos, map[string]interface{}{"trades": args}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, createCombos, map[string]interface{}{"trades": args}, &resp, true)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -2043,7 +2043,7 @@ func (d *Deribit) WsInvalidateBlockTradeSignature(signature string) error {
 	params := url.Values{}
 	params.Set("signature", signature)
 	var resp string
-	err := d.SendWSRequest(request.Unset, invalidateBlockTradesSignature, params, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, invalidateBlockTradesSignature, params, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -2059,7 +2059,7 @@ func (d *Deribit) WSRetrieveUserBlockTrade(id string) ([]BlockTradeData, error) 
 		return nil, errMissingBlockTradeID
 	}
 	var resp []BlockTradeData
-	return resp, d.SendWSRequest(request.Unset, getBlockTrades, map[string]string{"id": id}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getBlockTrades, map[string]string{"id": id}, &resp, true)
 }
 
 // WSRetrieveLastBlockTradesByCurrency returns list of last users block trades through the websocket connection.
@@ -2079,7 +2079,7 @@ func (d *Deribit) WSRetrieveLastBlockTradesByCurrency(symbol, startID, endID str
 		Count:    count,
 	}
 	var resp []BlockTradeData
-	return resp, d.SendWSRequest(request.Unset, getLastBlockTradesByCurrency, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getLastBlockTradesByCurrency, input, &resp, true)
 }
 
 // WSMovePositions moves positions from source subaccount to target subaccount through the websocket connection.
@@ -2116,7 +2116,7 @@ func (d *Deribit) WSMovePositions(symbol string, sourceSubAccountUID, targetSubA
 		SourceUID: sourceSubAccountUID,
 	}
 	var resp []BlockTradeMoveResponse
-	return resp, d.SendWSRequest(request.Unset, movePositions, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, movePositions, input, &resp, true)
 }
 
 // SendWSRequest sends a request through the websocket connection.
@@ -2136,14 +2136,7 @@ func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params
 		Params:         params,
 	}
 	resp := &wsResponse{Result: response}
-	d.Requester.AddJobs(1)
-	var err error
-	if epl == request.Unset {
-		err = d.sendWsPayloadWithdoutLimiter(input, resp)
-	} else {
-		err = d.sendWsPayload(epl, input, resp)
-	}
-	d.Requester.AddJobs(-1)
+	err := d.sendWsPayload(epl, input, resp)
 	if err != nil {
 		return err
 	}
@@ -2160,7 +2153,7 @@ func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params
 	return nil
 }
 
-func (d *Deribit) sendWsPayloadWithdoutLimiter(input *WsRequest, response *wsResponse) error {
+func (d *Deribit) sendWsPayloadWithoutLimiter(input *WsRequest, response *wsResponse) error {
 	payload, err := d.Websocket.Conn.SendMessageReturnResponse(input.ID, input)
 	if err != nil {
 		return err

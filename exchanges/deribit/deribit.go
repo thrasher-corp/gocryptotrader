@@ -2401,7 +2401,7 @@ func (d *Deribit) GetAssetKind(assetType asset.Item) string {
 		return "option"
 	case asset.Futures:
 		return "future"
-	case asset.FutureCombo, asset.OptionCombo, asset.Combo:
+	case asset.FutureCombo, asset.OptionCombo, asset.Spot:
 		return assetType.String()
 	default:
 		return "any"
@@ -2430,6 +2430,10 @@ func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error
 	vals := strings.Split(currencyPairString, currency.DashDelimiter)
 	if strings.HasSuffix(currencyPairString, "PERPETUAL") || len(vals) == 2 {
 		return asset.Futures, nil
+	} else if len(vals) == 1 {
+		if vals = strings.Split(vals[0], currency.UnderscoreDelimiter); len(vals) == 2 {
+			return asset.Spot, nil
+		}
 	}
 	added := false
 	if len(vals) >= 3 {
