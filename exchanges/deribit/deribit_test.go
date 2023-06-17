@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -61,13 +62,14 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Deribit setup error", err)
 	}
+	request.MaxRequestJobs = 300
 	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	err = instantiateTradablePairs()
 	if err != nil {
 		log.Fatalf("%v, generating sample tradable pairs", err)
 	}
-	// setupWs()
+	setupWs()
 	os.Exit(m.Run())
 }
 
@@ -2429,7 +2431,7 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 			}
 		})
 	}
-	cp, err := currency.NewPairFromString("something_else")
+	cp, err := currency.NewPairFromString("some_thing_else")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2534,7 +2536,7 @@ func TestCalculateTradingFee(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	feeBuilder.Pair, err = currency.NewPairFromString("some_instrument")
+	feeBuilder.Pair, err = currency.NewPairFromString("some_instrument_builder")
 	if err != nil {
 		t.Fatal(err)
 	}
