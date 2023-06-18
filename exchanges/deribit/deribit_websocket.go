@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -64,16 +65,16 @@ const (
 	userTradesByKindCurrencyAndIntervalChannel       = "user.trades"
 )
 
-var defaultSubscriptions = []string{
-	chartTradesChannel, // chart trades channel to fetch candlestick data.
-	orderbookChannel,
-	tickerChannel,
-	tradesWithKindChannel,
-}
-
-var indexENUMS = []string{"ada_usd", "algo_usd", "avax_usd", "bch_usd", "bnb_usd", "btc_usd", "doge_usd", "dot_usd", "eth_usd", "link_usd", "ltc_usd", "luna_usd", "matic_usd", "near_usd", "shib_usd", "sol_usd", "trx_usd", "uni_usd", "usdc_usd", "xrp_usd", "ada_usdc", "bch_usdc", "algo_usdc", "avax_usdc", "btc_usdc", "doge_usdc", "dot_usdc", "bch_usdc", "bnb_usdc", "eth_usdc", "link_usdc", "ltc_usdc", "luna_usdc", "matic_usdc", "near_usdc", "shib_usdc", "sol_usdc", "trx_usdc", "uni_usdc", "xrp_usdc", "btcdvol_usdc", "ethdvol_usdc"}
-
 var (
+	defaultSubscriptions = []string{
+		chartTradesChannel, // chart trades channel to fetch candlestick data.
+		orderbookChannel,
+		tickerChannel,
+		tradesWithKindChannel,
+	}
+
+	indexENUMS = []string{"ada_usd", "algo_usd", "avax_usd", "bch_usd", "bnb_usd", "btc_usd", "doge_usd", "dot_usd", "eth_usd", "link_usd", "ltc_usd", "luna_usd", "matic_usd", "near_usd", "shib_usd", "sol_usd", "trx_usd", "uni_usd", "usdc_usd", "xrp_usd", "ada_usdc", "bch_usdc", "algo_usdc", "avax_usdc", "btc_usdc", "doge_usdc", "dot_usdc", "bch_usdc", "bnb_usdc", "eth_usdc", "link_usdc", "ltc_usdc", "luna_usdc", "matic_usdc", "near_usdc", "shib_usdc", "sol_usdc", "trx_usdc", "uni_usdc", "xrp_usdc", "btcdvol_usdc", "ethdvol_usdc"}
+
 	pingMessage = WsSubscriptionInput{
 		ID:             2,
 		JSONRPCVersion: rpcVersion,
@@ -510,39 +511,44 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	default:
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	if a == asset.Empty {
+	var response WsResponse
+	tradeList := []wsTrade{}
+	response.Params.Data = &tradeList
+	err = json.Unmarshal(respRaw, &response)
+	if err != nil {
+		return err
+	}
+	if len(tradeList) == 0 {
+		return fmt.Errorf("%v, empty list of trades found", common.ErrNoResponse)
+	}
+	if a == asset.Empty && currencyPair.IsEmpty() {
+		currencyPair, err = currency.NewPairFromString(tradeList[0].InstrumentName)
+		if err != nil {
+			return err
+		}
 		a, err = guessAssetTypeFromInstrument(currencyPair)
 		if err != nil {
 			return err
 		}
 	}
-	var response WsResponse
-	tradeList := &[]wsTrade{}
-	response.Params.Data = tradeList
-	err = json.Unmarshal(respRaw, &response)
-	if err != nil {
-		return err
-	}
-	tradeDatas := make([]trade.Data, len(*tradeList))
+	tradeDatas := make([]trade.Data, len(tradeList))
 	for x := range tradeDatas {
-		side, err := order.StringToOrderSide((*tradeList)[x].Direction)
+		side, err := order.StringToOrderSide(tradeList[x].Direction)
 		if err != nil {
 			return err
 		}
-		if a != asset.Empty {
-			currencyPair, err = currency.NewPairFromString((*tradeList)[x].InstrumentName)
-			if err != nil {
-				return err
-			}
+		currencyPair, err = currency.NewPairFromString(tradeList[x].InstrumentName)
+		if err != nil {
+			return err
 		}
 		tradeDatas[x] = trade.Data{
 			CurrencyPair: currencyPair,
 			Exchange:     d.Name,
-			Timestamp:    (*tradeList)[x].Timestamp.Time(),
-			Price:        (*tradeList)[x].Price,
-			Amount:       (*tradeList)[x].Amount,
+			Timestamp:    tradeList[x].Timestamp.Time(),
+			Price:        tradeList[x].Price,
+			Amount:       tradeList[x].Amount,
 			Side:         side,
-			TID:          (*tradeList)[x].TradeID,
+			TID:          tradeList[x].TradeID,
 			AssetType:    a,
 		}
 	}

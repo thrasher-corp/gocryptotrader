@@ -141,6 +141,18 @@ func (d *Deribit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = d.DisableAssetWebsocketSupport(asset.Options)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = d.DisableAssetWebsocketSupport(asset.OptionCombo)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = d.DisableAssetWebsocketSupport(asset.FutureCombo)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	d.API.Endpoints = d.NewEndpoints()
 	err = d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestFutures: deribitAPIURL,
@@ -195,20 +207,20 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Deribit go routine
-func (d *Deribit) Start(_ context.Context, wg *sync.WaitGroup) error {
+func (d *Deribit) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return common.ErrNilPointer
 	}
 	wg.Add(1)
 	go func() {
-		d.Run()
+		d.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Deribit wrapper
-func (d *Deribit) Run() {
+func (d *Deribit) Run(ctx context.Context) {
 	if d.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -219,8 +231,7 @@ func (d *Deribit) Run() {
 	if !d.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err := d.UpdateTradablePairs(context.TODO(), true)
-	if err != nil {
+	if err := d.UpdateTradablePairs(ctx, true); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
 			d.Name,
@@ -246,6 +257,9 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 			return nil, err
 		}
 		for y := range instrumentsData {
+			if !instrumentsData[y].IsActive {
+				continue
+			}
 			cp, err := currency.NewPairFromString(instrumentsData[y].InstrumentName)
 			if err != nil {
 				return nil, err
@@ -304,6 +318,7 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		tickerData, err = d.GetPublicTicker(ctx, instrumentID)
 	}
 	if err != nil {
+		fmt.Printf("ERROR: %v %s", assetType, instrumentID)
 		return nil, err
 	}
 	resp := ticker.Price{
@@ -336,10 +351,10 @@ func (d *Deribit) FetchTicker(ctx context.Context, p currency.Pair, assetType as
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (d *Deribit) FetchOrderbook(ctx context.Context, currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(d.Name, currency, assetType)
+func (d *Deribit) FetchOrderbook(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	ob, err := orderbook.Get(d.Name, currencyPair, assetType)
 	if err != nil {
-		return d.UpdateOrderbook(ctx, currency, assetType)
+		return d.UpdateOrderbook(ctx, currencyPair, assetType)
 	}
 	return ob, nil
 }
@@ -593,8 +608,12 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	if err != nil {
 		return nil, err
 	}
-	if assetType == asset.Futures {
+	switch assetType {
+	case asset.Futures:
 		instrumentID = d.formatFuturesTradablePair(p)
+	case asset.Spot:
+	default:
+		return nil, fmt.Errorf("historic trades are not supported for asset type %v", assetType)
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData

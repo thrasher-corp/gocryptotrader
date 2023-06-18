@@ -11,8 +11,8 @@ import (
 
 const (
 	// request rates per interval
-	nonMatchingRate    = 30
-	minMatchingBurst   = 20
+	minMatchingBurst   = 100
+	nonMatchingRate    = 20
 	minMatchingRate    = 5
 	portfoliMarginRate = 1
 
@@ -46,7 +46,7 @@ func (r *RateLimiter) Limit(ctx context.Context, f request.EndpointLimit) error 
 	var tokens int
 	switch f {
 	case nonMatchingEPL:
-		limiter, tokens = r.NonMatchingEngine, nonMatchingRate
+		limiter, tokens = r.NonMatchingEngine, 1
 	case portfolioMarginEPL:
 		limiter, tokens = r.PortfolioMargin, portfoliMarginRate
 	case privatePortfolioMarginEPL:
