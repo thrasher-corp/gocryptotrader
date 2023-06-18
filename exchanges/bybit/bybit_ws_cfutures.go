@@ -490,9 +490,9 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 						Last:         response.Ticker.LastPrice.Float64(),
 						High:         response.Ticker.HighPrice24h.Float64(),
 						Low:          response.Ticker.LowPrice24h.Float64(),
-						Bid:          response.Ticker.BidPrice.Float64(),
-						Ask:          response.Ticker.AskPrice.Float64(),
-						Volume:       response.Ticker.Volume24h.Float64(),
+						Bid:          response.Ticker.BidPrice,
+						Ask:          response.Ticker.AskPrice,
+						Volume:       response.Ticker.Volume24h,
 						Close:        response.Ticker.PrevPrice24h.Float64(),
 						LastUpdated:  response.Ticker.UpdateAt,
 						AssetType:    asset.CoinMarginedFutures,
@@ -519,9 +519,9 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 								Last:         response.Data.Delete[x].LastPrice.Float64(),
 								High:         response.Data.Delete[x].HighPrice24h.Float64(),
 								Low:          response.Data.Delete[x].LowPrice24h.Float64(),
-								Bid:          response.Data.Delete[x].BidPrice.Float64(),
-								Ask:          response.Data.Delete[x].AskPrice.Float64(),
-								Volume:       response.Data.Delete[x].Volume24h.Float64(),
+								Bid:          response.Data.Delete[x].BidPrice,
+								Ask:          response.Data.Delete[x].AskPrice,
+								Volume:       response.Data.Delete[x].Volume24h,
 								Close:        response.Data.Delete[x].PrevPrice24h.Float64(),
 								LastUpdated:  response.Data.Delete[x].UpdateAt,
 								AssetType:    asset.CoinMarginedFutures,
@@ -543,13 +543,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 								return err
 							}
 							var changed bool
-							if response.Data.Update[x].BidPrice != 0 && response.Data.Update[x].BidPrice.Float64() != tick.Bid {
+							if response.Data.Update[x].BidPrice != 0 && response.Data.Update[x].BidPrice != tick.Bid {
 								changed = true
-								tick.Bid = response.Data.Update[x].BidPrice.Float64()
+								tick.Bid = response.Data.Update[x].BidPrice
 							}
-							if response.Data.Update[x].AskPrice != 0 && response.Data.Update[x].AskPrice.Float64() != tick.Ask {
+							if response.Data.Update[x].AskPrice != 0 && response.Data.Update[x].AskPrice != tick.Ask {
 								changed = true
-								tick.Ask = response.Data.Update[x].AskPrice.Float64()
+								tick.Ask = response.Data.Update[x].AskPrice
 							}
 							if response.Data.Update[x].IndexPrice != 0 && response.Data.Update[x].IndexPrice.Float64() != tick.Last {
 								changed = true
@@ -575,9 +575,9 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 								Last:         response.Data.Insert[x].LastPrice.Float64(),
 								High:         response.Data.Insert[x].HighPrice24h.Float64(),
 								Low:          response.Data.Insert[x].LowPrice24h.Float64(),
-								Bid:          response.Data.Insert[x].BidPrice.Float64(),
-								Ask:          response.Data.Insert[x].AskPrice.Float64(),
-								Volume:       response.Data.Insert[x].Volume24h.Float64(),
+								Bid:          response.Data.Insert[x].BidPrice,
+								Ask:          response.Data.Insert[x].AskPrice,
+								Volume:       response.Data.Insert[x].Volume24h,
 								Close:        response.Data.Insert[x].PrevPrice24h.Float64(),
 								LastUpdated:  response.Data.Insert[x].UpdateAt,
 								AssetType:    asset.CoinMarginedFutures,
@@ -646,13 +646,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					OrderID:   response.Data[i].OrderID,
 					AssetType: asset.CoinMarginedFutures,
 					Pair:      p,
-					Price:     response.Data[i].Price,
+					Price:     response.Data[i].Price.Float64(),
 					Amount:    response.Data[i].OrderQty,
 					Side:      oSide,
 					Status:    oStatus,
 					Trades: []order.TradeHistory{
 						{
-							Price:     response.Data[i].Price,
+							Price:     response.Data[i].Price.Float64(),
 							Amount:    response.Data[i].OrderQty,
 							Exchange:  by.Name,
 							Side:      oSide,
@@ -704,7 +704,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 				}
 				by.Websocket.DataHandler <- &order.Detail{
-					Price:     response.Data[x].Price,
+					Price:     response.Data[x].Price.Float64(),
 					Amount:    response.Data[x].OrderQty,
 					Exchange:  by.Name,
 					OrderID:   response.Data[x].OrderID,
@@ -716,7 +716,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					Pair:      p,
 					Trades: []order.TradeHistory{
 						{
-							Price:     response.Data[x].Price,
+							Price:     response.Data[x].Price.Float64(),
 							Amount:    response.Data[x].OrderQty,
 							Exchange:  by.Name,
 							Side:      oSide,
@@ -766,7 +766,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 				}
 				by.Websocket.DataHandler <- &order.Detail{
-					Price:     response.Data[x].Price,
+					Price:     response.Data[x].Price.Float64(),
 					Amount:    response.Data[x].OrderQty,
 					Exchange:  by.Name,
 					OrderID:   response.Data[x].OrderID,
@@ -779,7 +779,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					Pair:      p,
 					Trades: []order.TradeHistory{
 						{
-							Price:     response.Data[x].Price,
+							Price:     response.Data[x].Price.Float64(),
 							Amount:    response.Data[x].OrderQty,
 							Exchange:  by.Name,
 							Side:      oSide,
@@ -814,9 +814,9 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 		var book orderbook.Base
 		for i := range data {
 			item := orderbook.Item{
-				Price:  data[i].Price,
+				Price:  data[i].Price.Float64(),
 				Amount: data[i].Size,
-				ID:     int64(data[i].ID.Float64()),
+				ID:     int64(data[i].ID),
 			}
 			switch {
 			case strings.EqualFold(data[i].Side, sideSell):
@@ -845,9 +845,9 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 		var asks, bids = make([]orderbook.Item, 0, len(data)), make([]orderbook.Item, 0, len(data))
 		for i := range data {
 			item := orderbook.Item{
-				Price:  data[i].Price,
+				Price:  data[i].Price.Float64(),
 				Amount: data[i].Size,
-				ID:     int64(data[i].ID.Float64()),
+				ID:     int64(data[i].ID),
 			}
 
 			switch {

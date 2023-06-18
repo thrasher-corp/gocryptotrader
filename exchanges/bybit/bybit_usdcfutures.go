@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -80,13 +81,13 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 		switch data.Result[x].Side {
 		case sideBuy:
 			resp.Bids = append(resp.Bids, orderbook.Item{
-				Price:  data.Result[x].Price,
-				Amount: data.Result[x].Size,
+				Price:  data.Result[x].Price.Float64(),
+				Amount: data.Result[x].Size.Float64(),
 			})
 		case sideSell:
 			resp.Asks = append(resp.Asks, orderbook.Item{
-				Price:  data.Result[x].Price,
-				Amount: data.Result[x].Size,
+				Price:  data.Result[x].Price.Float64(),
+				Amount: data.Result[x].Size.Float64(),
 			})
 		default:
 			return nil, errInvalidSide
@@ -891,7 +892,7 @@ func (by *Bybit) GetUSDCPosition(ctx context.Context, symbol currency.Pair, cate
 func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (float64, error) {
 	resp := struct {
 		Result struct {
-			Leverage float64 `json:"leverage,string"`
+			Leverage convert.StringToFloat64 `json:"leverage"`
 		} `json:"result"`
 		USDCError
 	}{}
@@ -902,7 +903,7 @@ func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leve
 	}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 	if err != nil {
-		return resp.Result.Leverage, err
+		return 0, err
 	}
 	req["symbol"] = symbolValue
 
@@ -911,7 +912,8 @@ func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leve
 	}
 	req["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 
-	return resp.Result.Leverage, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetLeverage, req, &resp, usdcSetLeverageRate)
+	return resp.Result.Leverage.Float64(),
+		by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetLeverage, req, &resp, usdcSetLeverageRate)
 }
 
 // GetUSDCSettlementHistory gets USDC settlement history with support of last 30 days.
@@ -1021,8 +1023,8 @@ func (by *Bybit) GetUSDCLastFundingRate(ctx context.Context, symbol currency.Pai
 func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currency.Pair) (predictedFundingRate, predictedFundingFee float64, err error) {
 	resp := struct {
 		Result struct {
-			PredictedFundingRate float64 `json:"predictedFundingRate,string"`
-			PredictedFundingFee  float64 `json:"predictedFundingFee,string"`
+			PredictedFundingRate convert.StringToFloat64 `json:"predictedFundingRate"`
+			PredictedFundingFee  convert.StringToFloat64 `json:"predictedFundingFee"`
 		} `json:"result"`
 		USDCError
 	}{}
@@ -1030,17 +1032,17 @@ func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currenc
 	req := make(map[string]interface{})
 	var symbolValue string
 	if symbol.IsEmpty() {
-		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, errSymbolMissing
+		return 0, 0, errSymbolMissing
 	}
 	symbolValue, err = by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 	if err != nil {
-		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, err
+		return 0, 0, err
 	}
 	req["symbol"] = symbolValue
 
 	err = by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPredictedFundingRate, req, &resp, usdcGetPredictedFundingRate)
-	predictedFundingRate = resp.Result.PredictedFundingRate
-	predictedFundingFee = resp.Result.PredictedFundingFee
+	predictedFundingRate = resp.Result.PredictedFundingRate.Float64()
+	predictedFundingFee = resp.Result.PredictedFundingFee.Float64()
 	return
 }
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -42,6 +43,7 @@ const (
 	bybit24HrsChange      = "/spot/quote/v1/ticker/24hr"
 	bybitLastTradedPrice  = "/spot/quote/v1/ticker/price"
 	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
+	bybitGetTickersV5     = "/v5/market/tickers"
 
 	// Authenticated endpoints
 	bybitSpotOrder                = "/spot/v1/order" // create, query, cancel
@@ -53,10 +55,16 @@ const (
 	bybitTradeHistory             = "/spot/v1/myTrades"
 	bybitWalletBalance            = "/spot/v1/account"
 	bybitServerTime               = "/spot/v1/time"
+	bybitAccountFee               = "/v5/account/fee-rate"
 
 	// Account asset endpoint
 	bybitGetDepositAddress = "/asset/v1/private/deposit/address"
 	bybitWithdrawFund      = "/asset/v1/private/withdraw"
+)
+
+var (
+	errCategoryNotSet = errors.New("category not set")
+	errBaseNotSet     = errors.New("base coin not set when category is option")
 )
 
 // GetAllSpotPairs gets all pairs on the exchange
@@ -153,10 +161,10 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]TradeItem, error) {
 	resp := struct {
 		Data []struct {
-			Price        float64   `json:"price,string"`
-			Time         bybitTime `json:"time"`
-			Quantity     float64   `json:"qty,string"`
-			IsBuyerMaker bool      `json:"isBuyerMaker"`
+			Time         bybitTime               `json:"time"`
+			IsBuyerMaker bool                    `json:"isBuyerMaker"`
+			Price        convert.StringToFloat64 `json:"price"`
+			Quantity     convert.StringToFloat64 `json:"qty"`
 		} `json:"result"`
 		Error
 	}{}
@@ -186,9 +194,9 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 
 		trades[x] = TradeItem{
 			CurrencyPair: symbol,
-			Price:        resp.Data[x].Price,
+			Price:        resp.Data[x].Price.Float64(),
 			Side:         tradeSide,
-			Volume:       resp.Data[x].Quantity,
+			Volume:       resp.Data[x].Quantity.Float64(),
 			Time:         resp.Data[x].Time.Time(),
 		}
 	}
@@ -327,10 +335,9 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 		QuoteVolume  float64   `json:"quoteVolume,string"`
 	}
 
-	var stats []PriceChangeStats
 	if symbol != "" {
 		resp := struct {
-			Data priceChangeStats `json:"result"`
+			Data PriceChangeStats `json:"result"`
 			Error
 		}{}
 
@@ -341,46 +348,20 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 		if err != nil {
 			return nil, err
 		}
-
-		stats = append(stats, PriceChangeStats{
-			resp.Data.Time.Time(),
-			resp.Data.Symbol,
-			resp.Data.BestAskPrice,
-			resp.Data.BestAskPrice,
-			resp.Data.LastPrice,
-			resp.Data.OpenPrice,
-			resp.Data.HighPrice,
-			resp.Data.LowPrice,
-			resp.Data.Volume,
-			resp.Data.QuoteVolume,
-		})
-	} else {
-		resp := struct {
-			Data []priceChangeStats `json:"result"`
-			Error
-		}{}
-
-		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
-		if err != nil {
-			return nil, err
-		}
-
-		for x := range resp.Data {
-			stats = append(stats, PriceChangeStats{
-				resp.Data[x].Time.Time(),
-				resp.Data[x].Symbol,
-				resp.Data[x].BestAskPrice,
-				resp.Data[x].BestAskPrice,
-				resp.Data[x].LastPrice,
-				resp.Data[x].OpenPrice,
-				resp.Data[x].HighPrice,
-				resp.Data[x].LowPrice,
-				resp.Data[x].Volume,
-				resp.Data[x].QuoteVolume,
-			})
-		}
+		return []PriceChangeStats{resp.Data}, nil
 	}
-	return stats, nil
+
+	resp := struct {
+		Data []PriceChangeStats `json:"result"`
+		Error
+	}{}
+
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Data, nil
 }
 
 // GetLastTradedPrice returns last trading price
@@ -436,10 +417,9 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 		Time        bybitTime `json:"time"`
 	}
 
-	var tickers []TickerData
 	if symbol != "" {
 		resp := struct {
-			Data bestTicker `json:"result"`
+			Data TickerData `json:"result"`
 			Error
 		}{}
 
@@ -450,36 +430,55 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 		if err != nil {
 			return nil, err
 		}
-		tickers = append(tickers, TickerData{
-			resp.Data.Symbol,
-			resp.Data.BidPrice,
-			resp.Data.BidQuantity,
-			resp.Data.AskPrice,
-			resp.Data.AskQuantity,
-			resp.Data.Time.Time(),
-		})
-	} else {
-		resp := struct {
-			Data []bestTicker `json:"result"`
-			Error
-		}{}
-
-		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
-		if err != nil {
-			return nil, err
-		}
-		for x := range resp.Data {
-			tickers = append(tickers, TickerData{
-				resp.Data[x].Symbol,
-				resp.Data[x].BidPrice,
-				resp.Data[x].BidQuantity,
-				resp.Data[x].AskPrice,
-				resp.Data[x].AskQuantity,
-				resp.Data[x].Time.Time(),
-			})
-		}
+		return []TickerData{resp.Data}, nil
 	}
-	return tickers, nil
+
+	resp := struct {
+		Data []TickerData `json:"result"`
+		Error
+	}{}
+
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Data, nil
+}
+
+// GetTickersV5 returns tickers for either "spot", "option" or "inverse".
+// Specific symbol is optional.
+func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol, baseCoin string) (*ListOfTickers, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	}
+
+	if category == "option" && baseCoin == "" {
+		return nil, errBaseNotSet
+	}
+
+	val := url.Values{}
+	val.Set("category", category)
+
+	if symbol != "" {
+		val.Set("symbol", symbol)
+	}
+
+	if baseCoin != "" {
+		val.Set("baseCoin", baseCoin)
+	}
+
+	result := struct {
+		Data *ListOfTickers `json:"result"`
+		Error
+	}{}
+
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitGetTickersV5+"?"+val.Encode(), publicSpotRate, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Data, nil
 }
 
 // CreatePostOrder create and post order
@@ -789,6 +788,42 @@ func (by *Bybit) WithdrawFund(ctx context.Context, coin, chain, address, tag, am
 	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, nil, params, &resp, privateSpotRate)
 }
 
+// GetFeeRate returns user account fee
+// Valid  category: "spot", "linear", "inverse", "option"
+func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	}
+
+	if !common.StringDataContains(validCategory, category) {
+		// NOTE: Opted to fail here because if the user passes in an invalid
+		// category the error returned is this
+		// `Bybit raw response: {"retCode":10005,"retMsg":"Permission denied, please check your API key permissions.","result":{},"retExtInfo":{},"time":1683694010783}`
+		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+	}
+
+	params := url.Values{}
+	params.Set("category", category)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+
+	result := struct {
+		Data *AccountFee `json:"result"`
+		Error
+	}{}
+
+	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, bybitAccountFee, params, &result, privateFeeRate)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Data, nil
+}
+
 // SendHTTPRequest sends an unauthenticated request
 func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result UnmarshalTo) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
@@ -842,8 +877,8 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		var (
 			payload       []byte
 			hmacSignedStr string
+			headers       = make(map[string]string)
 		)
-		headers := make(map[string]string)
 
 		if jsonPayload != nil {
 			headers["Content-Type"] = "application/json"
@@ -893,18 +928,70 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	return result.GetError()
 }
 
+// SendAuthHTTPRequestV5 sends an authenticated HTTP request
+func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result UnmarshalTo, f request.EndpointLimit) error {
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
+	if result == nil {
+		result = &Error{}
+	}
+
+	endpointPath, err := by.API.Endpoints.GetURL(ePath)
+	if err != nil {
+		return err
+	}
+
+	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
+		timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+		headers["X-BAPI-TIMESTAMP"] = timestamp
+		headers["X-BAPI-API-KEY"] = creds.Key
+		headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
+
+		var hmacSignedStr string
+		hmacSignedStr, err = getSign(timestamp+creds.Key+defaultRecvWindow+params.Encode(), creds.Secret)
+		if err != nil {
+			return nil, err
+		}
+		headers["X-BAPI-SIGN"] = hmacSignedStr
+		return &request.Item{
+			Method:        method,
+			Path:          endpointPath + common.EncodeURLValues(path, params),
+			Headers:       headers,
+			Result:        &result,
+			AuthRequest:   true,
+			Verbose:       by.Verbose,
+			HTTPDebugging: by.HTTPDebugging,
+			HTTPRecording: by.HTTPRecording}, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return result.GetError()
+}
+
 // Error defines all error information for each request
 type Error struct {
-	ReturnCode int64  `json:"ret_code"`
-	ReturnMsg  string `json:"ret_msg"`
-	ExtCode    string `json:"ext_code"`
-	ExtMsg     string `json:"ext_info"`
+	ReturnCode      int64  `json:"ret_code"`
+	ReturnMsg       string `json:"ret_msg"`
+	ReturnCodeV5    int64  `json:"retCode"`
+	ReturnMessageV5 string `json:"retMsg"`
+	ExtCode         string `json:"ext_code"`
+	ExtMsg          string `json:"ext_info"`
 }
 
 // GetError checks and returns an error if it is supplied.
-func (e Error) GetError() error {
+func (e *Error) GetError() error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
 		return errors.New(e.ReturnMsg)
+	}
+	if e.ReturnCodeV5 != 0 && e.ReturnMessageV5 != "" {
+		return errors.New(e.ReturnMessageV5)
 	}
 	if e.ExtCode != "" && e.ExtMsg != "" {
 		return errors.New(e.ExtMsg)
