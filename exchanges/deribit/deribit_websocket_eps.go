@@ -2136,7 +2136,7 @@ func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params
 		Params:         params,
 	}
 	resp := &wsResponse{Result: response}
-	err := d.sendWsPayloadWithoutLimiter(input, resp)
+	err := d.sendWsPayload(epl, input, resp)
 	if err != nil {
 		return err
 	}
