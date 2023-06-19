@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
@@ -344,6 +345,8 @@ func TestSettingsPrint(t *testing.T) {
 func TestGetDefaultConfigurations(t *testing.T) {
 	t.Parallel()
 
+	isCITest := os.Getenv("CI_TEST") == "true"
+
 	man := NewExchangeManager()
 	for x := range exchange.Exchanges {
 		target := exchange.Exchanges[x]
@@ -352,6 +355,10 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			exch, err := man.NewExchangeByName(target)
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			if isCITest && common.StringDataContains(blockedCIExchanges, target) {
+				t.Skipf("skipping %s due to CI test restrictions", target)
 			}
 
 			cfg, err := exch.GetDefaultConfig(context.Background())
@@ -364,4 +371,9 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			}
 		})
 	}
+}
+
+// blockedCIExchanges are exchanges that are not able to be tested on CI
+var blockedCIExchanges = []string{
+	"binance", // binance API is banned from executing within the US where github Actions is ran
 }

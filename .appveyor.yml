@@ -28,6 +28,7 @@ environment:
   PSQL_SSLMODE: disable
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
+  CI_TEST: true
   
 stack: go 1.17.8 # this is not actually used on Windows images
 
