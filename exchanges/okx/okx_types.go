@@ -63,7 +63,7 @@ const (
 	operationLogin       = "login"
 )
 
-// Market Data Endoints
+// Market Data Endpoints
 
 // TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {
@@ -73,8 +73,8 @@ type TickerResponse struct {
 	LastTradeSize  okxNumericalValue `json:"lastSz"`
 	BestAskPrice   okxNumericalValue `json:"askPx"`
 	BestAskSize    okxNumericalValue `json:"askSz"`
-	BidPrice       okxNumericalValue `json:"bidPx"`
-	BidSize        okxNumericalValue `json:"bidSz"`
+	BestBidPrice   okxNumericalValue `json:"bidPx"`
+	BestBidSize    okxNumericalValue `json:"bidSz"`
 	Open24H        okxNumericalValue `json:"open24h"`
 	High24H        okxNumericalValue `json:"high24h"`
 	Low24H         okxNumericalValue `json:"low24h"`

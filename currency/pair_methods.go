@@ -9,7 +9,9 @@ import (
 // EMPTYFORMAT defines an empty pair format
 var EMPTYFORMAT = PairFormat{}
 
-var errCurrencyNotAssociatedWithPair = errors.New("currency not associated with pair")
+// ErrCurrencyNotAssociatedWithPair defines an error where a currency is not
+// associated with a pair.
+var ErrCurrencyNotAssociatedWithPair = errors.New("currency not associated with pair")
 
 // String returns a currency pair string
 func (p Pair) String() string {
@@ -198,7 +200,6 @@ func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters
 		if selling {
 			params.SellingCurrency = p.Base
 			params.PurchasingCurrency = p.Quote
-			params.IsBuySide = false
 			params.IsAskLiquidity = !market
 		} else {
 			params.SellingCurrency = p.Quote
@@ -215,11 +216,16 @@ func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters
 		} else {
 			params.SellingCurrency = p.Base
 			params.PurchasingCurrency = p.Quote
-			params.IsBuySide = false
 			params.IsAskLiquidity = !market
 		}
 	default:
-		return nil, fmt.Errorf("%w %v: %v", errCurrencyNotAssociatedWithPair, c, p)
+		return nil, fmt.Errorf("%w %v: %v", ErrCurrencyNotAssociatedWithPair, c, p)
 	}
+	params.Pair = p
 	return &params, nil
+}
+
+// IsAssociated checks to see if the pair is associated with another pair
+func (p Pair) IsAssociated(a Pair) bool {
+	return p.Base.Equal(a.Base) || p.Quote.Equal(a.Base) || p.Base.Equal(a.Quote) || p.Quote.Equal(a.Quote)
 }
