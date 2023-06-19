@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 )
 
 // SetupPositionController creates a position controller
@@ -127,7 +127,7 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 }
 
 // TrackFundingDetails applies funding rate details to a tracked position
-func (c *PositionController) TrackFundingDetails(d *fundingrates.Rates) error {
+func (c *PositionController) TrackFundingDetails(d *fundingrate.Rates) error {
 	if c == nil {
 		return fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
@@ -433,7 +433,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 }
 
 // TrackFundingDetails applies funding rate details to a tracked position
-func (m *MultiPositionTracker) TrackFundingDetails(d *fundingrates.Rates) error {
+func (m *MultiPositionTracker) TrackFundingDetails(d *fundingrate.Rates) error {
 	if m == nil {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
@@ -551,9 +551,9 @@ func (p *PositionTracker) GetStats() *Position {
 	}
 
 	if p.fundingRateDetails != nil {
-		frs := make([]fundingrates.Rate, len(p.fundingRateDetails.FundingRates))
+		frs := make([]fundingrate.Rate, len(p.fundingRateDetails.FundingRates))
 		copy(frs, p.fundingRateDetails.FundingRates)
-		pos.FundingRates = fundingrates.Rates{
+		pos.FundingRates = fundingrate.Rates{
 			Exchange:              p.fundingRateDetails.Exchange,
 			Asset:                 p.fundingRateDetails.Asset,
 			Pair:                  p.fundingRateDetails.Pair,
@@ -661,7 +661,7 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 }
 
 // TrackFundingDetails sets funding rates to a position
-func (p *PositionTracker) TrackFundingDetails(d *fundingrates.Rates) error {
+func (p *PositionTracker) TrackFundingDetails(d *fundingrate.Rates) error {
 	if p == nil {
 		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
@@ -689,7 +689,7 @@ func (p *PositionTracker) TrackFundingDetails(d *fundingrates.Rates) error {
 		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
 	if p.fundingRateDetails == nil {
-		p.fundingRateDetails = &fundingrates.Rates{
+		p.fundingRateDetails = &fundingrate.Rates{
 			Exchange:              d.Exchange,
 			Asset:                 d.Asset,
 			Pair:                  d.Pair,
@@ -700,7 +700,7 @@ func (p *PositionTracker) TrackFundingDetails(d *fundingrates.Rates) error {
 			PaymentSum:            d.PaymentSum,
 		}
 	}
-	rates := make([]fundingrates.Rate, 0, len(d.FundingRates))
+	rates := make([]fundingrate.Rate, 0, len(d.FundingRates))
 fundingRates:
 	for i := range d.FundingRates {
 		if d.FundingRates[i].Time.Before(p.openingDate) ||

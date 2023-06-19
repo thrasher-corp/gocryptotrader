@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -333,12 +334,12 @@ type OpenInterest struct {
 
 // FundingRateResponse response data for the Funding Rate for an instruction type
 type FundingRateResponse struct {
-	FundingRate     okxNumericalValue `json:"fundingRate"`
-	FundingTime     okxUnixMilliTime  `json:"fundingTime"`
-	InstrumentID    string            `json:"instId"`
-	InstrumentType  asset.Item        `json:"instType"`
-	NextFundingRate okxNumericalValue `json:"nextFundingRate"`
-	NextFundingTime okxUnixMilliTime  `json:"nextFundingTime"`
+	FundingRate     convert.StringToFloat64 `json:"fundingRate"`
+	FundingTime     okxUnixMilliTime        `json:"fundingTime"`
+	InstrumentID    string                  `json:"instId"`
+	InstrumentType  string                  `json:"instType"`
+	NextFundingRate convert.StringToFloat64 `json:"nextFundingRate"`
+	NextFundingTime okxUnixMilliTime        `json:"nextFundingTime"`
 }
 
 // LimitPriceResponse hold an information for
@@ -1376,26 +1377,26 @@ type BillsDetailQueryParameter struct {
 
 // BillsDetailResponse represents account bills information.
 type BillsDetailResponse struct {
-	Balance                    okxNumericalValue `json:"bal"`
-	BalanceChange              string            `json:"balChg"`
-	BillID                     string            `json:"billId"`
-	Currency                   string            `json:"ccy"`
-	ExecType                   string            `json:"execType"` // Order flow type, T：taker M：maker
-	Fee                        okxNumericalValue `json:"fee"`      // Fee Negative number represents the user transaction fee charged by the platform. Positive number represents rebate.
-	From                       string            `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
-	InstrumentID               string            `json:"instId"`
-	InstrumentType             asset.Item        `json:"instType"`
-	MarginMode                 string            `json:"mgnMode"`
-	Notes                      string            `json:"notes"` // notes When bill type is not transfer, the field returns "".
-	OrderID                    string            `json:"ordId"`
-	ProfitAndLoss              okxNumericalValue `json:"pnl"`
-	PositionLevelBalance       okxNumericalValue `json:"posBal"`
-	PositionLevelBalanceChange okxNumericalValue `json:"posBalChg"`
-	SubType                    string            `json:"subType"`
-	Size                       okxNumericalValue `json:"sz"`
-	To                         string            `json:"to"`
-	Timestamp                  okxUnixMilliTime  `json:"ts"`
-	Type                       string            `json:"type"`
+	Balance                    okxNumericalValue       `json:"bal"`
+	BalanceChange              string                  `json:"balChg"`
+	BillID                     string                  `json:"billId"`
+	Currency                   string                  `json:"ccy"`
+	ExecType                   string                  `json:"execType"` // Order flow type, T：taker M：maker
+	Fee                        convert.StringToFloat64 `json:"fee"`      // Fee Negative number represents the user transaction fee charged by the platform. Positive number represents rebate.
+	From                       string                  `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
+	InstrumentID               string                  `json:"instId"`
+	InstrumentType             asset.Item              `json:"instType"`
+	MarginMode                 string                  `json:"mgnMode"`
+	Notes                      string                  `json:"notes"` // notes When bill type is not transfer, the field returns "".
+	OrderID                    string                  `json:"ordId"`
+	ProfitAndLoss              convert.StringToFloat64 `json:"pnl"`
+	PositionLevelBalance       convert.StringToFloat64 `json:"posBal"`
+	PositionLevelBalanceChange convert.StringToFloat64 `json:"posBalChg"`
+	SubType                    string                  `json:"subType"`
+	Size                       convert.StringToFloat64 `json:"sz"`
+	To                         string                  `json:"to"`
+	Timestamp                  okxUnixMilliTime        `json:"ts"`
+	Type                       string                  `json:"type"`
 }
 
 // AccountConfigurationResponse represents account configuration response.

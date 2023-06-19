@@ -9,7 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 )
 
 var (
@@ -195,7 +195,7 @@ type PositionTracker struct {
 	shortPositions     []Detail
 	longPositions      []Detail
 	pnlHistory         []PNLResult
-	fundingRateDetails *fundingrates.Rates
+	fundingRateDetails *fundingrate.Rates
 }
 
 // PositionTrackerSetup contains all required fields to
@@ -303,7 +303,7 @@ type Position struct {
 	CloseDate          time.Time
 	Orders             []Detail
 	PNLHistory         []PNLResult
-	FundingRates       fundingrates.Rates
+	FundingRates       fundingrate.Rates
 }
 
 // PositionSummaryRequest is used to request a summary of an open position

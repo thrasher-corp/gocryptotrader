@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -247,10 +247,10 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 }
 
-func TestGetFundingRate(t *testing.T) {
+func TestGetSingleFundingRate(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetFundingRate(context.Background(), "BTC-USD-SWAP"); err != nil {
-		t.Error("okx GetFundingRate() error", err)
+	if _, err := ok.GetSingleFundingRate(context.Background(), "BTC-USD-SWAP"); err != nil {
+		t.Error("okx GetSingleFundingRate() error", err)
 	}
 }
 
@@ -3243,13 +3243,30 @@ func TestInstrument(t *testing.T) {
 	}
 }
 
+func TestGetFundingRate(t *testing.T) {
+	t.Parallel()
+	ok.Verbose = true
+	cp, _ := currency.NewPairFromString("BTC-USD-SWAP")
+	resp, err := ok.GetLatestFundingRate(contextGenerate(), &fundingrate.LatestRateRequest{
+		Asset:                asset.PerpetualSwap,
+		Pair:                 cp,
+		PaymentCurrency:      currency.USDT,
+		IncludePredictedRate: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", resp)
+}
+
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	ok.Verbose = true
 	cp, _ := currency.NewPairFromString("BTC-USD-SWAP")
-	resp, err := ok.GetFundingRates(contextGenerate(), &fundingrates.RatesRequest{
+	resp, err := ok.GetFundingRates(contextGenerate(), &fundingrate.RatesRequest{
 		Asset:                asset.PerpetualSwap,
 		Pair:                 cp,
+		PaymentCurrency:      currency.USDT,
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
 		EndDate:              time.Now(),
 		IncludePayments:      true,

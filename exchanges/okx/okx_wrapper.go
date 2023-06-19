@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -69,12 +69,14 @@ func (ok *Okx) SetDefaults() {
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
 
+	cpf := &currency.PairFormat{
+		Delimiter: currency.DashDelimiter,
+		Uppercase: true,
+	}
+
 	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
+		RequestFormat: cpf,
+		ConfigFormat:  cpf,
 	}
 
 	err := ok.SetGlobalPairsManager(fmt1.RequestFormat, fmt1.ConfigFormat, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin)
@@ -130,6 +132,7 @@ func (ok *Okx) SetDefaults() {
 			FuturesCapabilities: exchange.FuturesCapabilities{
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
+				FundingRateFrequency:      kline.EightHour.Duration(),
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1514,8 +1517,40 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
+// GetFundingRate returns the latest funding rate for a given asset and currency
+func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	format, err := ok.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := r.Pair.Format(format)
+	pairRate := fundingrate.LatestRateResponse{
+		Exchange: ok.Name,
+		Asset:    r.Asset,
+		Pair:     fPair,
+	}
+	fr, err := ok.GetSingleFundingRate(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	pairRate.LatestRate = fundingrate.Rate{
+		Time: fr.FundingTime.Time(),
+		Rate: fr.FundingRate.Decimal(),
+	}
+	if r.IncludePredictedRate {
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: fr.NextFundingTime.Time(),
+			Rate: fr.NextFundingRate.Decimal(),
+		}
+	}
+	return &pairRate, nil
+}
+
 // GetFundingRates returns funding rates for a given asset and currency for a time period
-func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest) (*fundingrates.Rates, error) {
+func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
 	}
@@ -1523,10 +1558,10 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest
 	sd := r.StartDate
 	maxLookback := time.Now().Add(-ok.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
-		if r.AdhereToFundingRateLimits {
+		if r.RespectHistoryLimits {
 			r.StartDate = maxLookback
 		} else {
-			return nil, fundingrates.ErrFundingRateOutsideLimits
+			return nil, fmt.Errorf("%w earliest date is %v", fundingrate.ErrFundingRateOutsideLimits, maxLookback)
 		}
 		if r.EndDate.Before(maxLookback) {
 			return nil, order.ErrGetFundingDataRequired
@@ -1538,7 +1573,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest
 		return nil, err
 	}
 	fPair := r.Pair.Format(format)
-	pairRate := fundingrates.Rates{
+	pairRate := fundingrate.Rates{
 		Exchange:  ok.Name,
 		Asset:     r.Asset,
 		Pair:      fPair,
@@ -1556,18 +1591,18 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest
 		if err != nil {
 			return nil, err
 		}
-		for j := range frh {
+		for i := range frh {
 			if r.IncludePayments {
-				mti[frh[j].FundingTime.Time().Unix()] = j
+				mti[frh[i].FundingTime.Time().Unix()] = i
 			}
-			pairRate.FundingRates = append(pairRate.FundingRates, fundingrates.Rate{
-				Time: frh[j].FundingTime.Time(),
-				Rate: frh[j].FundingRate.Decimal(),
+			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
+				Time: frh[i].FundingTime.Time(),
+				Rate: frh[i].FundingRate.Decimal(),
 			})
 		}
 		if len(frh) < requestLimit {
 			if r.IncludePredictedRate {
-				pairRate.PredictedUpcomingRate = fundingrates.Rate{
+				pairRate.PredictedUpcomingRate = fundingrate.Rate{
 					Time: frh[len(frh)-1].NextFundingTime.Time(),
 					Rate: frh[len(frh)-1].NextFundingRate.Decimal(),
 				}
@@ -1576,8 +1611,14 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest
 		}
 		sd = frh[len(frh)-1].FundingTime.Time()
 	}
-
+	if len(pairRate.FundingRates) > 0 {
+		pairRate.LatestRate = pairRate.FundingRates[len(pairRate.FundingRates)-1]
+	}
 	if r.IncludePayments {
+		curr := r.Pair.Base
+		if !r.PaymentCurrency.IsEmpty() {
+			curr = r.PaymentCurrency
+		}
 		sd = r.StartDate
 		billDetailsFunc := ok.GetBillsDetail3Months
 		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
@@ -1587,9 +1628,10 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest
 			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
 				break
 			}
-			billDetails, err := billDetailsFunc(ctx, &BillsDetailQueryParameter{
+			var billDetails []BillsDetailResponse
+			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
-				Currency:       fPair.String(),
+				Currency:       curr.String(),
 				BillType:       137,
 				BeginTime:      sd,
 				EndTime:        r.EndDate,
@@ -1610,6 +1652,9 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest
 			sd = billDetails[len(billDetails)-1].Timestamp.Time()
 		}
 
+		for i := range pairRate.FundingRates {
+			pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[i].Payment)
+		}
 	}
 	return &pairRate, nil
 }

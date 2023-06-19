@@ -3435,8 +3435,8 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestEPL, http.MethodGet, common.EncodeURLValues(publicOpenInterestValues, params), nil, &resp, false)
 }
 
-// GetFundingRate  Retrieve funding rate.
-func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*FundingRateResponse, error) {
+// GetSingleFundingRate  Retrieve funding rate.
+func (ok *Okx) GetSingleFundingRate(ctx context.Context, instrumentID string) (*FundingRateResponse, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID

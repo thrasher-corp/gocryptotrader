@@ -168,27 +168,6 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *FundingRateResponse) UnmarshalJSON(data []byte) error {
-	type Alias FundingRateResponse
-	chil := &struct {
-		*Alias
-		InstrumentType string `json:"instType"`
-		FundingRate    string `json:"fundingRate"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	err := json.Unmarshal(data, chil)
-	if err != nil {
-		return err
-	}
-	chil.InstrumentType = strings.ToUpper(chil.InstrumentType)
-	if a.InstrumentType, err = GetAssetTypeFromInstrumentType(chil.InstrumentType); err != nil {
-		return err
-	}
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
 func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
 	type Alias LimitPriceResponse
 	chil := &struct {

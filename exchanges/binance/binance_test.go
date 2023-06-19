@@ -15,8 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -2804,50 +2804,70 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestGetMarginRatesHistory(t *testing.T) {
+func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
-	_, err := b.GetMarginRatesHistory(context.Background(), &margin.RateHistoryRequest{
-		Exchange:           b.Name,
-		Asset:              asset.Margin,
-		Currency:           currency.BTC,
-		Pair:               currency.NewPair(currency.BTC, currency.USDT),
-		StartDate:          time.Now().Add(-time.Hour * 24 * 7),
-		EndDate:            time.Now(),
-		GetPredictedRate:   true,
-		GetLendingPayments: true,
-		GetBorrowCosts:     true,
-		GetBorrowRates:     true,
+	_, err := b.GetFundingRates(context.Background(), &fundingrate.RatesRequest{
+		Asset:                asset.USDTMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:              time.Now(),
+		IncludePayments:      true,
+		IncludePredictedRate: true,
 	})
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+
+	r := &fundingrate.RatesRequest{
+		Asset:     asset.USDTMarginedFutures,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		StartDate: time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:   time.Now(),
+	}
+	if !b.IsRESTAuthenticationSupported() {
+		r.IncludePayments = true
+	}
+	_, err = b.GetFundingRates(context.Background(), r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r.Asset = asset.CoinMarginedFutures
+	r.Pair, err = currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetFundingRates(context.Background(), r)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetFundingRates(t *testing.T) {
+func TestGetFundingRate(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFundingRates(context.Background(), &fundingrates.RatesRequest{
+	_, err := b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)},
-		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
-		EndDate:              time.Now(),
-		IncludePayments:      true,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+	_, err = b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewPair(currency.BTC, currency.USDT),
 	})
 	if err != nil {
 		t.Error(err)
 	}
+
 	cp, err := currency.NewPairFromString("BTCUSD_PERP")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFundingRates(context.Background(), &fundingrates.RatesRequest{
-		Asset:                asset.CoinMarginedFutures,
-		Pair:                 currency.Pairs{cp},
-		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
-		EndDate:              time.Now(),
-		IncludePayments:      true,
-		IncludePredictedRate: true,
+	_, err = b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.CoinMarginedFutures,
+		Pair:  cp,
 	})
 	if err != nil {
 		t.Error(err)

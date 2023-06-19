@@ -179,6 +179,7 @@ type FeaturesSupported struct {
 type FuturesCapabilities struct {
 	FundingRates                 bool
 	MaximumFundingRateHistory    time.Duration
+	FundingRateFrequency         time.Duration
 	Positions                    bool
 	OrderManagerPositionTracking bool
 	Collateral                   bool

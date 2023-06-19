@@ -226,3 +226,8 @@ func (f *StringToFloat64) UnmarshalJSON(data []byte) error {
 func (f *StringToFloat64) Float64() float64 {
 	return float64(*f)
 }
+
+// Decimal returns the decimal value of the FloatString.
+func (f *StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(*f))
+}

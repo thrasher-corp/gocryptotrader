@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -786,7 +786,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if !isPerp {
 		return nil
 	}
-	frp, err := exch.GetFundingRates(context.TODO(), &fundingrates.RatesRequest{
+	frp, err := exch.GetFundingRates(context.TODO(), &fundingrate.RatesRequest{
 		Asset:                position.Asset,
 		Pair:                 position.Pair,
 		StartDate:            position.Orders[0].Date,
