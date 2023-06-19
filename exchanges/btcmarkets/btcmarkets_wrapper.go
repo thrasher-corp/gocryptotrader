@@ -1125,8 +1125,8 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		limits[x] = order.MinMaxLevel{
 			Pair:                    pair,
 			Asset:                   asset.Spot,
-			MinAmount:               markets[x].MinOrderAmount,
-			MaxAmount:               markets[x].MaxOrderAmount,
+			MinimumBaseAmount:       markets[x].MinOrderAmount,
+			MaximumBaseAmount:       markets[x].MaxOrderAmount,
 			AmountStepIncrementSize: math.Pow(10, -markets[x].AmountDecimals),
 			PriceStepIncrementSize:  math.Pow(10, -markets[x].PriceDecimals),
 		}

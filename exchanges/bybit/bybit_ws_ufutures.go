@@ -340,13 +340,13 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 				by.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: by.Name,
-					Last:         response.Ticker.LastPrice,
-					High:         response.Ticker.HighPrice24h,
-					Low:          response.Ticker.LowPrice24h,
+					Last:         response.Ticker.LastPrice.Float64(),
+					High:         response.Ticker.HighPrice24h.Float64(),
+					Low:          response.Ticker.LowPrice24h.Float64(),
 					Bid:          response.Ticker.BidPrice,
 					Ask:          response.Ticker.AskPrice,
 					Volume:       response.Ticker.Volume24h,
-					Close:        response.Ticker.PrevPrice24h,
+					Close:        response.Ticker.PrevPrice24h.Float64(),
 					LastUpdated:  response.Ticker.UpdateAt,
 					AssetType:    asset.USDTMarginedFutures,
 					Pair:         p,
@@ -369,13 +369,13 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Delete[x].LastPrice,
-							High:         response.Data.Delete[x].HighPrice24h,
-							Low:          response.Data.Delete[x].LowPrice24h,
+							Last:         response.Data.Delete[x].LastPrice.Float64(),
+							High:         response.Data.Delete[x].HighPrice24h.Float64(),
+							Low:          response.Data.Delete[x].LowPrice24h.Float64(),
 							Bid:          response.Data.Delete[x].BidPrice,
 							Ask:          response.Data.Delete[x].AskPrice,
 							Volume:       response.Data.Delete[x].Volume24h,
-							Close:        response.Data.Delete[x].PrevPrice24h,
+							Close:        response.Data.Delete[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Delete[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
@@ -393,13 +393,13 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Update[x].LastPrice,
-							High:         response.Data.Update[x].HighPrice24h,
-							Low:          response.Data.Update[x].LowPrice24h,
+							Last:         response.Data.Update[x].LastPrice.Float64(),
+							High:         response.Data.Update[x].HighPrice24h.Float64(),
+							Low:          response.Data.Update[x].LowPrice24h.Float64(),
 							Bid:          response.Data.Update[x].BidPrice,
 							Ask:          response.Data.Update[x].AskPrice,
 							Volume:       response.Data.Update[x].Volume24h,
-							Close:        response.Data.Update[x].PrevPrice24h,
+							Close:        response.Data.Update[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Update[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
@@ -417,13 +417,13 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Insert[x].LastPrice,
-							High:         response.Data.Insert[x].HighPrice24h,
-							Low:          response.Data.Insert[x].LowPrice24h,
+							Last:         response.Data.Insert[x].LastPrice.Float64(),
+							High:         response.Data.Insert[x].HighPrice24h.Float64(),
+							Low:          response.Data.Insert[x].LowPrice24h.Float64(),
 							Bid:          response.Data.Insert[x].BidPrice,
 							Ask:          response.Data.Insert[x].AskPrice,
 							Volume:       response.Data.Insert[x].Volume24h,
-							Close:        response.Data.Insert[x].PrevPrice24h,
+							Close:        response.Data.Insert[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Insert[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
@@ -493,11 +493,11 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				Pair:      p,
 				Side:      oSide,
 				Status:    oStatus,
-				Price:     response.Data[i].Price,
+				Price:     response.Data[i].Price.Float64(),
 				Amount:    response.Data[i].OrderQty,
 				Trades: []order.TradeHistory{
 					{
-						Price:     response.Data[i].Price,
+						Price:     response.Data[i].Price.Float64(),
 						Amount:    response.Data[i].OrderQty,
 						Exchange:  by.Name,
 						Side:      oSide,
@@ -547,7 +547,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				}
 			}
 			by.Websocket.DataHandler <- &order.Detail{
-				Price:     response.Data[x].Price,
+				Price:     response.Data[x].Price.Float64(),
 				Amount:    response.Data[x].OrderQty,
 				Exchange:  by.Name,
 				OrderID:   response.Data[x].OrderID,
@@ -559,7 +559,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				Pair:      p,
 				Trades: []order.TradeHistory{
 					{
-						Price:     response.Data[x].Price,
+						Price:     response.Data[x].Price.Float64(),
 						Amount:    response.Data[x].OrderQty,
 						Exchange:  by.Name,
 						Side:      oSide,
@@ -609,7 +609,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				}
 			}
 			by.Websocket.DataHandler <- &order.Detail{
-				Price:     response.Data[x].Price,
+				Price:     response.Data[x].Price.Float64(),
 				Amount:    response.Data[x].OrderQty,
 				Exchange:  by.Name,
 				OrderID:   response.Data[x].OrderID,
@@ -622,7 +622,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				Pair:      p,
 				Trades: []order.TradeHistory{
 					{
-						Price:     response.Data[x].Price,
+						Price:     response.Data[x].Price.Float64(),
 						Amount:    response.Data[x].OrderQty,
 						Exchange:  by.Name,
 						Side:      oSide,

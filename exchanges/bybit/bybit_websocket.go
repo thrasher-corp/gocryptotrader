@@ -301,8 +301,8 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					CurrencyPair: p,
 					AssetType:    asset.Spot,
 					Exchange:     by.Name,
-					Price:        data.TradeData.Price,
-					Amount:       data.TradeData.Size,
+					Price:        data.TradeData.Price.Float64(),
+					Amount:       data.TradeData.Size.Float64(),
 					Side:         side,
 					TID:          data.TradeData.ID,
 				})
@@ -320,8 +320,8 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 
 				by.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: by.Name,
-					Bid:          data.Ticker.Bid,
-					Ask:          data.Ticker.Ask,
+					Bid:          data.Ticker.Bid.Float64(),
+					Ask:          data.Ticker.Ask.Float64(),
 					LastUpdated:  data.Ticker.Time.Time(),
 					AssetType:    asset.Spot,
 					Pair:         p,
@@ -345,11 +345,11 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					Exchange:   by.Name,
 					StartTime:  data.Kline.StartTime.Time(),
 					Interval:   data.Parameters.KlineType,
-					OpenPrice:  data.Kline.OpenPrice,
-					ClosePrice: data.Kline.ClosePrice,
-					HighPrice:  data.Kline.HighPrice,
-					LowPrice:   data.Kline.LowPrice,
-					Volume:     data.Kline.Volume,
+					OpenPrice:  data.Kline.OpenPrice.Float64(),
+					ClosePrice: data.Kline.ClosePrice.Float64(),
+					HighPrice:  data.Kline.HighPrice.Float64(),
+					LowPrice:   data.Kline.LowPrice.Float64(),
+					Volume:     data.Kline.Volume.Float64(),
 				}
 				return nil
 			default:
@@ -431,10 +431,10 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					}
 
 					by.Websocket.DataHandler <- order.Detail{
-						Price:           data[j].Price,
-						Amount:          data[j].Quantity,
-						ExecutedAmount:  data[j].CumulativeFilledQuantity,
-						RemainingAmount: data[j].Quantity - data[j].CumulativeFilledQuantity,
+						Price:           data[j].Price.Float64(),
+						Amount:          data[j].Quantity.Float64(),
+						ExecutedAmount:  data[j].CumulativeFilledQuantity.Float64(),
+						RemainingAmount: data[j].Quantity.Float64() - data[j].CumulativeFilledQuantity.Float64(),
 						Exchange:        by.Name,
 						OrderID:         data[j].OrderID,
 						Type:            oType,
@@ -446,8 +446,8 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						ClientOrderID:   data[j].ClientOrderID,
 						Trades: []order.TradeHistory{
 							{
-								Price:     data[j].Price,
-								Amount:    data[j].Quantity,
+								Price:     data[j].Price.Float64(),
+								Amount:    data[j].Quantity.Float64(),
 								Exchange:  by.Name,
 								Timestamp: data[j].OrderCreationTime.Time(),
 							},
@@ -486,13 +486,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						Side:      oSide,
 						AssetType: asset.Spot,
 						Pair:      p,
-						Price:     data[j].Price,
-						Amount:    data[j].Quantity,
+						Price:     data[j].Price.Float64(),
+						Amount:    data[j].Quantity.Float64(),
 						Date:      data[j].Timestamp.Time(),
 						Trades: []order.TradeHistory{
 							{
-								Price:     data[j].Price,
-								Amount:    data[j].Quantity,
+								Price:     data[j].Price.Float64(),
+								Amount:    data[j].Quantity.Float64(),
 								Exchange:  by.Name,
 								Timestamp: data[j].Timestamp.Time(),
 								TID:       data[j].TradeID,
