@@ -226,3 +226,8 @@ func (f *StringToFloat64) UnmarshalJSON(data []byte) error {
 func (f *StringToFloat64) Float64() float64 {
 	return float64(*f)
 }
+
+// MarshalJSON constructs a string as []byte representation of the float64 StringToFloat64 instance.
+func (f *StringToFloat64) MarshalJSON() ([]byte, error) {
+	return append(append([]byte{'"'}, []byte(strconv.FormatFloat(float64(*f), 'f', -1, 64))...), '"'), nil
+}

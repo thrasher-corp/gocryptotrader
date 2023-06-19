@@ -593,16 +593,17 @@ type WsFuturesTrade struct {
 
 // WsFuturesKlineData stores ws future kline data
 type WsFuturesKlineData struct {
-	StartTime bybitTimeSec            `json:"start"`
-	EndTime   bybitTimeSec            `json:"end"`
-	Close     float64                 `json:"close"`
-	Open      float64                 `json:"open"`
-	High      float64                 `json:"high"`
-	Low       float64                 `json:"low"`
-	Volume    convert.StringToFloat64 `json:"volume"`
-	TurnOver  convert.StringToFloat64 `json:"turnover"`
-	Confirm   bool                    `json:"confirm"`
-	Timestamp bybitTime               `json:"timestamp"`
+	StartTime bybitTimeSec `json:"start"`
+	EndTime   bybitTimeSec `json:"end"`
+	Close     float64      `json:"close"`
+	Open      float64      `json:"open"`
+	High      float64      `json:"high"`
+	Low       float64      `json:"low"`
+	Volume    float64      `json:"volume"`
+	TurnOver  float64      `json:"turnover"`
+	Confirm   bool         `json:"confirm"`
+	CrossSeq  int64        `json:"coss_seq"`
+	Timestamp bybitTime    `json:"timestamp"`
 }
 
 // WsFuturesKline stores ws future kline
@@ -673,7 +674,7 @@ type WsDeltaTicker struct {
 
 // WsFuturesTickerData stores ws future ticker data
 type WsFuturesTickerData struct {
-	ID                    string                  `json:"id"`
+	ID                    int64                   `json:"id"`
 	Symbol                string                  `json:"symbol"`
 	SymbolName            string                  `json:"symbol_name"`
 	SymbolYear            int64                   `json:"symbol_year"`
@@ -689,8 +690,8 @@ type WsFuturesTickerData struct {
 	ContractStatus        string                  `json:"contract_status"`
 	SystemSubsidy         int64                   `json:"system_subsidy_e8"`
 	LastPrice             convert.StringToFloat64 `json:"last_price"`
-	BidPrice              float64                 `json:"bid1_price"`
-	AskPrice              float64                 `json:"ask1_price"`
+	BidPrice              convert.StringToFloat64 `json:"bid1_price"`
+	AskPrice              convert.StringToFloat64 `json:"ask1_price"`
 	LastDirection         string                  `json:"last_tick_direction"`
 	PrevPrice24h          convert.StringToFloat64 `json:"prev_price_24h"`
 	Price24hPercentChange float64                 `json:"price_24h_pcnt_e6"`

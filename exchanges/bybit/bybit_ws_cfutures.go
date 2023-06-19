@@ -61,10 +61,10 @@ const (
 
 var defaultCoinMarginedFuturesSubscriptionChannels = []string{
 	wsInstrument,
-	// wsOrder200,
-	// wsTrade,
-	// wsKlineV2,
-	// wsLiquidation,
+	wsOrder200,
+	wsTrade,
+	wsKlineV2,
+	wsLiquidation,
 }
 
 // WsCoinConnect connects to a CMF websocket feed
@@ -456,7 +456,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					HighPrice:  response.KlineData[i].High,
 					LowPrice:   response.KlineData[i].Low,
 					ClosePrice: response.KlineData[i].Close,
-					Volume:     response.KlineData[i].Volume.Float64(),
+					Volume:     response.KlineData[i].Volume,
 					Timestamp:  response.KlineData[i].Timestamp.Time(),
 				}
 			}
@@ -816,7 +816,7 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			item := orderbook.Item{
 				Price:  data[i].Price.Float64(),
 				Amount: data[i].Size,
-				ID:     int64(data[i].ID),
+				ID:     data[i].ID,
 			}
 			switch {
 			case strings.EqualFold(data[i].Side, sideSell):
@@ -847,7 +847,7 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			item := orderbook.Item{
 				Price:  data[i].Price.Float64(),
 				Amount: data[i].Size,
-				ID:     int64(data[i].ID),
+				ID:     data[i].ID,
 			}
 
 			switch {

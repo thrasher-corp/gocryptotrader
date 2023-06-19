@@ -81,7 +81,6 @@ func (by *Bybit) WsUSDTConnect() error {
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-
 	return nil
 }
 
@@ -441,7 +440,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				HighPrice:  response.KlineData[i].High,
 				LowPrice:   response.KlineData[i].Low,
 				ClosePrice: response.KlineData[i].Close,
-				Volume:     response.KlineData[i].Volume.Float64(),
+				Volume:     response.KlineData[i].Volume,
 				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}

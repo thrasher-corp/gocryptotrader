@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -365,6 +366,23 @@ func BenchmarkStringToFloat64(b *testing.B) {
 		err := json.Unmarshal([]byte(`{"data":"0.00000001"}`), &resp)
 		if err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+// 4211751               259.9 ns/op            80 B/op          5 allocs/op
+func BenchmarkStringToFloat64Marshal(b *testing.B) {
+	resp := struct {
+		Data StringToFloat64 `json:"data"`
+	}{
+		Data: -0.00000001,
+	}
+	for i := 0; i < b.N; i++ {
+		val, err := json.Marshal(&resp)
+		if err != nil {
+			b.Fatal(err)
+		} else if !bytes.Equal(val, []byte(`{"data":"-0.00000001"}`)) {
+			b.Fatalf("expected %s, but found %s", `{"data":"-0.00000001"}`, string(val))
 		}
 	}
 }

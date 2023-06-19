@@ -966,7 +966,7 @@ type USDCRiskLimit struct {
 type USDCFundingInfo struct {
 	Symbol string                  `json:"symbol"`
 	Time   bybitTime               `json:"fundingRateTimestamp"`
-	Rate   convert.StringToFloat64 `json:"fundingRate,string"`
+	Rate   convert.StringToFloat64 `json:"fundingRate"`
 }
 
 // CFuturesTradingFeeRate stores trading fee rate
