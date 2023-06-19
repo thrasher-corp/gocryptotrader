@@ -971,3 +971,38 @@ func TestSettingsPrint(t *testing.T) {
 	s = &Settings{}
 	s.PrintLoadedSettings()
 }
+
+func TestGetDefaultConfigurations(t *testing.T) {
+	t.Parallel()
+
+	man := NewExchangeManager()
+	for x := range exchange.Exchanges {
+		target := exchange.Exchanges[x]
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+			exch, err := man.NewExchangeByName(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if isCITest() && common.StringDataContains(blockedCIExchanges, target) {
+				t.Skipf("skipping %s due to CI test restrictions", target)
+			}
+
+			cfg, err := exch.GetDefaultConfig(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if cfg == nil {
+				t.Fatal("expected config")
+			}
+		})
+	}
+}
+
+func isCITest() bool {
+	ci := os.Getenv("CI")
+	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+}
+

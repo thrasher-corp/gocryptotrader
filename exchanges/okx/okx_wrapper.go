@@ -43,13 +43,13 @@ func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = ok.BaseCurrencies
 
-	err := ok.Setup(exchCfg)
+	err := ok.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
 
 	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := ok.UpdateTradablePairs(ctx, false)
+		err = ok.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -373,8 +373,10 @@ func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 		Last:         mdata.LastTradePrice.Float64(),
 		High:         mdata.High24H.Float64(),
 		Low:          mdata.Low24H.Float64(),
-		Bid:          mdata.BidPrice.Float64(),
+		Bid:          mdata.BestBidPrice.Float64(),
+		BidSize:      mdata.BestBidSize.Float64(),
 		Ask:          mdata.BestAskPrice.Float64(),
+		AskSize:      mdata.BestAskSize.Float64(),
 		Volume:       baseVolume,
 		QuoteVolume:  quoteVolume,
 		Open:         mdata.Open24H.Float64(),
@@ -421,8 +423,10 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 				Last:         ticks[y].LastTradePrice.Float64(),
 				High:         ticks[y].High24H.Float64(),
 				Low:          ticks[y].Low24H.Float64(),
-				Bid:          ticks[y].BidPrice.Float64(),
+				Bid:          ticks[y].BestBidPrice.Float64(),
+				BidSize:      ticks[y].BestBidSize.Float64(),
 				Ask:          ticks[y].BestAskPrice.Float64(),
+				AskSize:      ticks[y].BestAskSize.Float64(),
 				Volume:       ticks[y].Vol24H.Float64(),
 				QuoteVolume:  ticks[y].VolCcy24H.Float64(),
 				Open:         ticks[y].Open24H.Float64(),
@@ -771,14 +775,26 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	} else {
 		sideType = order.Sell.Lower()
 	}
+
+	amount := s.Amount
+	var targetCurrency string
+	if s.AssetType == asset.Spot && s.Type == order.Market {
+		targetCurrency = "base_ccy" // Default to base currency
+		if s.QuoteAmount > 0 {
+			amount = s.QuoteAmount
+			targetCurrency = "quote_ccy"
+		}
+	}
+
 	var orderRequest = &PlaceOrderRequestParam{
 		InstrumentID:          instrumentID,
 		TradeMode:             tradeMode,
 		Side:                  sideType,
 		OrderType:             s.Type.Lower(),
-		Amount:                s.Amount,
+		Amount:                amount,
 		ClientSupplierOrderID: s.ClientOrderID,
 		Price:                 s.Price,
+		QuantityType:          targetCurrency,
 	}
 	switch s.Type.Lower() {
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
