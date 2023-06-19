@@ -26,6 +26,7 @@ var (
 	errPriceInvalid                  = errors.New("price invalid")
 	errAmountStepIncrementSizeIsZero = errors.New("amount step increment size is zero")
 	errQuoteStepIncrementSizeIsZero  = errors.New("quote step increment size is zero")
+	errNilOrderBuilder               = errors.New("order builder is nil")
 )
 
 // OrderAmounts represents the calculated amounts and values related to an order.
@@ -170,7 +171,7 @@ type OrderBuilder struct {
 //     will be checked against the minimum  and maximum order amounts for
 //     deployability.
 //  2. Fee calculations for the order. e.g. If a fee percentage is set and the
-//     exhange fee applies to the selling currency or purchased currency then
+//     exchange fee applies to the selling currency or purchased currency then
 //     amounts are adjusted to compensate for the fee. To ensure deployability.
 //  3. Order amounts. If you define an amount you want to sell or purchase
 //     the order builder will calculate the expected amount of currency to be
@@ -261,13 +262,11 @@ func (m *MarketOrder) FeeRate(f float64) MarketOptionsSetter {
 	return m
 }
 
-var ErrNilOrderBuilder = errors.New("order builder is nil")
-
 // validate will check the order builder values and return an error if values
 // are not set correctly.
 func (o *OrderBuilder) validate() error {
 	if o == nil {
-		return ErrNilOrderBuilder
+		return errNilOrderBuilder
 	}
 
 	if o.exch == nil {
@@ -362,11 +361,6 @@ func (o *OrderBuilder) PreAlloc() (Submitter, error) {
 		side = order.Sell
 	}
 
-	postOnly := false               // TODO: PostOnly option to be added to order builder
-	if o.orderType == order.Limit { // This is for future use.
-		postOnly = true
-	}
-
 	expectedPurchasedAmount, err := o.postOrderAdjustToPurchased(preOrderPrecisionAdjustedAmount, preOrderPrecisionAdjustedPrice)
 	if err != nil {
 		return nil, err
@@ -385,7 +379,6 @@ func (o *OrderBuilder) PreAlloc() (Submitter, error) {
 		AssetType: asset.Spot,
 		Type:      o.orderType,
 		Price:     preOrderPrecisionAdjustedPrice,
-		PostOnly:  postOnly,
 	}
 
 	o.preAllocateAmounts = &OrderAmounts{

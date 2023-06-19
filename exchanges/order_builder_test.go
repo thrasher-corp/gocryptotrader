@@ -111,8 +111,8 @@ func TestNewOrderBuilder(t *testing.T) {
 func TestValidate(t *testing.T) {
 	var builder *OrderBuilder
 	err := builder.validate()
-	if !errors.Is(err, ErrNilOrderBuilder) {
-		t.Fatalf("received: %v expected: %v", err, ErrNilOrderBuilder)
+	if !errors.Is(err, errNilOrderBuilder) {
+		t.Fatalf("received: %v expected: %v", err, errNilOrderBuilder)
 	}
 
 	builder = &OrderBuilder{}

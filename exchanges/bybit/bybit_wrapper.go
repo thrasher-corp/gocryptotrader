@@ -156,10 +156,10 @@ func (by *Bybit) SetDefaults() {
 	}
 
 	by.SubmissionConfig = order.SubmissionConfig{
-		OrderSellingAmountsRequired:           true,
-		FeeAppliedToPurchasedCurrency:         true,
-		RequiresParameterLimits:               true,
-		FeePostOrderRequiresPrecisionOnAmount: true,
+		OrderSellingAmountsRequired:           true, // Bybit requires selling amounts for market orders.
+		FeeAppliedToPurchasedCurrency:         true, // Bybit applies fees to the purchased currency for market orders.
+		RequiresParameterLimits:               true, // Bybit requires parameter limits to be set.
+		FeePostOrderRequiresPrecisionOnAmount: true, // Bybit requires precision on amount for post order fee calculation.
 	}
 
 	by.Requester, err = request.New(by.Name,
