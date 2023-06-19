@@ -194,22 +194,22 @@ func InterfaceToStringOrZeroValue(r interface{}) string {
 	return ""
 }
 
-// NullableFloat64 is a float64 that unmarshals from a string. This is useful for
-// APIs that return numbers as strings and return an empty string instead of
+// StringToFloat64 is a float64 that unmarshals from a string. This is useful
+// for APIs that return numbers as strings and return an empty string instead of
 // 0.
-type NullableFloat64 float64
+type StringToFloat64 float64
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 // This implementation is slightly more performant than calling json.Unmarshal
 // again.
-func (f *NullableFloat64) UnmarshalJSON(data []byte) error {
+func (f *StringToFloat64) UnmarshalJSON(data []byte) error {
 	if !bytes.HasPrefix(data, []byte(jsonStringIdent)) {
 		return fmt.Errorf("%w: %s", errUnhandledType, string(data))
 	}
 
 	data = data[1 : len(data)-1] // Remove quotes
 	if len(data) == 0 {
-		*f = NullableFloat64(0)
+		*f = StringToFloat64(0)
 		return nil
 	}
 
@@ -218,11 +218,11 @@ func (f *NullableFloat64) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*f = NullableFloat64(val)
+	*f = StringToFloat64(val)
 	return nil
 }
 
 // Float64 returns the float64 value of the FloatString.
-func (f *NullableFloat64) Float64() float64 {
+func (f *StringToFloat64) Float64() float64 {
 	return float64(*f)
 }

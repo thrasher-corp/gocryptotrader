@@ -1,6 +1,11 @@
 package sharedtestvalues
 
 import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -102,4 +107,43 @@ func SkipTestIfCannotManipulateOrders(t *testing.T, exch exchange.IBotExchange, 
 // AreAPICredentialsSet returns if the API credentials are set.
 func AreAPICredentialsSet(exch exchange.IBotExchange) bool {
 	return exch.VerifyAPICredentials(exch.GetDefaultCredentials()) == nil
+}
+
+// EmptyStringPotentialPattern is a regular expression pattern for a potential
+// empty string into float64
+var EmptyStringPotentialPattern = `.*float64.*json:"[^"]*,string".*`
+
+// ForceFileStandard will check all files in the current directory for a regular
+// expression pattern. If the pattern is found the test will fail.
+func ForceFileStandard(t *testing.T, pattern string) error {
+	t.Helper()
+
+	r := regexp.MustCompile(pattern)
+
+	root := "." // Specify the root directory to start walking from
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && strings.HasSuffix(path, ".go") {
+			fileContents, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("Failed to read file: %v", err)
+			}
+
+			lines := bytes.Split(fileContents, []byte("\n"))
+			for x, line := range lines {
+				if r.Match(line) {
+					t.Errorf("File: %s line contains pattern [%s] match with [%s] at line %d", path, pattern, string(line), x+1)
+				}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to walk directory: %w", err)
+	}
+	return nil
 }

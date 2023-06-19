@@ -341,8 +341,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		limits[x] = order.MinMaxLevel{
 			Pair:                   pair,
 			Asset:                  a,
-			PriceStepIncrementSize: insts[x].TickSize.Float64(),
-			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+			PriceStepIncrementSize: insts[x].TickSize,
+			MinimumBaseAmount:      insts[x].MinimumOrderSize,
 		}
 	}
 
@@ -485,7 +485,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		return nil, errIncompleteCurrencyPair
 	}
 	instrumentID = format.Format(pair)
-	orderbookNew, err = ok.GetOrderBookDepth(ctx, instrumentID, 0)
+	orderbookNew, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)
 	if err != nil {
 		return book, err
 	}

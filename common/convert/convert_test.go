@@ -318,10 +318,10 @@ func TestInterfaceToStringOrZeroValue(t *testing.T) {
 	}
 }
 
-func TestNullableFloat64(t *testing.T) {
+func TestStringToFloat64(t *testing.T) {
 	t.Parallel()
 	resp := struct {
-		Data NullableFloat64 `json:"data"`
+		Data StringToFloat64 `json:"data"`
 	}{}
 
 	err := json.Unmarshal([]byte(`{"data":"0.00000001"}`), &resp)
@@ -356,9 +356,9 @@ func TestNullableFloat64(t *testing.T) {
 }
 
 // 2677173	       428.9 ns/op	     240 B/op	       5 allocs/op
-func BenchmarkXX(b *testing.B) {
+func BenchmarkStringToFloat64(b *testing.B) {
 	resp := struct {
-		Data NullableFloat64 `json:"data"`
+		Data StringToFloat64 `json:"data"`
 	}{}
 
 	for i := 0; i < b.N; i++ {

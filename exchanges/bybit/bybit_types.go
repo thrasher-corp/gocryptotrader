@@ -163,13 +163,13 @@ type PairData struct {
 	Alias             string                  `json:"alias"`
 	BaseCurrency      string                  `json:"baseCurrency"`
 	QuoteCurrency     string                  `json:"quoteCurrency"`
-	BasePrecision     convert.NullableFloat64 `json:"basePrecision"`
-	QuotePrecision    convert.NullableFloat64 `json:"quotePrecision"`
-	MinTradeQuantity  convert.NullableFloat64 `json:"minTradeQuantity"`
-	MinTradeAmount    convert.NullableFloat64 `json:"minTradeAmount"`
-	MinPricePrecision convert.NullableFloat64 `json:"minPricePrecision"`
-	MaxTradeQuantity  convert.NullableFloat64 `json:"maxTradeQuantity"`
-	MaxTradeAmount    convert.NullableFloat64 `json:"maxTradeAmount"`
+	BasePrecision     convert.StringToFloat64 `json:"basePrecision"`
+	QuotePrecision    convert.StringToFloat64 `json:"quotePrecision"`
+	MinTradeQuantity  convert.StringToFloat64 `json:"minTradeQuantity"`
+	MinTradeAmount    convert.StringToFloat64 `json:"minTradeAmount"`
+	MinPricePrecision convert.StringToFloat64 `json:"minPricePrecision"`
+	MaxTradeQuantity  convert.StringToFloat64 `json:"maxTradeQuantity"`
+	MaxTradeAmount    convert.StringToFloat64 `json:"maxTradeAmount"`
 	Category          int64                   `json:"category"`
 	ShowStatus        bool                    `json:"showStatus"`
 }
@@ -210,29 +210,29 @@ type KlineItem struct {
 type PriceChangeStats struct {
 	Time         bybitTimeMilliSec       `json:"time"`
 	Symbol       string                  `json:"symbol"`
-	BestBidPrice convert.NullableFloat64 `json:"bestBidPrice"`
-	BestAskPrice convert.NullableFloat64 `json:"bestAskPrice"`
-	LastPrice    convert.NullableFloat64 `json:"lastPrice"`
-	OpenPrice    convert.NullableFloat64 `json:"openPrice"`
-	HighPrice    convert.NullableFloat64 `json:"highPrice"`
-	LowPrice     convert.NullableFloat64 `json:"lowPrice"`
-	Volume       convert.NullableFloat64 `json:"volume"`
-	QuoteVolume  convert.NullableFloat64 `json:"quoteVolume"`
+	BestBidPrice convert.StringToFloat64 `json:"bestBidPrice"`
+	BestAskPrice convert.StringToFloat64 `json:"bestAskPrice"`
+	LastPrice    convert.StringToFloat64 `json:"lastPrice"`
+	OpenPrice    convert.StringToFloat64 `json:"openPrice"`
+	HighPrice    convert.StringToFloat64 `json:"highPrice"`
+	LowPrice     convert.StringToFloat64 `json:"lowPrice"`
+	Volume       convert.StringToFloat64 `json:"volume"`
+	QuoteVolume  convert.StringToFloat64 `json:"quoteVolume"`
 }
 
 // LastTradePrice contains price for last trade
 type LastTradePrice struct {
 	Symbol string                  `json:"symbol"`
-	Price  convert.NullableFloat64 `json:"price"`
+	Price  convert.StringToFloat64 `json:"price"`
 }
 
 // TickerData stores ticker data
 type TickerData struct {
 	Symbol      string                  `json:"symbol"`
-	BidPrice    convert.NullableFloat64 `json:"bidPrice"`
-	BidQuantity convert.NullableFloat64 `json:"bidQty"`
-	AskPrice    convert.NullableFloat64 `json:"askPrice"`
-	AskQuantity convert.NullableFloat64 `json:"askQty"`
+	BidPrice    convert.StringToFloat64 `json:"bidPrice"`
+	BidQuantity convert.StringToFloat64 `json:"bidQty"`
+	AskPrice    convert.StringToFloat64 `json:"askPrice"`
+	AskQuantity convert.StringToFloat64 `json:"askQty"`
 	Time        bybitTimeMilliSec       `json:"time"`
 }
 
@@ -275,15 +275,15 @@ type PlaceOrderResponse struct {
 	OrderLinkID string                  `json:"orderLinkId"`
 	Symbol      string                  `json:"symbol"`
 	Time        bybitTimeMilliSecStr    `json:"transactTime"`
-	Price       convert.NullableFloat64 `json:"price"`
-	Quantity    convert.NullableFloat64 `json:"origQty"`
+	Price       convert.StringToFloat64 `json:"price"`
+	Quantity    convert.StringToFloat64 `json:"origQty"`
 	TradeType   string                  `json:"type"`
 	Side        string                  `json:"side"`
 	Status      string                  `json:"status"`
 	TimeInForce string                  `json:"timeInForce"`
 	AccountID   string                  `json:"accountId"`
 	SymbolName  string                  `json:"symbolName"`
-	ExecutedQty convert.NullableFloat64 `json:"executedQty"`
+	ExecutedQty convert.StringToFloat64 `json:"executedQty"`
 }
 
 // QueryOrderResponse holds query order data
@@ -294,17 +294,17 @@ type QueryOrderResponse struct {
 	SymbolName          string                  `json:"symbolName"`
 	OrderLinkID         string                  `json:"orderLinkId"`
 	OrderID             string                  `json:"orderId"`
-	Price               convert.NullableFloat64 `json:"price"`
-	Quantity            convert.NullableFloat64 `json:"origQty"`
-	ExecutedQty         convert.NullableFloat64 `json:"executedQty"`
-	CummulativeQuoteQty convert.NullableFloat64 `json:"cummulativeQuoteQty"`
-	AveragePrice        convert.NullableFloat64 `json:"avgPrice"`
+	Price               convert.StringToFloat64 `json:"price"`
+	Quantity            convert.StringToFloat64 `json:"origQty"`
+	ExecutedQty         convert.StringToFloat64 `json:"executedQty"`
+	CummulativeQuoteQty convert.StringToFloat64 `json:"cummulativeQuoteQty"`
+	AveragePrice        convert.StringToFloat64 `json:"avgPrice"`
 	Status              string                  `json:"status"`
 	TimeInForce         string                  `json:"timeInForce"`
 	TradeType           string                  `json:"type"`
 	Side                string                  `json:"side"`
-	StopPrice           convert.NullableFloat64 `json:"stopPrice"`
-	IcebergQty          convert.NullableFloat64 `json:"icebergQty"`
+	StopPrice           convert.StringToFloat64 `json:"stopPrice"`
+	IcebergQty          convert.StringToFloat64 `json:"icebergQty"`
 	Time                bybitTimeMilliSecStr    `json:"time"`
 	UpdateTime          bybitTimeMilliSecStr    `json:"updateTime"`
 	IsWorking           bool                    `json:"isWorking"`
@@ -318,9 +318,9 @@ type CancelOrderResponse struct {
 	Status      string                  `json:"status"`
 	AccountID   string                  `json:"accountId"`
 	Time        bybitTimeMilliSecStr    `json:"transactTime"`
-	Price       convert.NullableFloat64 `json:"price"`
-	Quantity    convert.NullableFloat64 `json:"origQty"`
-	ExecutedQty convert.NullableFloat64 `json:"executedQty"`
+	Price       convert.StringToFloat64 `json:"price"`
+	Quantity    convert.StringToFloat64 `json:"origQty"`
+	ExecutedQty convert.StringToFloat64 `json:"executedQty"`
 	TimeInForce string                  `json:"timeInForce"`
 	TradeType   string                  `json:"type"`
 	Side        string                  `json:"side"`
@@ -332,10 +332,10 @@ type HistoricalTrade struct {
 	ID              string                  `json:"id"`
 	OrderID         string                  `json:"orderId"`
 	TicketID        string                  `json:"ticketId"`
-	Price           convert.NullableFloat64 `json:"price"`
-	Quantity        convert.NullableFloat64 `json:"qty"`
-	Commission      convert.NullableFloat64 `json:"commission"`
-	CommissionAsset convert.NullableFloat64 `json:"commissionAsset"`
+	Price           convert.StringToFloat64 `json:"price"`
+	Quantity        convert.StringToFloat64 `json:"qty"`
+	Commission      convert.StringToFloat64 `json:"commission"`
+	CommissionAsset convert.StringToFloat64 `json:"commissionAsset"`
 	Time            bybitTimeMilliSecStr    `json:"time"`
 	IsBuyer         bool                    `json:"isBuyer"`
 	IsMaker         bool                    `json:"isMaker"`
@@ -343,15 +343,15 @@ type HistoricalTrade struct {
 	MatchOrderID    string                  `json:"matchOrderId"`
 	Fee             FeeData                 `json:"fee"`
 	FeeTokenID      string                  `json:"feeTokenId"`
-	FeeAmount       convert.NullableFloat64 `json:"feeAmount"`
-	MakerRebate     convert.NullableFloat64 `json:"makerRebate"`
+	FeeAmount       convert.StringToFloat64 `json:"feeAmount"`
+	MakerRebate     convert.StringToFloat64 `json:"makerRebate"`
 }
 
 // FeeData store fees data
 type FeeData struct {
 	FeeTokenID   int64                   `json:"feeTokenId"`
 	FeeTokenName string                  `json:"feeTokenName"`
-	Fee          convert.NullableFloat64 `json:"fee"`
+	Fee          convert.StringToFloat64 `json:"fee"`
 }
 
 // Balance holds wallet balance
@@ -359,9 +359,9 @@ type Balance struct {
 	Coin     string                  `json:"coin"`
 	CoinID   string                  `json:"coinId"`
 	CoinName string                  `json:"coinName"`
-	Total    convert.NullableFloat64 `json:"total"`
-	Free     convert.NullableFloat64 `json:"free"`
-	Locked   convert.NullableFloat64 `json:"locked"`
+	Total    convert.StringToFloat64 `json:"total"`
+	Free     convert.StringToFloat64 `json:"free"`
+	Locked   convert.StringToFloat64 `json:"locked"`
 }
 
 type orderbookResponse struct {
@@ -419,10 +419,10 @@ type WsParams struct {
 // WsSpotTickerData stores ws ticker data
 type WsSpotTickerData struct {
 	Symbol  string                  `json:"symbol"`
-	Bid     convert.NullableFloat64 `json:"bidPrice"`
-	Ask     convert.NullableFloat64 `json:"askPrice"`
-	BidSize convert.NullableFloat64 `json:"bidQty"`
-	AskSize convert.NullableFloat64 `json:"askQty"`
+	Bid     convert.StringToFloat64 `json:"bidPrice"`
+	Ask     convert.StringToFloat64 `json:"askPrice"`
+	BidSize convert.StringToFloat64 `json:"bidQty"`
+	AskSize convert.StringToFloat64 `json:"askQty"`
 	Time    bybitTimeMilliSec       `json:"time"`
 }
 
@@ -437,11 +437,11 @@ type WsSpotTicker struct {
 type KlineStreamData struct {
 	StartTime  bybitTimeMilliSec       `json:"t"`
 	Symbol     string                  `json:"s"`
-	ClosePrice convert.NullableFloat64 `json:"c"`
-	HighPrice  convert.NullableFloat64 `json:"h"`
-	LowPrice   convert.NullableFloat64 `json:"l"`
-	OpenPrice  convert.NullableFloat64 `json:"o"`
-	Volume     convert.NullableFloat64 `json:"v"`
+	ClosePrice convert.StringToFloat64 `json:"c"`
+	HighPrice  convert.StringToFloat64 `json:"h"`
+	LowPrice   convert.StringToFloat64 `json:"l"`
+	OpenPrice  convert.StringToFloat64 `json:"o"`
+	Volume     convert.StringToFloat64 `json:"v"`
 }
 
 // KlineStream holds the kline stream data
@@ -471,8 +471,8 @@ type WsOrderbook struct {
 type WsTradeData struct {
 	Time  bybitTimeMilliSec       `json:"t"`
 	ID    string                  `json:"v"`
-	Price convert.NullableFloat64 `json:"p"`
-	Size  convert.NullableFloat64 `json:"q"`
+	Price convert.StringToFloat64 `json:"p"`
+	Size  convert.StringToFloat64 `json:"q"`
 	Side  bool                    `json:"m"`
 }
 
@@ -496,8 +496,8 @@ type wsAccount struct {
 // Currencies stores currencies data
 type Currencies struct {
 	Asset     string                  `json:"a"`
-	Available convert.NullableFloat64 `json:"f"`
-	Locked    convert.NullableFloat64 `json:"l"`
+	Available convert.StringToFloat64 `json:"f"`
+	Locked    convert.StringToFloat64 `json:"l"`
 }
 
 // wsOrderUpdate defines websocket account order update data
@@ -509,24 +509,24 @@ type wsOrderUpdate struct {
 	Side                              string                  `json:"S"`
 	OrderType                         string                  `json:"o"`
 	TimeInForce                       string                  `json:"f"`
-	Quantity                          convert.NullableFloat64 `json:"q"`
-	Price                             convert.NullableFloat64 `json:"p"`
+	Quantity                          convert.StringToFloat64 `json:"q"`
+	Price                             convert.StringToFloat64 `json:"p"`
 	OrderStatus                       string                  `json:"X"`
 	OrderID                           string                  `json:"i"`
 	OpponentOrderID                   string                  `json:"M"`
-	LastExecutedQuantity              convert.NullableFloat64 `json:"l"`
-	CumulativeFilledQuantity          convert.NullableFloat64 `json:"z"`
-	LastExecutedPrice                 convert.NullableFloat64 `json:"L"`
-	Commission                        convert.NullableFloat64 `json:"n"`
+	LastExecutedQuantity              convert.StringToFloat64 `json:"l"`
+	CumulativeFilledQuantity          convert.StringToFloat64 `json:"z"`
+	LastExecutedPrice                 convert.StringToFloat64 `json:"L"`
+	Commission                        convert.StringToFloat64 `json:"n"`
 	CommissionAsset                   string                  `json:"N"`
 	IsNormal                          bool                    `json:"u"`
 	IsOnOrderBook                     bool                    `json:"w"`
 	IsLimitMaker                      bool                    `json:"m"`
 	OrderCreationTime                 bybitTimeMilliSecStr    `json:"O"`
-	CumulativeQuoteTransactedQuantity convert.NullableFloat64 `json:"Z"`
+	CumulativeQuoteTransactedQuantity convert.StringToFloat64 `json:"Z"`
 	AccountID                         string                  `json:"A"`
 	IsClose                           bool                    `json:"C"`
-	Leverage                          convert.NullableFloat64 `json:"v"`
+	Leverage                          convert.StringToFloat64 `json:"v"`
 }
 
 // wsOrderFilled defines websocket account order filled data
@@ -534,9 +534,9 @@ type wsOrderFilled struct {
 	EventType         string                  `json:"e"`
 	EventTime         string                  `json:"E"`
 	Symbol            string                  `json:"s"`
-	Quantity          convert.NullableFloat64 `json:"q"`
+	Quantity          convert.StringToFloat64 `json:"q"`
 	Timestamp         bybitTimeMilliSecStr    `json:"t"`
-	Price             convert.NullableFloat64 `json:"p"`
+	Price             convert.StringToFloat64 `json:"p"`
 	TradeID           string                  `json:"T"`
 	OrderID           string                  `json:"o"`
 	UserGenOrderID    string                  `json:"c"`
@@ -549,7 +549,7 @@ type wsOrderFilled struct {
 
 // WsFuturesOrderbookData stores ws futures orderbook data
 type WsFuturesOrderbookData struct {
-	Price  convert.NullableFloat64 `json:"price"`
+	Price  convert.StringToFloat64 `json:"price"`
 	Symbol string                  `json:"symbol"`
 	ID     int64                   `json:"id"`
 	Side   string                  `json:"side"`
@@ -638,18 +638,18 @@ type WsInsurance struct {
 type WsTickerData struct {
 	ID                    string                  `json:"id"`
 	Symbol                string                  `json:"symbol"`
-	LastPrice             convert.NullableFloat64 `json:"last_price"`
+	LastPrice             convert.StringToFloat64 `json:"last_price"`
 	BidPrice              float64                 `json:"bid1_price"`
 	AskPrice              float64                 `json:"ask1_price"`
 	LastDirection         string                  `json:"last_tick_direction"`
-	PrevPrice24h          convert.NullableFloat64 `json:"prev_price_24h"`
+	PrevPrice24h          convert.StringToFloat64 `json:"prev_price_24h"`
 	Price24hPercentChange float64                 `json:"price_24h_pcnt_e6"`
 	Price1hPercentChange  float64                 `json:"price_1h_pcnt_e6"`
-	HighPrice24h          convert.NullableFloat64 `json:"high_price_24h"`
-	LowPrice24h           convert.NullableFloat64 `json:"low_price_24h"`
-	PrevPrice1h           convert.NullableFloat64 `json:"prev_price_1h"`
-	MarkPrice             convert.NullableFloat64 `json:"mark_price"`
-	IndexPrice            convert.NullableFloat64 `json:"index_price"`
+	HighPrice24h          convert.StringToFloat64 `json:"high_price_24h"`
+	LowPrice24h           convert.StringToFloat64 `json:"low_price_24h"`
+	PrevPrice1h           convert.StringToFloat64 `json:"prev_price_1h"`
+	MarkPrice             convert.StringToFloat64 `json:"mark_price"`
+	IndexPrice            convert.StringToFloat64 `json:"index_price"`
 	OpenInterest          float64                 `json:"open_interest"`
 	OpenValue             float64                 `json:"open_value_e8"`
 	TotalTurnOver         float64                 `json:"total_turnover_e8"`
@@ -698,18 +698,18 @@ type WsFuturesTickerData struct {
 	SettleFeeRate         int64                   `json:"settle_fee_rate_e8"`
 	ContractStatus        string                  `json:"contract_status"`
 	SystemSubsidy         int64                   `json:"system_subsidy_e8"`
-	LastPrice             convert.NullableFloat64 `json:"last_price"`
+	LastPrice             convert.StringToFloat64 `json:"last_price"`
 	BidPrice              float64                 `json:"bid1_price"`
 	AskPrice              float64                 `json:"ask1_price"`
 	LastDirection         string                  `json:"last_tick_direction"`
-	PrevPrice24h          convert.NullableFloat64 `json:"prev_price_24h"`
+	PrevPrice24h          convert.StringToFloat64 `json:"prev_price_24h"`
 	Price24hPercentChange float64                 `json:"price_24h_pcnt_e6"`
 	Price1hPercentChange  float64                 `json:"price_1h_pcnt_e6"`
-	HighPrice24h          convert.NullableFloat64 `json:"high_price_24h"`
-	LowPrice24h           convert.NullableFloat64 `json:"low_price_24h"`
-	PrevPrice1h           convert.NullableFloat64 `json:"prev_price_1h"`
-	MarkPrice             convert.NullableFloat64 `json:"mark_price"`
-	IndexPrice            convert.NullableFloat64 `json:"index_price"`
+	HighPrice24h          convert.StringToFloat64 `json:"high_price_24h"`
+	LowPrice24h           convert.StringToFloat64 `json:"low_price_24h"`
+	PrevPrice1h           convert.StringToFloat64 `json:"prev_price_1h"`
+	MarkPrice             convert.StringToFloat64 `json:"mark_price"`
+	IndexPrice            convert.StringToFloat64 `json:"index_price"`
 	OpenInterest          float64                 `json:"open_interest"`
 	OpenValue             float64                 `json:"open_value_e8"`
 	TotalTurnOver         float64                 `json:"total_turnover_e8"`
@@ -719,7 +719,7 @@ type WsFuturesTickerData struct {
 	FairBasis             float64                 `json:"fair_basis_e8"`
 	FairBasisRate         float64                 `json:"fair_basis_rate_e8"`
 	BasisInYear           float64                 `json:"basis_in_year_e8"`
-	ExpectPrice           convert.NullableFloat64 `json:"expect_price"`
+	ExpectPrice           convert.StringToFloat64 `json:"expect_price"`
 	CreatedAt             time.Time               `json:"created_at"`
 	UpdateAt              time.Time               `json:"updated_at"`
 }
@@ -745,7 +745,7 @@ type WsDeltaFuturesTicker struct {
 type WsLiquidationData struct {
 	Symbol    string                  `json:"symbol"`
 	Side      string                  `json:"side"`
-	Price     convert.NullableFloat64 `json:"price"`
+	Price     convert.StringToFloat64 `json:"price"`
 	Qty       float64                 `json:"qty"`
 	Timestamp bybitTimeMilliSec       `json:"time"`
 }
@@ -765,27 +765,27 @@ type WsFuturesPositionData struct {
 	PositionID          int64                   `json:"position_idx"` // present in Futures position struct only
 	Mode                int64                   `json:"mode"`         // present in Futures position struct only
 	Isolated            bool                    `json:"isolated"`     // present in Futures position struct only
-	PositionValue       convert.NullableFloat64 `json:"position_value"`
-	EntryPrice          convert.NullableFloat64 `json:"entry_price"`
-	LiquidPrice         convert.NullableFloat64 `json:"liq_price"`
-	BustPrice           convert.NullableFloat64 `json:"bust_price"`
-	Leverage            convert.NullableFloat64 `json:"leverage"`
-	OrderMargin         convert.NullableFloat64 `json:"order_margin"`
-	PositionMargin      convert.NullableFloat64 `json:"position_margin"`
-	AvailableBalance    convert.NullableFloat64 `json:"available_balance"`
-	TakeProfit          convert.NullableFloat64 `json:"take_profit"`
+	PositionValue       convert.StringToFloat64 `json:"position_value"`
+	EntryPrice          convert.StringToFloat64 `json:"entry_price"`
+	LiquidPrice         convert.StringToFloat64 `json:"liq_price"`
+	BustPrice           convert.StringToFloat64 `json:"bust_price"`
+	Leverage            convert.StringToFloat64 `json:"leverage"`
+	OrderMargin         convert.StringToFloat64 `json:"order_margin"`
+	PositionMargin      convert.StringToFloat64 `json:"position_margin"`
+	AvailableBalance    convert.StringToFloat64 `json:"available_balance"`
+	TakeProfit          convert.StringToFloat64 `json:"take_profit"`
 	TakeProfitTriggerBy string                  `json:"tp_trigger_by"`
-	StopLoss            convert.NullableFloat64 `json:"stop_loss"`
+	StopLoss            convert.StringToFloat64 `json:"stop_loss"`
 	StopLossTriggerBy   string                  `json:"sl_trigger_by"`
-	RealisedPNL         convert.NullableFloat64 `json:"realised_pnl"`
-	TrailingStop        convert.NullableFloat64 `json:"trailing_stop"`
-	TrailingActive      convert.NullableFloat64 `json:"trailing_active"`
-	WalletBalance       convert.NullableFloat64 `json:"wallet_balance"`
+	RealisedPNL         convert.StringToFloat64 `json:"realised_pnl"`
+	TrailingStop        convert.StringToFloat64 `json:"trailing_stop"`
+	TrailingActive      convert.StringToFloat64 `json:"trailing_active"`
+	WalletBalance       convert.StringToFloat64 `json:"wallet_balance"`
 	RiskID              int64                   `json:"risk_id"`
-	ClosingFee          convert.NullableFloat64 `json:"occ_closing_fee"`
-	FundingFee          convert.NullableFloat64 `json:"occ_funding_fee"`
+	ClosingFee          convert.StringToFloat64 `json:"occ_closing_fee"`
+	FundingFee          convert.StringToFloat64 `json:"occ_funding_fee"`
 	AutoAddMargin       int64                   `json:"auto_add_margin"`
-	TotalPNL            convert.NullableFloat64 `json:"cum_realised_pnl"`
+	TotalPNL            convert.StringToFloat64 `json:"cum_realised_pnl"`
 	Status              string                  `json:"position_status"`
 	Version             int64                   `json:"position_seq"`
 }
@@ -804,11 +804,11 @@ type WsFuturesExecutionData struct {
 	OrderID       string                  `json:"order_id"`
 	ExecutionID   string                  `json:"exec_id"`
 	OrderLinkID   string                  `json:"order_link_id"`
-	Price         convert.NullableFloat64 `json:"price"`
+	Price         convert.StringToFloat64 `json:"price"`
 	OrderQty      float64                 `json:"order_qty"`
 	ExecutionType string                  `json:"exec_type"`
 	ExecutionQty  float64                 `json:"exec_qty"`
-	ExecutionFee  convert.NullableFloat64 `json:"exec_fee"`
+	ExecutionFee  convert.StringToFloat64 `json:"exec_fee"`
 	LeavesQty     float64                 `json:"leaves_qty"`
 	IsMaker       bool                    `json:"is_maker"`
 	Time          time.Time               `json:"trade_time"`
@@ -827,7 +827,7 @@ type WsOrderData struct {
 	Symbol               string                  `json:"symbol"`
 	Side                 string                  `json:"side"`
 	OrderType            string                  `json:"order_type"`
-	Price                convert.NullableFloat64 `json:"price"`
+	Price                convert.StringToFloat64 `json:"price"`
 	OrderQty             float64                 `json:"qty"`
 	TimeInForce          string                  `json:"time_in_force"`
 	CreateType           string                  `json:"create_type"`
@@ -835,13 +835,13 @@ type WsOrderData struct {
 	OrderStatus          string                  `json:"order_status"`
 	LeavesQty            float64                 `json:"leaves_qty"`
 	CummulativeExecQty   float64                 `json:"cum_exec_qty"`
-	CummulativeExecValue convert.NullableFloat64 `json:"cum_exec_value"`
-	CummulativeExecFee   convert.NullableFloat64 `json:"cum_exec_fee"`
-	TakeProfit           convert.NullableFloat64 `json:"take_profit"`
-	StopLoss             convert.NullableFloat64 `json:"stop_loss"`
-	TrailingStop         convert.NullableFloat64 `json:"trailing_stop"`
-	TrailingActive       convert.NullableFloat64 `json:"trailing_active"`
-	LastExecPrice        convert.NullableFloat64 `json:"last_exec_price"`
+	CummulativeExecValue convert.StringToFloat64 `json:"cum_exec_value"`
+	CummulativeExecFee   convert.StringToFloat64 `json:"cum_exec_fee"`
+	TakeProfit           convert.StringToFloat64 `json:"take_profit"`
+	StopLoss             convert.StringToFloat64 `json:"stop_loss"`
+	TrailingStop         convert.StringToFloat64 `json:"trailing_stop"`
+	TrailingActive       convert.StringToFloat64 `json:"trailing_active"`
+	LastExecPrice        convert.StringToFloat64 `json:"last_exec_price"`
 	ReduceOnly           bool                    `json:"reduce_only"`
 	CloseOnTrigger       bool                    `json:"close_on_trigger"`
 	Time                 time.Time               `json:"timestamp"`   // present in CoinMarginedFutures and Futures only
@@ -863,7 +863,7 @@ type WsStopOrderData struct {
 	Symbol         string                  `json:"symbol"`
 	Side           string                  `json:"side"`
 	OrderType      string                  `json:"order_type"`
-	Price          convert.NullableFloat64 `json:"price"`
+	Price          convert.StringToFloat64 `json:"price"`
 	OrderQty       float64                 `json:"qty"`
 	TimeInForce    string                  `json:"time_in_force"`
 	CreateType     string                  `json:"create_type"`
@@ -871,7 +871,7 @@ type WsStopOrderData struct {
 	OrderStatus    string                  `json:"order_status"`
 	StopOrderType  string                  `json:"stop_order_type"`
 	TriggerBy      string                  `json:"trigger_by"`
-	TriggerPrice   convert.NullableFloat64 `json:"trigger_price"`
+	TriggerPrice   convert.StringToFloat64 `json:"trigger_price"`
 	Time           time.Time               `json:"timestamp"`
 	CloseOnTrigger bool                    `json:"close_on_trigger"`
 }
@@ -890,13 +890,13 @@ type WsUSDTStopOrderData struct {
 	Symbol         string                  `json:"symbol"`
 	Side           string                  `json:"side"`
 	OrderType      string                  `json:"order_type"`
-	Price          convert.NullableFloat64 `json:"price"`
+	Price          convert.StringToFloat64 `json:"price"`
 	OrderQty       float64                 `json:"qty"`
 	TimeInForce    string                  `json:"time_in_force"`
 	OrderStatus    string                  `json:"order_status"`
 	StopOrderType  string                  `json:"stop_order_type"`
 	TriggerBy      string                  `json:"trigger_by"`
-	TriggerPrice   convert.NullableFloat64 `json:"trigger_price"`
+	TriggerPrice   convert.StringToFloat64 `json:"trigger_price"`
 	ReduceOnly     bool                    `json:"reduce_only"`
 	CloseOnTrigger bool                    `json:"close_on_trigger"`
 	CreateTime     time.Time               `json:"create_time"`
@@ -923,24 +923,65 @@ type WsFuturesWallet struct {
 
 // Ticker holds ticker information
 type Ticker struct {
+	// Spot fields
 	Symbol            string                  `json:"symbol"`
-	TopBidPrice       convert.NullableFloat64 `json:"bid1Price"`
-	TopBidSize        convert.NullableFloat64 `json:"bid1Size"`
-	TopAskPrice       convert.NullableFloat64 `json:"ask1Price"`
-	TopAskSize        convert.NullableFloat64 `json:"ask1Size"`
-	LastPrice         convert.NullableFloat64 `json:"lastPrice"`
-	PreviousPrice24Hr convert.NullableFloat64 `json:"prevPrice24h"`
-	Price24HrPcnt     convert.NullableFloat64 `json:"price24hPcnt"`
-	HighPrice24Hr     convert.NullableFloat64 `json:"highPrice24h"`
-	LowPrice24Hr      convert.NullableFloat64 `json:"lowPrice24h"`
-	Turnover24Hr      convert.NullableFloat64 `json:"turnover24h"`
-	Volume24Hr        convert.NullableFloat64 `json:"volume24h"`
-	USDIndexPrice     convert.NullableFloat64 `json:"usdIndexPrice"`
+	TopBidPrice       convert.StringToFloat64 `json:"bid1Price"`
+	TopBidSize        convert.StringToFloat64 `json:"bid1Size"`
+	TopAskPrice       convert.StringToFloat64 `json:"ask1Price"`
+	TopAskSize        convert.StringToFloat64 `json:"ask1Size"`
+	LastPrice         convert.StringToFloat64 `json:"lastPrice"`
+	PreviousPrice24Hr convert.StringToFloat64 `json:"prevPrice24h"`
+	Price24HrPcnt     convert.StringToFloat64 `json:"price24hPcnt"`
+	HighPrice24Hr     convert.StringToFloat64 `json:"highPrice24h"`
+	LowPrice24Hr      convert.StringToFloat64 `json:"lowPrice24h"`
+	Turnover24Hr      convert.StringToFloat64 `json:"turnover24h"`
+	Volume24Hr        convert.StringToFloat64 `json:"volume24h"`
+	USDIndexPrice     convert.StringToFloat64 `json:"usdIndexPrice"`
+
+	// Option fields
+	TopBidImpliedVolatility convert.StringToFloat64 `json:"bid1Iv"`
+	TopAskImpliedVolatility convert.StringToFloat64 `json:"ask1Iv"`
+	MarkPrice               convert.StringToFloat64 `json:"markPrice"`
+	IndexPrice              convert.StringToFloat64 `json:"indexPrice"`
+	MarkImpliedVolatility   convert.StringToFloat64 `json:"markIv"`
+	UnderlyingPrice         convert.StringToFloat64 `json:"underlyingPrice"`
+	OpenInterest            convert.StringToFloat64 `json:"openInterest"`
+	TotalVolume             convert.StringToFloat64 `json:"totalVolume"`
+	TotalTurnover           convert.StringToFloat64 `json:"totalTurnover"`
+	Delta                   convert.StringToFloat64 `json:"delta"`
+	Gamma                   convert.StringToFloat64 `json:"gamma"`
+	Vega                    convert.StringToFloat64 `json:"vega"`
+	Theta                   convert.StringToFloat64 `json:"theta"`
+	PredictedDeliveryPrice  convert.StringToFloat64 `json:"predictedDeliveryPrice"`
+	Change24h               convert.StringToFloat64 `json:"change24h"`
+
+	// Inverse/linear  fields
+	PrevPrice1h       convert.StringToFloat64 `json:"prevPrice1h"`
+	OpenInterestValue convert.StringToFloat64 `json:"openInterestValue"`
+	FundingRate       convert.StringToFloat64 `json:"fundingRate"`
+	NextFundingTime   convert.StringToFloat64 `json:"nextFundingTime"`
+	BasisRate         convert.StringToFloat64 `json:"basisRate"`
+	DeliveryFeeRate   convert.StringToFloat64 `json:"deliveryFeeRate"`
+	DeliveryTime      convert.StringToFloat64 `json:"deliveryTime"`
+	Basis             convert.StringToFloat64 `json:"basis"`
 }
 
 // Fee holds fee information
 type Fee struct {
-	Symbol string                  `json:"symbol"`
-	Taker  convert.NullableFloat64 `json:"takerFeeRate"`
-	Maker  convert.NullableFloat64 `json:"makerFeeRate"`
+	BaseCoin string                  `json:"baseCoin"`
+	Symbol   string                  `json:"symbol"`
+	Taker    convert.StringToFloat64 `json:"takerFeeRate"`
+	Maker    convert.StringToFloat64 `json:"makerFeeRate"`
+}
+
+// AccountFee holds account fee information
+type AccountFee struct {
+	Category string `json:"category"`
+	List     []Fee  `json:"list"`
+}
+
+// ListOfTickers holds list of tickers
+type ListOfTickers struct {
+	Category string   `json:"category"`
+	List     []Ticker `json:"list"`
 }

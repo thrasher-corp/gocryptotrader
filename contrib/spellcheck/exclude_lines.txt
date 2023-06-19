@@ -14,6 +14,7 @@
 	currency.GARD:     100,
 	currency.DASHS:      0.01,
 	currency.ALIS:       0.05,
+	currency.MIS:        0.002,
 	const pressXToJSON = `[0,"bu",[4131.85,4131.85]]`
 	wsTradeExecuted                        = "te"
 	wsBalanceUpdate                        = "bu"

@@ -17,18 +17,19 @@ const (
 	futuresPublicInterval = time.Second
 	futuresRequestRate    = 50
 
-	spotPrivateInterval      = time.Second
-	spotPrivateRequestRate   = 20
-	futuresInterval          = time.Minute
-	futuresDefaultRateCount  = 100
-	futuresOrderRate         = 100
-	futuresOrderListRate     = 600
-	futuresExecutionRate     = 120
-	futuresPositionRateCount = 75
-	futuresPositionListRate  = 120
-	futuresFundingRate       = 120
-	futuresWalletRate        = 120
-	futuresAccountRate       = 600
+	spotPrivateInterval       = time.Second
+	spotPrivateRequestRate    = 20
+	spotPrivateFeeRequestRate = 10
+	futuresInterval           = time.Minute
+	futuresDefaultRateCount   = 100
+	futuresOrderRate          = 100
+	futuresOrderListRate      = 600
+	futuresExecutionRate      = 120
+	futuresPositionRateCount  = 75
+	futuresPositionListRate   = 120
+	futuresFundingRate        = 120
+	futuresWalletRate         = 120
+	futuresAccountRate        = 600
 
 	usdcPerpetualPublicRate    = 50
 	usdcPerpetualCancelAllRate = 1
@@ -40,7 +41,7 @@ const (
 	publicSpotRate request.EndpointLimit = iota
 	publicFuturesRate
 	privateSpotRate
-
+	privateFeeRate
 	cFuturesDefaultRate
 
 	cFuturesCancelActiveOrderRate
@@ -156,6 +157,7 @@ type RateLimit struct {
 	SpotRate                    *rate.Limiter
 	FuturesRate                 *rate.Limiter
 	PrivateSpotRate             *rate.Limiter
+	PrivateFeeRate              *rate.Limiter
 	CMFuturesDefaultRate        *rate.Limiter
 	CMFuturesOrderRate          *rate.Limiter
 	CMFuturesOrderListRate      *rate.Limiter
@@ -205,6 +207,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 1
 	case privateSpotRate:
 		limiter, tokens = r.PrivateSpotRate, 1
+	case privateFeeRate:
+		limiter, tokens = r.PrivateFeeRate, 1
 	case cFuturesDefaultRate:
 		limiter, tokens = r.CMFuturesDefaultRate, 1
 	case cFuturesCancelActiveOrderRate, cFuturesCreateConditionalOrderRate, cFuturesCancelConditionalOrderRate, cFuturesReplaceActiveOrderRate,
@@ -323,6 +327,7 @@ func SetRateLimit() *RateLimit {
 		SpotRate:                    request.NewRateLimit(spotInterval, spotRequestRate),
 		FuturesRate:                 request.NewRateLimit(futuresPublicInterval, futuresRequestRate),
 		PrivateSpotRate:             request.NewRateLimit(spotPrivateInterval, spotPrivateRequestRate),
+		PrivateFeeRate:              request.NewRateLimit(spotPrivateInterval, spotPrivateFeeRequestRate),
 		CMFuturesDefaultRate:        request.NewRateLimit(futuresInterval, futuresDefaultRateCount),
 		CMFuturesOrderRate:          request.NewRateLimit(futuresInterval, futuresOrderRate),
 		CMFuturesOrderListRate:      request.NewRateLimit(futuresInterval, futuresOrderListRate),

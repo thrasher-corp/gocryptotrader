@@ -1071,9 +1071,17 @@ func TestGetTradingFeeRate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err = b.GetTradingFeeRate(context.Background(), pair)
+	feeRate, err := b.GetTradingFeeRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
+	}
+
+	if feeRate.MakerFeeRate == 0 && feeRate.TakerFeeRate == 0 {
+		t.Error("expected fee rate")
+	}
+
+	if feeRate.UserID == 0 {
+		t.Error("expected user id")
 	}
 }
 
@@ -3352,12 +3360,33 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTickersV5(context.Background(), "spot", "")
+
+	_, err := b.GetTickersV5(context.Background(), "bruh", "", "")
+	if err != nil && err.Error() != "Illegal category" {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "option", "", "")
+	if !errors.Is(err, errBaseNotSet) {
+		t.Fatalf("expected: %v, received: %v", errBaseNotSet, err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "spot", "", "")
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetTickersV5(context.Background(), "spot", "BTCUSDT")
+	_, err = b.GetTickersV5(context.Background(), "option", "", "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "inverse", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetTickersV5(context.Background(), "linear", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -3366,8 +3395,12 @@ func TestGetTickersV5(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
-	// other assets not currently implemented.
-	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
+	}
+
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error("Okx UpdateOrderExecutionLimits() error", err)
 	}
@@ -3388,19 +3421,50 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestGetAccountFee(t *testing.T) {
+func TestGetFeeRate(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetAccountFee(context.Background(), "", "", "")
+	_, err := b.GetFeeRate(context.Background(), "", "", "")
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("received %v but expected %v", err, errCategoryNotSet)
 	}
 
+	_, err = b.GetFeeRate(context.Background(), "bruh", "", "")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("received %v but expected %v", err, errInvalidCategory)
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	_, err = b.GetAccountFee(context.Background(), "bruh", "", "bruh")
+	_, err = b.GetFeeRate(context.Background(), "spot", "", "")
 	if !errors.Is(err, nil) {
-		t.Fatalf("received %v but expected %v", err, nil)
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetFeeRate(context.Background(), "linear", "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetFeeRate(context.Background(), "inverse", "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+
+	_, err = b.GetFeeRate(context.Background(), "option", "", "ETH")
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v but expected %v", err, nil)
+	}
+}
+
+func TestForceFileStandard(t *testing.T) {
+	t.Parallel()
+	err := sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
+	if err != nil {
+		t.Error(err)
+	}
+	if t.Failed() {
+		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 	}
 }
 

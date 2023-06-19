@@ -62,7 +62,10 @@ const (
 	bybitWithdrawFund      = "/asset/v1/private/withdraw"
 )
 
-var errCategoryNotSet = errors.New("category not set")
+var (
+	errCategoryNotSet = errors.New("category not set")
+	errBaseNotSet     = errors.New("base coin not set when category is option")
+)
 
 // GetAllSpotPairs gets all pairs on the exchange
 func (by *Bybit) GetAllSpotPairs(ctx context.Context) ([]PairData, error) {
@@ -158,9 +161,9 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]TradeItem, error) {
 	resp := struct {
 		Data []struct {
-			Price        convert.NullableFloat64 `json:"price"`
+			Price        convert.StringToFloat64 `json:"price"`
 			Time         bybitTimeMilliSec       `json:"time"`
-			Quantity     convert.NullableFloat64 `json:"qty"`
+			Quantity     convert.StringToFloat64 `json:"qty"`
 			IsBuyerMaker bool                    `json:"isBuyerMaker"`
 		} `json:"result"`
 		Error
@@ -423,9 +426,13 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 
 // GetTickersV5 returns tickers for either "spot", "option" or "inverse".
 // Specific symbol is optional.
-func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol string) ([]Ticker, error) {
+func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol, baseCoin string) (*ListOfTickers, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
+	}
+
+	if category == "option" && baseCoin == "" {
+		return nil, errBaseNotSet
 	}
 
 	val := url.Values{}
@@ -435,19 +442,21 @@ func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol string) ([]T
 		val.Set("symbol", symbol)
 	}
 
+	if baseCoin != "" {
+		val.Set("baseCoin", baseCoin)
+	}
+
 	result := struct {
-		Data struct {
-			List []Ticker `json:"list"`
-		} `json:"result"`
+		Data *ListOfTickers `json:"result"`
 		Error
 	}{}
 
-	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitGetTickersV5+"/?"+val.Encode(), publicSpotRate, &result)
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitGetTickersV5+"?"+val.Encode(), publicSpotRate, &result)
 	if err != nil {
 		return nil, err
 	}
 
-	return result.Data.List, nil
+	return result.Data, nil
 }
 
 // CreatePostOrder create and post order
@@ -757,9 +766,9 @@ func (by *Bybit) WithdrawFund(ctx context.Context, coin, chain, address, tag, am
 	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, nil, params, &resp, privateSpotRate)
 }
 
-// GetAccountFee returns user account fee
+// GetFeeRate returns user account fee
 // Valid  category: "spot", "linear", "inverse", "option"
-func (by *Bybit) GetAccountFee(ctx context.Context, category, symbol, baseCoin string) ([]Fee, error) {
+func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	}
@@ -781,18 +790,16 @@ func (by *Bybit) GetAccountFee(ctx context.Context, category, symbol, baseCoin s
 	}
 
 	result := struct {
-		Data struct {
-			List []Fee `json:"list"`
-		} `json:"result"`
+		Data *AccountFee `json:"result"`
 		Error
 	}{}
 
-	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, &result, privateSpotRate)
+	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, bybitAccountFee, params, &result, privateFeeRate)
 	if err != nil {
 		return nil, err
 	}
 
-	return result.Data.List, nil
+	return result.Data, nil
 }
 
 // SendHTTPRequest sends an unauthenticated request
@@ -948,12 +955,12 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 
 // Error defines all error information for each request
 type Error struct {
-	ReturnCode     int64  `json:"ret_code"`
-	ReturnMsg      string `json:"ret_msg"`
-	ReturnCodeV5   int64  `json:"retCode"`
-	ReturnMesagev5 string `json:"retMsg"`
-	ExtCode        string `json:"ext_code"`
-	ExtMsg         string `json:"ext_info"`
+	ReturnCode      int64  `json:"ret_code"`
+	ReturnMsg       string `json:"ret_msg"`
+	ReturnCodeV5    int64  `json:"retCode"`
+	ReturnMessageV5 string `json:"retMsg"`
+	ExtCode         string `json:"ext_code"`
+	ExtMsg          string `json:"ext_info"`
 }
 
 // GetError checks and returns an error if it is supplied.
@@ -961,8 +968,8 @@ func (e *Error) GetError() error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
 		return errors.New(e.ReturnMsg)
 	}
-	if e.ReturnCodeV5 != 0 && e.ReturnMesagev5 != "" {
-		return errors.New(e.ReturnMesagev5)
+	if e.ReturnCodeV5 != 0 && e.ReturnMessageV5 != "" {
+		return errors.New(e.ReturnMessageV5)
 	}
 	if e.ExtCode != "" && e.ExtMsg != "" {
 		return errors.New(e.ExtMsg)

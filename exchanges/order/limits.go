@@ -52,6 +52,7 @@ var (
 	errCannotLoadLimit             = errors.New("cannot load limit, levels not supplied")
 	errInvalidPriceLevels          = errors.New("invalid price levels, cannot load limits")
 	errInvalidAmountLevels         = errors.New("invalid amount levels, cannot load limits")
+	errInvalidQuoteLevels          = errors.New("invalid quote levels, cannot load limits")
 )
 
 // ExecutionLimits defines minimum and maximum values in relation to
@@ -144,6 +145,17 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MaximumBaseAmount)
 		}
 
+		if levels[x].MinimumQuoteAmount > 0 &&
+			levels[x].MaximumQuoteAmount > 0 &&
+			levels[x].MinimumQuoteAmount > levels[x].MaximumQuoteAmount {
+			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
+				errInvalidQuoteLevels,
+				levels[x].Asset,
+				levels[x].Pair,
+				levels[x].MinimumQuoteAmount,
+				levels[x].MaximumQuoteAmount)
+		}
+
 		m2[levels[x].Pair.Quote.Item] = levels[x]
 	}
 	return nil
@@ -212,6 +224,7 @@ func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pa
 
 // Conforms checks outbound parameters
 func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
+	// TODO: Update to take in account Quote amounts as well as Base amounts.
 	if m == nil {
 		return nil
 	}
