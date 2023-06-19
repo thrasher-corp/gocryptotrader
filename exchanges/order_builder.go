@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -521,18 +520,18 @@ func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) 
 	switch {
 	case o.config.OrderBaseAmountsRequired:
 		if limits.AmountStepIncrementSize != 0 {
-			amount = AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
+			amount = math.AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
 		}
 		err = CheckAmounts(&limits, amount, false /*isQuote*/)
 	case o.config.OrderSellingAmountsRequired:
 		if o.orderParams.SellingCurrency.Equal(o.pair.Base) {
 			if limits.AmountStepIncrementSize != 0 {
-				amount = AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
+				amount = math.AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
 			}
 			err = CheckAmounts(&limits, amount, false /*isQuote*/)
 		} else {
 			if limits.QuoteStepIncrementSize != 0 {
-				amount = AdjustToFixedDecimal(amount, limits.QuoteStepIncrementSize)
+				amount = math.AdjustToFixedDecimal(amount, limits.QuoteStepIncrementSize)
 			}
 			err = CheckAmounts(&limits, amount, true /*isQuote*/)
 		}
@@ -546,7 +545,7 @@ func (o *OrderBuilder) orderAmountPriceAdjustToPrecision(amount, price float64) 
 	if o.orderType != order.Market && limits.PriceStepIncrementSize != 0 {
 		// Client inputted limit order price needs to be adjusted to the required
 		// precision.
-		price = AdjustToFixedDecimal(price, limits.PriceStepIncrementSize)
+		price = math.AdjustToFixedDecimal(price, limits.PriceStepIncrementSize)
 	}
 
 	return amount, price, nil
@@ -574,12 +573,12 @@ func (o *OrderBuilder) orderPurchasedAmountAdjustToPrecision(amount float64) (fl
 			if limits.AmountStepIncrementSize == 0 {
 				return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", errAmountStepIncrementSizeIsZero)
 			}
-			amount = AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
+			amount = math.AdjustToFixedDecimal(amount, limits.AmountStepIncrementSize)
 		} else {
 			if limits.QuoteStepIncrementSize == 0 {
 				return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", errQuoteStepIncrementSizeIsZero)
 			}
-			amount = AdjustToFixedDecimal(amount, limits.QuoteStepIncrementSize)
+			amount = math.AdjustToFixedDecimal(amount, limits.QuoteStepIncrementSize)
 		}
 	default:
 		return 0, fmt.Errorf("orderPurchasedAmountAdjustToPrecision %w", errSubmissionConfigInvalid)
@@ -610,18 +609,6 @@ func (o *OrderBuilder) postOrderAdjustToPurchased(amount, price float64) (float6
 	default:
 		return 0, fmt.Errorf("PostOrderAdjustToPurchased %w", errSubmissionConfigInvalid)
 	}
-}
-
-// AdjustToFixedDecimal adjusts the amount to the required precision. Uses
-// decimal package to ensure precision is maintained.
-// TODO: Shift to math package
-func AdjustToFixedDecimal(amount, precision float64) float64 {
-	decAmount := decimal.NewFromFloat(amount)
-	step := decimal.NewFromFloat(precision)
-	// derive modulus
-	mod := decAmount.Mod(step)
-	// subtract modulus to get floor
-	return decAmount.Sub(mod).InexactFloat64()
 }
 
 // CheckAmounts checks the amount against the limits.

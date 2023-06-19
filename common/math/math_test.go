@@ -937,3 +937,52 @@ func TestIncreaseByPercentage(t *testing.T) {
 		}
 	}
 }
+
+func TestAdjustToFixedDecimal(t *testing.T) {
+	t.Parallel()
+	amount1 := 10.5
+	precision1 := 0.1
+	expected1 := 10.5
+
+	result1 := AdjustToFixedDecimal(amount1, precision1)
+	if result1 != expected1 {
+		t.Errorf("AdjustToFixedDecimal(%f, %f) = %f; want %f", amount1, precision1, result1, expected1)
+	}
+
+	amount2 := 10.6
+	precision2 := 0.0001
+	expected2 := 10.6
+
+	result2 := AdjustToFixedDecimal(amount2, precision2)
+	if result2 != expected2 {
+		t.Errorf("AdjustToFixedDecimal(%f, %f) = %f; want %f", amount2, precision2, result2, expected2)
+	}
+
+	amount3 := 10.45000000111111
+	precision3 := 0.01
+	expected3 := 10.45
+
+	result3 := AdjustToFixedDecimal(amount3, precision3)
+	if result3 != expected3 {
+		t.Errorf("AdjustToFixedDecimal(%f, %f) = %f; want %f", amount3, precision3, result3, expected3)
+	}
+
+	amount4 := -15.90000000
+	precision4 := 0.1
+	expected4 := -15.9
+
+	result4 := AdjustToFixedDecimal(amount4, precision4)
+	if result4 != expected4 {
+		t.Errorf("AdjustToFixedDecimal(%f, %f) = %f; want %f", amount4, precision4, result4, expected4)
+	}
+
+	// Test case 5: Amount is zero
+	amount5 := 0.0000000000
+	precision5 := 0.01
+	expected5 := 0.0
+
+	result5 := AdjustToFixedDecimal(amount5, precision5)
+	if result5 != expected5 {
+		t.Errorf("AdjustToFixedDecimal(%f, %f) = %f; want %f", amount5, precision5, result5, expected5)
+	}
+}

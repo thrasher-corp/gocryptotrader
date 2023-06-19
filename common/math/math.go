@@ -493,3 +493,14 @@ func ReduceByPercentage(val, percentage float64) float64 {
 func IncreaseByPercentage(val, percentage float64) float64 {
 	return val * (1 + percentage/100)
 }
+
+// AdjustToFixedDecimal adjusts the amount to the required precision using the
+// decimal package to ensure precision is maintained.
+func AdjustToFixedDecimal(amount, precision float64) float64 {
+	decAmount := decimal.NewFromFloat(amount)
+	step := decimal.NewFromFloat(precision)
+	// Calculate the remainder (modulus)
+	mod := decAmount.Mod(step)
+	// Subtract the remainder from the amount to get the floor value
+	return decAmount.Sub(mod).InexactFloat64()
+}
