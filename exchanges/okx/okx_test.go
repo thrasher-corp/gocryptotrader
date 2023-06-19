@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -31,6 +32,7 @@ const (
 	apiSecret               = ""
 	passphrase              = ""
 	canManipulateRealOrders = false
+	useTestNet              = false
 )
 
 var ok = &Okx{}
@@ -53,16 +55,34 @@ func TestMain(m *testing.M) {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
 	}
-	ok.Websocket = sharedtestvalues.NewTestWebsocket()
+	if !useTestNet {
+		ok.Websocket = sharedtestvalues.NewTestWebsocket()
+	}
 	err = ok.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	request.MaxRequestJobs = 200
-	ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	setupWS()
+	if !useTestNet {
+		ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+		setupWS()
+	}
+	err = ok.UpdateTradablePairs(contextGenerate(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
+}
+
+// contextGenerate sends an optional value to allow test requests
+// named this way, so it shows up in auto-complete and reminds you to use it
+func contextGenerate() context.Context {
+	ctx := context.Background()
+	if useTestNet {
+		ctx = context.WithValue(ctx, testNetKey("testnet"), useTestNet)
+	}
+	return ctx
 }
 
 func TestStart(t *testing.T) {
@@ -3128,8 +3148,9 @@ func TestGetIntervalEnum(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
+	ok.Verbose = true
 	cp, _ := currency.NewPairFromString("BTC-USD-SWAP")
-	resp, err := ok.GetFundingRates(context.Background(), &order.FundingRatesRequest{
+	resp, err := ok.GetFundingRates(contextGenerate(), &fundingrates.RatesRequest{
 		Asset:                asset.PerpetualSwap,
 		Pair:                 cp,
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),

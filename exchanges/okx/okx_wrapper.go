@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -126,6 +127,10 @@ func (ok *Okx) SetDefaults() {
 				ModifyOrder:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates:              true,
+				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -1510,14 +1515,19 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 }
 
 // GetFundingRates returns funding rates for a given asset and currency for a time period
-func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest) (*order.FundingRates, error) {
+func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest) (*fundingrates.Rates, error) {
 	if r == nil {
-		return nil, fmt.Errorf("%w FundingRatesRequest", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
 	}
 	requestLimit := 100
 	sd := r.StartDate
-	maxLookback := time.Now().Add(-time.Hour * 24 * 30 * 3)
+	maxLookback := time.Now().Add(-ok.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
+		if r.AdhereToFundingRateLimits {
+			r.StartDate = maxLookback
+		} else {
+			return nil, fundingrates.ErrFundingRateOutsideLimits
+		}
 		if r.EndDate.Before(maxLookback) {
 			return nil, order.ErrGetFundingDataRequired
 		}
@@ -1528,7 +1538,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 		return nil, err
 	}
 	fPair := r.Pair.Format(format)
-	pairRate := order.FundingRates{
+	pairRate := fundingrates.Rates{
 		Exchange:  ok.Name,
 		Asset:     r.Asset,
 		Pair:      fPair,
@@ -1538,6 +1548,9 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 	// map of time indexes, allowing for easy lookup of slice index from unix time data
 	mti := make(map[int64]int)
 	for {
+		if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
+			break
+		}
 		var frh []FundingRateResponse
 		frh, err = ok.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
 		if err != nil {
@@ -1547,14 +1560,14 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 			if r.IncludePayments {
 				mti[frh[j].FundingTime.Time().Unix()] = j
 			}
-			pairRate.FundingRates = append(pairRate.FundingRates, order.FundingRate{
+			pairRate.FundingRates = append(pairRate.FundingRates, fundingrates.Rate{
 				Time: frh[j].FundingTime.Time(),
 				Rate: frh[j].FundingRate.Decimal(),
 			})
 		}
 		if len(frh) < requestLimit {
 			if r.IncludePredictedRate {
-				pairRate.PredictedUpcomingRate = order.FundingRate{
+				pairRate.PredictedUpcomingRate = fundingrates.Rate{
 					Time: frh[len(frh)-1].NextFundingTime.Time(),
 					Rate: frh[len(frh)-1].NextFundingRate.Decimal(),
 				}
@@ -1571,6 +1584,9 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest
 			billDetailsFunc = ok.GetBillsDetailLast7Days
 		}
 		for {
+			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
+				break
+			}
 			billDetails, err := billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
 				Currency:       fPair.String(),

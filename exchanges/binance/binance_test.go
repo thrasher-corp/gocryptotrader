@@ -2826,7 +2826,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
+	_, err := b.GetFundingRates(context.Background(), &fundingrates.RatesRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)},
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
@@ -2841,7 +2841,7 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFundingRates(context.Background(), &order.FundingRatesRequest{
+	_, err = b.GetFundingRates(context.Background(), &fundingrates.RatesRequest{
 		Asset:                asset.CoinMarginedFutures,
 		Pair:                 currency.Pairs{cp},
 		StartDate:            time.Now().Add(-time.Hour * 24 * 7),

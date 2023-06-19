@@ -164,12 +164,26 @@ type FeaturesEnabled struct {
 
 // FeaturesSupported stores the exchanges supported features
 type FeaturesSupported struct {
-	REST                  bool
-	RESTCapabilities      protocol.Features
-	Websocket             bool
-	WebsocketCapabilities protocol.Features
-	WithdrawPermissions   uint32
-	Kline                 kline.ExchangeCapabilitiesSupported
+	REST                       bool
+	RESTCapabilities           protocol.Features
+	Websocket                  bool
+	WebsocketCapabilities      protocol.Features
+	WithdrawPermissions        uint32
+	Kline                      kline.ExchangeCapabilitiesSupported
+	MaximumOrderHistory        time.Duration
+	FuturesCapabilities        FuturesCapabilities
+	OfflineFuturesCapabilities FuturesCapabilities
+}
+
+// FuturesCapabilities stores the exchange's futures capabilities
+type FuturesCapabilities struct {
+	FundingRates                 bool
+	MaximumFundingRateHistory    time.Duration
+	Positions                    bool
+	OrderManagerPositionTracking bool
+	Collateral                   bool
+	CollateralMode               bool
+	Leverage                     bool
 }
 
 // Endpoints stores running url endpoints for exchanges

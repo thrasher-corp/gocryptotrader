@@ -34,6 +34,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -4545,8 +4546,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if pos[i].Status == order.Closed {
 				endDate = pos[i].Orders[len(pos[i].Orders)-1].Date
 			}
-			var fundingDetails *order.FundingRates
-			fundingDetails, err = exch.GetFundingRates(ctx, &order.FundingRatesRequest{
+			var fundingDetails *fundingrates.Rates
+			fundingDetails, err = exch.GetFundingRates(ctx, &fundingrates.RatesRequest{
 				Asset:                pos[i].Asset,
 				Pair:                 pos[i].Pair,
 				StartDate:            pos[i].Orders[0].Date,
@@ -4687,7 +4688,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 			return nil, err
 		}
 	}
-	funding, err := exch.GetFundingRates(ctx, &order.FundingRatesRequest{
+	funding, err := exch.GetFundingRates(ctx, &fundingrates.RatesRequest{
 		Asset:                a,
 		Pair:                 pairs[0],
 		StartDate:            start,

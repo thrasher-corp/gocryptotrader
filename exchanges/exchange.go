@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1478,7 +1479,7 @@ func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest
 }
 
 // GetFundingPaymentDetails returns funding payment details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
+func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrates.RatesRequest) (*fundingrates.Rates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1488,7 +1489,7 @@ func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]
 }
 
 // GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
+func (b *Base) GetFundingRates(context.Context, *fundingrates.RatesRequest) (*fundingrates.Rates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

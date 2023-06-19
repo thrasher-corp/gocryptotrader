@@ -110,26 +110,26 @@ func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRe
 	return resp, nil
 }
 
-func (f fExchange) GetFundingRates(_ context.Context, request *order.FundingRatesRequest) (*order.FundingRates, error) {
+func (f fExchange) GetFundingRates(_ context.Context, request *fundingrates.RatesRequest) (*fundingrates.Rates, error) {
 	leet := decimal.NewFromInt(1337)
-	return []order.FundingRates{
+	return []fundingrates.Rates{
 		{
 			Exchange:  f.GetName(),
 			Asset:     request.Asset,
 			Pair:      request.Pair[0],
 			StartDate: request.StartDate,
 			EndDate:   request.EndDate,
-			LatestRate: order.FundingRate{
+			LatestRate: fundingrates.Rate{
 				Time:    request.EndDate,
 				Rate:    leet,
 				Payment: leet,
 			},
-			PredictedUpcomingRate: order.FundingRate{
+			PredictedUpcomingRate: fundingrates.Rate{
 				Time:    request.EndDate,
 				Rate:    leet,
 				Payment: leet,
 			},
-			FundingRates: []order.FundingRate{
+			FundingRates: []fundingrates.Rate{
 				{
 					Time:    request.EndDate,
 					Rate:    leet,

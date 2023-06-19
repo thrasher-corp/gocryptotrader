@@ -63,7 +63,12 @@ const (
 	operationLogin       = "login"
 )
 
-// Market Data Endoints
+// testNetKey this key is designed for using the testnet endpoints
+// setting context.WithValue(ctx, testNetKey("testnet"), useTestNet)
+// will ensure the appropriate headers are sent to OKx to use the testnet
+type testNetKey string
+
+// Market Data Endpoints
 
 // TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {

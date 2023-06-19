@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrates"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -162,6 +163,9 @@ func (b *Binance) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1914,13 +1918,19 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 }
 
 // GetFundingRates returns funding rates for a given asset and currency for a time period
-func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequest) (*order.FundingRates, error) {
+func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrates.RatesRequest) (*fundingrates.Rates, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
+	}
+	if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
+		return nil, err
+	}
 	format, err := b.GetPairFormat(r.Asset, true)
 	if err != nil {
 		return nil, err
 	}
 	fPair := r.Pair.Format(format)
-	pairRate := order.FundingRates{
+	pairRate := fundingrates.Rates{
 		Exchange:  b.Name,
 		Asset:     r.Asset,
 		Pair:      fPair,
@@ -1938,7 +1948,7 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 				return nil, err
 			}
 			for j := range frh {
-				pairRate.FundingRates = append(pairRate.FundingRates, order.FundingRate{
+				pairRate.FundingRates = append(pairRate.FundingRates, fundingrates.Rate{
 					Time: time.UnixMilli(frh[j].FundingTime),
 					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
@@ -1954,16 +1964,16 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 			if err != nil {
 				return nil, err
 			}
-			pairRate.LatestRate = order.FundingRate{
+			pairRate.LatestRate = fundingrates.Rate{
 				Time: time.UnixMilli(mp[len(mp)-1].Time),
 				Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
 			}
-			pairRate.PredictedUpcomingRate = order.FundingRate{
+			pairRate.PredictedUpcomingRate = fundingrates.Rate{
 				Time: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
 				Rate: decimal.NewFromFloat(mp[len(mp)-1].EstimatedSettlePrice),
 			}
 		} else {
-			pairRate.LatestRate = order.FundingRate{
+			pairRate.LatestRate = fundingrates.Rate{
 				Time: pairRate.FundingRates[len(pairRate.FundingRates)-1].Time,
 				Rate: pairRate.FundingRates[len(pairRate.FundingRates)-1].Rate,
 			}
@@ -1994,7 +2004,7 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 				return nil, err
 			}
 			for j := range frh {
-				pairRate.FundingRates = append(pairRate.FundingRates, order.FundingRate{
+				pairRate.FundingRates = append(pairRate.FundingRates, fundingrates.Rate{
 					Time: time.UnixMilli(frh[j].FundingTime),
 					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
@@ -2010,16 +2020,16 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *order.FundingRatesRequ
 			if err != nil {
 				return nil, err
 			}
-			pairRate.LatestRate = order.FundingRate{
+			pairRate.LatestRate = fundingrates.Rate{
 				Time: time.UnixMilli(mp[len(mp)-1].Time),
 				Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
 			}
-			pairRate.PredictedUpcomingRate = order.FundingRate{
+			pairRate.PredictedUpcomingRate = fundingrates.Rate{
 				Time: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
 				Rate: decimal.NewFromFloat(mp[len(mp)-1].EstimatedSettlePrice),
 			}
 		} else {
-			pairRate.LatestRate = order.FundingRate{
+			pairRate.LatestRate = fundingrates.Rate{
 				Time: pairRate.FundingRates[len(pairRate.FundingRates)-1].Time,
 				Rate: pairRate.FundingRates[len(pairRate.FundingRates)-1].Rate,
 			}
