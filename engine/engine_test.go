@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -346,6 +347,8 @@ func TestGetDefaultConfigurations(t *testing.T) {
 	t.Parallel()
 
 	isCITest := os.Getenv("CI") == "true"
+
+	fmt.Println("ENVIRONMENT:", os.Environ())
 
 	man := NewExchangeManager()
 	for x := range exchange.Exchanges {
