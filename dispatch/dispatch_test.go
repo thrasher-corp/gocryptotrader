@@ -223,6 +223,16 @@ func TestUnsubscribe(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	ch2, err := d.subscribe(id)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = d.unsubscribe(id, ch2)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestPublish(t *testing.T) {
