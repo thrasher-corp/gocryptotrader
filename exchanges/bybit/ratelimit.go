@@ -10,22 +10,26 @@ import (
 )
 
 const (
-	spotInterval          = time.Second
-	spotRequestRate       = 70
+	// See: https://bybit-exchange.github.io/docs/v5/rate-limit
+	spotInterval    = time.Second * 5
+	spotRequestRate = 120
+
 	futuresPublicInterval = time.Second
 	futuresRequestRate    = 50
 
-	spotPrivateRequestRate   = 20
-	futuresInterval          = time.Minute
-	futuresDefaultRateCount  = 100
-	futuresOrderRate         = 100
-	futuresOrderListRate     = 600
-	futuresExecutionRate     = 120
-	futuresPositionRateCount = 75
-	futuresPositionListRate  = 120
-	futuresFundingRate       = 120
-	futuresWalletRate        = 120
-	futuresAccountRate       = 600
+	spotPrivateInterval       = time.Second
+	spotPrivateRequestRate    = 20
+	spotPrivateFeeRequestRate = 10
+	futuresInterval           = time.Minute
+	futuresDefaultRateCount   = 100
+	futuresOrderRate          = 100
+	futuresOrderListRate      = 600
+	futuresExecutionRate      = 120
+	futuresPositionRateCount  = 75
+	futuresPositionListRate   = 120
+	futuresFundingRate        = 120
+	futuresWalletRate         = 120
+	futuresAccountRate        = 600
 
 	usdcPerpetualPublicRate    = 50
 	usdcPerpetualCancelAllRate = 1
@@ -37,7 +41,7 @@ const (
 	publicSpotRate request.EndpointLimit = iota
 	publicFuturesRate
 	privateSpotRate
-
+	privateFeeRate
 	cFuturesDefaultRate
 
 	cFuturesCancelActiveOrderRate
@@ -153,6 +157,7 @@ type RateLimit struct {
 	SpotRate                    *rate.Limiter
 	FuturesRate                 *rate.Limiter
 	PrivateSpotRate             *rate.Limiter
+	PrivateFeeRate              *rate.Limiter
 	CMFuturesDefaultRate        *rate.Limiter
 	CMFuturesOrderRate          *rate.Limiter
 	CMFuturesOrderListRate      *rate.Limiter
@@ -202,131 +207,92 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 1
 	case privateSpotRate:
 		limiter, tokens = r.PrivateSpotRate, 1
-
+	case privateFeeRate:
+		limiter, tokens = r.PrivateFeeRate, 1
 	case cFuturesDefaultRate:
 		limiter, tokens = r.CMFuturesDefaultRate, 1
-
 	case cFuturesCancelActiveOrderRate, cFuturesCreateConditionalOrderRate, cFuturesCancelConditionalOrderRate, cFuturesReplaceActiveOrderRate,
 		cFuturesReplaceConditionalOrderRate, cFuturesCreateOrderRate:
 		limiter, tokens = r.CMFuturesOrderRate, 1
 	case cFuturesCancelAllActiveOrderRate, cFuturesCancelAllConditionalOrderRate:
 		limiter, tokens = r.CMFuturesOrderRate, 10
-
 	case cFuturesGetActiveOrderRate, cFuturesGetConditionalOrderRate, cFuturesGetRealtimeOrderRate:
 		limiter, tokens = r.CMFuturesOrderListRate, 1
-
 	case cFuturesTradeRate:
 		limiter, tokens = r.CMFuturesExecutionRate, 1
-
 	case cFuturesSetLeverageRate, cFuturesUpdateMarginRate, cFuturesSetTradingRate, cFuturesSwitchPositionRate, cFuturesGetTradingFeeRate:
 		limiter, tokens = r.CMFuturesPositionRate, 1
-
 	case cFuturesPositionRate, cFuturesWalletBalanceRate:
 		limiter, tokens = r.CMFuturesPositionListRate, 1
-
 	case cFuturesLastFundingFeeRate, cFuturesPredictFundingRate:
 		limiter, tokens = r.CMFuturesFundingRate, 1
-
 	case cFuturesWalletFundRecordRate, cFuturesWalletWithdrawalRate:
 		limiter, tokens = r.CMFuturesWalletRate, 1
-
 	case cFuturesAPIKeyInfoRate:
 		limiter, tokens = r.CMFuturesAccountRate, 1
-
 	case uFuturesDefaultRate:
 		limiter, tokens = r.UFuturesDefaultRate, 1
-
 	case uFuturesCreateOrderRate, uFuturesCancelOrderRate, uFuturesCreateConditionalOrderRate, uFuturesCancelConditionalOrderRate:
 		limiter, tokens = r.UFuturesOrderRate, 1
-
 	case uFuturesCancelAllOrderRate, uFuturesCancelAllConditionalOrderRate:
 		limiter, tokens = r.UFuturesOrderRate, 10
-
 	case uFuturesSetLeverageRate, uFuturesSwitchMargin, uFuturesSwitchPosition, uFuturesSetMarginRate, uFuturesSetTradingStopRate, uFuturesUpdateMarginRate:
 		limiter, tokens = r.UFuturesPositionRate, 1
-
 	case uFuturesPositionRate, uFuturesGetClosedTradesRate, uFuturesGetTradesRate:
 		limiter, tokens = r.UFuturesPositionListRate, 1
-
 	case uFuturesGetActiveOrderRate, uFuturesGetActiveRealtimeOrderRate, uFuturesGetConditionalOrderRate, uFuturesGetConditionalRealtimeOrderRate:
 		limiter, tokens = r.UFuturesOrderListRate, 1
-
 	case uFuturesGetMyLastFundingFeeRate, uFuturesPredictFundingRate:
 		limiter, tokens = r.UFuturesFundingRate, 1
-
 	case futuresDefaultRate:
 		limiter, tokens = r.FuturesDefaultRate, 1
-
 	case futuresCancelOrderRate, futuresCreateOrderRate, futuresReplaceOrderRate, futuresReplaceConditionalOrderRate, futuresCancelConditionalOrderRate,
 		futuresCreateConditionalOrderRate:
 		limiter, tokens = r.FuturesOrderRate, 1
-
 	case futuresCancelAllOrderRate, futuresCancelAllConditionalOrderRate:
 		limiter, tokens = r.FuturesOrderRate, 10
-
 	case futuresGetActiveOrderRate, futuresGetConditionalOrderRate, futuresGetActiveRealtimeOrderRate, futuresGetConditionalRealtimeOrderRate:
 		limiter, tokens = r.FuturesOrderListRate, 1
-
 	case futuresGetTradeRate:
 		limiter, tokens = r.FuturesExecutionRate, 1
-
 	case futuresSetLeverageRate, futuresUpdateMarginRate, futuresSetTradingStopRate, futuresSwitchPositionModeRate, futuresSwitchMarginRate, futuresSwitchPositionRate:
 		limiter, tokens = r.FuturesPositionRate, 1
-
 	case futuresPositionRate:
 		limiter, tokens = r.FuturesPositionListRate, 1
-
 	case usdcPublicRate:
 		limiter, tokens = r.USDCPublic, 1
-
 	case usdcCancelAllOrderRate:
 		limiter, tokens = r.USDCCancelAllOrderRate, 1
-
 	case usdcPlaceOrderRate:
 		limiter, tokens = r.USDCPlaceOrderRate, 1
-
 	case usdcModifyOrderRate:
 		limiter, tokens = r.USDCModifyOrderRate, 1
-
 	case usdcCancelOrderRate:
 		limiter, tokens = r.USDCCancelOrderRate, 1
-
 	case usdcGetOrderRate:
 		limiter, tokens = r.USDCGetOrderRate, 1
-
 	case usdcGetOrderHistoryRate:
 		limiter, tokens = r.USDCGetOrderHistoryRate, 1
-
 	case usdcGetTradeHistoryRate:
 		limiter, tokens = r.USDCGetTradeHistoryRate, 1
-
 	case usdcGetTransactionRate:
 		limiter, tokens = r.USDCGetTransactionRate, 1
-
 	case usdcGetWalletRate:
 		limiter, tokens = r.USDCGetWalletRate, 1
-
 	case usdcGetAssetRate:
 		limiter, tokens = r.USDCGetAssetRate, 1
-
 	case usdcGetMarginRate:
 		limiter, tokens = r.USDCGetMarginRate, 1
-
 	case usdcGetPositionRate:
 		limiter, tokens = r.USDCGetPositionRate, 1
-
 	case usdcSetLeverageRate:
 		limiter, tokens = r.USDCSetLeverageRate, 1
-
 	case usdcGetSettlementRate:
 		limiter, tokens = r.USDCGetSettlementRate, 1
-
 	case usdcSetRiskRate:
 		limiter, tokens = r.USDCSetRiskRate, 1
-
 	case usdcGetPredictedFundingRate:
 		limiter, tokens = r.USDCGetPredictedFundingRate, 1
-
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
@@ -360,7 +326,8 @@ func SetRateLimit() *RateLimit {
 	return &RateLimit{
 		SpotRate:                    request.NewRateLimit(spotInterval, spotRequestRate),
 		FuturesRate:                 request.NewRateLimit(futuresPublicInterval, futuresRequestRate),
-		PrivateSpotRate:             request.NewRateLimit(spotInterval, spotPrivateRequestRate),
+		PrivateSpotRate:             request.NewRateLimit(spotPrivateInterval, spotPrivateRequestRate),
+		PrivateFeeRate:              request.NewRateLimit(spotPrivateInterval, spotPrivateFeeRequestRate),
 		CMFuturesDefaultRate:        request.NewRateLimit(futuresInterval, futuresDefaultRateCount),
 		CMFuturesOrderRate:          request.NewRateLimit(futuresInterval, futuresOrderRate),
 		CMFuturesOrderListRate:      request.NewRateLimit(futuresInterval, futuresOrderListRate),
