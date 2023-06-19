@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -346,10 +345,6 @@ func TestSettingsPrint(t *testing.T) {
 func TestGetDefaultConfigurations(t *testing.T) {
 	t.Parallel()
 
-	isCITest := os.Getenv("CI") == "true"
-
-	fmt.Println("ENVIRONMENT:", os.Environ())
-
 	man := NewExchangeManager()
 	for x := range exchange.Exchanges {
 		target := exchange.Exchanges[x]
@@ -360,7 +355,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if isCITest && common.StringDataContains(blockedCIExchanges, target) {
+			if isCITest() && common.StringDataContains(blockedCIExchanges, target) {
 				t.Skipf("skipping %s due to CI test restrictions", target)
 			}
 
@@ -374,6 +369,11 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func isCITest() bool {
+	ci := os.Getenv("CI")
+	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
