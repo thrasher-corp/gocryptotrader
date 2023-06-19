@@ -345,7 +345,7 @@ func TestSettingsPrint(t *testing.T) {
 func TestGetDefaultConfigurations(t *testing.T) {
 	t.Parallel()
 
-	isCITest := os.Getenv("CI_TEST") == "true"
+	isCITest := os.Getenv("CI") == "true"
 
 	man := NewExchangeManager()
 	for x := range exchange.Exchanges {
