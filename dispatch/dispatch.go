@@ -241,8 +241,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	}
 
 	// Get an unused channel from the channel pool
-	getResult := d.outbound.Get()
-	ch, ok := getResult.(chan interface{})
+	ch, ok := d.outbound.Get().(chan interface{})
 	if !ok {
 		return nil, errTypeAssertionFailure
 	}
