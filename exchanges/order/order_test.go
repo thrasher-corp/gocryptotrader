@@ -1091,6 +1091,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		OrderID:           "1",
 		AccountID:         "1",
 		ClientID:          "1",
+		ClientOrderID:     "DukeOfWombleton",
 		WalletAddress:     "1",
 		Type:              1,
 		Side:              1,
@@ -1164,6 +1165,9 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		t.Error("Failed to update")
 	}
 	if od.ClientID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.ClientOrderID != "DukeOfWombleton" {
 		t.Error("Failed to update")
 	}
 	if od.WalletAddress != "1" {
