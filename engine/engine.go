@@ -522,7 +522,7 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
 			go func() {
-				err = bot.currencyPairSyncer.Start()
+				err := bot.currencyPairSyncer.Start()
 				if err != nil {
 					gctlog.Errorf(gctlog.Global, "failed to start exchange currency pair manager. Err: %s", err)
 				}
