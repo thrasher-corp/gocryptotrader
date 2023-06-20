@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -247,7 +248,7 @@ func (ku *Kucoin) GetFuturesCurrentFundingRate(ctx context.Context, symbol strin
 // GetFuturesServerTime get server time
 func (ku *Kucoin) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
-		Data kucoinTime `json:"data"`
+		Data convert.ExchangeTime `json:"data"`
 		Error
 	}{}
 	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, kucoinFuturesServerTime, &resp)

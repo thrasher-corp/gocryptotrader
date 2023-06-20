@@ -71,7 +71,6 @@ func TestMain(m *testing.M) {
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	setupWS()
-	ku.Run()
 	getFirstTradablePairOfAssets()
 	os.Exit(m.Run())
 }
@@ -1069,13 +1068,6 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	_, err := ku.GetFuturesOrderbook(context.Background(), futuresTradablePair.String())
 	if err != nil {
 		t.Error("GetFuturesOrderbook() error", err)
-	}
-}
-
-func TestUpdateTradablePairs(t *testing.T) {
-	t.Parallel()
-	if err := ku.UpdateTradablePairs(context.Background(), false); err != nil {
-		t.Error(err)
 	}
 }
 
@@ -2501,19 +2493,22 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func getFirstTradablePairOfAssets() {
+	if err := ku.UpdateTradablePairs(context.Background(), true); err != nil {
+		log.Fatalf("Kucoin error while updating tradable pairs. %v", err)
+	}
 	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Spot)
+		log.Fatalf("Kucoin %v, trying to get %v enabled pairs error", err, asset.Spot)
 	}
 	spotTradablePair = enabledPairs[0]
 	enabledPairs, err = ku.GetEnabledPairs(asset.Margin)
 	if err != nil {
-		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Margin)
+		log.Fatalf("Kucoin %v, trying to get %v enabled pairs error", err, asset.Margin)
 	}
 	marginTradablePair = enabledPairs[0]
 	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
 	if err != nil {
-		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Futures)
+		log.Fatalf("Kucoin %v, trying to get %v enabled pairs error", err, asset.Futures)
 	}
 	futuresTradablePair = enabledPairs[0]
 	futuresTradablePair.Delimiter = ""
@@ -2548,72 +2543,6 @@ func TestPushPositionSettlemenPushData(t *testing.T) {
 	err := ku.wsHandleData([]byte(positionSettlementPushDataJSON))
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestKucoinTimeUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	unmarshaledResult := &struct {
-		Timestamp kucoinTime `json:"ts"`
-	}{}
-	data1 := `{"ts":""}`
-	result := time.Time{}
-	err := json.Unmarshal([]byte(data1), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data2 := `{"ts":"1685564775371"}`
-	result = time.UnixMilli(1685564775371)
-	err = json.Unmarshal([]byte(data2), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data3 := `{"ts":1685564775371}`
-	err = json.Unmarshal([]byte(data3), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data4 := `{"ts":"1685564775"}`
-	result = time.Unix(1685564775, 0)
-	err = json.Unmarshal([]byte(data4), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data5 := `{"ts":1685564775}`
-	err = json.Unmarshal([]byte(data5), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data6 := `{"ts":"1685564775371320000"}`
-	result = time.Unix(int64(1685564775371320000)/1e9, int64(1685564775371320000)%1e9)
-	err = json.Unmarshal([]byte(data6), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
-	}
-	data7 := `{"ts":"abcdefg"}`
-	err = json.Unmarshal([]byte(data7), &unmarshaledResult)
-	if err == nil {
-		t.Fatal("expecting error but found nil")
-	}
-	data8 := `{"ts":0}`
-	result = time.Time{}
-	err = json.Unmarshal([]byte(data8), &unmarshaledResult)
-	if err != nil {
-		t.Fatal(err)
-	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
-		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
 	}
 }
 

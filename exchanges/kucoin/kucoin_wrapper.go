@@ -203,20 +203,20 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Kucoin go routine
-func (ku *Kucoin) Start(_ context.Context, wg *sync.WaitGroup) error {
+func (ku *Kucoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
 	wg.Add(1)
 	go func() {
-		ku.Run()
+		ku.Run(ctx)
 		wg.Done()
 	}()
 	return nil
 }
 
 // Run implements the Kucoin wrapper
-func (ku *Kucoin) Run() {
+func (ku *Kucoin) Run(ctx context.Context) {
 	if ku.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -229,7 +229,7 @@ func (ku *Kucoin) Run() {
 		return
 	}
 
-	err := ku.UpdateTradablePairs(context.TODO(), false)
+	err := ku.UpdateTradablePairs(context.TODO(), true)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -240,18 +240,23 @@ func (ku *Kucoin) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
+	var cp currency.Pair
 	switch assetType {
 	case asset.Futures:
 		myPairs, err := ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return nil, err
 		}
-		pairs := make(currency.Pairs, len(myPairs))
+		pairs := make(currency.Pairs, 0, len(myPairs))
 		for x := range myPairs {
-			pairs[x], err = currency.NewPairFromString(myPairs[x].Symbol)
+			if !strings.EqualFold(myPairs[x].Status, "Open") {
+				continue
+			}
+			cp, err = currency.NewPairFromString(myPairs[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
+			pairs = pairs.Add(cp)
 		}
 		return pairs, nil
 	case asset.Spot, asset.Margin:
@@ -264,11 +269,11 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 			if !myPairs[x].EnableTrading {
 				continue
 			}
-			newPair, err := currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
+			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
 			if err != nil {
 				return nil, err
 			}
-			pairs = append(pairs, newPair)
+			pairs = pairs.Add(cp)
 		}
 		return pairs, nil
 	default:
@@ -313,7 +318,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		if err != nil {
 			return err
 		}
-		pairs, err := ku.GetAvailablePairs(asset.Futures)
+		pairs, err := ku.GetEnabledPairs(asset.Futures)
 		if err != nil {
 			return err
 		}
@@ -329,8 +334,6 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
 				Volume:       ticks[x].VolumeOf24h,
-				Ask:          ticks[x].IndexPrice,
-				Bid:          ticks[x].MarkPrice,
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
@@ -345,7 +348,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		if err != nil {
 			return err
 		}
-		pairs, err := ku.GetAvailablePairs(assetType)
+		pairs, err := ku.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
 		}
