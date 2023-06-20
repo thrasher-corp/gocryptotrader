@@ -13,7 +13,7 @@ func TestPairsUpper(t *testing.T) {
 		t.Fatal(err)
 	}
 	if expected := "BTC_USD,BTC_AUD,BTC_LTC"; pairs.Upper().Join() != expected {
-		t.Errorf("Pair Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Upper().Join())
 	}
 }
@@ -25,7 +25,7 @@ func TestPairsLower(t *testing.T) {
 		t.Fatal(err)
 	}
 	if expected := "btc_usd,btc_aud,btc_ltc"; pairs.Lower().Join() != expected {
-		t.Errorf("Pair Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Lower().Join())
 	}
 }
@@ -83,7 +83,7 @@ func TestPairsJoin(t *testing.T) {
 	expected := "btc_usd,btc_aud,btc_ltc"
 
 	if pairs.Join() != expected {
-		t.Errorf("Pair Join() error expected %s but received %s",
+		t.Errorf("Pairs Join() error expected %s but received %s",
 			expected, pairs.Join())
 	}
 }
