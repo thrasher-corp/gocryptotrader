@@ -426,7 +426,7 @@ func TestMux(t *testing.T) {
 			return
 		}
 		errChan <- nil
-	}(pipe.C, errChan, &wg)
+	}(pipe.c, errChan, &wg)
 
 	wg.Wait()
 
@@ -506,7 +506,7 @@ func TestMuxPublish(t *testing.T) {
 		}
 	}(mux)
 
-	<-pipe.C
+	<-pipe.Channel()
 
 	// Shut down dispatch system
 	err = d.stop()
