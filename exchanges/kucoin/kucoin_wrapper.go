@@ -229,7 +229,7 @@ func (ku *Kucoin) Run(ctx context.Context) {
 		return
 	}
 
-	err := ku.UpdateTradablePairs(context.TODO(), true)
+	err := ku.UpdateTradablePairs(ctx, true)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -323,11 +323,12 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			return err
 		}
 		for x := range ticks {
-			pair, err := pairs.DeriveFrom(ticks[x].Symbol)
-			if errors.Is(err, currency.ErrPairNotFound) {
-				continue
-			} else if err != nil {
+			pair, err := currency.NewPairFromString(ticks[x].Symbol)
+			if err != nil {
 				return err
+			}
+			if !pairs.Contains(pair, true) {
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[x].LastTradePrice,
@@ -353,19 +354,20 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			return err
 		}
 		for t := range ticks.Tickers {
-			pair, err := pairs.DeriveFrom(ticks.Tickers[t].Symbol)
-			if errors.Is(err, currency.ErrPairNotFound) {
-				continue
-			} else if err != nil {
+			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
+			if err != nil {
 				return err
+			}
+			if !pairs.Contains(pair, true) {
+				continue
 			}
 			tick := ticker.Price{
 				Last:         ticks.Tickers[t].Last,
 				High:         ticks.Tickers[t].High,
 				Low:          ticks.Tickers[t].Low,
 				Volume:       ticks.Tickers[t].Volume,
-				Ask:          ticks.Tickers[t].Buy,
-				Bid:          ticks.Tickers[t].Sell,
+				Ask:          ticks.Tickers[t].Sell,
+				Bid:          ticks.Tickers[t].Buy,
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,

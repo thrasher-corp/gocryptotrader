@@ -33,9 +33,10 @@ const (
 	spotAndMarginAssetNotEnabled = "neither spot nor margin asset is enabled"
 )
 
-var ku = &Kucoin{}
-
-var spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
+var (
+	ku                                                        = &Kucoin{}
+	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
+)
 
 func TestMain(m *testing.M) {
 	ku.SetDefaults()
