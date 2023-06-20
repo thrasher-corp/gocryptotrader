@@ -1517,7 +1517,7 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
-// GetFundingRate returns the latest funding rate for a given asset and currency
+// GetLatestFundingRate returns the latest funding rate for a given asset and currency
 func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
@@ -1541,6 +1541,7 @@ func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRa
 		Rate: fr.FundingRate.Decimal(),
 	}
 	if r.IncludePredictedRate {
+		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
 		pairRate.PredictedUpcomingRate = fundingrate.Rate{
 			Time: fr.NextFundingTime.Time(),
 			Rate: fr.NextFundingRate.Decimal(),
@@ -1591,6 +1592,9 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 		if err != nil {
 			return nil, err
 		}
+		if len(frh) == 0 {
+			break
+		}
 		for i := range frh {
 			if r.IncludePayments {
 				mti[frh[i].FundingTime.Time().Unix()] = i
@@ -1601,23 +1605,33 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 			})
 		}
 		if len(frh) < requestLimit {
-			if r.IncludePredictedRate {
-				pairRate.PredictedUpcomingRate = fundingrate.Rate{
-					Time: frh[len(frh)-1].NextFundingTime.Time(),
-					Rate: frh[len(frh)-1].NextFundingRate.Decimal(),
-				}
-			}
 			break
 		}
 		sd = frh[len(frh)-1].FundingTime.Time()
 	}
-	if len(pairRate.FundingRates) > 0 {
-		pairRate.LatestRate = pairRate.FundingRates[len(pairRate.FundingRates)-1]
+	var fr *FundingRateResponse
+	fr, err = ok.GetSingleFundingRate(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	if fr == nil {
+		return nil, fmt.Errorf("%w GetSingleFundingRate", common.ErrNilPointer)
+	}
+	pairRate.LatestRate = fundingrate.Rate{
+		Time: fr.FundingTime.Time(),
+		Rate: fr.FundingRate.Decimal(),
+	}
+	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+	if r.IncludePredictedRate {
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: fr.NextFundingTime.Time(),
+			Rate: fr.NextFundingRate.Decimal(),
+		}
 	}
 	if r.IncludePayments {
-		curr := r.Pair.Base
+		pairRate.PaymentCurrency = r.Pair.Base
 		if !r.PaymentCurrency.IsEmpty() {
-			curr = r.PaymentCurrency
+			pairRate.PaymentCurrency = r.PaymentCurrency
 		}
 		sd = r.StartDate
 		billDetailsFunc := ok.GetBillsDetail3Months
@@ -1631,7 +1645,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
-				Currency:       curr.String(),
+				Currency:       pairRate.PaymentCurrency.String(),
 				BillType:       137,
 				BeginTime:      sd,
 				EndTime:        r.EndDate,
@@ -1641,7 +1655,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 				return nil, err
 			}
 			for i := range billDetails {
-				if index, okay := mti[billDetails[i].Timestamp.Time().Unix()]; okay {
+				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(ok.Features.Supports.FuturesCapabilities.FundingRateFrequency).Unix()]; okay {
 					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
 					continue
 				}
@@ -1657,4 +1671,9 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 		}
 	}
 	return &pairRate, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (ok *Okx) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+	return a == asset.PerpetualSwap, nil
 }

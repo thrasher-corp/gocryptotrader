@@ -5108,6 +5108,9 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
+        "paymentCurrency": {
+          "type": "string"
+        },
         "startDate": {
           "type": "string"
         },
@@ -5128,6 +5131,9 @@
           "$ref": "#/definitions/gctrpcFundingRate"
         },
         "paymentSum": {
+          "type": "string"
+        },
+        "paymentMessage": {
           "type": "string"
         },
         "timeOfNextRate": {
@@ -5684,12 +5690,8 @@
     "gctrpcGetFundingRatesResponse": {
       "type": "object",
       "properties": {
-        "fundingPayments": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/gctrpcFundingData"
-          }
+        "rates": {
+          "$ref": "#/definitions/gctrpcFundingData"
         }
       }
     },

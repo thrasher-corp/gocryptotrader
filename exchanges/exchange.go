@@ -1488,7 +1488,7 @@ func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFundingRate returns the latest funding rate based on request data
+// GetLatestFundingRate returns the latest funding rate based on request data
 func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }

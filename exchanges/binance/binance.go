@@ -36,6 +36,9 @@ const (
 	cfuturesAPIURL = "https://dapi.binance.com"
 	ufuturesAPIURL = "https://fapi.binance.com"
 
+	testnetSpotURL = "https://testnet.binance.vision/api"
+	testnetFutures = "https://testnet.binancefuture.com"
+
 	// Public endpoints
 	exchangeInfo      = "/api/v3/exchangeInfo"
 	orderBookDepth    = "/api/v3/depth"
@@ -217,24 +220,7 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
-type UserMarginInterestHistoryResponse struct {
-	Rows  []UserMarginInterestHistory `json:"rows"`
-	Total int64                       `json:"total"`
-}
-
-type UserMarginInterestHistory struct {
-	TxId                int64       `json:"txId"`
-	InterestAccruedTime binanceTime `json:"interestAccuredTime"`
-	Asset               string      `json:"asset"`
-	RawAsset            string      `json:"rawAsset"`
-	Principal           float64     `json:"principal,string"`
-	Interest            float64     `json:"interest,string"`
-	InterestRate        float64     `json:"interestRate,string"`
-	Type                string      `json:"type"`
-	IsolatedSymbol      string      `json:"isolatedSymbol"`
-}
-
-// GetUserMarginInterestHistory does the thing
+// GetUserMarginInterestHistory returns margin interest history for the user
 func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (*UserMarginInterestHistoryResponse, error) {
 	params := url.Values{}
 

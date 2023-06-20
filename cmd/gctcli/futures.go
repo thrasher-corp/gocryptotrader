@@ -754,7 +754,7 @@ func getFundingRates(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair                              string
+		exchangeName, assetType, currencyPair, paymentCurrency             string
 		includePredicted, includePayments, respectFundingRateHistoryLimits bool
 		p                                                                  currency.Pair
 		s, e                                                               time.Time
@@ -798,6 +798,13 @@ func getFundingRates(c *cli.Context) error {
 			endTime = c.Args().Get(4)
 		}
 	}
+
+	if c.IsSet("paymentcurrency") {
+		paymentCurrency = c.String("paymentcurrency")
+	} else {
+		paymentCurrency = c.Args().Get(3)
+	}
+
 	if c.IsSet("includepredicted") {
 		includePredicted = c.Bool("includepredicted")
 	} else if c.Args().Get(5) != "" {
@@ -857,6 +864,7 @@ func getFundingRates(c *cli.Context) error {
 			IncludePredicted:     includePredicted,
 			IncludePayments:      includePayments,
 			RespectHistoryLimits: respectFundingRateHistoryLimits,
+			PaymentCurrency:      paymentCurrency,
 		})
 	if err != nil {
 		return err
@@ -871,9 +879,10 @@ func getLatestFundingRate(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair string
-		p                                     currency.Pair
-		err                                   error
+		exchangeName, assetType, currencyPair, paymentCurrency string
+		includePredicted                                       bool
+		p                                                      currency.Pair
+		err                                                    error
 	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -904,6 +913,21 @@ func getLatestFundingRate(c *cli.Context) error {
 		return err
 	}
 
+	if c.IsSet("paymentcurrency") {
+		paymentCurrency = c.String("paymentcurrency")
+	} else {
+		paymentCurrency = c.Args().Get(3)
+	}
+
+	if c.IsSet("includepredicted") {
+		includePredicted = c.Bool("includepredicted")
+	} else if c.Args().Get(4) != "" {
+		includePredicted, err = strconv.ParseBool(c.Args().Get(4))
+		if err != nil {
+			return err
+		}
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -920,6 +944,7 @@ func getLatestFundingRate(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
+			PaymentCurrency:  paymentCurrency,
 			IncludePredicted: includePredicted,
 		})
 	if err != nil {

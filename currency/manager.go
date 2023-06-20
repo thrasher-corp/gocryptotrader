@@ -266,7 +266,7 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	}
 
 	if !*pairStore.AssetEnabled {
-		return fmt.Errorf("%s %w", a, errAssetNotEnabled)
+		return fmt.Errorf("%s %w", a, asset.ErrNotEnabled)
 	}
 	return nil
 }

@@ -4683,7 +4683,11 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 	if err != nil {
 		return nil, err
 	}
-	cp, err := pairs.DeriveFrom(r.Pair.String())
+	cp, err := pairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
 	funding, err := exch.GetFundingRates(ctx, &fundingrate.RatesRequest{
 		Asset:                a,
 		Pair:                 cp,
@@ -4692,10 +4696,12 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		IncludePayments:      r.IncludePayments,
 		IncludePredictedRate: r.IncludePredicted,
 		RespectHistoryLimits: r.RespectHistoryLimits,
+		PaymentCurrency:      currency.NewCode(r.PaymentCurrency),
 	})
 	if err != nil {
 		return nil, err
 	}
+	var hasPayment bool
 	var response gctrpc.GetFundingRatesResponse
 	fundingData := &gctrpc.FundingData{
 		Exchange: r.Exchange,
@@ -4712,19 +4718,26 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 			Rate: funding.LatestRate.Rate.String(),
 		},
 	}
-	var rates []*gctrpc.FundingRate
+	rates := make([]*gctrpc.FundingRate, len(funding.FundingRates))
 	for j := range funding.FundingRates {
-		rate := &gctrpc.FundingRate{
+		rates[j] = &gctrpc.FundingRate{
 			Rate: funding.FundingRates[j].Rate.String(),
 			Date: funding.FundingRates[j].Time.Format(common.SimpleTimeFormatWithTimezone),
 		}
 		if r.IncludePayments {
-			rate.Payment = funding.FundingRates[j].Payment.String()
+			if !funding.FundingRates[j].Payment.IsZero() {
+				hasPayment = true
+			}
+			rates[j].Payment = funding.FundingRates[j].Payment.String()
 		}
-		rates = append(rates, rate)
 	}
 	if r.IncludePayments {
 		fundingData.PaymentSum = funding.PaymentSum.String()
+		fundingData.PaymentCurrency = funding.PaymentCurrency.String()
+		if !hasPayment {
+			fundingData.PaymentMessage = "no payments found for payment currency " + funding.PaymentCurrency.String() +
+				" please ensure you have set the correct payment currency in the request"
+		}
 	}
 	if !funding.TimeOfNextRate.IsZero() {
 		fundingData.TimeOfNextRate = funding.TimeOfNextRate.Format(common.SimpleTimeFormatWithTimezone)
@@ -4736,7 +4749,8 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 			Rate: funding.PredictedUpcomingRate.Rate.String(),
 		}
 	}
-	response.FundingPayments = []*gctrpc.FundingData{fundingData}
+	response.Rates = fundingData
+
 	return &response, nil
 }
 
@@ -4762,12 +4776,15 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 	if err != nil {
 		return nil, err
 	}
-	cp, err := pairs.DeriveFrom(r.Pair.String())
+	cp, err := pairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
 	funding, err := exch.GetLatestFundingRate(ctx, &fundingrate.LatestRateRequest{
 		Asset:                a,
 		Pair:                 cp,
 		IncludePredictedRate: r.IncludePredicted,
-		PaymentCurrency: r.PaymentCurrency
+		PaymentCurrency:      currency.NewCode(r.PaymentCurrency),
 	})
 	if err != nil {
 		return nil, err
@@ -4786,31 +4803,16 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 			Rate: funding.LatestRate.Rate.String(),
 		},
 	}
-	var rates []*gctrpc.FundingRate
-	for j := range funding.FundingRates {
-		rate := &gctrpc.FundingRate{
-			Rate: funding.FundingRates[j].Rate.String(),
-			Date: funding.FundingRates[j].Time.Format(common.SimpleTimeFormatWithTimezone),
-		}
-		if r.IncludePayments {
-			rate.Payment = funding.FundingRates[j].Payment.String()
-		}
-		rates = append(rates, rate)
-	}
-	if r.IncludePayments {
-		fundingData.PaymentSum = funding.PaymentSum.String()
-	}
 	if !funding.TimeOfNextRate.IsZero() {
 		fundingData.TimeOfNextRate = funding.TimeOfNextRate.Format(common.SimpleTimeFormatWithTimezone)
 	}
-	fundingData.Rates = rates
 	if r.IncludePredicted {
 		fundingData.UpcomingRate = &gctrpc.FundingRate{
 			Date: funding.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
 			Rate: funding.PredictedUpcomingRate.Rate.String(),
 		}
 	}
-	response.FundingPayments = []*gctrpc.FundingData{fundingData}
+	response.Rate = fundingData
 	return &response, nil
 }
 

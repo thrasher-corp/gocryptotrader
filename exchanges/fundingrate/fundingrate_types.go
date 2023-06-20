@@ -41,6 +41,7 @@ type Rates struct {
 	PredictedUpcomingRate Rate
 	FundingRates          []Rate
 	PaymentSum            decimal.Decimal
+	PaymentCurrency       currency.Code
 	TimeOfNextRate        time.Time
 }
 

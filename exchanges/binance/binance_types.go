@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -294,14 +295,14 @@ type AggregatedTrade struct {
 
 // IndexMarkPrice stores data for index and mark prices
 type IndexMarkPrice struct {
-	Symbol               string  `json:"symbol"`
-	Pair                 string  `json:"pair"`
-	MarkPrice            float64 `json:"markPrice,string"`
-	IndexPrice           float64 `json:"indexPrice,string"`
-	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
-	LastFundingRate      float64 `json:"lastFundingRate,string"`
-	NextFundingTime      int64   `json:"nextFundingTime"`
-	Time                 int64   `json:"time"`
+	Symbol               string                  `json:"symbol"`
+	Pair                 string                  `json:"pair"`
+	MarkPrice            convert.StringToFloat64 `json:"markPrice"`
+	IndexPrice           convert.StringToFloat64 `json:"indexPrice"`
+	EstimatedSettlePrice convert.StringToFloat64 `json:"estimatedSettlePrice"`
+	LastFundingRate      convert.StringToFloat64 `json:"lastFundingRate"`
+	NextFundingTime      int64                   `json:"nextFundingTime"`
+	Time                 int64                   `json:"time"`
 }
 
 // CandleStick holds kline data
@@ -916,4 +917,23 @@ type update struct {
 // orderbook via the REST protocol
 type job struct {
 	Pair currency.Pair
+}
+
+// UserMarginInterestHistoryResponse user margin interest history response
+type UserMarginInterestHistoryResponse struct {
+	Rows  []UserMarginInterestHistory `json:"rows"`
+	Total int64                       `json:"total"`
+}
+
+// UserMarginInterestHistory user margin interest history row
+type UserMarginInterestHistory struct {
+	TxID                int64       `json:"txId"`
+	InterestAccruedTime binanceTime `json:"interestAccuredTime"` // typo in docs, cannot verify due to API restrictions
+	Asset               string      `json:"asset"`
+	RawAsset            string      `json:"rawAsset"`
+	Principal           float64     `json:"principal,string"`
+	Interest            float64     `json:"interest,string"`
+	InterestRate        float64     `json:"interestRate,string"`
+	Type                string      `json:"type"`
+	IsolatedSymbol      string      `json:"isolatedSymbol"`
 }

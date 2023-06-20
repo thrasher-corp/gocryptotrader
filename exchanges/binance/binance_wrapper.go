@@ -1918,7 +1918,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
 
-// GetFundingRate returns the latest funding rate for a given asset and currency
+// GetLatestFundingRate returns the latest funding rate for a given asset and currency
 func (b *Binance) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
@@ -1957,7 +1957,7 @@ func (b *Binance) GetLatestFundingRate(ctx context.Context, r *fundingrate.Lates
 		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
 		pairRate.LatestRate = fundingrate.Rate{
 			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
-			Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
+			Rate: mp[len(mp)-1].LastFundingRate.Decimal(),
 		}
 	default:
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
@@ -1971,7 +1971,10 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.RatesReque
 		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
 	}
 	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
+		return nil, fmt.Errorf("%w GetFundingRates IncludePredictedRate", common.ErrFunctionNotSupported)
+	}
+	if !r.PaymentCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w GetFundingRates PaymentCurrency", common.ErrFunctionNotSupported)
 	}
 	if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
 		return nil, err
@@ -2025,16 +2028,21 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.RatesReque
 			if err != nil {
 				return nil, err
 			}
-		uRates:
 			for j := range income {
 				for x := range pairRate.FundingRates {
-					if income[j].Time == pairRate.FundingRates[x].Time.UnixMilli() {
-						pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
-						continue uRates
+					tt := time.UnixMilli(income[j].Time)
+					tt = tt.Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency)
+					if !tt.Equal(pairRate.FundingRates[x].Time) {
+						continue
 					}
+					if pairRate.PaymentCurrency.IsEmpty() {
+						pairRate.PaymentCurrency = currency.NewCode(income[j].Asset)
+					}
+					pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
+					pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[x].Payment)
+					break
 				}
 			}
-
 		}
 	case asset.CoinMarginedFutures:
 		requestLimit := 1000
@@ -2063,7 +2071,7 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.RatesReque
 		}
 		pairRate.LatestRate = fundingrate.Rate{
 			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
-			Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
+			Rate: mp[len(mp)-1].LastFundingRate.Decimal(),
 		}
 		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
 		if r.IncludePayments {
@@ -2072,19 +2080,39 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.RatesReque
 			if err != nil {
 				return nil, err
 			}
-		cRates:
 			for j := range income {
 				for x := range pairRate.FundingRates {
-					if income[j].Timestamp == pairRate.FundingRates[x].Time.UnixMilli() {
-						pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
-						continue cRates
+					tt := time.UnixMilli(income[j].Timestamp)
+					tt = tt.Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency)
+					if !tt.Equal(pairRate.FundingRates[x].Time) {
+						continue
 					}
+					if pairRate.PaymentCurrency.IsEmpty() {
+						pairRate.PaymentCurrency = currency.NewCode(income[j].Asset)
+					}
+					pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
+					pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[x].Payment)
+					break
 				}
 			}
-
 		}
 	default:
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 	}
 	return &pairRate, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	if a == asset.CoinMarginedFutures {
+		if cp.Quote.Equal(currency.PERP) {
+			return true, nil
+		}
+	}
+	if a == asset.USDTMarginedFutures {
+		if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
