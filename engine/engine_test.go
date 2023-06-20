@@ -23,6 +23,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+func isCITest() bool {
+	ci := os.Getenv("CI")
+	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+}
+
 func TestLoadConfigWithSettings(t *testing.T) {
 	empty := ""
 	somePath := "somePath"
@@ -345,13 +350,13 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 }
 
 func TestAllExchangeWrappers(t *testing.T) {
-	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../testdata/configtest.json", true)
 	if err != nil {
 		t.Fatal("load config error", err)
 	}
-
+	// call parallel after config loading to avoid races
+	t.Parallel()
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
@@ -980,13 +985,8 @@ var unsupportedDefaultConfigExchanges = []string{
 func TestGetDefaultConfigurations(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal("load config error", err)
-	}
-	for i := range cfg.Exchanges {
-		name := strings.ToLower(cfg.Exchanges[i].Name)
+	for i := range exchange.Exchanges {
+		name := strings.ToLower(exchange.Exchanges[i])
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			exch, err := em.NewExchangeByName(name)
@@ -1015,7 +1015,21 @@ func TestGetDefaultConfigurations(t *testing.T) {
 	}
 }
 
-func isCITest() bool {
-	ci := os.Getenv("CI")
-	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+func TestConfigMatchesExchangeExchanges(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("load config error", err)
+	}
+	for i := range cfg.Exchanges {
+		var found bool
+		for j := range exchange.Exchanges {
+			if strings.EqualFold(cfg.Exchanges[i].Name, exchange.Exchanges[j]) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("exchange %s in config not found in exchange list", cfg.Exchanges[i].Name)
+		}
+	}
 }
