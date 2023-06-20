@@ -4,15 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
-	"os"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -38,33 +36,8 @@ var (
 	spotCurrencyUpperStr = spotCurrency.Upper().String()
 )
 
-func TestMain(m *testing.M) {
-	if okCoinAPIVersion == "/v3/" {
-		// v3 API has been deprecated
-		return
-	}
-	o.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Okcoin load config error", err)
-	}
-	okcoinConfig, err := cfg.GetExchangeConfig(o.Name)
-	if err != nil {
-		log.Fatalf("%v Setup() init error", o.Name)
-	}
-
-	okcoinConfig.API.AuthenticatedSupport = true
-	okcoinConfig.API.AuthenticatedWebsocketSupport = true
-	okcoinConfig.API.Credentials.Key = apiKey
-	okcoinConfig.API.Credentials.Secret = apiSecret
-	okcoinConfig.API.Credentials.ClientID = passphrase
-	o.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = o.Setup(okcoinConfig)
-	if err != nil {
-		log.Fatal("OKCoin setup error", err)
-	}
-	os.Exit(m.Run())
+func TestMain(_ *testing.M) {
+	fmt.Println("OKCoin v3 API deprecated, skipping tests")
 }
 
 func TestStart(t *testing.T) {

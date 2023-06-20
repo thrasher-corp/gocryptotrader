@@ -972,30 +972,44 @@ func TestSettingsPrint(t *testing.T) {
 	s.PrintLoadedSettings()
 }
 
+var unsupportedDefaultConfigExchanges = []string{
+	"okcoin international", // due to unsupported API
+	"itbit",                // due to unsupported API
+}
+
 func TestGetDefaultConfigurations(t *testing.T) {
 	t.Parallel()
-
-	man := NewExchangeManager()
-	for x := range exchange.Exchanges {
-		target := exchange.Exchanges[x]
-		t.Run(target, func(t *testing.T) {
+	em := NewExchangeManager()
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal("load config error", err)
+	}
+	for i := range cfg.Exchanges {
+		name := strings.ToLower(cfg.Exchanges[i].Name)
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			exch, err := man.NewExchangeByName(target)
+			exch, err := em.NewExchangeByName(name)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if isCITest() && common.StringDataContains(blockedCIExchanges, target) {
-				t.Skipf("skipping %s due to CI test restrictions", target)
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("skipping %s due to CI test restrictions", name)
 			}
 
-			cfg, err := exch.GetDefaultConfig(context.Background())
+			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+				t.Skipf("skipping %s unsupported", name)
+			}
+
+			defaultCfg, err := exch.GetDefaultConfig(context.Background())
 			if err != nil {
-				t.Fatal(err)
+				// Use Error instead of fatal to allow all issues to arise
+				t.Error(err)
 			}
 
-			if cfg == nil {
-				t.Fatal("expected config")
+			if defaultCfg == nil {
+				t.Error("expected config")
 			}
 		})
 	}

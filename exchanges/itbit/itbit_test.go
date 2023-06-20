@@ -3,15 +3,13 @@ package itbit
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -31,28 +29,8 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestMain(m *testing.M) {
-	i.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Itbit load config error", err)
-	}
-	itbitConfig, err := cfg.GetExchangeConfig("ITBIT")
-	if err != nil {
-		log.Fatal("Itbit Setup() init error")
-	}
-	itbitConfig.API.AuthenticatedSupport = true
-	itbitConfig.API.Credentials.Key = apiKey
-	itbitConfig.API.Credentials.Secret = apiSecret
-	itbitConfig.API.Credentials.ClientID = clientID
-
-	err = i.Setup(itbitConfig)
-	if err != nil {
-		log.Fatal("Itbit setup error", err)
-	}
-
-	os.Exit(m.Run())
+func TestMain(_ *testing.M) {
+	fmt.Println("ItBit API deprecated, skipping tests")
 }
 
 func TestStart(t *testing.T) {
