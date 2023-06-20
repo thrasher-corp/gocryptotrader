@@ -67,7 +67,7 @@ const (
 
 // TickerResponse represents the market data endpoint ticker detail
 type TickerResponse struct {
-	InstrumentType asset.Item        `json:"instType"`
+	InstrumentType string            `json:"instType"`
 	InstrumentID   string            `json:"instId"`
 	LastTradePrice okxNumericalValue `json:"last"`
 	LastTradeSize  okxNumericalValue `json:"lastSz"`

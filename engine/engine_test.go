@@ -351,7 +351,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 	if err != nil {
 		t.Fatal("load config error", err)
 	}
-	isCITest := os.Getenv("CI_TEST")
+
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
@@ -360,7 +360,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 				t.Skipf("skipping unsupported exchange %v", name)
 			}
 			ctx := context.Background()
-			if isCITest == "true" && common.StringDataContains(blockedCIExchanges, name) {
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
@@ -1005,4 +1005,3 @@ func isCITest() bool {
 	ci := os.Getenv("CI")
 	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
 }
-

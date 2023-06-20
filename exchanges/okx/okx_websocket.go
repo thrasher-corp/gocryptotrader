@@ -1192,25 +1192,23 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			baseVolume = response.Data[i].VolCcy24H.Float64()
 			quoteVolume = response.Data[i].Vol24H.Float64()
 		}
-		tickData := &ticker.Price{
-			ExchangeName: ok.Name,
-			Open:         response.Data[i].Open24H.Float64(),
-			Volume:       baseVolume,
-			QuoteVolume:  quoteVolume,
-			High:         response.Data[i].High24H.Float64(),
-			Low:          response.Data[i].Low24H.Float64(),
-			Bid:          response.Data[i].BestBidPrice.Float64(),
-			Ask:          response.Data[i].BestAskPrice.Float64(),
-			BidSize:      response.Data[i].BestBidSize.Float64(),
-			AskSize:      response.Data[i].BestAskSize.Float64(),
-			Last:         response.Data[i].LastTradePrice.Float64(),
-			AssetType:    a,
-			Pair:         c,
-			LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
-		}
-		ok.Websocket.DataHandler <- tickData
-		if assetEnabledInMargin {
-			tickData.AssetType = asset.Margin
+		for j := range assets {
+			tickData := &ticker.Price{
+				ExchangeName: ok.Name,
+				Open:         response.Data[i].Open24H.Float64(),
+				Volume:       baseVolume,
+				QuoteVolume:  quoteVolume,
+				High:         response.Data[i].High24H.Float64(),
+				Low:          response.Data[i].Low24H.Float64(),
+				Bid:          response.Data[i].BestBidPrice.Float64(),
+				Ask:          response.Data[i].BestAskPrice.Float64(),
+				BidSize:      response.Data[i].BestBidSize.Float64(),
+				AskSize:      response.Data[i].BestAskSize.Float64(),
+				Last:         response.Data[i].LastTradePrice.Float64(),
+				AssetType:    assets[j],
+				Pair:         c,
+				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
+			}
 			ok.Websocket.DataHandler <- tickData
 		}
 	}
