@@ -47,12 +47,8 @@ type Rates struct {
 
 // LatestRateRequest is used to request the latest funding rate
 type LatestRateRequest struct {
-	Asset asset.Item
-	Pair  currency.Pair
-	// PaymentCurrency is an optional parameter depending on exchange API
-	// if you are paid in a currency that isn't easily inferred from the Pair,
-	// use this field
-	PaymentCurrency      currency.Code
+	Asset                asset.Item
+	Pair                 currency.Pair
 	IncludePredictedRate bool
 }
 

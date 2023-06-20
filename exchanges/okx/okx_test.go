@@ -3252,7 +3252,6 @@ func TestGetLatestFundingRate(t *testing.T) {
 	_, err = ok.GetLatestFundingRate(contextGenerate(), &fundingrate.LatestRateRequest{
 		Asset:                asset.PerpetualSwap,
 		Pair:                 cp,
-		PaymentCurrency:      currency.USDT,
 		IncludePredictedRate: true,
 	})
 	if err != nil {

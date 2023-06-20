@@ -3098,7 +3098,6 @@ func TestGetLatestFundingRate(t *testing.T) {
 		Asset:            "",
 		Pair:             nil,
 		IncludePredicted: false,
-		PaymentCurrency:  "",
 	}
 	_, err = s.GetLatestFundingRate(context.Background(), request)
 	if !errors.Is(err, ErrExchangeNameIsEmpty) {

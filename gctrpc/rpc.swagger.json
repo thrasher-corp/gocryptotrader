@@ -2325,12 +2325,6 @@
             "type": "string"
           },
           {
-            "name": "paymentCurrency",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
             "name": "includePredicted",
             "in": "query",
             "required": false,

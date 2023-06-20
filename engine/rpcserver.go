@@ -4784,7 +4784,6 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 		Asset:                a,
 		Pair:                 cp,
 		IncludePredictedRate: r.IncludePredicted,
-		PaymentCurrency:      currency.NewCode(r.PaymentCurrency),
 	})
 	if err != nil {
 		return nil, err

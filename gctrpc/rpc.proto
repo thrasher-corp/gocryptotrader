@@ -1210,8 +1210,7 @@ message GetLatestFundingRateRequest {
   string exchange = 1;
   string asset = 2;
   CurrencyPair pair = 3;
-  string payment_currency = 4;
-  bool include_predicted = 5;
+  bool include_predicted = 4;
 }
 
 message GetLatestFundingRateResponse {

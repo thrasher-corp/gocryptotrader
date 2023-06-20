@@ -291,11 +291,6 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"p"},
 					Usage:   "currency pair",
 				},
-				&cli.StringFlag{
-					Name:    "paymentcurrency",
-					Aliases: []string{"pc"},
-					Usage:   "optional - if you are paid in a currency that isn't easily inferred from the Pair, eg BTCUSD-PERP use this field",
-				},
 				&cli.BoolFlag{
 					Name:    "includepredicted",
 					Aliases: []string{"ip", "predicted"},
@@ -879,10 +874,10 @@ func getLatestFundingRate(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair, paymentCurrency string
-		includePredicted                                       bool
-		p                                                      currency.Pair
-		err                                                    error
+		exchangeName, assetType, currencyPair string
+		includePredicted                      bool
+		p                                     currency.Pair
+		err                                   error
 	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -913,16 +908,10 @@ func getLatestFundingRate(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("paymentcurrency") {
-		paymentCurrency = c.String("paymentcurrency")
-	} else {
-		paymentCurrency = c.Args().Get(3)
-	}
-
 	if c.IsSet("includepredicted") {
 		includePredicted = c.Bool("includepredicted")
-	} else if c.Args().Get(4) != "" {
-		includePredicted, err = strconv.ParseBool(c.Args().Get(4))
+	} else if c.Args().Get(3) != "" {
+		includePredicted, err = strconv.ParseBool(c.Args().Get(3))
 		if err != nil {
 			return err
 		}
@@ -944,7 +933,6 @@ func getLatestFundingRate(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			PaymentCurrency:  paymentCurrency,
 			IncludePredicted: includePredicted,
 		})
 	if err != nil {
