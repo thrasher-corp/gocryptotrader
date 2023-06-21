@@ -406,7 +406,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	err := cfg.LoadConfig("../testdata/configtest.json", true)
 	if err != nil {
 		t.Fatal("load config error", err)
 	}
