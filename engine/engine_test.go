@@ -23,6 +23,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+// blockedCIExchanges are exchanges that are not able to be tested on CI
+var blockedCIExchanges = []string{
+	"binance", // binance API is banned from executing within the US where github Actions is ran
+}
+
 func isCITest() bool {
 	ci := os.Getenv("CI")
 	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
@@ -349,14 +354,62 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 	}
 }
 
+func TestSettingsPrint(t *testing.T) {
+	t.Parallel()
+	var s *Settings
+	s.PrintLoadedSettings()
+
+	s = &Settings{}
+	s.PrintLoadedSettings()
+}
+
+var unsupportedDefaultConfigExchanges = []string{
+	"okcoin international", // due to unsupported API
+	"itbit",                // due to unsupported API
+}
+
+func TestGetDefaultConfigurations(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	for i := range exchange.Exchanges {
+		name := strings.ToLower(exchange.Exchanges[i])
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			exch, err := em.NewExchangeByName(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("skipping %s due to CI test restrictions", name)
+			}
+
+			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+				t.Skipf("skipping %s unsupported", name)
+			}
+
+			defaultCfg, err := exch.GetDefaultConfig(context.Background())
+			if err != nil {
+				// Use Error instead of fatal to allow all issues to arise
+				t.Error(err)
+			}
+
+			if defaultCfg == nil {
+				t.Error("expected config")
+			}
+		})
+	}
+}
+
+// exchange wrapper standards test start
+
 func TestAllExchangeWrappers(t *testing.T) {
+	t.Parallel()
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.json", true)
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		t.Fatal("load config error", err)
 	}
-	// call parallel after config loading to avoid races
-	t.Parallel()
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
@@ -828,11 +881,6 @@ var unsupportedExchangeNames = []string{
 	"okcoin international", // TODO add support for v5 and remove this entry
 }
 
-// blockedCIExchanges are exchanges that are not able to be tested on CI
-var blockedCIExchanges = []string{
-	"binance", // binance API is banned from executing within the US where github Actions is ran
-}
-
 // cryptoChainPerExchange holds the deposit address chain per exchange
 var cryptoChainPerExchange = map[string]string{
 	"binanceus": "ERC20",
@@ -968,68 +1016,4 @@ Rsd80LrBCVI8ctzrvYRFSugC`
 	return resp
 }
 
-func TestSettingsPrint(t *testing.T) {
-	t.Parallel()
-	var s *Settings
-	s.PrintLoadedSettings()
-
-	s = &Settings{}
-	s.PrintLoadedSettings()
-}
-
-var unsupportedDefaultConfigExchanges = []string{
-	"okcoin international", // due to unsupported API
-	"itbit",                // due to unsupported API
-}
-
-func TestGetDefaultConfigurations(t *testing.T) {
-	t.Parallel()
-	em := NewExchangeManager()
-	for i := range exchange.Exchanges {
-		name := strings.ToLower(exchange.Exchanges[i])
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			exch, err := em.NewExchangeByName(name)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
-				t.Skipf("skipping %s due to CI test restrictions", name)
-			}
-
-			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
-				t.Skipf("skipping %s unsupported", name)
-			}
-
-			defaultCfg, err := exch.GetDefaultConfig(context.Background())
-			if err != nil {
-				// Use Error instead of fatal to allow all issues to arise
-				t.Error(err)
-			}
-
-			if defaultCfg == nil {
-				t.Error("expected config")
-			}
-		})
-	}
-}
-
-func TestConfigMatchesExchangeExchanges(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal("load config error", err)
-	}
-	for i := range cfg.Exchanges {
-		var found bool
-		for j := range exchange.Exchanges {
-			if strings.EqualFold(cfg.Exchanges[i].Name, exchange.Exchanges[j]) {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("exchange %s in config not found in exchange list", cfg.Exchanges[i].Name)
-		}
-	}
-}
+// exchange wrapper standards test end
