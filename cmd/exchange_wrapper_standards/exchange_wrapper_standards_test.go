@@ -1,4 +1,4 @@
-package exchange_wrapper_standards
+package exchangewrapperstandards
 
 import (
 	"context"
