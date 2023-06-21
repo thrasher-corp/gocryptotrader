@@ -49,6 +49,18 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = l.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cp, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = l.CurrencyPairs.EnablePair(asset.Spot, cp)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
 
@@ -434,17 +446,16 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("eth_btc")
+	cp, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetHistoricCandles(context.Background(), cp, asset.Spot, kline.OneMin, time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = l.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-24*time.Hour), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = l.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-24*time.Hour), time.Now())
+	_, err = l.GetHistoricCandles(context.Background(), cp, asset.Spot, kline.OneHour, time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,12 +465,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Add(-time.Minute * 2)
 	end := time.Now()
-	pair, err := currency.NewPairFromString("eth_btc")
+	cp, err := currency.NewPairFromString(testCurrencyPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = l.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, end)
+	_, err = l.GetHistoricCandlesExtended(context.Background(), cp, asset.Spot, kline.OneMin, startTime, end)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -546,7 +556,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("eth_btc")
+	cp, err := currency.NewPairFromString(testCurrencyPair)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1175,7 +1175,7 @@ func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
 		err = common.AppendError(err, fmt.Errorf("%w %v", asset.ErrNotEnabled, a))
 	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		err = common.AppendError(err, fmt.Errorf("%w %v", currency.ErrPairNotContainedInAvailablePairs, pair))
+		err = common.AppendError(err, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
 	}
 
 	if !b.klineIntervalEnabled(interval) {
