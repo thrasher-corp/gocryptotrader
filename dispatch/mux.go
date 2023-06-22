@@ -38,11 +38,11 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 		return Pipe{}, err
 	}
 
-	return Pipe{C: ch, id: id, m: m}, nil
+	return Pipe{c: ch, id: id, m: m}, nil
 }
 
 // Unsubscribe returns channel to the pool for the full signature set
-func (m *Mux) Unsubscribe(id uuid.UUID, ch <-chan interface{}) error {
+func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 	if m == nil {
 		return errMuxIsNil
 	}
@@ -83,5 +83,10 @@ func (m *Mux) GetID() (uuid.UUID, error) {
 
 // Release returns the channel to the communications pool to be reused
 func (p *Pipe) Release() error {
-	return p.m.Unsubscribe(p.id, p.C)
+	return p.m.Unsubscribe(p.id, p.c)
+}
+
+// Channel returns the Pipe's channel
+func (p *Pipe) Channel() <-chan interface{} {
+	return p.c
 }
