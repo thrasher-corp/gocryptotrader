@@ -797,12 +797,8 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if err != nil {
 		return err
 	}
-	err = m.orderStore.futuresPositionController.TrackFundingDetails(frp)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return m.orderStore.futuresPositionController.TrackFundingDetails(frp)
 }
 
 func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, wg *sync.WaitGroup) {

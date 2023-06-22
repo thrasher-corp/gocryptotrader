@@ -4660,7 +4660,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
 	}
-	start := time.Now().AddDate(0, -10, 0)
+	start := time.Now().AddDate(0, -1, 0)
 	end := time.Now()
 	if r.StartDate != "" {
 		start, err = time.Parse(common.SimpleTimeFormatWithTimezone, r.StartDate)

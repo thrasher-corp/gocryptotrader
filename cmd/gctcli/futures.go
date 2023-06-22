@@ -271,7 +271,7 @@ var futuresCommands = &cli.Command{
 		},
 		{
 			Name:      "getlatestfundingrate",
-			Aliases:   []string{"latestrate", "m8"},
+			Aliases:   []string{"latestrate", "lr", "r8"},
 			Usage:     "returns the latest funding rate data",
 			ArgsUsage: "<exchange> <asset> <pairs> <start> <end> <includepredicted> <includepayments>",
 			Action:    getLatestFundingRate,
