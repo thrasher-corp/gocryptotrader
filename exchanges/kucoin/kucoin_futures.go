@@ -11,7 +11,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -305,78 +307,49 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 }
 
 // PostFuturesOrder used to place two types of futures orders: limit and market
-func (ku *Kucoin) PostFuturesOrder(ctx context.Context, clientOID, side, symbol,
-	orderType, remark,
-	stop, stopPriceType, timeInForce string, size, price, stopPrice,
-	leverage, visibleSize float64, reduceOnly, closeOrder, forceHold, postOnly, hidden, iceberg bool) (string, error) {
-	if leverage < 0.01 {
+func (ku *Kucoin) PostFuturesOrder(ctx context.Context, arg *FuturesOrderParam) (string, error) {
+	if arg.Leverage < 0.01 {
 		return "", fmt.Errorf("%w must be greater than 0.01", errInvalidLeverage)
 	}
-	args := make(map[string]interface{})
-	if clientOID == "" {
-		return "", errors.New("clientOid can't be empty")
+	if arg.ClientOrderID == "" {
+		return "", errInvalidClientOrderID
 	}
-	args["clientOid"] = clientOID
-	if side == "" {
-		return "", errors.New("side can't be empty")
+	if arg.Side == "" {
+		return "", fmt.Errorf("%w, empty order side", order.ErrSideIsInvalid)
 	}
-	args["side"] = side
-	if symbol == "" {
-		return "", errors.New("symbol can't be empty")
+	if arg.Symbol.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
 	}
-	args["symbol"] = symbol
-	args["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
-	if remark != "" {
-		args["remark"] = remark
-	}
-	if stop != "" {
-		args["stp"] = stop
-		if stopPriceType == "" {
-			return "", errors.New("stopPriceType can't be empty")
+	if arg.Stop != "" {
+		if arg.StopPriceType == "" {
+			return "", errInvalidStopPriceType
 		}
-		args["stopPriceType"] = stopPriceType
-		if stopPrice <= 0 {
-			return "", errors.New("stopPrice is required")
+		if arg.StopPrice <= 0 {
+			return "", fmt.Errorf("%w, stopPrice is required", errInvalidPrice)
 		}
-		args["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', -1, 64)
 	}
-	switch orderType {
+	switch arg.OrderType {
 	case "limit", "":
-		if price <= 0 {
-			return "", fmt.Errorf("%w %f", errInvalidPrice, price)
+		if arg.Price <= 0 {
+			return "", fmt.Errorf("%w %f", errInvalidPrice, arg.Price)
 		}
-		args["price"] = price
-		if size <= 0 {
-			return "", fmt.Errorf("%w size must be non-zero positive value", errInvalidSize)
+		if arg.Size <= 0 {
+			return "", fmt.Errorf("%w, must be non-zero positive value", errInvalidSize)
 		}
-		args["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-		if timeInForce != "" {
-			args["timeInForce"] = timeInForce
-		}
-		args["postOnly"] = postOnly
-		args["hidden"] = hidden
-		args["iceberg"] = iceberg
-		if visibleSize > 0 {
-			args["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		if arg.VisibleSize < 0 {
+			return "", fmt.Errorf("%w, visible size must be non-zero positive value", errInvalidSize)
 		}
 	case "market":
-		if size > 0 {
-			args["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		if arg.Size < 0 {
+			return "", fmt.Errorf("%w, market size must be >=0", errInvalidSize)
 		}
 	default:
-		return "", errors.New("invalid orderType")
+		return "", fmt.Errorf("%w, order type= %s", order.ErrTypeIsInvalid, arg.OrderType)
 	}
-
-	if orderType != "" {
-		args["type"] = orderType
-	}
-	args["reduceOnly"] = reduceOnly
-	args["closeOrder"] = closeOrder
-	args["forceHold"] = forceHold
 	resp := struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder, args, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresPlaceOrderEPL, http.MethodPost, kucoinFuturesOrder, &arg, &resp)
 }
 
 // CancelFuturesOrder used to cancel single order previously placed including a stop order

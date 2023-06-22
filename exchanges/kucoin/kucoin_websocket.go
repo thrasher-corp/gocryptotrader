@@ -1026,9 +1026,8 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		channels = append(channels,
 			marketTickerChannel,
-			marginFundingbookChangeChannel,
 			marketMatchChannel,
-			marketOrderbokLevel2To50Channel)
+			marketOrderbookLevel2to5Channel)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		channels = append(channels,
@@ -1037,7 +1036,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
 		channels = append(channels,
 			futuresTickerV2Channel,
-			futuresOrderbookLevel2Depth50Channel)
+			futuresOrderbookLevel2Depth5Channel)
 	}
 	var subscriptions []stream.ChannelSubscription
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {

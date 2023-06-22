@@ -707,7 +707,11 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if s.Leverage == 0 {
 			s.Leverage = 1
 		}
-		o, err := ku.PostFuturesOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", "", "", s.Amount, s.Price, s.TriggerPrice, s.Leverage, 0, s.ReduceOnly, false, false, s.PostOnly, s.Hidden, false)
+		o, err := ku.PostFuturesOrder(ctx, &FuturesOrderParam{
+			ClientOrderID: s.ClientOrderID, Side: sideString, Symbol: s.Pair,
+			OrderType: s.Type.Lower(), Size: s.Amount, Price: s.Price, StopPrice: s.TriggerPrice,
+			Leverage: s.Leverage, VisibleSize: 0, ReduceOnly: s.ReduceOnly,
+			PostOnly: s.PostOnly, Hidden: s.Hidden})
 		if err != nil {
 			return nil, err
 		}
@@ -716,13 +720,22 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if s.ClientID != "" && s.ClientOrderID == "" {
 			s.ClientOrderID = s.ClientID
 		}
-		o, err := ku.PostOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", "", s.Amount, s.Price, 0, 0, 0, s.PostOnly, s.Hidden, false)
+		o, err := ku.PostOrder(ctx, &SpotOrderParam{
+			ClientOrderID: s.ClientOrderID, Side: sideString,
+			Symbol: s.Pair, OrderType: s.Type.Lower(), Size: s.Amount,
+			Price: s.Price, PostOnly: s.PostOnly, Hidden: s.Hidden})
 		if err != nil {
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(o)
 	case asset.Margin:
-		o, err := ku.PostMarginOrder(ctx, s.ClientOrderID, sideString, s.Pair.String(), s.Type.Lower(), "", "", s.MarginMode, "", s.Price, s.Amount, s.TriggerPrice, s.Amount, 0, s.PostOnly, s.Hidden, false, s.AutoBorrow)
+		o, err := ku.PostMarginOrder(ctx,
+			&MarginOrderParam{ClientOrderID: s.ClientOrderID,
+				Side: sideString, Symbol: s.Pair,
+				OrderType: s.Type.Lower(), MarginModel: s.MarginMode,
+				Price: s.Price, Size: s.Amount,
+				VisibleSize: s.Amount, PostOnly: s.PostOnly,
+				Hidden: s.Hidden, AutoBorrow: s.AutoBorrow})
 		if err != nil {
 			return nil, err
 		}

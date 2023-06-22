@@ -567,13 +567,48 @@ func TestPostOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 
 	// default order type is limit
-	_, err := ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "limit", "", "", "", 0.1, 0, 0, 0, 0, true, false, false)
+	_, err := ku.PostOrder(context.Background(), &SpotOrderParam{
+		ClientOrderID: ""})
+	if !errors.Is(err, errInvalidClientOrderID) {
+		t.Errorf("PostOrder() expected %v, but found %v", errInvalidClientOrderID, err)
+	}
+	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: spotTradablePair,
+		OrderType: ""})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("PostOrder() expected %v, but found %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: currency.EMPTYPAIR,
+		Size: 0.1, Side: "buy", Price: 234565})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("PostOrder() expected %v, but found %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
+		Symbol:    spotTradablePair,
+		OrderType: "limit", Size: 0.1})
+	if !errors.Is(err, errInvalidPrice) {
+		t.Errorf("PostOrder() expected %v, but found %v", errInvalidPrice, err)
+	}
+	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: spotTradablePair, Side: "buy",
+		OrderType: "limit", Price: 234565})
+	if !errors.Is(err, errInvalidSize) {
+		t.Errorf("PostOrder() expected %v, but found %v", errInvalidSize, err)
+	}
+	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
+		Symbol: spotTradablePair, OrderType: "limit", Size: 0.1, Price: 234565})
 	if err != nil {
 		t.Error("PostOrder() error", err)
 	}
 
 	// market order
-	_, err = ku.PostOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "", 0.1, 0, 0, 0, 0, true, false, false)
+	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
+		Symbol:    spotTradablePair,
+		OrderType: "market", Remark: "remark", Size: 0.1})
 	if err != nil {
 		t.Error("PostOrder() error", err)
 	}
@@ -581,15 +616,56 @@ func TestPostOrder(t *testing.T) {
 
 func TestPostMarginOrder(t *testing.T) {
 	t.Parallel()
+	// default order type is limit
+	_, err := ku.PostMarginOrder(context.Background(), &MarginOrderParam{
+		ClientOrderID: ""})
+	if !errors.Is(err, errInvalidClientOrderID) {
+		t.Errorf("PostMarginOrder() expected %v, but found %v", errInvalidClientOrderID, err)
+	}
+	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair,
+		OrderType: ""})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("PostMarginOrder() expected %v, but found %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: currency.EMPTYPAIR,
+		Size: 0.1, Side: "buy", Price: 234565})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("PostMarginOrder() expected %v, but found %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
+		Symbol:    marginTradablePair,
+		OrderType: "limit", Size: 0.1})
+	if !errors.Is(err, errInvalidPrice) {
+		t.Errorf("PostMarginOrder() expected %v, but found %v", errInvalidPrice, err)
+	}
+	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair, Side: "buy",
+		OrderType: "limit", Price: 234565})
+	if !errors.Is(err, errInvalidSize) {
+		t.Errorf("PostMarginOrder() expected %v, but found %v", errInvalidSize, err)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	// default order type is limit and margin mode is cross
-	_, err := ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "", "", "", "", "10000", 1000, 0.1, 0, 0, 0, true, false, false, false)
+	ku.Verbose = true
+	_, err = ku.PostMarginOrder(context.Background(),
+		&MarginOrderParam{
+			ClientOrderID: "5bd6e9286d99522a52e458de",
+			Side:          "buy", Symbol: marginTradablePair,
+			Price: 1000, Size: 0.1, PostOnly: true})
 	if err != nil {
 		t.Error("PostMarginOrder() error", err)
 	}
 
 	// market isolated order
-	_, err = ku.PostMarginOrder(context.Background(), "5bd6e9286d99522a52e458de", "buy", "BTC-USDT", "market", "remark", "", "isolated", "", 1000, 0.1, 0, 0, 5, true, false, false, true)
+	_, err = ku.PostMarginOrder(context.Background(),
+		&MarginOrderParam{
+			ClientOrderID: "5bd6e9286d99522a52e458de",
+			Side:          "buy", Symbol: marginTradablePair,
+			OrderType: "market", Funds: 1234,
+			Remark: "remark", MarginModel: "cross", Price: 1000, PostOnly: true, AutoBorrow: true})
 	if err != nil {
 		t.Error("PostMarginOrder() error", err)
 	}
@@ -1166,9 +1242,84 @@ func TestPostFuturesOrder(t *testing.T) {
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) != nil {
 		t.Skipf(assetNotEnabled, asset.Futures)
 	}
-	_, err := ku.PostFuturesOrder(context.Background(), "5bd6e9286d99522a52e458de",
-		"buy", "XBTUSDM", "", "10", "", "", "", 1, 1000, 0, 0.02,
-		0, false, false, false, false, false, false)
+	_, err := ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de"})
+	if !errors.Is(err, errInvalidLeverage) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidLeverage, err)
+	}
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{Side: "buy", Leverage: 0.02})
+	if !errors.Is(err, errInvalidClientOrderID) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidClientOrderID, err)
+	}
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Leverage: 0.02})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Leverage: 0.02})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", currency.ErrCurrencyPairEmpty, err)
+	}
+
+	// With Stop order configuration
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Stop: "up", StopPriceType: "", TimeInForce: "", Size: 1, Price: 1000, StopPrice: 0, Leverage: 0.02, VisibleSize: 0})
+	if !errors.Is(err, errInvalidStopPriceType) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidStopPriceType, err)
+	}
+
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Stop: "up", StopPriceType: "TP", TimeInForce: "", Size: 1, Price: 1000, StopPrice: 0, Leverage: 0.02, VisibleSize: 0})
+	if !errors.Is(err, errInvalidPrice) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidPrice, err)
+	}
+
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Stop: "up", StopPriceType: "TP", StopPrice: 123456, TimeInForce: "", Size: 1, Price: 1000, Leverage: 0.02, VisibleSize: 0})
+	if err != nil {
+		t.Errorf("PostFuturesOrder expected %v", err)
+	}
+
+	// Limit Orders
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair,
+		OrderType: "limit", Remark: "10", Leverage: 0.02})
+	if !errors.Is(err, errInvalidPrice) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidPrice, err)
+	}
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10", Price: 1000, Leverage: 0.02, VisibleSize: 0})
+	if !errors.Is(err, errInvalidSize) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidSize, err)
+	}
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
+		Size: 1, Price: 1000, Leverage: 0.02, VisibleSize: 0})
+	if !errors.Is(err, errInvalidSize) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidSize, err)
+	}
+
+	// Market Orders
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair,
+		OrderType: "market", Remark: "10", Leverage: 0.02})
+	if !errors.Is(err, errInvalidSize) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidSize, err)
+	}
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "market", Remark: "10",
+		Size: 1, Leverage: 0.02, VisibleSize: 0})
+	if !errors.Is(err, errInvalidSize) {
+		t.Errorf("PostFuturesOrder expected %v, but found %v", errInvalidSize, err)
+	}
+
+	_, err = ku.PostFuturesOrder(context.Background(), &FuturesOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de",
+		Side:          "buy",
+		Symbol:        futuresTradablePair,
+		OrderType:     "limit",
+		Remark:        "10",
+		Stop:          "",
+		StopPriceType: "",
+		TimeInForce:   "",
+		Size:          1,
+		Price:         1000,
+		StopPrice:     0,
+		Leverage:      0.02,
+		VisibleSize:   0})
 	if err != nil {
 		t.Error("PostFuturesOrder() error", err)
 	}
@@ -2258,10 +2409,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	orderSubmission := &order.Submit{
-		Pair: currency.Pair{
-			Base:  currency.LTC,
-			Quote: currency.BTC,
-		},
+		Pair:          spotTradablePair,
 		Exchange:      ku.Name,
 		Side:          order.Bid,
 		Type:          order.Limit,
@@ -2283,16 +2431,19 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	orderSubmission.AssetType = asset.Spot
 	orderSubmission.Side = order.Buy
+	orderSubmission.Pair = spotTradablePair
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Errorf("expected %v, but found %v", order.ErrTypeIsInvalid, err)
 	}
 	orderSubmission.AssetType = asset.Spot
+	orderSubmission.Pair = spotTradablePair
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
 		t.Error(err)
 	}
 	orderSubmission.AssetType = asset.Margin
+	orderSubmission.Pair = marginTradablePair
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
 		t.Error(err)

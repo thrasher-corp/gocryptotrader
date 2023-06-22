@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -19,6 +20,7 @@ var (
 
 	errInvalidResponseReceiver   = errors.New("invalid response receiver")
 	errInvalidPrice              = errors.New("invalid price")
+	errInvalidStopPriceType      = errors.New("stopPriceType is required")
 	errInvalidSize               = errors.New("invalid size")
 	errMalformedData             = errors.New("malformed data")
 	errNoDepositAddress          = errors.New("no deposit address found")
@@ -29,7 +31,9 @@ var (
 	errNoValidResponseFromServer = errors.New("no valid response from server")
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
+	errInvalidFundValue          = errors.New("invalid fund value")
 	errInvalidLeverage           = errors.New("invalid leverage value")
+	errInvalidClientOrderID      = errors.New("invalid client order ID")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -1425,4 +1429,70 @@ type FuturesTransactionHistoryResponse struct {
 type FuturesFundingHistoryResponse struct {
 	DataList []FuturesFundingHistory `json:"dataList"`
 	HasMore  bool                    `json:"hasMore"`
+}
+
+// FuturesOrderParam represents a query parameter for placing future oorder
+type FuturesOrderParam struct {
+	ClientOrderID string        `json:"clientOid"`
+	Side          string        `json:"side"`
+	Symbol        currency.Pair `json:"symbol,omitempty"`
+	OrderType     string        `json:"type"`
+	Remark        string        `json:"remark,omitempty"`
+	Stop          string        `json:"stp,omitempty"`           // [optional] Either `down` or `up`. Requires stopPrice and stopPriceType to be defined
+	StopPriceType string        `json:"stopPriceType,omitempty"` // [optional] Either TP, IP or MP, Need to be defined if stop is specified. `TP` for trade price, `MP` for Mark price, and "IP" for index price.
+	TimeInForce   string        `json:"timeInForce,omitempty"`
+	Size          float64       `json:"size,omitempty,string"`
+	Price         float64       `json:"price,string,omitempty"`
+	StopPrice     float64       `json:"stopPrice,omitempty,string"`
+	Leverage      float64       `json:"leverage,omitempty,string"`
+	VisibleSize   float64       `json:"visibleSize,omitempty,string"`
+	ReduceOnly    bool          `json:"reduceOnly,omitempty"`
+	CloseOrder    bool          `json:"closeOrder,omitempty"`
+	ForceHold     bool          `json:"forceHold,omitempty"`
+	PostOnly      bool          `json:"postOnly,omitempty"`
+	Hidden        bool          `json:"hidden,omitempty"`
+	Iceberg       bool          `json:"iceberg,omitempty"`
+}
+
+// SpotOrderParam represents the spot place order request parameters.
+type SpotOrderParam struct {
+	ClientOrderID       string        `json:"clientOid"`
+	Side                string        `json:"side"`
+	Symbol              currency.Pair `json:"symbol"`
+	OrderType           string        `json:"type,omitempty"`
+	TradeType           string        `json:"tradeType,omitempty"` // [Optional] The type of trading : TRADE（Spot Trade）, MARGIN_TRADE (Margin Trade). Default is TRADE.
+	Remark              string        `json:"remark,omitempty"`
+	SelfTradePrevention string        `json:"stp,omitempty"`         // [Optional] self trade prevention , CN, CO, CB or DC. `CN` for Cancel newest, `DC` for Decrease and Cancel, `CO` for cancel oldest, and `CB` for Cancel both
+	TimeInForce         string        `json:"timeInForce,omitempty"` // [Optional] GTC, GTT, IOC, or FOK (default is GTC)
+	PostOnly            bool          `json:"postOnly,omitempty"`
+	Hidden              bool          `json:"hidden,omitempty"`
+	Iceberg             bool          `json:"iceberg,omitempty"`
+	ReduceOnly          bool          `json:"reduceOnly,omitempty"`
+	CancelAfter         int64         `json:"cancelAfter,omitempty"`
+	Size                float64       `json:"size,omitempty,string"`
+	Price               float64       `json:"price,string,omitempty"`
+	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
+	Funds               float64       `json:"funds,string,omitempty"`
+}
+
+// MarginOrderParam represents the margin place order request parameters.
+type MarginOrderParam struct {
+	ClientOrderID       string        `json:"clientOid"`
+	Side                string        `json:"side"`
+	Symbol              currency.Pair `json:"symbol"`
+	OrderType           string        `json:"type,omitempty"`
+	TradeType           string        `json:"tradeType,omitempty"` // [Optional] The type of trading : TRADE（Spot Trade）, MARGIN_TRADE (Margin Trade). Default is TRADE.
+	Remark              string        `json:"remark,omitempty"`
+	SelfTradePrevention string        `json:"stp,omitempty"`         // [Optional] self trade prevention , CN, CO, CB or DC. `CN` for Cancel newest, `DC` for Decrease and Cancel, `CO` for cancel oldest, and `CB` for Cancel both
+	MarginModel         string        `json:"marginModel,omitempty"` // [Optional] The type of trading, including cross (cross mode) and isolated (isolated mode). It is set at cross by default.
+	AutoBorrow          bool          `json:"autoBorrow,omitempty"`  // [Optional] Auto-borrow to place order. The system will first borrow you funds at the optimal interest rate and then place an order for you. Currently autoBorrow parameter only supports cross mode, not isolated mode. When add this param, stop profit and stop loss are not supported
+	Size                float64       `json:"size,omitempty,string"`
+	Price               float64       `json:"price,string,omitempty"`
+	TimeInForce         string        `json:"timeInForce,omitempty"` // [Optional] GTC, GTT, IOC, or FOK (default is GTC)
+	CancelAfter         int64         `json:"cancelAfter,omitempty"` // [Optional] cancel after n seconds, requires timeInForce to be GTT
+	PostOnly            bool          `json:"postOnly,omitempty"`
+	Hidden              bool          `json:"hidden,omitempty"`
+	Iceberg             bool          `json:"iceberg,omitempty"`
+	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
+	Funds               float64       `json:"funds,string,omitempty"`
 }

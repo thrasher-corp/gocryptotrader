@@ -812,146 +812,77 @@ func (ku *Kucoin) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) 
 
 // PostOrder used to place two types of orders: limit and market
 // Note: use this only for SPOT trades
-func (ku *Kucoin) PostOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, selfTradePrevention, timeInForce string, size, price, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
-	params := make(map[string]interface{})
-	if clientOID == "" {
-		return "", errors.New("clientOid can not be empty")
+func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, error) {
+	if arg.ClientOrderID == "" {
+		return "", errInvalidClientOrderID
 	}
-	params["clientOid"] = clientOID
-	if side == "" {
-		return "", errors.New("side can not be empty")
+	if arg.Side == "" {
+		return "", order.ErrSideIsInvalid
 	}
-	params["side"] = side
-	if symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return "", fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
 	}
-	params["symbol"] = symbol
-	if remark != "" {
-		params["remark"] = remark
-	}
-	if selfTradePrevention != "" {
-		params["stp"] = selfTradePrevention
-	}
-	orderType = strings.ToLower(orderType)
-	switch orderType {
+	switch arg.OrderType {
 	case "limit", "":
-		if price <= 0 {
-			return "", errors.New("price can not be empty")
+		if arg.Price <= 0 {
+			return "", fmt.Errorf("%w, price =%.3f", errInvalidPrice, arg.Price)
 		}
-		params["price"] = price
-		if size <= 0 {
-			return "", errors.New("size can not be zero or negative")
+		if arg.Size <= 0 {
+			return "", errInvalidSize
 		}
-		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-		if timeInForce != "" {
-			params["timeInForce"] = timeInForce
-		}
-		if cancelAfter > 0 && timeInForce == "GTT" {
-			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
-		}
-		if postOnly {
-			params["postOnly"] = postOnly
-		}
-		if hidden {
-			params["hidden"] = hidden
-		}
-		if iceberg {
-			params["iceberg"] = iceberg
-		}
-		if visibleSize > 0 {
-			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		if arg.VisibleSize < 0 {
+			return "", fmt.Errorf("%w, visible size must be non-zero positive value", errInvalidSize)
 		}
 	case "market":
-		switch {
-		case size > 0:
-			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-		case funds > 0:
-			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
-		default:
+		if arg.Size == 0 && arg.Funds == 0 {
 			return "", errSizeOrFundIsRequired
 		}
 	default:
-		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
-	}
-	if orderType != "" {
-		params["type"] = orderType
+		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	resp := struct {
 		OrderID string `json:"orderId"`
 		Error
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, &arg, &resp)
 }
 
 // PostMarginOrder used to place two types of margin orders: limit and market
-func (ku *Kucoin) PostMarginOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, selfTradePrevention, marginModel, timeInForce string, price, size, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg, autoBorrow bool) (*PostMarginOrderResp, error) {
-	params := make(map[string]interface{})
-	if clientOID != "" {
-		params["clientOid"] = clientOID
+func (ku *Kucoin) PostMarginOrder(ctx context.Context, arg *MarginOrderParam) (*PostMarginOrderResp, error) {
+	if arg.ClientOrderID == "" {
+		return nil, errInvalidClientOrderID
 	}
-	if side == "" {
-		return nil, errors.New("side can not be empty")
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
 	}
-	params["side"] = side
-	if symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
 	}
-	params["symbol"] = symbol
-	if remark != "" {
-		params["remark"] = remark
-	}
-	if selfTradePrevention != "" {
-		params["stp"] = selfTradePrevention
-	}
-	if marginModel != "" {
-		params["marginMode"] = marginModel
-	}
-	params["autoBorrow"] = autoBorrow
-	orderType = strings.ToLower(orderType)
-	switch orderType {
+	arg.OrderType = strings.ToLower(arg.OrderType)
+	switch arg.OrderType {
 	case "limit", "":
-		if price <= 0 {
-			return nil, errors.New("price can not be empty")
+		if arg.Price <= 0 {
+			return nil, fmt.Errorf("%w, price=%.3f", errInvalidPrice, arg.Price)
 		}
-		params["price"] = price
-		if size <= 0 {
-			return nil, errors.New("size can not be zero or negative")
+		if arg.Size <= 0 {
+			return nil, errInvalidSize
 		}
-		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-		if timeInForce != "" {
-			params["timeInForce"] = timeInForce
-		}
-		if cancelAfter > 0 && timeInForce == "GTT" {
-			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
-		}
-		params["postOnly"] = postOnly
-		params["hidden"] = hidden
-		params["iceberg"] = iceberg
-		if visibleSize > 0 {
-			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		if arg.VisibleSize < 0 {
+			return nil, fmt.Errorf("%w, visible size must be non-zero positive value", errInvalidSize)
 		}
 	case "market":
-		sum := size + funds
-		if sum <= 0 || (sum != size && sum != funds) {
+		sum := arg.Size + arg.Funds
+		if sum <= 0 || (sum != arg.Size && sum != arg.Funds) {
 			return nil, fmt.Errorf("%w, either 'size' or 'funds' has to be set, but not both", errSizeOrFundIsRequired)
 		}
-		switch {
-		case size > 0:
-			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-		case funds > 0:
-			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
-		}
 	default:
-		return nil, fmt.Errorf("%w %s", order.ErrTypeIsInvalid, orderType)
-	}
-	if orderType != "" {
-		params["type"] = orderType
+		return nil, fmt.Errorf("%w %s", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	resp := struct {
 		PostMarginOrderResp
 		Error
 	}{}
-	return &resp.PostMarginOrderResp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrdersEPL, http.MethodPost, kucoinPostMarginOrder, params, &resp)
+	return &resp.PostMarginOrderResp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrdersEPL, http.MethodPost, kucoinPostMarginOrder, &arg, &resp)
 }
 
 // PostBulkOrder used to place 5 orders at the same time. The order type must be a limit order of the same symbol
