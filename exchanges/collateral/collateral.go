@@ -2,26 +2,27 @@ package collateral
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
-// Valid returns whether the margin type is valid
+// Valid returns whether the collateral mode is valid
 func (t Mode) Valid() bool {
 	return t != UnsetMode && supportedCollateralModes&t == t
 }
 
-// UnmarshalJSON converts json into margin type
+// UnmarshalJSON converts json into collateral mode
 func (t *Mode) UnmarshalJSON(d []byte) error {
 	var mode string
 	err := json.Unmarshal(d, &mode)
 	if err != nil {
 		return err
 	}
-	*t = StringToMode(mode)
-	return nil
+	*t, err = StringToMode(mode)
+	return err
 }
 
-// String returns the string representation of the margin type in lowercase
+// String returns the string representation of the collateral mode in lowercase
 // the absence of a lower func should hopefully highlight that String is lower
 func (t Mode) String() string {
 	switch t {
@@ -39,12 +40,12 @@ func (t Mode) String() string {
 	return ""
 }
 
-// Upper returns the upper case string representation of the margin type
+// Upper returns the upper case string representation of the collateral mode
 func (t Mode) Upper() string {
 	return strings.ToUpper(t.String())
 }
 
-// IsValidCollateralModeString checks to see if the supplied string is a valid collateral type
+// IsValidCollateralModeString checks to see if the supplied string is a valid collateral mode
 func IsValidCollateralModeString(m string) bool {
 	switch strings.ToLower(m) {
 	case singleCollateralStr, multiCollateralStr, globalCollateralStr, unsetCollateralStr:
@@ -53,18 +54,18 @@ func IsValidCollateralModeString(m string) bool {
 	return false
 }
 
-// StringToMode converts a string to a collateral type
+// StringToMode converts a string to a collateral mode
 // doesn't error, just returns unknown if the string is not recognised
-func StringToMode(m string) Mode {
+func StringToMode(m string) (Mode, error) {
 	switch strings.ToLower(m) {
 	case singleCollateralStr:
-		return SingleMode
+		return SingleMode, nil
 	case multiCollateralStr:
-		return MultiMode
+		return MultiMode, nil
 	case globalCollateralStr:
-		return GlobalMode
+		return GlobalMode, nil
 	case "":
-		return UnsetMode
+		return UnsetMode, nil
 	}
-	return UnknownMode
+	return UnknownMode, fmt.Errorf("%w %v", ErrInvalidCollateralMode, m)
 }

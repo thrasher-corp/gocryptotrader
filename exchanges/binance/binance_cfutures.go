@@ -1325,16 +1325,17 @@ func (b *Binance) FuturesMarginChangeHistory(ctx context.Context, symbol currenc
 }
 
 // FuturesPositionsInfo gets futures positions info
-func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair currency.Code) ([]FuturesPositionInformation, error) {
+// "pair" for coinmarginedfutures in GCT terms is the pair base
+// eg ADAUSD_PERP the "pair" parameter is ADAUSD
+func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair string) ([]FuturesPositionInformation, error) {
 	var resp []FuturesPositionInformation
 	params := url.Values{}
-	if !marginAsset.IsEmpty() {
-		params.Set("marginAsset", marginAsset.String())
+	if marginAsset != "" {
+		params.Set("marginAsset", marginAsset)
 	}
-	// "pair" for coinmarginedfutures is the currency base
-	// eg ADAUSD_PERP the pair is ADAUSD
-	if !pair.IsEmpty() {
-		params.Set("pair", pair.String())
+
+	if pair != "" {
+		params.Set("pair", pair)
 	}
 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesPositionInfo, params, cFuturesDefaultRate, &resp)

@@ -2,6 +2,7 @@ package collateral
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -137,19 +138,43 @@ func TestIsValidCollateralTypeString(t *testing.T) {
 
 func TestStringToCollateralType(t *testing.T) {
 	t.Parallel()
-	if resp := StringToMode("lol"); resp != UnknownMode {
+	resp, err := StringToMode("lol")
+	if !errors.Is(err, ErrInvalidCollateralMode) {
+		t.Error(err)
+	}
+	if resp != UnknownMode {
 		t.Errorf("received '%v' expected '%v'", resp, UnknownMode)
 	}
-	if resp := StringToMode(""); resp != UnsetMode {
+
+	resp, err = StringToMode("")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != UnsetMode {
 		t.Errorf("received '%v' expected '%v'", resp, UnsetMode)
 	}
-	if resp := StringToMode("single"); resp != SingleMode {
+
+	resp, err = StringToMode("single")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != SingleMode {
 		t.Errorf("received '%v' expected '%v'", resp, SingleMode)
 	}
-	if resp := StringToMode("multi"); resp != MultiMode {
+
+	resp, err = StringToMode("multi")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != MultiMode {
 		t.Errorf("received '%v' expected '%v'", resp, MultiMode)
 	}
-	if resp := StringToMode("global"); resp != GlobalMode {
+
+	resp, err = StringToMode("global")
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != GlobalMode {
 		t.Errorf("received '%v' expected '%v'", resp, GlobalMode)
 	}
 }

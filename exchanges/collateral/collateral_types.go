@@ -1,6 +1,8 @@
 package collateral
 
 import (
+	"errors"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -31,6 +33,9 @@ const (
 	globalCollateralStr  = "global"
 	unknownCollateralStr = "unknown"
 )
+
+// ErrInvalidCollateralMode is returned when converting invalid string to collateral mode
+var ErrInvalidCollateralMode = errors.New("invalid collateral mode")
 
 var supportedCollateralModes = SingleMode | MultiMode | GlobalMode
 

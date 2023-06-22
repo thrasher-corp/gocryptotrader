@@ -1067,11 +1067,7 @@ func TestFuturesMarginChangeHistory(t *testing.T) {
 func TestFuturesPositionsInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	p, err := currency.NewPairFromString("BTCUSD_PERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.FuturesPositionsInfo(context.Background(), p.Base, currency.EMPTYCODE)
+	_, err := b.FuturesPositionsInfo(context.Background(), "BTCUSD", "")
 	if err != nil {
 		t.Error(err)
 	}

@@ -5571,11 +5571,11 @@ func (s *RPCServer) SetCollateralMode(ctx context.Context, r *gctrpc.SetCollater
 	if err != nil {
 		return nil, fmt.Errorf("%v %w", item, err)
 	}
-	ct := collateral.StringToMode(r.CollateralMode)
-	if !ct.Valid() {
+	cm, err := collateral.StringToMode(r.CollateralMode)
+	if err != nil {
 		return nil, fmt.Errorf("%w %v", order.ErrCollateralInvalid, r.CollateralMode)
 	}
-	err = exch.SetCollateralMode(ctx, item, ct)
+	err = exch.SetCollateralMode(ctx, item, cm)
 	if err != nil {
 		return nil, err
 	}

@@ -2216,7 +2216,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		}
 
 		// binance so fun, some prices exclusively here
-		positionsInfo, err := b.FuturesPositionsInfo(ctx, currency.EMPTYCODE, req.Pair.Base)
+		positionsInfo, err := b.FuturesPositionsInfo(ctx, "", req.Pair.Base.String())
 		if err != nil {
 			return nil, err
 		}
@@ -2361,7 +2361,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			}
 			// "pair" for coinmarginedfutures is the pair.Base
 			// eg ADAUSD_PERP the pair is ADAUSD
-			result, err := b.FuturesPositionsInfo(ctx, currency.EMPTYCODE, fPair.Base)
+			result, err := b.FuturesPositionsInfo(ctx, "", fPair.Base.String())
 			if err != nil {
 				return nil, err
 			}
@@ -2464,7 +2464,7 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currenc
 		// leverage is the same across positions
 		return resp[0].Leverage, nil
 	case asset.CoinMarginedFutures:
-		resp, err := b.FuturesPositionsInfo(ctx, currency.EMPTYCODE, pair.Base)
+		resp, err := b.FuturesPositionsInfo(ctx, "", pair.Base.String())
 		if err != nil {
 			return -1, err
 		}
