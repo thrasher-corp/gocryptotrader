@@ -265,9 +265,7 @@ func (w *Websocket) Shutdown() error {
 	defer w.m.Unlock()
 
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket: cannot shutdown %w",
-			w.exchangeName,
-			ErrNotConnected)
+		return nil
 	}
 
 	// TODO: Interrupt connection and or close connection when it is re-established.
@@ -284,14 +282,12 @@ func (w *Websocket) Shutdown() error {
 	defer w.Orderbook.FlushBuffer()
 
 	if w.Conn != nil {
-		w.ShutdownC <- struct{}{}
 		if err := w.Conn.Shutdown(); err != nil {
 			return err
 		}
 	}
 
 	if w.AuthConn != nil {
-		w.ShutdownC <- struct{}{}
 		if err := w.AuthConn.Shutdown(); err != nil {
 			return err
 		}
@@ -305,6 +301,7 @@ func (w *Websocket) Shutdown() error {
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.ShutdownC = make(chan struct{})
+	w.AssetShutdownC <- w.AssetType
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {

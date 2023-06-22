@@ -147,7 +147,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	}
 
 	/*
-	if g.IsAssetWebsocketSupported(asset.Spot) {
+	if {{.Variable}}.IsAssetWebsocketSupported(asset.Spot) {
 		wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			return err

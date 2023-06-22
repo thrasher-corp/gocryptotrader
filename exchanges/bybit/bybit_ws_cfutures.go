@@ -104,8 +104,6 @@ func (by *Bybit) WsCoinConnect() error {
 			cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	by.Websocket.Wg.Add(1)
-	go by.WsDataHandler()
 	return nil
 }
 
@@ -265,13 +263,12 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 
 // wsCoinReadData gets and passes on websocket messages for processing
 func (by *Bybit) wsCoinReadData() {
+	defer by.Websocket.Wg.Done()
 	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.CoinMarginedFutures)
 		return
 	}
-	by.Websocket.Wg.Add(1)
-	defer by.Websocket.Wg.Done()
 	for {
 		select {
 		case <-cfuturesWebsocket.ShutdownC:

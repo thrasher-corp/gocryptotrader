@@ -60,7 +60,7 @@ func (by *Bybit) WsFuturesConnect() error {
 	if by.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
-
+	by.Websocket.Wg.Add(1)
 	go by.wsFuturesReadData()
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		err = by.WsFuturesAuth(context.TODO())
@@ -218,13 +218,12 @@ func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscr
 
 // wsFuturesReadData gets and passes on websocket messages for processing
 func (by *Bybit) wsFuturesReadData() {
+	defer by.Websocket.Wg.Done()
 	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Futures)
 		return
 	}
-	by.Websocket.Wg.Add(1)
-	defer by.Websocket.Wg.Done()
 
 	for {
 		select {

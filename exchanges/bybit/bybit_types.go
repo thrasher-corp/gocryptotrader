@@ -627,7 +627,7 @@ type WsInsurance struct {
 
 // WsTickerData stores ws ticker data
 type WsTickerData struct {
-	ID                    string                  `json:"id"`
+	ID                    int64                   `json:"id"`
 	Symbol                string                  `json:"symbol"`
 	LastPrice             convert.StringToFloat64 `json:"last_price"`
 	BidPrice              float64                 `json:"bid1_price"`

@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -319,14 +318,14 @@ func TestWebsocket(t *testing.T) {
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setEnabled(true)
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
-	if err == nil {
-		t.Error("error cannot be nil")
+	if err != nil {
+		t.Error(err)
 	}
 	ws.setConnectedStatus(true)
 	ws.ShutdownC = make(chan struct{})
 	ws.Wg = &sync.WaitGroup{}
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
-	if err == nil {
+	if err != nil {
 		t.Error("SetProxyAddress", err)
 	}
 
@@ -376,7 +375,7 @@ func TestWebsocket(t *testing.T) {
 	if !ws.IsEnabled() {
 		t.Error("WebsocketSetup")
 	}
-
+	println("Proxy Address ", ws.GetProxyAddress())
 	if ws.GetProxyAddress() != "http://localhost:1337" {
 		t.Error("WebsocketSetup")
 	}
@@ -389,15 +388,15 @@ func TestWebsocket(t *testing.T) {
 	}
 	// -- Not connected shutdown
 	err = ws.Shutdown()
-	if err == nil {
-		t.Fatal("should not be connected to able to shut down")
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	ws.setConnectedStatus(true)
 	ws.Conn = &dodgyConnection{}
 	err = ws.Shutdown()
 	if err == nil {
-		t.Fatal("error cannot be nil")
+		t.Fatal(err)
 	}
 
 	ws.Conn = &WebsocketConnection{}
@@ -1236,8 +1235,6 @@ func TestEnable(t *testing.T) {
 	if err == nil {
 		t.Fatal("should already be enabled")
 	}
-
-	fmt.Print()
 }
 
 func TestSetupNewConnection(t *testing.T) {

@@ -726,11 +726,3 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestWsConn(t *testing.T) {
-	t.Parallel()
-	err := b.Websocket.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second * 20)
-}

@@ -117,10 +117,16 @@ func (w *WrapperWebsocket) dataMonitor() {
 		for {
 			select {
 			case a := <-w.ShutdownC:
-				if ws, ok := w.AssetTypeWebsockets[a]; ok {
-					ws.setConnectedStatus(false)
+				if w.connectedAssetTypesFlag == asset.Empty {
+					w.setDataMonitorRunning(false)
+					return
 				}
-				if a != asset.Empty && w.connectedAssetTypesFlag&a == a {
+				ws, ok := w.AssetTypeWebsockets[a]
+				if !ok {
+					continue
+				}
+				ws.setConnectedStatus(false)
+				if w.connectedAssetTypesFlag&a == a {
 					w.connectedAssetTypesFlag ^= a
 					if w.connectedAssetTypesFlag == asset.Empty {
 						w.setDataMonitorRunning(false)
@@ -366,9 +372,6 @@ func (w *WrapperWebsocket) Shutdown() error {
 	if len(w.AssetTypeWebsockets) == 0 {
 		return nil
 	}
-	if w.connectedAssetTypesFlag != asset.Empty {
-		w.ShutdownC <- w.connectedAssetTypesFlag
-	}
 	var errs error
 	var err error
 	for x := range w.AssetTypeWebsockets {
@@ -378,7 +381,12 @@ func (w *WrapperWebsocket) Shutdown() error {
 		}
 	}
 	if errs != nil {
-		return errs
+		log.Errorf(log.WebsocketMgr,
+			"%v websocket: error while shutting down asset websocket connections %v\n",
+			w.exchangeName, errs)
+	}
+	if w.connectedAssetTypesFlag != asset.Empty {
+		w.ShutdownC <- w.connectedAssetTypesFlag
 	}
 	close(w.ShutdownC)
 	w.Wg.Wait()
@@ -388,7 +396,7 @@ func (w *WrapperWebsocket) Shutdown() error {
 			"%v websocket: completed websocket shutdown\n",
 			w.exchangeName)
 	}
-	return nil
+	return errs
 }
 
 // IsConnecting returns status of connecting
@@ -497,7 +505,7 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		GenerateSubs:           s.GenerateSubscriptions,
 		Subscriber:             s.Subscriber,
 		Unsubscriber:           s.Unsubscriber,
-		Wg:                     w.Wg,
+		Wg:                     &sync.WaitGroup{},
 		DataHandler:            w.DataHandler,
 		ToRoutine:              w.ToRoutine,
 		TrafficAlert:           w.TrafficAlert,
@@ -513,6 +521,7 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		features:               w.features,
 		runningURLAuth:         s.RunningURLAuth,
 		ShutdownC:              make(chan struct{}),
+		AssetShutdownC:         w.ShutdownC,
 		AssetType:              s.AssetType,
 	}
 	err := assetWebsocket.SetWebsocketURL(s.RunningURL, false, false)
