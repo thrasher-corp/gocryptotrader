@@ -714,7 +714,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 	}()
 
 	for {
-		data, ok := <-pipe.C
+		data, ok := <-pipe.Channel()
 		if !ok {
 			return errDispatchSystem
 		}
@@ -2188,7 +2188,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	}()
 
 	for {
-		data, ok := <-pipe.C
+		data, ok := <-pipe.Channel()
 		if !ok {
 			return errDispatchSystem
 		}
@@ -2273,7 +2273,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	}()
 
 	for {
-		data, ok := <-pipe.C
+		data, ok := <-pipe.Channel()
 		if !ok {
 			return errDispatchSystem
 		}
@@ -2326,7 +2326,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	}()
 
 	for {
-		data, ok := <-pipe.C
+		data, ok := <-pipe.Channel()
 		if !ok {
 			return errDispatchSystem
 		}
