@@ -174,16 +174,14 @@ func (ok *Okx) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (ok *Okx) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		ok.SetEnabled(false)
 		return nil
 	}
-	err = ok.SetupDefaults(exch)
-	if err != nil {
+	if err := ok.SetupDefaults(exch); err != nil {
 		return err
 	}
 
@@ -198,7 +196,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = ok.Websocket.Setup(&stream.WebsocketSetup{
+	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:         exch,
 		DefaultURL:             okxAPIWebsocketPublicURL,
 		RunningURL:             wsRunningEndpoint,
@@ -211,27 +209,32 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
-	})
-
-	if err != nil {
+	}); err != nil {
 		return err
 	}
-	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+
+	go ok.WsReadData()
+	go ok.WsResponseMultiplexer.Run()
+
+	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
 		RateLimit:            500,
-	})
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Start starts the Okx go routine

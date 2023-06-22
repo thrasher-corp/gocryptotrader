@@ -228,8 +228,6 @@ func (ok *Okx) WsConnect() error {
 	}
 	ok.Websocket.Wg.Add(2)
 	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
-	go ok.WsReadData()
-	go ok.WsResponseMultiplexer.Run()
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
