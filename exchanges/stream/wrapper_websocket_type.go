@@ -70,6 +70,7 @@ type WrapperWebsocket struct {
 	ToRoutine                    chan interface{}
 	Match                        *Match
 
+	connectedAssetTypesLocker sync.Mutex
 	// connectedAssetTypesFlag holds a list of asset type connections
 	connectedAssetTypesFlag asset.Item
 	// shutdown synchronises shutdown event across routines

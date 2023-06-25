@@ -64,13 +64,16 @@ func (w *WrapperWebsocket) Connect() error {
 		w.dataMonitor()
 	}
 	for x := range w.AssetTypeWebsockets {
-		w.connectedAssetTypesFlag |= x
 		w.Wg.Add(1)
+		w.connectedAssetTypesLocker.Lock()
+		w.connectedAssetTypesFlag |= x
+		w.connectedAssetTypesLocker.Unlock()
 		go func(assetType asset.Item) {
 			defer w.Wg.Done()
 			err = w.AssetTypeWebsockets[assetType].Connect()
 			if err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
+				w.ShutdownC <- assetType
 			}
 		}(x)
 	}
@@ -117,36 +120,62 @@ func (w *WrapperWebsocket) dataMonitor() {
 		for {
 			select {
 			case a := <-w.ShutdownC:
+				if a == asset.Empty || a > w.connectedAssetTypesFlag {
+					w.connectedAssetTypesLocker.Unlock()
+					return
+				}
+				w.connectedAssetTypesLocker.Lock()
 				if w.connectedAssetTypesFlag == asset.Empty {
 					w.setDataMonitorRunning(false)
+					w.connectedAssetTypesLocker.Unlock()
 					return
 				}
 				ws, ok := w.AssetTypeWebsockets[a]
 				if !ok {
-					continue
+					ws.setConnectedStatus(false)
+					w.connectedAssetTypesLocker.Unlock()
+					break
 				}
 				ws.setConnectedStatus(false)
+
 				if w.connectedAssetTypesFlag&a == a {
 					w.connectedAssetTypesFlag ^= a
 					if w.connectedAssetTypesFlag == asset.Empty {
 						w.setDataMonitorRunning(false)
+						w.connectedAssetTypesLocker.Unlock()
 						return
 					}
 				}
+
+				w.connectedAssetTypesLocker.Unlock()
 			case d := <-w.DataHandler:
 				select {
 				case w.ToRoutine <- d:
 				case a := <-w.ShutdownC:
+					w.connectedAssetTypesLocker.Lock()
+					if a == asset.Empty || a > w.connectedAssetTypesFlag {
+						w.connectedAssetTypesLocker.Unlock()
+						return
+					}
+					if w.connectedAssetTypesFlag == asset.Empty {
+						w.setDataMonitorRunning(false)
+						w.connectedAssetTypesLocker.Unlock()
+						return
+					}
 					if ws, ok := w.AssetTypeWebsockets[a]; ok {
 						ws.setConnectedStatus(false)
+						w.connectedAssetTypesLocker.Unlock()
+						break
 					}
 					if a != asset.Empty && w.connectedAssetTypesFlag&a == a {
 						w.connectedAssetTypesFlag ^= a
 						if w.connectedAssetTypesFlag == asset.Empty {
 							w.setDataMonitorRunning(false)
+							w.connectedAssetTypesLocker.Unlock()
 							return
 						}
 					}
+					w.connectedAssetTypesLocker.Unlock()
 				default:
 					log.Warnf(log.WebsocketMgr,
 						"%s exchange backlog in websocket processing detected",
@@ -385,9 +414,11 @@ func (w *WrapperWebsocket) Shutdown() error {
 			"%v websocket: error while shutting down asset websocket connections %v\n",
 			w.exchangeName, errs)
 	}
+	w.connectedAssetTypesLocker.Lock()
 	if w.connectedAssetTypesFlag != asset.Empty {
 		w.ShutdownC <- w.connectedAssetTypesFlag
 	}
+	w.connectedAssetTypesLocker.Unlock()
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.ShutdownC = make(chan asset.Item)

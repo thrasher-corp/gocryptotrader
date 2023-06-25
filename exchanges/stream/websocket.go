@@ -301,7 +301,11 @@ func (w *Websocket) Shutdown() error {
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.ShutdownC = make(chan struct{})
-	w.AssetShutdownC <- w.AssetType
+	select {
+	case w.AssetShutdownC <- w.AssetType:
+	default:
+		log.Errorf(log.ExchangeSys, "%s sending message to a shutdown message to a closed channel asset type %v", w.exchangeName, w.AssetType)
+	}
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {

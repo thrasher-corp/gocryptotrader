@@ -2,6 +2,7 @@ package stream
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -115,7 +116,17 @@ func TestGetAssetWebsocket(t *testing.T) {
 
 func TestWebsocketWrapper(t *testing.T) {
 	t.Parallel()
-	ws := NewWrapper()
+	ws := &WrapperWebsocket{
+		Init:                true,
+		DataHandler:         make(chan interface{}, 100),
+		ToRoutine:           make(chan interface{}, 100),
+		TrafficAlert:        make(chan struct{}),
+		ReadMessageErrors:   make(chan error),
+		AssetTypeWebsockets: make(map[asset.Item]*Websocket),
+		ShutdownC:           make(chan asset.Item, 10),
+		Match:               NewMatch(),
+		Wg:                  &sync.WaitGroup{},
+	}
 	err := ws.Setup(&WebsocketWrapperSetup{
 		ExchangeConfig: &config.Exchange{
 			Features: &config.FeaturesConfig{

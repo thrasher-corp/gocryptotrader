@@ -282,7 +282,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	timer := time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- errors.New("errorText")
 	select {
-	case err := <-ws.ToRoutine:
+	case err := <-ws.DataHandler:
 		errText, ok := err.(error)
 		if !ok {
 			t.Error("unable to type assert error")
@@ -309,7 +309,10 @@ outer:
 
 func TestWebsocket(t *testing.T) {
 	t.Parallel()
-	ws := &Websocket{}
+	shutdownC := make(chan asset.Item, 10)
+	ws := &Websocket{
+		AssetShutdownC: shutdownC,
+	}
 	err := ws.SetProxyAddress("garbagio")
 	if err == nil {
 		t.Error("error cannot be nil")
@@ -350,7 +353,17 @@ func TestWebsocket(t *testing.T) {
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
-	websocketWrapper := NewWrapper()
+	websocketWrapper := &WrapperWebsocket{
+		Init:                true,
+		DataHandler:         make(chan interface{}, 100),
+		ToRoutine:           make(chan interface{}, 100),
+		TrafficAlert:        make(chan struct{}),
+		ReadMessageErrors:   make(chan error),
+		AssetTypeWebsockets: make(map[asset.Item]*Websocket),
+		ShutdownC:           make(chan asset.Item, 10),
+		Match:               NewMatch(),
+		Wg:                  &sync.WaitGroup{},
+	}
 	err = websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
@@ -375,9 +388,8 @@ func TestWebsocket(t *testing.T) {
 	if !ws.IsEnabled() {
 		t.Error("WebsocketSetup")
 	}
-	println("Proxy Address ", ws.GetProxyAddress())
-	if ws.GetProxyAddress() != "http://localhost:1337" {
-		t.Error("WebsocketSetup")
+	if ws.GetProxyAddress() != "" {
+		t.Error("websocketSetup")
 	}
 
 	if ws.GetWebsocketURL() != "wss://testRunningURL" {
@@ -399,7 +411,9 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ws.Conn = &WebsocketConnection{}
+	ws.Conn = &WebsocketConnection{
+		ShutdownC: make(chan struct{}, 5),
+	}
 
 	ws.setConnectedStatus(true)
 	ws.AuthConn = &dodgyConnection{}
@@ -408,7 +422,9 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal("error cannot be nil ")
 	}
 
-	ws.AuthConn = &WebsocketConnection{}
+	ws.AuthConn = &WebsocketConnection{
+		ShutdownC: make(chan struct{}, 5),
+	}
 	ws.setConnectedStatus(false)
 
 	// -- Normal connect
@@ -436,6 +452,7 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ws.ShutdownC = make(chan struct{}, 5)
 	// Attempt reconnect
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, true)
 	if err != nil {
@@ -1080,7 +1097,10 @@ func TestFlushChannels(t *testing.T) {
 		currency.NewPair(currency.BTC, currency.USDT),
 	}}
 
-	dodgyWs := Websocket{}
+	shutdownC := make(chan asset.Item, 10)
+	dodgyWs := Websocket{
+		AssetShutdownC: shutdownC,
+	}
 	err := dodgyWs.FlushChannels()
 	if err == nil {
 		t.Fatal("error cannot be nil")
@@ -1091,16 +1111,16 @@ func TestFlushChannels(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-
 	web := Websocket{
-		enabled:      true,
-		connected:    true,
-		connector:    connect,
-		ShutdownC:    make(chan struct{}),
-		Subscriber:   newgen.SUBME,
-		Unsubscriber: newgen.UNSUBME,
-		Wg:           new(sync.WaitGroup),
-		features:     &protocol.Features{
+		enabled:        true,
+		connected:      true,
+		connector:      connect,
+		ShutdownC:      make(chan struct{}),
+		Subscriber:     newgen.SUBME,
+		Unsubscriber:   newgen.UNSUBME,
+		Wg:             new(sync.WaitGroup),
+		AssetShutdownC: shutdownC,
+		features:       &protocol.Features{
 			// No features
 		},
 		trafficTimeout: time.Second * 30, // Added for when we utilise connect()

@@ -72,7 +72,7 @@ func NewTestWrapperWebsocket() *stream.WrapperWebsocket {
 		TrafficAlert:        make(chan struct{}),
 		ReadMessageErrors:   make(chan error),
 		AssetTypeWebsockets: make(map[asset.Item]*stream.Websocket),
-		ShutdownC:           make(chan asset.Item),
+		ShutdownC:           make(chan asset.Item, 10),
 		Match:               stream.NewMatch(),
 		Wg:                  &sync.WaitGroup{},
 	}
