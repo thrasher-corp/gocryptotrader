@@ -120,11 +120,11 @@ func (w *WrapperWebsocket) dataMonitor() {
 		for {
 			select {
 			case a := <-w.ShutdownC:
+				w.connectedAssetTypesLocker.Lock()
 				if a == asset.Empty || a > w.connectedAssetTypesFlag {
 					w.connectedAssetTypesLocker.Unlock()
 					return
 				}
-				w.connectedAssetTypesLocker.Lock()
 				if w.connectedAssetTypesFlag == asset.Empty {
 					w.setDataMonitorRunning(false)
 					w.connectedAssetTypesLocker.Unlock()
@@ -416,7 +416,13 @@ func (w *WrapperWebsocket) Shutdown() error {
 	}
 	w.connectedAssetTypesLocker.Lock()
 	if w.connectedAssetTypesFlag != asset.Empty {
-		w.ShutdownC <- w.connectedAssetTypesFlag
+		select {
+		case w.ShutdownC <- w.connectedAssetTypesFlag:
+		default:
+			if w.verbose {
+				log.Errorf(log.ExchangeSys, "%s sending message to a shutdown message to a closed channel", w.exchangeName)
+			}
+		}
 	}
 	w.connectedAssetTypesLocker.Unlock()
 	close(w.ShutdownC)
