@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -301,12 +302,10 @@ func (w *Websocket) Shutdown() error {
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.ShutdownC = make(chan struct{})
-	select {
-	case w.AssetShutdownC <- w.AssetType:
-	default:
-		if w.verbose {
-			log.Errorf(log.ExchangeSys, "%s sending message to a shutdown message to a closed channel asset type %v", w.exchangeName, w.AssetType)
-		}
+	if !isAssetItemChannelClosed(w.AssetShutdownC) {
+		w.AssetShutdownC <- w.AssetType
+	} else if w.verbose {
+		log.Errorf(log.ExchangeSys, "%s sending message to a shutdown message to a closed channel asset type %v", w.exchangeName, w.AssetType)
 	}
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
@@ -832,4 +831,14 @@ func checkWebsocketURL(s string) error {
 		return fmt.Errorf("cannot set %w %s", errInvalidWebsocketURL, s)
 	}
 	return nil
+}
+
+// isAssetItemChannelClosed checks if the asset item channel is closed
+func isAssetItemChannelClosed(assetChan chan asset.Item) bool {
+	select {
+	case <-assetChan:
+		return true
+	default:
+	}
+	return false
 }
