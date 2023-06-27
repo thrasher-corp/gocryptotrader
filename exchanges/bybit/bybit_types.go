@@ -191,21 +191,6 @@ type TradeItem struct {
 	Time         time.Time
 }
 
-// KlineItem stores an individual kline data item
-type KlineItem struct {
-	StartTime        time.Time
-	EndTime          time.Time
-	Open             float64
-	Close            float64
-	High             float64
-	Low              float64
-	Volume           float64
-	QuoteAssetVolume float64
-	TakerBaseVolume  float64
-	TakerQuoteVolume float64
-	TradesCount      int64
-}
-
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {
 	Time         bybitTimeMilliSec       `json:"time"`
@@ -984,4 +969,97 @@ type AccountFee struct {
 type ListOfTickers struct {
 	Category string   `json:"category"`
 	List     []Ticker `json:"list"`
+}
+
+// ----------------------------------------------------------------------------
+
+// InstrumentsInfo representa a category, page indicator, and list of instrument informations.
+type InstrumentsInfo struct {
+	Category       string           `json:"category"`
+	List           []InstrumentInfo `json:"list"`
+	NextPageCursor string           `json:"nextPageCursor"`
+}
+
+// InstrumentInfo represents detailed data for symbol.
+type InstrumentInfo struct {
+	Symbol          string                  `json:"symbol"`
+	ContractType    string                  `json:"contractType"`
+	Status          string                  `json:"status"`
+	BaseCoin        string                  `json:"baseCoin"`
+	QuoteCoin       string                  `json:"quoteCoin"`
+	LaunchTime      convert.ExchangeTime    `json:"launchTime"`
+	DeliveryTime    convert.ExchangeTime    `json:"deliveryTime"`
+	DeliveryFeeRate convert.StringToFloat64 `json:"deliveryFeeRate"`
+	PriceScale      convert.StringToFloat64 `json:"priceScale"`
+	LeverageFilter  struct {
+		MinLeverage  convert.StringToFloat64 `json:"minLeverage"`
+		MaxLeverage  convert.StringToFloat64 `json:"maxLeverage"`
+		LeverageStep convert.StringToFloat64 `json:"leverageStep"`
+	} `json:"leverageFilter"`
+	PriceFilter struct {
+		MinPrice convert.StringToFloat64 `json:"minPrice"`
+		MaxPrice convert.StringToFloat64 `json:"maxPrice"`
+		TickSize convert.StringToFloat64 `json:"tickSize"`
+	} `json:"priceFilter"`
+	LotSizeFilter struct {
+		MaxOrderQty         convert.StringToFloat64 `json:"maxOrderQty"`
+		MinOrderQty         convert.StringToFloat64 `json:"minOrderQty"`
+		QtyStep             convert.StringToFloat64 `json:"qtyStep"`
+		PostOnlyMaxOrderQty convert.StringToFloat64 `json:"postOnlyMaxOrderQty"`
+	} `json:"lotSizeFilter"`
+	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
+	FundingInterval    int64  `json:"fundingInterval"`
+	SettleCoin         string `json:"settleCoin"`
+}
+
+// RestResponse represents a REST response instance.
+type RestResponse struct {
+	RetCode    int64                `json:"retCode"`
+	RetMsg     string               `json:"retMsg"`
+	Result     interface{}          `json:"result"`
+	RetExtInfo interface{}          `json:"retExtInfo"`
+	Time       convert.ExchangeTime `json:"time"`
+}
+
+// KlineResponse represents a kline item list instance as an array of string.
+type KlineResponse struct {
+	Symbol   string     `json:"symbol"`
+	Category string     `json:"category"`
+	List     [][]string `json:"list"`
+}
+
+// KlineDatas represents a kline item list instance as an array of KlineItem.
+type KlineDatas struct {
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
+}
+
+// KlineItem stores an individual kline data item
+type KlineItem struct {
+	StartTime time.Time
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+
+	// not available for mark and index price kline data
+	TradeVolume float64
+	Turnover    float64
+}
+
+// MarkPriceKlineResponse represents a kline data item.
+type MarkPriceKlineResponse struct {
+	Symbol   string     `json:"symbol"`
+	Category string     `json:"category"`
+	List     [][]string `json:"list"`
+}
+
+// MarkPriceKlineItem represents a mark price kline item instance.
+type MarkPriceKlineItem struct {
+	StartTime  time.Time
+	OpenPrice  float64
+	HighPrice  float64
+	LowPrice   float64
+	ClosePrice float64
 }

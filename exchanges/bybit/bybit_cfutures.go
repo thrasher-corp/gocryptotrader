@@ -196,62 +196,62 @@ func (by *Bybit) GetSymbolsInfo(ctx context.Context) ([]SymbolInfo, error) {
 }
 
 // GetMarkPriceKline gets mark price kline data
-func (by *Bybit) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
-	resp := struct {
-		Data []MarkPriceKlineData `json:"result"`
-		Error
-	}{}
+// func (by *Bybit) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
+// 	resp := struct {
+// 		Data []MarkPriceKlineData `json:"result"`
+// 		Error
+// 	}{}
 
-	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
-	if err != nil {
-		return resp.Data, err
-	}
-	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errInvalidInterval
-	}
-	params.Set("interval", interval)
-	if startTime.IsZero() {
-		return resp.Data, errInvalidStartTime
-	}
-	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+// 	params := url.Values{}
+// 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+// 	if err != nil {
+// 		return resp.Data, err
+// 	}
+// 	params.Set("symbol", symbolValue)
+// 	if limit > 0 && limit <= 200 {
+// 		params.Set("limit", strconv.FormatInt(limit, 10))
+// 	}
+// 	if !common.StringDataCompare(validFuturesIntervals, interval) {
+// 		return resp.Data, errInvalidInterval
+// 	}
+// 	params.Set("interval", interval)
+// 	if startTime.IsZero() {
+// 		return resp.Data, errInvalidStartTime
+// 	}
+// 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
-	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesMarkPriceKline, params)
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
-}
+// 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesMarkPriceKline, params)
+// 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+// }
 
 // GetIndexPriceKline gets index price kline data
-func (by *Bybit) GetIndexPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
-	resp := struct {
-		Data []IndexPriceKlineData `json:"result"`
-		Error
-	}{}
+// func (by *Bybit) GetIndexPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
+// 	resp := struct {
+// 		Data []IndexPriceKlineData `json:"result"`
+// 		Error
+// 	}{}
 
-	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
-	if err != nil {
-		return resp.Data, err
-	}
-	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errInvalidInterval
-	}
-	params.Set("interval", interval)
-	if startTime.IsZero() {
-		return resp.Data, errInvalidStartTime
-	}
-	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+// 	params := url.Values{}
+// 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+// 	if err != nil {
+// 		return resp.Data, err
+// 	}
+// 	params.Set("symbol", symbolValue)
+// 	if limit > 0 && limit <= 200 {
+// 		params.Set("limit", strconv.FormatInt(limit, 10))
+// 	}
+// 	if !common.StringDataCompare(validFuturesIntervals, interval) {
+// 		return resp.Data, errInvalidInterval
+// 	}
+// 	params.Set("interval", interval)
+// 	if startTime.IsZero() {
+// 		return resp.Data, errInvalidStartTime
+// 	}
+// 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
-	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexKline, params)
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
-}
+// 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexKline, params)
+// 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+// }
 
 // GetPremiumIndexPriceKline gets premium index price kline data
 func (by *Bybit) GetPremiumIndexPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {

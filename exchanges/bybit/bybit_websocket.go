@@ -25,7 +25,7 @@ import (
 
 const (
 	bybitWSBaseURL      = "wss://stream.bybit.com/"
-	wsSpotPublicTopicV2 = "spot/quote/ws/v2"
+	wsSpotPublicTopicV2 = "v5/public/spot"
 	wsSpotPrivate       = "spot/ws"
 	bybitWebsocketTimer = 20 * time.Second
 	wsOrderbook         = "depth"
@@ -39,6 +39,23 @@ const (
 
 	sub    = "sub"    // event for subscribe
 	cancel = "cancel" // event for unsubscribe
+
+	spotPublic    = "wss://stream.bybit.com/v5/public/spot"
+	linearPublic  = "wss://stream.bybit.com/v5/public/linear"  // USDT, USDC perpetual & USDC Futures
+	inversePublic = "wss://stream.bybit.com/v5/public/inverse" // Inverse contract
+	optionPublic  = "wss://stream.bybit.com/v5/public/option"  // USDC Option
+
+	// Testnet:
+	spotTestnet = "wss://stream-testnet.bybit.com/v5/public/spot"
+	linearTest  = "wss://stream-testnet.bybit.com/v5/public/linear"  // USDT and USDC perpetual
+	inverseTest = "wss://stream-testnet.bybit.com/v5/public/inverse" // Inverse contract
+	optionsTest = "wss://stream-testnet.bybit.com/v5/public/option"  // USDC Option
+
+	// Main-net private
+	websocketPrivate = "wss://stream.bybit.com/v5/private"
+
+	// Test-net private
+	websocketPrivateTest = "wss://stream-testnet.bybit.com/v5/private"
 )
 
 var comms = make(chan stream.Response)

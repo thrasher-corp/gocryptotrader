@@ -1768,74 +1768,6 @@ func (by *Bybit) ValidateAPICredentials(ctx context.Context, assetType asset.Ite
 	return by.CheckTransientError(err)
 }
 
-// FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (by *Bybit) FormatExchangeKlineInterval(_ context.Context, interval kline.Interval) string {
-	switch interval {
-	case kline.OneMin:
-		return "1m"
-	case kline.ThreeMin:
-		return "3m"
-	case kline.FiveMin:
-		return "5m"
-	case kline.FifteenMin:
-		return "15m"
-	case kline.ThirtyMin:
-		return "30m"
-	case kline.OneHour:
-		return "1h"
-	case kline.TwoHour:
-		return "2h"
-	case kline.FourHour:
-		return "4h"
-	case kline.SixHour:
-		return "4h"
-	case kline.TwelveHour:
-		return "12h"
-	case kline.OneDay:
-		return "1d"
-	case kline.OneWeek:
-		return "1w"
-	case kline.OneMonth:
-		return "1M"
-	default:
-		return interval.Short()
-	}
-}
-
-// FormatExchangeKlineIntervalFutures returns Interval to exchange formatted string for future assets
-func (by *Bybit) FormatExchangeKlineIntervalFutures(_ context.Context, interval kline.Interval) string {
-	switch interval {
-	case kline.OneMin:
-		return "1"
-	case kline.ThreeMin:
-		return "3"
-	case kline.FiveMin:
-		return "5"
-	case kline.FifteenMin:
-		return "15"
-	case kline.ThirtyMin:
-		return "30"
-	case kline.OneHour:
-		return "60"
-	case kline.TwoHour:
-		return "120"
-	case kline.FourHour:
-		return "240"
-	case kline.SixHour:
-		return "360"
-	case kline.TwelveHour:
-		return "720"
-	case kline.OneDay:
-		return "D"
-	case kline.OneWeek:
-		return "W"
-	case kline.OneMonth:
-		return "M"
-	default:
-		return interval.Short()
-	}
-}
-
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := by.GetKlineRequest(pair, a, interval, start, end, false)
@@ -1847,12 +1779,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	switch req.Asset {
 	case asset.Spot:
 		var candles []KlineItem
-		candles, err = by.GetKlines(ctx,
-			req.RequestFormatted.String(),
-			by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
-			req.RequestLimit,
-			req.Start,
-			req.End)
+		_, err = by.GetKlines(ctx, "spot", req.RequestFormatted.String(), req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -1865,14 +1792,14 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				High:   candles[x].High,
 				Low:    candles[x].Low,
 				Close:  candles[x].Close,
-				Volume: candles[x].Volume,
+				Volume: candles[x].TradeVolume,
 			}
 		}
 	case asset.CoinMarginedFutures, asset.Futures:
 		var candles []FuturesCandleStickWithStringParam
 		candles, err = by.GetFuturesKlineData(ctx,
 			req.RequestFormatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
+			"by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval)",
 			req.RequestLimit,
 			req.Start)
 		if err != nil {
@@ -1894,7 +1821,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		var candles []FuturesCandleStick
 		candles, err = by.GetUSDTFuturesKlineData(ctx,
 			req.RequestFormatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
+			"req.ExchangeInterval",
 			req.RequestLimit,
 			req.Start)
 		if err != nil {
@@ -1916,7 +1843,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		var candles []USDCKline
 		candles, err = by.GetUSDCKlines(ctx,
 			req.RequestFormatted,
-			by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
+			"req.ExchangeInterval",
 			req.Start,
 			req.RequestLimit)
 		if err != nil {
@@ -1952,12 +1879,13 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		switch req.Asset {
 		case asset.Spot:
 			var candles []KlineItem
-			candles, err = by.GetKlines(ctx,
+			_, err = by.GetKlines(ctx,
+				"spot",
 				req.RequestFormatted.String(),
-				by.FormatExchangeKlineInterval(ctx, req.ExchangeInterval),
-				req.RequestLimit,
+				req.ExchangeInterval,
 				req.RangeHolder.Ranges[x].Start.Time,
-				req.RangeHolder.Ranges[x].End.Time)
+				req.RangeHolder.Ranges[x].End.Time,
+				req.RequestLimit)
 			if err != nil {
 				return nil, err
 			}
@@ -1969,14 +1897,14 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 					High:   candles[i].High,
 					Low:    candles[i].Low,
 					Close:  candles[i].Close,
-					Volume: candles[i].Volume,
+					Volume: candles[i].TradeVolume,
 				})
 			}
 		case asset.CoinMarginedFutures, asset.Futures:
 			var candles []FuturesCandleStickWithStringParam
 			candles, err = by.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
+				"by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval)",
 				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
@@ -1997,7 +1925,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			var candles []FuturesCandleStick
 			candles, err = by.GetUSDTFuturesKlineData(ctx,
 				req.RequestFormatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
+				"by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval)",
 				req.RequestLimit,
 				req.RangeHolder.Ranges[x].Start.Time)
 			if err != nil {
@@ -2018,7 +1946,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			var candles []USDCKline
 			candles, err = by.GetUSDCKlines(ctx,
 				req.RequestFormatted,
-				by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval),
+				"by.FormatExchangeKlineIntervalFutures(ctx, req.ExchangeInterval)",
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RequestLimit)
 			if err != nil {

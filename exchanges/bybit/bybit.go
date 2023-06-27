@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -28,7 +30,9 @@ type Bybit struct {
 }
 
 const (
-	bybitAPIURL       = "https://api.bybit.com"
+	bybitAPIURL     = "https://api.bybit.com"
+	bybitAPIVersion = "/v5/"
+
 	defaultRecvWindow = "5000" // 5000 milli second
 
 	sideBuy  = "Buy"
@@ -36,12 +40,12 @@ const (
 
 	// Public endpoints
 	bybitSpotGetSymbols   = "/spot/v1/symbols"
-	bybitOrderBook        = "/spot/quote/v1/depth"
-	bybitMergedOrderBook  = "/spot/quote/v1/depth/merged"
-	bybitRecentTrades     = "/spot/quote/v1/trades"
 	bybitCandlestickChart = "/spot/quote/v1/kline"
+	bybitOrderBook        = "/spot/quote/v1/depth"
+	bybitRecentTrades     = "/spot/quote/v1/trades"
 	bybit24HrsChange      = "/spot/quote/v1/ticker/24hr"
 	bybitLastTradedPrice  = "/spot/quote/v1/ticker/price"
+	bybitMergedOrderBook  = "/spot/quote/v1/depth/merged"
 	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
 	bybitGetTickersV5     = "/v5/market/tickers"
 
@@ -60,12 +64,250 @@ const (
 	// Account asset endpoint
 	bybitGetDepositAddress = "/asset/v1/private/deposit/address"
 	bybitWithdrawFund      = "/asset/v1/private/withdraw"
+
+	// --------- New ----------------------------------------------------------------
+	instrumentsInfo = "market/instruments-info"
+	klineInfos      = "market/kline"
+	markPriceKline  = "market/mark-price-kline"
+	indexPriceKline = "market/index-price-kline"
 )
 
 var (
 	errCategoryNotSet = errors.New("category not set")
 	errBaseNotSet     = errors.New("base coin not set when category is option")
+
+	errCategoryIsRequired = errors.New("category is required")
+	errSymbolIsRequired   = errors.New("symbol is required")
 )
+
+func intervalToString(interval kline.Interval) (string, error) {
+	switch interval {
+	case kline.OneMin:
+		return "1", nil
+	case kline.ThreeMin:
+		return "3", nil
+	case kline.FiveMin:
+		return "5", nil
+	case kline.FifteenMin:
+		return "15", nil
+	case kline.ThirtyMin:
+		return "30", nil
+	case kline.OneHour:
+		return "60", nil
+	case kline.TwoHour:
+		return "120", nil
+	case kline.FourHour:
+		return "240", nil
+	case kline.SixHour:
+		return "360", nil
+	case kline.SevenHour:
+		return "720", nil
+	case kline.OneDay:
+		return "D", nil
+	case kline.OneMonth:
+		return "M", nil
+	case kline.OneWeek:
+		return "W", nil
+	default:
+		return "", kline.ErrUnsupportedInterval
+	}
+}
+
+// stringToInterval returns a kline.Interval instance from string.
+func stringToInterval(s string) (kline.Interval, error) {
+	switch s {
+	case "1":
+		return kline.OneMin, nil
+	case "3":
+		return kline.ThreeMin, nil
+	case "5":
+		return kline.FiveMin, nil
+	case "15":
+		return kline.FifteenMin, nil
+	case "30":
+		return kline.ThirtyMin, nil
+	case "60":
+		return kline.OneHour, nil
+	case "120":
+		return kline.TwoHour, nil
+	case "240":
+		return kline.FourHour, nil
+	case "360":
+		return kline.SixHour, nil
+	case "720":
+		return kline.SevenHour, nil
+	case "D":
+		return kline.OneDay, nil
+	case "M":
+		return kline.OneMonth, nil
+	case "W":
+		return kline.OneWeek, nil
+	default:
+		return 0, kline.ErrInvalidInterval
+	}
+}
+
+// GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
+func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+	if category == "" {
+		return nil, errCategoryIsRequired
+	}
+	if symbol == "" {
+		return nil, errSymbolIsRequired
+	}
+	intervalString, err := intervalToString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() {
+		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp KlineResponse
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(klineInfos, params), publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return processKlineResponse(resp.List)
+}
+
+func processKlineResponse(in [][]string) ([]KlineItem, error) {
+	klines := make([]KlineItem, len(in))
+	for x := range in {
+		startTimestamp, err := strconv.ParseInt(in[x][0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		klineData := KlineItem{StartTime: time.UnixMilli(startTimestamp)}
+		klineData.Open, err = strconv.ParseFloat(in[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		klineData.High, err = strconv.ParseFloat(in[x][2], 64)
+		if err != nil {
+			return nil, err
+		}
+		klineData.Low, err = strconv.ParseFloat(in[x][3], 64)
+		if err != nil {
+			return nil, err
+		}
+		klineData.Close, err = strconv.ParseFloat(in[x][4], 64)
+		if err != nil {
+			return nil, err
+		}
+		if len(in) == 7 {
+			klineData.TradeVolume, err = strconv.ParseFloat(in[x][5], 64)
+			if err != nil {
+				return nil, err
+			}
+			klineData.Turnover, err = strconv.ParseFloat(in[x][6], 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return klines, nil
+}
+
+// GetInstruments retrives the list of instrument details given the category and symbol.
+func (by *Bybit) GetInstruments(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
+	if category == "" {
+		return nil, errCategoryIsRequired
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp InstrumentsInfo
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(instrumentsInfo, params), publicSpotRate, &resp)
+}
+
+// GetMarkPriceKline query for historical mark price klines. Charts are returned in groups based on the requested interval.
+func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+	if category == "" {
+		return nil, errCategoryIsRequired
+	}
+	if symbol == "" {
+		return nil, errSymbolIsRequired
+	}
+	intervalString, err := intervalToString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() {
+		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp MarkPriceKlineResponse
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(markPriceKline, params), publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return processKlineResponse(resp.List)
+}
+
+// GetIndexPriceKline query for historical index price klines. Charts are returned in groups based on the requested interval.
+func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+	if category == "" {
+		return nil, errCategoryIsRequired
+	}
+	if symbol == "" {
+		return nil, errSymbolIsRequired
+	}
+	intervalString, err := intervalToString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() {
+		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp KlineResponse
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(indexPriceKline, params), publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return processKlineResponse(resp.List)
+}
+
+// ---------------------------------------------------------------- Old ----------------------------------------------------------------
 
 // GetAllSpotPairs gets all pairs on the exchange
 func (by *Bybit) GetAllSpotPairs(ctx context.Context) ([]PairData, error) {
@@ -201,122 +443,6 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 		}
 	}
 	return trades, nil
-}
-
-// GetKlines data returns the kline data for a specific symbol. Limitation: It only returns latest 3500 candles irrespective of interval passed
-func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int64, start, end time.Time) ([]KlineItem, error) {
-	resp := struct {
-		Data [][]interface{} `json:"result"`
-		Error
-	}{}
-
-	v := url.Values{}
-	v.Add("symbol", symbol)
-	v.Add("interval", period)
-	if !start.IsZero() {
-		v.Add("startTime", strconv.FormatInt(start.UnixMilli(), 10))
-	}
-	if !end.IsZero() {
-		v.Add("endTime", strconv.FormatInt(end.UnixMilli(), 10))
-	}
-	if limit <= 0 || limit > 1000 {
-		limit = 1000
-	}
-	v.Add("limit", strconv.FormatInt(limit, 10))
-
-	path := common.EncodeURLValues(bybitCandlestickChart, v)
-	if err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp); err != nil {
-		return nil, err
-	}
-
-	klines := make([]KlineItem, len(resp.Data))
-	for x := range resp.Data {
-		if len(resp.Data[x]) != 11 {
-			return nil, fmt.Errorf("%v GetKlines: invalid response, array length not as expected, check api docs for updates", by.Name)
-		}
-		var err error
-		startTime, ok := resp.Data[x][0].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for StartTime", by.Name, errTypeAssert)
-		}
-		klines[x].StartTime = time.UnixMilli(int64(startTime))
-
-		open, ok := resp.Data[x][1].(string)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errTypeAssert)
-		}
-		klines[x].Open, err = strconv.ParseFloat(open, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errStrParsing)
-		}
-
-		high, ok := resp.Data[x][2].(string)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for High", by.Name, errTypeAssert)
-		}
-		klines[x].High, err = strconv.ParseFloat(high, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%v GetKlines: %w for High", by.Name, errStrParsing)
-		}
-
-		low, ok := resp.Data[x][3].(string)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for Low", by.Name, errTypeAssert)
-		}
-		klines[x].Low, err = strconv.ParseFloat(low, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%v GetKlines: %w for Low", by.Name, errStrParsing)
-		}
-
-		c, ok := resp.Data[x][4].(string)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errTypeAssert)
-		}
-		klines[x].Close, err = strconv.ParseFloat(c, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errStrParsing)
-		}
-
-		volume, ok := resp.Data[x][5].(string)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errTypeAssert)
-		}
-		klines[x].Volume, err = strconv.ParseFloat(volume, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errStrParsing)
-		}
-
-		endTime, ok := resp.Data[x][6].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for EndTime", by.Name, errTypeAssert)
-		}
-		klines[x].EndTime = time.UnixMilli(int64(endTime))
-		quoteAssetVolume, ok := resp.Data[x][7].(string)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errTypeAssert)
-		}
-		klines[x].QuoteAssetVolume, err = strconv.ParseFloat(quoteAssetVolume, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errStrParsing)
-		}
-
-		tradesCount, ok := resp.Data[x][8].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for TradesCount", by.Name, errTypeAssert)
-		}
-		klines[x].TradesCount = int64(tradesCount)
-
-		klines[x].TakerBaseVolume, ok = resp.Data[x][9].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for TakerBaseVolume", by.Name, errTypeAssert)
-		}
-
-		klines[x].TakerQuoteVolume, ok = resp.Data[x][10].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%v GetKlines: %w for TakerQuoteVolume", by.Name, errTypeAssert)
-		}
-	}
-	return klines, nil
 }
 
 // Get24HrsChange returns price change statistics for the last 24 hours
@@ -803,17 +929,23 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result UnmarshalTo) error {
+func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-
+	value := reflect.ValueOf(result)
+	if value.Kind() != reflect.Ptr {
+		return fmt.Errorf("expected a pointer, got %T", value)
+	}
+	response := &RestResponse{
+		Result: result,
+	}
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
-			Path:          endpointPath + path,
-			Result:        result,
+			Path:          endpointPath + bybitAPIVersion + path,
+			Result:        response,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
@@ -821,7 +953,10 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 	if err != nil {
 		return err
 	}
-	return result.GetError()
+	if response.RetCode != 0 && response.RetMsg != "" {
+		return fmt.Errorf("code: %d message: %s", response.RetCode, response.RetMsg)
+	}
+	return nil
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
