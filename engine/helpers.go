@@ -1057,27 +1057,37 @@ func GetDefaultExchangeByName(ctx context.Context, name string) (exchange.IBotEx
 		return nil, fmt.Errorf("'%s' %w", name, ErrExchangeNotFound)
 	}
 
-	cfg, err := exch.GetDefaultConfig(ctx)
+	return InitialiseExchange(ctx, exch)
+}
+
+// InitialiseExchange prepares the exchange for use and returns it ready to be
+// used. This will allow authenticated endpoints and enable all pairs and assets.
+// This function can be used for custom exchange implementations that are not
+// natively supported.
+func InitialiseExchange(ctx context.Context, exch exchange.IBotExchange) (exchange.IBotExchange, error) {
+	if exch == nil {
+		return nil, errExchangeIsNil
+	}
+	defaultConfig, err := exch.GetDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	err = exch.Setup(cfg)
+	err = exch.Setup(defaultConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	b := exch.GetBase()
-	// Enable authenticated support so we can use authenticated endpoints
-	// immediately.
+	// Enable authenticated support for immediate use of authenticated endpoints.
 	b.API.AuthenticatedSupport = true
 	b.API.AuthenticatedWebsocketSupport = true
 
-	// Enable all pairs and assets
+	// Enable all available pairs and assets
 	supportedAssets := exch.GetAssetTypes(false)
 	for x := range supportedAssets {
 		err = b.CurrencyPairs.SetAssetEnabled(supportedAssets[x], true)
-		if err != nil {
+		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
 			return nil, err
 		}
 
