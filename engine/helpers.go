@@ -27,10 +27,36 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bittrex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -960,4 +986,110 @@ func genCert(targetDir string) error {
 
 	log.Infof(log.Global, "gRPC TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
+}
+
+// NewSupportedExchangeByName helps create a new exchange to be loaded that is
+// supported by GCT. This will return nil if not found.
+func NewSupportedExchangeByName(name string) exchange.IBotExchange {
+	switch strings.ToLower(name) {
+	case "binanceus":
+		return new(binanceus.Binanceus)
+	case "binance":
+		return new(binance.Binance)
+	case "bitfinex":
+		return new(bitfinex.Bitfinex)
+	case "bitflyer":
+		return new(bitflyer.Bitflyer)
+	case "bithumb":
+		return new(bithumb.Bithumb)
+	case "bitmex":
+		return new(bitmex.Bitmex)
+	case "bitstamp":
+		return new(bitstamp.Bitstamp)
+	case "bittrex":
+		return new(bittrex.Bittrex)
+	case "btc markets":
+		return new(btcmarkets.BTCMarkets)
+	case "btse":
+		return new(btse.BTSE)
+	case "bybit":
+		return new(bybit.Bybit)
+	case "coinut":
+		return new(coinut.COINUT)
+	case "exmo":
+		return new(exmo.EXMO)
+	case "coinbasepro":
+		return new(coinbasepro.CoinbasePro)
+	case "gateio":
+		return new(gateio.Gateio)
+	case "gemini":
+		return new(gemini.Gemini)
+	case "hitbtc":
+		return new(hitbtc.HitBTC)
+	case "huobi":
+		return new(huobi.HUOBI)
+	case "itbit":
+		return new(itbit.ItBit)
+	case "kraken":
+		return new(kraken.Kraken)
+	case "lbank":
+		return new(lbank.Lbank)
+	case "okcoin international":
+		return new(okcoin.OKCoin)
+	case "okx":
+		return new(okx.Okx)
+	case "poloniex":
+		return new(poloniex.Poloniex)
+	case "yobit":
+		return new(yobit.Yobit)
+	case "zb":
+		return new(zb.ZB)
+	default:
+		return nil
+	}
+}
+
+// GetDefaultExchangeByName returns a defaulted exchange by its name if it exists.
+// This will allocate a new exchange and setup the default config for it.
+func GetDefaultExchangeByName(ctx context.Context, name string) (exchange.IBotExchange, error) {
+	exch := NewSupportedExchangeByName(name)
+	if exch == nil {
+		return nil, fmt.Errorf("'%s' %w", name, ErrExchangeNotFound)
+	}
+
+	cfg, err := exch.GetDefaultConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.Setup(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	b := exch.GetBase()
+	// Enable authenticated support so we can use authenticated endpoints
+	// immediately.
+	b.API.AuthenticatedSupport = true
+	b.API.AuthenticatedWebsocketSupport = true
+
+	// Enable all pairs and assets
+	supportedAssets := exch.GetAssetTypes(false)
+	for x := range supportedAssets {
+		err = b.CurrencyPairs.SetAssetEnabled(supportedAssets[x], true)
+		if err != nil {
+			return nil, err
+		}
+
+		avail, err := exch.GetAvailablePairs(supportedAssets[x])
+		if err != nil {
+			return nil, err
+		}
+
+		err = b.CurrencyPairs.StorePairs(asset.Spot, avail, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return exch, nil
 }

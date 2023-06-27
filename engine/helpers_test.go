@@ -1347,3 +1347,35 @@ func TestCheckAndGenCerts(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNewSupportedExchangeByName(t *testing.T) {
+	t.Parallel()
+
+	for x := range exchange.Exchanges {
+		if NewSupportedExchangeByName(exchange.Exchanges[x]) == nil {
+			t.Fatalf("received nil exchange")
+		}
+	}
+
+	if NewSupportedExchangeByName("meow") != nil {
+		t.Fatalf("received non nil exchange")
+	}
+}
+
+func TestGetDefaultExchangeByName(t *testing.T) {
+	t.Parallel()
+
+	_, err := GetDefaultExchangeByName(context.Background(), "meow")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
+	}
+
+	exch, err := GetDefaultExchangeByName(context.Background(), "binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exch.GetName() != "Binance" {
+		t.Fatalf("received: '%v' but expected: '%v'", exch.GetName(), "Binance")
+	}
+}
