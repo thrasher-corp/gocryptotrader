@@ -2158,11 +2158,11 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		var responses []TradeFeeRate
 		uly, err := ok.GetUnderlying(feeBuilder.Pair, asset.Spot)
 		if err != nil {
 			return 0, err
 		}
+		var responses []TradeFeeRate
 		responses, err = ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "")
 		if err != nil {
 			return 0, err
@@ -2170,18 +2170,12 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 			return 0, errors.New("no trade fee response found")
 		}
 		if feeBuilder.IsMaker {
-			if fee, err = strconv.ParseFloat(responses[0].FeeRateMaker, 64); err != nil || fee == 0 {
-				fee, err = strconv.ParseFloat(responses[0].FeeRateMakerUSDT, 64)
-				if err != nil {
-					return fee, err
-				}
+			if fee = responses[0].FeeRateMaker.Float64(); fee == 0 {
+				fee = responses[0].FeeRateMakerUSDT.Float64()
 			}
 		} else {
-			if fee, err = strconv.ParseFloat(responses[0].FeeRateTaker, 64); err != nil || fee == 0 {
-				fee, err = strconv.ParseFloat(responses[0].FeeRateTakerUSDT, 64)
-				if err != nil {
-					return fee, err
-				}
+			if fee = responses[0].FeeRateTaker.Float64(); fee == 0 {
+				fee = responses[0].FeeRateTakerUSDT.Float64()
 			}
 		}
 		if fee < 0 {
