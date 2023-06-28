@@ -391,7 +391,6 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			}
 
 			// Makes sure the config is valid and can be used to setup the exchange
-			cfg.Enabled = true
 			if err := exch.Setup(cfg); err != nil {
 				t.Fatal(err)
 			}

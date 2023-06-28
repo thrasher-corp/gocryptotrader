@@ -174,7 +174,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		return errors.New("setting up new connection error: websocket is nil")
 	}
 	if c == (ConnectionSetup{}) {
-		return errors.New("setting up new connection error: websocket connection configuration empty" + w.exchangeName)
+		return errors.New("setting up new connection error: websocket connection configuration empty")
 	}
 
 	if w.exchangeName == "" {
