@@ -30,12 +30,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (l *Lbank) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	l.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = l.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = l.BaseCurrencies
+	exchCfg, err := l.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := l.SetupDefaults(exchCfg)
+	err = l.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

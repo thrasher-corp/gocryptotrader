@@ -31,12 +31,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (y *Yobit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	y.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = y.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = y.BaseCurrencies
+	exchCfg, err := y.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := y.SetupDefaults(exchCfg)
+	err = y.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

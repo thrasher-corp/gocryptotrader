@@ -26,10 +26,7 @@ const (
 	fileEncryptionDisabled               = -1
 	pairsLastUpdatedWarningThreshold     = 30 // 30 days
 	defaultHTTPTimeout                   = time.Second * 15
-	defaultWebsocketResponseCheckTimeout = time.Millisecond * 30
-	defaultWebsocketResponseMaxLimit     = time.Second * 7
 	defaultWebsocketOrderbookBufferLimit = 5
-	defaultWebsocketTrafficTimeout       = time.Second * 30
 	DefaultConnectionMonitorDelay        = time.Second * 2
 	maxAuthFailures                      = 3
 	defaultNTPAllowedDifference          = 50000000
@@ -41,6 +38,16 @@ const (
 	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
 	DefaultOrderbookPublishPeriod        = time.Second * 10
+
+	// DefaultWebsocketResponseCheckTimeout is the default timeout for
+	// websocket responses.
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	// DefaultWebsocketResponseMaxLimit is the default maximum time for
+	// websocket responses.
+	DefaultWebsocketResponseMaxLimit = time.Second * 7
+	// DefaultWebsocketTrafficTimeout is the default timeout for websocket
+	// traffic.
+	DefaultWebsocketTrafficTimeout = time.Second * 30
 )
 
 // Constants here hold some messages

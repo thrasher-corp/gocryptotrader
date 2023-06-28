@@ -30,12 +30,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (i *ItBit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	i.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = i.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = i.BaseCurrencies
+	exchCfg, err := i.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := i.SetupDefaults(exchCfg)
+	err = i.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

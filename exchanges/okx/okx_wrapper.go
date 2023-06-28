@@ -38,12 +38,12 @@ const (
 // GetDefaultConfig returns a default exchange config
 func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	ok.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = ok.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = ok.BaseCurrencies
+	exchCfg, err := ok.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := ok.SetupDefaults(exchCfg)
+	err = ok.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -181,16 +181,21 @@ func (ok *Okx) SetDefaults() {
 func (ok *Okx) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
+		fmt.Println("VALID?")
 		return err
 	}
 	if !exch.Enabled {
+		fmt.Println("WHAT!?")
 		ok.SetEnabled(false)
 		return nil
 	}
 	err = ok.SetupDefaults(exch)
 	if err != nil {
+		fmt.Println("ERRORED OUT HERE")
 		return err
 	}
+
+	fmt.Println("SETUP OTHER THINGS")
 
 	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
 		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
@@ -204,21 +209,23 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             okxAPIWebsocketPublicURL,
-		RunningURL:             wsRunningEndpoint,
-		Connector:              ok.WsConnect,
-		Subscriber:             ok.Subscribe,
-		Unsubscriber:           ok.Unsubscribe,
-		GenerateSubscriptions:  ok.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            okxAPIWebsocketPublicURL,
+		RunningURL:            wsRunningEndpoint,
+		Connector:             ok.WsConnect,
+		Subscriber:            ok.Subscribe,
+		Unsubscriber:          ok.Unsubscribe,
+		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
+		Features:              &ok.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
 	})
 
+	fmt.Println("exch.WebsocketResponseCheckTimeout", exch.WebsocketResponseCheckTimeout)
+
 	if err != nil {
+		fmt.Println("SETUP ERR")
 		return err
 	}
 	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
@@ -228,8 +235,10 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		RateLimit:            500,
 	})
 	if err != nil {
+		fmt.Println("unauth")
 		return err
 	}
+	fmt.Println("auth")
 	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,

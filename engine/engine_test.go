@@ -367,6 +367,34 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			if cfg == nil {
 				t.Fatal("expected config")
 			}
+
+			if cfg.Name == "" {
+				t.Error("name unset SetDefaults() not called")
+			}
+
+			if !cfg.Enabled {
+				t.Error("expected enabled", cfg.Name)
+			}
+
+			if exch.SupportsWebsocket() {
+				if cfg.WebsocketResponseCheckTimeout <= 0 {
+					t.Error("expected websocketResponseCheckTimeout to be greater than 0", cfg.Name)
+				}
+
+				if cfg.WebsocketResponseMaxLimit <= 0 {
+					t.Error("expected WebsocketResponseMaxLimit to be greater than 0", cfg.Name)
+				}
+
+				if cfg.WebsocketTrafficTimeout <= 0 {
+					t.Error("expected WebsocketTrafficTimeout to be greater than 0", cfg.Name)
+				}
+			}
+
+			// Makes sure the config is valid and can be used to setup the exchange
+			cfg.Enabled = true
+			if err := exch.Setup(cfg); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }

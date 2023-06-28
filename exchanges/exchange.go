@@ -1627,3 +1627,20 @@ func (b *Base) Shutdown() error {
 	}
 	return b.Requester.Shutdown()
 }
+
+// GetStandardConfig returns a standard default exchange config.
+func (b *Base) GetStandardConfig() (*config.Exchange, error) {
+	exchCfg := new(config.Exchange)
+	exchCfg.Name = b.Name
+	exchCfg.Enabled = b.Enabled
+	exchCfg.HTTPTimeout = DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = b.BaseCurrencies
+
+	if b.SupportsWebsocket() {
+		exchCfg.WebsocketResponseCheckTimeout = config.DefaultWebsocketResponseCheckTimeout
+		exchCfg.WebsocketResponseMaxLimit = config.DefaultWebsocketResponseMaxLimit
+		exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
+	}
+
+	return exchCfg, nil
+}
