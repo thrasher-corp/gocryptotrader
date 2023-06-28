@@ -2936,8 +2936,8 @@ func TestGetStandardConfig(t *testing.T) {
 
 	var b *Base
 	_, err := b.GetStandardConfig()
-	if !errors.Is(err, ErrExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeIsNil)
+	if !errors.Is(err, errExchangeIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
 	}
 
 	b = &Base{}

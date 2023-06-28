@@ -181,21 +181,16 @@ func (ok *Okx) SetDefaults() {
 func (ok *Okx) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
-		fmt.Println("VALID?")
 		return err
 	}
 	if !exch.Enabled {
-		fmt.Println("WHAT!?")
 		ok.SetEnabled(false)
 		return nil
 	}
 	err = ok.SetupDefaults(exch)
 	if err != nil {
-		fmt.Println("ERRORED OUT HERE")
 		return err
 	}
-
-	fmt.Println("SETUP OTHER THINGS")
 
 	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
 		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
@@ -221,11 +216,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
 	})
-
-	fmt.Println("exch.WebsocketResponseCheckTimeout", exch.WebsocketResponseCheckTimeout)
-
 	if err != nil {
-		fmt.Println("SETUP ERR")
 		return err
 	}
 	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
@@ -235,10 +226,8 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		RateLimit:            500,
 	})
 	if err != nil {
-		fmt.Println("unauth")
 		return err
 	}
-	fmt.Println("auth")
 	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
