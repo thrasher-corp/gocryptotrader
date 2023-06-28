@@ -282,30 +282,30 @@ func (by *Bybit) GetPremiumIndexPriceKline(ctx context.Context, symbol currency.
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
-// GetOpenInterest gets open interest data for a symbol.
-func (by *Bybit) GetOpenInterest(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]OpenInterestData, error) {
-	resp := struct {
-		Data []OpenInterestData `json:"result"`
-		Error
-	}{}
+// // GetOpenInterest gets open interest data for a symbol.
+// func (by *Bybit) GetOpenInterest(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]OpenInterestData, error) {
+// 	resp := struct {
+// 		Data []OpenInterestData `json:"result"`
+// 		Error
+// 	}{}
 
-	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
-	if err != nil {
-		return resp.Data, err
-	}
-	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !common.StringDataCompare(validFuturesPeriods, period) {
-		return resp.Data, errInvalidPeriod
-	}
-	params.Set("period", period)
+// 	params := url.Values{}
+// 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+// 	if err != nil {
+// 		return resp.Data, err
+// 	}
+// 	params.Set("symbol", symbolValue)
+// 	if limit > 0 && limit <= 200 {
+// 		params.Set("limit", strconv.FormatInt(limit, 10))
+// 	}
+// 	if !common.StringDataCompare(validFuturesPeriods, period) {
+// 		return resp.Data, errInvalidPeriod
+// 	}
+// 	params.Set("period", period)
 
-	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesOpenInterest, params)
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
-}
+// 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesOpenInterest, params)
+// 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+// }
 
 // GetLatestBigDeal gets filled orders worth more than 500,000 USD within the last 24h for symbol.
 func (by *Bybit) GetLatestBigDeal(ctx context.Context, symbol currency.Pair, limit int64) ([]BigDealData, error) {
@@ -350,26 +350,6 @@ func (by *Bybit) GetAccountRatio(ctx context.Context, symbol currency.Pair, peri
 	params.Set("period", period)
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesAccountRatio, params)
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
-}
-
-// GetRiskLimit returns risk limit
-func (by *Bybit) GetRiskLimit(ctx context.Context, symbol currency.Pair) ([]RiskInfoWithStringParam, error) {
-	resp := struct {
-		Data []RiskInfoWithStringParam `json:"result"`
-		Error
-	}{}
-
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	}
-
-	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesGetRiskLimit, params)
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 

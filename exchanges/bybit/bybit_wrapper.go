@@ -428,7 +428,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 
 	switch assetType {
 	case asset.Spot:
-		ticks, err := by.GetTickersV5(ctx, "spot", "", "")
+		ticks, err := by.GetTickers(ctx, "spot", "", "", time.Time{})
 		if err != nil {
 			return err
 		}
@@ -450,13 +450,13 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.List[x].LastPrice.Float64(),
-				High:         ticks.List[x].HighPrice24Hr.Float64(),
-				Low:          ticks.List[x].LowPrice24Hr.Float64(),
-				Bid:          ticks.List[x].TopBidPrice.Float64(),
-				BidSize:      ticks.List[x].TopBidSize.Float64(),
-				Ask:          ticks.List[x].TopAskPrice.Float64(),
-				AskSize:      ticks.List[x].TopAskSize.Float64(),
-				Volume:       ticks.List[x].Volume24Hr.Float64(),
+				High:         ticks.List[x].HighPrice24H.Float64(),
+				Low:          ticks.List[x].LowPrice24H.Float64(),
+				Bid:          ticks.List[x].Bid1Price.Float64(),
+				BidSize:      ticks.List[x].Bid1Size.Float64(),
+				Ask:          ticks.List[x].Ask1Price.Float64(),
+				AskSize:      ticks.List[x].Ask1Size.Float64(),
+				Volume:       ticks.List[x].Volume24H.Float64(),
 				Pair:         pair,
 				ExchangeName: by.Name,
 				AssetType:    assetType})
@@ -666,9 +666,9 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 	switch assetType {
 	case asset.Spot:
-		orderbookNew, err = by.GetOrderBook(ctx, formattedPair.String(), 0)
+		orderbookNew, err = by.GetOrderBook(ctx, assetType.String(), formattedPair.String(), 0)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		orderbookNew, err = by.GetFuturesOrderbook(ctx, formattedPair)
+		// orderbookNew, err = by.GetFuturesOrderbook(ctx, "linear", formattedPair.String(), 0)
 	case asset.USDCMarginedFutures:
 		orderbookNew, err = by.GetUSDCFuturesOrderbook(ctx, formattedPair)
 	default:

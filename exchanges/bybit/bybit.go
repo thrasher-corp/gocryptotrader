@@ -47,7 +47,7 @@ const (
 	bybitLastTradedPrice  = "/spot/quote/v1/ticker/price"
 	bybitMergedOrderBook  = "/spot/quote/v1/depth/merged"
 	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
-	bybitGetTickersV5     = "/v5/market/tickers"
+	// bybitGetTickersV5     = "/v5/market/tickers"
 
 	// Authenticated endpoints
 	bybitSpotOrder                = "/spot/v1/order" // create, query, cancel
@@ -66,18 +66,24 @@ const (
 	bybitWithdrawFund      = "/asset/v1/private/withdraw"
 
 	// --------- New ----------------------------------------------------------------
-	instrumentsInfo = "market/instruments-info"
-	klineInfos      = "market/kline"
-	markPriceKline  = "market/mark-price-kline"
-	indexPriceKline = "market/index-price-kline"
+	instrumentsInfo            = "market/instruments-info"
+	klineInfos                 = "market/kline"
+	markPriceKline             = "market/mark-price-kline"
+	indexPriceKline            = "market/index-price-kline"
+	marketOrderbook            = "market/orderbook"
+	marketTicker               = "market/tickers"
+	marketFundingRateHistory   = "market/funding/history"
+	marketRecentTrade          = "market/recent-trade"
+	marketOpenInterest         = "market/open-interest"
+	marketHistoricalVolatility = "market/historical-volatility"
+	marketInsurance            = "market/insurance"
+	marketRiskLimit            = "market/risk-limit"
+	marketDeliveryPrice        = "market/delivery-price"
 )
 
 var (
 	errCategoryNotSet = errors.New("category not set")
 	errBaseNotSet     = errors.New("base coin not set when category is option")
-
-	errCategoryIsRequired = errors.New("category is required")
-	errSymbolIsRequired   = errors.New("symbol is required")
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
@@ -149,19 +155,14 @@ func stringToInterval(s string) (kline.Interval, error) {
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
 func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
-	if category == "" {
-		return nil, errCategoryIsRequired
-	}
-	if symbol == "" {
-		return nil, errSymbolIsRequired
+	params, err := fillCategoryAndSymbol(category, symbol)
+	if err != nil {
+		return nil, err
 	}
 	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("category", category)
-	params.Set("symbol", symbol)
 	params.Set("interval", intervalString)
 	if !startTime.IsZero() {
 		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -220,13 +221,9 @@ func processKlineResponse(in [][]string) ([]KlineItem, error) {
 
 // GetInstruments retrives the list of instrument details given the category and symbol.
 func (by *Bybit) GetInstruments(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
-	if category == "" {
-		return nil, errCategoryIsRequired
-	}
-	params := url.Values{}
-	params.Set("category", category)
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	params, err := fillCategoryAndSymbol(category, symbol, true)
+	if err != nil {
+		return nil, err
 	}
 	if status != "" {
 		params.Set("status", status)
@@ -243,19 +240,14 @@ func (by *Bybit) GetInstruments(ctx context.Context, category, symbol, status, b
 
 // GetMarkPriceKline query for historical mark price klines. Charts are returned in groups based on the requested interval.
 func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
-	if category == "" {
-		return nil, errCategoryIsRequired
-	}
-	if symbol == "" {
-		return nil, errSymbolIsRequired
+	params, err := fillCategoryAndSymbol(category, symbol)
+	if err != nil {
+		return nil, err
 	}
 	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("category", category)
-	params.Set("symbol", symbol)
 	params.Set("interval", intervalString)
 	if !startTime.IsZero() {
 		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -276,19 +268,14 @@ func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string,
 
 // GetIndexPriceKline query for historical index price klines. Charts are returned in groups based on the requested interval.
 func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
-	if category == "" {
-		return nil, errCategoryIsRequired
-	}
-	if symbol == "" {
-		return nil, errSymbolIsRequired
+	params, err := fillCategoryAndSymbol(category, symbol)
+	if err != nil {
+		return nil, err
 	}
 	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("category", category)
-	params.Set("symbol", symbol)
 	params.Set("interval", intervalString)
 	if !startTime.IsZero() {
 		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -305,6 +292,218 @@ func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string
 		return nil, err
 	}
 	return processKlineResponse(resp.List)
+}
+
+// GetOrderBook retrives for orderbook depth data.
+func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limit int64) (*Orderbook, error) {
+	params, err := fillCategoryAndSymbol(category, symbol)
+	if err != nil {
+		return nil, err
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp orderbookResponse
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketOrderbook, params), publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return constructOrderbook(&resp)
+}
+
+func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url.Values, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "spot" && category != "linear" && category != "inverse" && category != "option" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	if symbol == "" && (len(optionalSymbol) == 0 || !optionalSymbol[0]) {
+		return nil, errSymbolMissing
+	} else {
+		params.Set("symbol", symbol)
+	}
+	params.Set("category", category)
+	return params, nil
+}
+
+// GetTickers returns the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
+func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin string, expiryDate time.Time) (*TickerData, error) {
+	params, err := fillCategoryAndSymbol(category, symbol, true)
+	if err != nil {
+		return nil, err
+	}
+	if category == "option" && baseCoin == "" {
+		return nil, errBaseNotSet
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if !expiryDate.IsZero() {
+		params.Set("expData", expiryDate.Format("02Jan06"))
+	}
+	var resp TickerData
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketTicker, params), publicSpotRate, &resp)
+}
+
+// GetFundingRateHistory retrives historical funding rates. Each symbol has a different funding interval.
+// For example, if the interval is 8 hours and the current time is UTC 12, then it returns the last funding rate, which settled at UTC 8.
+func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol string, startTime, endTime time.Time, limit int64) (*FundingRateHistory, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "linear" && category != "inverse" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	if symbol == "" {
+		return nil, errSymbolMissing
+	}
+	params.Set("symbol", symbol)
+	params.Set("category", category)
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp FundingRateHistory
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketFundingRateHistory, params), publicSpotRate, &resp)
+}
+
+// GetPublicTradingHistory retrives recent public trading data.
+// Option type. 'Call' or 'Put'. For option only
+func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, baseCoin, optionType string, limit int64) (*TradingHistory, error) {
+	params, err := fillCategoryAndSymbol(category, symbol)
+	if err != nil {
+		return nil, err
+	}
+	if category == "option" && baseCoin == "" {
+		return nil, errBaseNotSet
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if optionType != "" {
+		params.Set("optionType", optionType)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp TradingHistory
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketRecentTrade, params), publicSpotRate, &resp)
+}
+
+// GetOpenInterest retrives open interest of each symbol.
+func (by *Bybit) GetOpenInterest(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "linear" && category != "inverse" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	if symbol == "" {
+		return nil, errSymbolMissing
+	}
+	params.Set("symbol", symbol)
+	params.Set("category", category)
+	if intervalTime != "" {
+		params.Set("intervalTime", intervalTime)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	var resp OpenInterest
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketOpenInterest, params), publicSpotRate, &resp)
+}
+
+// GetHistoricalValatility retrives option historical volatility.
+// The data is hourly.
+// If both 'startTime' and 'endTime' are not specified, it will return the most recent 1 hours worth of data.
+// 'startTime' and 'endTime' are a pair of params. Either both are passed or they are not passed at all.
+// This endpoint can query the last 2 years worth of data, but make sure [endTime - startTime] <= 30 days.
+func (by *Bybit) GetHistoricalValatility(ctx context.Context, category, baseCoin string, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "option" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if period > 0 {
+		params.Set("period", strconv.FormatInt(period, 10))
+	}
+	var err error
+	if err = common.StartEndTimeCheck(startTime, endTime); !(startTime.IsZero() && endTime.IsZero()) && err != nil {
+		return nil, err
+	} else if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp []HistoricVolatility
+	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketHistoricalVolatility, params), publicSpotRate, &resp)
+}
+
+// GetInsurance retrives insurance pool data (BTC/USDT/USDC etc). The data is updated every 24 hours.
+func (by *Bybit) GetInsurance(ctx context.Context, coin string) (*InsuranceHistory, error) {
+	params := url.Values{}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	var resp InsuranceHistory
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketInsurance, params), publicSpotRate, &resp)
+}
+
+// GetRiskLimit retrives risk limit history
+func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*RiskLimitHistory, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "linear" && category != "inverse" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp RiskLimitHistory
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketRiskLimit, params), publicSpotRate, &resp)
+}
+
+// GetDeliveryPrice retrives delivery price.
+func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoin, cursor string, limit int64) (*DeliveryPrice, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "linear" && category != "inverse" && category != "option" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	var resp DeliveryPrice
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketDeliveryPrice, params), publicSpotRate, &resp)
 }
 
 // ---------------------------------------------------------------- Old ----------------------------------------------------------------
@@ -336,43 +535,6 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 		}
 	}
 	return o, nil
-}
-
-func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s   Orderbook
-		err error
-	)
-	s.Bids, err = processOB(o.Data.Bids)
-	if err != nil {
-		return nil, err
-	}
-	s.Asks, err = processOB(o.Data.Asks)
-	if err != nil {
-		return nil, err
-	}
-	s.Time = o.Data.Time.Time()
-	return &s, err
-}
-
-// GetOrderBook gets orderbook for a given market with a given depth (default depth 100)
-func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (*Orderbook, error) {
-	var o orderbookResponse
-	strDepth := "100" // default depth
-	if depth > 0 && depth < 100 {
-		strDepth = strconv.FormatInt(depth, 10)
-	}
-
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("limit", strDepth)
-	path := common.EncodeURLValues(bybitOrderBook, params)
-	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &o)
-	if err != nil {
-		return nil, err
-	}
-
-	return constructOrderbook(&o)
 }
 
 // GetMergedOrderBook gets orderbook for a given market with a given depth (default depth 100)
@@ -548,41 +710,6 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 	}
 
 	return resp.Data, nil
-}
-
-// GetTickersV5 returns tickers for either "spot", "option" or "inverse".
-// Specific symbol is optional.
-func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol, baseCoin string) (*ListOfTickers, error) {
-	if category == "" {
-		return nil, errCategoryNotSet
-	}
-
-	if category == "option" && baseCoin == "" {
-		return nil, errBaseNotSet
-	}
-
-	val := url.Values{}
-	val.Set("category", category)
-
-	if symbol != "" {
-		val.Set("symbol", symbol)
-	}
-
-	if baseCoin != "" {
-		val.Set("baseCoin", baseCoin)
-	}
-
-	result := struct {
-		Data *ListOfTickers `json:"result"`
-		Error
-	}{}
-
-	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitGetTickersV5+"?"+val.Encode(), publicSpotRate, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result.Data, nil
 }
 
 // CreatePostOrder create and post order

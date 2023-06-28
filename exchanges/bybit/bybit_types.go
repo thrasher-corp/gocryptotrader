@@ -176,10 +176,11 @@ type PairData struct {
 
 // Orderbook stores the orderbook data
 type Orderbook struct {
-	Bids   []orderbook.Item
-	Asks   []orderbook.Item
-	Symbol string
-	Time   time.Time
+	UpdateID       int64
+	Bids           []orderbook.Item
+	Asks           []orderbook.Item
+	Symbol         string
+	GenerationTime time.Time
 }
 
 // TradeItem stores a single trade
@@ -211,15 +212,15 @@ type LastTradePrice struct {
 	Price  convert.StringToFloat64 `json:"price"`
 }
 
-// TickerData stores ticker data
-type TickerData struct {
-	Symbol      string                  `json:"symbol"`
-	BidPrice    convert.StringToFloat64 `json:"bidPrice"`
-	BidQuantity convert.StringToFloat64 `json:"bidQty"`
-	AskPrice    convert.StringToFloat64 `json:"askPrice"`
-	AskQuantity convert.StringToFloat64 `json:"askQty"`
-	Time        bybitTimeMilliSec       `json:"time"`
-}
+// // TickerData stores ticker data
+// type TickerData struct {
+// 	Symbol      string                  `json:"symbol"`
+// 	BidPrice    convert.StringToFloat64 `json:"bidPrice"`
+// 	BidQuantity convert.StringToFloat64 `json:"bidQty"`
+// 	AskPrice    convert.StringToFloat64 `json:"askPrice"`
+// 	AskQuantity convert.StringToFloat64 `json:"askQty"`
+// 	Time        bybitTimeMilliSec       `json:"time"`
+// }
 
 var (
 	// BybitRequestParamsOrderLimit Limit order
@@ -350,12 +351,11 @@ type Balance struct {
 }
 
 type orderbookResponse struct {
-	Data struct {
-		Asks [][2]string       `json:"asks"`
-		Bids [][2]string       `json:"bids"`
-		Time bybitTimeMilliSec `json:"time"`
-	} `json:"result"`
-	Error
+	Symbol    string               `json:"s"`
+	Asks      [][2]string          `json:"a"`
+	Bids      [][2]string          `json:"b"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+	UpdateID  int64                `json:"u"`
 }
 
 // DepositWalletInfo stores wallet deposit info
@@ -1062,4 +1062,141 @@ type MarkPriceKlineItem struct {
 	HighPrice  float64
 	LowPrice   float64
 	ClosePrice float64
+}
+
+func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
+	var (
+		s = Orderbook{
+			Symbol:         o.Symbol,
+			UpdateID:       o.UpdateID,
+			GenerationTime: o.Timestamp.Time(),
+		}
+		err error
+	)
+	s.Bids, err = processOB(o.Bids)
+	if err != nil {
+		return nil, err
+	}
+	s.Asks, err = processOB(o.Asks)
+	if err != nil {
+		return nil, err
+	}
+	return &s, err
+}
+
+// TickerData represents a list of ticker detailed information.
+type TickerData struct {
+	Category string       `json:"category"`
+	List     []TickerItem `json:"list"`
+}
+
+// TickerItem represents a ticker item detail.
+type TickerItem struct {
+	Symbol                 string                  `json:"symbol"`
+	LastPrice              convert.StringToFloat64 `json:"lastPrice"`
+	IndexPrice             convert.StringToFloat64 `json:"indexPrice"`
+	MarkPrice              convert.StringToFloat64 `json:"markPrice"`
+	PrevPrice24H           convert.StringToFloat64 `json:"prevPrice24h"`
+	Price24HPcnt           convert.StringToFloat64 `json:"price24hPcnt"`
+	HighPrice24H           convert.StringToFloat64 `json:"highPrice24h"`
+	LowPrice24H            convert.StringToFloat64 `json:"lowPrice24h"`
+	PrevPrice1H            convert.StringToFloat64 `json:"prevPrice1h"`
+	OpenInterest           convert.StringToFloat64 `json:"openInterest"`
+	OpenInterestValue      convert.StringToFloat64 `json:"openInterestValue"`
+	Turnover24H            convert.StringToFloat64 `json:"turnover24h"`
+	Volume24H              convert.StringToFloat64 `json:"volume24h"`
+	FundingRate            convert.StringToFloat64 `json:"fundingRate"`
+	NextFundingTime        convert.StringToFloat64 `json:"nextFundingTime"`
+	PredictedDeliveryPrice convert.StringToFloat64 `json:"predictedDeliveryPrice"`
+	BasisRate              convert.StringToFloat64 `json:"basisRate"`
+	DeliveryFeeRate        convert.StringToFloat64 `json:"deliveryFeeRate"`
+	DeliveryTime           convert.ExchangeTime    `json:"deliveryTime"`
+	Ask1Size               convert.StringToFloat64 `json:"ask1Size"`
+	Bid1Price              convert.StringToFloat64 `json:"bid1Price"`
+	Ask1Price              convert.StringToFloat64 `json:"ask1Price"`
+	Bid1Size               convert.StringToFloat64 `json:"bid1Size"`
+	Basis                  convert.StringToFloat64 `json:"basis"`
+}
+
+// FundingRateHistory represents a funding rate history for a category.
+type FundingRateHistory struct {
+	Category string        `json:"category"`
+	List     []FundingRate `json:"list"`
+}
+
+// FundingRate represents a funding rate instance.
+type FundingRate struct {
+	Symbol               string                  `json:"symbol"`
+	FundingRate          convert.StringToFloat64 `json:"fundingRate"`
+	FundingRateTimestamp convert.ExchangeTime    `json:"fundingRateTimestamp"`
+}
+
+// TradingHistory represents a trading history list.
+type TradingHistory struct {
+	Category string               `json:"category"`
+	List     []TradingHistoryItem `json:"list"`
+}
+
+// TradingHistoryItem represents a trading history item instance.
+type TradingHistoryItem struct {
+	ExecutionID  string                  `json:"execId"`
+	Symbol       string                  `json:"symbol"`
+	Price        convert.StringToFloat64 `json:"price"`
+	Size         convert.StringToFloat64 `json:"size"`
+	Side         string                  `json:"side"`
+	TradeTime    convert.ExchangeTime    `json:"time"`
+	IsBlockTrade bool                    `json:"isBlockTrade"`
+}
+
+// OpenInterest represents open interest of each symbol.
+type OpenInterest struct {
+	Symbol   string `json:"symbol"`
+	Category string `json:"category"`
+	List     []struct {
+		OpenInterest convert.StringToFloat64 `json:"openInterest"`
+		Timestamp    convert.ExchangeTime    `json:"timestamp"`
+	} `json:"list"`
+	NextPageCursor string `json:"nextPageCursor"`
+}
+
+// HistoricVolatility represents option historical volatility
+type HistoricVolatility struct {
+	Period int64                   `json:"period"`
+	Value  convert.StringToFloat64 `json:"value"`
+	Time   convert.ExchangeTime    `json:"time"`
+}
+
+// InsuranceHistory represents an insurance list.
+type InsuranceHistory struct {
+	UpdatedTime convert.ExchangeTime `json:"updatedTime"`
+	List        []struct {
+		Coin    string                  `json:"coin"`
+		Balance convert.StringToFloat64 `json:"balance"`
+		Value   convert.StringToFloat64 `json:"value"`
+	} `json:"list"`
+}
+
+// RiskLimitHistory represents risk limit history of a category.
+type RiskLimitHistory struct {
+	Category string `json:"category"`
+	List     []struct {
+		ID                int64                   `json:"id"`
+		Symbol            string                  `json:"symbol"`
+		RiskLimitValue    convert.StringToFloat64 `json:"riskLimitValue"`
+		MaintenanceMargin convert.StringToFloat64 `json:"maintenanceMargin"`
+		InitialMargin     convert.StringToFloat64 `json:"initialMargin"`
+		IsLowestRisk      int64                   `json:"isLowestRisk"`
+		MaxLeverage       convert.StringToFloat64 `json:"maxLeverage"`
+	} `json:"list"`
+}
+
+// DeliveryPrice represents the delivery price information.
+type DeliveryPrice struct {
+	Category       string `json:"category"`
+	NextPageCursor string `json:"nextPageCursor"`
+	List           []struct {
+		Symbol        string                  `json:"symbol"`
+		DeliveryPrice convert.StringToFloat64 `json:"deliveryPrice"`
+		DeliveryTime  convert.ExchangeTime    `json:"deliveryTime"`
+	} `json:"list"`
 }

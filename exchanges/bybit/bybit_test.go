@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -167,13 +168,25 @@ func TestGetIndexPriceKline(t *testing.T) {
 // 	}
 // }
 
-// func TestGetOrderBook(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := b.GetOrderBook(context.Background(), "BTCUSDT", 100)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+func TestGetOrderBook(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOrderBook(context.Background(), "spot", "BTCUSDT", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetOrderBook(context.Background(), "linear", "BTCUSDT", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetOrderBook(context.Background(), "inverse", "BTCUSDT", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetOrderBook(context.Background(), "option", "BTC-7JUL23-27000-C", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 // func TestGetMergedOrderBook(t *testing.T) {
 // 	t.Parallel()
@@ -771,18 +784,29 @@ func TestGetIndexPriceKline(t *testing.T) {
 // 	}
 // }
 
-// func TestGetRiskLimit(t *testing.T) {
-// 	t.Parallel()
-// 	pair, err := currency.NewPairFromString("BTCUSD")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	_, err = b.GetRiskLimit(context.Background(), pair)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestGetRiskLimit(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRiskLimit(context.Background(), "linear", pair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetRiskLimit(context.Background(), "inverse", "BTCUSDM23")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetRiskLimit(context.Background(), "option", "BTCUSDM23")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Error(err)
+	}
+	_, err = b.GetRiskLimit(context.Background(), "spot", "BTCUSDM23")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Error(err)
+	}
+}
 
 // func TestGetLastFundingRate(t *testing.T) {
 // 	t.Parallel()
@@ -3414,39 +3438,137 @@ func TestGetIndexPriceKline(t *testing.T) {
 // 	}
 // }
 
-// func TestGetTickersV5(t *testing.T) {
-// 	t.Parallel()
+func TestGetTickersV5(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTickers(context.Background(), "bruh", "", "", time.Time{})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetTickers(context.Background(), "option", "BTCUSDT", "", time.Time{})
+	if !errors.Is(err, errBaseNotSet) {
+		t.Fatalf("expected: %v, received: %v", errBaseNotSet, err)
+	}
+	_, err = b.GetTickers(context.Background(), "spot", "", "", time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetTickers(context.Background(), "option", "", "BTC", time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetTickers(context.Background(), "inverse", "", "", time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetTickers(context.Background(), "linear", "", "", time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-// 	_, err := b.GetTickersV5(context.Background(), "bruh", "", "")
-// 	if err != nil && err.Error() != "Illegal category" {
-// 		t.Error(err)
-// 	}
+func TestGetFundingRateHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFundingRateHistory(context.Background(), "bruh", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetFundingRateHistory(context.Background(), "spot", "BTCUSDT", time.Time{}, time.Time{}, 100)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetFundingRateHistory(context.Background(), "linear", "BTCUSDT", time.Time{}, time.Time{}, 100)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetFundingRateHistory(context.Background(), "inverse", "BTCUSDT", time.Time{}, time.Time{}, 100)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetFundingRateHistory(context.Background(), "option", "BTC-7JUL23-27000-C", time.Time{}, time.Time{}, 100)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+}
 
-// 	_, err = b.GetTickersV5(context.Background(), "option", "", "")
-// 	if !errors.Is(err, errBaseNotSet) {
-// 		t.Fatalf("expected: %v, received: %v", errBaseNotSet, err)
-// 	}
+func TestGetPublicTradingHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetPublicTradingHistory(context.Background(), "spot", "BTCUSDT", "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "linear", "BTCUSDT", "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "inverse", "BTCUSDM23", "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "option", "BTC-7JUL23-27000-C", "BTC", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-// 	_, err = b.GetTickersV5(context.Background(), "spot", "", "")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOpenInterest(context.Background(), "spot", "BTCUSDT", "5min", time.Time{}, time.Time{}, 0, "")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetOpenInterest(context.Background(), "linear", "BTCUSDT", "5min", time.Time{}, time.Time{}, 0, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetOpenInterest(context.Background(), "inverse", "BTCUSDM23", "5min", time.Time{}, time.Time{}, 0, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetOpenInterest(context.Background(), "option", "BTC-7JUL23-27000-C", "5min", time.Time{}, time.Time{}, 0, "")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+}
 
-// 	_, err = b.GetTickersV5(context.Background(), "option", "", "BTC")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+func TestGetHistoricalValatility(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetHistoricalValatility(context.Background(), "option", "", 123, time.Now().Add(-time.Hour*30*24), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricalValatility(context.Background(), "spot", "", 123, time.Now().Add(-time.Hour*30*24), time.Now())
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, but found %v", errInvalidCategory, err)
+	}
+}
 
-// 	_, err = b.GetTickersV5(context.Background(), "inverse", "", "")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+func TestGetInsurance(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetInsurance(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-// 	_, err = b.GetTickersV5(context.Background(), "linear", "", "")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestGetDeliveryPrice(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetDeliveryPrice(context.Background(), "spot", "BTCUSDT", "", "", 200)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, but found %v", errInvalidCategory, err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "linear", "BTCUSDT", "", "", 200)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "inverse", "BTCUSDT", "", "", 200)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "option", "BTC-7JUL23-27000-C", "", "", 200)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 // func TestUpdateOrderExecutionLimits(t *testing.T) {
 // 	t.Parallel()
