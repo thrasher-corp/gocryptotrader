@@ -21,9 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+type syncItemType int
+
 // const holds the sync item types
 const (
-	SyncItemTicker = iota
+	SyncItemTicker syncItemType = iota
 	SyncItemOrderbook
 	SyncItemTrade
 	SyncManagerName = "exchange_syncer"
@@ -331,7 +333,7 @@ func (m *syncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 
 // Update notifies the syncManager to change the last updated time for a exchange asset pair
 // And set IsUsingWebsocket to true. It should be used externally only from websocket updaters
-func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) error {
+func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType syncItemType, err error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -381,18 +383,12 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 	if !s.IsUsingWebsocket {
 		s.IsUsingWebsocket = true
 		s.IsUsingREST = false
-		n := "Ticker"
-		if syncType == SyncItemOrderbook {
-			n = "Orderbook"
-		} else if syncType == SyncItemTrade {
-			n = "Trade"
-		}
 		log.Warnf(log.SyncMgr,
 			"%s %s %s: %s Websocket re-enabled, switching from rest to websocket",
 			c.Exchange,
 			m.FormatCurrency(c.Pair),
 			strings.ToUpper(c.AssetType.String()),
-			n,
+			syncType,
 		)
 	}
 
@@ -400,7 +396,7 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 }
 
 // update notifies the syncManager to change the last updated time for a exchange asset pair
-func (m *syncManager) update(c *currencyPairSyncAgent, syncType int, err error) error {
+func (m *syncManager) update(c *currencyPairSyncAgent, syncType syncItemType, err error) error {
 	if syncType < SyncItemTicker || syncType > SyncItemTrade {
 		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
@@ -416,8 +412,9 @@ func (m *syncManager) update(c *currencyPairSyncAgent, syncType int, err error) 
 	s.IsProcessing = false
 	if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
 		removedCounter++
-		log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].",
+		log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
 			c.Exchange,
+			syncType,
 			m.FormatCurrency(c.Pair),
 			removedCounter,
 			createdCounter)
@@ -876,4 +873,17 @@ func greatestCommonDivisor(a, b time.Duration) time.Duration {
 		a = t
 	}
 	return a
+}
+
+func (s syncItemType) String() string {
+	switch s {
+	case SyncItemTicker:
+		return "Ticker"
+	case SyncItemOrderbook:
+		return "Orderbook"
+	case SyncItemTrade:
+		return "Trade"
+	default:
+		return fmt.Sprintf("Invalid syncItemType: %d", s)
+	}
 }
