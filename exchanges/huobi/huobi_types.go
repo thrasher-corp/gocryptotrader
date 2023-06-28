@@ -1,8 +1,6 @@
 package huobi
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -1252,6 +1250,6 @@ type WithdrawalData struct {
 	State           string        `json:"state"`
 	ErrorCode       string        `json:"error-code"`
 	ErrorMessage    string        `json:"error-message"`
-	CreatedAt       time.Time     `json:"created-at"`
-	UpdatedAt       time.Time     `json:"updated-at"`
+	CreatedAt       int64         `json:"created-at"`
+	UpdatedAt       int64         `json:"updated-at"`
 }

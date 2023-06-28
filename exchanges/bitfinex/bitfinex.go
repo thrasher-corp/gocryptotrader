@@ -586,58 +586,58 @@ func (b *Bitfinex) GetTickerBatch(ctx context.Context) (map[string]Ticker, error
 	for x := range response {
 		symbol, ok := response[x][0].(string)
 		if !ok {
-			return nil, errors.New("unable to type assert symbol")
+			return nil, common.GetTypeAssertError("string", response[x][0], "symbol")
 		}
 
 		var t Ticker
 		if len(response[x]) > 11 {
 			if t.FlashReturnRate, ok = response[x][1].(float64); !ok {
-				return nil, errors.New("unable to type assert flashReturnRate")
+				return nil, common.GetTypeAssertError("float64", response[x][1], "FlashReturnRate")
 			}
 			if t.Bid, ok = response[x][2].(float64); !ok {
-				return nil, errors.New("unable to type assert bid")
+				return nil, common.GetTypeAssertError("float64", response[x][2], "bid")
 			}
 			var bidPeriod float64
 			bidPeriod, ok = response[x][3].(float64)
 			if !ok {
-				return nil, errors.New("unable to type assert bidPeriod")
+				return nil, common.GetTypeAssertError("float64", response[x][3], "bidPeriod")
 			}
 			t.BidPeriod = int64(bidPeriod)
 			if t.BidSize, ok = response[x][4].(float64); !ok {
-				return nil, errors.New("unable to type assert bidSize")
+				return nil, common.GetTypeAssertError("float64", response[x][4], "bidSize")
 			}
 			if t.Ask, ok = response[x][5].(float64); !ok {
-				return nil, errors.New("unable to type assert ask")
+				return nil, common.GetTypeAssertError("float64", response[x][5], "ask")
 			}
 			var askPeriod float64
 			askPeriod, ok = response[x][6].(float64)
 			if !ok {
-				return nil, errors.New("unable to type assert askPeriod")
+				return nil, common.GetTypeAssertError("float64", response[x][6], "askPeriod")
 			}
 			t.AskPeriod = int64(askPeriod)
 			if t.AskSize, ok = response[x][7].(float64); !ok {
-				return nil, errors.New("unable to type assert askSize")
+				return nil, common.GetTypeAssertError("float64", response[x][7], "askSize")
 			}
 			if t.DailyChange, ok = response[x][8].(float64); !ok {
-				return nil, errors.New("unable to type assert dailyChange")
+				return nil, common.GetTypeAssertError("float64", response[x][8], "dailyChange")
 			}
 			if t.DailyChangePerc, ok = response[x][9].(float64); !ok {
-				return nil, errors.New("unable to type assert dailyChangePerc")
+				return nil, common.GetTypeAssertError("float64", response[x][9], "dailyChangePerc")
 			}
 			if t.Last, ok = response[x][10].(float64); !ok {
-				return nil, errors.New("unable to type assert last")
+				return nil, common.GetTypeAssertError("float64", response[x][10], "last")
 			}
 			if t.Volume, ok = response[x][11].(float64); !ok {
-				return nil, errors.New("unable to type assert volume")
+				return nil, common.GetTypeAssertError("float64", response[x][11], "volume")
 			}
 			if t.High, ok = response[x][12].(float64); !ok {
-				return nil, errors.New("unable to type assert high")
+				return nil, common.GetTypeAssertError("float64", response[x][12], "high")
 			}
 			if t.Low, ok = response[x][13].(float64); !ok {
-				return nil, errors.New("unable to type assert low")
+				return nil, common.GetTypeAssertError("float64", response[x][13], "low")
 			}
 			if t.FFRAmountAvailable, ok = response[x][16].(float64); !ok {
-				return nil, errors.New("unable to type assert FFRAmountAvailable")
+				return nil, common.GetTypeAssertError("float64", response[x][16], "FFRAmountAvailable")
 			}
 
 			tickers[symbol] = t
@@ -645,34 +645,34 @@ func (b *Bitfinex) GetTickerBatch(ctx context.Context) (map[string]Ticker, error
 		}
 
 		if t.Bid, ok = response[x][1].(float64); !ok {
-			return nil, errors.New("unable to type assert bid")
+			return nil, common.GetTypeAssertError("float64", response[x][1], "bid")
 		}
 		if t.BidSize, ok = response[x][2].(float64); !ok {
-			return nil, errors.New("unable to type assert bid size")
+			return nil, common.GetTypeAssertError("float64", response[x][2], "bid size")
 		}
 		if t.Ask, ok = response[x][3].(float64); !ok {
-			return nil, errors.New("unable to type assert ask")
+			return nil, common.GetTypeAssertError("float64", response[x][3], "ask")
 		}
 		if t.AskSize, ok = response[x][4].(float64); !ok {
-			return nil, errors.New("unable to type assert ask size")
+			return nil, common.GetTypeAssertError("float64", response[x][4], "ask size")
 		}
 		if t.DailyChange, ok = response[x][5].(float64); !ok {
-			return nil, errors.New("unable to type assert daily change")
+			return nil, common.GetTypeAssertError("float64", response[x][5], "daily change")
 		}
 		if t.DailyChangePerc, ok = response[x][6].(float64); !ok {
-			return nil, errors.New("unable to type assert daily change perc")
+			return nil, common.GetTypeAssertError("float64", response[x][6], "daily change percent")
 		}
 		if t.Last, ok = response[x][7].(float64); !ok {
-			return nil, errors.New("unable to type assert last")
+			return nil, common.GetTypeAssertError("float64", response[x][7], "last")
 		}
 		if t.Volume, ok = response[x][8].(float64); !ok {
-			return nil, errors.New("unable to type assert volume")
+			return nil, common.GetTypeAssertError("float64", response[x][8], "volume")
 		}
 		if t.High, ok = response[x][9].(float64); !ok {
-			return nil, errors.New("unable to type assert high")
+			return nil, common.GetTypeAssertError("float64", response[x][9], "high")
 		}
 		if t.Low, ok = response[x][10].(float64); !ok {
-			return nil, errors.New("unable to type assert low")
+			return nil, common.GetTypeAssertError("float64", response[x][10], "low")
 		}
 		tickers[symbol] = t
 	}
@@ -1594,7 +1594,7 @@ func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOr
 		req["id"] = orderID
 	}
 	if clientOrderID > 0 {
-		req["cid"] = orderID
+		req["cid"] = clientOrderID
 	}
 	if !clientOrderIDDate.IsZero() {
 		req["cid_date"] = clientOrderIDDate.Format("2006-01-02")
@@ -1631,97 +1631,97 @@ func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOr
 				case 0:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("ID float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "ID")
 					}
 					cancelledOrder.OrderID = strconv.FormatFloat(f, 'f', -1, 64)
 				case 1:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("GID float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "GID")
 					}
 					cancelledOrder.GroupOrderID = strconv.FormatFloat(f, 'f', -1, 64)
 				case 2:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("CID float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "CID")
 					}
 					cancelledOrder.ClientOrderID = strconv.FormatFloat(f, 'f', -1, 64)
 				case 3:
 					f, ok := cancelledOrderFields[z].(string)
 					if !ok {
-						return nil, common.GetAssertError("SYMBOL string", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("string", cancelledOrderFields[z], "SYMBOL")
 					}
 					cancelledOrder.Symbol = f
 				case 4:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("MTS_CREATE float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "MTS_CREATE")
 					}
 					cancelledOrder.CreatedTime = time.UnixMilli(int64(f))
 				case 5:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("MTS_UPDATE float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "MTS_UPDATE")
 					}
 					cancelledOrder.UpdatedTime = time.UnixMilli(int64(f))
 				case 6:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("AMOUNT float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "AMOUNT")
 					}
 					cancelledOrder.Amount = f
 				case 7:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("AMOUNT_ORIG float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "AMOUNT_ORIG")
 					}
 					cancelledOrder.OriginalAmount = f
 				case 8:
 					f, ok := cancelledOrderFields[z].(string)
 					if !ok {
-						return nil, common.GetAssertError("TYPE string", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("string", cancelledOrderFields[z], "TYPE")
 					}
 					cancelledOrder.OrderType = f
 				case 9:
 					f, ok := cancelledOrderFields[z].(string)
 					if !ok {
-						return nil, common.GetAssertError("TYPE_PREV string", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("string", cancelledOrderFields[z], "TYPE_PREV")
 					}
 					cancelledOrder.OriginalOrderType = f
 				case 12:
 					f, ok := cancelledOrderFields[z].(string)
 					if !ok {
-						return nil, common.GetAssertError("FLAGS string", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("string", cancelledOrderFields[z], "FLAGS")
 					}
 					cancelledOrder.OrderFlags = f
 				case 13:
 					f, ok := cancelledOrderFields[z].(string)
 					if !ok {
-						return nil, common.GetAssertError("ORDER_STATUS string", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("string", cancelledOrderFields[z], "ORDER_STATUS")
 					}
 					cancelledOrder.OrderStatus = f
 				case 16:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("PRICE float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "PRICE")
 					}
 					cancelledOrder.Price = f
 				case 17:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("PRICE_AVG float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "PRICE_AVG")
 					}
 					cancelledOrder.AveragePrice = f
 				case 18:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("PRICE_TRAILING float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "PRICE_TRAILING")
 					}
 					cancelledOrder.TrailingPrice = f
 				case 19:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetAssertError("PRICE_AUX_LIMIT float64", cancelledOrderFields[z])
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "PRICE_AUX_LIMIT")
 					}
 					cancelledOrder.AuxLimitPrice = f
 				}
@@ -1903,53 +1903,53 @@ func (b *Bitfinex) GetMovementHistory(ctx context.Context, symbol, method string
 				var id float64
 				id, ok = response[i][j].(float64)
 				if !ok {
-					return nil, fmt.Errorf("unable to type ID")
+					return nil, common.GetTypeAssertError("float64", response[i][j], "ID")
 				}
 				move.ID = int64(id)
 			case 1:
 				move.Currency, ok = response[i][j].(string)
 				if !ok {
-					return nil, fmt.Errorf("unable to type CURRENCY")
+					return nil, common.GetTypeAssertError("string", response[i][j], "CURRENCY")
 				}
 			case 5:
 				move.TimestampCreated, ok = response[i][j].(float64)
 				if !ok {
-					return nil, fmt.Errorf("unable to type MTS_STARTED")
+					return nil, common.GetTypeAssertError("float64", response[i][j], "MTS_STARTED")
 				}
 			case 6:
 				move.Timestamp, ok = response[i][j].(float64)
 				if !ok {
-					return nil, fmt.Errorf("unable to type MTS_UPDATED")
+					return nil, common.GetTypeAssertError("float64", response[i][j], "MTS_UPDATED")
 				}
 			case 9:
 				move.Status, ok = response[i][j].(string)
 				if !ok {
-					return nil, fmt.Errorf("unable to type STATUS")
+					return nil, common.GetTypeAssertError("string", response[i][j], "STATUS")
 				}
 			case 12:
 				move.Amount, ok = response[i][j].(float64)
 				if !ok {
-					return nil, fmt.Errorf("unable to type AMOUNT")
+					return nil, common.GetTypeAssertError("float64", response[i][j], "AMOUNT")
 				}
 			case 13:
 				move.Fee, ok = response[i][j].(float64)
 				if !ok {
-					return nil, fmt.Errorf("unable to type FEE")
+					return nil, common.GetTypeAssertError("float64", response[i][j], "FEE")
 				}
 			case 16:
 				move.Address, ok = response[i][j].(string)
 				if !ok {
-					return nil, fmt.Errorf("unable to type DESTINATION_ADDRESS")
+					return nil, common.GetTypeAssertError("string", response[i][j], "DESTINATION_ADDRESS")
 				}
 			case 20:
 				move.TxID, ok = response[i][j].(string)
 				if !ok {
-					return nil, fmt.Errorf("unable to type TRANSACTION_ID")
+					return nil, common.GetTypeAssertError("string", response[i][j], "TRANSACTION_ID")
 				}
 			case 21:
 				move.Description, ok = response[i][j].(string)
 				if !ok {
-					return nil, fmt.Errorf("unable to type WITHDRAW_TRANSACTION_NOTE")
+					return nil, common.GetTypeAssertError("string", response[i][j], "WITHDRAW_TRANSACTION_NOTE")
 				}
 			}
 		}

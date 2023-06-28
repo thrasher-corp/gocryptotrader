@@ -2,7 +2,6 @@ package coinbasepro
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -458,7 +457,7 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 
 	obNew, ok := orderbookNew.(OrderbookL1L2)
 	if !ok {
-		return book, errors.New("unable to type assert orderbook data")
+		return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
 	}
 
 	book.Bids = make(orderbook.Items, len(obNew.Bids))
@@ -632,7 +631,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ curren
 	}
 	pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
 	if err != nil {
-		return nil, fmt.Errorf("error parsing order side: %w", err)
+		return nil, fmt.Errorf("error parsing order pair: %w", err)
 	}
 
 	response := order.Detail{

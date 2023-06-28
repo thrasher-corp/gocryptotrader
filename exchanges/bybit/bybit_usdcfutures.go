@@ -1064,7 +1064,7 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 		if data != nil {
 			d, ok := data.(map[string]interface{})
 			if !ok {
-				return nil, common.GetAssertError("map[string]interface{}", data)
+				return nil, common.GetTypeAssertError("map[string]interface{}", data)
 			}
 			payload, err = json.Marshal(d)
 			if err != nil {

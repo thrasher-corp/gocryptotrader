@@ -435,13 +435,12 @@ func TestFOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 
-	tradablePairs, err := h.FetchTradablePairs(context.Background(),
-		asset.Futures)
+	tradablePairs, err := h.CurrencyPairs.GetPairs(asset.Futures, false)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	_, err = h.FOrder(context.Background(),
 		currency.EMPTYPAIR, tradablePairs[0].Base.Upper().String(),
@@ -499,13 +498,12 @@ func TestFCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 
-	tradablePairs, err := h.FetchTradablePairs(context.Background(),
-		asset.Futures)
+	tradablePairs, err := h.CurrencyPairs.GetPairs(asset.Futures, false)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	_, err = h.FCancelAllOrders(context.Background(), tradablePairs[0], "", "")
 	if err != nil {
@@ -559,13 +557,12 @@ func TestFGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
 
-	tradablePairs, err := h.FetchTradablePairs(context.Background(),
-		asset.Futures)
+	tradablePairs, err := h.CurrencyPairs.GetPairs(asset.Futures, false)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	_, err = h.FGetOrderHistory(context.Background(),
 		currency.EMPTYPAIR, tradablePairs[0].Base.Upper().String(),
@@ -677,13 +674,12 @@ func TestUpdateTickerCMF(t *testing.T) {
 
 func TestUpdateTickerFutures(t *testing.T) {
 	t.Parallel()
-	tradablePairs, err := h.FetchTradablePairs(context.Background(),
-		asset.Futures)
+	tradablePairs, err := h.CurrencyPairs.GetPairs(asset.Futures, false)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	_, err = h.UpdateTicker(context.Background(), tradablePairs[0], asset.Futures)
 	if err != nil {
@@ -717,25 +713,23 @@ func TestUpdateOrderbookCMF(t *testing.T) {
 
 func TestUpdateOrderbookFuture(t *testing.T) {
 	t.Parallel()
-	tradablePairs, err := h.FetchTradablePairs(context.Background(),
-		asset.Futures)
+	tradablePairs, err := h.CurrencyPairs.GetPairs(asset.Futures, false)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	_, err = h.UpdateOrderbook(context.Background(), tradablePairs[0], asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	tradablePairs, err = h.FetchTradablePairs(context.Background(),
-		asset.CoinMarginedFutures)
+	tradablePairs, err = h.CurrencyPairs.GetPairs(asset.CoinMarginedFutures, false)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	_, err = h.UpdateOrderbook(context.Background(), tradablePairs[0], asset.CoinMarginedFutures)
 	if err != nil {
@@ -778,13 +772,12 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	tradablePairs, err := h.FetchTradablePairs(context.Background(),
-		asset.Futures)
+	tradablePairs, err := h.CurrencyPairs.GetPairs(asset.Futures, false)
 	if err != nil {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	getOrdersRequest.Pairs = []currency.Pair{tradablePairs[0]}
 	getOrdersRequest.AssetType = asset.Futures

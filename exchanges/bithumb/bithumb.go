@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -239,7 +240,7 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 			var ok bool
 			val, ok = datum.(float64)
 			if !ok {
-				return fullBalance, errors.New("unable to type assert datum")
+				return fullBalance, common.GetTypeAssertError("float64", datum)
 			}
 		}
 

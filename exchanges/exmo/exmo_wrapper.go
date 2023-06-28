@@ -445,8 +445,8 @@ func (e *EXMO) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 		}
 		resp = append(resp, exchange.FundingHistory{
 			Status:     hist.History[i].Status,
-			TransferID: hist.History[i].Txid,
-			Timestamp:  hist.History[i].Timestamp,
+			TransferID: hist.History[i].TXID,
+			Timestamp:  time.Unix(hist.History[i].Timestamp, 0),
 			Currency:   hist.History[i].Currency,
 			Amount:     hist.History[i].Amount,
 			BankFrom:   hist.History[i].Provider,
@@ -468,11 +468,11 @@ func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ ass
 		}
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:     hist.History[i].Status,
-			TransferID: hist.History[i].Txid,
-			Timestamp:  hist.History[i].Timestamp,
+			TransferID: hist.History[i].TXID,
+			Timestamp:  time.Unix(hist.History[i].Timestamp, 0),
 			Currency:   hist.History[i].Currency,
 			Amount:     hist.History[i].Amount,
-			CryptoTxID: hist.History[i].Txid,
+			CryptoTxID: hist.History[i].TXID,
 		})
 	}
 	return resp, nil

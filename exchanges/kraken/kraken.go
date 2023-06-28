@@ -478,7 +478,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		var s Spread
 		timeData, ok := subData[0].(float64)
 		if !ok {
-			return nil, errors.New("unable to type assert timeData")
+			return nil, common.GetTypeAssertError("float64", subData[0], "timeData")
 		}
 		s.Time = time.Unix(int64(timeData), 0)
 

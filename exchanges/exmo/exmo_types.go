@@ -1,8 +1,6 @@
 package exmo
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -140,14 +138,14 @@ type WalletHistory struct {
 	Begin   int64 `json:"begin,string"`
 	End     int64 `json:"end,string"`
 	History []struct {
-		Timestamp time.Time `json:"dt"`
-		Type      string    `json:"type"`
-		Currency  string    `json:"curr"`
-		Status    string    `json:"status"`
-		Provider  string    `json:"provider"`
-		Amount    float64   `json:"amount,string"`
-		Account   string    `json:"account"`
-		Txid      string    `json:"txid"`
+		Timestamp int64   `json:"dt"`
+		Type      string  `json:"type"`
+		Currency  string  `json:"curr"`
+		Status    string  `json:"status"`
+		Provider  string  `json:"provider"`
+		Amount    float64 `json:"amount,string"`
+		Account   string  `json:"account"`
+		TXID      string  `json:"txid"`
 	}
 }
 

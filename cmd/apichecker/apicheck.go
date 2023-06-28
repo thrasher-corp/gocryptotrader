@@ -566,7 +566,7 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 	case github:
 		tempData, ok := data.(GithubData)
 		if !ok {
-			return ExchangeInfo{}, errors.New("unable to type assert GithubData")
+			return ExchangeInfo{}, common.GetTypeAssertError("GithubData", data)
 		}
 		tempSha, err := getSha(path)
 		if err != nil {
@@ -583,7 +583,7 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 	case htmlScrape:
 		tempData, ok := data.(HTMLScrapingData)
 		if !ok {
-			return ExchangeInfo{}, errors.New("unable to type assert HTMLScrapingData")
+			return ExchangeInfo{}, common.GetTypeAssertError("HTMLScrapingData", data)
 		}
 		checkStr, err := checkChangeLog(&tempData)
 		if err != nil {

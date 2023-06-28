@@ -115,7 +115,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			}
 			amt, ok := resp.Asks[x][1].(float64)
 			if !ok {
-				return oba, errors.New("unable to type assert amount")
+				return oba, common.GetTypeAssertError("float64", resp.Asks[x][1], "amount")
 			}
 			ob.Asks[x] = OrderbookItem{
 				Price:  price,
@@ -130,7 +130,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			}
 			amt, ok := resp.Bids[x][1].(float64)
 			if !ok {
-				return oba, errors.New("unable to type assert amount")
+				return oba, common.GetTypeAssertError("float64", resp.Bids[x][1], "amount")
 			}
 			ob.Bids[x] = OrderbookItem{
 				Price:  price,
@@ -158,7 +158,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 				}
 				amt, ok := orderbook.Asks[x][1].(float64)
 				if !ok {
-					return oba, errors.New("unable to type assert amount")
+					return oba, common.GetTypeAssertError("float64", orderbook.Asks[x][1], "amount")
 				}
 				ob.Asks[x] = OrderbookItem{
 					Price:  price,
@@ -172,7 +172,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 				}
 				amt, ok := orderbook.Bids[x][1].(float64)
 				if !ok {
-					return oba, errors.New("unable to type assert amount")
+					return oba, common.GetTypeAssertError("float64", orderbook.Bids[x][1], "amount")
 				}
 				ob.Bids[x] = OrderbookItem{
 					Price:  price,
@@ -293,7 +293,7 @@ func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
 
 	data, ok := result.(map[string]interface{})
 	if !ok {
-		return Balance{}, errors.New("unable to type assert balance result")
+		return Balance{}, common.GetTypeAssertError("map[string]interface{}", result, "balance result")
 	}
 	balance := Balance{}
 	balance.Currency = make(map[string]float64)
@@ -337,7 +337,7 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, e
 	for x, y := range data {
 		addresses.Addresses[x], ok = y.(string)
 		if !ok {
-			return addresses, errors.New("unable to type assert address to string")
+			return addresses, common.GetTypeAssertError("string", y, "address")
 		}
 	}
 

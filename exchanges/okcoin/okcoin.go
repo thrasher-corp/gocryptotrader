@@ -388,14 +388,14 @@ func (o *OKCoin) GetMarketData(ctx context.Context, request *GetMarketDataReques
 	for x := range resp {
 		t, ok := resp[x].([]interface{})
 		if !ok {
-			return nil, common.GetAssertError("[]interface{}", resp[x])
+			return nil, common.GetTypeAssertError("[]interface{}", resp[x])
 		}
 		if len(t) < 6 {
 			return nil, fmt.Errorf("%w expteced %v received %v", errIncorrectCandleDataLength, 6, len(t))
 		}
 		v, ok := t[0].(string)
 		if !ok {
-			return nil, common.GetAssertError("string", t[0])
+			return nil, common.GetTypeAssertError("string", t[0])
 		}
 		if candles[x].Time, err = time.Parse(time.RFC3339, v); err != nil {
 			return nil, err

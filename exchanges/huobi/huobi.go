@@ -65,7 +65,7 @@ const (
 	huobiStatusError                 = "error"
 	huobiMarginRates                 = "/margin/loan-info"
 	huobiCurrenciesReference         = "/v2/reference/currencies"
-	huobiWithdrawHistory             = "/v1/query/deposit-withdraw"
+	huobiWithdrawHistory             = "/query/deposit-withdraw"
 )
 
 // HUOBI is the overarching type across this package
@@ -822,7 +822,7 @@ func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c curr
 	vals := url.Values{}
 	vals.Set("type", transferType)
 	if !c.IsEmpty() {
-		vals.Set("currency", c.String())
+		vals.Set("currency", c.Lower().String())
 	}
 	if direction != "" {
 		vals.Set("direction", direction)
@@ -831,7 +831,7 @@ func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c curr
 		vals.Set("from", strconv.FormatInt(fromID, 10))
 	}
 	if limit > 0 {
-		vals.Set("limit", strconv.FormatInt(limit, 10))
+		vals.Set("size", strconv.FormatInt(limit, 10))
 	}
 	return resp, h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiWithdrawHistory, vals, nil, &resp, false)
 }

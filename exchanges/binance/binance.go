@@ -376,14 +376,14 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	}
 	responseData, ok := resp.([]interface{})
 	if !ok {
-		return nil, errors.New("unable to type assert responseData")
+		return nil, common.GetTypeAssertError("[]interface{}", resp)
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
 		individualData, ok := responseData[x].([]interface{})
 		if !ok {
-			return nil, errors.New("unable to type assert individualData")
+			return nil, common.GetTypeAssertError("[]interface{}", responseData[x])
 		}
 		if len(individualData) != 12 {
 			return nil, errors.New("unexpected kline data length")
@@ -414,7 +414,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 			return nil, err
 		}
 		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, errors.New("unable to type assert trade count")
+			return nil, common.GetTypeAssertError("float64", individualData[8])
 		}
 		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
 			return nil, err

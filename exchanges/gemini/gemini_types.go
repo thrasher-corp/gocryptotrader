@@ -1,8 +1,6 @@
 package gemini
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -113,7 +111,7 @@ type OrderResult struct {
 type TransferResponse struct {
 	Type                  string        `json:"type"`
 	Status                string        `json:"status"`
-	Timestamp             time.Time     `json:"timestampms"`
+	Timestamp             int64         `json:"timestampms"`
 	EventID               int64         `json:"eid"`
 	DepositAdvanceEventID int64         `json:"advanceEid"`
 	Currency              currency.Code `json:"currency"`

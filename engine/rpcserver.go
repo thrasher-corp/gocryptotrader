@@ -721,7 +721,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 
 		holdings, ok := data.(*account.Holdings)
 		if !ok {
-			return common.GetAssertError("*account.Holdings", data)
+			return common.GetTypeAssertError("*account.Holdings", data)
 		}
 
 		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
@@ -2195,7 +2195,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 
 		d, ok := data.(orderbook.Outbound)
 		if !ok {
-			return common.GetAssertError("orderbook.Outbound", data)
+			return common.GetTypeAssertError("orderbook.Outbound", data)
 		}
 
 		resp := &gctrpc.OrderbookResponse{}
@@ -2280,7 +2280,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 
 		t, ok := data.(*ticker.Price)
 		if !ok {
-			return common.GetAssertError("*ticker.Price", data)
+			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2333,7 +2333,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 		t, ok := data.(*ticker.Price)
 		if !ok {
-			return common.GetAssertError("*ticker.Price", data)
+			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2575,7 +2575,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
-			log.Errorf(log.GRPCSys, "%v", common.GetAssertError("*gctscript.VM", v))
+			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))
 			return false
 		}
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
@@ -2609,7 +2609,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 	vm, ok := v.(*gctscript.VM)
 	if !ok {
-		return nil, errors.New("unable to type assert gctscript.VM")
+		return nil, common.GetTypeAssertError("*gctscript.VM", v)
 	}
 	resp := &gctrpc.GCTScriptQueryResponse{
 		Status: MsgStatusOK,
@@ -2677,7 +2677,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 	vm, ok := v.(*gctscript.VM)
 	if !ok {
-		return nil, errors.New("unable to type assert gctscript.VM")
+		return nil, common.GetTypeAssertError("*gctscript.VM", v)
 	}
 	err = vm.Shutdown()
 	status := " terminated"

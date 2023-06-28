@@ -47,8 +47,12 @@ func (k *Kraken) GetFuturesCharts(ctx context.Context, resolution, tickType stri
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
+	reqStr := futuresCandles + tickType + "/" + symbolValue + "/" + resolution
+	if len(params) > 0 {
+		reqStr += "?" + params.Encode()
+	}
 	var resp FuturesCandles
-	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresCandles+tickType+"/"+symbolValue+"/"+resolution+"?"+params.Encode(), &resp)
+	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, reqStr, &resp)
 }
 
 // GetFuturesTrades returns public trade data for kraken futures

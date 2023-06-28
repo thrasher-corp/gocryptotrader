@@ -128,10 +128,7 @@ var (
 	errIncompleteArguments                    = errors.New("missing required argument")
 	errStartTimeOrFromIDNotSet                = errors.New("please set StartTime or FromId, but not both")
 	errIncorrectLimitValues                   = errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
-	errUnableToTypeAssertResponseData         = errors.New("unable to type assert responseData")
-	errUnableToTypeAssertInvalidData          = errors.New("unable to type assert individualData")
 	errUnexpectedKlineDataLength              = errors.New("unexpected kline data length")
-	errUnableToTypeAssertTradeCount           = errors.New("unable to type assert trade count")
 	errMissingRequiredArgumentCoin            = errors.New("missing required argument,coin")
 	errMissingRequiredArgumentNetwork         = errors.New("missing required argument,network")
 	errAmountValueMustBeGreaterThan0          = errors.New("amount must be greater than 0")
@@ -474,14 +471,14 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 	}
 	responseData, ok := resp.([]interface{})
 	if !ok {
-		return nil, errUnableToTypeAssertResponseData
+		return nil, common.GetTypeAssertError("[]interface{}", resp, "responseData")
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
 		individualData, ok := responseData[x].([]interface{})
 		if !ok {
-			return nil, errUnableToTypeAssertInvalidData
+			return nil, common.GetTypeAssertError("[]interface{}", responseData[x], "individualData")
 		}
 		if len(individualData) != 12 {
 			return nil, errUnexpectedKlineDataLength
@@ -516,7 +513,7 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 			return nil, err
 		}
 		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, errUnableToTypeAssertTradeCount
+			return nil, common.GetTypeAssertError("float64", individualData[8], "trade count")
 		}
 		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
 			return nil, err
