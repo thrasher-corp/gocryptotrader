@@ -24,11 +24,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+func TestMain(m *testing.M) {
+	// only run testing suite for one CI/CD environment
+	if isAppVeyor() || is32BitJob() {
+		return
+	}
+	request.MaxRequestJobs = 200
+	os.Exit(m.Run())
+}
+
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
-	if isAppVeyor() || is32BitJob() {
-		t.Skip("only run once on 64 bit github action")
-	}
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -81,6 +87,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		t.Fatalf("Cannot setup %v UpdateTradablePairs %v", name, err)
 	}
 	b := exch.GetBase()
+
 	assets := b.CurrencyPairs.GetAssetTypes(false)
 	if len(assets) == 0 {
 		t.Fatalf("Cannot setup %v, exchange has no assets", name)
