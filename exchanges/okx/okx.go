@@ -2182,7 +2182,7 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 			}
 		}
 		if fee != 0 {
-			fee = -fee // Negative fee rate means commision else rebate.
+			fee = -fee // Negative fee rate means commission else rebate.
 		}
 		return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	case exchange.OfflineTradeFee:
