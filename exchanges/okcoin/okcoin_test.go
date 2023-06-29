@@ -1882,6 +1882,7 @@ func TestGetAlgoOrderhistory(t *testing.T) {
 
 func TestGetAlgoOrderList(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
 	_, err := o.GetAlgoOrderList(context.Background(), "", "", "", "", "", "", "", 0)
 	if !errors.Is(err, errOrderTypeRequired) {
 		t.Errorf("expected %v, got %v", errOrderTypeRequired, err)
