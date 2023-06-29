@@ -213,6 +213,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	ok.Websocket.Wg.Add(2)
 	go ok.WsReadData()
 	go ok.WsResponseMultiplexer.Run()
 

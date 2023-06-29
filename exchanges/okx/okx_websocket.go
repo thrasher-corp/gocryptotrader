@@ -226,6 +226,7 @@ func (ok *Okx) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	ok.Websocket.Wg.Add(1)
 	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
@@ -257,6 +258,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
+	ok.Websocket.Wg.Add(1)
 	go ok.wsFunnelConnectionData(ok.Websocket.AuthConn)
 	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
@@ -333,7 +335,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 // wsFunnelConnectionData receives data from multiple connection and pass the data
 // to wsRead through a channel responseStream
 func (ok *Okx) wsFunnelConnectionData(ws stream.Connection) {
-	ok.Websocket.Wg.Add(1)
 	defer ok.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -529,7 +530,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 // WsReadData read coming messages thought the websocket connection and process the data.
 func (ok *Okx) WsReadData() {
-	ok.Websocket.Wg.Add(1)
 	defer ok.Websocket.Wg.Done()
 	for {
 		select {
