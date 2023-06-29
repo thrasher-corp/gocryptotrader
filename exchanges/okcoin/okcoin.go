@@ -24,15 +24,15 @@ import (
 
 const (
 	apiPath                   = "/api/"
-	okCoinAPIURL              = "https://www.okcoin.com"
-	okCoinAPIVersion          = apiPath + "v5/"
-	okCoinExchangeName        = "OKCOIN International"
-	okCoinWebsocketURL        = "wss://real.okcoin.com:8443/ws/v5/public"
-	okCoinPrivateWebsocketURL = "wss://real.okcoin.com:8443/ws/v5/private"
+	okcoinAPIURL              = "https://www.okcoin.com"
+	okcoinAPIVersion          = apiPath + "v5/"
+	okcoinExchangeName        = "okcoin"
+	okcoinWebsocketURL        = "wss://real.okcoin.com:8443/ws/v5/public"
+	okcoinPrivateWebsocketURL = "wss://real.okcoin.com:8443/ws/v5/private"
 )
 
-// OKCoin is the overarching type used for OKCoin's exchange API implementation
-type OKCoin struct {
+// Okcoin is the overarching type used for Okcoin's exchange API implementation
+type Okcoin struct {
 	exchange.Base
 	// Spot and contract market error codes
 	ErrorCodes map[string]error
@@ -70,6 +70,8 @@ var (
 	errTimeIntervlaInformationRequired        = errors.New("time interval information is required")
 	errOrderTypeRequired                      = errors.New("order type is required")
 	errNoAccountDepositAddress                = errors.New("no account deposit address")
+	errQuoteIDRequired                        = errors.New("quote id is required")
+	errClientRequestIDRequired                = errors.New("client supplied request ID is required")
 )
 
 const (
@@ -82,11 +84,12 @@ const (
 	typePublic   = "public"
 	typeSystem   = "system"
 	typeTrade    = "trade"
+	typeUser     = "users"
 )
 
 // GetInstruments Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
 // List trading pairs and get the trading limit, price, and more information of different trading pairs.
-func (o *OKCoin) GetInstruments(ctx context.Context, instrumentType, instrumentID string) ([]Instrument, error) {
+func (o *Okcoin) GetInstruments(ctx context.Context, instrumentType, instrumentID string) ([]Instrument, error) {
 	params := url.Values{}
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
@@ -101,7 +104,7 @@ func (o *OKCoin) GetInstruments(ctx context.Context, instrumentType, instrumentI
 // GetSystemStatus system maintenance status,scheduled: waiting; ongoing: processing; pre_open: pre_open; completed: completed ;canceled: canceled.
 // Generally, pre_open last about 10 minutes. There will be pre_open when the time of upgrade is too long.
 // If this parameter is not filled, the data with status scheduled, ongoing and pre_open will be returned by default
-func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) ([]SystemStatus, error) {
+func (o *Okcoin) GetSystemStatus(ctx context.Context, state string) ([]SystemStatus, error) {
 	params := url.Values{}
 	if state != "" {
 		params.Set("state", state)
@@ -111,7 +114,7 @@ func (o *OKCoin) GetSystemStatus(ctx context.Context, state string) ([]SystemSta
 }
 
 // GetSystemTime retrieve API server time.
-func (o *OKCoin) GetSystemTime(ctx context.Context) (time.Time, error) {
+func (o *Okcoin) GetSystemTime(ctx context.Context) (time.Time, error) {
 	timestampResponse := []struct {
 		Timestamp okcoinTime `json:"ts"`
 	}{}
@@ -123,7 +126,7 @@ func (o *OKCoin) GetSystemTime(ctx context.Context) (time.Time, error) {
 }
 
 // GetTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
-func (o *OKCoin) GetTickers(ctx context.Context, instrumentType string) ([]TickerData, error) {
+func (o *Okcoin) GetTickers(ctx context.Context, instrumentType string) ([]TickerData, error) {
 	params := url.Values{}
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
@@ -133,7 +136,7 @@ func (o *OKCoin) GetTickers(ctx context.Context, instrumentType string) ([]Ticke
 }
 
 // GetTicker retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
-func (o *OKCoin) GetTicker(ctx context.Context, instrumentID string) (*TickerData, error) {
+func (o *Okcoin) GetTicker(ctx context.Context, instrumentID string) (*TickerData, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -148,7 +151,7 @@ func (o *OKCoin) GetTicker(ctx context.Context, instrumentID string) (*TickerDat
 }
 
 // GetOrderbook retrieve order book of the instrument.
-func (o *OKCoin) GetOrderbook(ctx context.Context, instrumentID string, sideDepth int64) (*GetOrderBookResponse, error) {
+func (o *Okcoin) GetOrderbook(ctx context.Context, instrumentID string, sideDepth int64) (*GetOrderBookResponse, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -168,7 +171,7 @@ func (o *OKCoin) GetOrderbook(ctx context.Context, instrumentID string, sideDept
 }
 
 // GetCandlesticks retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
-func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, after, before time.Time, limit int64) ([]CandlestickData, error) {
+func (o *Okcoin) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, after, before time.Time, limit int64) ([]CandlestickData, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -201,7 +204,7 @@ func (o *OKCoin) GetCandlesticks(ctx context.Context, instrumentID string, inter
 }
 
 // GetCandlestickHistory retrieve history candlestick charts from recent years.
-func (o *OKCoin) GetCandlestickHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickData, error) {
+func (o *Okcoin) GetCandlestickHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickData, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -234,7 +237,7 @@ func (o *OKCoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 }
 
 // GetTrades retrieve the recent transactions of an instrument.
-func (o *OKCoin) GetTrades(ctx context.Context, instrumentID string, limit int64) ([]SpotTrade, error) {
+func (o *Okcoin) GetTrades(ctx context.Context, instrumentID string, limit int64) ([]SpotTrade, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -248,7 +251,7 @@ func (o *OKCoin) GetTrades(ctx context.Context, instrumentID string, limit int64
 }
 
 // GetTradeHistory retrieve the recent transactions of an instrument from the last 3 months with pagination.
-func (o *OKCoin) GetTradeHistory(ctx context.Context, instrumentID, paginationType string, before, after time.Time, limit int64) ([]SpotTrade, error) {
+func (o *Okcoin) GetTradeHistory(ctx context.Context, instrumentID, paginationType string, before, after time.Time, limit int64) ([]SpotTrade, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -271,19 +274,19 @@ func (o *OKCoin) GetTradeHistory(ctx context.Context, instrumentID, paginationTy
 }
 
 // Get24HourTradingVolume returns the 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit.
-func (o *OKCoin) Get24HourTradingVolume(ctx context.Context) ([]TradingVolume, error) {
+func (o *Okcoin) Get24HourTradingVolume(ctx context.Context) ([]TradingVolume, error) {
 	var resp []TradingVolume
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, get24HourTradingVolumeEPL, http.MethodGet, typeMarket, "platform-24-volume", nil, &resp, false)
 }
 
 // GetOracle retrieves the crypto price of signing using Open Oracle smart contract.
-func (o *OKCoin) GetOracle(ctx context.Context) (*Oracle, error) {
+func (o *Okcoin) GetOracle(ctx context.Context) (*Oracle, error) {
 	var resp *Oracle
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOracleEPL, http.MethodGet, typeMarket, "open-oracle", nil, &resp, false)
 }
 
 // GetExchangeRate provides the average exchange rate data for 2 weeks
-func (o *OKCoin) GetExchangeRate(ctx context.Context) ([]ExchangeRate, error) {
+func (o *Okcoin) GetExchangeRate(ctx context.Context) ([]ExchangeRate, error) {
 	var resp []ExchangeRate
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getExchangeRateEPL, http.MethodGet, typeMarket, "exchange-rate", nil, &resp, false)
 }
@@ -354,7 +357,7 @@ func intervalToString(interval kline.Interval, utcOpeningPrice bool) (string, er
 // ------------ Funding endpoints --------------------------------
 
 // GetCurrencies retrieves all list of currencies
-func (o *OKCoin) GetCurrencies(ctx context.Context, ccy currency.Code) ([]CurrencyInfo, error) {
+func (o *Okcoin) GetCurrencies(ctx context.Context, ccy currency.Code) ([]CurrencyInfo, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.Upper().String())
@@ -364,7 +367,7 @@ func (o *OKCoin) GetCurrencies(ctx context.Context, ccy currency.Code) ([]Curren
 }
 
 // GetBalance retrieve the funding account balances of all the assets and the amount that is available or on hold.
-func (o *OKCoin) GetBalance(ctx context.Context, ccy currency.Code) ([]CurrencyBalance, error) {
+func (o *Okcoin) GetBalance(ctx context.Context, ccy currency.Code) ([]CurrencyBalance, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -374,7 +377,7 @@ func (o *OKCoin) GetBalance(ctx context.Context, ccy currency.Code) ([]CurrencyB
 }
 
 // GetAccountAssetValuation view account asset valuation
-func (o *OKCoin) GetAccountAssetValuation(ctx context.Context, ccy currency.Code) ([]AccountAssetValuation, error) {
+func (o *Okcoin) GetAccountAssetValuation(ctx context.Context, ccy currency.Code) ([]AccountAssetValuation, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -384,7 +387,7 @@ func (o *OKCoin) GetAccountAssetValuation(ctx context.Context, ccy currency.Code
 }
 
 // FundsTransfer transfer of funds between your funding account and trading account, and from the master account to sub-accounts.
-func (o *OKCoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest) (*FundingTransferItem, error) {
+func (o *Okcoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest) (*FundingTransferItem, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -415,7 +418,7 @@ func (o *OKCoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest)
 }
 
 // GetFundsTransferState retrieve the transfer state data of the last 2 weeks.
-func (o *OKCoin) GetFundsTransferState(ctx context.Context, transferID, clientID, transferType string) ([]FundingTransferItem, error) {
+func (o *Okcoin) GetFundsTransferState(ctx context.Context, transferID, clientID, transferType string) ([]FundingTransferItem, error) {
 	params := url.Values{}
 	if transferID == "" && clientID == "" {
 		return nil, errTransferIDOrClientIDRequred
@@ -436,7 +439,7 @@ func (o *OKCoin) GetFundsTransferState(ctx context.Context, transferID, clientID
 // GetAssetBilsDetail query the billing record. You can get the latest 1 month historical data.
 // Bill type 1: Deposit 2: Withdrawal 13: Canceled withdrawal 20: Transfer to sub account 21: Transfer from sub account
 // 22: Transfer out from sub to master account 23: Transfer in from master to sub account 37: Transfer to spot 38: Transfer from spot
-func (o *OKCoin) GetAssetBilsDetail(ctx context.Context, ccy currency.Code, billType, clientSuppliedID string, before, after time.Time, limit int64) ([]AssetBillDetail, error) {
+func (o *Okcoin) GetAssetBilsDetail(ctx context.Context, ccy currency.Code, billType, clientSuppliedID string, before, after time.Time, limit int64) ([]AssetBillDetail, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -461,7 +464,7 @@ func (o *OKCoin) GetAssetBilsDetail(ctx context.Context, ccy currency.Code, bill
 }
 
 // GetLightningDeposits retrieves lightning deposit instances
-func (o *OKCoin) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to string) ([]LightningDepositDetail, error) {
+func (o *Okcoin) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to string) ([]LightningDepositDetail, error) {
 	params := url.Values{}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -479,7 +482,7 @@ func (o *OKCoin) GetLightningDeposits(ctx context.Context, ccy currency.Code, am
 }
 
 // GetCurrencyDepositAddresses retrieve the deposit addresses of currencies, including previously-used addresses.
-func (o *OKCoin) GetCurrencyDepositAddresses(ctx context.Context, ccy currency.Code) ([]DepositAddress, error) {
+func (o *Okcoin) GetCurrencyDepositAddresses(ctx context.Context, ccy currency.Code) ([]DepositAddress, error) {
 	params := url.Values{}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -490,7 +493,7 @@ func (o *OKCoin) GetCurrencyDepositAddresses(ctx context.Context, ccy currency.C
 }
 
 // GetDepositHistory retrieve the deposit records according to the currency, deposit status, and time range in reverse chronological order. The 100 most recent records are returned by default.
-func (o *OKCoin) GetDepositHistory(ctx context.Context, ccy currency.Code, depositID, transactionID, depositType, state string, after, before time.Time, limit int64) ([]DepositHistoryItem, error) {
+func (o *Okcoin) GetDepositHistory(ctx context.Context, ccy currency.Code, depositID, transactionID, depositType, state string, after, before time.Time, limit int64) ([]DepositHistoryItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -524,7 +527,7 @@ func (o *OKCoin) GetDepositHistory(ctx context.Context, ccy currency.Code, depos
 // Withdrawal method
 // 3: 'internal' using email, phone or login account name.
 // 4: 'on chain' a trusted crypto currency address.
-func (o *OKCoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]WithdrawalResponse, error) {
+func (o *Okcoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]WithdrawalResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -549,7 +552,7 @@ func (o *OKCoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]With
 
 // SubmitLightningWithdrawals the maximum withdrawal amount is 0.1 BTC per request, and 1 BTC in 24 hours.
 // The minimum withdrawal amount is approximately 0.000001 BTC. Sub-account does not support withdrawal.
-func (o *OKCoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningWithdrawalsRequest) ([]LightningWithdrawals, error) {
+func (o *Okcoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningWithdrawalsRequest) ([]LightningWithdrawals, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -564,7 +567,7 @@ func (o *OKCoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningW
 }
 
 // CancelWithdrawal cancel normal withdrawal requests, but you cannot cancel withdrawal requests on Lightning.
-func (o *OKCoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancellation) (*WithdrawalCancellation, error) {
+func (o *Okcoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancellation) (*WithdrawalCancellation, error) {
 	var resp []WithdrawalCancellation
 	if arg.WithdrawalID == "" {
 		return nil, errWithdrawalIDMissing
@@ -580,7 +583,7 @@ func (o *OKCoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancellati
 }
 
 // GetWithdrawalHistory retrieve the withdrawal records according to the currency, withdrawal status, and time range in reverse chronological order. The 100 most recent records are returned by default.
-func (o *OKCoin) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, withdrawalID, clientID, transactionID, withdrawalType, state string, after, before time.Time, limit int64) ([]WithdrawalOrderItem, error) {
+func (o *Okcoin) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, withdrawalID, clientID, transactionID, withdrawalType, state string, after, before time.Time, limit int64) ([]WithdrawalOrderItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -616,7 +619,7 @@ func (o *OKCoin) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, wi
 // ------------------------ Account Endpoints --------------------
 
 // GetAccountBalance retrieve a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
-func (o *OKCoin) GetAccountBalance(ctx context.Context, currencies ...currency.Code) ([]AccountBalanceInformation, error) {
+func (o *Okcoin) GetAccountBalance(ctx context.Context, currencies ...currency.Code) ([]AccountBalanceInformation, error) {
 	params := url.Values{}
 	if len(currencies) > 0 {
 		currencyString := ""
@@ -639,7 +642,7 @@ func (o *OKCoin) GetAccountBalance(ctx context.Context, currencies ...currency.C
 
 // GetBillsDetails retrieve the bills of the account. The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first.
 // For the last 7 days.
-func (o *OKCoin) GetBillsDetails(ctx context.Context, ccy currency.Code, instrumentType, billType, billSubType, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]BillsDetail, error) {
+func (o *Okcoin) GetBillsDetails(ctx context.Context, ccy currency.Code, instrumentType, billType, billSubType, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]BillsDetail, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -674,7 +677,7 @@ func (o *OKCoin) GetBillsDetails(ctx context.Context, ccy currency.Code, instrum
 
 // GetBillsDetailsFor3Months retrieve the bills of the account. The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first.
 // For the last 3 months.
-func (o *OKCoin) GetBillsDetailsFor3Months(ctx context.Context, ccy currency.Code, instrumentType, billType, billSubType, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]BillsDetail, error) {
+func (o *Okcoin) GetBillsDetailsFor3Months(ctx context.Context, ccy currency.Code, instrumentType, billType, billSubType, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]BillsDetail, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -708,7 +711,7 @@ func (o *OKCoin) GetBillsDetailsFor3Months(ctx context.Context, ccy currency.Cod
 }
 
 // GetAccountConfigurations retrieves current account configuration information.
-func (o *OKCoin) GetAccountConfigurations(ctx context.Context) ([]AccountConfiguration, error) {
+func (o *Okcoin) GetAccountConfigurations(ctx context.Context) ([]AccountConfiguration, error) {
 	var resp []AccountConfiguration
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, typeAccounts, "config", nil, &resp, true)
 }
@@ -718,7 +721,7 @@ func (o *OKCoin) GetAccountConfigurations(ctx context.Context) ([]AccountConfigu
 // Trade mode 'cash'
 // Price When the price is not specified, it will be calculated according to the last traded price.
 // optional parameter
-func (o *OKCoin) GetMaximumBuySellOrOpenAmount(ctx context.Context, instrumentID, tradeMode string, price float64) ([]MaxBuySellResp, error) {
+func (o *Okcoin) GetMaximumBuySellOrOpenAmount(ctx context.Context, instrumentID, tradeMode string, price float64) ([]MaxBuySellResp, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -738,7 +741,7 @@ func (o *OKCoin) GetMaximumBuySellOrOpenAmount(ctx context.Context, instrumentID
 // GetMaximumAvailableTradableAmount retrieves maximum available tradable amount.
 // Single instrument or multiple instruments (no more than 5) separated with comma, e.g. BTC-USDT,ETH-USDT
 // Trade mode 'cash'
-func (o *OKCoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMode string, instrumentIDs ...string) ([]AvailableTradableAmount, error) {
+func (o *Okcoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMode string, instrumentIDs ...string) ([]AvailableTradableAmount, error) {
 	params := url.Values{}
 	if len(instrumentIDs) == 0 {
 		return nil, errMissingInstrumentID
@@ -755,7 +758,7 @@ func (o *OKCoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMod
 }
 
 // GetFeeRates retrieves instrument trading fee information.
-func (o *OKCoin) GetFeeRates(ctx context.Context, instrumentType, instrumentID string) ([]FeeRate, error) {
+func (o *Okcoin) GetFeeRates(ctx context.Context, instrumentType, instrumentID string) ([]FeeRate, error) {
 	params := url.Values{}
 	if instrumentType == "" {
 		return nil, errInstrumentTypeMissing
@@ -769,7 +772,7 @@ func (o *OKCoin) GetFeeRates(ctx context.Context, instrumentType, instrumentID s
 }
 
 // GetMaximumWithdrawals retrieve the maximum transferable amount from trading account to funding account. If no currency is specified, the transferable amount of all owned currencies will be returned.
-func (o *OKCoin) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) ([]MaximumWithdrawal, error) {
+func (o *Okcoin) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) ([]MaximumWithdrawal, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -781,13 +784,13 @@ func (o *OKCoin) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) (
 // ------------------------------------ OTC-Desk RFQ --------------------------------
 
 // GetAvailableRFQPairs retrieves a list of RFQ instruments.
-func (o *OKCoin) GetAvailableRFQPairs(ctx context.Context) ([]AvailableRFQPair, error) {
+func (o *Okcoin) GetAvailableRFQPairs(ctx context.Context) ([]AvailableRFQPair, error) {
 	var resp []AvailableRFQPair
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAvailablePairsEPL, http.MethodGet, typeOtc, "rfq/instruments", nil, &resp, true)
 }
 
 // RequestQuote query current market quotation information
-func (o *OKCoin) RequestQuote(ctx context.Context, arg *QuoteRequestArg) ([]RFQQuoteResponse, error) {
+func (o *Okcoin) RequestQuote(ctx context.Context, arg *QuoteRequestArg) ([]RFQQuoteResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -811,15 +814,15 @@ func (o *OKCoin) RequestQuote(ctx context.Context, arg *QuoteRequestArg) ([]RFQQ
 }
 
 // PlaceRFQOrder submit RFQ order
-func (o *OKCoin) PlaceRFQOrder(ctx context.Context, arg *PlaceRFQOrderRequest) ([]RFQOrderResponse, error) {
+func (o *Okcoin) PlaceRFQOrder(ctx context.Context, arg *PlaceRFQOrderRequest) ([]RFQOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
 	if arg.ClientDefinedTradeRequestID == "" {
-		return nil, errors.New("client supplied request ID is required")
+		return nil, errClientRequestIDRequired
 	}
 	if arg.QuoteID == "" {
-		return nil, errors.New("quoteid is required")
+		return nil, errQuoteIDRequired
 	}
 	if arg.BaseCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, base currency is required", currency.ErrCurrencyCodeEmpty)
@@ -837,11 +840,11 @@ func (o *OKCoin) PlaceRFQOrder(ctx context.Context, arg *PlaceRFQOrderRequest) (
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp []RFQOrderResponse
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, placeRFQOrderEPL, http.MethodPost, typeAccounts, "", arg, &resp, true)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, placeRFQOrderEPL, http.MethodPost, typeOtc, "rfq/trade", arg, &resp, true)
 }
 
 // GetRFQOrderDetails retrieves an RFQ order details.
-func (o *OKCoin) GetRFQOrderDetails(ctx context.Context, clientDefinedID, tradeOrderID string) ([]RFQOrderDetail, error) {
+func (o *Okcoin) GetRFQOrderDetails(ctx context.Context, clientDefinedID, tradeOrderID string) ([]RFQOrderDetail, error) {
 	params := url.Values{}
 	if clientDefinedID != "" {
 		params.Set("clTReqId", clientDefinedID)
@@ -854,7 +857,7 @@ func (o *OKCoin) GetRFQOrderDetails(ctx context.Context, clientDefinedID, tradeO
 }
 
 // GetRFQOrderHistory retrieves an RFQ order history
-func (o *OKCoin) GetRFQOrderHistory(ctx context.Context, begin, end time.Time, pageSize, pageIndex int64) ([]RFQOrderHistoryItem, error) {
+func (o *Okcoin) GetRFQOrderHistory(ctx context.Context, begin, end time.Time, pageSize, pageIndex int64) ([]RFQOrderHistoryItem, error) {
 	params := url.Values{}
 	if !begin.IsZero() {
 		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
@@ -875,7 +878,7 @@ func (o *OKCoin) GetRFQOrderHistory(ctx context.Context, begin, end time.Time, p
 // ---------- Fiat ----------------------------------------------------------------
 
 // Deposit posts a fiat deposit to an account
-func (o *OKCoin) Deposit(ctx context.Context, arg *FiatDepositRequestArg) ([]FiatDepositResponse, error) {
+func (o *Okcoin) Deposit(ctx context.Context, arg *FiatDepositRequestArg) ([]FiatDepositResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -893,7 +896,7 @@ func (o *OKCoin) Deposit(ctx context.Context, arg *FiatDepositRequestArg) ([]Fia
 }
 
 // CancelFiatDeposit cancels pending deposit requests.
-func (o *OKCoin) CancelFiatDeposit(ctx context.Context, depositID string) (*CancelDepositAddressResp, error) {
+func (o *Okcoin) CancelFiatDeposit(ctx context.Context, depositID string) (*CancelDepositAddressResp, error) {
 	if depositID == "" {
 		return nil, errors.New("deposit address required")
 	}
@@ -910,7 +913,7 @@ func (o *OKCoin) CancelFiatDeposit(ctx context.Context, depositID string) (*Canc
 
 // GetFiatDepositHistory deposit history query requests can be filtered by the different elements, such as channels, deposit status, and currencies.
 // Paging is also available during query and is stored in reverse order based on the transaction time, with the latest one at the top.
-func (o *OKCoin) GetFiatDepositHistory(ctx context.Context, ccy currency.Code, channelID, depositState, depositID string, after, before time.Time, limit int64) ([]DepositHistoryResponse, error) {
+func (o *Okcoin) GetFiatDepositHistory(ctx context.Context, ccy currency.Code, channelID, depositState, depositID string, after, before time.Time, limit int64) ([]DepositHistoryResponse, error) {
 	params := url.Values{}
 	if channelID != "" {
 		params.Set("chanId", channelID)
@@ -938,7 +941,7 @@ func (o *OKCoin) GetFiatDepositHistory(ctx context.Context, ccy currency.Code, c
 }
 
 // FiatWithdrawal submit fiat withdrawal operations.
-func (o *OKCoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (*FiatWithdrawalResponse, error) {
+func (o *Okcoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (*FiatWithdrawalResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -963,7 +966,7 @@ func (o *OKCoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (
 }
 
 // FiatCancelWithdrawal cancels fiat withdrawal request
-func (o *OKCoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
+func (o *Okcoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
 	if withdrawalID == "" {
 		return "", errWithdrawalIDMissing
 	}
@@ -983,7 +986,7 @@ func (o *OKCoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) 
 // GetFiatWithdrawalHistory retrieves a fiat withdrawal orders list
 // Channel ID used in the transaction.  9:PrimeX; 28:PrimeX US; 21:PrimeX Europe; 3:Silvergate SEN; 27:Silvergate SEN HK
 // Withdrawal state. -2:User canceled the order；-1:Withdrawal attempt has failed; 0:Withdrawal request submitted; 1:Withdrawal request is pending; 2:Withdrawal has been credited
-func (o *OKCoin) GetFiatWithdrawalHistory(ctx context.Context, ccy currency.Code, channelID, withdrawalState, withdrawalID string, after, before time.Time, limit int64) ([]FiatWithdrawalHistoryItem, error) {
+func (o *Okcoin) GetFiatWithdrawalHistory(ctx context.Context, ccy currency.Code, channelID, withdrawalState, withdrawalID string, after, before time.Time, limit int64) ([]FiatWithdrawalHistoryItem, error) {
 	params := url.Values{}
 	if channelID != "" {
 		params.Set("chanId", channelID)
@@ -1011,13 +1014,139 @@ func (o *OKCoin) GetFiatWithdrawalHistory(ctx context.Context, ccy currency.Code
 }
 
 // GetChannelInfo retrieves channel detailed information given channel id.
-func (o *OKCoin) GetChannelInfo(ctx context.Context, channelID string) ([]ChannelInfo, error) {
+func (o *Okcoin) GetChannelInfo(ctx context.Context, channelID string) ([]ChannelInfo, error) {
 	params := url.Values{}
 	if channelID != "" {
 		params.Set("chanId", channelID)
 	}
 	var resp []ChannelInfo
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, fiatGetChannelInfoEPL, http.MethodGet, typeFiat, common.EncodeURLValues("channel", params), nil, &resp, true)
+}
+
+// ---------------------- Sub Account --------------------
+
+// GetSubAccounts lists the sub-accounts detail.
+// Applies to master accounts only
+func (o *Okcoin) GetSubAccounts(ctx context.Context, enable bool, subAccountName string, after, before time.Time, limit int64) ([]SubAccountInfo, error) {
+	params := url.Values{}
+	if enable {
+		params.Set("enable", "true")
+	}
+	if subAccountName != "" {
+		params.Set("subAcct", subAccountName)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SubAccountInfo
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, subAccountsListEPL, http.MethodGet, typeUser, common.EncodeURLValues("subaccount/list", params), nil, &resp, true)
+}
+
+// GetAPIKeyOfSubAccount retrieves sub-account's API Key information.
+func (o *Okcoin) GetAPIKeyOfSubAccount(ctx context.Context, subAccountName, apiKey string) ([]SubAccountAPIKey, error) {
+	params := url.Values{}
+	if subAccountName == "" {
+		return nil, errSubAccountNameRequired
+	}
+	params.Set("subAcct", subAccountName)
+	if apiKey != "" {
+		params.Set("apiKey", apiKey)
+	}
+	var resp []SubAccountAPIKey
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAPIKeyOfASubAccountEPL, http.MethodGet, typeUser, common.EncodeURLValues("subaccount/apikey", params), nil, &resp, true)
+}
+
+// GetSubAccountTradingBalance retrieves detailed balance info of Trading Account of a sub-account via the master account (applies to master accounts only).
+func (o *Okcoin) GetSubAccountTradingBalance(ctx context.Context, subAccountName string) ([]SubAccountTradingBalance, error) {
+	if subAccountName == "" {
+		return nil, errSubAccountNameRequired
+	}
+	var resp []SubAccountTradingBalance
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountTradingBalanceEPL, http.MethodGet, typeAccounts, "subaccount/balances?subAcct="+subAccountName, nil, &resp, true)
+}
+
+// GetSubAccountFundingBalance retrieves detailed balance info of Funding Account of a sub-account via the master account (applies to master accounts only)
+func (o *Okcoin) GetSubAccountFundingBalance(ctx context.Context, subAccountName string, currencies ...string) ([]SubAccountFundingBalance, error) {
+	params := url.Values{}
+	if subAccountName == "" {
+		return nil, errSubAccountNameRequired
+	}
+	params.Set("subAcct", subAccountName)
+	if len(currencies) > 0 {
+		params.Set("ccy", strings.Join(currencies, ","))
+	}
+	var resp []SubAccountFundingBalance
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountFundingBalanceEPL, http.MethodGet, typeAssets, common.EncodeURLValues("subaccount/balances", params), nil, &resp, true)
+}
+
+// SubAccountTransferHistory retrieve the transfer data for the last 3 months.
+// Applies to master accounts only.
+// 0: Transfers from master account to sub-account ;
+// 1 : Transfers from sub-account to master account.
+func (o *Okcoin) SubAccountTransferHistory(ctx context.Context, subAccountName, currency, transferType string, after, before time.Time, limit int64) ([]SubAccountTransferInfo, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if transferType != "" {
+		params.Set("type", transferType)
+	}
+	if subAccountName != "" {
+		params.Set("subAcct", subAccountName)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SubAccountTransferInfo
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, subAccountTransferHistoryEPL, http.MethodGet, typeAssets, common.EncodeURLValues("subaccount/bills", params), nil, &resp, true)
+}
+
+// AccountBalanceTransfer posts an account transfer between master and sub-account transfers.
+func (o *Okcoin) AccountBalanceTransfer(ctx context.Context, arg *IntraAccountTransferParam) (*SubAccountTransferResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Ccy == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w amount: %f", errInvalidAmount, arg.Amount)
+	}
+	// 6:Funding Account 18:Trading account
+	if arg.From != "6" && arg.From != "18" {
+		return nil, fmt.Errorf("invalid source account type %s, 6:Funding Account 18:Trading account", arg.From)
+	}
+	// 6:Funding Account 18:Trading account
+	if arg.To != "6" && arg.To != "18" {
+		return nil, fmt.Errorf("invalid destination account type %s, 6:Funding Account 18:Trading account", arg.To)
+	}
+	if arg.FromSubAccount == "" {
+		return nil, fmt.Errorf("%w, source subaccount must be specified", errSubAccountNameRequired)
+	}
+	if arg.ToSubAccount == "" {
+		return nil, fmt.Errorf("%w, destination subaccount must be specified", errSubAccountNameRequired)
+	}
+	var resp []SubAccountTransferResponse
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot, masterAccountsManageTransfersBetweenSubaccountEPL, http.MethodPost, typeAssets, "subaccount/transfer", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errNoValidResponseFromServer
+	}
+	return &resp[0], nil
 }
 
 // --------------------- Trade endpoints ---------------------------
@@ -1045,7 +1174,7 @@ func (a *PlaceTradeOrderParam) validateTradeOrderParameter() error {
 }
 
 // PlaceOrder to place a trade order.
-func (o *OKCoin) PlaceOrder(ctx context.Context, arg *PlaceTradeOrderParam) (*TradeOrderResponse, error) {
+func (o *Okcoin) PlaceOrder(ctx context.Context, arg *PlaceTradeOrderParam) (*TradeOrderResponse, error) {
 	err := arg.validateTradeOrderParameter()
 	if err != nil {
 		return nil, err
@@ -1065,7 +1194,7 @@ func (o *OKCoin) PlaceOrder(ctx context.Context, arg *PlaceTradeOrderParam) (*Tr
 }
 
 // PlaceMultipleOrder place orders in batches. Maximum 20 orders can be placed per request. Request parameters should be passed in the form of an array.
-func (o *OKCoin) PlaceMultipleOrder(ctx context.Context, args []PlaceTradeOrderParam) ([]TradeOrderResponse, error) {
+func (o *Okcoin) PlaceMultipleOrder(ctx context.Context, args []PlaceTradeOrderParam) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
@@ -1081,7 +1210,7 @@ func (o *OKCoin) PlaceMultipleOrder(ctx context.Context, args []PlaceTradeOrderP
 }
 
 // CancelTradeOrder cancels a single trade order
-func (o *OKCoin) CancelTradeOrder(ctx context.Context, arg *CancelTradeOrderRequest) (*TradeOrderResponse, error) {
+func (o *Okcoin) CancelTradeOrder(ctx context.Context, arg *CancelTradeOrderRequest) (*TradeOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1120,7 +1249,7 @@ func (arg *CancelTradeOrderRequest) validate() error {
 
 // CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled per request.
 // Request parameters should be passed in the form of an array.
-func (o *OKCoin) CancelMultipleOrders(ctx context.Context, args []CancelTradeOrderRequest) ([]TradeOrderResponse, error) {
+func (o *Okcoin) CancelMultipleOrders(ctx context.Context, args []CancelTradeOrderRequest) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
@@ -1132,7 +1261,7 @@ func (o *OKCoin) CancelMultipleOrders(ctx context.Context, args []CancelTradeOrd
 		}
 	}
 	var resp []TradeOrderResponse
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrderEPL, http.MethodPost, typeTrade, "cancel-batch-orders", args, &resp, true)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrderEPL, http.MethodPost, typeTrade, "cancel-batch-orders", &args, &resp, true)
 }
 
 func (a *AmendTradeOrderRequestParam) validate() error {
@@ -1152,7 +1281,7 @@ func (a *AmendTradeOrderRequestParam) validate() error {
 }
 
 // AmendOrder amends an incomplete order.
-func (o *OKCoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestParam) (*AmendTradeOrderResponse, error) {
+func (o *Okcoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestParam) (*AmendTradeOrderResponse, error) {
 	err := arg.validate()
 	if err != nil {
 		return nil, err
@@ -1172,7 +1301,7 @@ func (o *OKCoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestPara
 }
 
 // AmendMultipleOrder amends multiple trade orders.
-func (o *OKCoin) AmendMultipleOrder(ctx context.Context, args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
+func (o *Okcoin) AmendMultipleOrder(ctx context.Context, args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", errNilArgument)
 	}
@@ -1187,7 +1316,7 @@ func (o *OKCoin) AmendMultipleOrder(ctx context.Context, args []AmendTradeOrderR
 }
 
 // GetPersonalOrderDetail retrieves an order detail
-func (o *OKCoin) GetPersonalOrderDetail(ctx context.Context, instrumentID, orderID, clientOrderID string) (*TradeOrder, error) {
+func (o *Okcoin) GetPersonalOrderDetail(ctx context.Context, instrumentID, orderID, clientOrderID string) (*TradeOrder, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -1240,21 +1369,21 @@ func tradeOrderParamsFill(instrumentType, instrumentID, orderType, state string,
 }
 
 // GetPersonalOrderList retrieve all incomplete orders under the current account.
-func (o *OKCoin) GetPersonalOrderList(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
+func (o *Okcoin) GetPersonalOrderList(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
 	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
 	var resp []TradeOrder
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderListEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-pending", params), nil, &resp, true)
 }
 
 // GetOrderHistory7Days retrieve the completed order data for the last 7 days, and the incomplete orders that have been canceled are only reserved for 2 hours.
-func (o *OKCoin) GetOrderHistory7Days(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
+func (o *Okcoin) GetOrderHistory7Days(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
 	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
 	var resp []TradeOrder
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderHistoryEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-history", params), nil, &resp, true)
 }
 
 // GetOrderHistory3Months retrieve the completed order data of the last 3 months.
-func (o *OKCoin) GetOrderHistory3Months(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
+func (o *Okcoin) GetOrderHistory3Months(ctx context.Context, instrumentType, instrumentID, orderType, state string, before, after time.Time, limit int64) ([]TradeOrder, error) {
 	params := tradeOrderParamsFill(instrumentType, instrumentID, orderType, state, after, before, limit)
 	var resp []TradeOrder
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getOrderhistory3MonthsEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-history-archive", params), nil, &resp, true)
@@ -1290,14 +1419,14 @@ func transactionFillParams(instrumentType, instrumentID, orderID, afterBillID, b
 }
 
 // GetRecentTransactionDetail retrieve recently-filled transaction details in the last 3 day.
-func (o *OKCoin) GetRecentTransactionDetail(ctx context.Context, instrumentType, instrumentID, orderID, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]TransactionFillItem, error) {
+func (o *Okcoin) GetRecentTransactionDetail(ctx context.Context, instrumentType, instrumentID, orderID, afterBillID, beforeBillID string, begin, end time.Time, limit int64) ([]TransactionFillItem, error) {
 	params := transactionFillParams(instrumentType, instrumentID, orderID, afterBillID, beforeBillID, begin, end, limit)
 	var resp []TransactionFillItem
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getTransactionDetails3DaysEPL, http.MethodGet, typeTrade, common.EncodeURLValues("fills", params), nil, &resp, true)
 }
 
 // GetTransactionDetails3Months retrieves recently filled transaction detail in the last 3-months
-func (o *OKCoin) GetTransactionDetails3Months(ctx context.Context, instrumentType, instrumentID, orderID, beforeBillID, afterBillID string, begin, end time.Time, limit int64) ([]TransactionFillItem, error) {
+func (o *Okcoin) GetTransactionDetails3Months(ctx context.Context, instrumentType, instrumentID, orderID, beforeBillID, afterBillID string, begin, end time.Time, limit int64) ([]TransactionFillItem, error) {
 	params := transactionFillParams(instrumentType, instrumentID, orderID, afterBillID, beforeBillID, begin, end, limit)
 	var resp []TransactionFillItem
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getTransactionDetails3MonthsEPL, http.MethodGet, typeTrade, common.EncodeURLValues("fills-history", params), nil, &resp, true)
@@ -1399,7 +1528,7 @@ func (arg *AlgoOrderRequestParam) validateAlgoOrder() error {
 
 // PlaceAlgoOrder places an algo order.
 // The algo order includes trigger order, oco order, conditional order,iceberg order, twap order and trailing order.
-func (o *OKCoin) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderRequestParam) (*AlgoOrderResponse, error) {
+func (o *Okcoin) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderRequestParam) (*AlgoOrderResponse, error) {
 	err := arg.validateAlgoOrder()
 	if err != nil {
 		return nil, err
@@ -1420,7 +1549,7 @@ func (o *OKCoin) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderRequestParam)
 
 // CancelAlgoOrder cancel unfilled algo orders (not including Iceberg order, TWAP order, Trailing Stop order).
 // A maximum of 10 orders can be canceled per request. Request parameters should be passed in the form of an array.
-func (o *OKCoin) CancelAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequestParam) ([]AlgoOrderResponse, error) {
+func (o *Okcoin) CancelAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequestParam) ([]AlgoOrderResponse, error) {
 	if len(args) == 0 {
 		return nil, errNilArgument
 	}
@@ -1438,7 +1567,7 @@ func (o *OKCoin) CancelAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequ
 
 // CancelAdvancedAlgoOrder cancel unfilled algo orders (including Iceberg order, TWAP order, Trailing Stop order).
 // A maximum of 10 orders can be canceled per request. Request parameters should be passed in the form of an array.
-func (o *OKCoin) CancelAdvancedAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequestParam) ([]AlgoOrderResponse, error) {
+func (o *Okcoin) CancelAdvancedAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequestParam) ([]AlgoOrderResponse, error) {
 	if len(args) == 0 {
 		return nil, errNilArgument
 	}
@@ -1455,7 +1584,7 @@ func (o *OKCoin) CancelAdvancedAlgoOrder(ctx context.Context, args []CancelAlgoO
 }
 
 // GetAlgoOrderList retrieve a list of untriggered Algo orders under the current account.
-func (o *OKCoin) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientOrderID, instrumentType, instrumentID, afterAlgoID, beforeAlgoID string, limit int64) ([]AlgoOrderDetail, error) {
+func (o *Okcoin) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientOrderID, instrumentType, instrumentID, afterAlgoID, beforeAlgoID string, limit int64) ([]AlgoOrderDetail, error) {
 	if orderType == "" {
 		return nil, errOrderTypeRequired
 	}
@@ -1486,8 +1615,8 @@ func (o *OKCoin) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, c
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderListEPL, http.MethodGet, typeTrade, common.EncodeURLValues("orders-algo-pending", params), nil, &resp, true)
 }
 
-// GetAlgoOrderhistory retrieve a list of all algo orders under the current account in the last 3 months.
-func (o *OKCoin) GetAlgoOrderhistory(ctx context.Context, orderType, state, algoOrderID, instrumentType, instrumentID, afterAlgoID, beforeAlgoID string, limit int64) ([]AlgoOrderDetail, error) {
+// GetAlgoOrderHistory retrieve a list of all algo orders under the current account in the last 3 months.
+func (o *Okcoin) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOrderID, instrumentType, instrumentID, afterAlgoID, beforeAlgoID string, limit int64) ([]AlgoOrderDetail, error) {
 	if orderType == "" {
 		return nil, errOrderTypeRequired
 	}
@@ -1521,7 +1650,7 @@ func (o *OKCoin) GetAlgoOrderhistory(ctx context.Context, orderType, state, algo
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
-func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, httpMethod, requestType, requestPath string, data, result interface{}, authenticated bool) error {
+func (o *Okcoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, httpMethod, requestType, requestPath string, data, result interface{}, authenticated bool) error {
 	endpoint, err := o.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1544,7 +1673,7 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 				return nil, err
 			}
 		}
-		path := endpoint + okCoinAPIVersion + requestType + "/" + requestPath
+		path := endpoint + okcoinAPIVersion + requestType + "/" + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {
@@ -1553,7 +1682,7 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 			if err != nil {
 				return nil, err
 			}
-			signPath := okCoinAPIVersion + requestType + "/" + requestPath
+			signPath := okcoinAPIVersion + requestType + "/" + requestPath
 
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
@@ -1618,7 +1747,7 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (o *OKCoin) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (o *Okcoin) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
@@ -1627,9 +1756,9 @@ func (o *OKCoin) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (f
 			return 0, err
 		}
 		if feeBuilder.IsMaker {
-			fee = rate[0].MakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+			fee = rate[0].MakerFeeRate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice
 		} else {
-			fee = rate[0].TakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+			fee = rate[0].TakerFeeRate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice
 		}
 	case exchange.CryptocurrencyWithdrawalFee:
 		// TODO: manually add withdrawal fees

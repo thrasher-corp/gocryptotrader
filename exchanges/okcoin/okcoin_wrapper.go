@@ -28,7 +28,7 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (o *OKCoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
+func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	o.SetDefaults()
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = o.Name
@@ -49,9 +49,9 @@ func (o *OKCoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 }
 
 // SetDefaults method assigns the default values for OKCoin
-func (o *OKCoin) SetDefaults() {
+func (o *Okcoin) SetDefaults() {
 	o.SetErrorDefaults()
-	o.Name = okCoinExchangeName
+	o.Name = okcoinExchangeName
 	o.Enabled = true
 	o.Verbose = true
 
@@ -144,8 +144,8 @@ func (o *OKCoin) SetDefaults() {
 	}
 	o.API.Endpoints = o.NewEndpoints()
 	err = o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      okCoinAPIURL,
-		exchange.WebsocketSpot: okCoinWebsocketURL,
+		exchange.RestSpot:      okcoinAPIURL,
+		exchange.WebsocketSpot: okcoinWebsocketURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -157,7 +157,7 @@ func (o *OKCoin) SetDefaults() {
 }
 
 // Setup sets user exchange configuration settings
-func (o *OKCoin) Setup(exch *config.Exchange) error {
+func (o *Okcoin) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 		ExchangeConfig:         exch,
 		DefaultURL:             wsEndpoint,
 		RunningURL:             wsEndpoint,
-		RunningURLAuth:         okCoinPrivateWebsocketURL,
+		RunningURLAuth:         okcoinPrivateWebsocketURL,
 		Connector:              o.WsConnect,
 		Subscriber:             o.Subscribe,
 		Unsubscriber:           o.Unsubscribe,
@@ -194,7 +194,7 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 		RateLimit:            okcoinWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  okCoinWebsocketURL,
+		URL:                  okcoinWebsocketURL,
 	})
 	if err != nil {
 		return err
@@ -202,14 +202,14 @@ func (o *OKCoin) Setup(exch *config.Exchange) error {
 	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  okCoinPrivateWebsocketURL,
+		URL:                  okcoinPrivateWebsocketURL,
 		RateLimit:            okcoinWsRateLimit,
 		Authenticated:        true,
 	})
 }
 
 // Start starts the OKCoin go routine
-func (o *OKCoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
+func (o *Okcoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
@@ -222,7 +222,7 @@ func (o *OKCoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
 }
 
 // Run implements the OKCoin wrapper
-func (o *OKCoin) Run(ctx context.Context) {
+func (o *Okcoin) Run(ctx context.Context) {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
@@ -300,7 +300,7 @@ func (o *OKCoin) Run(ctx context.Context) {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, a)
 	}
@@ -322,7 +322,7 @@ func (o *OKCoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (o *Okcoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	pairs, err := o.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
@@ -331,7 +331,7 @@ func (o *OKCoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (o *Okcoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, a)
 	}
@@ -352,16 +352,16 @@ func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 			continue
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tickers[i].LastTradedPrice,
-			High:         tickers[i].High24H,
-			Bid:          tickers[i].BestBidPrice,
-			BidSize:      tickers[i].BestBidSize,
-			Ask:          tickers[i].BestAskPrice,
-			AskSize:      tickers[i].BestAskPrice,
-			QuoteVolume:  tickers[i].VolCcy24H,
+			Last:         tickers[i].LastTradedPrice.Float64(),
+			High:         tickers[i].High24H.Float64(),
+			Bid:          tickers[i].BestBidPrice.Float64(),
+			BidSize:      tickers[i].BestBidSize.Float64(),
+			Ask:          tickers[i].BestAskPrice.Float64(),
+			AskSize:      tickers[i].BestAskPrice.Float64(),
+			QuoteVolume:  tickers[i].VolCcy24H.Float64(),
 			LastUpdated:  tickers[i].Timestamp.Time(),
-			Volume:       tickers[i].Vol24H,
-			Open:         tickers[i].Open24H,
+			Volume:       tickers[i].Vol24H.Float64(),
+			Open:         tickers[i].Open24H.Float64(),
 			AssetType:    asset.Spot,
 			ExchangeName: o.Name,
 			Pair:         cp,
@@ -374,7 +374,7 @@ func (o *OKCoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKCoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (o *Okcoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if err := o.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
@@ -382,7 +382,7 @@ func (o *OKCoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKCoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (o *Okcoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerData, err := ticker.GetTicker(o.Name, p, assetType)
 	if err != nil {
 		return o.UpdateTicker(ctx, p, assetType)
@@ -391,7 +391,7 @@ func (o *OKCoin) FetchTicker(ctx context.Context, p currency.Pair, assetType ass
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (o *Okcoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
@@ -418,8 +418,8 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			CurrencyPair: p,
 			Side:         side,
 			AssetType:    assetType,
-			Price:        tradeData[i].TradePrice,
-			Amount:       tradeData[i].TradeSize,
+			Price:        tradeData[i].TradePrice.Float64(),
+			Amount:       tradeData[i].TradeSize.Float64(),
 			Timestamp:    tradeData[i].Timestamp.Time(),
 		}
 	}
@@ -432,7 +432,7 @@ func (o *OKCoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (o *OKCoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (order.CancelBatchResponse, error) {
+func (o *Okcoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (order.CancelBatchResponse, error) {
 	var err error
 	cancelBatchResponse := order.CancelBatchResponse{
 		Status: make(map[string]string, len(args)),
@@ -477,7 +477,7 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (or
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (o *OKCoin) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (o *Okcoin) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	fPair, err := o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -490,7 +490,7 @@ func (o *OKCoin) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKCoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
 	}
@@ -507,7 +507,7 @@ func (o *OKCoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if !p.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	orderbookLite, err := o.GetOrderbook(ctx, p.String(), 0)
+	orderbookLite, err := o.GetOrderbook(ctx, p.String(), o.WebsocketOrderbookBufferLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +541,7 @@ func (o *OKCoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (o *OKCoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (o *Okcoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	if assetType != asset.Spot {
 		return account.Holdings{}, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
@@ -579,7 +579,7 @@ func (o *OKCoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (o *OKCoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (o *Okcoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	creds, err := o.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
@@ -593,7 +593,7 @@ func (o *OKCoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (o *Okcoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	accountDepositHistory, err := o.GetDepositHistory(ctx, currency.EMPTYCODE, "", "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		return nil, err
@@ -620,7 +620,7 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 			orderStatus = "sub-account deposit interception"
 		}
 		resp[x] = exchange.FundHistory{
-			Amount:       accountDepositHistory[x].Amount,
+			Amount:       accountDepositHistory[x].Amount.Float64(),
 			Currency:     accountDepositHistory[x].Currency,
 			ExchangeName: o.Name,
 			Status:       orderStatus,
@@ -653,13 +653,13 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 			orderStatus = "awaiting identity verification"
 		}
 		resp[len(accountDepositHistory)+i] = exchange.FundHistory{
-			Amount:          accountWithdrawlHistory[i].Amt,
+			Amount:          accountWithdrawlHistory[i].Amt.Float64(),
 			Currency:        accountWithdrawlHistory[i].Ccy,
 			ExchangeName:    o.Name,
 			Status:          orderStatus,
 			Timestamp:       accountWithdrawlHistory[i].Timestamp.Time(),
 			TransferID:      accountWithdrawlHistory[i].TransactionID,
-			Fee:             accountWithdrawlHistory[i].Fee,
+			Fee:             accountWithdrawlHistory[i].Fee.Float64(),
 			CryptoToAddress: accountWithdrawlHistory[i].To,
 			CryptoTxID:      accountWithdrawlHistory[i].TransactionID,
 			CryptoChain:     accountWithdrawlHistory[i].Chain,
@@ -670,7 +670,7 @@ func (o *OKCoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // SubmitOrder submits a new order
-func (o *OKCoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+func (o *Okcoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if s == nil {
 		return nil, fmt.Errorf("%w, place order request parameter can not be null", common.ErrNilPointer)
 	}
@@ -717,7 +717,7 @@ func (o *OKCoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKCoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.ModifyResponse, error) {
+func (o *Okcoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.ModifyResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w, modify request parameter can not be null", common.ErrNilPointer)
 	}
@@ -733,16 +733,16 @@ func (o *OKCoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.Mod
 	if err != nil {
 		return nil, err
 	}
-	request := &AmendTradeOrderRequestParam{
+	amendRequest := &AmendTradeOrderRequestParam{
 		OrderID:       req.OrderID,
 		InstrumentID:  req.Pair.String(),
 		ClientOrderID: req.ClientOrderID,
 		NewSize:       req.Amount,
 		NewPrice:      req.Price}
 	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err = o.WsAmendOrder(request)
+		_, err = o.WsAmendOrder(amendRequest)
 	} else {
-		_, err = o.AmendOrder(ctx, request)
+		_, err = o.AmendOrder(ctx, amendRequest)
 	}
 	if err != nil {
 		return nil, err
@@ -751,7 +751,7 @@ func (o *OKCoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.Mod
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
+func (o *Okcoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 	err := cancel.Validate(cancel.StandardCancel())
 	if err != nil {
 		return err
@@ -760,15 +760,15 @@ func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	request := &CancelTradeOrderRequest{
+	amendRequest := &CancelTradeOrderRequest{
 		InstrumentID:  cancel.Pair.String(),
 		OrderID:       cancel.OrderID,
 		ClientOrderID: cancel.ClientOrderID,
 	}
 	if o.Websocket.IsConnected() && o.Websocket.CanUseAuthenticatedEndpoints() && o.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err = o.WsCancelTradeOrder(request)
+		_, err = o.WsCancelTradeOrder(amendRequest)
 	} else {
-		_, err = o.CancelTradeOrder(ctx, request)
+		_, err = o.CancelTradeOrder(ctx, amendRequest)
 	}
 	if err != nil {
 		return err
@@ -777,12 +777,12 @@ func (o *OKCoin) CancelOrder(ctx context.Context, cancel *order.Cancel) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKCoin) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (o *Okcoin) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
 }
 
 // GetOrderInfo returns order information based on order ID
-func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (o *Okcoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	if assetType != asset.Spot {
 		return resp, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
@@ -809,19 +809,19 @@ func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		return resp, err
 	}
 	return order.Detail{
-		Amount:               tradeOrder.Size,
+		Amount:               tradeOrder.Size.Float64(),
 		Pair:                 pair,
 		Exchange:             o.Name,
 		Date:                 tradeOrder.CreationTime.Time(),
 		LastUpdated:          tradeOrder.UpdateTime.Time(),
-		ExecutedAmount:       tradeOrder.AccFillSize,
+		ExecutedAmount:       tradeOrder.AccFillSize.Float64(),
 		Status:               status,
 		Side:                 side,
 		Leverage:             tradeOrder.Leverage.Float64(),
 		ReduceOnly:           tradeOrder.ReduceOnly,
-		Price:                tradeOrder.Price,
-		AverageExecutedPrice: tradeOrder.AveragePrice,
-		RemainingAmount:      tradeOrder.Size - tradeOrder.AccFillSize,
+		Price:                tradeOrder.Price.Float64(),
+		AverageExecutedPrice: tradeOrder.AveragePrice.Float64(),
+		RemainingAmount:      tradeOrder.Size.Float64() - tradeOrder.AccFillSize.Float64(),
 		Fee:                  tradeOrder.Fee.Float64(),
 		FeeAsset:             currency.NewCode(tradeOrder.FeeCurrency),
 		OrderID:              tradeOrder.OrderID,
@@ -832,7 +832,7 @@ func (o *OKCoin) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKCoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
+func (o *Okcoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
 	wallet, err := o.GetCurrencyDepositAddresses(ctx, c)
 	if err != nil {
 		return nil, err
@@ -850,7 +850,7 @@ func (o *OKCoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ st
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKCoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *Okcoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -877,18 +877,18 @@ func (o *OKCoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKCoin) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *Okcoin) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKCoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *Okcoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (o *Okcoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w, asseet: %v", asset.ErrNotSupported, a)
 	}
@@ -924,8 +924,8 @@ func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 			TransferID:      withdrawals[x].WithdrawalID,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
 			Currency:        withdrawals[x].Ccy,
-			Amount:          withdrawals[x].Amt,
-			Fee:             withdrawals[x].Fee,
+			Amount:          withdrawals[x].Amt.Float64(),
+			Fee:             withdrawals[x].Fee.Float64(),
 			CryptoToAddress: withdrawals[x].To,
 			CryptoTxID:      withdrawals[x].TransactionID,
 			CryptoChain:     withdrawals[x].Chain,
@@ -936,7 +936,7 @@ func (o *OKCoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (o *Okcoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -972,10 +972,10 @@ func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				Date:           tradeOrders[i].CreationTime.Time(),
 				LastUpdated:    tradeOrders[i].UpdateTime.Time(),
 				CloseTime:      tradeOrders[i].FillTime.Time(),
-				Price:          tradeOrders[i].AveragePrice,
-				ExecutedAmount: tradeOrders[i].AccFillSize,
+				Price:          tradeOrders[i].AveragePrice.Float64(),
+				ExecutedAmount: tradeOrders[i].AccFillSize.Float64(),
 				OrderID:        tradeOrders[i].OrderID,
-				Amount:         tradeOrders[i].Size,
+				Amount:         tradeOrders[i].Size.Float64(),
 				Pair:           req.Pairs[x],
 				Type:           orderType,
 				Status:         status,
@@ -989,7 +989,7 @@ func (o *OKCoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKCoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (o *Okcoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1023,11 +1023,11 @@ func (o *OKCoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			}
 			detail := order.Detail{
 				OrderID:              spotOrders[i].OrderID,
-				Price:                spotOrders[i].Price,
-				AverageExecutedPrice: spotOrders[i].AveragePrice,
-				Amount:               spotOrders[i].Size,
-				ExecutedAmount:       spotOrders[i].AccFillSize,
-				RemainingAmount:      spotOrders[i].Size - spotOrders[i].AccFillSize,
+				Price:                spotOrders[i].Price.Float64(),
+				AverageExecutedPrice: spotOrders[i].AveragePrice.Float64(),
+				Amount:               spotOrders[i].Size.Float64(),
+				ExecutedAmount:       spotOrders[i].AccFillSize.Float64(),
+				RemainingAmount:      spotOrders[i].Size.Float64() - spotOrders[i].AccFillSize.Float64(),
 				Pair:                 req.Pairs[x],
 				Exchange:             o.Name,
 				Side:                 side,
@@ -1045,7 +1045,7 @@ func (o *OKCoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (o *OKCoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (o *Okcoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
@@ -1058,13 +1058,13 @@ func (o *OKCoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (o *OKCoin) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+func (o *Okcoin) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := o.UpdateAccountInfo(ctx, assetType)
 	return o.CheckTransientError(err)
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (o *OKCoin) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, start, end time.Time) ([]trade.Data, error) {
+func (o *Okcoin) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, start, end time.Time) ([]trade.Data, error) {
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
@@ -1105,8 +1105,8 @@ allTrades:
 				Exchange:     o.Name,
 				CurrencyPair: pair,
 				AssetType:    assetType,
-				Price:        trades[i].TradePrice,
-				Amount:       trades[i].TradeSize,
+				Price:        trades[i].TradePrice.Float64(),
+				Amount:       trades[i].TradeSize.Float64(),
 				Timestamp:    trades[i].Timestamp.Time(),
 				Side:         tradeSide,
 			})
@@ -1124,7 +1124,7 @@ allTrades:
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (o *Okcoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
 	}
@@ -1155,7 +1155,7 @@ func (o *OKCoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (o *Okcoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
 	}
@@ -1185,12 +1185,12 @@ func (o *OKCoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
-func (o *OKCoin) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+func (o *Okcoin) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := o.UpdateAccountInfo(ctx, assetType)
 	return o.CheckTransientError(err)
 }
 
 // GetServerTime returns the current exchange server time.
-func (o *OKCoin) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (o *Okcoin) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return o.GetSystemTime(ctx)
 }

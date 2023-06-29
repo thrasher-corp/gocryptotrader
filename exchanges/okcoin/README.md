@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## OKCOIN International Exchange
+## Okcoin Exchange
 
 ### Current Features
 
@@ -49,7 +49,7 @@ main.go
 var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "OKCOIN International" {
+	if bot.Exchanges[i].GetName() == "Okcoin" {
 		o = bot.Exchanges[i]
 	}
 }

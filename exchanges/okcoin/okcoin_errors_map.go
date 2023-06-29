@@ -3,7 +3,7 @@ package okcoin
 import "errors"
 
 // SetErrorDefaults sets the full error default list
-func (o *OKCoin) SetErrorDefaults() {
+func (o *Okcoin) SetErrorDefaults() {
 	o.ErrorCodes = map[string]error{
 		"1":     errors.New(`operation failed`),
 		"2":     errors.New(`bulk operation partially succeeded`),

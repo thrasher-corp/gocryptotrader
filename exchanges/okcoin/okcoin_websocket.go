@@ -25,9 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var pongBytes = []byte("pong")
-
 const (
+	// pong message
+	pongBytes = "pong"
+
 	// Public endpoint subscriptions
 	wsInstruments = "instruments"
 	wsTickers     = "tickers"
@@ -71,7 +72,7 @@ func isAuthenticatedChannel(channel string) bool {
 }
 
 // WsConnect initiates a websocket connection
-func (o *OKCoin) WsConnect() error {
+func (o *Okcoin) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -109,7 +110,7 @@ func (o *OKCoin) WsConnect() error {
 }
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
-func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
+func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 	o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	creds, err := o.GetCredentials(ctx)
 	if err != nil {
@@ -126,10 +127,10 @@ func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 		Message:     []byte("ping"),
 		MessageType: websocket.TextMessage,
 	})
-	systemTime := time.Now().UTC()
+	systemTime := time.Now()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(systemTime.UTC().Unix(), 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(systemTime.Unix(), 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
@@ -142,7 +143,7 @@ func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 			{
 				"apiKey":     creds.Key,
 				"passphrase": creds.ClientID,
-				"timestamp":  strconv.FormatInt(systemTime.UTC().Unix(), 10),
+				"timestamp":  strconv.FormatInt(systemTime.Unix(), 10),
 				"sign":       base64,
 			},
 		},
@@ -157,7 +158,7 @@ func (o *OKCoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 
 var messageChan = make(chan stream.Response)
 
-func (o *OKCoin) funnelWebsocketConn(conn stream.Connection) {
+func (o *Okcoin) funnelWebsocketConn(conn stream.Connection) {
 	defer o.Websocket.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
@@ -169,7 +170,7 @@ func (o *OKCoin) funnelWebsocketConn(conn stream.Connection) {
 }
 
 // WsReadData receives and passes on websocket messages for processing
-func (o *OKCoin) WsReadData() {
+func (o *Okcoin) WsReadData() {
 	defer o.Websocket.Wg.Done()
 	for {
 		select {
@@ -201,8 +202,8 @@ func (o *OKCoin) WsReadData() {
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (o *OKCoin) WsHandleData(respRaw []byte) error {
-	if bytes.Equal(respRaw, pongBytes) {
+func (o *Okcoin) WsHandleData(respRaw []byte) error {
+	if bytes.Equal(respRaw, []byte(pongBytes)) {
 		return nil
 	}
 	var dataResponse WebsocketDataResponse
@@ -294,7 +295,7 @@ func (o *OKCoin) WsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (o *OKCoin) wsProcessAdvancedAlgoOrder(respRaw []byte) error {
+func (o *Okcoin) wsProcessAdvancedAlgoOrder(respRaw []byte) error {
 	var resp WebsocketAdvancedAlgoOrder
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -304,7 +305,7 @@ func (o *OKCoin) wsProcessAdvancedAlgoOrder(respRaw []byte) error {
 	return nil
 }
 
-func (o *OKCoin) wsProcessAlgoOrder(respRaw []byte) error {
+func (o *Okcoin) wsProcessAlgoOrder(respRaw []byte) error {
 	var resp WebsocketAlgoOrder
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -314,7 +315,7 @@ func (o *OKCoin) wsProcessAlgoOrder(respRaw []byte) error {
 	return nil
 }
 
-func (o *OKCoin) wsProcessOrders(respRaw []byte) error {
+func (o *Okcoin) wsProcessOrders(respRaw []byte) error {
 	var resp WebsocketOrder
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -349,7 +350,7 @@ func (o *OKCoin) wsProcessOrders(respRaw []byte) error {
 	return nil
 }
 
-func (o *OKCoin) wsProcessAccount(respRaw []byte) error {
+func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	var resp WebsocketAccount
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -381,7 +382,7 @@ func StringToOrderStatus(num int64) (order.Status, error) {
 	}
 }
 
-func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
+func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 	var resp WebsocketOrderbookResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -460,7 +461,7 @@ func (o *OKCoin) wsProcessOrderbook(respRaw []byte) error {
 	return o.Websocket.Orderbook.Update(&update)
 }
 
-func (o *OKCoin) wsProcessOrder(respRaw []byte) error {
+func (o *Okcoin) wsProcessOrder(respRaw []byte) error {
 	var resp WebsocketSpotOrderResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -508,10 +509,10 @@ func (o *OKCoin) wsProcessOrder(respRaw []byte) error {
 			ImmediateOrCancel: resp.Data[i].OrderType == 3,
 			FillOrKill:        resp.Data[i].OrderType == 2,
 			PostOnly:          resp.Data[i].OrderType == 1,
-			Price:             resp.Data[i].Price,
-			Amount:            resp.Data[i].Size,
-			ExecutedAmount:    resp.Data[i].LastFillQty,
-			RemainingAmount:   resp.Data[i].Size - resp.Data[i].LastFillQty,
+			Price:             resp.Data[i].Price.Float64(),
+			Amount:            resp.Data[i].Size.Float64(),
+			ExecutedAmount:    resp.Data[i].LastFillQty.Float64(),
+			RemainingAmount:   resp.Data[i].Size.Float64() - resp.Data[i].LastFillQty.Float64(),
 			Exchange:          o.Name,
 			OrderID:           resp.Data[i].OrderID,
 			Type:              oType,
@@ -526,7 +527,7 @@ func (o *OKCoin) wsProcessOrder(respRaw []byte) error {
 }
 
 // wsProcessInstruments converts instrument data and sends it to the datahandler
-func (o *OKCoin) wsProcessInstruments(respRaw []byte) error {
+func (o *Okcoin) wsProcessInstruments(respRaw []byte) error {
 	var response []WebsocketInstrumentData
 	resp := WebsocketDataResponseReciever{
 		Data: &response,
@@ -540,7 +541,7 @@ func (o *OKCoin) wsProcessInstruments(respRaw []byte) error {
 }
 
 // wsProcessTickers  converts ticker data and sends it to the datahandler
-func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
+func (o *Okcoin) wsProcessTickers(respRaw []byte) error {
 	var response []WsTickerData
 	resp := WebsocketDataResponseReciever{
 		Data: &response,
@@ -557,16 +558,16 @@ func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
 		}
 		tickers[x] = ticker.Price{
 			AssetType:    asset.Spot,
-			Last:         response[x].Last,
-			Open:         response[x].Open24H,
-			High:         response[x].High24H,
-			Low:          response[x].Low24H,
-			Volume:       response[x].Vol24H,
-			QuoteVolume:  response[x].VolCcy24H,
-			Bid:          response[x].BidPrice,
-			BidSize:      response[x].BidSize,
-			Ask:          response[x].AskPrice,
-			AskSize:      response[x].AskSize,
+			Last:         response[x].Last.Float64(),
+			Open:         response[x].Open24H.Float64(),
+			High:         response[x].High24H.Float64(),
+			Low:          response[x].Low24H.Float64(),
+			Volume:       response[x].Vol24H.Float64(),
+			QuoteVolume:  response[x].VolCcy24H.Float64(),
+			Bid:          response[x].BidPrice.Float64(),
+			BidSize:      response[x].BidSize.Float64(),
+			Ask:          response[x].AskPrice.Float64(),
+			AskSize:      response[x].AskSize.Float64(),
 			LastUpdated:  response[x].Timestamp.Time(),
 			ExchangeName: o.Name,
 			Pair:         pair,
@@ -577,7 +578,7 @@ func (o *OKCoin) wsProcessTickers(respRaw []byte) error {
 }
 
 // wsProcessTrades converts trade data and sends it to the datahandler
-func (o *OKCoin) wsProcessTrades(respRaw []byte) error {
+func (o *Okcoin) wsProcessTrades(respRaw []byte) error {
 	if !o.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -600,11 +601,11 @@ func (o *OKCoin) wsProcessTrades(respRaw []byte) error {
 			}
 		}
 		trades[i] = trade.Data{
-			Amount:       response.Data[i].Size,
+			Amount:       response.Data[i].Size.Float64(),
 			AssetType:    asset.Spot,
 			CurrencyPair: instrument,
 			Exchange:     o.Name,
-			Price:        response.Data[i].Price,
+			Price:        response.Data[i].Price.Float64(),
 			Side:         tSide,
 			Timestamp:    response.Data[i].Timestamp.Time(),
 			TID:          response.Data[i].TradeID,
@@ -614,7 +615,7 @@ func (o *OKCoin) wsProcessTrades(respRaw []byte) error {
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
-func (o *OKCoin) wsProcessCandles(respRaw []byte) error {
+func (o *Okcoin) wsProcessCandles(respRaw []byte) error {
 	var response WebsocketCandlesResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -630,7 +631,7 @@ func (o *OKCoin) wsProcessCandles(respRaw []byte) error {
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *OKCoin) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.Item, error) {
+func (o *Okcoin) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
 		amount, err := strconv.ParseFloat(entries[j][1].(string), 64)
@@ -651,7 +652,7 @@ func (o *OKCoin) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.It
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKCoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (uint32, error) {
+func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (uint32, error) {
 	orderbookData.prepareOrderbook()
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
@@ -678,7 +679,7 @@ func (o *OKCoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (uint32, e
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
-func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := o.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -762,16 +763,16 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKCoin) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (o *Okcoin) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	return o.handleSubscriptions("subscribe", channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKCoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (o *Okcoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return o.handleSubscriptions("unsubscribe", channelsToUnsubscribe)
 }
 
-func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
+func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
 	request := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
@@ -893,7 +894,7 @@ func (o *OKCoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 
 // GetWsChannelWithoutOrderType takes WebsocketDataResponse.Table and returns
 // The base channel name eg receive "spot/depth5:BTC-USDT" return "depth5"
-func (o *OKCoin) GetWsChannelWithoutOrderType(table string) string {
+func (o *Okcoin) GetWsChannelWithoutOrderType(table string) string {
 	index := strings.Index(table, "/")
 	if index == -1 {
 		return table
@@ -910,7 +911,7 @@ func (o *OKCoin) GetWsChannelWithoutOrderType(table string) string {
 
 // GetAssetTypeFromTableName gets the asset type from the table name
 // eg "spot/ticker:BTCUSD" results in "SPOT"
-func (o *OKCoin) GetAssetTypeFromTableName(table string) asset.Item {
+func (o *Okcoin) GetAssetTypeFromTableName(table string) asset.Item {
 	assetIndex := strings.Index(table, "/")
 	switch table[:assetIndex] {
 	case asset.Spot.String():

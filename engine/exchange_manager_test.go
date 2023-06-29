@@ -159,7 +159,7 @@ func TestNewExchangeByName(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
 	}
 
-	exchanges := []string{"binanceus", "binance", "bitfinex", "bitflyer", "bithumb", "bitmex", "bitstamp", "bittrex", "btc markets", "btse", "bybit", "coinut", "exmo", "coinbasepro", "gateio", "gemini", "hitbtc", "huobi", "itbit", "kraken", "lbank", "okcoin international", "okx", "poloniex", "yobit", "zb", "fake"}
+	exchanges := []string{"binanceus", "binance", "bitfinex", "bitflyer", "bithumb", "bitmex", "bitstamp", "bittrex", "btc markets", "btse", "bybit", "coinut", "exmo", "coinbasepro", "gateio", "gemini", "hitbtc", "huobi", "itbit", "kraken", "lbank", "okcoin", "okx", "poloniex", "yobit", "zb", "fake"}
 	for i := range exchanges {
 		var exch exchange.IBotExchange
 		exch, err = m.NewExchangeByName(exchanges[i])

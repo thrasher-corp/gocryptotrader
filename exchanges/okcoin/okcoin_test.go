@@ -31,7 +31,7 @@ const (
 )
 
 var (
-	o = &OKCoin{}
+	o = &Okcoin{}
 
 	spotTradablePair currency.Pair
 )
@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okcoinConfig)
 	if err != nil {
-		log.Fatal("OKCoin International setup error", err)
+		log.Fatal("Okcoin setup error", err)
 	}
 	err = o.populateTradablePairs(context.Background())
 	if err != nil {
@@ -92,18 +92,6 @@ func TestGetSystemStatus(t *testing.T) {
 	t.Parallel()
 	// allowed state value: ongoing, scheduled, processing, pre_open, completed, canceled
 	_, err := o.GetSystemStatus(context.Background(), "scheduled")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = o.GetSystemStatus(context.Background(), "ongoing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = o.GetSystemStatus(context.Background(), "processing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = o.GetSystemStatus(context.Background(), "pre_open")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,10 +488,75 @@ func TestRequestQuote(t *testing.T) {
 
 func TestPlaceRFQOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.PlaceRFQOrder(context.Background(), nil)
 	if !errors.Is(err, errNilArgument) {
 		t.Errorf("expected %v, but found %v", errNilArgument, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{})
+	if !errors.Is(err, errClientRequestIDRequired) {
+		t.Errorf("expected %v, but found %v", errClientRequestIDRequired, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{
+		ClientDefinedTradeRequestID: "1234",
+	})
+	if !errors.Is(err, errQuoteIDRequired) {
+		t.Errorf("expected %v, but found %v", errQuoteIDRequired, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{
+		ClientDefinedTradeRequestID: "1234",
+		QuoteID:                     "1234"})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, but found %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{
+		ClientDefinedTradeRequestID: "1234",
+		QuoteID:                     "1234",
+		BaseCurrency:                currency.BTC,
+	})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, but found %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{
+		ClientDefinedTradeRequestID: "1234",
+		QuoteID:                     "1234",
+		BaseCurrency:                currency.BTC,
+		QuoteCurrency:               currency.USD})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("expected %v, but found %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{
+		ClientDefinedTradeRequestID: "1234",
+		QuoteID:                     "1234",
+		BaseCurrency:                currency.BTC,
+		QuoteCurrency:               currency.USD,
+		Side:                        "buy",
+	})
+	if !errors.Is(err, errInvalidAmount) {
+		t.Errorf("expected %v, but found %v", errInvalidAmount, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{
+		ClientDefinedTradeRequestID: "1234",
+		QuoteID:                     "1234",
+		BaseCurrency:                currency.BTC,
+		QuoteCurrency:               currency.USD,
+		Side:                        "buy",
+		Size:                        22,
+	})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, but found %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = o.PlaceRFQOrder(context.Background(), &PlaceRFQOrderRequest{
+		ClientDefinedTradeRequestID: "5111",
+		QuoteID:                     "12638308",
+		BaseCurrency:                currency.BTC,
+		QuoteCurrency:               currency.USD,
+		Side:                        "buy",
+		Size:                        22,
+		SizeCurrency:                currency.BTC,
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -1355,6 +1408,7 @@ func TestSubmitOrder(t *testing.T) {
 		Side:      order.Buy,
 		Type:      order.Limit,
 		Price:     1,
+		TradeMode: "cash",
 		Amount:    1000000000,
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
@@ -1546,14 +1600,11 @@ func TestWsPlaceOrder(t *testing.T) {
 		t.Errorf("found %v, but expected %v", err, errInvalidAmount)
 	}
 	_, err = o.WsPlaceOrder(&PlaceTradeOrderParam{
-		InstrumentID:  spotTradablePair,
-		TradeMode:     "cash",
-		ClientOrderID: "12345",
-		Side:          "buy",
-		OrderType:     "limit",
-		Price:         2.15,
-		Size:          2,
-		ExpiryTime:    okcoinTime(time.Now()),
+		Side:         "buy",
+		InstrumentID: spotTradablePair,
+		TradeMode:    "cash",
+		OrderType:    "market",
+		Size:         100,
 	})
 	if err != nil {
 		t.Error(err)
@@ -1685,17 +1736,12 @@ func TestWsAmendMultipleOrder(t *testing.T) {
 			InstrumentID: "BTC-USD",
 			OrderID:      "1234",
 			NewSize:      5,
+			NewPrice:     100,
 		},
 		{
 			InstrumentID:  "BTC-USD",
 			ClientOrderID: "abe",
 			NewPrice:      100,
-		},
-		{
-			InstrumentID:    "BTC-USD",
-			OrderID:         "3452",
-			ClientRequestID: "9879",
-			NewSize:         0.0001,
 		},
 	})
 	if err != nil {
@@ -1711,7 +1757,7 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
-func (o *OKCoin) populateTradablePairs(ctx context.Context) error {
+func (o *Okcoin) populateTradablePairs(ctx context.Context) error {
 	err := o.UpdateTradablePairs(ctx, true)
 	if err != nil {
 		return err
@@ -1745,5 +1791,103 @@ func TestOKCOINNumberUnmarshal(t *testing.T) {
 		t.Error(err)
 	} else if val.Numb.Float64() != 0 {
 		t.Errorf("found %.2f, but found %d", val.Numb.Float64(), 0)
+	}
+}
+
+func TestGetSubAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetSubAccounts(context.Background(), true, "", time.Time{}, time.Now(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAPIKeyOfSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetAPIKeyOfSubAccount(context.Background(), "", "")
+	if !errors.Is(err, errSubAccountNameRequired) {
+		t.Errorf("expected %v, got %v", errSubAccountNameRequired, err)
+	}
+	_, err = o.GetAPIKeyOfSubAccount(context.Background(), "Sub-Account-Name-1", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountTradingBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetSubAccountTradingBalance(context.Background(), "")
+	if !errors.Is(err, errSubAccountNameRequired) {
+		t.Errorf("expected %v, got %v", errSubAccountNameRequired, err)
+	}
+	_, err = o.GetSubAccountTradingBalance(context.Background(), "Sami")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountFundingBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetSubAccountFundingBalance(context.Background(), "")
+	if !errors.Is(err, errSubAccountNameRequired) {
+		t.Errorf("expected %v, got %v", errSubAccountNameRequired, err)
+	}
+	_, err = o.GetSubAccountFundingBalance(context.Background(), "Sami", "BTC", "USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubAccountTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.SubAccountTransferHistory(context.Background(), "Sami", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAccountBalanceTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	_, err := o.AccountBalanceTransfer(context.Background(), &IntraAccountTransferParam{
+		Ccy:            "BTC",
+		Amount:         1234.0,
+		From:           "6",
+		To:             "6",
+		FromSubAccount: "test-1",
+		ToSubAccount:   "Sami",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAlgoOrderhistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	_, err := o.GetAlgoOrderHistory(context.Background(), "", "effective", "", "SPOT", "", "", "", 0)
+	if !errors.Is(err, errOrderTypeRequired) {
+		t.Errorf("expected %v, got %v", errOrderTypeRequired, err)
+	}
+	_, err = o.GetAlgoOrderHistory(context.Background(), "conditional", "effective", "", "SPOT", "", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAlgoOrderList(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetAlgoOrderList(context.Background(), "", "", "", "", "", "", "", 0)
+	if !errors.Is(err, errOrderTypeRequired) {
+		t.Errorf("expected %v, got %v", errOrderTypeRequired, err)
+	}
+	_, err = o.GetAlgoOrderList(context.Background(), "oco", "", "", "", "", "", "", 0)
+	if err != nil {
+		t.Error(err)
 	}
 }

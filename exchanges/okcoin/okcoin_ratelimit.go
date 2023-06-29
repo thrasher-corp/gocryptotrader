@@ -77,7 +77,6 @@ type RateLimit struct {
 	GetTickers                                     *rate.Limiter
 	GetTicker                                      *rate.Limiter
 	GetOrderbook                                   *rate.Limiter
-	GetOrderliteBook                               *rate.Limiter
 	GetCandlesticks                                *rate.Limiter
 	GetCandlestickHistory                          *rate.Limiter
 	GetPublicTrades                                *rate.Limiter
@@ -151,7 +150,6 @@ const (
 	getTickersRate                                     = 20
 	getTickerRate                                      = 20
 	getOrderbookRate                                   = 20
-	getOrderliteBookRate                               = 6
 	getCandlesticksRate                                = 40
 	getCandlestickHistoryRate                          = 20
 	getPublicTradesRate                                = 100
@@ -229,7 +227,6 @@ const (
 	getTickersEPL
 	getTickerEPL
 	getOrderbookEPL
-	getOrderliteBookEPL
 	getCandlesticksEPL
 	getCandlestickHistoryEPL
 	getPublicTradesEPL
@@ -363,8 +360,6 @@ func (r *RateLimit) Limit(ctx context.Context, ep request.EndpointLimit) error {
 		return r.GetTicker.Wait(ctx)
 	case getOrderbookEPL:
 		return r.GetOrderbook.Wait(ctx)
-	case getOrderliteBookEPL:
-		return r.GetOrderliteBook.Wait(ctx)
 	case getCandlesticksEPL:
 		return r.GetCandlesticks.Wait(ctx)
 	case getCandlestickHistoryEPL:
@@ -452,7 +447,6 @@ func SetRateLimit() *RateLimit {
 		GetTickers:                                     request.NewRateLimit(twoSecondsInterval, getTickersRate),
 		GetTicker:                                      request.NewRateLimit(twoSecondsInterval, getTickerRate),
 		GetOrderbook:                                   request.NewRateLimit(twoSecondsInterval, getOrderbookRate),
-		GetOrderliteBook:                               request.NewRateLimit(oneSecondInterval, getOrderliteBookRate),
 		GetCandlesticks:                                request.NewRateLimit(twoSecondsInterval, getCandlesticksRate),
 		GetCandlestickHistory:                          request.NewRateLimit(twoSecondsInterval, getCandlestickHistoryRate),
 		GetPublicTrades:                                request.NewRateLimit(twoSecondsInterval, getPublicTradesRate),

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"sync"
 
@@ -14,7 +15,7 @@ var waitingSignatureLock sync.Mutex
 var waitingSignatures = []string{}
 
 // WsPlaceOrder place trade order through the websocket channel.
-func (o *OKCoin) WsPlaceOrder(arg *PlaceTradeOrderParam) (*TradeOrderResponse, error) {
+func (o *Okcoin) WsPlaceOrder(arg *PlaceTradeOrderParam) (*TradeOrderResponse, error) {
 	err := arg.validateTradeOrderParameter()
 	if err != nil {
 		return nil, err
@@ -34,7 +35,7 @@ func (o *OKCoin) WsPlaceOrder(arg *PlaceTradeOrderParam) (*TradeOrderResponse, e
 }
 
 // WsPlaceMultipleOrder place orders in batches through the websocket stream. Maximum 20 orders can be placed per request. Request parameters should be passed in the form of an array.
-func (o *OKCoin) WsPlaceMultipleOrder(args []PlaceTradeOrderParam) ([]TradeOrderResponse, error) {
+func (o *Okcoin) WsPlaceMultipleOrder(args []PlaceTradeOrderParam) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
@@ -46,11 +47,11 @@ func (o *OKCoin) WsPlaceMultipleOrder(args []PlaceTradeOrderParam) ([]TradeOrder
 		}
 	}
 	var resp []TradeOrderResponse
-	return resp, o.SendWebsocketRequest("batch-orders", &args, &resp, true)
+	return resp, o.SendWebsocketRequest("batch-orders", args, &resp, true)
 }
 
 // WsCancelTradeOrder cancels a single trade order through the websocket stream.
-func (o *OKCoin) WsCancelTradeOrder(arg *CancelTradeOrderRequest) (*TradeOrderResponse, error) {
+func (o *Okcoin) WsCancelTradeOrder(arg *CancelTradeOrderRequest) (*TradeOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -76,7 +77,7 @@ func (o *OKCoin) WsCancelTradeOrder(arg *CancelTradeOrderRequest) (*TradeOrderRe
 
 // WsCancelMultipleOrders cancel incomplete orders in batches through the websocket stream. Maximum 20 orders can be canceled per request.
 // Request parameters should be passed in the form of an array.
-func (o *OKCoin) WsCancelMultipleOrders(args []CancelTradeOrderRequest) ([]TradeOrderResponse, error) {
+func (o *Okcoin) WsCancelMultipleOrders(args []CancelTradeOrderRequest) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
@@ -92,7 +93,7 @@ func (o *OKCoin) WsCancelMultipleOrders(args []CancelTradeOrderRequest) ([]Trade
 }
 
 // WsAmendOrder amends an incomplete order through the websocket connection
-func (o *OKCoin) WsAmendOrder(arg *AmendTradeOrderRequestParam) (*AmendTradeOrderResponse, error) {
+func (o *Okcoin) WsAmendOrder(arg *AmendTradeOrderRequestParam) (*AmendTradeOrderResponse, error) {
 	err := arg.validate()
 	if err != nil {
 		return nil, err
@@ -115,7 +116,7 @@ func (o *OKCoin) WsAmendOrder(arg *AmendTradeOrderRequestParam) (*AmendTradeOrde
 }
 
 // WsAmendMultipleOrder amends multiple trade orders.
-func (o *OKCoin) WsAmendMultipleOrder(args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
+func (o *Okcoin) WsAmendMultipleOrder(args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", errNilArgument)
 	}
@@ -126,11 +127,11 @@ func (o *OKCoin) WsAmendMultipleOrder(args []AmendTradeOrderRequestParam) ([]Ame
 		}
 	}
 	var resp []AmendTradeOrderResponse
-	return resp, o.SendWebsocketRequest("batch-amend-orders", &args, &resp, true)
+	return resp, o.SendWebsocketRequest("batch-amend-orders", args, &resp, true)
 }
 
 // SendWebsocketRequest send a request through the websocket connection.
-func (o *OKCoin) SendWebsocketRequest(operation string, data, result interface{}, authenticated bool) error {
+func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}, authenticated bool) error {
 	switch {
 	case !o.Websocket.IsEnabled():
 		return errors.New(stream.WebsocketNotEnabled)
@@ -147,10 +148,9 @@ func (o *OKCoin) SendWebsocketRequest(operation string, data, result interface{}
 		ID:        strconv.FormatInt(o.Websocket.Conn.GenerateMessageID(false), 10),
 		Operation: operation,
 	}
-	switch input := data.(type) {
-	case []interface{}:
-		req.Arguments = input
-	default:
+	if reflect.TypeOf(data).Kind() == reflect.Slice {
+		req.Arguments = data
+	} else {
 		req.Arguments = []interface{}{
 			data,
 		}
