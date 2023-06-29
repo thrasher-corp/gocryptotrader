@@ -2162,31 +2162,31 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 		if err != nil {
 			return 0, err
 		}
-		var responses []TradeFeeRate
-		responses, err = ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "")
+		responses, err := ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "")
 		if err != nil {
 			return 0, err
 		} else if len(responses) == 0 {
 			return 0, errors.New("no trade fee response found")
 		}
 		if feeBuilder.IsMaker {
-			if fee = responses[0].FeeRateMaker.Float64(); fee == 0 {
+			if feeBuilder.Pair.Quote.Equal(currency.USDC) {
+				fee = responses[0].FeeRateMakerUSDC.Float64()
+			} else if fee = responses[0].FeeRateMaker.Float64(); fee == 0 {
 				fee = responses[0].FeeRateMakerUSDT.Float64()
 			}
 		} else {
-			if fee = responses[0].FeeRateTaker.Float64(); fee == 0 {
+			if feeBuilder.Pair.Quote.Equal(currency.USDC) {
+				fee = responses[0].FeeRateTakerUSDC.Float64()
+			} else if fee = responses[0].FeeRateTaker.Float64(); fee == 0 {
 				fee = responses[0].FeeRateTakerUSDT.Float64()
 			}
 		}
-		if fee < 0 {
-			fee = -fee
+		if fee != 0 {
+			fee = -fee // Negative fee rate means commision else rebate.
 		}
 		return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	case exchange.OfflineTradeFee:
 		return 0.0015 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
-	}
-	if fee < 0 {
-		fee = 0
 	}
 	return fee, nil
 }
