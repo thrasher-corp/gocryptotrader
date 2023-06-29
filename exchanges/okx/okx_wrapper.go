@@ -224,6 +224,8 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	}); err != nil {
 		return err
 	}
+
+	//nolint:revive // We want this explicit return inside the if
 	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
