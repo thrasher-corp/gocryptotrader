@@ -114,8 +114,8 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 
-	cfg.DataSettings.APIData.StartDate = time.Now().Truncate(gctkline.OneMin.Duration()).Add(-gctkline.OneMin.Duration() * 5)
-	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration())
+	cfg.DataSettings.APIData.StartDate = time.Now().Truncate(gctkline.OneMin.Duration()).Add(-gctkline.OneMin.Duration() * 10)
+	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration() * 5)
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, holdings.ErrInitialFundsZero) {
