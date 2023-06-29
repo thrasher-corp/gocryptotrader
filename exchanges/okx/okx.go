@@ -2158,41 +2158,35 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		var responses []TradeFeeRate
 		uly, err := ok.GetUnderlying(feeBuilder.Pair, asset.Spot)
 		if err != nil {
 			return 0, err
 		}
-		responses, err = ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "")
+		responses, err := ok.GetTradeFee(ctx, okxInstTypeSpot, uly, "")
 		if err != nil {
 			return 0, err
 		} else if len(responses) == 0 {
 			return 0, errors.New("no trade fee response found")
 		}
 		if feeBuilder.IsMaker {
-			if fee, err = strconv.ParseFloat(responses[0].FeeRateMaker, 64); err != nil || fee == 0 {
-				fee, err = strconv.ParseFloat(responses[0].FeeRateMakerUSDT, 64)
-				if err != nil {
-					return fee, err
-				}
+			if feeBuilder.Pair.Quote.Equal(currency.USDC) {
+				fee = responses[0].FeeRateMakerUSDC.Float64()
+			} else if fee = responses[0].FeeRateMaker.Float64(); fee == 0 {
+				fee = responses[0].FeeRateMakerUSDT.Float64()
 			}
 		} else {
-			if fee, err = strconv.ParseFloat(responses[0].FeeRateTaker, 64); err != nil || fee == 0 {
-				fee, err = strconv.ParseFloat(responses[0].FeeRateTakerUSDT, 64)
-				if err != nil {
-					return fee, err
-				}
+			if feeBuilder.Pair.Quote.Equal(currency.USDC) {
+				fee = responses[0].FeeRateTakerUSDC.Float64()
+			} else if fee = responses[0].FeeRateTaker.Float64(); fee == 0 {
+				fee = responses[0].FeeRateTakerUSDT.Float64()
 			}
 		}
-		if fee < 0 {
-			fee = -fee
+		if fee != 0 {
+			fee = -fee // Negative fee rate means commission else rebate.
 		}
 		return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	case exchange.OfflineTradeFee:
 		return 0.0015 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
-	}
-	if fee < 0 {
-		fee = 0
 	}
 	return fee, nil
 }
