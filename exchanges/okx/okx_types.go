@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1483,16 +1484,18 @@ type MaximumLoanInstrument struct {
 
 // TradeFeeRate holds trade fee rate information for a given instrument type.
 type TradeFeeRate struct {
-	Category         string           `json:"category"`
-	DeliveryFeeRate  string           `json:"delivery"`
-	Exercise         string           `json:"exercise"`
-	InstrumentType   string           `json:"instType"`
-	FeeRateLevel     string           `json:"level"`
-	FeeRateMaker     string           `json:"maker"`
-	FeeRateMakerUSDT string           `json:"makerU"`
-	FeeRateTaker     string           `json:"taker"`
-	FeeRateTakerUSDT string           `json:"takerU"`
-	Timestamp        okxUnixMilliTime `json:"ts"`
+	Category         string                  `json:"category"`
+	DeliveryFeeRate  string                  `json:"delivery"`
+	Exercise         string                  `json:"exercise"`
+	InstrumentType   asset.Item              `json:"instType"`
+	FeeRateLevel     string                  `json:"level"`
+	FeeRateMaker     convert.StringToFloat64 `json:"maker"`
+	FeeRateMakerUSDT convert.StringToFloat64 `json:"makerU"`
+	FeeRateMakerUSDC convert.StringToFloat64 `json:"makerUSDC"`
+	FeeRateTaker     convert.StringToFloat64 `json:"taker"`
+	FeeRateTakerUSDT convert.StringToFloat64 `json:"takerU"`
+	FeeRateTakerUSDC convert.StringToFloat64 `json:"takerUSDC"`
+	Timestamp        okxUnixMilliTime        `json:"ts"`
 }
 
 // InterestAccruedData represents interest rate accrued response

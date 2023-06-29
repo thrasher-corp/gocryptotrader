@@ -1367,7 +1367,7 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 	}
 }
 
-func TestGetFeeRate(t *testing.T) {
+func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 

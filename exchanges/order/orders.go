@@ -188,6 +188,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.ClientID = m.ClientID
 		updated = true
 	}
+	if m.ClientOrderID != "" && m.ClientOrderID != d.ClientOrderID {
+		d.ClientOrderID = m.ClientOrderID
+		updated = true
+	}
 	if m.WalletAddress != "" && m.WalletAddress != d.WalletAddress {
 		d.WalletAddress = m.WalletAddress
 		updated = true
