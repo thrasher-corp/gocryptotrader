@@ -437,14 +437,14 @@ func (bot *Engine) Start() error {
 
 	if w, err := SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun); err != nil {
 		return err
-	} else {
+	} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
 		bot.WithdrawManager = w
 	}
 
 	if bot.Settings.EnableDeprecatedRPC || bot.Settings.EnableWebsocketRPC {
 		if filePath, err := config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile); err != nil {
 			return err
-		} else {
+		} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
 			if a, err := setupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath); err != nil {
 				gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 			} else {
