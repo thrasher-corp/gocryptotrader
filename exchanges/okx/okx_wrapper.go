@@ -190,6 +190,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Register:              make(chan *wsRequestInfo),
 		Unregister:            make(chan string),
 		Message:               make(chan *wsIncomingData),
+		shutdown:              make(chan bool),
 	}
 
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
@@ -213,8 +214,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	ok.Websocket.Wg.Add(2)
-	go ok.WsReadData()
 	go ok.WsResponseMultiplexer.Run()
 
 	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
@@ -281,6 +280,18 @@ func (ok *Okx) Run(ctx context.Context) {
 				err)
 		}
 	}
+}
+
+// Shutdown calls Base.Shutdown and then shuts down the response multiplexer
+func (ok *Okx) Shutdown() error {
+	if err := ok.Base.Shutdown(); err != nil {
+		return err
+	}
+
+	// Must happen after the Websocket shutdown in Base.Shutdown, so there are no new blocking writes to the multiplexer
+	ok.WsResponseMultiplexer.Shutdown()
+
+	return nil
 }
 
 // GetServerTime returns the current exchange server time.
