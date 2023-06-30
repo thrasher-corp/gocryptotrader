@@ -499,7 +499,7 @@ type WalletDeposits struct {
 	Amount        float64       `json:"amount,string"`
 	Confirmations int64         `json:"confirmations"`
 	TransactionID string        `json:"txid"`
-	Timestamp     time.Time     `json:"timestamp"`
+	Timestamp     int64         `json:"timestamp"`
 	Status        string        `json:"status"`
 }
 
@@ -510,7 +510,7 @@ type WalletWithdrawals struct {
 	Address              string        `json:"address"`
 	Amount               float64       `json:"amount,string"`
 	Fee                  float64       `json:"fee,string"`
-	Timestamp            time.Time     `json:"timestamp"`
+	Timestamp            int64         `json:"timestamp"`
 	Status               string        `json:"status"`
 	TransactionID        string        `json:"txid"`
 	IPAddress            string        `json:"ipAddress"`

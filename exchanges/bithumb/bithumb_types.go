@@ -2,7 +2,6 @@ package bithumb
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -146,7 +145,7 @@ type UserTransactions struct {
 	Status string `json:"status"`
 	Data   []struct {
 		Search          int64         `json:"search,string"`
-		TransferDate    time.Time     `json:"transfer_date"`
+		TransferDate    int64         `json:"transfer_date"`
 		OrderCurrency   currency.Code `json:"order_currency"`
 		PaymentCurrency currency.Code `json:"payment_currency"`
 		Units           float64       `json:"units,string"`

@@ -1886,7 +1886,7 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		t.Fatal("expected job")
 	}
 	if resp.Nickname == "" {
-		t.Fatalf("received %v, expected %v", resp.Nickname, "")
+		t.Fatalf("received %v, expected %v", "", dhj.Nickname)
 	}
 	if resp.ResultSummaries == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatalf("received %v, expected %v", nil, "result summaries slice")

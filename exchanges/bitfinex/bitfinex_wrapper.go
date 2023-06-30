@@ -551,7 +551,7 @@ func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			Status:          history[i].Status,
 			TransferID:      strconv.FormatInt(history[i].ID, 10),
 			Description:     history[i].Description,
-			Timestamp:       time.Unix(int64(history[i].Timestamp), 0),
+			Timestamp:       time.UnixMilli(int64(history[i].Timestamp)),
 			Currency:        history[i].Currency,
 			Amount:          history[i].Amount,
 			Fee:             history[i].Fee,
