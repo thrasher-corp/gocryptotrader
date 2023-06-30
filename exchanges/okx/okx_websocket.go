@@ -340,12 +340,10 @@ func (ok *Okx) wsReadData(ws stream.Connection) {
 		}
 		// Ensure that websocket shutdown will block until WsHandleData returns, so that the multiplexer is safe from new blocking channel sends.
 		ok.Websocket.Wg.Add(1)
-		go func(msg []byte) {
-			defer ok.Websocket.Wg.Done()
-			if err := ok.WsHandleData(msg); err != nil {
-				ok.Websocket.DataHandler <- err
-			}
-		}(resp.Raw)
+		if err := ok.WsHandleData(resp.Raw); err != nil {
+			ok.Websocket.DataHandler <- err
+		}
+		ok.Websocket.Wg.Done()
 	}
 }
 
