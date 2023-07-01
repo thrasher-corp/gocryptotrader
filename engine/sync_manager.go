@@ -180,7 +180,7 @@ func (m *syncManager) Start() error {
 				k := currencyPairKey{
 					AssetType: assetTypes[y],
 					Exchange:  exchangeName,
-					Pair:      enabledPairs[i],
+					Pair:      enabledPairs[i].Format(currency.PairFormat{Uppercase: true}),
 				}
 				if e := m.get(k); e != nil {
 					continue
@@ -364,12 +364,12 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 	k := currencyPairKey{
 		AssetType: a,
 		Exchange:  exchangeName,
-		Pair:      p,
+		Pair:      p.Format(currency.PairFormat{Uppercase: true}),
 	}
 
 	c, exists := m.currencyPairs[k]
 	if !exists {
-		return fmt.Errorf("%w for %s %s %s", errCouldNotSyncNewData, k.Exchange, k.Pair, k.AssetType)
+		return fmt.Errorf("%w for %s %s %s %s", errCouldNotSyncNewData, k.Exchange, k.Pair, k.AssetType, syncType)
 	}
 
 	c.locks[syncType].Lock()
@@ -491,7 +491,7 @@ func (m *syncManager) worker() {
 						k := currencyPairKey{
 							AssetType: assetTypes[y],
 							Exchange:  exchangeName,
-							Pair:      enabledPairs[i],
+							Pair:      enabledPairs[i].Format(currency.PairFormat{Uppercase: true}),
 						}
 						c := m.get(k)
 						if c == nil {
