@@ -11,8 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
-var waitingSignatureLock sync.Mutex
-var waitingSignatures = []string{}
+var (
+	waitingSignatureLock sync.Mutex
+	waitingSignatures    = []string{}
+)
 
 // WsPlaceOrder place trade order through the websocket channel.
 func (o *Okcoin) WsPlaceOrder(arg *PlaceTradeOrderParam) (*TradeOrderResponse, error) {
@@ -151,9 +153,7 @@ func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
 		req.Arguments = data
 	} else {
-		req.Arguments = []interface{}{
-			data,
-		}
+		req.Arguments = []interface{}{data}
 	}
 	waitingSignatureLock.Lock()
 	waitingSignatures = append(waitingSignatures, req.ID)
@@ -181,7 +181,7 @@ func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}
 	if err != nil {
 		return err
 	}
-	if response.Code != "" && response.Code != "0" {
+	if response.Code != "" && response.Code != "0" && response.Code != "1" && response.Code != "2" {
 		if response.Message == "" {
 			response.Message = websocketErrorCodes[response.Code]
 		}

@@ -194,7 +194,6 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		RateLimit:            okcoinWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  okcoinWebsocketURL,
 	})
 	if err != nil {
 		return err
@@ -468,7 +467,7 @@ func (o *Okcoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (or
 	for x := range responses {
 		cancelBatchResponse.Status[responses[x].OrderID] = func() string {
 			if responses[x].SCode != "0" && responses[x].SCode != "2" {
-				return ""
+				return fmt.Sprintf("error code: %s msg: %s", responses[x].SCode, responses[x].SMsg)
 			}
 			return order.Cancelled.String()
 		}()
@@ -861,10 +860,10 @@ func (o *Okcoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 		ToAddress:      withdrawRequest.Crypto.Address,
 		TransactionFee: withdrawRequest.Crypto.FeeAmount,
 	}
-	if withdrawRequest.Crypto.Chain != "" {
-		param.WithdrawalMethod = "4"
-	} else {
+	if withdrawRequest.InternalTransfer {
 		param.WithdrawalMethod = "3"
+	} else {
+		param.WithdrawalMethod = "4"
 	}
 	withdrawal, err := o.Withdrawal(ctx, param)
 	if err != nil {

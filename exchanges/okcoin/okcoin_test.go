@@ -1502,9 +1502,14 @@ func TestWithdraw(t *testing.T) {
 		},
 		ClientOrderID: "1234",
 	}
+	// fetching currency detail to extract the chain information.
 	_, err := o.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
 	if err != nil {
 		t.Error(err)
+	}
+	currencyInfo, err := o.GetCurrencies(context.Background(), currency.BTC)
+	if err != nil {
+		t.Fatal(err)
 	}
 	withdrawCryptoRequest = withdraw.Request{
 		Exchange:    o.Name,
@@ -1512,7 +1517,7 @@ func TestWithdraw(t *testing.T) {
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
-			Chain:     "USDT-ERC20",
+			Chain:     currencyInfo[0].Chain,
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 0.01,
 		},

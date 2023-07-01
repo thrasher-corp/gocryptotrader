@@ -66,9 +66,8 @@ func isAuthenticatedChannel(channel string) bool {
 	switch channel {
 	case wsAccount, wsOrder, wsOrdersAlgo, wsAlgoAdvance:
 		return true
-	default:
-		return false
 	}
+	return false
 }
 
 // WsConnect initiates a websocket connection
@@ -137,7 +136,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	base64 := crypto.Base64Encode(hmac)
-	request := WebsocketEventRequest{
+	authRequest := WebsocketEventRequest{
 		Operation: "login",
 		Arguments: []map[string]string{
 			{
@@ -148,7 +147,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", request)
+	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", authRequest)
 	if err != nil {
 		return err
 	}
@@ -423,12 +422,12 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 			base.Bids[b].Amount = resp.Data[0].Bids[b][0].Float64()
 			base.Bids[b].Price = resp.Data[0].Bids[b][1].Float64()
 		}
-		var signedChecksum uint32
+		var signedChecksum int32
 		signedChecksum, err = o.CalculateChecksum(&resp.Data[0])
 		if err != nil {
 			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 		}
-		if signedChecksum != uint32(resp.Data[0].Checksum) {
+		if signedChecksum != int32(resp.Data[0].Checksum) {
 			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
 				o.Name,
 				cp)
@@ -457,6 +456,18 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 	for b := range resp.Data[0].Bids {
 		update.Bids[b].Amount = resp.Data[0].Bids[b][1].Float64()
 		update.Bids[b].Price = resp.Data[0].Bids[b][0].Float64()
+	}
+	var signedChecksum int32
+	resp.Data[0].Asks = filterOrderbookDataAskBidValue(resp.Data[0].Asks)
+	resp.Data[0].Bids = filterOrderbookDataAskBidValue(resp.Data[0].Bids)
+	signedChecksum, err = o.CalculateChecksum(&resp.Data[0])
+	if err != nil {
+		return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
+	}
+	if signedChecksum != int32(resp.Data[0].Checksum) {
+		return fmt.Errorf("%s channel: Orderbook for %v update checksum invalid",
+			o.Name,
+			cp)
 	}
 	return o.Websocket.Orderbook.Update(&update)
 }
@@ -647,12 +658,23 @@ func (o *Okcoin) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.It
 	return items, nil
 }
 
+func filterOrderbookDataAskBidValue(values [][]okcoinNumber) [][]okcoinNumber {
+	newValues := make([][]okcoinNumber, 0, len(values))
+	for v := range values {
+		if values[v][1].Float64() == 0 {
+			continue
+		}
+		newValues = append(newValues, values[v])
+	}
+	return newValues
+}
+
 // CalculateChecksum alternates over the first 25 bid and ask
 // entries from websocket data. The checksum is made up of the price and the
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (uint32, error) {
+func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, error) {
 	orderbookData.prepareOrderbook()
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
@@ -674,7 +696,7 @@ func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (uint32, e
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
-	return crc32.ChecksumIEEE([]byte(checksumStr)), nil
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
@@ -773,7 +795,7 @@ func (o *Okcoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
-	request := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
+	subscriptionRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
@@ -783,7 +805,7 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 	for i := 0; i < len(subs); i++ {
 		authenticatedChannelSubscription := isAuthenticatedChannel(subs[i].Channel)
 		// Temp type to evaluate max byte len after a marshal on batched unsubs
-		copy(temp.Arguments, request.Arguments)
+		copy(temp.Arguments, subscriptionRequest.Arguments)
 		copy(authTemp.Arguments, authRequest.Arguments)
 		argument := map[string]string{
 			"channel": subs[i].Channel,
@@ -821,7 +843,7 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 				return err
 			}
 		} else {
-			chunk, err = json.Marshal(request)
+			chunk, err = json.Marshal(subscriptionRequest)
 			if err != nil {
 				return err
 			}
@@ -835,7 +857,7 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 			if authenticatedChannelSubscription {
 				err = o.Websocket.AuthConn.SendJSONMessage(authRequest)
 			} else {
-				err = o.Websocket.Conn.SendJSONMessage(request)
+				err = o.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 			}
 			if err != nil {
 				return err
@@ -860,7 +882,7 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 				authRequest.Arguments = nil
 			} else {
 				channels = nil
-				request.Arguments = nil
+				subscriptionRequest.Arguments = nil
 			}
 			continue
 		}
@@ -869,11 +891,11 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		if authenticatedChannelSubscription {
 			authRequest.Arguments = authTemp.Arguments
 		} else {
-			request.Arguments = temp.Arguments
+			subscriptionRequest.Arguments = temp.Arguments
 		}
 	}
-	if len(request.Arguments) > 0 {
-		err = o.Websocket.Conn.SendJSONMessage(request)
+	if len(subscriptionRequest.Arguments) > 0 {
+		err = o.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
 			return err
 		}
