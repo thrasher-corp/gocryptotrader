@@ -122,7 +122,8 @@ type AssetPairs struct {
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
 	MarginCall        int         `json:"margin_call"`
 	MarginStop        int         `json:"margin_stop"`
-	Ordermin          string      `json:"ordermin"`
+	OrderMinimum      float64     `json:"ordermin,string"`
+	TickSize          float64     `json:"tick_size,string"`
 	Status            string      `json:"status"`
 }
 

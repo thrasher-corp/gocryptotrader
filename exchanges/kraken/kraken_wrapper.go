@@ -328,20 +328,25 @@ func (k *Kraken) Run(ctx context.Context) {
 		}
 	}
 
-	if !k.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := k.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			k.Name,
-			err)
+	if k.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
+		err := k.UpdateTradablePairs(ctx, forceUpdate)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				k.Name,
+				err)
+		}
+	} else {
+		// If not updating tradable pairs we still need to call FetchTradablePairs for the side-effect of LoadLimits
+		// TODO: Execution for futures not implemented
+		if _, err := k.FetchTradablePairs(ctx, asset.Spot); err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to load spot pair execution limits. Err: %s", k.Name, err)
+		}
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
+// It also loads execution limits for spot pairs
 func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var pairs []currency.Pair
 	var pair currency.Pair
@@ -358,6 +363,8 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 
 		pairs = make([]currency.Pair, 0, len(symbols))
+		limits := make([]order.MinMaxLevel, 0, len(symbols))
+
 		for _, info := range symbols {
 			if info.Status != "online" {
 				continue
@@ -382,7 +389,17 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			if err != nil {
 				return nil, err
 			}
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                  a,
+				Pair:                   pair,
+				PriceStepIncrementSize: info.TickSize,
+				MinimumBaseAmount:      info.OrderMinimum,
+			})
 			pairs = append(pairs, pair)
+		}
+
+		if err := k.LoadLimits(limits); err != nil {
+			log.Errorf(log.ExchangeSys, "%s Error loading exchange limits: %v", k.Name, err)
 		}
 	case asset.Futures:
 		symbols, err := k.GetFuturesMarkets(ctx)
@@ -404,8 +421,8 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
+// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
+// It also loads execution limits for spot pairs
 func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := k.GetAssetTypes(false)
 	for x := range assets {
