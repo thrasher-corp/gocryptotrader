@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -79,11 +80,29 @@ const (
 	marketInsurance            = "market/insurance"
 	marketRiskLimit            = "market/risk-limit"
 	marketDeliveryPrice        = "market/delivery-price"
+
+	// Trade
+	placeOrder            = "/v5/order/create"
+	amendOrder            = "/v5/order/amend"
+	cancelOrder           = "/v5/order/cancel"
+	openOrders            = "/v5/order/realtime"
+	cancelAllOrders       = "/v5/order/cancel-all"
+	tradeOrderhistory     = "/v5/order/history"
+	placeBatchTradeOrders = "/v5/order/create-batch"
+	amendBatchOrder       = "/v5/order/amend-batch"
+	cancelBatchOrder      = "/v5/order/cancel-batch"
+	tradeBorrowCheck      = "/v5/order/spot-borrow-check"
 )
 
 var (
-	errCategoryNotSet = errors.New("category not set")
-	errBaseNotSet     = errors.New("base coin not set when category is option")
+	errCategoryNotSet                     = errors.New("category not set")
+	errBaseNotSet                         = errors.New("base coin not set when category is option")
+	errInvalidTriggerDirection            = errors.New("invalid trigger direction")
+	errInvalidTriggerPriceType            = errors.New("invalid trigger price type")
+	errNilArgument                        = errors.New("nil argument")
+	errNonePointerArgument                = errors.New("argument must be pointer")
+	errEitherOrderIDOROrderLinkIDRequired = errors.New("either orderId or orderLinkId required")
+	errNoOrderPassed                      = errors.New("no order passed")
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
@@ -320,7 +339,7 @@ func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url
 	params := url.Values{}
 	if symbol == "" && (len(optionalSymbol) == 0 || !optionalSymbol[0]) {
 		return nil, errSymbolMissing
-	} else {
+	} else if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	params.Set("category", category)
@@ -504,6 +523,312 @@ func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoi
 	}
 	var resp DeliveryPrice
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketDeliveryPrice, params), publicSpotRate, &resp)
+}
+
+// ----------------- Trade Endpints ----------------
+
+func isValidCategory(category string) error {
+	switch category {
+	case "spot", "option", "linear", "inverse":
+		return nil
+	case "":
+		return errCategoryNotSet
+	default:
+		return fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+}
+
+// PlaceOrder creates an order for spot, spot margin, USDT perpetual, USDC perpetual, USDC futures, inverse futures and options.
+func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	err := isValidCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.WhetherToBorrow {
+		arg.IsLeverage = 1
+	}
+	// specifies whether to borrow or to trade.
+	if arg.IsLeverage != 0 && arg.IsLeverage != 1 {
+		return nil, errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" { // Market and Limit order types are allowed
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.OrderQuantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	switch arg.TriggerDirection {
+	case 0, 1, 2:
+	default:
+		return nil, fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, arg.TriggerDirection)
+	}
+	if arg.OrderFilter != "" && arg.Category == "spot" { //
+		switch arg.OrderFilter {
+		case "Order", "tpslOrder":
+		default:
+			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
+		}
+	}
+	switch arg.TriggerPriceType {
+	case "", "LastPrice", "IndexPrice", "MarkPrice":
+	default:
+		return nil, errInvalidTriggerPriceType
+	}
+	var resp OrderResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, placeOrder, nil, arg, &resp, privateSpotRate)
+}
+
+// AmendOrder amends an open unfilled or partially filled orders.
+func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.OrderID == "" && arg.OrderLinkID == "" {
+		return nil, errEitherOrderIDOROrderLinkIDRequired
+	}
+	err := isValidCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var resp OrderResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, amendOrder, nil, arg, &resp, privateSpotRate)
+}
+
+// CancelOrder cancels an open unfilled or partially filled order.
+func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.OrderID == "" && arg.OrderLinkID == "" {
+		return nil, errEitherOrderIDOROrderLinkIDRequired
+	}
+	err := isValidCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.OrderFilter != "" && arg.Category == "spot" { //
+		switch arg.OrderFilter {
+		case "Order", "tpslOrder":
+		default:
+			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
+		}
+	}
+	var resp *OrderResponse
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, cancelOrder, nil, arg, &resp, privateSpotRate)
+}
+
+// GetOpenOrders retrives unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
+func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
+	params, err := fillCategoryAndSymbol(category, symbol, true)
+	if err != nil {
+		return nil, err
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if settleCoin != "" {
+		params.Set("settleCoin", settleCoin)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+	if openOnly != 0 {
+		params.Set("openOnly", strconv.FormatInt(openOnly, 10))
+	}
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	var resp TradeOrders
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, openOrders, params, nil, &resp, privateSpotRate)
+}
+
+// CancelAllTradeOrders cancel all open orders
+func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersParam) ([]OrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	err := isValidCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	var resp CancelAllResponse
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, cancelAllOrders, nil, arg, &resp, privateSpotRate)
+}
+
+// GetTradeOrderHistory retrives order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
+// If you want to get real-time order information, you could query this endpoint or rely on the websocket stream (recommended).
+func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, settleCoin, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
+	params, err := fillCategoryAndSymbol(category, symbol, true)
+	if err != nil {
+		return nil, err
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if settleCoin != "" {
+		params.Set("settleCoin", settleCoin)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp TradeOrders
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, tradeOrderhistory, params, nil, &resp, privateSpotRate)
+}
+
+// PlaceBatchOrder place batch or trade order.
+func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam) ([]BatchOrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	err := isValidCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	if len(arg.Request) == 0 {
+		return nil, errNoOrderPassed
+	}
+	for a := range arg.Request {
+		if arg.Request[a].OrderLinkID == "" {
+			return nil, errOrderLinkIDMissing
+		}
+		if arg.Request[a].Symbol.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if arg.Request[a].Side == "" {
+			return nil, order.ErrSideIsInvalid
+		}
+		if arg.Request[a].OrderType == "" { // Market and Limit order types are allowed
+			return nil, order.ErrTypeIsInvalid
+		}
+		if arg.Request[a].OrderQuantity <= 0 {
+			return nil, order.ErrAmountBelowMin
+		}
+	}
+	var resp BatchOrdersList
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, placeBatchTradeOrders, nil, arg, &resp, privateSpotRate)
+}
+
+// BatchAmendOrder represents a batch amend order.
+func (by *Bybit) BatchAmendOrder(ctx context.Context, arg *BatchAmendOrderParams) (*BatchOrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	err := isValidCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	if len(arg.Request) == 0 {
+		return nil, errNoOrderPassed
+	}
+	for a := range arg.Request {
+		if arg.Request[a].OrderID == "" && arg.Request[a].OrderLinkID == "" {
+			return nil, errEitherOrderIDOROrderLinkIDRequired
+		}
+		if arg.Request[a].Symbol.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+	}
+	var resp BatchOrderResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, amendBatchOrder, nil, arg, &resp, privateSpotRate)
+}
+
+// CancelBatchOrder cancel more than one open order in a single request.
+func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([]CancelBatchResponseItem, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	err := isValidCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	if len(arg.Request) == 0 {
+		return nil, errNoOrderPassed
+	}
+	for a := range arg.Request {
+		if arg.Request[a].OrderID == "" && arg.Request[a].OrderLinkID == "" {
+			return nil, errEitherOrderIDOROrderLinkIDRequired
+		}
+		if arg.Request[a].Symbol.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+	}
+	var resp cancelBatchResponse
+	return resp.List, by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, cancelBatchOrder, nil, arg, &resp, privateSpotRate)
+}
+
+// GetBorrowQuota retrives the qty and amount of borrowable coins in spot account.
+func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side string) (*BorrowQuota, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "spot" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	params.Set("category", category)
+	if side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	params.Set("side", side)
+	var resp BorrowQuota
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, tradeBorrowCheck, params, nil, &resp, privateSpotRate)
+}
+
+// SetDisconnectCancelAll You can use this endpoint to get your current DCP configuration.
+// Your private websocket connection must subscribe "dcp" topic in order to trigger DCP successfully
+func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.TimeWindow == 0 {
+		return errDisconnectTimeWindowNotSet
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, "/v5/order/disconnected-cancel-all", nil, arg, &resp, privateSpotRate)
 }
 
 // ---------------------------------------------------------------- Old ----------------------------------------------------------------
@@ -713,7 +1038,7 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 }
 
 // CreatePostOrder create and post order
-func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*OrderResponse, error) {
 	if o == nil {
 		return nil, errInvalidOrderRequest
 	}
@@ -738,7 +1063,7 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 	}
 
 	resp := struct {
-		Data PlaceOrderResponse `json:"result"`
+		Data OrderResponse `json:"result"`
 		Error
 	}{}
 	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, nil, &resp, privateSpotRate)
@@ -1047,7 +1372,7 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 		Error
 	}{}
 
-	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, bybitAccountFee, params, &result, privateFeeRate)
+	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, bybitAccountFee, params, nil, &result, privateFeeRate)
 	if err != nil {
 		return nil, err
 	}
@@ -1169,31 +1494,50 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 }
 
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result UnmarshalTo, f request.EndpointLimit) error {
+func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg interface{}, result interface{}, f request.EndpointLimit) error {
+	val := reflect.ValueOf(arg)
+	if arg != nil && val.Kind() != reflect.Ptr {
+		return errNonePointerArgument
+	}
+	val = reflect.ValueOf(result)
+	if val.Kind() != reflect.Ptr {
+		return errNonePointerArgument
+	} else if val.IsNil() {
+		return errNilArgument
+	}
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-
-	if result == nil {
-		result = &Error{}
-	}
-
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-
+	response := &RestResponse{
+		Result: result,
+	}
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
 		timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		headers := make(map[string]string)
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
-		headers["X-BAPI-TIMESTAMP"] = timestamp
 		headers["X-BAPI-API-KEY"] = creds.Key
+		headers["X-BAPI-TIMESTAMP"] = timestamp
 		headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
 
 		var hmacSignedStr string
-		hmacSignedStr, err = getSign(timestamp+creds.Key+defaultRecvWindow+params.Encode(), creds.Secret)
+		var payload []byte
+
+		switch method {
+		case http.MethodGet:
+			headers["Content-Type"] = "application/x-www-form-urlencoded"
+			hmacSignedStr, err = getSign(timestamp+creds.Key+defaultRecvWindow+params.Encode(), creds.Secret)
+		case http.MethodPost:
+			headers["Content-Type"] = "application/json"
+			payload, err = json.Marshal(arg)
+			if err != nil {
+				return nil, err
+			}
+			hmacSignedStr, err = getSign(timestamp+creds.Key+defaultRecvWindow+string(payload), creds.Secret)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1202,17 +1546,35 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 			Method:        method,
 			Path:          endpointPath + common.EncodeURLValues(path, params),
 			Headers:       headers,
-			Result:        &result,
+			Body:          bytes.NewBuffer(payload),
+			Result:        &response,
 			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
-			HTTPRecording: by.HTTPRecording}, nil
+			HTTPRecording: by.HTTPRecording,
+		}, nil
 	})
-	if err != nil {
-		return err
+	if response.RetCode != 0 && response.RetMsg != "" {
+		return fmt.Errorf("code: %d message: %s", response.RetCode, response.RetMsg)
 	}
-
-	return result.GetError()
+	if response.RetExtInfo != nil {
+		embeddedErrors := errorMessages{}
+		err := json.Unmarshal(response.RetExtInfo, &embeddedErrors)
+		if err == nil {
+			var errMessage string
+			var failed rune
+			for i := range embeddedErrors.List {
+				if embeddedErrors.List[i].Code != 0 {
+					failed |= 1
+					errMessage += fmt.Sprintf("code: %d message: %s ", embeddedErrors.List[i].Code, embeddedErrors.List[i].Message)
+				}
+			}
+			if failed > 0 {
+				return errors.New(errMessage)
+			}
+		}
+	}
+	return err
 }
 
 // Error defines all error information for each request

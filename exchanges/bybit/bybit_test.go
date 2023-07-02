@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -3645,3 +3646,392 @@ func TestGetDeliveryPrice(t *testing.T) {
 // 		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 // 	}
 // }
+
+func TestPlaceOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	ctx := context.Background()
+	_, err := b.PlaceOrder(ctx, nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "my-category",
+	})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "spot",
+	})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "spot",
+		Symbol:   currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
+	})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category: "spot",
+		Symbol:   currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
+		Side:     "buy",
+	})
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrTypeIsInvalid, err)
+	}
+	// order.ErrAmountBelowMin
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category:  "spot",
+		Symbol:    currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
+		Side:      "buy",
+		OrderType: "limit",
+	})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
+		Category:         "spot",
+		Symbol:           currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
+		Side:             "buy",
+		OrderType:        "limit",
+		OrderQuantity:    1,
+		TriggerDirection: 3,
+	})
+	if !errors.Is(err, errInvalidTriggerDirection) {
+		t.Fatalf("expected %v, got %v", errInvalidTriggerDirection, err)
+	}
+	_, err = b.PlaceOrder(context.Background(), &PlaceOrderParams{
+		Category:         "spot",
+		Symbol:           currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
+		Side:             "buy",
+		OrderType:        "limit",
+		OrderQuantity:    1,
+		Price:            31431.48,
+		TriggerDirection: 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Spot post only normal order
+	arg := &PlaceOrderParams{Category: "spot", Symbol: currency.Pair{Base: currency.BTC, Quote: currency.USDT}, Side: "Buy", OrderType: "Limit", OrderQuantity: 0.1, Price: 15600, TimeInForce: "PostOnly", OrderLinkID: "spot-test-01", IsLeverage: 0, OrderFilter: "Order"}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// // Spot TP/SL order
+	arg = &PlaceOrderParams{Category: "spot", Symbol: currency.Pair{Base: currency.BTC, Quote: currency.USDT},
+		Side: "Buy", OrderType: "Limit",
+		OrderQuantity: 0.1, Price: 15600, TriggerPrice: 15000,
+		TimeInForce: "GTC", OrderLinkID: "spot-test-02", IsLeverage: 0, OrderFilter: "tpslOrder"}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Spot margin normal order (UTA)
+	arg = &PlaceOrderParams{Category: "spot", Symbol: currency.Pair{Base: currency.BTC, Quote: currency.USDT}, Side: "Buy", OrderType: "Limit",
+		OrderQuantity: 0.1, Price: 15600, TimeInForce: "IOC", OrderLinkID: "spot-test-limit", IsLeverage: 1, OrderFilter: "Order"}
+	_, err = b.PlaceOrder(context.Background(), arg)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAmendOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.AmendOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{})
+	if !errors.Is(err, errEitherOrderIDOROrderLinkIDRequired) {
+		t.Fatalf("expected %v, got %v", errEitherOrderIDOROrderLinkIDRequired, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+	})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "mycat"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "option"})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "spot", Symbol: currency.Pair{Base: currency.BTC, Quote: currency.USD},
+		TriggerPrice:    1145,
+		OrderQuantity:   0.15,
+		Price:           1050,
+		TakeProfitPrice: 0,
+		StopLossPrice:   0})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelTradeOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelTradeOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{})
+	if !errors.Is(err, errEitherOrderIDOROrderLinkIDRequired) {
+		t.Fatalf("expected %v, got %v", errEitherOrderIDOROrderLinkIDRequired, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+	})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "mycat"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "option"})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	cp, err := currency.NewPairFromString("BTC-7JUL23-27000-C")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
+		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category: "option",
+		Symbol:   cp,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetOpenOrders(context.Background(), "", "", "", "", "", "", "", "", 0, 100)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetOpenOrders(context.Background(), "spot", "", "", "", "", "", "", "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestCancelAllTradeOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelAllTradeOrders(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CancelAllTradeOrders(context.Background(), &CancelAllOrdersParam{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.CancelAllTradeOrders(context.Background(), &CancelAllOrdersParam{Category: "option"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTradeOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetTradeOrderHistory(context.Background(), "", "", "", "", "", "", "", "", "", time.Now().Add(-time.Hour*24*20), time.Now(), 100)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetTradeOrderHistory(context.Background(), "spot", "BTCUSDT", "", "", "BTC", "", "StopOrder", "", "", time.Now().Add(-time.Hour*24*20), time.Now(), 100)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceBatchOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.PlaceBatchOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{
+		Category: "spot",
+	})
+	if !errors.Is(err, errNoOrderPassed) {
+		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
+	}
+	cp, err := currency.NewPairFromString("BTC-7JUL23-27000-C")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{
+		Category: "option",
+		Request: []BatchOrderItemParam{
+			{
+				Symbol:        cp,
+				OrderType:     "Limit",
+				Side:          "Buy",
+				OrderQuantity: 1,
+				OrderIv:       6,
+				TimeInForce:   "GTC",
+				OrderLinkID:   "option-test-001",
+				Mmp:           false,
+				ReduceOnly:    false,
+			},
+			{
+				Symbol:        cp,
+				OrderType:     "Limit",
+				Side:          "Sell",
+				OrderQuantity: 2,
+				Price:         700,
+				TimeInForce:   "GTC",
+				OrderLinkID:   "option-test-001",
+				Mmp:           false,
+				ReduceOnly:    false,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBatchAmendOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.BatchAmendOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.BatchAmendOrder(context.Background(), &BatchAmendOrderParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.BatchAmendOrder(context.Background(), &BatchAmendOrderParams{Category: "spot"})
+	if !errors.Is(err, errNoOrderPassed) {
+		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
+	}
+	cp, err := currency.NewPairFromString("BTC-7JUL23-27000-C")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.BatchAmendOrder(context.Background(), &BatchAmendOrderParams{
+		Category: "option",
+		Request: []BatchAmendOrderParamItem{
+			{
+				Symbol:                 cp,
+				OrderImpliedVolatility: "6.8",
+				OrderID:                "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
+			},
+			{
+				Symbol:  cp,
+				Price:   650,
+				OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCancelBatchOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelBatchOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{Category: "spot"})
+	if !errors.Is(err, errNoOrderPassed) {
+		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
+	}
+	cp, err := currency.NewPairFromString("BTC-7JUL23-27000-C")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{
+		Category: "option",
+		Request: []CancelOrderParams{
+			{
+				Symbol:  cp,
+				OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
+			},
+			{
+				Symbol:  cp,
+				OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetBorrowQuota(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetBorrowQuota(context.Background(), "", "BTCUSDT", "Buy")
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetBorrowQuota(context.Background(), "spot", "", "Buy")
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	_, err = b.GetBorrowQuota(context.Background(), "spot", "BTCUSDT", "")
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Error(err)
+	}
+	_, err = b.GetBorrowQuota(context.Background(), "spot", "BTCUSDT", "Buy")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetDisconnectCancelAll(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetDisconnectCancelAll(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SetDisconnectCancelAll(context.Background(), &SetDCPParams{TimeWindow: 300})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -31,18 +32,21 @@ var (
 	errInvalidBuyLeverage        = errors.New("buyLeverage can't be zero or less then it")
 	errInvalidSellLeverage       = errors.New("sellLeverage can't be zero or less then it")
 	errInvalidOrderRequest       = errors.New("order request param can't be nil")
-	errInvalidOrderFilter        = errors.New("orderFilter can't be empty or missing")
+	errInvalidOrderFilter        = errors.New("invalid order filter")
 	errInvalidCategory           = errors.New("invalid category")
 	errInvalidCoin               = errors.New("coin can't be empty")
 
 	errStopOrderOrOrderLinkIDMissing = errors.New("at least one should be present among stopOrderID and orderLinkID")
 	errOrderOrOrderLinkIDMissing     = errors.New("at least one should be present among orderID and orderLinkID")
 
-	errSymbolMissing        = errors.New("symbol missing")
-	errUnsupportedOrderType = errors.New("unsupported order type")
-	errEmptyOrderIDs        = errors.New("orderIDs can't be empty")
-	errMissingPrice         = errors.New("price should be present for Limit and LimitMaker orders")
-	errExpectedOneOrder     = errors.New("expected one order")
+	errOrderLinkIDMissing = errors.New("order link id missing")
+
+	errSymbolMissing              = errors.New("symbol missing")
+	errUnsupportedOrderType       = errors.New("unsupported order type")
+	errEmptyOrderIDs              = errors.New("orderIDs can't be empty")
+	errMissingPrice               = errors.New("price should be present for Limit and LimitMaker orders")
+	errExpectedOneOrder           = errors.New("expected one order")
+	errDisconnectTimeWindowNotSet = errors.New("disconnect time window not set")
 )
 
 var validCategory = []string{"spot", "linear", "inverse", "option"}
@@ -253,23 +257,6 @@ type PlaceOrderRequest struct {
 	TimeInForce string
 	Price       float64
 	OrderLinkID string
-}
-
-// PlaceOrderResponse store new order response type
-type PlaceOrderResponse struct {
-	OrderID     string                  `json:"orderId"`
-	OrderLinkID string                  `json:"orderLinkId"`
-	Symbol      string                  `json:"symbol"`
-	Time        bybitTimeMilliSecStr    `json:"transactTime"`
-	Price       convert.StringToFloat64 `json:"price"`
-	Quantity    convert.StringToFloat64 `json:"origQty"`
-	TradeType   string                  `json:"type"`
-	Side        string                  `json:"side"`
-	Status      string                  `json:"status"`
-	TimeInForce string                  `json:"timeInForce"`
-	AccountID   string                  `json:"accountId"`
-	SymbolName  string                  `json:"symbolName"`
-	ExecutedQty convert.StringToFloat64 `json:"executedQty"`
 }
 
 // QueryOrderResponse holds query order data
@@ -1017,7 +1004,7 @@ type RestResponse struct {
 	RetCode    int64                `json:"retCode"`
 	RetMsg     string               `json:"retMsg"`
 	Result     interface{}          `json:"result"`
-	RetExtInfo interface{}          `json:"retExtInfo"`
+	RetExtInfo json.RawMessage      `json:"retExtInfo"`
 	Time       convert.ExchangeTime `json:"time"`
 }
 
@@ -1199,4 +1186,239 @@ type DeliveryPrice struct {
 		DeliveryPrice convert.StringToFloat64 `json:"deliveryPrice"`
 		DeliveryTime  convert.ExchangeTime    `json:"deliveryTime"`
 	} `json:"list"`
+}
+
+// PlaceOrderParams represents
+type PlaceOrderParams struct {
+	Category               string        `json:"category"`
+	Symbol                 currency.Pair `json:"symbol"`
+	Side                   string        `json:"side"`
+	OrderType              string        `json:"orderType"`  // Market, Limit
+	OrderQuantity          float64       `json:"qty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
+	Price                  float64       `json:"price,string,omitempty"`
+	TimeInForce            string        `json:"timeInForce,omitempty"`      // IOC and GTC
+	OrderLinkID            string        `json:"orderLinkId,omitempty"`      // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+	WhetherToBorrow        bool          `json:"-"`                          // '0' for default spot, '1' for Margin trading.
+	IsLeverage             int64         `json:"isLeverage,omitempty"`       // '0' for default spot, '1' for Margin trading.
+	OrderFilter            string        `json:"orderFilter,omitempty"`      // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+	TriggerDirection       int64         `json:"triggerDirection,omitempty"` // Conditional order param. Used to identify the expected direction of the conditional order. '1': triggered when market price rises to triggerPrice '2': triggered when market price falls to triggerPrice
+	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
+	TriggerPriceType       string        `json:"triggerBy,omitempty"` // Conditional order param. Trigger price type. 'LastPrice', 'IndexPrice', 'MarkPrice'
+	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
+	PositionIdx            int64         `json:"positionIdx,omitempty"` // Under hedge-mode, this param is required '0': one-way mode '1': hedge-mode Buy side '2': hedge-mode Sell side
+	ReduceOnly             bool          `json:"reduceOnly,omitempty"`
+	TakeProfitPrice        float64       `json:"takeProfit,omitempty,string"`
+	TakeProfitTriggerBy    string        `json:"tpTriggerBy,omitempty"` // The price type to trigger take profit. 'MarkPrice', 'IndexPrice', default: 'LastPrice'
+	StopLossTriggerBy      string        `json:"slTriggerBy,omitempty"` // The price type to trigger stop loss. MarkPrice, IndexPrice, default: LastPrice
+	StopLossPrice          float64       `json:"stopLoss,omitempty,string"`
+	CloseOnTrigger         bool          `json:"closeOnTrigger,omitempty"`
+	SMPExecutionType       string        `json:"smpType,omitempty"` // default: 'None', 'CancelMaker', 'CancelTaker', 'CancelBoth'
+	MarketMakerProtection  bool          `json:"mmp,omitempty"`     // option only. true means set the order as a market maker protection order.
+
+	// TP/SL mode
+	// "Full": entire position for TP/SL. Then, tpOrderType or slOrderType must be Market
+	// 'Partial': partial position tp/sl. Limit TP/SL order are supported. Note: When create limit tp/sl, tpslMode is required and it must be Partial
+	TpslMode     string  `json:"tpslMode,omitempty"`
+	TpOrderType  string  `json:"tpOrderType,omitempty"`
+	SlOrderType  string  `json:"slOrderType,omitempty"`
+	TpLimitPrice float64 `json:"tpLimitPrice,omitempty,string"`
+	SlLimitPrice float64 `json:"slLimitPrice,omitempty,string"`
+}
+
+// OrderResponse holds newly placed order information.
+type OrderResponse struct {
+	OrderID     string `json:"orderId"`
+	OrderLinkID string `json:"orderLinkId"`
+}
+
+// AmendOrderParams represents a parameter for amending order.
+type AmendOrderParams struct {
+	Category               string        `json:"category"`
+	Symbol                 currency.Pair `json:"symbol"`
+	OrderID                string        `json:"orderId,omitempty"`
+	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
+	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
+	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
+	Price                  float64       `json:"price,string,omitempty"`
+
+	TakeProfitPrice float64 `json:"takeProfit,omitempty,string"`
+	StopLossPrice   float64 `json:"stopLoss,omitempty,string"`
+
+	TakeProfitTriggerBy string `json:"tpTriggerBy,omitempty"` // The price type to trigger take profit. 'MarkPrice', 'IndexPrice', default: 'LastPrice'
+	StopLossTriggerBy   string `json:"slTriggerBy,omitempty"` // The price type to trigger stop loss. MarkPrice, IndexPrice, default: LastPrice
+	TriggerPriceType    string `json:"triggerBy,omitempty"`   // Conditional order param. Trigger price type. 'LastPrice', 'IndexPrice', 'MarkPrice'
+
+	TpLimitPrice float64 `json:"tpLimitPrice,omitempty,string"`
+	SlLimitPrice float64 `json:"slLimitPrice,omitempty,string"`
+}
+
+// CancelOrderParams represents a cancel order parameters.
+type CancelOrderParams struct {
+	Category    string        `json:"category,omitempty"`
+	Symbol      currency.Pair `json:"symbol,omitempty"`
+	OrderID     string        `json:"orderId,omitempty"`
+	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+
+	OrderFilter string `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+}
+
+// TradeOrders represents category and list of trade orders of the category.
+type TradeOrders struct {
+	List           []TradeOrder `json:"list"`
+	NextPageCursor string       `json:"nextPageCursor"`
+	Category       string       `json:"category"`
+}
+
+// TradeOrder represents a trade order details.
+type TradeOrder struct {
+	OrderID                string                  `json:"orderId"`
+	OrderLinkID            string                  `json:"orderLinkId"`
+	BlockTradeID           string                  `json:"blockTradeId"`
+	Symbol                 string                  `json:"symbol"`
+	Price                  convert.StringToFloat64 `json:"price"`
+	OrderQuantity          convert.StringToFloat64 `json:"qty"`
+	Side                   string                  `json:"side"`
+	IsLeverage             string                  `json:"isLeverage"`
+	PositionIdx            int                     `json:"positionIdx"`
+	OrderStatus            string                  `json:"orderStatus"`
+	CancelType             string                  `json:"cancelType"`
+	RejectReason           string                  `json:"rejectReason"`
+	AveragePrice           convert.StringToFloat64 `json:"avgPrice"`
+	LeavesQuantity         convert.StringToFloat64 `json:"leavesQty"`
+	LeavesValue            string                  `json:"leavesValue"`
+	CumulativeExecQuantity convert.StringToFloat64 `json:"cumExecQty"`
+	CumulativeExecValue    convert.StringToFloat64 `json:"cumExecValue"`
+	CumulativeExecFee      convert.StringToFloat64 `json:"cumExecFee"`
+	TimeInForce            string                  `json:"timeInForce"`
+	OrderType              string                  `json:"orderType"`
+	StopOrderType          string                  `json:"stopOrderType"`
+	OrderIv                string                  `json:"orderIv"`
+	TriggerPrice           convert.StringToFloat64 `json:"triggerPrice"`
+	TakeProfitPrice        convert.StringToFloat64 `json:"takeProfit"`
+	StopLossPrice          convert.StringToFloat64 `json:"stopLoss"`
+	TpTriggerBy            string                  `json:"tpTriggerBy"`
+	SlTriggerBy            string                  `json:"slTriggerBy"`
+	TriggerDirection       int                     `json:"triggerDirection"`
+	TriggerBy              string                  `json:"triggerBy"`
+	LastPriceOnCreated     string                  `json:"lastPriceOnCreated"`
+	ReduceOnly             bool                    `json:"reduceOnly"`
+	CloseOnTrigger         bool                    `json:"closeOnTrigger"`
+	SmpType                string                  `json:"smpType"`
+	SmpGroup               int                     `json:"smpGroup"`
+	SmpOrderID             string                  `json:"smpOrderId"`
+	TpslMode               string                  `json:"tpslMode"`
+	TpLimitPrice           convert.StringToFloat64 `json:"tpLimitPrice"`
+	SlLimitPrice           convert.StringToFloat64 `json:"slLimitPrice"`
+	PlaceType              string                  `json:"placeType"`
+	CreatedTime            convert.ExchangeTime    `json:"createdTime"`
+	UpdatedTime            convert.ExchangeTime    `json:"updatedTime"`
+}
+
+// CancelAllResponse represents a cancel all trade orders response.
+type CancelAllResponse struct {
+	List []OrderResponse `json:"list"`
+}
+
+// CancelAllOrdersParam request parameters for cancel all orders.
+type CancelAllOrdersParam struct {
+	Category    string        `json:"category"`
+	Symbol      currency.Pair `json:"symbol"`
+	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+	BaseCoin    string        `json:"baseCoin,omitempty"`
+	SettleCoin  string        `json:"settleCoin,omitempty"`
+}
+
+type PlaceBatchOrderParam struct {
+	Category string                `json:"category"`
+	Request  []BatchOrderItemParam `json:"request"`
+}
+
+// BatchOrderItemParam represents a batch order place parameter.
+type BatchOrderItemParam struct {
+	Category          string        `json:"category,omitempty"`
+	Symbol            currency.Pair `json:"symbol,omitempty"`
+	OrderType         string        `json:"orderType,omitempty"`
+	Side              string        `json:"side,omitempty"`
+	OrderQuantity     float64       `json:"qty,string,omitempty"`
+	Price             float64       `json:"price,string,omitempty"`
+	OrderIv           int64         `json:"orderIv,omitempty,string"`
+	TimeInForce       string        `json:"timeInForce,omitempty"`
+	OrderLinkID       string        `json:"orderLinkId,omitempty"`
+	Mmp               bool          `json:"mmp,omitempty"`
+	ReduceOnly        bool          `json:"reduceOnly,omitempty"`
+	ImpliedVolatility string        `json:"iv,omitempty"`
+	SMPType           string        `json:"smpType,omitempty"`
+}
+
+// BatchOrdersList represents a list trade orders.
+type BatchOrdersList struct {
+	List []BatchOrderResponse `json:"list"`
+}
+
+// BatchOrderResponse represents a batch trade order item response.
+type BatchOrderResponse struct {
+	Category    string               `json:"category"`
+	Symbol      string               `json:"symbol"`
+	OrderID     string               `json:"orderId"`
+	OrderLinkID string               `json:"orderLinkId"`
+	CreateAt    convert.ExchangeTime `json:"createAt"`
+}
+
+type errorMessages struct {
+	List []ErrorMessage `json:"list"`
+}
+
+// ErrorMessage represents an error message item
+type ErrorMessage struct {
+	Code    int64  `json:"code"`
+	Message string `json:"msg"`
+}
+
+// BatchAmendOrderParams request parameter for batch amend order.
+type BatchAmendOrderParams struct {
+	Category string                     `json:"category"`
+	Request  []BatchAmendOrderParamItem `json:"request"`
+}
+
+// BatchAmendOrderParamItem represents a single order amend item in batch amend order
+type BatchAmendOrderParamItem struct {
+	Symbol                 currency.Pair `json:"symbol"`
+	OrderID                string        `json:"orderId,omitempty"`
+	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
+	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
+	Price                  float64       `json:"price,string,omitempty"`
+}
+
+// CancelBatchOrder represents a batch cancel request parameters.
+type CancelBatchOrder struct {
+	Category string              `json:"category"`
+	Request  []CancelOrderParams `json:"request"`
+}
+
+// CancelBatchResponseItem represents a batch cancel response item.
+type CancelBatchResponseItem struct {
+	Category    string `json:"category,omitempty"`
+	Symbol      string `json:"symbol,omitempty"`
+	OrderID     string `json:"orderId,omitempty"`
+	OrderLinkID string `json:"orderLinkId,omitempty"`
+}
+
+type cancelBatchResponse struct {
+	List []CancelBatchResponseItem `json:"list"`
+}
+
+// BorrowQuota represents
+type BorrowQuota struct {
+	Symbol         string `json:"symbol"`
+	MaxTradeQty    string `json:"maxTradeQty"`
+	Side           string `json:"side"`
+	MaxTradeAmount string `json:"maxTradeAmount"`
+	BorrowCoin     string `json:"borrowCoin"`
+}
+
+// SetDCPParams represents the set disconnect cancel all parameters.
+type SetDCPParams struct {
+	TimeWindow int64 `json:"timeWindow"`
 }

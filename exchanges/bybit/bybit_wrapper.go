@@ -975,15 +975,15 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			TimeInForce: timeInForce,
 			OrderLinkID: s.ClientOrderID,
 		}
-		var response *PlaceOrderResponse
+		var response *OrderResponse
 		response, err = by.CreatePostOrder(ctx, &orderRequest)
 		if err != nil {
 			return nil, err
 		}
 		orderID = response.OrderID
-		if response.ExecutedQty == response.Quantity {
-			status = order.Filled
-		}
+		// if response.ExecutedQty == response.Quantity {
+		// 	status = order.Filled
+		// }
 	case asset.CoinMarginedFutures:
 		timeInForce := "GoodTillCancel"
 		var oType string
