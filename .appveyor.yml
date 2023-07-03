@@ -7,6 +7,7 @@ clone_folder: c:\gopath\src\github.com\thrasher-corp\gocryptotrader
 cache:
   - '%APPDATA%\npm-cache'
   - '%GOPATH%\pkg\mod'
+  - '%LOCALAPPDATA%\go-build'
   - c:\gopath\src\github.com\thrasher-corp\gocryptotrader\web\node_modules
 
 environment:
