@@ -131,8 +131,12 @@ func TestVerifyAPICredentials(t *testing.T) {
 		RequiresSecret             bool
 		RequiresClientID           bool
 		RequiresBase64DecodeSecret bool
+		UseSetCredentials          bool
+		CheckBase64DecodedOutput   bool
 		Expected                   error
 	}
+
+	const expectedBase64DecodedOutput = "hello world"
 
 	testCases := []tester{
 		// Empty credentials
@@ -152,20 +156,30 @@ func TestVerifyAPICredentials(t *testing.T) {
 		// test requires base64 decode secret
 		{RequiresBase64DecodeSecret: true, RequiresSecret: true, Expected: errRequiresAPISecret, Key: "bruh"},
 		{RequiresBase64DecodeSecret: true, Secret: "%%", Expected: errBase64DecodeFailure},
-		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ="},
+		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", CheckBase64DecodedOutput: true},
+		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", UseSetCredentials: true, CheckBase64DecodedOutput: true},
 	}
 
 	setupBase := func(tData *tester) *Base {
-		b := &Base{}
-		b.API.SetKey(tData.Key)
-		b.API.SetSecret(tData.Secret)
-		b.API.SetClientID(tData.ClientID)
-		b.API.SetPEMKey(tData.PEMKey)
-		b.API.CredentialsValidator.RequiresKey = tData.RequiresKey
-		b.API.CredentialsValidator.RequiresSecret = tData.RequiresSecret
-		b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
-		b.API.CredentialsValidator.RequiresClientID = tData.RequiresClientID
-		b.API.CredentialsValidator.RequiresBase64DecodeSecret = tData.RequiresBase64DecodeSecret
+		b := &Base{
+			API: API{
+				CredentialsValidator: CredentialsValidator{
+					RequiresKey:                tData.RequiresKey,
+					RequiresSecret:             tData.RequiresSecret,
+					RequiresClientID:           tData.RequiresClientID,
+					RequiresPEM:                tData.RequiresPEM,
+					RequiresBase64DecodeSecret: tData.RequiresBase64DecodeSecret,
+				},
+			},
+		}
+		if tData.UseSetCredentials {
+			b.SetCredentials(tData.Key, tData.Secret, tData.ClientID, "", tData.PEMKey, "")
+		} else {
+			b.API.SetKey(tData.Key)
+			b.API.SetSecret(tData.Secret)
+			b.API.SetClientID(tData.ClientID)
+			b.API.SetPEMKey(tData.PEMKey)
+		}
 		return b
 	}
 
@@ -177,6 +191,12 @@ func TestVerifyAPICredentials(t *testing.T) {
 			b := setupBase(testData)
 			if err := b.VerifyAPICredentials(b.API.credentials); !errors.Is(err, testData.Expected) {
 				t.Errorf("Test %d: expected: %v: got %v", x+1, testData.Expected, err)
+			}
+
+			if testData.CheckBase64DecodedOutput {
+				if b.API.credentials.Secret != expectedBase64DecodedOutput {
+					t.Errorf("Test %d: expected: %v: got %v", x+1, expectedBase64DecodedOutput, b.API.credentials.Secret)
+				}
 			}
 		})
 	}
