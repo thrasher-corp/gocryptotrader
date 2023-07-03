@@ -213,7 +213,7 @@ func TestGetHoldings(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			c := time.NewTimer(time.Second)
 			select {
-			case <-p.C:
+			case <-p.Channel():
 			case <-c.C:
 			}
 		}

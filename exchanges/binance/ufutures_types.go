@@ -51,12 +51,12 @@ type OrderbookData struct {
 
 // UPublicTradesData stores trade data
 type UPublicTradesData struct {
-	ID           int64   `json:"id"`
-	Price        float64 `json:"price,string"`
-	Qty          float64 `json:"qty,string"`
-	QuoteQty     float64 `json:"quoteQty,string"`
-	Time         int64   `json:"time"`
-	IsBuyerMaker bool    `json:"isBuyerMaker"`
+	ID           int64       `json:"id"`
+	Price        float64     `json:"price,string"`
+	Qty          float64     `json:"qty,string"`
+	QuoteQty     float64     `json:"quoteQty,string"`
+	Time         binanceTime `json:"time"`
+	IsBuyerMaker bool        `json:"isBuyerMaker"`
 }
 
 // UCompressedTradeData stores compressed trade data

@@ -50,6 +50,7 @@ const (
 	bybitFastCancelSpotOrder      = "/spot/v1/order/fast"
 	bybitBatchCancelSpotOrder     = "/spot/order/batch-cancel"
 	bybitFastBatchCancelSpotOrder = "/spot/order/batch-fast-cancel"
+	bybitBatchCancelByIDs         = "/spot/order/batch-cancel-by-ids"
 	bybitOpenOrder                = "/spot/v1/open-orders"
 	bybitPastOrder                = "/spot/v1/history-orders"
 	bybitTradeHistory             = "/spot/v1/myTrades"
@@ -629,7 +630,7 @@ func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelByIDs, params, nil, &resp, privateSpotRate)
 }
 
 // ListOpenOrders returns all open orders
@@ -817,11 +818,11 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	})
+	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
 	}
-	return result.GetError()
+	return result.GetError(false)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -895,15 +896,14 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &result,
-			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
-	return result.GetError()
+	return result.GetError(true)
 }
 
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
@@ -941,16 +941,15 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 			Path:          endpointPath + common.EncodeURLValues(path, params),
 			Headers:       headers,
 			Result:        &result,
-			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
 
-	return result.GetError()
+	return result.GetError(true)
 }
 
 // Error defines all error information for each request
@@ -964,14 +963,20 @@ type Error struct {
 }
 
 // GetError checks and returns an error if it is supplied.
-func (e *Error) GetError() error {
+func (e *Error) GetError(isAuthRequest bool) error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ReturnMsg)
+		}
 		return errors.New(e.ReturnMsg)
 	}
 	if e.ReturnCodeV5 != 0 && e.ReturnMessageV5 != "" {
 		return errors.New(e.ReturnMessageV5)
 	}
 	if e.ExtCode != "" && e.ExtMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ExtMsg)
+		}
 		return errors.New(e.ExtMsg)
 	}
 	return nil

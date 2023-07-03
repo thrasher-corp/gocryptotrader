@@ -723,18 +723,18 @@ type WithdrawResponse struct {
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	Address         string  `json:"address"`
-	Amount          float64 `json:"amount,string"`
-	ApplyTime       string  `json:"applyTime"`
-	Coin            string  `json:"coin"`
-	ID              string  `json:"id"`
-	WithdrawOrderID string  `json:"withdrawOrderId"`
-	Network         string  `json:"network"`
-	TransferType    uint8   `json:"transferType"`
-	Status          int64   `json:"status"`
-	TransactionFee  float64 `json:"transactionFee,string"`
-	TransactionID   string  `json:"txId"`
-	ConfirmNumber   int64   `json:"confirmNo"`
+	Address         string      `json:"address"`
+	Amount          float64     `json:"amount,string"`
+	ApplyTime       binanceTime `json:"applyTime"`
+	Coin            string      `json:"coin"`
+	ID              string      `json:"id"`
+	WithdrawOrderID string      `json:"withdrawOrderId"`
+	Network         string      `json:"network"`
+	TransferType    uint8       `json:"transferType"`
+	Status          int64       `json:"status"`
+	TransactionFee  float64     `json:"transactionFee,string"`
+	TransactionID   string      `json:"txId"`
+	ConfirmNumber   int64       `json:"confirmNo"`
 }
 
 // DepositAddress stores the deposit address info

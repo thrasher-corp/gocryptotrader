@@ -15,32 +15,32 @@ type Response struct {
 
 // FuturesPublicTradesData stores recent public trades for futures
 type FuturesPublicTradesData struct {
-	ID           int64   `json:"id"`
-	Price        float64 `json:"price,string"`
-	Qty          float64 `json:"qty,string"`
-	QuoteQty     float64 `json:"quoteQty,string"`
-	Time         int64   `json:"time"`
-	IsBuyerMaker bool    `json:"isBuyerMaker"`
+	ID           int64       `json:"id"`
+	Price        float64     `json:"price,string"`
+	Qty          float64     `json:"qty,string"`
+	QuoteQty     float64     `json:"quoteQty,string"`
+	Time         binanceTime `json:"time"`
+	IsBuyerMaker bool        `json:"isBuyerMaker"`
 }
 
 // CompressedTradesData stores futures trades data in a compressed format
 type CompressedTradesData struct {
-	TradeID      int64   `json:"a"`
-	Price        float64 `json:"p"`
-	Quantity     float64 `json:"q"`
-	FirstTradeID int64   `json:"f"`
-	LastTradeID  int64   `json:"l"`
-	Timestamp    int64   `json:"t"`
-	BuyerMaker   bool    `json:"b"`
+	TradeID      int64       `json:"a"`
+	Price        float64     `json:"p"`
+	Quantity     float64     `json:"q"`
+	FirstTradeID int64       `json:"f"`
+	LastTradeID  int64       `json:"l"`
+	Timestamp    binanceTime `json:"t"`
+	BuyerMaker   bool        `json:"b"`
 }
 
 // MarkPriceData stores mark price data for futures
 type MarkPriceData struct {
-	Symbol          string  `json:"symbol"`
-	MarkPrice       float64 `json:"markPrice"`
-	LastFundingRate float64 `json:"lastFundingRate"`
-	NextFundingTime int64   `json:"nextFundingTime"`
-	Time            int64   `json:"time"`
+	Symbol          string      `json:"symbol"`
+	MarkPrice       float64     `json:"markPrice"`
+	LastFundingRate float64     `json:"lastFundingRate"`
+	NextFundingTime int64       `json:"nextFundingTime"`
+	Time            binanceTime `json:"time"`
 }
 
 // SymbolPriceTicker stores ticker price stats

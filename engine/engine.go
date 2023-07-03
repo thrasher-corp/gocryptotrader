@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
@@ -307,7 +308,7 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to setup: %v", err)
 		} else {
 			err = bot.DatabaseManager.Start(&bot.ServicesWG)
-			if err != nil {
+			if err != nil && !errors.Is(err, database.ErrDatabaseSupportDisabled) {
 				gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 			}
 		}
@@ -851,17 +852,11 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	if wg != nil {
-		return exch.Start(context.TODO(), wg)
+	if wg == nil {
+		wg = &sync.WaitGroup{}
+		defer wg.Wait()
 	}
-
-	tempWG := sync.WaitGroup{}
-	err = exch.Start(context.TODO(), &tempWG)
-	if err != nil {
-		return err
-	}
-	tempWG.Wait()
-	return nil
+	return exch.Start(context.TODO(), wg)
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {

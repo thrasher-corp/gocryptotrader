@@ -198,18 +198,18 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 // types. e.g. "BTC-USD" Spot and "BTC_USD" PERP request formatted.
 func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair, asset.Item, error) {
 	if symbol == "" {
-		return currency.Pair{}, asset.Empty, currency.ErrCurrencyPairEmpty
+		return currency.EMPTYPAIR, asset.Empty, currency.ErrCurrencyPairEmpty
 	}
 	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		pFmt, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
-			return currency.Pair{}, asset.Empty, err
+			return currency.EMPTYPAIR, asset.Empty, err
 		}
 
 		enabled, err := b.GetEnabledPairs(assetTypes[i])
 		if err != nil {
-			return currency.Pair{}, asset.Empty, err
+			return currency.EMPTYPAIR, asset.Empty, err
 		}
 		for j := range enabled {
 			if pFmt.Format(enabled[j]) == symbol {
@@ -217,7 +217,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.Pair{}, asset.Empty, errSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, errSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -399,7 +399,7 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return nil, nil //nolint:nilerr // non-fatal error
+		return nil, err
 	}
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
@@ -467,7 +467,7 @@ func (b *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.
 	if pairs.Contains(p, false) {
 		return nil
 	}
-	return errors.New("pair not supported")
+	return fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, p)
 }
 
 // FormatExchangeCurrencies returns a string containing
@@ -500,6 +500,9 @@ func (b *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.I
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
+	if p.IsEmpty() {
+		return currency.EMPTYPAIR, currency.ErrCurrencyPairEmpty
+	}
 	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
 		return currency.EMPTYPAIR, err
@@ -509,12 +512,19 @@ func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (cu
 
 // SetEnabled is a method that sets if the exchange is enabled
 func (b *Base) SetEnabled(enabled bool) {
+	b.settingsMutex.Lock()
 	b.Enabled = enabled
+	b.settingsMutex.Unlock()
 }
 
 // IsEnabled is a method that returns if the current exchange is enabled
 func (b *Base) IsEnabled() bool {
-	return b != nil && b.Enabled
+	if b == nil {
+		return false
+	}
+	b.settingsMutex.RLock()
+	defer b.settingsMutex.RUnlock()
+	return b.Enabled
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
@@ -555,7 +565,14 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	}
 
 	if exch.CurrencyPairs == nil {
-		exch.CurrencyPairs = new(currency.PairsManager)
+		exch.CurrencyPairs = &b.CurrencyPairs
+		a := exch.CurrencyPairs.GetAssetTypes(false)
+		for i := range a {
+			err = exch.CurrencyPairs.SetAssetEnabled(a[i], true)
+			if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+				return err
+			}
+		}
 	}
 
 	b.HTTPDebugging = exch.HTTPDebugging
@@ -615,16 +632,31 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 	if err != nil {
 		return err
 	}
-
+	cPairs := make(currency.Pairs, len(pairs))
+	copy(cPairs, pairs)
 	for x := range pairs {
-		pairs[x] = pairs[x].Format(pairFmt)
+		cPairs[x] = pairs[x].Format(pairFmt)
 	}
 
-	err = b.CurrencyPairs.StorePairs(assetType, pairs, enabled)
+	err = b.CurrencyPairs.StorePairs(assetType, cPairs, enabled)
 	if err != nil {
 		return err
 	}
-	return b.Config.CurrencyPairs.StorePairs(assetType, pairs, enabled)
+	return b.Config.CurrencyPairs.StorePairs(assetType, cPairs, enabled)
+}
+
+// EnsureOnePairEnabled not all assets have pairs, eg options
+// search for an asset that does and enable one if none are enabled
+// error if no currency pairs found for an entire exchange
+func (b *Base) EnsureOnePairEnabled() error {
+	pair, item, err := b.CurrencyPairs.EnsureOnePairEnabled()
+	if err != nil {
+		return err
+	}
+	if !pair.IsEmpty() {
+		log.Warnf(log.ExchangeSys, "%v had no enabled pairs, %v %v pair has been enabled", b.Name, item, pair)
+	}
+	return nil
 }
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
@@ -751,7 +783,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 	}
 
 	enabledPairs = enabledPairs[:target]
-	if len(enabledPairs) == 0 {
+	if len(enabledPairs) == 0 && len(incoming) > 0 {
 		// NOTE: If enabled pairs are not populated for any reason.
 		var randomPair currency.Pair
 		randomPair, err = incoming.GetRandomPair()
@@ -1140,22 +1172,18 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 // ValidateKline confirms that the requested pair, asset & interval are
 // supported and/or enabled by the requested exchange.
 func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
-	var errorList []string
+	var err error
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
-		errorList = append(errorList, fmt.Sprintf("[%s] asset not enabled", a))
+		err = common.AppendError(err, fmt.Errorf("%w %v", asset.ErrNotEnabled, a))
 	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		errorList = append(errorList, fmt.Sprintf("[%s] pair not enabled", pair))
+		err = common.AppendError(err, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
 	}
 
 	if !b.klineIntervalEnabled(interval) {
-		errorList = append(errorList, fmt.Sprintf("[%s] interval not supported", interval))
+		err = common.AppendError(err, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval))
 	}
 
-	if len(errorList) > 0 {
-		return fmt.Errorf("%w: %v", kline.ErrValidatingParams, strings.Join(errorList, ", "))
-	}
-
-	return nil
+	return err
 }
 
 // AddTradesToBuffer is a helper function that will only
@@ -1322,6 +1350,8 @@ func (u URL) String() string {
 		return restCoinMarginedFuturesURL
 	case RestFutures:
 		return restFuturesURL
+	case RestFuturesSupplementary:
+		return restFuturesSupplementaryURL
 	case RestUSDCMargined:
 		return restUSDCMarginedFuturesURL
 	case RestSandbox:
@@ -1358,6 +1388,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return RestCoinMargined, nil
 	case restFuturesURL:
 		return RestFutures, nil
+	case restFuturesSupplementaryURL:
+		return RestFuturesSupplementary, nil
 	case restUSDCMarginedFuturesURL:
 		return RestUSDCMargined, nil
 	case restSandboxURL:
@@ -1377,7 +1409,7 @@ func getURLTypeFromString(ep string) (URL, error) {
 	case edgeCase3URL:
 		return EdgeCase3, nil
 	default:
-		return Invalid, fmt.Errorf("%w for %s", errEndpointStringNotFound, ep)
+		return Invalid, fmt.Errorf("%w '%s'", errEndpointStringNotFound, ep)
 	}
 }
 
@@ -1435,6 +1467,11 @@ func (b *Base) GetServerTime(context.Context, asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
+// GetPositionSummary returns stats for a future position
+func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetKlineRequest returns a helper for the fetching of candle/kline data for
 // a single request within a pre-determined time window.
 func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time, fixedAPICandleLength bool) (*kline.Request, error) {
@@ -1444,7 +1481,6 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	if !a.IsValid() {
 		return nil, asset.ErrNotSupported
 	}
-
 	// NOTE: This allows for checking that the required kline interval is
 	// supported by the exchange and/or can be constructed from lower time frame
 	// intervals.

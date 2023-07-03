@@ -60,6 +60,15 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 
 // GetTicker checks and returns a requested ticker if it exists
 func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
+	if exchange == "" {
+		return nil, errExchangeNameIsEmpty
+	}
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()

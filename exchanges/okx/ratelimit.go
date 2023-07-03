@@ -531,6 +531,8 @@ const (
 	getOpenInterestAndVolumeEPL
 	getTakerFlowEPL
 	getEventStatusEPL
+	getCandlestickHistoryEPL
+	getIndexCandlesticksEPL
 )
 
 // Limit executes rate limiting for Okx exchange given the context and EndpointLimit
@@ -780,6 +782,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetOrderBook.Wait(ctx)
 	case getCandlesticksEPL:
 		return r.GetCandlesticks.Wait(ctx)
+	case getCandlestickHistoryEPL:
+		return r.GetCandlesticksHistory.Wait(ctx)
+	case getIndexCandlesticksEPL:
+		return r.GetIndexCandlesticks.Wait(ctx)
 	case getTradesRequestEPL:
 		return r.GetTradesRequest.Wait(ctx)
 	case get24HTotalVolumeEPL:

@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Binance is the overarching type across the Binance package
@@ -223,11 +222,7 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	params.Set("symbol", symbol)
+	params.Set("symbol", arg.Symbol.String())
 	// if the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
 	needBatch := false
@@ -299,8 +294,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			err := b.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				log.Warnln(log.ExchangeSys, err.Error())
-				return resp, err
+				return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 			}
 		}
 		fromID = resp[len(resp)-1].ATradeID
@@ -321,7 +315,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			spotDefaultRate,
 			&additionalTrades)
 		if err != nil {
-			return resp, err
+			return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 		}
 		lastIndex := len(additionalTrades)
 		if !arg.EndTime.IsZero() {
@@ -385,14 +379,14 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	}
 	responseData, ok := resp.([]interface{})
 	if !ok {
-		return nil, errors.New("unable to type assert responseData")
+		return nil, common.GetTypeAssertError("[]interface{}", resp)
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
 		individualData, ok := responseData[x].([]interface{})
 		if !ok {
-			return nil, errors.New("unable to type assert individualData")
+			return nil, common.GetTypeAssertError("[]interface{}", responseData[x])
 		}
 		if len(individualData) != 12 {
 			return nil, errors.New("unexpected kline data length")
@@ -423,7 +417,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 			return nil, err
 		}
 		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, errors.New("unable to type assert trade count")
+			return nil, common.GetTypeAssertError("float64", individualData[8])
 		}
 		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
 			return nil, err
@@ -754,7 +748,7 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -783,7 +777,7 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -828,11 +822,10 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			Path:          fullPath,
 			Headers:       headers,
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1121,7 +1114,6 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		Path:          endpointPath + userAccountStream,
 		Headers:       headers,
 		Result:        &resp,
-		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
@@ -1129,7 +1121,7 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return "", err
 	}
@@ -1162,7 +1154,6 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 		Method:        http.MethodPut,
 		Path:          path,
 		Headers:       headers,
-		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
@@ -1170,7 +1161,7 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // FetchSpotExchangeLimits fetches spot order execution limits

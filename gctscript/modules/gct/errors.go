@@ -35,5 +35,5 @@ func constructRuntimeError(argPosition int, funcName, expectedType string, unexp
 	return fmt.Errorf("function [%s] argument position [%d] - %w",
 		funcName,
 		argPosition,
-		common.GetAssertError(expectedType, unexpectedData))
+		common.GetTypeAssertError(expectedType, unexpectedData))
 }

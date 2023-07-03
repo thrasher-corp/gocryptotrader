@@ -291,7 +291,7 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 		return fmt.Errorf("main %w", currency.ErrCurrencyPairEmpty)
 	}
 	if dataSource.interval.Duration() == 0 {
-		return gctkline.ErrUnsetInterval
+		return gctkline.ErrInvalidInterval
 	}
 	d.m.Lock()
 	defer d.m.Unlock()

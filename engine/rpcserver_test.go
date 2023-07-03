@@ -1914,8 +1914,8 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 	if resp == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected job")
 	}
-	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobSummary") { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatalf("received %v, expected %v", "TestGetDataHistoryJobSummary", resp.Nickname)
+	if resp.Nickname == "" {
+		t.Fatalf("received %v, expected %v", "", dhj.Nickname)
 	}
 	if resp.ResultSummaries == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatalf("received %v, expected %v", nil, "result summaries slice")

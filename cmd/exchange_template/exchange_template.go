@@ -16,6 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -146,7 +148,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
-	exch.CapitalName = strings.Title(exch.Name)
+	exch.CapitalName = cases.Title(language.English).String(exch.Name)
 	exch.Variable = exch.Name[0:2]
 	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName

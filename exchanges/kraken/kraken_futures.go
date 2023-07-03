@@ -34,6 +34,44 @@ func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 	return &resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
+// GetFuturesCharts returns candle data for kraken futures
+func (k *Kraken) GetFuturesCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, to, from time.Time) (*FuturesCandles, error) {
+	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	reqStr := futuresCandles + tickType + "/" + symbolValue + "/" + resolution
+	if len(params) > 0 {
+		reqStr += "?" + params.Encode()
+	}
+	var resp FuturesCandles
+	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, reqStr, &resp)
+}
+
+// GetFuturesTrades returns public trade data for kraken futures
+func (k *Kraken) GetFuturesTrades(ctx context.Context, symbol currency.Pair, to, from time.Time) (*FuturesPublicTrades, error) {
+	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	if !to.IsZero() {
+		params.Set("since", strconv.FormatInt(to.Unix(), 10))
+	}
+	if !from.IsZero() {
+		params.Set("before", strconv.FormatInt(from.Unix(), 10))
+	}
+	var resp FuturesPublicTrades
+	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresPublicTrades+"/"+symbolValue+"/executions?"+params.Encode(), &resp)
+}
+
 // GetFuturesMarkets gets a list of futures markets and their data
 func (k *Kraken) GetFuturesMarkets(ctx context.Context) (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
@@ -327,14 +365,13 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 			Path:          futuresURL + common.EncodeURLValues(path, data),
 			Headers:       headers,
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       k.Verbose,
 			HTTPDebugging: k.HTTPDebugging,
 			HTTPRecording: k.HTTPRecording,
 		}, nil
 	}
 
-	err = k.SendPayload(ctx, request.Unset, newRequest)
+	err = k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -342,8 +379,12 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 	var errCap AuthErrorData
 	if err = json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Result != "success" && errCap.Error != "" {
-			return errors.New(errCap.Error)
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 		}
 	}
-	return json.Unmarshal(interim, result)
+	err = json.Unmarshal(interim, result)
+	if err != nil {
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
+	}
+	return nil
 }
