@@ -65,11 +65,11 @@ func TestUnmarshalJSONCollateralType(t *testing.T) {
 
 	jason = []byte(`{"collateral":"hello moto"}`)
 	err = json.Unmarshal(jason, &alien)
-	if err != nil {
+	if !errors.Is(err, ErrInvalidCollateralMode) {
 		t.Error(err)
 	}
 	if alien.M != UnknownMode {
-		t.Errorf("received '%v' expected 'isolated'", alien.M)
+		t.Errorf("received '%v' expected 'UnknownMode'", alien.M)
 	}
 }
 

@@ -2182,7 +2182,7 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 // it can be used to calculate potential positions
 func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	if req == nil {
-		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w GetFuturesPositionSummary", common.ErrNilPointer)
 	}
 	if req.CalculateOffline {
 		return nil, common.ErrCannotCalculateOffline
@@ -2411,7 +2411,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 // GetFuturesPositionOrders returns the orders for futures positions
 func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
 	if req == nil {
-		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w GetFuturesPositionOrders", common.ErrNilPointer)
 	}
 	if len(req.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty

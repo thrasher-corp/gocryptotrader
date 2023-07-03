@@ -925,7 +925,6 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	}
 	cancelOrderParams := make([]CancelOrderRequestParam, len(o))
 	var err error
-	var format currency.PairFormat
 	for x := range o {
 		ord := o[x]
 		err = ord.Validate(ord.StandardCancel())
@@ -935,7 +934,6 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ok.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
-		format, err = ok.GetPairFormat(ord.AssetType, true)
 
 		var instrumentID string
 		var pairFormat currency.PairFormat
@@ -1664,11 +1662,8 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 	if req.CalculateOffline {
 		return nil, common.ErrCannotCalculateOffline
 	}
-	if !ok.SupportsAsset(req.Asset) {
+	if !ok.SupportsAsset(req.Asset) || !req.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
-	}
-	if !req.Asset.IsFutures() {
-		return nil, fmt.Errorf("%w %v", order.ErrNotFuturesAsset, req.Asset)
 	}
 	fPair, err := ok.FormatExchangeCurrency(req.Pair, req.Asset)
 	if err != nil {
@@ -1743,11 +1738,8 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
-	if !ok.SupportsAsset(req.Asset) {
+	if !ok.SupportsAsset(req.Asset) || !req.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
-	}
-	if !req.Asset.IsFutures() {
-		return nil, fmt.Errorf("%w %v", order.ErrNotFuturesAsset, req.Asset)
 	}
 	if time.Since(req.StartDate) > ok.Features.Supports.MaximumOrderHistory {
 		if req.RespectOrderHistoryLimits {

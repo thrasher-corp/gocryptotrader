@@ -2016,21 +2016,7 @@ func (ok *Okx) SetLeverageRate(ctx context.Context, arg SetLeverageInput) (*SetL
 	if arg.InstrumentID == "" && arg.Currency == "" {
 		return nil, errors.New("either instrument id or currency is required")
 	}
-	if arg.Leverage < 0 {
-		return nil, errors.New("missing leverage")
-	}
-	if arg.InstrumentID == "" && arg.MarginMode == TradeModeIsolated {
-		return nil, errors.New("only can be cross if ccy is passed")
-	}
-	if arg.MarginMode != TradeModeCross && arg.MarginMode != TradeModeIsolated {
-		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP allowed")
-	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
-	if arg.PositionSide != positionSideLong &&
-		arg.PositionSide != positionSideShort &&
-		arg.MarginMode == "isolated" {
-		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
-	}
 	var resp []SetLeverageResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
 	if err != nil {

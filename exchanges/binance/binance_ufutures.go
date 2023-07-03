@@ -925,16 +925,14 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(ctx context.Context, symbol c
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if positionSide != "" {
-		if !common.StringDataCompare(validPositionSide, positionSide) {
-			return resp, errors.New("invalid margin changeType")
-		}
-	}
 	cType, ok := validMarginChange[changeType]
 	if !ok {
 		return resp, errors.New("invalid margin changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
+	if positionSide != "" {
+		params.Set("positionSide", positionSide)
+	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesModifyMargin, params, uFuturesDefaultRate, &resp)
 }
