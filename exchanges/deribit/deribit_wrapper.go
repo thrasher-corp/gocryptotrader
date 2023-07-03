@@ -451,8 +451,8 @@ func (d *Deribit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return accountData, nil
 }
 
-// GetFundingHistory returns funding history, deposits and withdrawals
-func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+// GetAccountFundingHistory returns funding history, deposits and withdrawals
+func (d *Deribit) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	var currencies []CurrencyData
 	var err error
 	if d.Websocket.IsConnected() {
@@ -463,7 +463,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return nil, err
 	}
-	var resp []exchange.FundHistory
+	var resp []exchange.FundingHistory
 	for x := range currencies {
 		var deposits *DepositsData
 		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -475,7 +475,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			return nil, err
 		}
 		for y := range deposits.Data {
-			resp = append(resp, exchange.FundHistory{
+			resp = append(resp, exchange.FundingHistory{
 				ExchangeName:    d.Name,
 				Status:          deposits.Data[y].State,
 				TransferID:      deposits.Data[y].TransactionID,
@@ -496,7 +496,7 @@ func (d *Deribit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			return nil, err
 		}
 		for z := range withdrawalData.Data {
-			resp = append(resp, exchange.FundHistory{
+			resp = append(resp, exchange.FundingHistory{
 				ExchangeName:    d.Name,
 				Status:          withdrawalData.Data[z].State,
 				TransferID:      withdrawalData.Data[z].TransactionID,
@@ -781,8 +781,8 @@ func (d *Deribit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (d *Deribit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+func (d *Deribit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -818,10 +818,9 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var resp order.Detail
+func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if !d.SupportsAsset(assetType) {
-		return resp, fmt.Errorf("%s: orderType %v is not valid", d.Name, assetType)
+		return nil, fmt.Errorf("%s: orderType %v is not valid", d.Name, assetType)
 	}
 	var orderInfo *OrderData
 	var err error
@@ -831,7 +830,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 		orderInfo, err = d.GetOrderState(ctx, orderID)
 	}
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	orderSide := order.Sell
 	if orderInfo.Direction == sideBUY {
@@ -839,12 +838,12 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 	}
 	orderType, err := order.StringToOrderType(orderInfo.OrderType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	var pair currency.Pair
 	pair, err = currency.NewPairFromString(orderInfo.InstrumentName)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	var orderStatus order.Status
 	if orderInfo.OrderState == "untriggered" {
@@ -852,10 +851,10 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 	} else {
 		orderStatus, err = order.StringToOrderStatus(orderInfo.OrderState)
 		if err != nil {
-			return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
+			return nil, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
 		}
 	}
-	resp = order.Detail{
+	return &order.Detail{
 		AssetType:       assetType,
 		Exchange:        d.Name,
 		PostOnly:        orderInfo.PostOnly,
@@ -870,8 +869,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 		Side:            orderSide,
 		Type:            orderType,
 		Status:          orderStatus,
-	}
-	return resp, nil
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -925,7 +923,7 @@ func (d *Deribit) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -1000,7 +998,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}

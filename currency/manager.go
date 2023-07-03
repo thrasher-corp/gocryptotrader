@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -17,9 +18,6 @@ var (
 	ErrPairAlreadyEnabled = errors.New("pair already enabled")
 	// ErrPairNotFound is returned when a currency pair is not found
 	ErrPairNotFound = errors.New("pair not found")
-	// errAssetNotEnabled defines an error for the pairs management system
-	// that declares the asset is not enabled.
-	errAssetNotEnabled = errors.New("asset not enabled")
 	// ErrAssetIsNil is an error when the asset has not been populated by the
 	// configuration
 	ErrAssetIsNil = errors.New("asset is nil")
@@ -30,6 +28,7 @@ var (
 
 	errPairStoreIsNil  = errors.New("pair store is nil")
 	errPairFormatIsNil = errors.New("pair format is nil")
+	errAssetNotFound   = errors.New("asset type not found")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -190,6 +189,42 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	return nil
 }
 
+// EnsureOnePairEnabled not all assets have pairs, eg options
+// search for an asset that does and enable one if none are enabled
+// error if no currency pairs found for an entire exchange
+// returns the asset and pair of a pair if it has been enabled
+func (p *PairsManager) EnsureOnePairEnabled() (Pair, asset.Item, error) {
+	if p == nil {
+		return EMPTYPAIR, asset.Empty, common.ErrNilPointer
+	}
+	p.m.Lock()
+	defer p.m.Unlock()
+	for _, v := range p.Pairs {
+		if v.AssetEnabled == nil ||
+			!*v.AssetEnabled ||
+			len(v.Available) == 0 {
+			continue
+		}
+		if len(v.Enabled) > 0 {
+			return EMPTYPAIR, asset.Empty, nil
+		}
+	}
+	for k, v := range p.Pairs {
+		if v.AssetEnabled == nil ||
+			!*v.AssetEnabled ||
+			len(v.Available) == 0 {
+			continue
+		}
+		rp, err := v.Available.GetRandomPair()
+		if err != nil {
+			return EMPTYPAIR, asset.Empty, err
+		}
+		p.Pairs[k].Enabled = v.Enabled.Add(rp)
+		return rp, k, nil
+	}
+	return EMPTYPAIR, asset.Empty, ErrCurrencyPairsEmpty
+}
+
 // DisablePair removes the pair from the enabled pairs list if found
 func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 	if !a.IsValid() {
@@ -247,6 +282,37 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	return nil
 }
 
+// IsAssetPairEnabled checks if a pair is enabled for an enabled asset type
+func (p *PairsManager) IsAssetPairEnabled(a asset.Item, pair Pair) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	if pair.IsEmpty() {
+		return ErrCurrencyPairEmpty
+	}
+
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	pairStore, err := p.getPairStoreRequiresLock(a)
+	if err != nil {
+		return err
+	}
+
+	if pairStore.AssetEnabled == nil {
+		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
+	}
+	if !*pairStore.AssetEnabled {
+		return fmt.Errorf("%s %w", a, asset.ErrNotEnabled)
+	}
+	if !pairStore.Enabled.Contains(pair, true) {
+		return fmt.Errorf("%s %w", pair, ErrPairNotFound)
+	}
+
+	return nil
+}
+
 // IsAssetEnabled checks to see if an asset is enabled
 func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	if !a.IsValid() {
@@ -266,7 +332,7 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	}
 
 	if !*pairStore.AssetEnabled {
-		return fmt.Errorf("%s %w", a, errAssetNotEnabled)
+		return fmt.Errorf("%s %w", a, asset.ErrNotEnabled)
 	}
 	return nil
 }
@@ -307,7 +373,7 @@ func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error
 
 	pairStore, ok := p.Pairs[a]
 	if !ok {
-		return nil, errors.New("asset type not found")
+		return nil, fmt.Errorf("%w %v", errAssetNotFound, a)
 	}
 
 	if pairStore == nil {

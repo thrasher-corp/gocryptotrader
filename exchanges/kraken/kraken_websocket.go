@@ -788,7 +788,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 		var tSide = order.Buy
 		s, ok := t[3].(string)
 		if !ok {
-			return errors.New("unable to type assert side")
+			return common.GetTypeAssertError("string", t[3], "side")
 		}
 		if s == "s" {
 			tSide = order.Sell
@@ -867,7 +867,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	for i := range askData {
 		asks, ok := askData[i].([]interface{})
 		if !ok {
-			return errors.New("unable to type assert asks")
+			return common.GetTypeAssertError("[]interface{}", askData[i], "asks")
 		}
 		if len(asks) < 3 {
 			return errors.New("unexpected asks length")
@@ -897,7 +897,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	for i := range bidData {
 		bids, ok := bidData[i].([]interface{})
 		if !ok {
-			return errors.New("unable to type assert bids")
+			return common.GetTypeAssertError("[]interface{}", bidData[i], "bids")
 		}
 		if len(bids) < 3 {
 			return errors.New("unexpected bids length")
@@ -1013,7 +1013,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 	for i := range bidData {
 		bids, ok := bidData[i].([]interface{})
 		if !ok {
-			return errors.New("unable to type assert bids")
+			return common.GetTypeAssertError("[]interface{}", bidData[i], "bids")
 		}
 
 		priceStr, ok := bids[0].(string)

@@ -65,6 +65,7 @@ const (
 	huobiStatusError                 = "error"
 	huobiMarginRates                 = "/margin/loan-info"
 	huobiCurrenciesReference         = "/v2/reference/currencies"
+	huobiWithdrawHistory             = "/query/deposit-withdraw"
 )
 
 // HUOBI is the overarching type across this package
@@ -429,20 +430,20 @@ func (h *HUOBI) CancelExistingOrder(ctx context.Context, orderID int64) (int64, 
 	return resp.OrderID, err
 }
 
-// CancelOrderBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOrderBatch(ctx context.Context, _ []int64) ([]CancelOrderBatch, error) {
-	type response struct {
+// CancelOrderBatch cancels a batch of orders
+func (h *HUOBI) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderIDs []string) (*CancelOrderBatch, error) {
+	resp := struct {
 		Response
-		Data []CancelOrderBatch `json:"data"`
+		Data *CancelOrderBatch `json:"data"`
+	}{}
+	data := struct {
+		ClientOrderIDs []string `json:"client-order-ids"`
+		OrderIDs       []string `json:"order-ids"`
+	}{
+		ClientOrderIDs: clientOrderIDs,
+		OrderIDs:       orderIDs,
 	}
-
-	var result response
-	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiOrderCancelBatch, url.Values{}, nil, &result, false)
-
-	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
-	}
-	return result.Data, err
+	return resp.Data, h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiOrderCancelBatch, nil, data, &resp, false)
 }
 
 // CancelOpenOrdersBatch cancels a batch of orders -- to-do
@@ -815,6 +816,26 @@ func (h *HUOBI) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) 
 	return resp.WithdrawQuota, nil
 }
 
+// SearchForExistedWithdrawsAndDeposits returns withdrawal and deposit data
+func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit int64) (WithdrawalHistory, error) {
+	var resp WithdrawalHistory
+	vals := url.Values{}
+	vals.Set("type", transferType)
+	if !c.IsEmpty() {
+		vals.Set("currency", c.Lower().String())
+	}
+	if direction != "" {
+		vals.Set("direction", direction)
+	}
+	if fromID > 0 {
+		vals.Set("from", strconv.FormatInt(fromID, 10))
+	}
+	if limit > 0 {
+		vals.Set("size", strconv.FormatInt(limit, 10))
+	}
+	return resp, h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiWithdrawHistory, vals, nil, &resp, false)
+}
+
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
 	endpoint, err := h.API.Endpoints.GetURL(ep)
@@ -834,7 +855,7 @@ func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 	err = h.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -855,6 +876,7 @@ func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
 func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}, isVersion2API bool) error {
+	var err error
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -916,14 +938,13 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 			Headers:       headers,
 			Body:          bytes.NewReader(body),
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       h.Verbose,
 			HTTPDebugging: h.HTTPDebugging,
 			HTTPRecording: h.HTTPRecording,
 		}, nil
 	}
 
-	err = h.SendPayload(ctx, request.Unset, newRequest)
+	err = h.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -932,18 +953,22 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 		var errCap ResponseV2
 		if err = json.Unmarshal(interim, &errCap); err == nil {
 			if errCap.Code != 200 && errCap.Message != "" {
-				return fmt.Errorf("error code: %v error message: %s", errCap.Code, errCap.Message)
+				return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.Code, errCap.Message)
 			}
 		}
 	} else {
 		var errCap Response
 		if err = json.Unmarshal(interim, &errCap); err == nil {
 			if errCap.Status == huobiStatusError && errCap.ErrorMessage != "" {
-				return fmt.Errorf("error code: %v error message: %s", errCap.ErrorCode, errCap.ErrorMessage)
+				return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.ErrorCode, errCap.ErrorMessage)
 			}
 		}
 	}
-	return json.Unmarshal(interim, result)
+	err = json.Unmarshal(interim, result)
+	if err != nil {
+		return common.AppendError(err, request.ErrAuthRequestFailed)
+	}
+	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction

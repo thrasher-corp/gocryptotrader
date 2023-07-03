@@ -716,7 +716,7 @@ func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl requ
 			HTTPDebugging: d.HTTPDebugging,
 			HTTPRecording: d.HTTPRecording,
 		}, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // GetAccountSummary gets account summary data for the requested instrument
@@ -2121,14 +2121,13 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),
 		Headers:       headers,
 		Result:        &tempData,
-		AuthRequest:   true,
 		Verbose:       d.Verbose,
 		HTTPDebugging: d.HTTPDebugging,
 		HTTPRecording: d.HTTPRecording,
 	}
 	err = d.SendPayload(context.Background(), epl, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

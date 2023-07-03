@@ -101,7 +101,7 @@ func (y *Yobit) GetAccountInformation(ctx context.Context) (AccountInfo, error) 
 		return result, err
 	}
 	if result.Error != "" {
-		return result, errors.New(result.Error)
+		return result, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
 	}
 	return result, nil
 }
@@ -121,7 +121,7 @@ func (y *Yobit) Trade(ctx context.Context, pair, orderType string, amount, price
 		return int64(result.OrderID), err
 	}
 	if result.Error != "" {
-		return int64(result.OrderID), errors.New(result.Error)
+		return -1, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
 	}
 	return int64(result.OrderID), nil
 }
@@ -158,7 +158,7 @@ func (y *Yobit) CancelExistingOrder(ctx context.Context, orderID int64) error {
 		return err
 	}
 	if result.Error != "" {
-		return errors.New(result.Error)
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
 	}
 	return nil
 }
@@ -182,7 +182,7 @@ func (y *Yobit) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, sin
 		return nil, err
 	}
 	if result.Success == 0 {
-		return nil, errors.New(result.Error)
+		return nil, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
 	}
 
 	return result.Data, nil
@@ -206,7 +206,7 @@ func (y *Yobit) GetCryptoDepositAddress(ctx context.Context, coin string, create
 		return nil, err
 	}
 	if result.Success != 1 {
-		return nil, errors.New(result.Error)
+		return nil, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
 	}
 
 	return &result, nil
@@ -226,7 +226,7 @@ func (y *Yobit) WithdrawCoinsToAddress(ctx context.Context, coin string, amount 
 		return result, err
 	}
 	if result.Error != "" {
-		return result, errors.New(result.Error)
+		return WithdrawCoinsToAddress{}, fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Error)
 	}
 	return result, nil
 }
@@ -284,7 +284,7 @@ func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 	return y.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -326,13 +326,12 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 			Headers:       headers,
 			Body:          strings.NewReader(encoded),
 			Result:        result,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       y.Verbose,
 			HTTPDebugging: y.HTTPDebugging,
 			HTTPRecording: y.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

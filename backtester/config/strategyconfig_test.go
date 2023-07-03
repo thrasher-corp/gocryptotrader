@@ -479,7 +479,7 @@ func TestReadStrategyConfigFromFile(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCAAPICandles",
@@ -537,7 +537,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 
 func TestGenerateConfigForPluginStrategy(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExamplePluginStrategy",
@@ -598,7 +598,7 @@ func TestGenerateConfigForPluginStrategy(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCAAPICandlesExchangeLevelFunding",
@@ -676,7 +676,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 
 func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCAAPITrades",
@@ -743,7 +743,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCAAPICandlesMultipleCurrencies",
@@ -814,7 +814,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 
 func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCAAPICandlesSimultaneousProcessing",
@@ -886,7 +886,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 
 func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCALiveCandles",
@@ -956,7 +956,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 
 func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
@@ -1019,7 +1019,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 
 func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
 	cfg := Config{
@@ -1077,7 +1077,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 
 func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
 	cfg := Config{
@@ -1130,7 +1130,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 
 func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyDCADatabaseCandles",
@@ -1197,7 +1197,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 
 func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleStrategyTop2Bottom2",
@@ -1325,7 +1325,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 
 func TestGenerateBinanceCashAndCarryStrategy(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleCashAndCarry",
@@ -1398,7 +1398,7 @@ func TestGenerateBinanceCashAndCarryStrategy(t *testing.T) {
 
 func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 	if !saveConfig {
-		t.Skip()
+		t.Skip("saveConfig false, skipping")
 	}
 	cfg := Config{
 		Nickname: "ExampleBinanceLiveCashAndCarry",

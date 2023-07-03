@@ -135,6 +135,11 @@ func (i *ItBit) Run(_ context.Context) {
 	}
 }
 
+// GetServerTime returns the current exchange server time.
+func (i *ItBit) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
+}
+
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (i *ItBit) FetchTradablePairs(_ context.Context, _ asset.Item) (currency.Pairs, error) {
 	return nil, common.ErrFunctionNotSupported
@@ -153,12 +158,12 @@ func (i *ItBit) UpdateTickers(_ context.Context, _ asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (i *ItBit) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	fpair, err := i.FormatExchangeCurrency(p, a)
+	fPair, err := i.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
-	tick, err := i.GetTicker(ctx, fpair.String())
+	tick, err := i.GetTicker(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +207,12 @@ func (i *ItBit) FetchOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := i.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:         i.Name,
 		Pair:             p,
@@ -209,12 +220,12 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		PriceDuplication: true,
 		VerifyOrderbook:  i.CanVerifyOrderbook,
 	}
-	fpair, err := i.FormatExchangeCurrency(p, assetType)
+	fPair, err := i.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	orderbookNew, err := i.GetOrderbook(ctx, fpair.String())
+	orderbookNew, err := i.GetOrderbook(ctx, fPair.String())
 	if err != nil {
 		return book, err
 	}
@@ -323,14 +334,14 @@ func (i *ItBit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (i *ItBit) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (i *ItBit) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (i *ItBit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (i *ItBit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -445,8 +456,8 @@ func (i *ItBit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (i *ItBit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (i *ItBit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -480,14 +491,13 @@ func (i *ItBit) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (i *ItBit) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (i *ItBit) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
 // NOTE: This has not been implemented due to the fact you need to generate a
-// specific wallet ID and they restrict the amount of deposit addresses you can
+// specific wallet ID, and they restrict the amount of deposit addresses you can
 // request limiting them to 2.
 func (i *ItBit) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
 	return nil, common.ErrNotYetImplemented
@@ -524,7 +534,7 @@ func (i *ItBit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -578,7 +588,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			Side:            side,
 			Amount:          allOrders[j].Amount,
 			ExecutedAmount:  allOrders[j].AmountFilled,
-			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
+			RemainingAmount: allOrders[j].Amount - allOrders[j].AmountFilled,
 			Exchange:        i.Name,
 			Date:            orderDate,
 			Pair:            symbol,
@@ -589,7 +599,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

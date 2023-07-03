@@ -26,6 +26,8 @@ const (
 var (
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
+	// ErrAlreadyDisabled is returned when you double-disable the websocket
+	ErrAlreadyDisabled = errors.New("websocket already disabled")
 	// ErrNotConnected defines an error when websocket is not connected
 	ErrNotConnected = errors.New("websocket is not connected")
 
@@ -285,8 +287,7 @@ func (w *Websocket) Connect() error {
 // Disable disables the exchange websocket protocol
 func (w *Websocket) Disable() error {
 	if !w.IsEnabled() {
-		return fmt.Errorf("websocket is already disabled for exchange %s",
-			w.exchangeName)
+		return fmt.Errorf("%w for exchange '%s'", ErrAlreadyDisabled, w.exchangeName)
 	}
 
 	w.setEnabled(false)

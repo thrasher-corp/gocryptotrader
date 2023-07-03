@@ -372,14 +372,14 @@ type SwapMarketDepthData struct {
 // SwapKlineData stores kline data for perpetual swaps
 type SwapKlineData struct {
 	Data []struct {
-		Volume float64 `json:"vol"`
-		Close  float64 `json:"close"`
-		Count  float64 `json:"count"`
-		High   float64 `json:"high"`
-		ID     int64   `json:"id"`
-		Low    float64 `json:"low"`
-		Open   float64 `json:"open"`
-		Amount float64 `json:"amount"`
+		Volume      float64 `json:"vol"`
+		Close       float64 `json:"close"`
+		Count       float64 `json:"count"`
+		High        float64 `json:"high"`
+		IDTimestamp int64   `json:"id"`
+		Low         float64 `json:"low"`
+		Open        float64 `json:"open"`
+		Amount      float64 `json:"amount"`
 	} `json:"data"`
 }
 
@@ -417,18 +417,18 @@ type LastTradeData struct {
 
 // BatchTradesData stores batch trades for a given swap contract
 type BatchTradesData struct {
-	Channel string `json:"ch"`
-	Data    []struct {
-		ID        int64 `json:"id"`
-		Timestamp int64 `json:"ts"`
-		Data      []struct {
-			Amount    float64 `json:"amount"`
-			Direction string  `json:"direction"`
-			ID        int64   `json:"id"`
-			Price     float64 `json:"price"`
-			Timestamp int64   `json:"ts"`
-		} `json:"data"`
-	} `json:"data"`
+	ID        int64                      `json:"id"`
+	Timestamp int64                      `json:"ts"`
+	Data      []CoinMarginedFuturesTrade `json:"data"`
+}
+
+// CoinMarginedFuturesTrade holds coinmarginedfutures trade data
+type CoinMarginedFuturesTrade struct {
+	Amount    float64 `json:"amount"`
+	Direction string  `json:"direction"`
+	ID        int64   `json:"id"`
+	Price     float64 `json:"price"`
+	Timestamp int64   `json:"ts"`
 }
 
 // InsuranceAndClawbackData stores insurance fund's and clawback rate's data

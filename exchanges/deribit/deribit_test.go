@@ -2213,7 +2213,7 @@ func TestFetchAccountInfo(t *testing.T) {
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	if _, err := d.GetFundingHistory(context.Background()); err != nil {
+	if _, err := d.GetAccountFundingHistory(context.Background()); err != nil {
 		t.Error(err)
 	}
 }
@@ -2344,7 +2344,7 @@ func TestWithdraw(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type: order.AnyType, AssetType: asset.Futures,
 		Side: order.AnySide, Pairs: currency.Pairs{futuresTradablePair},
 	}
@@ -2376,32 +2376,32 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	if _, err := d.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	if _, err := d.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type: order.AnyType, AssetType: asset.Futures,
 		Side: order.AnySide, Pairs: []currency.Pair{futuresTradablePair},
 	}); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	if _, err := d.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type: order.AnyType, AssetType: asset.Spot,
 		Side: order.AnySide, Pairs: []currency.Pair{spotTradablePair},
 	}); err != nil {
 		t.Error(err)
 	}
 	sleepUntilTradablePairsUpdated()
-	if _, err := d.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	if _, err := d.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type: order.AnyType, AssetType: asset.Options,
 		Side: order.AnySide, Pairs: []currency.Pair{optionsTradablePair},
 	}); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	if _, err := d.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type: order.AnyType, AssetType: asset.FutureCombo,
 		Side: order.AnySide, Pairs: []currency.Pair{futureComboTradablePair},
 	}); err != nil {
 		t.Error(err)
 	}
-	if _, err := d.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	if _, err := d.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type: order.AnyType, AssetType: asset.OptionCombo,
 		Side: order.AnySide, Pairs: []currency.Pair{optionComboTradablePair},
 	}); err != nil {

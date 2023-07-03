@@ -690,7 +690,7 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 func wsAuth(client *websocketClient, data interface{}) error {
 	d, ok := data.([]byte)
 	if !ok {
-		return errors.New("unable to type assert data")
+		return common.GetTypeAssertError("[]byte", data)
 	}
 
 	wsResp := WebsocketEventResponse{
@@ -753,7 +753,7 @@ func wsGetConfig(client *websocketClient, _ interface{}) error {
 func wsSaveConfig(client *websocketClient, data interface{}) error {
 	d, ok := data.([]byte)
 	if !ok {
-		return errors.New("unable to type assert data")
+		return common.GetTypeAssertError("[]byte", data)
 	}
 
 	wsResp := WebsocketEventResponse{
@@ -814,7 +814,7 @@ func wsGetTickers(client *websocketClient, _ interface{}) error {
 func wsGetTicker(client *websocketClient, data interface{}) error {
 	d, ok := data.([]byte)
 	if !ok {
-		return errors.New("unable to type assert data")
+		return common.GetTypeAssertError("[]byte", data)
 	}
 
 	wsResp := WebsocketEventResponse{
@@ -874,7 +874,7 @@ func wsGetOrderbooks(client *websocketClient, _ interface{}) error {
 func wsGetOrderbook(client *websocketClient, data interface{}) error {
 	d, ok := data.([]byte)
 	if !ok {
-		return errors.New("unable to type assert data")
+		return common.GetTypeAssertError("[]byte", data)
 	}
 
 	wsResp := WebsocketEventResponse{

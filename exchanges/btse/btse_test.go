@@ -27,10 +27,10 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	testSPOTPair            = "BTC-USD"
-	testFUTURESPair         = "BTCPFC"
 )
 
 var b = &BTSE{}
+var testFUTURESPair = currency.NewPair(currency.ENJ, currency.PFC)
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -49,6 +49,14 @@ func TestMain(m *testing.M) {
 	btseConfig.API.Credentials.Secret = apiSecret
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(btseConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = b.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = b.CurrencyPairs.EnablePair(asset.Futures, testFUTURESPair)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,6 +98,11 @@ func TestGetMarketsSummary(t *testing.T) {
 	if len(ret) != 1 {
 		t.Errorf("expected only one result when requesting BTC-USD data received: %v", len(ret))
 	}
+
+	_, err = b.GetMarketSummary(context.Background(), "", false)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestFetchOrderBook(t *testing.T) {
@@ -99,7 +112,7 @@ func TestFetchOrderBook(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.FetchOrderBook(context.Background(), testFUTURESPair, 0, 1, 1, false)
+	_, err = b.FetchOrderBook(context.Background(), testFUTURESPair.String(), 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -122,13 +135,9 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := currency.NewPairFromString(testFUTURESPair)
+	_, err = b.UpdateOrderbook(context.Background(), testFUTURESPair, asset.Futures)
 	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.UpdateOrderbook(context.Background(), f, asset.Futures)
-	if err != nil {
-		if !errors.Is(err, common.ErrNotYetImplemented) {
+		if !errors.Is(err, nil) {
 			t.Fatal(err)
 		}
 	}
@@ -144,18 +153,34 @@ func TestFetchOrderBookL2(t *testing.T) {
 
 func TestOHLCV(t *testing.T) {
 	t.Parallel()
-	_, err := b.OHLCV(context.Background(),
+	_, err := b.GetOHLCV(context.Background(),
 		testSPOTPair,
 		time.Now().AddDate(0, 0, -1),
-		time.Now(), 60)
+		time.Now(),
+		60,
+		asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.OHLCV(context.Background(),
-		testSPOTPair, time.Now(), time.Now().AddDate(0, 0, -1), 60)
+	_, err = b.GetOHLCV(context.Background(),
+		testSPOTPair,
+		time.Now(),
+		time.Now().AddDate(0, 0, -1),
+		60,
+		asset.Spot)
 	if err == nil {
 		t.Fatal("expected error if start is after end date")
+	}
+
+	_, err = b.GetOHLCV(context.Background(),
+		testFUTURESPair.String(),
+		time.Now().AddDate(0, 0, -1),
+		time.Now(),
+		60,
+		asset.Futures)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -181,12 +206,11 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	start := time.Now().AddDate(0, 0, -1)
+	start := time.Now().AddDate(0, 0, -3)
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, time.Now())
 	if err != nil {
 		t.Fatal(err)
@@ -201,8 +225,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	start := time.Now().AddDate(0, 0, -1)
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, start, time.Now())
-	if !errors.Is(err, common.ErrNotYetImplemented) {
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneHour, start, time.Now())
+	if !errors.Is(err, nil) {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricCandlesExtended(context.Background(), testFUTURESPair, asset.Futures, kline.OneHour, start, time.Now())
+	if !errors.Is(err, nil) {
 		t.Fatal(err)
 	}
 }
@@ -226,7 +254,7 @@ func TestGetTrades(t *testing.T) {
 	}
 
 	_, err = b.GetTrades(context.Background(),
-		testFUTURESPair,
+		testFUTURESPair.String(),
 		time.Now().AddDate(0, 0, -1), time.Now(),
 		0, 0, 50, false, false)
 	if err != nil {
@@ -400,7 +428,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Pairs: []currency.Pair{
 			{
 				Delimiter: "-",
@@ -428,7 +456,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -798,42 +826,42 @@ func TestWithinLimits(t *testing.T) {
 	t.Parallel()
 	seedOrderSizeLimitMap()
 	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
-	v := b.withinLimits(p, 1.0)
-	if !v {
-		t.Fatal("expected valid limits")
+	err := b.withinLimits(p, 1.0)
+	if err != nil {
+		t.Error(err)
 	}
-	v = b.withinLimits(p, 5.0000001)
-	if v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 5.0000001)
+	if err != nil {
+		t.Error(err)
 	}
-	v = b.withinLimits(p, 100)
-	if !v {
-		t.Fatal("expected valid limits")
+	err = b.withinLimits(p, 100)
+	if err != nil {
+		t.Error(err)
 	}
-	v = b.withinLimits(p, 10.1)
-	if v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 10.1)
+	if err != nil {
+		t.Error(err)
 	}
 
 	p.Base = currency.LTC
-	v = b.withinLimits(p, 10)
-	if v {
-		t.Fatal("expected valid limits")
+	err = b.withinLimits(p, 10)
+	if err != nil {
+		t.Error(err)
 	}
 
-	v = b.withinLimits(p, 0.009)
-	if !v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 0.009)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Error(err)
 	}
 	p.Base = currency.BTC
-	v = b.withinLimits(p, 10)
-	if v {
-		t.Fatal("expected valid limits")
+	err = b.withinLimits(p, 10)
+	if err != nil {
+		t.Error(err)
 	}
 
-	v = b.withinLimits(p, 0.001)
-	if !v {
-		t.Fatal("expected invalid limits")
+	err = b.withinLimits(p, 0.001)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Error(err)
 	}
 }
 
@@ -847,11 +875,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	currencyPair, err = currency.NewPairFromString(testFUTURESPair)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetRecentTrades(context.Background(), currencyPair, asset.Futures)
+	_, err = b.GetRecentTrades(context.Background(), testFUTURESPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}

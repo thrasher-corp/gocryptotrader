@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -101,7 +102,7 @@ func (m *WithdrawManager) WithdrawalEventByID(id string) (*withdraw.Response, er
 	if v := withdraw.Cache.Get(id); v != nil {
 		wdResp, ok := v.(*withdraw.Response)
 		if !ok {
-			return nil, errors.New("unable to type assert withdraw.Response")
+			return nil, common.GetTypeAssertError("*withdraw.Response", v)
 		}
 		return wdResp, nil
 	}

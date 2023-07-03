@@ -64,7 +64,7 @@ func UpdateCurrencies(c Currencies, isCryptocurrency bool) {
 	storage.UpdateEnabledFiatCurrencies(c)
 }
 
-// ConvertFiat converts an fiat amount from one currency to another
+// ConvertFiat converts a fiat amount from one currency to another
 func ConvertFiat(amount float64, from, to Code) (float64, error) {
 	return storage.ConvertCurrency(amount, from, to)
 }
