@@ -478,7 +478,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			return nil, err
 		}
 		var t time.Time
-		t, err = time.Parse("2006-01-02 15:04:05", tradeData.Data[i].TransactionDate)
+		t, err = time.Parse(common.SimpleTimeFormat, tradeData.Data[i].TransactionDate)
 		if err != nil {
 			return nil, err
 		}
