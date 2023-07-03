@@ -509,7 +509,7 @@ allTrades:
 		}
 		for i := range tradeData {
 			var tt time.Time
-			tt, err = time.Parse(common.SimpleTimeFormat, tradeData[i].Date)
+			tt, err = time.Parse(time.DateTime, tradeData[i].Date)
 			if err != nil {
 				return nil, err
 			}
@@ -669,7 +669,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return orderInfo, err
 		}
 		tradeHistory.TID = strconv.FormatInt(trades[i].GlobalTradeID, 10)
-		tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, trades[i].Date)
+		tradeHistory.Timestamp, err = time.Parse(time.DateTime, trades[i].Date)
 		if err != nil {
 			return orderInfo, err
 		}
@@ -705,7 +705,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return orderInfo, err
 	}
 
-	orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, resp.Date)
+	orderInfo.Date, err = time.Parse(time.DateTime, resp.Date)
 	if err != nil {
 		return orderInfo, err
 	}
@@ -857,7 +857,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 				return nil, err
 			}
 			var orderDate time.Time
-			orderDate, err = time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
+			orderDate, err = time.Parse(time.DateTime, resp.Data[key][i].Date)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -915,7 +915,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			if err != nil {
 				return nil, err
 			}
-			orderDate, err := time.Parse(common.SimpleTimeFormat,
+			orderDate, err := time.Parse(time.DateTime,
 				resp.Data[key][i].Date)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
