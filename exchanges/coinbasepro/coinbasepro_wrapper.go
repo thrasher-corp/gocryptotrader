@@ -2,7 +2,6 @@ package coinbasepro
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -312,7 +311,11 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	if err != nil {
 		return err
 	}
-	return c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return c.EnsureOnePairEnabled()
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -375,16 +378,16 @@ func (c *CoinbasePro) UpdateTickers(_ context.Context, _ asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	fpair, err := c.FormatExchangeCurrency(p, a)
+	fPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
-	tick, err := c.GetTicker(ctx, fpair.String())
+	tick, err := c.GetTicker(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
-	stats, err := c.GetStats(ctx, fpair.String())
+	stats, err := c.GetStats(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -430,25 +433,31 @@ func (c *CoinbasePro) FetchOrderbook(ctx context.Context, p currency.Pair, asset
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        c.Name,
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	fPair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	orderbookNew, err := c.GetOrderbook(ctx, fpair.String(), 2)
+	orderbookNew, err := c.GetOrderbook(ctx, fPair.String(), 2)
 	if err != nil {
 		return book, err
 	}
 
 	obNew, ok := orderbookNew.(OrderbookL1L2)
 	if !ok {
-		return book, errors.New("unable to type assert orderbook data")
+		return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
 	}
 
 	book.Bids = make(orderbook.Items, len(obNew.Bids))
@@ -473,15 +482,17 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	return orderbook.Get(c.Name, p, assetType)
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *CoinbasePro) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (c *CoinbasePro) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *CoinbasePro) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (c *CoinbasePro) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	// while fetching withdrawal history is possible, the API response lacks any useful information
+	// like the currency withdrawn and thus is unsupported. If that position changes, use GetTransfers(...)
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -535,7 +546,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		return nil, err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fPair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -548,7 +559,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			s.Amount,
 			s.QuoteAmount,
 			s.Side.Lower(),
-			fpair.String(),
+			fPair.String(),
 			"")
 	case order.Limit:
 		timeInForce := CoinbaseRequestParamsTimeGTC
@@ -562,11 +573,11 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			s.Side.Lower(),
 			timeInForce,
 			"",
-			fpair.String(),
+			fPair.String(),
 			"",
 			false)
 	default:
-		err = errors.New("order type not supported")
+		err = fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
 	if err != nil {
 		return nil, err
@@ -589,8 +600,8 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *CoinbasePro) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (c *CoinbasePro) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -601,26 +612,26 @@ func (c *CoinbasePro) CancelAllOrders(ctx context.Context, _ *order.Cancel) (ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	genOrderDetail, err := c.GetOrder(ctx, orderID)
 	if err != nil {
-		return order.Detail{}, fmt.Errorf("error retrieving order %s : %w", orderID, err)
+		return nil, fmt.Errorf("error retrieving order %s : %w", orderID, err)
 	}
 	orderStatus, err := order.StringToOrderStatus(genOrderDetail.Status)
 	if err != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order status: %w", err)
+		return nil, fmt.Errorf("error parsing order status: %w", err)
 	}
 	orderType, err := order.StringToOrderType(genOrderDetail.Type)
 	if err != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order type: %w", err)
+		return nil, fmt.Errorf("error parsing order type: %w", err)
 	}
 	orderSide, err := order.StringToOrderSide(genOrderDetail.Side)
 	if err != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order side: %w", err)
+		return nil, fmt.Errorf("error parsing order side: %w", err)
 	}
 	pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
 	if err != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order side: %w", err)
+		return nil, fmt.Errorf("error parsing order pair: %w", err)
 	}
 
 	response := order.Detail{
@@ -639,13 +650,13 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ curren
 	}
 	fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
 	if err != nil {
-		return order.Detail{}, fmt.Errorf("error retrieving the order fills: %w", err)
+		return nil, fmt.Errorf("error retrieving the order fills: %w", err)
 	}
 	for i := range fillResponse {
 		var fillSide order.Side
 		fillSide, err = order.StringToOrderSide(fillResponse[i].Side)
 		if err != nil {
-			return order.Detail{}, fmt.Errorf("error parsing fill Side: %w", err)
+			return nil, fmt.Errorf("error parsing order Side: %w", err)
 		}
 		response.Trades = append(response.Trades, order.TradeHistory{
 			Timestamp: fillResponse[i].CreatedAt,
@@ -658,7 +669,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ curren
 			Fee:       fillResponse[i].Fee,
 		})
 	}
-	return response, nil
+	return &response, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -748,7 +759,7 @@ func (c *CoinbasePro) GetFeeByType(ctx context.Context, feeBuilder *exchange.Fee
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -810,7 +821,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

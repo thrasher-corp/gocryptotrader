@@ -1365,7 +1365,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1379,7 +1379,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1393,7 +1393,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
-	_, err := o.GetFundingHistory(context.Background())
+	_, err := o.GetAccountFundingHistory(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1446,27 +1446,6 @@ func TestCancelOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 	if err := o.CancelOrder(context.Background(), orderCancellation); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCancelBatchOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
-	var orderCancellationParams = []order.Cancel{
-		{
-			OrderID:   "1",
-			Pair:      spotTradablePair,
-			AssetType: asset.Spot,
-		},
-		{
-			OrderID:   "2",
-			Pair:      spotTradablePair,
-			AssetType: asset.Spot,
-		},
-	}
-	_, err := o.CancelBatchOrders(context.Background(), orderCancellationParams)
-	if err != nil {
 		t.Error(err)
 	}
 }
@@ -1893,6 +1872,27 @@ func TestGetAlgoOrderList(t *testing.T) {
 		t.Errorf("expected %v, got %v", errOrderTypeRequired, err)
 	}
 	_, err = o.GetAlgoOrderList(context.Background(), "oco", "", "", "", "", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
+	var orderCancellationParams = []order.Cancel{
+		{
+			OrderID:   "1",
+			Pair:      spotTradablePair,
+			AssetType: asset.Spot,
+		},
+		{
+			OrderID:   "2",
+			Pair:      spotTradablePair,
+			AssetType: asset.Spot,
+		},
+	}
+	_, err := o.CancelBatchOrders(context.Background(), orderCancellationParams)
 	if err != nil {
 		t.Error(err)
 	}

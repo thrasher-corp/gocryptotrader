@@ -115,7 +115,7 @@ func (c *CurrencyStateManager) monitor() {
 				wg.Add(1)
 				go c.update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
 			}
-			wg.Wait() // This causes some variability in the timer due to
+			wg.Wait() // This causes some variability in the timer due to the
 			// longest length of request time. Can do time.Ticker but don't
 			// want routines to stack behind, this is more uniform.
 			timer.Reset(c.sleep)

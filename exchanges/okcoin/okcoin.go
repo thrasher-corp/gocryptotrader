@@ -1662,6 +1662,10 @@ func (o *Okcoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 	}{
 		Data: result,
 	}
+	rType := request.AuthType(request.UnauthenticatedRequest)
+	if authenticated {
+		rType = request.AuthenticatedRequest
+	}
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
 		utcTime := time.Now().UTC().Format(time.RFC3339)
@@ -1703,14 +1707,13 @@ func (o *Okcoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &intermediary,
-			AuthRequest:   authenticated,
 			Verbose:       o.Verbose,
 			HTTPDebugging: o.HTTPDebugging,
 			HTTPRecording: o.HTTPRecording,
 		}, nil
 	}
 
-	err = o.SendPayload(ctx, epl, newRequest)
+	err = o.SendPayload(ctx, epl, newRequest, rType)
 	if err != nil {
 		return err
 	}

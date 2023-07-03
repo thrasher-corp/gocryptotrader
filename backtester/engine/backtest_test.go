@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -73,20 +74,14 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 
-	const testExchange = "bybit"
+	const testExchange = "bitfinex"
 
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
 			ExchangeName: testExchange,
 			Base:         currency.BTC,
-			Quote:        currency.USDT,
+			Quote:        currency.USD,
 			Asset:        asset.Spot,
-		},
-		{
-			ExchangeName: testExchange,
-			Base:         currency.BTC,
-			Quote:        currency.NewCode("0624"),
-			Asset:        asset.USDTMarginedFutures,
 		},
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
@@ -119,33 +114,26 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 
-	cfg.DataSettings.APIData.StartDate = time.Now().Truncate(gctkline.OneMin.Duration()).Add(-gctkline.OneMin.Duration())
-	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration())
+	cfg.DataSettings.APIData.StartDate = time.Now().Truncate(gctkline.OneMin.Duration()).Add(-gctkline.OneMin.Duration() * 10)
+	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration() * 5)
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	err = bt.SetupFromConfig(cfg, "", "", false)
-	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
+	if !errors.Is(err, holdings.ErrInitialFundsZero) {
+		t.Errorf("received: %v, expected: %v", err, holdings.ErrInitialFundsZero)
 	}
 	cfg.FundingSettings.UseExchangeLevelFunding = true
 	cfg.FundingSettings.ExchangeLevelFunding = []config.ExchangeLevelFunding{
 		{
 			ExchangeName: testExchange,
 			Asset:        asset.Spot,
-			Currency:     currency.BTC,
-			InitialFunds: leet,
-			TransferFee:  leet,
-		},
-		{
-			ExchangeName: testExchange,
-			Asset:        asset.USDTMarginedFutures,
-			Currency:     currency.BTC,
+			Currency:     currency.USD,
 			InitialFunds: leet,
 			TransferFee:  leet,
 		},
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
-	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -1926,7 +1914,7 @@ func TestNewBacktesterFromConfigs(t *testing.T) {
 
 	bt, err := NewBacktesterFromConfigs(cfg, dc)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 	if bt.MetaData.DateLoaded.IsZero() {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateLoaded, "a date")

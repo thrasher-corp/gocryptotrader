@@ -806,19 +806,29 @@ func TestParseStartEndDate(t *testing.T) {
 }
 
 func TestGetAssertError(t *testing.T) {
-	err := GetAssertError("*[]string", float64(0))
+	err := GetTypeAssertError("*[]string", float64(0))
 	if err.Error() != "type assert failure from float64 to *[]string" {
 		t.Fatal(err)
 	}
 
-	err = GetAssertError("<nil>", nil)
+	err = GetTypeAssertError("<nil>", nil)
 	if err.Error() != "type assert failure from <nil> to <nil>" {
 		t.Fatal(err)
 	}
 
-	err = GetAssertError("bruh", struct{}{})
+	err = GetTypeAssertError("bruh", struct{}{})
 	if !errors.Is(err, ErrTypeAssertFailure) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
+	}
+
+	err = GetTypeAssertError("string", struct{}{})
+	if err.Error() != "type assert failure from struct {} to string" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+
+	err = GetTypeAssertError("string", struct{}{}, "bidSize")
+	if err.Error() != "type assert failure from struct {} to string for: bidSize" {
+		t.Errorf("unexpected error message: %v", err)
 	}
 }
 

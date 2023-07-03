@@ -65,7 +65,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			}
 			scriptCtx, ok := objects.ToInterface(args[i]).(*Context)
 			if !ok {
-				return nil, common.GetAssertError("*gct.Context", args[i])
+				return nil, common.GetTypeAssertError("*gct.Context", args[i])
 			}
 
 			scriptDetails, ok := scriptCtx.Value["script"]

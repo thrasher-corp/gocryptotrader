@@ -233,7 +233,7 @@ var (
 		"52905": errors.New("invalid quote price"),
 		"52907": errors.New("order not found"),
 		"52908": errors.New("invalid order ID"),
-		"52909": errors.New("duplicated client order Id"),
+		"52909": errors.New("duplicated client order ID"),
 		"52910": errors.New("service unavailable, please try again later"),
 		"52911": errors.New("RFQ service unavailable, please try again later"),
 		"52912": errors.New("server timeout"),

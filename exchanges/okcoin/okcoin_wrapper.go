@@ -316,6 +316,7 @@ func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		pairs[x] = pair
 	}
+
 	return pairs, nil
 }
 
@@ -372,21 +373,21 @@ func (o *Okcoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return nil
 }
 
+// FetchTicker returns the ticker for a currency pair
+func (o *Okcoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	t, err := ticker.GetTicker(o.Name, p, assetType)
+	if err != nil {
+		return o.UpdateTicker(ctx, p, assetType)
+	}
+	return t, nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *Okcoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if err := o.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(o.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (o *Okcoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerData, err := ticker.GetTicker(o.Name, p, assetType)
-	if err != nil {
-		return o.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerData, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -431,9 +432,9 @@ func (o *Okcoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (o *Okcoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (order.CancelBatchResponse, error) {
+func (o *Okcoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (*order.CancelBatchResponse, error) {
 	var err error
-	cancelBatchResponse := order.CancelBatchResponse{
+	cancelBatchResponse := &order.CancelBatchResponse{
 		Status: make(map[string]string, len(args)),
 	}
 	params := make([]CancelTradeOrderRequest, len(args))
@@ -490,8 +491,11 @@ func (o *Okcoin) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
-	if a != asset.Spot {
-		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !o.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	book := &orderbook.Base{
 		Exchange:        o.Name,
@@ -590,9 +594,9 @@ func (o *Okcoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (o *Okcoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (o *Okcoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	accountDepositHistory, err := o.GetDepositHistory(ctx, currency.EMPTYCODE, "", "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		return nil, err
@@ -601,7 +605,7 @@ func (o *Okcoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, len(accountDepositHistory)+len(accountWithdrawlHistory))
+	resp := make([]exchange.FundingHistory, len(accountDepositHistory)+len(accountWithdrawlHistory))
 	for x := range accountDepositHistory {
 		orderStatus := ""
 		switch accountDepositHistory[x].State {
@@ -618,7 +622,7 @@ func (o *Okcoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 		case "13":
 			orderStatus = "sub-account deposit interception"
 		}
-		resp[x] = exchange.FundHistory{
+		resp[x] = exchange.FundingHistory{
 			Amount:       accountDepositHistory[x].Amount.Float64(),
 			Currency:     accountDepositHistory[x].Currency,
 			ExchangeName: o.Name,
@@ -651,7 +655,7 @@ func (o *Okcoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 		case "5":
 			orderStatus = "awaiting identity verification"
 		}
-		resp[len(accountDepositHistory)+i] = exchange.FundHistory{
+		resp[len(accountDepositHistory)+i] = exchange.FundingHistory{
 			Amount:          accountWithdrawlHistory[i].Amt.Float64(),
 			Currency:        accountWithdrawlHistory[i].Ccy,
 			ExchangeName:    o.Name,
@@ -781,18 +785,20 @@ func (o *Okcoin) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.Canc
 }
 
 // GetOrderInfo returns order information based on order ID
-func (o *Okcoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var resp order.Detail
+func (o *Okcoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if assetType != asset.Spot {
-		return resp, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	}
+	if err := o.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
 	}
 	pair, err := o.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	tradeOrder, err := o.GetPersonalOrderDetail(ctx, pair.String(), orderID, "")
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	status, err := order.StringToOrderStatus(tradeOrder.State)
 	if err != nil {
@@ -805,9 +811,9 @@ func (o *Okcoin) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	}
 	orderType, err := order.StringToOrderType(tradeOrder.OrderType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	return order.Detail{
+	return &order.Detail{
 		Amount:               tradeOrder.Size.Float64(),
 		Pair:                 pair,
 		Exchange:             o.Name,
@@ -887,9 +893,9 @@ func (o *Okcoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *Okcoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	if a != asset.Spot {
-		return nil, fmt.Errorf("%w, asseet: %v", asset.ErrNotSupported, a)
+func (o *Okcoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	if c.IsFiatCurrency() {
+		return nil, fmt.Errorf("%w for fiat currencies %v", common.ErrFunctionNotSupported, c)
 	}
 	withdrawals, err := o.GetWithdrawalHistory(ctx, c, "", "", "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
@@ -935,7 +941,7 @@ func (o *Okcoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *Okcoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (o *Okcoin) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -988,7 +994,7 @@ func (o *Okcoin) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *Okcoin) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (o *Okcoin) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
