@@ -364,7 +364,7 @@ func (dy *DYDX) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, epl 
 	}
 	return dy.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // GetPositions retrieves all current positions for a user by specified query parameters.
@@ -936,13 +936,12 @@ func (dy *DYDX) SendAuthenticatedHTTPRequest(ctx context.Context, endpoint excha
 			Headers:       headers,
 			Body:          body,
 			Result:        result,
-			AuthRequest:   true,
 			Verbose:       dy.Verbose,
 			HTTPDebugging: dy.HTTPDebugging,
 			HTTPRecording: dy.HTTPRecording,
 		}, nil
 	}
-	return dy.SendPayload(ctx, epl, newRequest)
+	return dy.SendPayload(ctx, epl, newRequest, request.AuthenticatedRequest)
 }
 
 // GeneratePublicKeyAndAddress generates a public key and address given private key information.

@@ -485,14 +485,14 @@ type SwapMarketsData struct {
 
 // KlineItem stores a kline item
 type KlineItem struct {
-	ID     int64   `json:"id"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Amount float64 `json:"amount"`
-	Volume float64 `json:"vol"`
-	Count  int     `json:"count"`
+	IDTimestamp int64   `json:"id"`
+	Open        float64 `json:"open"`
+	Close       float64 `json:"close"`
+	Low         float64 `json:"low"`
+	High        float64 `json:"high"`
+	Amount      float64 `json:"amount"`
+	Volume      float64 `json:"vol"`
+	Count       int     `json:"count"`
 }
 
 // CancelOpenOrdersBatch stores open order batch response data
@@ -644,7 +644,7 @@ type AggregatedBalance struct {
 type CancelOrderBatch struct {
 	Success []string `json:"success"`
 	Failed  []struct {
-		OrderID      int64  `json:"order-id,string"`
+		OrderID      string `json:"order-id"`
 		ErrorCode    string `json:"err-code"`
 		ErrorMessage string `json:"err-msg"`
 	} `json:"failed"`
@@ -1227,3 +1227,29 @@ var (
 		"cancelled": 6,
 	}
 )
+
+// WithdrawalHistory holds withdrawal history data
+type WithdrawalHistory struct {
+	Status string           `json:"status"`
+	Data   []WithdrawalData `json:"data"`
+}
+
+// WithdrawalData contains details of a withdrawal
+type WithdrawalData struct {
+	ID              int64         `json:"id"`
+	Type            string        `json:"type"`
+	Currency        currency.Code `json:"currency"`
+	TransactionHash string        `json:"tx-hash"`
+	Chain           string        `json:"chain"`
+	Amount          float64       `json:"amount"`
+	SubType         string        `json:"sub-type"`
+	Address         string        `json:"address"`
+	AddressTag      string        `json:"address-tag"`
+	FromAddressTag  string        `json:"from-addr-tag"`
+	Fee             float64       `json:"fee"`
+	State           string        `json:"state"`
+	ErrorCode       string        `json:"error-code"`
+	ErrorMessage    string        `json:"error-message"`
+	CreatedAt       int64         `json:"created-at"`
+	UpdatedAt       int64         `json:"updated-at"`
+}

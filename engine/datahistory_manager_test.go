@@ -1456,8 +1456,7 @@ func (d dataHistoryJobService) SetRelationshipByNickname(prereq, _ string, statu
 	return nil
 }
 
-func (d dataHistoryJobService) GetByNickName(nickname string) (*datahistoryjob.DataHistoryJob, error) {
-	d.job.Nickname = nickname
+func (d dataHistoryJobService) GetByNickName(_ string) (*datahistoryjob.DataHistoryJob, error) {
 	return d.job, nil
 }
 

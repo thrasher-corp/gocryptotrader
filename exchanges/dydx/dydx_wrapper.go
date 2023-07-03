@@ -407,18 +407,18 @@ func (dy *DYDX) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (dy *DYDX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (dy *DYDX) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	transfers, err := dy.GetTransfers(ctx, "", 0, time.Time{})
 	if err != nil {
 		return nil, err
 	}
-	fundingDatas := make([]exchange.FundHistory, len(transfers.Transfers))
+	fundingDatas := make([]exchange.FundingHistory, len(transfers.Transfers))
 	for x := range transfers.Transfers {
 		switch transfers.Transfers[x].Type {
 		case "DEPOSIT":
-			fundingDatas[x] = exchange.FundHistory{
+			fundingDatas[x] = exchange.FundingHistory{
 				Timestamp:         transfers.Transfers[x].CreatedAt,
 				TransferType:      transfers.Transfers[x].Type,
 				ExchangeName:      dy.Name,
@@ -430,7 +430,7 @@ func (dy *DYDX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 				Currency:          transfers.Transfers[x].CreditAsset,
 			}
 		case "WITHDRAWAL", "FAST_WITHDRAWAL":
-			fundingDatas[x] = exchange.FundHistory{
+			fundingDatas[x] = exchange.FundingHistory{
 				Timestamp:         transfers.Transfers[x].CreatedAt,
 				TransferType:      transfers.Transfers[x].Type,
 				ExchangeName:      dy.Name,
@@ -608,29 +608,29 @@ func (dy *DYDX) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (dy *DYDX) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	var resp order.CancelBatchResponse
-	resp.Status = map[string]string{}
+func (dy *DYDX) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
 	zeroValue := order.Cancel{}
 	var err error
+	var resp order.CancelBatchResponse
+	resp.Status = map[string]string{}
 	for x := range orders {
 		if orders[x] == zeroValue {
-			return resp, fmt.Errorf("%w, invalid cancel order", common.ErrZeroValue)
+			return nil, fmt.Errorf("%w, invalid cancel order", common.ErrZeroValue)
 		}
 		if !dy.SupportsAsset(orders[x].AssetType) {
-			return resp, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, orders[x].AssetType)
+			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, orders[x].AssetType)
 		}
 		if orders[x].Pair.IsEmpty() && orders[x].OrderID == "" {
-			return resp, errors.New("either market or order ID must to be specified")
+			return nil, errors.New("either market or order ID must to be specified")
 		}
 		if orders[x].OrderID != "" && (orders[x].Side == order.UnknownSide || orders[x].Side == order.AnySide) {
-			return resp, errors.New("if id is present in the request then side is required")
+			return nil, errors.New("if id is present in the request then side is required")
 		}
 		var formattedPair string
 		if !orders[x].Pair.IsEmpty() {
 			formattedPair, err = dy.FormatSymbol(orders[x].Pair, orders[x].AssetType)
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
 		}
 		var orderSide string
@@ -639,13 +639,13 @@ func (dy *DYDX) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (o
 		}
 		result, err := dy.CancelActiveOrders(ctx, formattedPair, orderSide, orders[x].OrderID)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		for i := range result {
 			resp.Status[result[i].ID] = result[i].Status
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -654,35 +654,34 @@ func (dy *DYDX) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.Cance
 }
 
 // GetOrderInfo returns order information based on order ID
-func (dy *DYDX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var resp order.Detail
+func (dy *DYDX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if !dy.SupportsAsset(assetType) {
-		return resp, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	if orderID == "" {
-		return resp, errors.New("order ID is required")
+		return nil, errors.New("order ID is required")
 	}
 	orderDetail, err := dy.GetOrderByID(ctx, orderID)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	pair, err := currency.NewPairFromString(orderDetail.Market)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	orderStatus, err := order.StringToOrderStatus(orderDetail.Status)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	orderSide, err := order.StringToOrderSide(orderDetail.Side)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	orderType, err := order.StringToOrderType(orderDetail.Type)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	return order.Detail{
+	return &order.Detail{
 		OrderID:         orderDetail.ID,
 		Amount:          orderDetail.Size,
 		ClientOrderID:   orderDetail.ClientAssignedID,
@@ -745,7 +744,7 @@ func (dy *DYDX) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withd
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (dy *DYDX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (dy *DYDX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -759,7 +758,7 @@ func (dy *DYDX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 		if err != nil {
 			return nil, err
 		}
-		orders, err := dy.GetOpenOrders(ctx, market, getOrdersRequest.Side.String(), getOrdersRequest.OrderID)
+		orders, err := dy.GetOpenOrders(ctx, market, getOrdersRequest.Side.String(), getOrdersRequest.FromOrderID)
 		if err != nil {
 			return nil, err
 		}
@@ -803,7 +802,7 @@ func (dy *DYDX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (dy *DYDX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (dy *DYDX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err

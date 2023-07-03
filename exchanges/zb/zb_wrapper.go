@@ -2,7 +2,6 @@ package zb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -117,13 +116,13 @@ func (z *ZB) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.FifteenMin},
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
-					kline.IntervalCapacity{Interval: kline.TwoHour},
-					kline.IntervalCapacity{Interval: kline.FourHour},
 					// NOTE: The supported time intervals below are returned
 					// offset to the Asia/Shanghai time zone. This may lead to
 					// issues with candle quality and conversion as the
 					// intervals may be broken up. Therefore the below intervals
 					// are constructed from hourly candles.
+					// kline.IntervalCapacity{Interval: kline.TwoHour},
+					// kline.IntervalCapacity{Interval: kline.FourHour},
 					// kline.IntervalCapacity{Interval: kline.SixHour},
 					// kline.IntervalCapacity{Interval: kline.TwelveHour},
 					// kline.IntervalCapacity{Interval: kline.OneDay},
@@ -254,7 +253,11 @@ func (z *ZB) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-	return z.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = z.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return z.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -322,6 +325,12 @@ func (z *ZB) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asse
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := z.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        z.Name,
 		Pair:            p,
@@ -429,15 +438,125 @@ func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accoun
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (z *ZB) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+func (z *ZB) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+	pairs, err := z.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	currs := pairs.GetCurrencies()
+
+	var records []exchange.FundingHistory
+	for x := range currs {
+		totalPages := int64(1)
+		for y := int64(0); y < totalPages; y++ {
+			var deposits *DepositRecordsResponse
+			deposits, err = z.GetDepositRecords(ctx, &WalletRecordsRequest{
+				Currency:  currs[x],
+				PageIndex: y,
+			})
+			if err != nil {
+				return nil, err
+			}
+			totalPages = deposits.Total
+			for i := range deposits.List {
+				var status string
+				switch deposits.List[i].Status {
+				case 0:
+					status = "pending confirm"
+				case 1:
+					status = "failed"
+				case 2:
+					status = "confirmed"
+				}
+				records = append(records, exchange.FundingHistory{
+					ExchangeName:    z.GetName(),
+					Status:          status,
+					TransferID:      strconv.FormatInt(deposits.List[i].ID, 10),
+					Description:     deposits.List[i].Description,
+					Timestamp:       time.Unix(deposits.List[i].SubmitTime, 0),
+					Currency:        deposits.List[i].Currency,
+					Amount:          deposits.List[i].Amount,
+					CryptoToAddress: deposits.List[i].Address,
+					TransferType:    "deposit",
+				})
+			}
+		}
+	}
+
+	for x := range currs {
+		var resp []exchange.WithdrawalHistory
+		resp, err = z.GetWithdrawalsHistory(ctx, currs[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for y := range resp {
+			records = append(records, exchange.FundingHistory{
+				ExchangeName:    z.GetName(),
+				Status:          resp[y].Status,
+				TransferID:      resp[y].TransferID,
+				Timestamp:       resp[y].Timestamp,
+				Currency:        resp[y].Currency,
+				Amount:          resp[y].Amount,
+				CryptoToAddress: resp[y].CryptoToAddress,
+				Fee:             resp[y].Fee,
+				TransferType:    resp[y].TransferType,
+			})
+		}
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return records[i].Timestamp.Before(records[j].Timestamp)
+	})
+	return records, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (z *ZB) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	totalPages := int64(1)
+	var records []exchange.WithdrawalHistory
+	for y := int64(0); y < totalPages; y++ {
+		withdrawals, err := z.GetWithdrawalRecords(ctx, &WalletRecordsRequest{
+			Currency:  c,
+			PageIndex: y,
+		})
+		if err != nil {
+			return nil, err
+		}
+		totalPages = withdrawals.Total
+		for i := range withdrawals.List {
+			var status string
+			switch withdrawals.List[i].Status {
+			case 0:
+				status = "submitted"
+			case 1:
+				status = "failed"
+			case 2:
+				status = "successful"
+			case 3:
+				status = "cancelled"
+			case 5:
+				status = "confirmed"
+			}
+			records = append(records, exchange.WithdrawalHistory{
+				Status:          status,
+				TransferID:      strconv.FormatInt(withdrawals.List[i].ID, 10),
+				Timestamp:       time.Unix(withdrawals.List[i].SubmitTime, 0),
+				Currency:        c.String(),
+				Amount:          withdrawals.List[i].Amount,
+				CryptoToAddress: withdrawals.List[i].ToAddress,
+				Fee:             withdrawals.List[i].Fees,
+				TransferType:    "withdrawal",
+			})
+		}
+	}
+	return records, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (z *ZB) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -555,20 +674,20 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 		if !response.Success {
-			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.OrderID)
+			return fmt.Errorf("%w %v %v", request.ErrAuthRequestFailed, o.OrderID, response.Message)
 		}
 		return nil
 	}
-	fpair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
+	fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
-	return z.CancelExistingOrder(ctx, orderIDInt, fpair.String())
+	return z.CancelExistingOrder(ctx, orderIDInt, fPair.String())
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (z *ZB) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (z *ZB) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -612,17 +731,17 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 	for i := range allOpenOrders {
 		p, err := currency.NewPairFromString(allOpenOrders[i].Currency)
 		if err != nil {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[allOpenOrders[i].ID] = err.Error()
 			continue
 		}
 
 		err = z.CancelOrder(ctx, &order.Cancel{
-			OrderID:   strconv.FormatInt(allOpenOrders[i].ID, 10),
+			OrderID:   allOpenOrders[i].ID,
 			Pair:      p,
 			AssetType: asset.Spot,
 		})
 		if err != nil {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[allOpenOrders[i].ID] = err.Error()
 		}
 	}
 
@@ -630,9 +749,46 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (z *ZB) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (z *ZB) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := z.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
+	resp, err := z.GetSingleOrder(ctx, orderID, "", pair)
+	if err != nil {
+		return nil, err
+	}
+	side := order.Sell
+	if resp.Type == 1 {
+		side = order.Buy
+	}
+	var status order.Status
+	switch resp.Status {
+	case 1:
+		status = order.Cancelled
+	case 2:
+		status = order.Closed
+	case 3:
+		status = order.Pending
+	}
+	return &order.Detail{
+		Price:           resp.Price,
+		Amount:          resp.TotalAmount,
+		ExecutedAmount:  resp.TradeAmount,
+		RemainingAmount: resp.TotalAmount - resp.TradeAmount,
+		Fee:             resp.Fees,
+		FeeAsset:        pair.Quote,
+		Exchange:        z.Name,
+		OrderID:         resp.ID,
+		Side:            side,
+		Status:          status,
+		AssetType:       assetType,
+		Date:            time.Unix(resp.TradeDate, 0),
+		Pair:            pair,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -650,7 +806,7 @@ func (z *ZB) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code
 				}, nil
 			}
 		}
-		return nil, fmt.Errorf("%s does not support chain %s", cryptocurrency.String(), chain)
+		return nil, fmt.Errorf("%w %s does not support chain %s", request.ErrAuthRequestFailed, cryptocurrency.String(), chain)
 	}
 	address, err := z.GetCryptoAddress(ctx, cryptocurrency)
 	if err != nil {
@@ -710,7 +866,7 @@ func (z *ZB) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (z *ZB) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -759,10 +915,10 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
+		orderDate := time.Unix(allOrders[i].TradeDate, 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders[i] = order.Detail{
-			OrderID:  strconv.FormatInt(allOrders[i].ID, 10),
+			OrderID:  allOrders[i].ID,
 			Amount:   allOrders[i].TotalAmount,
 			Exchange: z.Name,
 			Date:     orderDate,
@@ -777,16 +933,22 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (z *ZB) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
-
-	if req.Side == order.AnySide {
-		return nil, errors.New("specific order side is required")
+	sides := make([]int64, 0, 2)
+	switch {
+	case req.Side == order.AnySide:
+		sides = append(sides, 0, 1)
+	case req.Side.IsLong():
+		sides = append(sides, 1)
+	case req.Side.IsShort():
+		sides = append(sides, 0)
+	default:
+		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, req.Side)
 	}
-
 	var allOrders []Order
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range req.Pairs {
@@ -803,28 +965,26 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 			}
 		}
 	} else {
-		var side int64
-		if req.Side == order.Buy {
-			side = 1
-		}
-		for x := range req.Pairs {
-			for y := int64(1); ; y++ {
-				var fPair currency.Pair
-				fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
-				if err != nil {
-					return nil, err
-				}
-				var resp []Order
-				resp, err = z.GetOrders(ctx, fPair.String(), y, side)
-				if err != nil {
-					return nil, err
-				}
-				if len(resp) == 0 {
-					break
-				}
-				allOrders = append(allOrders, resp...)
-				if len(resp) != 10 {
-					break
+		for i := range sides {
+			for x := range req.Pairs {
+				for y := int64(1); ; y++ {
+					var fPair currency.Pair
+					fPair, err = z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+					if err != nil {
+						return nil, err
+					}
+					var resp []Order
+					resp, err = z.GetOrders(ctx, fPair.String(), y, sides[i])
+					if err != nil {
+						return nil, err
+					}
+					if len(resp) == 0 {
+						break
+					}
+					allOrders = append(allOrders, resp...)
+					if len(resp) != 10 {
+						break
+					}
 				}
 			}
 		}
@@ -843,10 +1003,10 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
+		orderDate := time.Unix(allOrders[i].TradeDate, 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		detail := order.Detail{
-			OrderID:              strconv.FormatInt(allOrders[i].ID, 10),
+			OrderID:              allOrders[i].ID,
 			Amount:               allOrders[i].TotalAmount,
 			ExecutedAmount:       allOrders[i].TradeAmount,
 			RemainingAmount:      allOrders[i].TotalAmount - allOrders[i].TradeAmount,

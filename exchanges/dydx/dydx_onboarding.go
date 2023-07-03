@@ -174,13 +174,12 @@ func (dy *DYDX) SendEthereumSignedRequest(ctx context.Context, endpoint exchange
 			Headers:       headers,
 			Body:          body,
 			Result:        result,
-			AuthRequest:   true,
 			Verbose:       dy.Verbose,
 			HTTPDebugging: dy.HTTPDebugging,
 			HTTPRecording: dy.HTTPRecording,
 		}, nil
 	}
-	return dy.SendPayload(ctx, request.Unset, newRequest)
+	return dy.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 }
 
 // EIP712Domain - type for EIP712 domain

@@ -95,7 +95,7 @@ func canTestTrello() bool {
 
 func TestCheckUpdates(t *testing.T) {
 	if !canUpdateTrello() || !canTestTrello() {
-		t.Skip()
+		t.Skip("cannot update or test trello, skipping")
 	}
 	err := checkUpdates(testJSONFile)
 	if err != nil {
@@ -502,7 +502,7 @@ func TestGetSha(t *testing.T) {
 
 func TestCheckBoardID(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	a, err := trelloCheckBoardID()
 	if err != nil {
@@ -515,7 +515,7 @@ func TestCheckBoardID(t *testing.T) {
 
 func TestTrelloGetLists(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	if _, err := trelloGetLists(); err != nil {
 		t.Error(err)
@@ -524,7 +524,7 @@ func TestTrelloGetLists(t *testing.T) {
 
 func TestGetAllCards(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	if _, err := trelloGetAllCards(); err != nil {
 		t.Error(err)
@@ -533,7 +533,7 @@ func TestGetAllCards(t *testing.T) {
 
 func TestGetAllChecklists(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	if _, err := trelloGetAllChecklists(); err != nil {
 		t.Error(err)
@@ -542,10 +542,10 @@ func TestGetAllChecklists(t *testing.T) {
 
 func TestTrelloGetAllBoards(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	if trelloBoardID != "" || testBoardName != "" {
-		t.Skip()
+		t.Skip("trello details empty, skipping")
 	}
 	if _, err := trelloGetBoardID(); err != nil {
 		t.Error(err)
@@ -554,7 +554,7 @@ func TestTrelloGetAllBoards(t *testing.T) {
 
 func TestCreateNewList(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	if err := trelloCreateNewList(); err != nil {
 		t.Error(err)
@@ -563,7 +563,7 @@ func TestCreateNewList(t *testing.T) {
 
 func TestTrelloCreateNewCard(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	if err := trelloCreateNewCard(); err != nil {
 		t.Error(err)
@@ -572,7 +572,7 @@ func TestTrelloCreateNewCard(t *testing.T) {
 
 func TestCreateNewChecklist(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	if err := trelloCreateNewChecklist(); err != nil {
 		t.Error(err)
@@ -590,7 +590,7 @@ func TestWriteAuthVars(t *testing.T) {
 
 func TestCreateNewCheck(t *testing.T) {
 	if !canTestTrello() {
-		t.Skip()
+		t.Skip("cannot test trello, skipping")
 	}
 	err := trelloCreateNewCheck("Gemini")
 	if err != nil {
@@ -600,7 +600,7 @@ func TestCreateNewCheck(t *testing.T) {
 
 func TestUpdateCheckItem(t *testing.T) {
 	if !canTestTrello() {
-		t.Skip()
+		t.Skip("cannot test trello, skipping")
 	}
 	a, err := trelloGetChecklistItems()
 	if err != nil {
@@ -620,7 +620,7 @@ func TestUpdateCheckItem(t *testing.T) {
 
 func TestGetChecklistItems(t *testing.T) {
 	if !canTestTrello() {
-		t.Skip()
+		t.Skip("cannot test trello, skipping")
 	}
 	_, err := trelloGetChecklistItems()
 	if err != nil {
@@ -642,7 +642,7 @@ func TestSetAuthVars(t *testing.T) {
 
 func TestTrelloDeleteCheckItems(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		t.Skip()
+		t.Skip("API Keys unset, skipping")
 	}
 	err := trelloDeleteCheckItem("")
 	if err != nil {

@@ -236,6 +236,11 @@ type GetAllOpenIDResp struct {
 	OrderID      string
 }
 
+// TimestampResponse holds timestamp data
+type TimestampResponse struct {
+	Timestamp int64 `json:"data"`
+}
+
 var errorCodes = map[int64]string{
 	10000: "Internal error",
 	10001: "The required parameters can not be empty",

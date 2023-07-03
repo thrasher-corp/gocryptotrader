@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -373,6 +374,18 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 	exch.SetDefaults()
 	exchB := exch.GetBase()
+	exchB.CurrencyPairs = currency.PairsManager{
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(true),
+			},
+		},
+	}
 	exchB.States = currencystate.NewCurrencyStates()
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {

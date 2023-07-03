@@ -412,7 +412,7 @@ func (a *Alphapoint) CreateOrder(ctx context.Context, symbol, side, orderType st
 }
 
 // ModifyExistingOrder modifies and existing Order
-// OrderId - tracked order id number
+// OrderID - tracked order id number
 // symbol - Instrument code (ex: “BTCUSD”)
 // modifyAction - “0” or “1”
 // “0” means "Move to top", which will modify the order price to the top of the
@@ -444,7 +444,7 @@ func (a *Alphapoint) ModifyExistingOrder(ctx context.Context, symbol string, ord
 
 // CancelExistingOrder cancels an order that has not been executed.
 // symbol - Instrument code (ex: “BTCUSD”)
-// OrderId - Order id (ex: 1000)
+// OrderID - Order id (ex: 1000)
 func (a *Alphapoint) CancelExistingOrder(ctx context.Context, orderID int64, omsid string) (int64, error) {
 	req := make(map[string]interface{})
 	req["OrderId"] = orderID
@@ -566,7 +566,7 @@ func (a *Alphapoint) SendHTTPRequest(_ context.Context, ep exchange.URL, method,
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -608,7 +608,6 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 		Path:          path,
 		Headers:       headers,
 		Result:        result,
-		AuthRequest:   true,
 		NonceEnabled:  true,
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
@@ -617,5 +616,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }

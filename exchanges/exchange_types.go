@@ -115,8 +115,8 @@ type FeeBuilder struct {
 	OrderType order.Type
 }
 
-// FundHistory holds exchange funding history data
-type FundHistory struct {
+// FundingHistory holds exchange funding history data
+type FundingHistory struct {
 	ExchangeName      string
 	Status            string
 	TransferID        string
@@ -248,6 +248,7 @@ const (
 	RestUSDTMargined
 	RestCoinMargined
 	RestFutures
+	RestFuturesSupplementary
 	RestUSDCMargined
 	RestSwap
 	RestSandbox
@@ -264,6 +265,7 @@ const (
 	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
 	restUSDCMarginedFuturesURL    = "RestUSDCMarginedFuturesURL"
 	restFuturesURL                = "RestFuturesURL"
+	restFuturesSupplementaryURL   = "RestFuturesSupplementaryURL"
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
 	websocketSpotURL              = "WebsocketSpotURL"
@@ -274,11 +276,13 @@ const (
 	edgeCase3URL                  = "EdgeCase3URL"
 )
 
-var keyURLs = []URL{RestSpot,
+var keyURLs = []URL{
+	RestSpot,
 	RestSpotSupplementary,
 	RestUSDTMargined,
 	RestCoinMargined,
 	RestFutures,
+	RestFuturesSupplementary,
 	RestUSDCMargined,
 	RestSwap,
 	RestSandbox,
