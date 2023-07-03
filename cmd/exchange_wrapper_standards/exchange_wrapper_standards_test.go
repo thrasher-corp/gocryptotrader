@@ -472,36 +472,38 @@ type assetPair struct {
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
 var excludedMethodNames = map[string]struct{}{
-	"Setup":                            {}, // Is run via test setup
-	"Start":                            {}, // Is run via test setup
-	"SetDefaults":                      {}, // Is run via test setup
-	"UpdateTradablePairs":              {}, // Is run via test setup
-	"GetDefaultConfig":                 {}, // Is run via test setup
-	"FetchTradablePairs":               {}, // Is run via test setup
-	"GetCollateralCurrencyForContract": {}, // Not widely supported/implemented futures endpoint
-	"GetCurrencyForRealisedPNL":        {}, // Not widely supported/implemented futures endpoint
-	"GetFuturesPositions":              {}, // Not widely supported/implemented futures endpoint
-	"GetFundingRates":                  {}, // Not widely supported/implemented futures endpoint
-	"IsPerpetualFutureCurrency":        {}, // Not widely supported/implemented futures endpoint
-	"GetMarginRatesHistory":            {}, // Not widely supported/implemented futures endpoint
-	"CalculatePNL":                     {}, // Not widely supported/implemented futures endpoint
-	"CalculateTotalCollateral":         {}, // Not widely supported/implemented futures endpoint
-	"ScaleCollateral":                  {}, // Not widely supported/implemented futures endpoint
-	"GetPositionSummary":               {}, // Not widely supported/implemented futures endpoint
-	"AuthenticateWebsocket":            {}, // Unnecessary websocket test
-	"FlushWebsocketChannels":           {}, // Unnecessary websocket test
-	"UnsubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
-	"SubscribeToWebsocketChannels":     {}, // Unnecessary websocket test
-	"GetOrderExecutionLimits":          {}, // Not widely supported/implemented feature
-	"UpdateCurrencyStates":             {}, // Not widely supported/implemented feature
-	"UpdateOrderExecutionLimits":       {}, // Not widely supported/implemented feature
-	"CanTradePair":                     {}, // Not widely supported/implemented feature
-	"CanTrade":                         {}, // Not widely supported/implemented feature
-	"CanWithdraw":                      {}, // Not widely supported/implemented feature
-	"CanDeposit":                       {}, // Not widely supported/implemented feature
-	"GetCurrencyStateSnapshot":         {}, // Not widely supported/implemented feature
-	"SetHTTPClientUserAgent":           {}, // standard base implementation
-	"SetClientProxyAddress":            {}, // standard base implementation
+	"Setup":                          {}, // Is run via test setup
+	"Start":                          {}, // Is run via test setup
+	"SetDefaults":                    {}, // Is run via test setup
+	"UpdateTradablePairs":            {}, // Is run via test setup
+	"GetDefaultConfig":               {}, // Is run via test setup
+	"FetchTradablePairs":             {}, // Is run via test setup
+	"AuthenticateWebsocket":          {}, // Unnecessary websocket test
+	"FlushWebsocketChannels":         {}, // Unnecessary websocket test
+	"UnsubscribeToWebsocketChannels": {}, // Unnecessary websocket test
+	"SubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
+	"GetOrderExecutionLimits":        {}, // Not widely supported/implemented feature
+	"UpdateCurrencyStates":           {}, // Not widely supported/implemented feature
+	"UpdateOrderExecutionLimits":     {}, // Not widely supported/implemented feature
+	"CanTradePair":                   {}, // Not widely supported/implemented feature
+	"CanTrade":                       {}, // Not widely supported/implemented feature
+	"CanWithdraw":                    {}, // Not widely supported/implemented feature
+	"CanDeposit":                     {}, // Not widely supported/implemented feature
+	"GetCurrencyStateSnapshot":       {}, // Not widely supported/implemented feature
+	"SetHTTPClientUserAgent":         {}, // standard base implementation
+	"SetClientProxyAddress":          {}, // standard base implementation
+	// Not widely supported/implemented futures endpoints
+	"GetCollateralCurrencyForContract": {},
+	"GetCurrencyForRealisedPNL":        {},
+	"GetFuturesPositions":              {},
+	"GetFundingRates":                  {},
+	"IsPerpetualFutureCurrency":        {},
+	"GetMarginRatesHistory":            {},
+	"CalculatePNL":                     {},
+	"CalculateTotalCollateral":         {},
+	"ScaleCollateral":                  {},
+	"GetPositionSummary":               {},
+	"GetLatestFundingRate":             {},
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
