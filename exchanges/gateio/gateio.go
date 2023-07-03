@@ -386,7 +386,7 @@ func (g *Gateio) GetIntervalFromString(interval string) (kline.Interval, error) 
 	case "1000ms":
 		return kline.ThousandMilliseconds, nil
 	default:
-		return kline.Interval(0), kline.ErrUnsetInterval
+		return kline.Interval(0), kline.ErrInvalidInterval
 	}
 }
 
@@ -1007,12 +1007,11 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			Headers:       headers,
 			Body:          strings.NewReader(payload),
 			Result:        &intermediary,
-			AuthRequest:   true,
 			Verbose:       g.Verbose,
 			HTTPDebugging: g.HTTPDebugging,
 			HTTPRecording: g.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1050,7 +1049,7 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 	}
 	return g.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // *********************************** Withdrawals ******************************

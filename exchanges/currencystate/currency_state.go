@@ -23,6 +23,7 @@ var (
 
 	// ErrCurrencyStateNotFound is an error when the currency state has not been
 	// found
+	// TODO: distinguish between unsupported and not found
 	ErrCurrencyStateNotFound = errors.New("currency state not found")
 )
 
@@ -170,7 +171,6 @@ func (s *States) update(c currency.Code, a asset.Item, o Options) {
 		m1 = make(map[*currency.Item]*Currency)
 		s.m[a] = m1
 	}
-
 	p, ok := m1[c.Item]
 	if !ok {
 		p = &Currency{}

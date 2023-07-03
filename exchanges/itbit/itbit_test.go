@@ -3,15 +3,13 @@ package itbit
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -31,28 +29,8 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestMain(m *testing.M) {
-	i.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Itbit load config error", err)
-	}
-	itbitConfig, err := cfg.GetExchangeConfig("ITBIT")
-	if err != nil {
-		log.Fatal("Itbit Setup() init error")
-	}
-	itbitConfig.API.AuthenticatedSupport = true
-	itbitConfig.API.Credentials.Key = apiKey
-	itbitConfig.API.Credentials.Secret = apiSecret
-	itbitConfig.API.Credentials.ClientID = clientID
-
-	err = i.Setup(itbitConfig)
-	if err != nil {
-		log.Fatal("Itbit setup error", err)
-	}
-
-	os.Exit(m.Run())
+func TestMain(_ *testing.M) {
+	fmt.Println("ItBit API deprecated, skipping tests")
 }
 
 func TestStart(t *testing.T) {
@@ -131,7 +109,7 @@ func TestGetWalletTrades(t *testing.T) {
 func TestGetFundingHistory(t *testing.T) {
 	_, err := i.GetFundingHistoryForWallet(context.Background(), "1337", url.Values{})
 	if err == nil {
-		t.Error("GetFundingHistory() Expected error")
+		t.Error("GetAccountFundingHistory() Expected error")
 	}
 }
 
@@ -153,7 +131,8 @@ func TestGetOrder(t *testing.T) {
 }
 
 func TestCancelExistingOrder(t *testing.T) {
-	t.Skip()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, i, canManipulateRealOrders)
+
 	err := i.CancelExistingOrder(context.Background(), "1337", "1337order")
 	if err == nil {
 		t.Error("CancelOrder() Expected error")
@@ -286,7 +265,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -303,7 +282,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,

@@ -165,7 +165,6 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
-
 	if e.m == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}

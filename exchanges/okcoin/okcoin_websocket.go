@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -562,11 +563,11 @@ func (o *OKCoin) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrder
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice, ok := orderbookData.Bids[i][0].(string)
 			if !ok {
-				return 0, fmt.Errorf("unable to type assert bidPrice")
+				return 0, common.GetTypeAssertError("string", orderbookData.Bids[i][0], "bidPrice")
 			}
 			bidAmount, ok := orderbookData.Bids[i][1].(string)
 			if !ok {
-				return 0, fmt.Errorf("unable to type assert bidAmount")
+				return 0, common.GetTypeAssertError("string", orderbookData.Bids[i][1], "bidAmount")
 			}
 			checksum.WriteString(bidPrice +
 				delimiterColon +
@@ -576,11 +577,11 @@ func (o *OKCoin) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrder
 		if len(orderbookData.Asks)-1 >= i {
 			askPrice, ok := orderbookData.Asks[i][0].(string)
 			if !ok {
-				return 0, fmt.Errorf("unable to type assert askPrice")
+				return 0, common.GetTypeAssertError("string", orderbookData.Asks[i][0], "askPrice")
 			}
 			askAmount, ok := orderbookData.Asks[i][1].(string)
 			if !ok {
-				return 0, fmt.Errorf("unable to type assert askAmount")
+				return 0, common.GetTypeAssertError("string", orderbookData.Asks[i][1], "askAmount")
 			}
 			checksum.WriteString(askPrice +
 				delimiterColon +
@@ -628,7 +629,7 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 		if assets[x] != asset.Spot {
 			o.Websocket.DataHandler <- fmt.Errorf("%w %v", asset.ErrNotSupported, assets[x])
-			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assets[x])
+			continue
 		}
 		channels := defaultSpotSubscribedChannels
 		if o.IsWebsocketAuthenticationSupported() {

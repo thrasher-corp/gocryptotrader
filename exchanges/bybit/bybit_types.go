@@ -158,7 +158,7 @@ func (b bybitTimeNanoSec) Time() time.Time {
 
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
-	GetError() error
+	GetError(isAuthRequest bool) error
 }
 
 // PairData stores pair data

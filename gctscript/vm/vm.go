@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"errors"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -46,7 +45,7 @@ func (g *GctScriptManager) NewVM() *VM {
 	if !ok {
 		log.Errorln(log.GCTScriptMgr, Error{
 			Action: "NewVM",
-			Cause:  errors.New("unable to type assert tengo script"),
+			Cause:  common.GetTypeAssertError("*tengo.Script", pool),
 		})
 		return nil
 	}
