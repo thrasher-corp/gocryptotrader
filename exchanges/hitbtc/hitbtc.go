@@ -342,6 +342,17 @@ func (h *HitBTC) GetOpenOrders(ctx context.Context, currency string) ([]OrderHis
 		&result)
 }
 
+// GetActiveOrderByClientOrderID Get an active order by id
+func (h *HitBTC) GetActiveOrderByClientOrderID(ctx context.Context, clientOrderID string) (OrderHistoryResponse, error) {
+	var result OrderHistoryResponse
+
+	return result, h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		apiv2OpenOrders+"/"+clientOrderID,
+		nil,
+		tradingRequests,
+		&result)
+}
+
 // PlaceOrder places an order on the exchange
 func (h *HitBTC) PlaceOrder(ctx context.Context, currency string, rate, amount float64, orderType, side string) (OrderResponse, error) {
 	var result OrderResponse
@@ -534,7 +545,7 @@ func (h *HitBTC) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 	return h.SendPayload(ctx, marketRequests, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
@@ -557,7 +568,6 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		Path:          path,
 		Headers:       headers,
 		Result:        result,
-		AuthRequest:   true,
 		Verbose:       h.Verbose,
 		HTTPDebugging: h.HTTPDebugging,
 		HTTPRecording: h.HTTPRecording,
@@ -566,7 +576,7 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	return h.SendPayload(ctx, f, func() (*request.Item, error) {
 		item.Body = bytes.NewBufferString(values.Encode())
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

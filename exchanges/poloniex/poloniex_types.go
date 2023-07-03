@@ -58,8 +58,8 @@ type Orderbook struct {
 
 // TradeHistory holds trade history data
 type TradeHistory struct {
-	GlobalTradeID int64   `json:"globalTradeID"`
-	TradeID       int64   `json:"tradeID"`
+	GlobalTradeID string  `json:"globalTradeID"`
+	TradeID       string  `json:"tradeID"`
 	Date          string  `json:"date"`
 	Type          string  `json:"type"`
 	Rate          float64 `json:"rate,string"`
@@ -89,8 +89,8 @@ type OrderStatusData struct {
 // OrderTrade holds order trade data
 type OrderTrade struct {
 	Status        string  `json:"status"`
-	GlobalTradeID int64   `json:"globalTradeID"`
-	TradeID       int64   `json:"tradeID"`
+	GlobalTradeID string  `json:"globalTradeID"`
+	TradeID       string  `json:"tradeID"`
 	CurrencyPair  string  `json:"currencyPair"`
 	Type          string  `json:"type"`
 	Rate          float64 `json:"rate,string"`
@@ -212,8 +212,8 @@ type OpenOrdersResponse struct {
 
 // AuthenticatedTradeHistory holds client trade history information
 type AuthenticatedTradeHistory struct {
-	GlobalTradeID int64   `json:"globalTradeID"`
-	TradeID       int64   `json:"tradeID,string"`
+	GlobalTradeID string  `json:"globalTradeID"`
+	TradeID       string  `json:"tradeID"`
 	Date          string  `json:"date"`
 	Rate          float64 `json:"rate,string"`
 	Amount        float64 `json:"amount,string"`
@@ -474,4 +474,50 @@ type WsAuthorisationRequest struct {
 	Sign    string `json:"sign"`
 	Key     string `json:"key"`
 	Payload string `json:"payload"`
+}
+
+// CancelOrdersResponse holds cancelled order info
+type CancelOrdersResponse struct {
+	OrderID       string `json:"orderId"`
+	ClientOrderID string `json:"clientOrderId"`
+	State         string `json:"state"`
+	Code          int64  `json:"code"`
+	Message       string `json:"message"`
+}
+
+// WalletActivityResponse holds wallet activity info
+type WalletActivityResponse struct {
+	Deposits    []WalletDeposits    `json:"deposits"`
+	Withdrawals []WalletWithdrawals `json:"withdrawals"`
+}
+
+// WalletDeposits holds wallet deposit info
+type WalletDeposits struct {
+	DepositNumber int64         `json:"depositNumber"`
+	Currency      currency.Code `json:"currency"`
+	Address       string        `json:"address"`
+	Amount        float64       `json:"amount,string"`
+	Confirmations int64         `json:"confirmations"`
+	TransactionID string        `json:"txid"`
+	Timestamp     int64         `json:"timestamp"`
+	Status        string        `json:"status"`
+}
+
+// WalletWithdrawals holds wallet withdrawal info
+type WalletWithdrawals struct {
+	WithdrawalRequestsID int64         `json:"withdrawalRequestsId"`
+	Currency             currency.Code `json:"currency"`
+	Address              string        `json:"address"`
+	Amount               float64       `json:"amount,string"`
+	Fee                  float64       `json:"fee,string"`
+	Timestamp            int64         `json:"timestamp"`
+	Status               string        `json:"status"`
+	TransactionID        string        `json:"txid"`
+	IPAddress            string        `json:"ipAddress"`
+	PaymentID            string        `json:"paymentID"`
+}
+
+// TimeStampResponse returns the time
+type TimeStampResponse struct {
+	ServerTime int64 `json:"serverTime"`
 }

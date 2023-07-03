@@ -500,7 +500,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	_, err := b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	_, err := b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Side:      order.Buy,
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
@@ -541,7 +541,7 @@ func TestGetActiveOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetActiveOrders(context.Background(),
-		&order.GetOrdersRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+		&order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1108,5 +1108,29 @@ func TestConvertToKlineCandle(t *testing.T) {
 
 	if candle.Volume != 5 {
 		t.Fatalf("received: '%v' but expected: '%v'", candle.Volume, 5)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.AUD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }

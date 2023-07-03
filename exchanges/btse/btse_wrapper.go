@@ -64,11 +64,11 @@ func (b *BTSE) SetDefaults() {
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -259,8 +259,18 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 			(m[x].LowestAsk == 0 && m[x].HighestBid == 0) {
 			continue
 		}
+
 		var pair currency.Pair
-		pair, err = currency.NewPairFromString(m[x].Symbol)
+		quote := m[x].Quote
+		if a == asset.Futures {
+			symSplit := strings.Split(m[x].Symbol, m[x].Base)
+			if len(symSplit) <= 1 {
+				continue
+			}
+			quote = symSplit[1]
+		}
+
+		pair, err = currency.NewPairFromStrings(m[x].Base, quote)
 		if err != nil {
 			return nil, err
 		}
@@ -283,11 +293,14 @@ func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 			return err
 		}
 	}
-	return nil
+	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !b.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	tickers, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return err
@@ -319,6 +332,12 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !b.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	if err := b.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
@@ -345,6 +364,12 @@ func (b *BTSE) FetchOrderbook(ctx context.Context, p currency.Pair, assetType as
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -443,25 +468,32 @@ func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acco
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTSE) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (b *BTSE) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
+func (b *BTSE) withinLimits(pair currency.Pair, amount float64) error {
 	val, found := OrderSizeLimits(pair.String())
 	if !found {
-		return false
+		return fmt.Errorf("%w for pair %v", order.ErrExchangeLimitNotLoaded, pair)
 	}
-	return (math.Mod(amount, val.MinSizeIncrement) == 0) ||
-		amount < val.MinOrderSize ||
-		amount > val.MaxOrderSize
+	if math.Mod(amount, val.MinSizeIncrement) < 0 {
+		return fmt.Errorf("%w %v %v %v", order.ErrAmountBelowMin, pair, amount, val.MinSizeIncrement)
+	}
+	if amount < val.MinOrderSize {
+		return fmt.Errorf("%w %v %v %v", order.ErrAmountBelowMin, pair, amount, val.MinOrderSize)
+	}
+	if amount > val.MaxOrderSize {
+		return fmt.Errorf("%w %v %v %v", order.ErrAmountExceedsMax, pair, amount, val.MinSizeIncrement)
+	}
+	return nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *BTSE) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -527,9 +559,9 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	if err != nil {
 		return nil, err
 	}
-	inLimits := b.withinLimits(fPair, s.Amount)
-	if !inLimits {
-		return nil, errors.New("order outside of limits")
+	err = b.withinLimits(fPair, s.Amount)
+	if err != nil {
+		return nil, err
 	}
 
 	r, err := b.CreateOrder(ctx,
@@ -581,8 +613,8 @@ func (b *BTSE) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *BTSE) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (b *BTSE) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -625,20 +657,20 @@ func orderIntToType(i int) order.Type {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	o, err := b.GetOrders(ctx, "", orderID, "")
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	var od order.Detail
 	if len(o) == 0 {
-		return od, errors.New("no orders found")
+		return nil, errors.New("no orders found")
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	for i := range o {
@@ -679,8 +711,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 			false,
 			"", orderID)
 		if err != nil {
-			return od,
-				fmt.Errorf("unable to get order fills for orderID %s", orderID)
+			return nil, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
 		for i := range th {
@@ -692,7 +723,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 			var orderSide order.Side
 			orderSide, err = order.StringToOrderSide(th[i].Side)
 			if err != nil {
-				return order.Detail{}, err
+				return nil, err
 			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
@@ -705,7 +736,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 			})
 		}
 	}
-	return od, nil
+	return &od, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -778,7 +809,7 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdr
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -895,7 +926,7 @@ func matchType(input int, required order.Type) bool {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -980,6 +1011,11 @@ func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	switch a {
+	case asset.Spot, asset.Futures:
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	req, err := b.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
@@ -990,40 +1026,71 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 		return nil, err
 	}
 
-	var timeSeries []kline.Candle
-	switch req.Asset {
-	case asset.Spot:
-		req, err := b.OHLCV(ctx,
-			req.RequestFormatted.String(),
-			req.Start,
-			req.End.Add(-req.ExchangeInterval.Duration()), // End time is inclusive so we need to subtract the interval.
-			intervalInt)
-		if err != nil {
-			return nil, err
-		}
+	candles, err := b.GetOHLCV(ctx,
+		req.RequestFormatted.String(),
+		req.Start,
+		req.End.Add(-req.ExchangeInterval.Duration()), // End time is inclusive, so we need to subtract the interval.
+		intervalInt,
+		a)
+	if err != nil {
+		return nil, err
+	}
 
-		timeSeries = make([]kline.Candle, len(req))
-		for x := range req {
-			timeSeries[x] = kline.Candle{
-				Time:   time.Unix(int64(req[x][0]), 0),
-				Open:   req[x][1],
-				High:   req[x][2],
-				Low:    req[x][3],
-				Close:  req[x][4],
-				Volume: req[x][5],
-			}
+	timeSeries := make([]kline.Candle, len(candles))
+	for x := range candles {
+		timeSeries[x] = kline.Candle{
+			Time:   time.Unix(int64(candles[x][0]), 0),
+			Open:   candles[x][1],
+			High:   candles[x][2],
+			Low:    candles[x][3],
+			Close:  candles[x][4],
+			Volume: candles[x][5],
 		}
-	case asset.Futures:
-		return nil, common.ErrNotYetImplemented
-	default:
-		return nil, fmt.Errorf("asset %s not supported", req.Asset)
 	}
 	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *BTSE) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	switch a {
+	case asset.Spot, asset.Futures:
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	req, err := b.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(req.ExchangeInterval))
+	if err != nil {
+		return nil, err
+	}
+	timeSeries := make([]kline.Candle, req.Size())
+	for i := range req.RangeHolder.Ranges {
+		var candles OHLCV
+		candles, err = b.GetOHLCV(ctx,
+			req.RequestFormatted.String(),
+			req.RangeHolder.Ranges[i].Start.Time,
+			req.RangeHolder.Ranges[i].End.Time,
+			intervalInt,
+			a)
+		if err != nil {
+			return nil, err
+		}
+		for x := range candles {
+			timeSeries[x] = kline.Candle{
+				Time:   time.Unix(int64(candles[x][0]), 0),
+				Open:   candles[x][1],
+				High:   candles[x][2],
+				Low:    candles[x][3],
+				Close:  candles[x][4],
+				Volume: candles[x][5],
+			}
+		}
+	}
+
+	return req.ProcessResponse(timeSeries)
 }
 
 func (b *BTSE) seedOrderSizeLimits(ctx context.Context) error {

@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -492,7 +494,7 @@ func GetPackageName(name string, capital bool) string {
 		i = len(newStrings) - 1
 	}
 	if capital {
-		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1)
+		return strings.Replace(cases.Title(language.English).String(newStrings[i]), "_", " ", -1)
 	}
 	return newStrings[i]
 }

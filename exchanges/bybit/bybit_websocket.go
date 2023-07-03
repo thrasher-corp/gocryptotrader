@@ -370,11 +370,11 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		for i := range d {
 			obj, ok := d[i].(map[string]interface{})
 			if !ok {
-				return common.GetAssertError("map[string]interface{}", d[i])
+				return common.GetTypeAssertError("map[string]interface{}", d[i])
 			}
 			e, ok := obj["e"].(string)
 			if !ok {
-				return common.GetAssertError("string", obj["e"])
+				return common.GetTypeAssertError("string", obj["e"])
 			}
 
 			switch e {

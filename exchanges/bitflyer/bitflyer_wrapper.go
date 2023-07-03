@@ -198,12 +198,17 @@ func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 			return err
 		}
 	}
-	return nil
+	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitflyer) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Bitflyer) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -272,6 +277,12 @@ func (b *Bitflyer) FetchOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -332,14 +343,14 @@ func (b *Bitflyer) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitflyer) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitflyer) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitflyer) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitflyer) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -409,8 +420,8 @@ func (b *Bitflyer) CancelOrder(_ context.Context, _ *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitflyer) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (b *Bitflyer) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -421,9 +432,8 @@ func (b *Bitflyer) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitflyer) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (b *Bitflyer) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -450,13 +460,13 @@ func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wi
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitflyer) GetActiveOrders(_ context.Context, _ *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitflyer) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitflyer) GetOrderHistory(_ context.Context, _ *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitflyer) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

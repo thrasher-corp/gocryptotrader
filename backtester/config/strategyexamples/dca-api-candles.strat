@@ -11,10 +11,10 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "bybit",
+   "exchange-name": "bitfinex",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USDT",
+   "quote": "USD",
    "spot-details": {
     "initial-quote-funds": "100000"
    },

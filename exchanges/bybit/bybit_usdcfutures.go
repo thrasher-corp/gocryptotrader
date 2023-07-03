@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1063,7 +1064,7 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 		if data != nil {
 			d, ok := data.(map[string]interface{})
 			if !ok {
-				return nil, common.GetAssertError("map[string]interface{}", data)
+				return nil, common.GetTypeAssertError("map[string]interface{}", data)
 			}
 			payload, err = json.Marshal(d)
 			if err != nil {
@@ -1090,15 +1091,14 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &result,
-			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
-	return result.GetError()
+	return result.GetError(true)
 }
 
 // USDCError defines all error information for each USDC request
@@ -1108,8 +1108,11 @@ type USDCError struct {
 }
 
 // GetError checks and returns an error if it is supplied.
-func (e USDCError) GetError() error {
+func (e USDCError) GetError(isAuthRequest bool) error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ReturnMsg)
+		}
 		return errors.New(e.ReturnMsg)
 	}
 	return nil

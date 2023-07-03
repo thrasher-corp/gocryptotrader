@@ -583,8 +583,13 @@ func GenerateRandomString(length uint, characters ...string) (string, error) {
 	return string(b), nil
 }
 
-// GetAssertError returns additional information for when an assertion failure
+// GetTypeAssertError returns additional information for when an assertion failure
 // occurs.
-func GetAssertError(required string, received interface{}) error {
-	return fmt.Errorf("%w from %T to %s", ErrTypeAssertFailure, received, required)
+// fieldDescription is an optional way to return what the affected field was for
+func GetTypeAssertError(required string, received interface{}, fieldDescription ...string) error {
+	var description string
+	if len(fieldDescription) > 0 {
+		description = " for: " + strings.Join(fieldDescription, ", ")
+	}
+	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
 }
