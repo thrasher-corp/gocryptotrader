@@ -98,6 +98,11 @@ func (a *Alphapoint) FetchTradablePairs(_ context.Context, _ asset.Item) (curren
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetServerTime returns the current exchange server time.
+func (a *Alphapoint) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
+}
+
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
@@ -164,6 +169,12 @@ func (a *Alphapoint) UpdateTickers(_ context.Context, _ asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (a *Alphapoint) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := a.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	tick, err := a.GetTicker(ctx, p.String())
 	if err != nil {
 		return nil, err
@@ -198,6 +209,12 @@ func (a *Alphapoint) FetchTicker(ctx context.Context, p currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := a.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := a.GetOrderbook(ctx, p.String())
 	if err != nil {
@@ -241,15 +258,15 @@ func (a *Alphapoint) FetchOrderbook(ctx context.Context, p currency.Pair, assetT
 	return ob, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *Alphapoint) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (a *Alphapoint) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (a *Alphapoint) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func (a *Alphapoint) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -307,8 +324,8 @@ func (a *Alphapoint) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (a *Alphapoint) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (a *Alphapoint) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders for a given account
@@ -321,8 +338,8 @@ func (a *Alphapoint) CancelAllOrders(ctx context.Context, orderCancellation *ord
 }
 
 // GetOrderInfo returns order information based on order ID
-func (a *Alphapoint) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrNotYetImplemented
+func (a *Alphapoint) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -366,7 +383,7 @@ func (a *Alphapoint) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (fl
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -405,7 +422,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

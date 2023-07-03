@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
+
+// blockedCIExchanges are exchanges that are not able to be tested on CI
+var blockedCIExchanges = []string{
+	"binance", // binance API is banned from executing within the US where github Actions is ran
+}
+
+func isCITest() bool {
+	ci := os.Getenv("CI")
+	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+}
 
 func TestLoadConfigWithSettings(t *testing.T) {
 	empty := ""
@@ -342,41 +353,40 @@ func TestSettingsPrint(t *testing.T) {
 	s.PrintLoadedSettings()
 }
 
+var unsupportedDefaultConfigExchanges = []string{
+	"okcoin international", // due to unsupported API
+	"itbit",                // due to unsupported API
+}
+
 func TestGetDefaultConfigurations(t *testing.T) {
 	t.Parallel()
-
-	man := NewExchangeManager()
-	for x := range exchange.Exchanges {
-		target := exchange.Exchanges[x]
-		t.Run(target, func(t *testing.T) {
+	em := NewExchangeManager()
+	for i := range exchange.Exchanges {
+		name := strings.ToLower(exchange.Exchanges[i])
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			exch, err := man.NewExchangeByName(target)
+			exch, err := em.NewExchangeByName(name)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if isCITest() && common.StringDataContains(blockedCIExchanges, target) {
-				t.Skipf("skipping %s due to CI test restrictions", target)
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("skipping %s due to CI test restrictions", name)
 			}
 
-			cfg, err := exch.GetDefaultConfig(context.Background())
+			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+				t.Skipf("skipping %s unsupported", name)
+			}
+
+			defaultCfg, err := exch.GetDefaultConfig(context.Background())
 			if err != nil {
-				t.Fatal(err)
+				// Use Error instead of fatal to allow all issues to arise
+				t.Error(err)
 			}
 
-			if cfg == nil {
-				t.Fatal("expected config")
+			if defaultCfg == nil {
+				t.Error("expected config")
 			}
 		})
 	}
-}
-
-func isCITest() bool {
-	ci := os.Getenv("CI")
-	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
-}
-
-// blockedCIExchanges are exchanges that are not able to be tested on CI
-var blockedCIExchanges = []string{
-	"binance", // binance API is banned from executing within the US where github Actions is ran
 }

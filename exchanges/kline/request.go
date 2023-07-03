@@ -13,9 +13,11 @@ import (
 
 var (
 	// ErrUnsetName is an error for when the exchange name is not set
-	ErrUnsetName                    = errors.New("unset exchange name")
+	ErrUnsetName = errors.New("unset exchange name")
+	// ErrNoTimeSeriesDataToConvert is returned when no data can be processed
+	ErrNoTimeSeriesDataToConvert = errors.New("no candle data returned to process")
+
 	errNilRequest                   = errors.New("nil kline request")
-	errNoTimeSeriesDataToConvert    = errors.New("no time series data to convert")
 	errInvalidSpecificEndpointLimit = errors.New("specific endpoint limit must be greater than 0")
 
 	// PartialCandle is string flag for when the most recent candle is partially
@@ -145,7 +147,7 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	}
 
 	if len(timeSeries) == 0 {
-		return nil, errNoTimeSeriesDataToConvert
+		return nil, ErrNoTimeSeriesDataToConvert
 	}
 
 	holder := &Item{
@@ -190,6 +192,15 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	return holder, err
 }
 
+// Size returns the max length of return for pre-allocation.
+func (r *Request) Size() int {
+	if r == nil {
+		return 0
+	}
+
+	return int(TotalCandlesPerInterval(r.Start, r.End, r.ExchangeInterval))
+}
+
 // ExtendedRequest used in extended functionality for when candles requested
 // exceed exchange limits and require multiple requests.
 type ExtendedRequest struct {
@@ -205,7 +216,7 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	}
 
 	if len(timeSeries) == 0 {
-		return nil, errNoTimeSeriesDataToConvert
+		return nil, ErrNoTimeSeriesDataToConvert
 	}
 
 	holder, err := r.Request.ProcessResponse(timeSeries)

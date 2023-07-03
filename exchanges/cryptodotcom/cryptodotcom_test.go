@@ -546,7 +546,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
-	if _, err := cr.GetFundingHistory(context.Background()); err != nil {
+	if _, err := cr.GetAccountFundingHistory(context.Background()); err != nil {
 		t.Error("Cryptodotcom GetFundingHistory() error", err)
 	}
 }
@@ -576,7 +576,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.Limit,
 		Pairs:     currency.Pairs{enabledPairs[0], currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
 		AssetType: asset.Spot,
@@ -590,7 +590,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,

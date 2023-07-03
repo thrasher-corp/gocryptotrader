@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
@@ -351,7 +352,7 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 		case Slice:
 			slice, ok := val.([]interface{})
 			if !ok {
-				return nil, errors.New("unable to type assert slice")
+				return nil, common.GetTypeAssertError("[]interface{}", val)
 			}
 			if len(slice) < 1 {
 				// Empty slice found

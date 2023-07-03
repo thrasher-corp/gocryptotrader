@@ -23,10 +23,14 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	t.Parallel()
 	b := bitstamp.Bitstamp{}
 	b.SetDefaults()
+	err := b.CurrencyPairs.SetAssetEnabled(asset.Spot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	ob, err := b.FetchOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	amountOfFunds := decimal.NewFromInt(1000)
 	feeRate := decimal.NewFromFloat(0.03)

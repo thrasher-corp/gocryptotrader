@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -29,6 +31,8 @@ var (
 	// ErrUnableToPlaceOrder defines an error when an order submission has
 	// failed.
 	ErrUnableToPlaceOrder = errors.New("order not placed")
+	// ErrOrderNotFound is returned when no order is found
+	ErrOrderNotFound = errors.New("order not found")
 
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderSide    = errors.New("unrecognised order side")
@@ -698,7 +702,7 @@ func (t Type) Lower() string {
 
 // Title returns the type titleized, eg "Limit"
 func (t Type) Title() string {
-	return strings.Title(strings.ToLower(t.String()))
+	return cases.Title(language.English).String(t.String())
 }
 
 // String implements the stringer interface
@@ -751,7 +755,7 @@ func (s Side) Lower() string {
 
 // Title returns the side titleized, eg "Buy"
 func (s Side) Title() string {
-	return strings.Title(strings.ToLower(s.String()))
+	return cases.Title(language.English).String(s.String())
 }
 
 // IsShort returns if the side is short
@@ -1194,7 +1198,7 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 
 // Validate checks internal struct requirements and returns filter requirement
 // options for wrapper standardization procedures.
-func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
+func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {
 		return ErrGetOrdersRequestIsNil
 	}
@@ -1222,7 +1226,7 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 }
 
 // Filter reduces slice by optional fields
-func (g *GetOrdersRequest) Filter(exch string, orders []Detail) FilteredOrders {
+func (g *MultiOrderRequest) Filter(exch string, orders []Detail) FilteredOrders {
 	filtered := make([]Detail, len(orders))
 	copy(filtered, orders)
 	FilterOrdersByPairs(&filtered, g.Pairs)

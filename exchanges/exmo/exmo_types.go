@@ -1,6 +1,8 @@
 package exmo
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Trades holds trade data
 type Trades struct {
@@ -137,12 +139,13 @@ type WalletHistory struct {
 	End     int64 `json:"end,string"`
 	History []struct {
 		Timestamp int64   `json:"dt"`
-		Type      string  `json:"string"`
+		Type      string  `json:"type"`
 		Currency  string  `json:"curr"`
 		Status    string  `json:"status"`
 		Provider  string  `json:"provider"`
 		Amount    float64 `json:"amount,string"`
-		Account   string  `json:"account,string"`
+		Account   string  `json:"account"`
+		TXID      string  `json:"txid"`
 	}
 }
 

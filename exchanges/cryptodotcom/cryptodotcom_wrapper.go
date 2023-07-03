@@ -475,9 +475,9 @@ func (cr *Cryptodotcom) FetchAccountInfo(ctx context.Context, assetType asset.It
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (cr *Cryptodotcom) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (cr *Cryptodotcom) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	var err error
 	var withdrawals *WithdrawalResponse
 	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -492,9 +492,9 @@ func (cr *Cryptodotcom) GetFundingHistory(ctx context.Context) ([]exchange.FundH
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundHistory, 0, len(withdrawals.WithdrawalList)+len(deposits.DepositList))
+	resp := make([]exchange.FundingHistory, 0, len(withdrawals.WithdrawalList)+len(deposits.DepositList))
 	for x := range withdrawals.WithdrawalList {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			Status:          translateWithdrawalStatus(withdrawals.WithdrawalList[x].Status),
 			Timestamp:       withdrawals.WithdrawalList[x].UpdateTime.Time(),
 			Currency:        withdrawals.WithdrawalList[x].Currency,
@@ -506,7 +506,7 @@ func (cr *Cryptodotcom) GetFundingHistory(ctx context.Context) ([]exchange.FundH
 		})
 	}
 	for x := range deposits.DepositList {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    cr.Name,
 			Status:          translateDepositStatus(deposits.DepositList[x].Status),
 			Timestamp:       deposits.DepositList[x].UpdateTime.Time(),
@@ -718,14 +718,14 @@ func (cr *Cryptodotcom) CancelOrder(ctx context.Context, ord *order.Cancel) erro
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (cr *Cryptodotcom) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	cancelBatchResponse := order.CancelBatchResponse{
+func (cr *Cryptodotcom) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+	cancelBatchResponse := &order.CancelBatchResponse{
 		Status: map[string]string{},
 	}
 	cancelOrderParams := []CancelOrderParam{}
 	format, err := cr.GetPairFormat(asset.Spot, true)
 	if err != nil {
-		return cancelBatchResponse, err
+		return nil, err
 	}
 	for x := range orders {
 		cancelOrderParams = append(cancelOrderParams, CancelOrderParam{
@@ -740,7 +740,7 @@ func (cr *Cryptodotcom) CancelBatchOrders(ctx context.Context, orders []order.Ca
 		cancelResp, err = cr.CancelOrderList(ctx, cancelOrderParams)
 	}
 	if err != nil {
-		return cancelBatchResponse, err
+		return nil, err
 	}
 	for x := range cancelResp.ResultList {
 		if cancelResp.ResultList[x].Code != 0 {
@@ -772,13 +772,12 @@ func (cr *Cryptodotcom) CancelAllOrders(ctx context.Context, orderCancellation *
 }
 
 // GetOrderInfo returns order information based on order ID
-func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var respData order.Detail
+func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if !cr.SupportsAsset(assetType) {
-		return respData, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	if !pair.IsPopulated() {
-		return respData, currency.ErrCurrencyPairEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var orderDetail *OrderDetail
 	var err error
@@ -788,25 +787,25 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 		orderDetail, err = cr.GetOrderDetail(ctx, orderID)
 	}
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	status, err := order.StringToOrderStatus(orderDetail.OrderInfo.Status)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	orderType, err := stringToOrderType(orderDetail.OrderInfo.Type)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	side, err := order.StringToOrderSide(orderDetail.OrderInfo.Side)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
 	pair, err = cr.FormatExchangeCurrency(pair, asset.Spot)
 	if err != nil {
-		return respData, err
+		return nil, err
 	}
-	return order.Detail{
+	return &order.Detail{
 		Amount:         orderDetail.OrderInfo.Quantity,
 		Exchange:       cr.Name,
 		OrderID:        orderDetail.OrderInfo.OrderID,
@@ -879,7 +878,7 @@ func (cr *Cryptodotcom) WithdrawFiatFundsToInternationalBank(_ context.Context, 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -949,7 +948,7 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -1103,4 +1102,9 @@ func (cr *Cryptodotcom) GetHistoricCandlesExtended(_ context.Context, _ currency
 func (cr *Cryptodotcom) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := cr.UpdateAccountInfo(ctx, assetType)
 	return cr.CheckTransientError(err)
+}
+
+// GetServerTime returns the current exchange server time.
+func (cr *Cryptodotcom) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }

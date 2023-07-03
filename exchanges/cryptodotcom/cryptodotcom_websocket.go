@@ -301,7 +301,7 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 		case candlestickCnl:
 			interval, okay := subscription[x].Params["interval"].(string)
 			if !okay {
-				return nil, kline.ErrUnsetInterval
+				return nil, kline.ErrInvalidInterval
 			}
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Currency.String()}}
 		case userBalanceCnl:

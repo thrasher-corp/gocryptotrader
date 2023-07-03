@@ -640,7 +640,7 @@ func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL,
 			HTTPDebugging: cr.HTTPDebugging,
 			HTTPRecording: cr.HTTPRecording,
 		}, nil
-	})
+	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -709,13 +709,12 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 			Headers:       headers,
 			Body:          body,
 			Result:        response,
-			AuthRequest:   true,
 			Verbose:       cr.Verbose,
 			HTTPDebugging: cr.HTTPDebugging,
 			HTTPRecording: cr.HTTPRecording,
 		}, nil
 	}
-	err = cr.SendPayload(ctx, epl, newRequest)
+	err = cr.SendPayload(ctx, epl, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
