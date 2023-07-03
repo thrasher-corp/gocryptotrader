@@ -29,7 +29,7 @@ environment:
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
   
-stack: go 1.17.8 # this is not actually used on Windows images
+stack: go 1.20.3
 
 services:
   - postgresql96
