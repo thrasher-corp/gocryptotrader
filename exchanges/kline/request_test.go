@@ -208,8 +208,8 @@ func TestRequest_ProcessResponse(t *testing.T) {
 
 	r = &Request{}
 	_, err = r.ProcessResponse(nil)
-	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
+	if !errors.Is(err, ErrNoTimeSeriesDataToConvert) {
+		t.Fatalf("received: '%v', but expected '%v'", err, ErrNoTimeSeriesDataToConvert)
 	}
 
 	_, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, end, 0)
@@ -343,8 +343,8 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 
 	rExt = &ExtendedRequest{}
 	_, err = rExt.ProcessResponse(nil)
-	if !errors.Is(err, errNoTimeSeriesDataToConvert) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errNoTimeSeriesDataToConvert)
+	if !errors.Is(err, ErrNoTimeSeriesDataToConvert) {
+		t.Fatalf("received: '%v', but expected '%v'", err, ErrNoTimeSeriesDataToConvert)
 	}
 
 	// no conversion
@@ -404,5 +404,23 @@ func TestExtendedRequest_Size(t *testing.T) {
 	rExt = &ExtendedRequest{RangeHolder: &IntervalRangeHolder{Limit: 100, Ranges: []IntervalRange{{}, {}}}}
 	if rExt.Size() != 200 {
 		t.Fatalf("received: '%v', but expected '%v'", rExt.Size(), 200)
+	}
+}
+
+func TestRequest_Size(t *testing.T) {
+	t.Parallel()
+
+	var r *Request
+	if r.Size() != 0 {
+		t.Fatalf("received: '%v', but expected '%v'", r.Size(), 0)
+	}
+
+	r = &Request{
+		Start:            time.Now().Add(-time.Hour * 2).Truncate(time.Hour),
+		End:              time.Now().Truncate(time.Hour),
+		ExchangeInterval: OneHour,
+	}
+	if r.Size() != 2 {
+		t.Fatalf("received: '%v', but expected '%v'", r.Size(), 2)
 	}
 }

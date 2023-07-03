@@ -24,10 +24,11 @@ import (
 )
 
 const (
-	krakenAPIURL         = "https://api.kraken.com"
-	krakenFuturesURL     = "https://futures.kraken.com/derivatives"
-	krakenSpotVersion    = "0"
-	krakenFuturesVersion = "3"
+	krakenAPIURL                  = "https://api.kraken.com"
+	krakenFuturesURL              = "https://futures.kraken.com/derivatives"
+	krakenFuturesSupplementaryURL = "https://futures.kraken.com/api/"
+	krakenSpotVersion             = "0"
+	krakenFuturesVersion          = "3"
 )
 
 // Kraken is the overarching type across the alphapoint package
@@ -477,7 +478,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		var s Spread
 		timeData, ok := subData[0].(float64)
 		if !ok {
-			return nil, errors.New("unable to type assert timeData")
+			return nil, common.GetTypeAssertError("float64", subData[0], "timeData")
 		}
 		s.Time = time.Unix(int64(timeData), 0)
 
@@ -993,7 +994,7 @@ func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 	return k.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -1039,13 +1040,12 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			Headers:       headers,
 			Body:          strings.NewReader(encoded),
 			Result:        &interim,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       k.Verbose,
 			HTTPDebugging: k.HTTPDebugging,
 			HTTPRecording: k.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1054,13 +1054,19 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		if errCap.Error != nil {
 			switch e := errCap.Error.(type) {
 			case []string:
-				return errors.New(e[0])
-			case string:
-				return errors.New(e)
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e[0])
+			case string, []interface{}, interface{}:
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e)
+			default:
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
 		}
 	}
-	return json.Unmarshal(interim, result)
+	err = json.Unmarshal(interim, result)
+	if err != nil {
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
+	}
+	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction

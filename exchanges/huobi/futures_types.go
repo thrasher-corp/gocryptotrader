@@ -86,14 +86,14 @@ type obItem struct {
 type FKlineData struct {
 	Ch   string `json:"ch"`
 	Data []struct {
-		Vol    float64 `json:"vol"`
-		Close  float64 `json:"close"`
-		Count  float64 `json:"count"`
-		High   float64 `json:"high"`
-		ID     int64   `json:"id"`
-		Low    float64 `json:"low"`
-		Open   float64 `json:"open"`
-		Amount float64 `json:"amount"`
+		Volume      float64 `json:"vol"`
+		Close       float64 `json:"close"`
+		Count       float64 `json:"count"`
+		High        float64 `json:"high"`
+		IDTimestamp int64   `json:"id"`
+		Low         float64 `json:"low"`
+		Open        float64 `json:"open"`
+		Amount      float64 `json:"amount"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }
@@ -139,16 +139,19 @@ type FBatchTradesForContractData struct {
 	Ch        string `json:"ch"`
 	Timestamp int64  `json:"ts"`
 	Data      []struct {
-		ID        int64 `json:"id"`
-		Timestamp int64 `json:"ts"`
-		Data      []struct {
-			Amount    float64 `json:"amount"`
-			Direction string  `json:"direction"`
-			ID        int64   `json:"id"`
-			Price     float64 `json:"price"`
-			Timestamp int64   `json:"ts"`
-		} `json:"data"`
+		ID        int64          `json:"id"`
+		Timestamp int64          `json:"ts"`
+		Data      []FuturesTrade `json:"data"`
 	} `json:"data"`
+}
+
+// FuturesTrade is futures trade data
+type FuturesTrade struct {
+	Amount    float64 `json:"amount"`
+	Direction string  `json:"direction"`
+	ID        int64   `json:"id"`
+	Price     float64 `json:"price"`
+	Timestamp int64   `json:"ts"`
 }
 
 // FClawbackRateAndInsuranceData stores clawback rate and insurance data for futures

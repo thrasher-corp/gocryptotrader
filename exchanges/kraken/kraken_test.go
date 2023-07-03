@@ -58,6 +58,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = k.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
 
@@ -91,7 +95,7 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 
 	if st.IsZero() {
-		t.Fatal("expected a time")
+		t.Error("expected a time")
 	}
 }
 
@@ -734,7 +738,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	_, err := k.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	if !sharedtestvalues.AreAPICredentialsSet(k) {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
@@ -838,7 +842,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     currency.Pairs{pair},
@@ -854,7 +858,7 @@ func TestGetActiveOrders(t *testing.T) {
 // TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1969,9 +1973,22 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*12), time.Now())
+	_, err = k.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	}
+
+	pairs, err := k.CurrencyPairs.GetPairs(asset.Futures, false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = k.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
+	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		t.Error(err)
+	}
+	_, err = k.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
 	}
 }
 
@@ -1983,8 +2000,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	_, err = k.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatal(err)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
 	}
 }
 
@@ -2015,7 +2032,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			ret := k.FormatExchangeKlineInterval(test.interval)
 
 			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+				t.Errorf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
 	}
@@ -2023,11 +2040,21 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BCHEUR")
+	cp, err := currency.NewPairFromString("BCHEUR")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = k.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	_, err = k.GetRecentTrades(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp, err = currency.NewPairFromStrings("PI", "BCHUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	cp.Delimiter = "_"
+	_, err = k.GetRecentTrades(context.Background(), cp, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2079,16 +2106,53 @@ func TestChecksumCalculation(t *testing.T) {
 	t.Parallel()
 	expected := "5005"
 	if v := trim("0.05005"); v != expected {
-		t.Fatalf("expected %s but received %s", expected, v)
+		t.Errorf("expected %s but received %s", expected, v)
 	}
 
 	expected = "500"
 	if v := trim("0.00000500"); v != expected {
-		t.Fatalf("expected %s but received %s", expected, v)
+		t.Errorf("expected %s but received %s", expected, v)
 	}
 
 	err := validateCRC32(&testOb, krakenAPIDocChecksum, 5, 8)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	}
+}
+
+func TestGetCharts(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	cp.Delimiter = "_"
+	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	end := time.UnixMilli(resp.Candles[0].Time)
+	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesTrades(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	cp.Delimiter = "_"
+	_, err = k.GetFuturesTrades(context.Background(), cp, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = k.GetFuturesTrades(context.Background(), cp, time.Now().Add(-time.Hour), time.Now())
+	if err != nil {
+		t.Error(err)
 	}
 }

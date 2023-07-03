@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
-	"errors"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
@@ -181,7 +181,7 @@ func UUIDByName(exchange string) (uuid.UUID, error) {
 	if v != nil {
 		u, ok := v.(uuid.UUID)
 		if !ok {
-			return uuid.UUID{}, errors.New("unable to type assert uuid")
+			return uuid.UUID{}, common.GetTypeAssertError("uuid.UUID", v)
 		}
 		return u, nil
 	}

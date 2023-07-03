@@ -137,19 +137,18 @@ func (h *HUOBI) GetSwapKlineData(ctx context.Context, code currency.Pair, period
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
-	if size == 1 || size > 2000 {
-		return resp, fmt.Errorf("invalid size")
-	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
-	params.Set("size", strconv.FormatInt(size, 10))
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	path := common.EncodeURLValues(huobiKLineData, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
@@ -187,9 +186,6 @@ func (h *HUOBI) GetBatchTrades(ctx context.Context, code currency.Pair, size int
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
-	}
-	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided, only values between 1-1200 are supported")
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)

@@ -45,6 +45,14 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
+func TestTimestamp(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetTimestamp(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetTicker(context.Background())
@@ -218,7 +226,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -237,7 +245,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -285,7 +293,7 @@ func TestGetOrderStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.mock != mockTests {
-				t.Skip()
+				t.Skip("mock mismatch, skipping")
 			}
 
 			_, err := p.GetAuthenticatedOrderStatus(context.Background(),
@@ -341,7 +349,7 @@ func TestGetOrderTrades(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.mock != mockTests {
-				t.Skip()
+				t.Skip("mock mismatch, skipping")
 			}
 
 			_, err := p.GetAuthenticatedOrderTrades(context.Background(), tt.orderID)
@@ -670,7 +678,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
-	if !errors.Is(err, common.ErrNotYetImplemented) {
+	if !errors.Is(err, nil) {
 		t.Fatal(err)
 	}
 }
@@ -1063,6 +1071,83 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	_, err := p.GetAvailableTransferChains(context.Background(), currency.USDT)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWalletActivity(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+
+	_, err := p.WalletActivity(context.Background(), time.Now().Add(-time.Minute), time.Now(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelMultipleOrdersByIDs(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.CancelMultipleOrdersByIDs(context.Background(), []string{"1234"}, []string{"5678"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+
+	_, err := p.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	_, err := p.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTimestamp(t *testing.T) {
+	t.Parallel()
+	st, err := p.GetTimestamp(context.Background())
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Error("expected a time")
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := p.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Error("expected a time")
 	}
 }
 

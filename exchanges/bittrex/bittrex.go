@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -217,7 +218,7 @@ func (b *Bittrex) GetHistoricalCandles(ctx context.Context, marketName, candleIn
 		// Retrieve full year
 		start = fmt.Sprintf("%d", year)
 	default:
-		return resp, fmt.Errorf("invalid interval %v, not supported", candleInterval)
+		return resp, fmt.Errorf("%w %v", kline.ErrUnsupportedInterval, candleInterval)
 	}
 
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getHistoricalCandles, marketName, candleType, candleInterval, start), &resp, nil)
@@ -371,7 +372,7 @@ func (b *Bittrex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 		HTTPRecording:  b.HTTPRecording,
 		HeaderResponse: resultHeader,
 	}
-	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) { return item, nil })
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) { return item, nil }, request.UnauthenticatedRequest)
 }
 
 // SendAuthHTTPRequest sends an authenticated request
@@ -429,7 +430,6 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 			Headers:        headers,
 			Body:           body,
 			Result:         result,
-			AuthRequest:    true,
 			Verbose:        b.Verbose,
 			HTTPDebugging:  b.HTTPDebugging,
 			HTTPRecording:  b.HTTPRecording,
@@ -437,7 +437,7 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 		}, nil
 	}
 
-	return b.SendPayload(ctx, request.Unset, newRequest)
+	return b.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

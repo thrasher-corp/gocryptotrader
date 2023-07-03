@@ -780,7 +780,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 		return nil, err
 	}
 
-	fpair, err := h.FormatExchangeCurrency(pair, asset.Spot)
+	fPair, err := h.FormatExchangeCurrency(pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -794,7 +794,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 		Timestamp:        timestamp,
 		Topic:            wsOrdersList,
 		AccountID:        accountID,
-		Symbol:           fpair.String(),
+		Symbol:           fPair.String(),
 		States:           "submitted,partial-filled",
 	}
 

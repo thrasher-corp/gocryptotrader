@@ -283,7 +283,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -299,7 +299,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -465,6 +465,15 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetCryptoDepositAddress(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_USD")
@@ -531,7 +540,27 @@ func TestGetCryptoPaymentProvidersList(t *testing.T) {
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
 	_, err := e.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	_, err := e.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

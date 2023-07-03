@@ -485,7 +485,6 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	}
 
 	// out of order
-	holder.verbose = true
 	err = holder.Update(&orderbook.Update{
 		Asks:     []orderbook.Item{{Price: 999999}},
 		Pair:     cp,
@@ -1107,6 +1106,9 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	ob, err = book.Retrieve()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(ob.Asks) == 0 || len(ob.Bids) == 0 {
+		t.Fatal("expected a valid orderbook")
 	}
 
 	update := ob.Asks[0]

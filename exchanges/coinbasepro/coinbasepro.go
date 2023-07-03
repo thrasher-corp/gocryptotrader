@@ -722,6 +722,34 @@ func (c *CoinbasePro) GetTrailingVolume(ctx context.Context) ([]Volume, error) {
 		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproTrailingVolume, nil, &resp)
 }
 
+// GetTransfers returns a history of withdrawal and or deposit transactions
+func (c *CoinbasePro) GetTransfers(ctx context.Context, profileID, transferType string, limit int64, start, end time.Time) ([]TransferHistory, error) {
+	if !start.IsZero() && !end.IsZero() {
+		err := common.StartEndTimeCheck(start, end)
+		if err != nil {
+			return nil, err
+		}
+	}
+	req := make(map[string]interface{})
+	if profileID != "" {
+		req["profile_id"] = profileID
+	}
+	if !start.IsZero() {
+		req["before"] = start.Format(time.RFC3339)
+	}
+	if !end.IsZero() {
+		req["after"] = end.Format(time.RFC3339)
+	}
+	if limit > 0 {
+		req["limit"] = limit
+	}
+	if transferType != "" {
+		req["type"] = transferType
+	}
+	var resp []TransferHistory
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproTransfers, req, &resp)
+}
+
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
 	endpoint, err := c.API.Endpoints.GetURL(ep)
@@ -740,7 +768,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 
 	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -786,13 +814,12 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        result,
-			AuthRequest:   true,
 			Verbose:       c.Verbose,
 			HTTPDebugging: c.HTTPDebugging,
 			HTTPRecording: c.HTTPRecording,
 		}, nil
 	}
-	return c.SendPayload(ctx, request.Unset, newRequest)
+	return c.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

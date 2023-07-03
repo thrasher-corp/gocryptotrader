@@ -2738,7 +2738,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestSpot = order.GetOrdersRequest{
+	var getOrdersRequestSpot = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -2750,7 +2750,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	var getOrdersRequestUMF = order.GetOrdersRequest{
+	var getOrdersRequestUMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
 		Side:      order.AnySide,
@@ -2767,7 +2767,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestCMF = order.GetOrdersRequest{
+	var getOrdersRequestCMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
 		Side:      order.AnySide,
@@ -2784,7 +2784,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestFutures = order.GetOrdersRequest{
+	var getOrdersRequestFutures = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
 		Side:      order.AnySide,
@@ -2801,7 +2801,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestUSDC = order.GetOrdersRequest{
+	var getOrdersRequestUSDC = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
 		Side:      order.AnySide,
@@ -2823,7 +2823,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestSpot = order.GetOrdersRequest{
+	var getOrdersRequestSpot = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
@@ -2835,7 +2835,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 
-	var getOrdersRequestUMF = order.GetOrdersRequest{
+	var getOrdersRequestUMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
 		Type:      order.AnyType,
@@ -2852,7 +2852,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestCMF = order.GetOrdersRequest{
+	var getOrdersRequestCMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
 		Type:      order.AnyType,
@@ -2869,7 +2869,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestFutures = order.GetOrdersRequest{
+	var getOrdersRequestFutures = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
 		Type:      order.AnyType,
@@ -2886,7 +2886,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestUSDC = order.GetOrdersRequest{
+	var getOrdersRequestUSDC = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
 		Type:      order.AnyType,
@@ -3453,6 +3453,21 @@ func TestWsHandleData(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	supportedAssets := b.GetAssetTypes(false)

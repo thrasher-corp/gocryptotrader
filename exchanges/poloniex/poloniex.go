@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -21,6 +22,7 @@ import (
 
 const (
 	poloniexAPIURL               = "https://poloniex.com"
+	poloniexAltAPIUrl            = "https://api.poloniex.com"
 	poloniexAPITradingEndpoint   = "tradingApi"
 	poloniexAPIVersion           = "1"
 	poloniexBalances             = "returnBalances"
@@ -50,6 +52,9 @@ const (
 	poloniexActiveLoans          = "returnActiveLoans"
 	poloniexLendingHistory       = "returnLendingHistory"
 	poloniexAutoRenew            = "toggleAutoRenew"
+	poloniexCancelByIDs          = "/orders/cancelByIds"
+	poloniexTimestamp            = "/timestamp"
+	poloniexWalletActivity       = "/wallets/activity"
 	poloniexMaxOrderbookDepth    = 100
 )
 
@@ -110,7 +115,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			}
 			amt, ok := resp.Asks[x][1].(float64)
 			if !ok {
-				return oba, errors.New("unable to type assert amount")
+				return oba, common.GetTypeAssertError("float64", resp.Asks[x][1], "amount")
 			}
 			ob.Asks[x] = OrderbookItem{
 				Price:  price,
@@ -125,7 +130,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			}
 			amt, ok := resp.Bids[x][1].(float64)
 			if !ok {
-				return oba, errors.New("unable to type assert amount")
+				return oba, common.GetTypeAssertError("float64", resp.Bids[x][1], "amount")
 			}
 			ob.Bids[x] = OrderbookItem{
 				Price:  price,
@@ -153,7 +158,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 				}
 				amt, ok := orderbook.Asks[x][1].(float64)
 				if !ok {
-					return oba, errors.New("unable to type assert amount")
+					return oba, common.GetTypeAssertError("float64", orderbook.Asks[x][1], "amount")
 				}
 				ob.Asks[x] = OrderbookItem{
 					Price:  price,
@@ -167,7 +172,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 				}
 				amt, ok := orderbook.Bids[x][1].(float64)
 				if !ok {
-					return oba, errors.New("unable to type assert amount")
+					return oba, common.GetTypeAssertError("float64", orderbook.Bids[x][1], "amount")
 				}
 				ob.Bids[x] = OrderbookItem{
 					Price:  price,
@@ -254,6 +259,20 @@ func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, e
 	)
 }
 
+// GetTimestamp returns server time
+func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
+	var resp TimeStampResponse
+	err := p.SendHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		poloniexTimestamp,
+		&resp,
+	)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.UnixMilli(resp.ServerTime), nil
+}
+
 // GetLoanOrders returns the list of loan offers and demands for a given
 // currency, specified by the "currency" GET parameter.
 func (p *Poloniex) GetLoanOrders(ctx context.Context, currency string) (LoanOrders, error) {
@@ -274,7 +293,7 @@ func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
 
 	data, ok := result.(map[string]interface{})
 	if !ok {
-		return Balance{}, errors.New("unable to type assert balance result")
+		return Balance{}, common.GetTypeAssertError("map[string]interface{}", result, "balance result")
 	}
 	balance := Balance{}
 	balance.Currency = make(map[string]float64)
@@ -318,7 +337,7 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, e
 	for x, y := range data {
 		addresses.Addresses[x], ok = y.(string)
 		if !ok {
-			return addresses, errors.New("unable to type assert address to string")
+			return addresses, common.GetTypeAssertError("string", y, "address")
 		}
 	}
 
@@ -863,6 +882,41 @@ func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool
 	return true, nil
 }
 
+// WalletActivity returns the wallet activity between set start and end time
+func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
+	values := url.Values{}
+	err := common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
+	values.Set("start", strconv.FormatInt(start.Unix(), 10))
+	values.Set("end", strconv.FormatInt(end.Unix(), 10))
+	if activityType != "" {
+		values.Set("activityType", activityType)
+	}
+	var resp WalletActivityResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		poloniexWalletActivity,
+		values,
+		&resp)
+}
+
+// CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
+func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
+	values := url.Values{}
+	if len(orderIDs) > 0 {
+		values.Set("orderIds", strings.Join(orderIDs, ","))
+	}
+	if len(clientOrderIDs) > 0 {
+		values.Set("clientOrderIds", strings.Join(clientOrderIDs, ","))
+	}
+	var result []CancelOrdersResponse
+	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
+		poloniexCancelByIDs,
+		values,
+		&result)
+}
+
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
@@ -881,7 +935,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 
 	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -917,13 +971,12 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Headers:       headers,
 			Body:          bytes.NewBufferString(values.Encode()),
 			Result:        result,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       p.Verbose,
 			HTTPDebugging: p.HTTPDebugging,
 			HTTPRecording: p.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

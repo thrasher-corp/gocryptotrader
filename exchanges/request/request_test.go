@@ -236,21 +236,21 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err = (*Requester)(nil).SendPayload(ctx, Unset, nil)
+	err = (*Requester)(nil).SendPayload(ctx, Unset, nil, UnauthenticatedRequest)
 	if !errors.Is(ErrRequestSystemIsNil, err) {
 		t.Fatalf("expected: %v but received: %v", ErrRequestSystemIsNil, err)
 	}
-	err = r.SendPayload(ctx, Unset, nil)
+	err = r.SendPayload(ctx, Unset, nil, UnauthenticatedRequest)
 	if !errors.Is(errRequestFunctionIsNil, err) {
 		t.Fatalf("expected: %v but received: %v", errRequestFunctionIsNil, err)
 	}
 
-	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) { return nil, nil })
+	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) { return nil, nil }, UnauthenticatedRequest)
 	if !errors.Is(errRequestItemNil, err) {
 		t.Fatalf("expected: %v but received: %v", errRequestItemNil, err)
 	}
 
-	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) { return &Item{}, nil })
+	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) { return &Item{}, nil }, UnauthenticatedRequest)
 	if !errors.Is(errInvalidPath, err) {
 		t.Fatalf("expected: %v but received: %v", errInvalidPath, err)
 	}
@@ -261,7 +261,7 @@ func TestDoRequest(t *testing.T) {
 			Path:           testURL,
 			HeaderResponse: &nilHeader,
 		}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(errHeaderResponseMapIsNil, err) {
 		t.Fatalf("expected: %v but received: %v", errHeaderResponseMapIsNil, err)
 	}
@@ -271,7 +271,7 @@ func TestDoRequest(t *testing.T) {
 		return &Item{
 			Path: testURL,
 		}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, errEndpointLimitNotFound) {
 		t.Fatalf("expected: %v but received: %v", errEndpointLimitNotFound, err)
 	}
@@ -287,7 +287,7 @@ func TestDoRequest(t *testing.T) {
 			HTTPDebugging: true,
 			Verbose:       true,
 		}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -296,7 +296,7 @@ func TestDoRequest(t *testing.T) {
 	newError := errors.New("request item failure")
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
 		return nil, newError
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, newError) {
 		t.Fatalf("received: %v but expected: %v", err, newError)
 	}
@@ -305,7 +305,7 @@ func TestDoRequest(t *testing.T) {
 	r.jobs = MaxRequestJobs
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
 		return &Item{Path: testURL}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, errMaxRequestJobs) {
 		t.Fatalf("received: %v but expected: %v", err, errMaxRequestJobs)
 	}
@@ -324,7 +324,7 @@ func TestDoRequest(t *testing.T) {
 	}
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
 		return &Item{Path: testURL + "/timeout"}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, errFailedToRetryRequest) {
 		t.Fatalf("received: %v but expected: %v", err, errFailedToRetryRequest)
 	}
@@ -348,7 +348,7 @@ func TestDoRequest(t *testing.T) {
 			Result:         &resp,
 			HeaderResponse: &passback,
 		}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -371,7 +371,7 @@ func TestDoRequest(t *testing.T) {
 			Path:   testURL,
 			Result: &respErr,
 		}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -391,12 +391,11 @@ func TestDoRequest(t *testing.T) {
 			}
 			payloadError := r.SendPayload(ctx, Auth, func() (*Item, error) {
 				return &Item{
-					Method:      http.MethodGet,
-					Path:        testURL + "/rate",
-					Result:      &resp,
-					AuthRequest: true,
+					Method: http.MethodGet,
+					Path:   testURL + "/rate",
+					Result: &resp,
 				}, nil
-			})
+			}, AuthenticatedRequest)
 			wg.Done()
 			if payloadError != nil {
 				atomic.StoreInt32(&failed, 1)
@@ -436,12 +435,11 @@ func TestDoRequest_Retries(t *testing.T) {
 			}
 			payloadError := r.SendPayload(context.Background(), Auth, func() (*Item, error) {
 				return &Item{
-					Method:      http.MethodGet,
-					Path:        testURL + "/rate-retry",
-					Result:      &resp,
-					AuthRequest: true,
+					Method: http.MethodGet,
+					Path:   testURL + "/rate-retry",
+					Result: &resp,
 				}, nil
-			})
+			}, AuthenticatedRequest)
 			if payloadError != nil {
 				atomic.StoreInt32(&failed, 1)
 				log.Fatal(payloadError)
@@ -474,7 +472,7 @@ func TestDoRequest_RetryNonRecoverable(t *testing.T) {
 			Method: http.MethodGet,
 			Path:   testURL + "/always-retry",
 		}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, errFailedToRetryRequest) {
 		t.Fatalf("received: %v but expected: %v", err, errFailedToRetryRequest)
 	}
@@ -499,7 +497,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 			Method: http.MethodGet,
 			Path:   testURL + "/always-retry",
 		}, nil
-	})
+	}, UnauthenticatedRequest)
 	if !errors.Is(err, notRetryErr) {
 		t.Fatalf("received: %v but expected: %v", err, notRetryErr)
 	}
@@ -586,11 +584,11 @@ func TestBasicLimiter(t *testing.T) {
 	ctx := context.Background()
 
 	tn := time.Now()
-	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil })
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil }, UnauthenticatedRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil })
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil }, UnauthenticatedRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,7 +598,7 @@ func TestBasicLimiter(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(ctx, tn.Add(time.Nanosecond))
 	defer cancel()
-	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil })
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil }, UnauthenticatedRequest)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("received: %v but expected: %v", err, context.DeadlineExceeded)
 	}
@@ -618,12 +616,11 @@ func TestEnableDisableRateLimit(t *testing.T) {
 	var resp interface{}
 	err = r.SendPayload(ctx, Auth, func() (*Item, error) {
 		return &Item{
-			Method:      http.MethodGet,
-			Path:        testURL,
-			Result:      &resp,
-			AuthRequest: true,
+			Method: http.MethodGet,
+			Path:   testURL,
+			Result: &resp,
 		}, nil
-	})
+	}, AuthenticatedRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -640,12 +637,11 @@ func TestEnableDisableRateLimit(t *testing.T) {
 
 	err = r.SendPayload(ctx, Auth, func() (*Item, error) {
 		return &Item{
-			Method:      http.MethodGet,
-			Path:        testURL,
-			Result:      &resp,
-			AuthRequest: true,
+			Method: http.MethodGet,
+			Path:   testURL,
+			Result: &resp,
 		}, nil
-	})
+	}, AuthenticatedRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -665,12 +661,11 @@ func TestEnableDisableRateLimit(t *testing.T) {
 	go func(c chan struct{}) {
 		err = r.SendPayload(ctx, Auth, func() (*Item, error) {
 			return &Item{
-				Method:      http.MethodGet,
-				Path:        testURL,
-				Result:      &resp,
-				AuthRequest: true,
+				Method: http.MethodGet,
+				Path:   testURL,
+				Result: &resp,
 			}, nil
-		})
+		}, AuthenticatedRequest)
 		if err != nil {
 			log.Fatal(err)
 		}

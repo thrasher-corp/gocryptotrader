@@ -437,7 +437,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
@@ -453,7 +453,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
@@ -1061,6 +1061,15 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err := c.GetHistoricTrades(context.Background(),
 		testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
+	}
+}
+
+func TestGetTransfers(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetTransfers(context.Background(), "", "", 100, time.Time{}, time.Time{})
+	if err != nil {
 		t.Error(err)
 	}
 }
