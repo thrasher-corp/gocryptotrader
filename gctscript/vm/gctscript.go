@@ -1,10 +1,10 @@
 package vm
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -55,7 +55,7 @@ func (g *GctScriptManager) ShutdownAll() (err error) {
 	AllVMSync.Range(func(_, v interface{}) bool {
 		vm, ok := v.(*VM)
 		if !ok {
-			shutdownErrors = append(shutdownErrors, errors.New("unable to type assert VM"))
+			shutdownErrors = append(shutdownErrors, common.GetTypeAssertError("*VM", v))
 			return true
 		}
 		errShutdown := vm.Shutdown()

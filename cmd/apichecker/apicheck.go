@@ -566,7 +566,7 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 	case github:
 		tempData, ok := data.(GithubData)
 		if !ok {
-			return ExchangeInfo{}, errors.New("unable to type assert GithubData")
+			return ExchangeInfo{}, common.GetTypeAssertError("GithubData", data)
 		}
 		tempSha, err := getSha(path)
 		if err != nil {
@@ -583,7 +583,7 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 	case htmlScrape:
 		tempData, ok := data.(HTMLScrapingData)
 		if !ok {
-			return ExchangeInfo{}, errors.New("unable to type assert HTMLScrapingData")
+			return ExchangeInfo{}, common.GetTypeAssertError("HTMLScrapingData", data)
 		}
 		checkStr, err := checkChangeLog(&tempData)
 		if err != nil {
@@ -1280,7 +1280,7 @@ func sendGetReq(path string, result interface{}) error {
 		Verbose: verbose}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // sendAuthReq sends auth req
@@ -1298,7 +1298,7 @@ func sendAuthReq(method, path string, result interface{}) error {
 		Verbose: verbose}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // trelloGetBoardID gets all board ids on trello for a given user

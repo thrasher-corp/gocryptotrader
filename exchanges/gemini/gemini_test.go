@@ -358,7 +358,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type: order.AnyType,
 		Pairs: []currency.Pair{
 			currency.NewPair(currency.LTC, currency.BTC),
@@ -380,7 +380,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 		AssetType: asset.Spot,
@@ -1215,6 +1215,46 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 	_, err = g.GetHistoricTrades(context.Background(),
 		currencyPair, asset.Spot, tStart, tEnd)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTransfers(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+
+	_, err := g.Transfers(context.Background(), currency.BTC, time.Time{}, 100, "", true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+
+	_, err := g.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+
+	_, err := g.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+
+	_, err := g.GetOrderInfo(context.Background(), "1234", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
 	}

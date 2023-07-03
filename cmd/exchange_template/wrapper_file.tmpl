@@ -385,12 +385,12 @@ func ({{.Variable}} *{{.CapitalName}}) FetchAccountInfo(ctx context.Context, ass
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func ({{.Variable}} *{{.CapitalName}}) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
+func ({{.Variable}} *{{.CapitalName}}) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -400,9 +400,16 @@ func ({{.Variable}} *{{.CapitalName}}) GetRecentTrades(ctx context.Context, p cu
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricTrades (ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
+
+
+// GetServerTime returns the current exchange server time.
+func ({{.Variable}} *{{.CapitalName}}) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrNotYetImplemented
+}
+
 
 // SubmitOrder submits a new order
 func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
@@ -447,8 +454,8 @@ func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ctx context.Context, ord *ord
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-    return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+    return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -460,8 +467,8 @@ func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(ctx context.Context, orde
 }
 
 // GetOrderInfo returns order information based on order ID
-func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -497,7 +504,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(ctx 
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -506,7 +513,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(ctx context.Context, getO
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }

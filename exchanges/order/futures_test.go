@@ -941,13 +941,13 @@ func TestSetCollateralCurrency(t *testing.T) {
 	t.Parallel()
 	var expectedError = errExchangeNameEmpty
 	pc := SetupPositionController()
-	err := pc.SetCollateralCurrency("", asset.Spot, currency.Pair{}, currency.Code{})
+	err := pc.SetCollateralCurrency("", asset.Spot, currency.EMPTYPAIR, currency.Code{})
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
 
 	expectedError = ErrNotFuturesAsset
-	err = pc.SetCollateralCurrency("hi", asset.Spot, currency.Pair{}, currency.Code{})
+	err = pc.SetCollateralCurrency("hi", asset.Spot, currency.EMPTYPAIR, currency.Code{})
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
@@ -1013,7 +1013,7 @@ func TestSetCollateralCurrency(t *testing.T) {
 	}
 
 	var nilPC *PositionController
-	err = nilPC.SetCollateralCurrency("hi", asset.Spot, currency.Pair{}, currency.Code{})
+	err = nilPC.SetCollateralCurrency("hi", asset.Spot, currency.EMPTYPAIR, currency.Code{})
 	expectedError = common.ErrNilPointer
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)

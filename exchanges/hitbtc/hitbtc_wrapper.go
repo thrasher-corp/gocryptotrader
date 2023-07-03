@@ -309,7 +309,11 @@ func (h *HitBTC) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-	return h.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = h.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return h.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -386,18 +390,24 @@ func (h *HitBTC) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if c.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := h.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        h.Name,
 		Pair:            c,
 		Asset:           assetType,
 		VerifyOrderbook: h.CanVerifyOrderbook,
 	}
-	fpair, err := h.FormatExchangeCurrency(c, assetType)
+	fPair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	orderbookNew, err := h.GetOrderbook(ctx, fpair.String(), 1000)
+	orderbookNew, err := h.GetOrderbook(ctx, fPair.String(), 1000)
 	if err != nil {
 		return book, err
 	}
@@ -474,15 +484,17 @@ func (h *HitBTC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HitBTC) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (h *HitBTC) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+	// TODO supported in v3 API
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (h *HitBTC) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (h *HitBTC) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	// TODO supported in v3 API
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -629,8 +641,13 @@ func (h *HitBTC) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HitBTC) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (h *HitBTC) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (h *HitBTC) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -657,9 +674,38 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (h *HitBTC) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (h *HitBTC) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := h.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
+	resp, err := h.GetActiveOrderByClientOrderID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	format, err := h.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	pair = pair.Format(format)
+
+	var side order.Side
+	side, err = order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return nil, err
+	}
+	return &order.Detail{
+		OrderID:  resp.ID,
+		Amount:   resp.Quantity,
+		Exchange: h.Name,
+		Price:    resp.Price,
+		Date:     resp.CreatedAt,
+		Side:     side,
+		Pair:     pair,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -718,7 +764,7 @@ func (h *HitBTC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -771,7 +817,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

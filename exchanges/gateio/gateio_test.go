@@ -2378,7 +2378,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     enabledPairs[:2],
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2391,7 +2391,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{cp},
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2400,7 +2400,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     enabledPairs[:2],
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2409,7 +2409,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     enabledPairs[:2],
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2418,7 +2418,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     currency.Pairs{futuresTradablePair},
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2427,7 +2427,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     currency.Pairs{deliveryFuturesTradablePair},
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2436,7 +2436,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
-	_, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     currency.Pairs{optionsTradablePair},
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2445,7 +2445,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %s GetActiveOrders() error: %v", g.Name, err)
 	}
-	if _, err = g.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	if _, err = g.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Pairs:     currency.Pairs{},
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -2457,7 +2457,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	var getOrdersRequest = order.GetOrdersRequest{
+	var multiOrderRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
@@ -2466,36 +2466,36 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	getOrdersRequest.Pairs = enabledPairs[:3]
-	_, err = g.GetOrderHistory(context.Background(), &getOrdersRequest)
+	multiOrderRequest.Pairs = enabledPairs[:3]
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
-	getOrdersRequest.AssetType = asset.Futures
-	getOrdersRequest.Pairs, err = g.GetEnabledPairs(asset.Futures)
+	multiOrderRequest.AssetType = asset.Futures
+	multiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	getOrdersRequest.Pairs = getOrdersRequest.Pairs[len(getOrdersRequest.Pairs)-4:]
-	_, err = g.GetOrderHistory(context.Background(), &getOrdersRequest)
+	multiOrderRequest.Pairs = multiOrderRequest.Pairs[len(multiOrderRequest.Pairs)-4:]
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
-	getOrdersRequest.AssetType = asset.DeliveryFutures
-	getOrdersRequest.Pairs, err = g.GetEnabledPairs(asset.DeliveryFutures)
+	multiOrderRequest.AssetType = asset.DeliveryFutures
+	multiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.DeliveryFutures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.GetOrderHistory(context.Background(), &getOrdersRequest)
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
-	getOrdersRequest.AssetType = asset.Options
-	getOrdersRequest.Pairs, err = g.GetEnabledPairs(asset.Options)
+	multiOrderRequest.AssetType = asset.Options
+	multiOrderRequest.Pairs, err = g.GetEnabledPairs(asset.Options)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.GetOrderHistory(context.Background(), &getOrdersRequest)
+	_, err = g.GetOrderHistory(context.Background(), &multiOrderRequest)
 	if err != nil {
 		t.Errorf("%s GetOrderhistory() error: %v", g.Name, err)
 	}
@@ -2519,11 +2519,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	if _, err := g.GetHistoricCandles(context.Background(), deliveryFuturesTradablePair, asset.DeliveryFutures, kline.OneDay, startTime, time.Now()); err != nil {
 		t.Errorf("%s GetHistoricCandles() error: %v", g.Name, err)
 	}
-	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
-	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
+	if _, err := g.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandles() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
 }
 
@@ -2554,8 +2554,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, common.ErrNotYetImplemented, err)
+	if _, err = g.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, startTime, time.Now()); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
 }
 func TestGetAvailableTransferTrains(t *testing.T) {

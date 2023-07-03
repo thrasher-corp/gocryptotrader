@@ -48,7 +48,7 @@ type IBotExchange interface {
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
-	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
+	GetAccountFundingHistory(ctx context.Context) ([]FundingHistory, error)
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
 	GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]WithdrawalHistory, error)
@@ -99,11 +99,11 @@ type OrderManagement interface {
 	SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
 	ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
 	CancelOrder(ctx context.Context, o *order.Cancel) error
-	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
+	CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error)
 	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
-	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
-	GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error)
-	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error)
+	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
+	GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
+	GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 }
 
 // CurrencyStateManagement defines functionality for currency state management

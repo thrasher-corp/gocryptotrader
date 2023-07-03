@@ -144,14 +144,17 @@ type OrderData struct {
 type UserTransactions struct {
 	Status string `json:"status"`
 	Data   []struct {
-		Search       string  `json:"search"`
-		TransferDate int64   `json:"transfer_date"`
-		Units        string  `json:"units"`
-		Price        float64 `json:"price,string"`
-		BTC1KRW      float64 `json:"btc1krw,string"`
-		Fee          string  `json:"fee"`
-		BTCRemain    float64 `json:"btc_remain,string"`
-		KRWRemain    float64 `json:"krw_remain,string"`
+		Search          int64         `json:"search,string"`
+		TransferDate    int64         `json:"transfer_date"`
+		OrderCurrency   currency.Code `json:"order_currency"`
+		PaymentCurrency currency.Code `json:"payment_currency"`
+		Units           float64       `json:"units,string"`
+		Price           float64       `json:"price,string"`
+		Amount          float64       `json:"amount,string"`
+		FeeCurrency     currency.Code `json:"fee_currency"`
+		Fee             float64       `json:"fee,string"`
+		OrderBalance    float64       `json:"order_balance,string"`
+		PaymentBalance  float64       `json:"payment_balance,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }

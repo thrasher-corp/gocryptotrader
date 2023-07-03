@@ -189,9 +189,9 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFundingHistory(context.Background())
+	_, err := b.GetAccountFundingHistory(context.Background())
 	if err == nil {
-		t.Error("GetFundingHistory() Expected error")
+		t.Error("GetAccountFundingHistory() Expected error")
 	}
 }
 
@@ -590,7 +590,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -606,7 +606,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 		AssetType: asset.Spot,
@@ -1186,5 +1186,49 @@ func TestGetActionFromString(t *testing.T) {
 
 	if action != orderbook.UpdateInsert {
 		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.UpdateInsert)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }

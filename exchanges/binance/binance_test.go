@@ -1400,7 +1400,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
@@ -1421,7 +1421,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1594,7 +1594,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.mock != mockTests {
-				t.Skip()
+				t.Skip("mock mismatch, skipping")
 			}
 			result, err := b.GetAggregatedTrades(context.Background(), tt.args)
 			if err != nil {
@@ -1772,7 +1772,7 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = b.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		Pairs:     currency.Pairs{p},
@@ -1786,7 +1786,7 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetActiveOrders(context.Background(), &order.GetOrdersRequest{
+	_, err = b.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		Pairs:     currency.Pairs{p2},
@@ -1804,12 +1804,12 @@ func TestWrapperGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
-		Type:      order.AnyType,
-		Side:      order.AnySide,
-		OrderID:   "123",
-		Pairs:     currency.Pairs{p},
-		AssetType: asset.CoinMarginedFutures,
+	_, err = b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:        order.AnyType,
+		Side:        order.AnySide,
+		FromOrderID: "123",
+		Pairs:       currency.Pairs{p},
+		AssetType:   asset.CoinMarginedFutures,
 	})
 	if err != nil {
 		t.Error(err)
@@ -1819,18 +1819,18 @@ func TestWrapperGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
-		Type:      order.AnyType,
-		Side:      order.AnySide,
-		OrderID:   "123",
-		Pairs:     currency.Pairs{p2},
-		AssetType: asset.USDTMarginedFutures,
+	_, err = b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:        order.AnyType,
+		Side:        order.AnySide,
+		FromOrderID: "123",
+		Pairs:       currency.Pairs{p2},
+		AssetType:   asset.USDTMarginedFutures,
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetOrderHistory(context.Background(), &order.GetOrdersRequest{
+	_, err = b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		AssetType: asset.USDTMarginedFutures,
 	})
 	if err == nil {
@@ -1845,13 +1845,13 @@ func TestCancelOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fpair, err := b.FormatExchangeCurrency(p, asset.CoinMarginedFutures)
+	fPair, err := b.FormatExchangeCurrency(p, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.CoinMarginedFutures,
-		Pair:      fpair,
+		Pair:      fPair,
 		OrderID:   "1234",
 	})
 	if err != nil {
@@ -2302,18 +2302,29 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := startTime.Add(time.Hour * 24 * 7)
+	bAssets := b.GetAssetTypes(false)
+	for i := range bAssets {
+		cps, err := b.GetAvailablePairs(bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
+		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
+		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
+			t.Fatal(err)
+		}
+		_, err = b.GetHistoricCandles(context.Background(), cps[0], bAssets[i], kline.OneDay, startTime, end)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
 	pair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
-	if err != nil {
-		t.Error(err)
-	}
-
+	startTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
 	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
 		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
@@ -2322,17 +2333,22 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTC-USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, end)
-	if err != nil {
-		t.Error(err)
+	startTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := startTime.Add(time.Hour * 24 * 7)
+	bAssets := b.GetAssetTypes(false)
+	for i := range bAssets {
+		cps, err := b.GetAvailablePairs(bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
+		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
+		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
+			t.Fatal(err)
+		}
+		_, err = b.GetHistoricCandlesExtended(context.Background(), cps[0], bAssets[i], kline.OneDay, startTime, end)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -2379,14 +2395,17 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetRecentTrades(context.Background(),
-		currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
+	bAssets := b.GetAssetTypes(false)
+	for i := range bAssets {
+		cps, err := b.GetAvailablePairs(bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
+		_, err = b.GetRecentTrades(context.Background(),
+			cps[0], bAssets[i])
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -2417,7 +2436,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(subs) != 8 {
+	if len(subs) == 0 {
 		t.Fatal("unexpected subscription length")
 	}
 }

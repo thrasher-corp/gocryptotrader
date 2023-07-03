@@ -281,6 +281,14 @@ func TestCheckEventCondition(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
+	conf, err := exch.GetDefaultConfig(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	err = exch.Setup(conf)
+	if err != nil {
+		t.Error(err)
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
