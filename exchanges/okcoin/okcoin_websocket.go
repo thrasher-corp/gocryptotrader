@@ -427,7 +427,7 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 		if err != nil {
 			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 		}
-		if signedChecksum != int32(resp.Data[0].Checksum) {
+		if int64(signedChecksum) != resp.Data[0].Checksum {
 			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
 				o.Name,
 				cp)
@@ -464,7 +464,7 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 	}
-	if signedChecksum != int32(resp.Data[0].Checksum) {
+	if int64(signedChecksum) != resp.Data[0].Checksum {
 		return fmt.Errorf("%s channel: Orderbook for %v update checksum invalid",
 			o.Name,
 			cp)
