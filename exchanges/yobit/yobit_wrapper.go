@@ -185,7 +185,11 @@ func (y *Yobit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	if err != nil {
 		return err
 	}
-	return y.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = y.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return y.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -205,11 +209,11 @@ func (y *Yobit) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for i := range enabledPairs {
-		fpair, err := y.FormatExchangeCurrency(enabledPairs[i], a)
+		fPair, err := y.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
 			return err
 		}
-		curr := fpair.Lower().String()
+		curr := fPair.Lower().String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}
@@ -261,17 +265,23 @@ func (y *Yobit) FetchOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := y.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        y.Name,
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: y.CanVerifyOrderbook,
 	}
-	fpair, err := y.FormatExchangeCurrency(p, assetType)
+	fPair, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
-	orderbookNew, err := y.GetDepth(ctx, fpair.String())
+	orderbookNew, err := y.GetDepth(ctx, fPair.String())
 	if err != nil {
 		return book, err
 	}
@@ -353,15 +363,15 @@ func (y *Yobit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (y *Yobit) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (y *Yobit) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (y *Yobit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (y *Yobit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -459,8 +469,8 @@ func (y *Yobit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (y *Yobit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (y *Yobit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -507,9 +517,45 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 }
 
 // GetOrderInfo returns order information based on order ID
-func (y *Yobit) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+	iOID, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	format, err := y.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := y.GetOrderInformation(ctx, iOID)
+	if err != nil {
+		return nil, err
+	}
+
+	for id, orderInfo := range resp {
+		if id != orderID {
+			continue
+		}
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(orderInfo.Pair, format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
+		var side order.Side
+		side, err = order.StringToOrderSide(orderInfo.Type)
+		if err != nil {
+			return nil, err
+		}
+		return &order.Detail{
+			OrderID:  id,
+			Amount:   orderInfo.Amount,
+			Price:    orderInfo.Rate,
+			Side:     side,
+			Date:     time.Unix(int64(orderInfo.TimestampCreated), 0),
+			Pair:     symbol,
+			Exchange: y.Name,
+		}, nil
+	}
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -571,7 +617,7 @@ func (y *Yobit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -622,7 +668,7 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

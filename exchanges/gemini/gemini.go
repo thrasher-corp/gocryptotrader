@@ -9,9 +9,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -41,6 +43,7 @@ const (
 	geminiWithdraw           = "withdraw/"
 	geminiHeartbeat          = "heartbeat"
 	geminiVolume             = "notionalvolume"
+	geminiTransfers          = "transfers"
 )
 
 // Gemini is the overarching type across the Gemini package, create multiple
@@ -167,6 +170,29 @@ func (g *Gemini) NewOrder(ctx context.Context, symbol string, amount, price floa
 		return 0, err
 	}
 	return response.OrderID, nil
+}
+
+// Transfers returns transfer history ie withdrawals and deposits
+func (g *Gemini) Transfers(ctx context.Context, curr currency.Code, start time.Time, limit int64, account string, showCompletedDeposit bool) ([]TransferResponse, error) {
+	req := make(map[string]interface{})
+	if !curr.IsEmpty() {
+		req["symbol"] = curr.String()
+	}
+	if !start.IsZero() {
+		req["timestamp"] = start.Unix()
+	}
+	if limit > 0 {
+		req["limit"] = limit
+	}
+	if account != "" {
+		req["account"] = account
+	}
+	if showCompletedDeposit {
+		req["showCompletedDeposit"] = showCompletedDeposit
+	}
+
+	var response []TransferResponse
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiTransfers, req, &response)
 }
 
 // CancelExistingOrder will cancel an order. If the order is already canceled, the
@@ -361,7 +387,7 @@ func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 	return g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
@@ -412,13 +438,12 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 			Path:          endpoint + "/v1/" + path,
 			Headers:       headers,
 			Result:        result,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       g.Verbose,
 			HTTPDebugging: g.HTTPDebugging,
 			HTTPRecording: g.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

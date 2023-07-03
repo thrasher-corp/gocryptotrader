@@ -242,7 +242,6 @@ const (
 )
 
 var (
-	errLimitExceedsMaximumResultPerRequest           = errors.New("maximum result per request exceeds the limit")
 	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
 	errOracleInformationNotFound                     = errors.New("oracle information not found")
 	errExchangeInfoNotFound                          = errors.New("exchange information not found")
@@ -280,6 +279,7 @@ var (
 	errMissingResponseBody                           = errors.New("error missing response body")
 	errMissingValidWithdrawalID                      = errors.New("missing valid withdrawal id")
 	errNoValidResponseFromServer                     = errors.New("no valid response from server")
+	errInstrumentTypeRequired                        = errors.New("instrument type required")
 	errInvalidInstrumentType                         = errors.New("invalid instrument type")
 	errMissingValidGreeksType                        = errors.New("missing valid greeks type")
 	errMissingIsolatedMarginTradingSetting           = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
@@ -330,7 +330,6 @@ var (
 	errEmptyArgument                                 = errors.New("empty argument")
 	errInvalidIPAddress                              = errors.New("invalid ip address")
 	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
-	errNoInstrumentFound                             = errors.New("instruments not found")
 	errInvalidResponseParam                          = errors.New("invalid response parameter, response must be non-nil pointer")
 	errEmptyPlaceOrderResponse                       = errors.New("empty place order response")
 	errTooManyArgument                               = errors.New("too many cancel request params")
@@ -339,6 +338,7 @@ var (
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 	errExceedLimit                                   = errors.New("limit exceeded")
 	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
+	errNoInstrumentFound                             = errors.New("no instrument found")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -415,7 +415,8 @@ func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
 	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 		return fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
 	}
-	if arg.TradeMode != TradeModeCross &&
+	if arg.TradeMode != "" &&
+		arg.TradeMode != TradeModeCross &&
 		arg.TradeMode != TradeModeIsolated &&
 		arg.TradeMode != TradeModeCash {
 		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
@@ -1148,7 +1149,7 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 			args[x].InstrumentType != okxInstTypeSpot &&
 			args[x].InstrumentType != okxInstTypeFutures &&
 			args[x].InstrumentType != okxInstTypeOption {
-			return nil, errInvalidInstrumentType
+			return nil, fmt.Errorf("%w received %v", errInvalidInstrumentType, args[x].InstrumentType)
 		}
 		if len(args[x].Data) == 0 {
 			return nil, errMissingMakerInstrumentSettings
@@ -2194,10 +2195,10 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 // GetTradeFee query trade fee rate of various instrument types and instrument ids.
 func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying string) ([]TradeFeeRate, error) {
 	params := url.Values{}
-	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
-		return nil, errInvalidInstrumentType
+		return nil, errInstrumentTypeRequired
 	}
+	instrumentType = strings.ToUpper(instrumentType)
 	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -2277,7 +2278,7 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType != okxInstTypeMargin &&
 		arg.InstrumentType != okxInstTypeContract {
-		return nil, fmt.Errorf("%w, only margin and contract instrument types are allowed", errInvalidInstrumentType)
+		return nil, fmt.Errorf("%w, received '%v' only margin and contract instrument types are allowed", errInvalidInstrumentType, arg.InstrumentType)
 	}
 	var resp []IsolatedMode
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, accountSetIsolatedMode, &arg, &resp, true)
@@ -2383,7 +2384,7 @@ func (ok *Okx) GetGreeks(ctx context.Context, currency string) ([]GreeksItem, er
 func (ok *Okx) GetPMLimitation(ctx context.Context, instrumentType, underlying string) ([]PMLimitationResponse, error) {
 	params := url.Values{}
 	if instrumentType == "" {
-		return nil, errInvalidInstrumentType
+		return nil, errInstrumentTypeRequired
 	}
 	if underlying == "" {
 		return nil, errInvalidUnderlying
@@ -3047,14 +3048,18 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 }
 
 // GetInstrumentTypeFromAssetItem returns a string representation of asset.Item; which is an equivalent term for InstrumentType in Okx exchange.
-func (ok *Okx) GetInstrumentTypeFromAssetItem(assetType asset.Item) string {
-	switch assetType {
+func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) string {
+	switch a {
 	case asset.PerpetualSwap:
 		return okxInstTypeSwap
 	case asset.Options:
 		return okxInstTypeOption
+	case asset.Spot:
+		return okxInstTypeSpot
+	case asset.Futures:
+		return okxInstTypeFutures
 	default:
-		return strings.ToUpper(assetType.String())
+		return strings.ToUpper(a.String())
 	}
 }
 
@@ -3072,9 +3077,9 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 
 // GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
 func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
-	codes := strings.Split(instrumentID, currency.DashDelimiter)
+	codes := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
 	if len(codes) >= 2 {
-		instrumentID = codes[0] + currency.DashDelimiter + strings.Join(codes[1:], currency.DashDelimiter)
+		instrumentID = codes[0] + ok.CurrencyPairs.RequestFormat.Delimiter + strings.Join(codes[1:], ok.CurrencyPairs.RequestFormat.Delimiter)
 	}
 	return currency.NewPairFromString(instrumentID)
 }
@@ -3154,38 +3159,34 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 
 // GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles, getCandlesticksEPL)
 }
 
 // GetCandlesticksHistory Retrieve history candlestick charts from recent years.
 func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesHistory)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesHistory, getCandlestickHistoryEPL)
 }
 
 // GetIndexCandlesticks Retrieve the candlestick charts of the index. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 // the response is a list of Candlestick data.
 func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex, getIndexCandlesticksEPL)
 }
 
 // GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketPriceCandles)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketPriceCandles, getCandlestickHistoryEPL)
 }
 
 // GetCandlestickData handles fetching the data for both the default GetCandlesticks, GetCandlesticksHistory, and GetIndexCandlesticks() methods.
-func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64, route string) ([]CandleStick, error) {
+func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64, route string, rateLimit request.EndpointLimit) ([]CandleStick, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", instrumentID)
 	var resp [][7]string
-	if limit <= 300 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else if limit > 300 {
-		return nil, fmt.Errorf("%w can not exceed 300", errLimitExceedsMaximumResultPerRequest)
-	}
+	params.Set("limit", strconv.FormatInt(limit, 10))
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
@@ -3196,7 +3197,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if bar != "" {
 		params.Set("bar", bar)
 	}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getCandlesticksEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -3747,7 +3748,7 @@ func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error)
 func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType string, begin, end time.Time, period kline.Interval) ([]TakerVolume, error) {
 	params := url.Values{}
 	if instrumentType == "" {
-		return nil, errInvalidInstrumentType
+		return nil, errInstrumentTypeRequired
 	}
 	params.Set("instType", strings.ToUpper(instrumentType))
 	interval := ok.GetIntervalEnum(period, false)
@@ -4226,6 +4227,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}{
 		Data: result,
 	}
+	requestType := request.AuthType(request.UnauthenticatedRequest)
+	if authenticated {
+		requestType = request.AuthenticatedRequest
+	}
 	newRequest := func() (*request.Item, error) {
 		utcTime := time.Now().UTC().Format(time.RFC3339)
 		payload := []byte("")
@@ -4264,13 +4269,12 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &resp,
-			AuthRequest:   authenticated,
 			Verbose:       ok.Verbose,
 			HTTPDebugging: ok.HTTPDebugging,
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-	err = ok.SendPayload(ctx, f, newRequest)
+	err = ok.SendPayload(ctx, f, newRequest, requestType)
 	if err != nil {
 		return err
 	}
@@ -4300,42 +4304,69 @@ func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]System
 }
 
 // GetAssetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string.
-func GetAssetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
+func GetAssetTypeFromInstrumentType(instrumentType string) asset.Item {
 	switch strings.ToUpper(instrumentType) {
 	case okxInstTypeSwap, okxInstTypeContract:
-		return asset.PerpetualSwap, nil
-	case okxInstTypeANY:
-		return asset.Empty, nil
-	default:
-		return asset.New(instrumentType)
+		return asset.PerpetualSwap
+	case okxInstTypeSpot:
+		return asset.Spot
+	case okxInstTypeMargin:
+		return asset.Margin
+	case okxInstTypeFutures:
+		return asset.Futures
+	case okxInstTypeOption:
+		return asset.Options
 	}
+	return asset.Empty
 }
 
-// GuessAssetTypeFromInstrumentID returns or guesses the instrument id.
-func (ok *Okx) GuessAssetTypeFromInstrumentID(instrumentID string) (asset.Item, error) {
-	if strings.HasSuffix(instrumentID, okxInstTypeSwap) {
-		return asset.PerpetualSwap, nil
+// GetAssetsFromInstrumentTypeOrID parses an instrument type and instrument ID and returns a list of assets
+// that the currency pair is associated with.
+func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([]asset.Item, error) {
+	if instType != "" {
+		a := GetAssetTypeFromInstrumentType(instType)
+		if a != asset.Empty {
+			return []asset.Item{a}, nil
+		}
 	}
-	count := strings.Count(instrumentID, currency.DashDelimiter)
+	if instrumentID == "" {
+		return nil, fmt.Errorf("%w instrumentID", errEmptyArgument)
+	}
+	splitSymbol := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	if len(splitSymbol) <= 1 {
+		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
+	}
+	pair, err := currency.NewPairDelimiter(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	if err != nil {
+		return nil, err
+	}
 	switch {
-	case count >= 3:
-		return asset.Options, nil
-	case count == 2:
-		return asset.Futures, nil
-	default:
-		pair, err := currency.NewPairFromString(instrumentID)
-		if err != nil {
-			return asset.Empty, err
+	case len(splitSymbol) == 2:
+		resp := make([]asset.Item, 0, 2)
+		if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Spot, pair); err == nil {
+			resp = append(resp, asset.Spot)
 		}
-		pairs, err := ok.GetEnabledPairs(asset.Margin)
-		if err != nil {
-			return asset.Empty, err
+		if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Margin, pair); err == nil {
+			resp = append(resp, asset.Margin)
 		}
-		for x := range pairs {
-			if pairs[x].Equal(pair) {
-				return asset.Margin, nil
+		if len(resp) > 0 {
+			return resp, nil
+		}
+	case len(splitSymbol) > 2:
+		switch splitSymbol[len(splitSymbol)-1] {
+		case "SWAP", "swap":
+			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.PerpetualSwap, pair); err == nil {
+				return []asset.Item{asset.PerpetualSwap}, nil
+			}
+		case "C", "P", "c", "p":
+			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Options, pair); err == nil {
+				return []asset.Item{asset.Options}, nil
+			}
+		default:
+			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Futures, pair); err == nil {
+				return []asset.Item{asset.Futures}, nil
 			}
 		}
-		return asset.Spot, nil
 	}
+	return nil, fmt.Errorf("%w '%v' or currency not enabled '%v'", asset.ErrNotSupported, instType, instrumentID)
 }

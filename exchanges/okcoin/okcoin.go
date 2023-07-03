@@ -41,6 +41,7 @@ type OKCoin struct {
 }
 
 const (
+	generalSubsection         = "general"
 	accountSubsection         = "account"
 	tokenSubsection           = "spot"
 	marginTradingSubsection   = "margin"
@@ -58,6 +59,7 @@ const (
 	getSpotTransactionDetails = "fills"
 	getSpotOrderBook          = "book"
 	getSpotMarketData         = "candles"
+	serverTime                = "time"
 	// Account based endpoints
 	getAccountCurrencies        = "currencies"
 	getAccountWalletInformation = "wallet"
@@ -267,32 +269,8 @@ func (o *OKCoin) CancelSpotOrder(ctx context.Context, request *CancelSpotOrderRe
 
 // CancelMultipleSpotOrders Cancelling multiple unfilled orders.
 func (o *OKCoin) CancelMultipleSpotOrders(ctx context.Context, request *CancelMultipleSpotOrdersRequest) (map[string][]CancelMultipleSpotOrdersResponse, error) {
-	if len(request.OrderIDs) > 4 {
-		return nil, errors.New("maximum 4 order cancellations for each pair")
-	}
-
 	resp := make(map[string][]CancelMultipleSpotOrdersResponse)
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, tokenSubsection, cancelBatchOrders, []CancelMultipleSpotOrdersRequest{*request}, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	for currency, orderResponse := range resp {
-		for i := range orderResponse {
-			cancellationResponse := CancelMultipleSpotOrdersResponse{
-				OrderID:   orderResponse[i].OrderID,
-				Result:    orderResponse[i].Result,
-				ClientOID: orderResponse[i].ClientOID,
-			}
-
-			if !orderResponse[i].Result {
-				cancellationResponse.Error = fmt.Errorf("order %v for currency %v failed to be cancelled", orderResponse[i].OrderID, currency)
-			}
-
-			resp[currency] = append(resp[currency], cancellationResponse)
-		}
-	}
-
-	return resp, nil
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, tokenSubsection, cancelBatchOrders, []CancelMultipleSpotOrdersRequest{*request}, &resp, true)
 }
 
 // GetSpotOrders List your orders. Cursor pagination is used.
@@ -410,14 +388,14 @@ func (o *OKCoin) GetMarketData(ctx context.Context, request *GetMarketDataReques
 	for x := range resp {
 		t, ok := resp[x].([]interface{})
 		if !ok {
-			return nil, common.GetAssertError("[]interface{}", resp[x])
+			return nil, common.GetTypeAssertError("[]interface{}", resp[x])
 		}
 		if len(t) < 6 {
 			return nil, fmt.Errorf("%w expteced %v received %v", errIncorrectCandleDataLength, 6, len(t))
 		}
 		v, ok := t[0].(string)
 		if !ok {
-			return nil, common.GetAssertError("string", t[0])
+			return nil, common.GetTypeAssertError("string", t[0])
 		}
 		if candles[x].Time, err = time.Parse(time.RFC3339, v); err != nil {
 			return nil, err
@@ -551,27 +529,9 @@ func (o *OKCoin) CancelMarginOrder(ctx context.Context, request *CancelSpotOrder
 }
 
 // CancelMultipleMarginOrders Cancelling multiple unfilled orders.
-func (o *OKCoin) CancelMultipleMarginOrders(ctx context.Context, request *CancelMultipleSpotOrdersRequest) (map[string][]CancelMultipleSpotOrdersResponse, []error) {
+func (o *OKCoin) CancelMultipleMarginOrders(ctx context.Context, request *CancelMultipleSpotOrdersRequest) (map[string][]CancelMultipleSpotOrdersResponse, error) {
 	resp := make(map[string][]CancelMultipleSpotOrdersResponse)
-	if len(request.OrderIDs) > 4 {
-		return resp, []error{errors.New("maximum 4 order cancellations for each pair")}
-	}
-
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginTradingSubsection, cancelBatchOrders, []CancelMultipleSpotOrdersRequest{*request}, &resp, true)
-	if err != nil {
-		return resp, []error{err}
-	}
-
-	var orderErrors []error
-	for currency, orderResponse := range resp {
-		for i := range orderResponse {
-			if !orderResponse[i].Result {
-				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", orderResponse[i].OrderID, currency))
-			}
-		}
-	}
-
-	return resp, orderErrors
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginTradingSubsection, cancelBatchOrders, []CancelMultipleSpotOrdersRequest{*request}, &resp, true)
 }
 
 // GetMarginOrders List your orders. Cursor pagination is used. All paginated requests return the latest information (newest) as the first page sorted by newest (in chronological time) first.
@@ -659,7 +619,10 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 	if err != nil {
 		return err
 	}
-
+	rType := request.AuthType(request.UnauthenticatedRequest)
+	if authenticated {
+		rType = request.AuthenticatedRequest
+	}
 	var intermediary json.RawMessage
 	newRequest := func() (*request.Item, error) {
 		utcTime := time.Now().UTC().Format(time.RFC3339)
@@ -702,14 +665,13 @@ func (o *OKCoin) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMetho
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &intermediary,
-			AuthRequest:   authenticated,
 			Verbose:       o.Verbose,
 			HTTPDebugging: o.HTTPDebugging,
 			HTTPRecording: o.HTTPRecording,
 		}, nil
 	}
 
-	err = o.SendPayload(ctx, request.Unset, newRequest)
+	err = o.SendPayload(ctx, request.Unset, newRequest, rType)
 	if err != nil {
 		return err
 	}
@@ -763,6 +725,12 @@ func (o *OKCoin) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (f
 	}
 
 	return fee, nil
+}
+
+// ServerTime returns the server's time
+func (o *OKCoin) ServerTime(ctx context.Context) (time.Time, error) {
+	var resp ServerTimeResponse
+	return resp.Iso, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, generalSubsection, serverTime, nil, &resp, false)
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee

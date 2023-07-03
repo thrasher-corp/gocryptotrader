@@ -88,8 +88,8 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath:  dcaConfigPath,
-		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Hour * 2)),
-		EndTimeOverride:   timestamppb.New(time.Now()),
+		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Hour * 6).Truncate(time.Hour)),
+		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Hour * 2).Truncate(time.Hour)),
 		IntervalOverride:  uint64(time.Hour.Nanoseconds()),
 	})
 	if !errors.Is(err, nil) {
@@ -317,7 +317,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		Config: cfg,
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
+		t.Fatalf("received '%v' expecting '%v'", err, nil)
 	}
 
 	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{

@@ -261,5 +261,5 @@ func (e *ExchangeRateHost) SendHTTPRequest(endpoint string, v url.Values, result
 	}
 	return e.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }

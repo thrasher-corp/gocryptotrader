@@ -225,5 +225,5 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 		Verbose: o.Verbose}
 	return o.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }

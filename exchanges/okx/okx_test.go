@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -112,7 +113,7 @@ func TestGetOrderBookDepth(t *testing.T) {
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetCandlesticks(context.Background(), "BTC-USDT", kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
+	_, err := ok.GetCandlesticks(context.Background(), "BTC-USDT", kline.OneHour, time.Now().Add(-time.Hour*24*500), time.Now(), 500)
 	if err != nil {
 		t.Error("Okx GetCandlesticks() error", err)
 	}
@@ -1971,11 +1972,11 @@ func TestFetchAccountInfo(t *testing.T) {
 	}
 }
 
-func TestGetFundingHistory(t *testing.T) {
+func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetFundingHistory(context.Background()); err != nil {
+	if _, err := ok.GetAccountFundingHistory(context.Background()); err != nil {
 		t.Error("Okx GetFundingHistory() error", err)
 	}
 }
@@ -2165,7 +2166,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.Limit,
 		Pairs:     currency.Pairs{pair, currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
 		AssetType: asset.Spot,
@@ -2180,7 +2181,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
@@ -2259,11 +2260,12 @@ func TestWSInstruments(t *testing.T) {
 	}
 }
 
-const tickerChannelPushData = `{"arg": {"channel": "tickers","instId": "LTC-USD-200327"},"data": [{"instType": "SWAP","instId": "LTC-USD-SWAP","last": "9999.99","lastSz": "0.1","askPx": "9999.99","askSz": "11","bidPx": "8888.88","bidSz": "5","open24h": "9000","high24h": "10000","low24h": "8888.88","volCcy24h": "2222","vol24h": "2222","sodUtc0": "2222","sodUtc8": "2222","ts": "1597026383085"}]}`
+var tickerChannelPushData = `{"arg": {"channel": "tickers","instId": "%v"},"data": [{"instType": "SWAP","instId": "%v","last": "9999.99","lastSz": "0.1","askPx": "9999.99","askSz": "11","bidPx": "8888.88","bidSz": "5","open24h": "9000","high24h": "10000","low24h": "8888.88","volCcy24h": "2222","vol24h": "2222","sodUtc0": "2222","sodUtc8": "2222","ts": "1597026383085"}]}`
 
 func TestTickerChannel(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(tickerChannelPushData)); err != nil {
+	curr := ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0]
+	if err := ok.WsHandleData([]byte(fmt.Sprintf(tickerChannelPushData, curr, curr))); err != nil {
 		t.Error("Okx TickerChannel push data error", err)
 	}
 }
@@ -2277,11 +2279,11 @@ func TestOpenInterestPushData(t *testing.T) {
 	}
 }
 
-const candlesticksPushData = `{"arg": {"channel": "candle1D","instId": "BTC-USD-191227"},"data": [["1597026383085","8533.02","8553.74","8527.17","8548.26","45247","529.5858061"]]}`
+var candlesticksPushData = `{"arg": {"channel": "candle1D","instId": "%v"},"data": [["1597026383085","8533.02","8553.74","8527.17","8548.26","45247","529.5858061"]]}`
 
 func TestCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(candlesticksPushData)); err != nil {
+	if err := ok.WsHandleData([]byte(fmt.Sprintf(candlesticksPushData, ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0]))); err != nil {
 		t.Error("Okx Candlestick Push Data error", err)
 	}
 }
@@ -2344,11 +2346,12 @@ func TestSnapshotAndUpdateOrderBookPushData(t *testing.T) {
 	}
 }
 
-const snapshotOrderBookPushData = `{"arg":{"channel":"books","instId":"TRX-USD-220812"},"action":"snapshot","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`
+var snapshotOrderBookPushData = `{"arg":{"channel":"books","instId":"%v"},"action":"snapshot","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`
 
 func TestSnapshotPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(snapshotOrderBookPushData)); err != nil {
+	err := ok.WsHandleData([]byte(fmt.Sprintf(snapshotOrderBookPushData, ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0])))
+	if err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}
 }
@@ -2358,12 +2361,9 @@ const calculateOrderbookChecksumUpdateorderbookJSON = `{"Bids":[{"Amount":56,"Pr
 
 func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 	t.Parallel()
-	err := ok.WsHandleData([]byte(snapshotOrderBookPushData))
-	if err != nil {
-		t.Error("Okx Snapshot order book push data error", err)
-	}
+
 	var orderbookBase orderbook.Base
-	err = json.Unmarshal([]byte(calculateOrderbookChecksumUpdateorderbookJSON), &orderbookBase)
+	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateorderbookJSON), &orderbookBase)
 	if err != nil {
 		t.Errorf("%s error while deserializing to orderbook.Base %v", ok.Name, err)
 	}
@@ -2390,7 +2390,7 @@ func TestFundingRatePushData(t *testing.T) {
 	}
 }
 
-const indexCandlestickPushDataJSON = `{"arg": {"channel": "index-candle30m","instId": "BTC-USD"},"data": [["1597026383085", "3811.31", "3811.31", "3811.31", "3811.31"]]}`
+var indexCandlestickPushDataJSON = `{"arg": {"channel": "index-candle30m","instId": "BTC-USDT"},"data": [["1597026383085", "3811.31", "3811.31", "3811.31", "3811.31"]]}`
 
 func TestIndexCandlestickPushData(t *testing.T) {
 	t.Parallel()
@@ -3079,26 +3079,6 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 }
 
-func TestGuessAssetTypeFromInstrumentID(t *testing.T) {
-	t.Parallel()
-	a, err := ok.GuessAssetTypeFromInstrumentID("BTC-USD-220930-28000-P")
-	if err != nil {
-		t.Error(err)
-	} else if a != asset.Options {
-		t.Error("unexpected result")
-	}
-	if a, err = ok.GuessAssetTypeFromInstrumentID("BTC-USD-221007"); err != nil {
-		t.Error(err)
-	} else if a != asset.Futures {
-		t.Error("unexpected result")
-	}
-	if a, err = ok.GuessAssetTypeFromInstrumentID("BTC-USD-SWAP"); err != nil {
-		t.Error(err)
-	} else if a != asset.PerpetualSwap {
-		t.Error("unexpected result")
-	}
-}
-
 func TestGetIntervalEnum(t *testing.T) {
 	t.Parallel()
 
@@ -3220,5 +3200,84 @@ func TestInstrument(t *testing.T) {
 	}
 	if i.Underlying != "BTC-USDC" {
 		t.Error("expected BTC-USDC underlying")
+	}
+}
+
+func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetAssetsFromInstrumentTypeOrID("", "")
+	if !errors.Is(err, errEmptyArgument) {
+		t.Error(err)
+	}
+
+	assets, err := ok.GetAssetsFromInstrumentTypeOrID("SPOT", "")
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if len(assets) != 1 {
+		t.Errorf("received %v expected %v", len(assets), 1)
+	}
+	if assets[0] != asset.Spot {
+		t.Errorf("received %v expected %v", assets[0], asset.Spot)
+	}
+
+	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0].String())
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if len(assets) != 1 {
+		t.Errorf("received %v expected %v", len(assets), 1)
+	}
+	if assets[0] != asset.Futures {
+		t.Errorf("received %v expected %v", assets[0], asset.Futures)
+	}
+
+	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0].String())
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if len(assets) != 1 {
+		t.Errorf("received %v expected %v", len(assets), 1)
+	}
+	if assets[0] != asset.PerpetualSwap {
+		t.Errorf("received %v expected %v", assets[0], asset.PerpetualSwap)
+	}
+
+	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test")
+	if !errors.Is(err, currency.ErrCurrencyNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test-test")
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Margin].Enabled[0].String())
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	var found bool
+	for i := range assets {
+		if assets[i] == asset.Margin {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("received %v expected %v", assets, asset.Margin)
+	}
+
+	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Spot].Enabled[0].String())
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	found = false
+	for i := range assets {
+		if assets[i] == asset.Spot {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("received %v expected %v", assets, asset.Spot)
 	}
 }

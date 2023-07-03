@@ -243,7 +243,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.XRP, currency.USDT)},
 		AssetType: asset.Spot,
@@ -263,7 +263,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.Buy,
 		AssetType: asset.Spot,
@@ -890,7 +890,7 @@ func TestGetSpotKline(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	if mockTests {
-		t.Skip("mock testing is not supported for this function")
+		t.Skip("skipping test, mock response cannot be implemented")
 	}
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
@@ -907,6 +907,9 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip("skipping test, mock response cannot be implemented")
+	}
 	currencyPair, err := currency.NewPairFromString(testCurrency)
 	if err != nil {
 		t.Fatal(err)
@@ -921,9 +924,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 	startTime = time.Now().Add(-time.Hour * 24 * 365)
 	endTime = time.Now()
-	if mockTests {
-		t.Skip("mock testing is not supported for this function")
-	}
 	_, err = z.GetHistoricCandlesExtended(context.Background(),
 		currencyPair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
@@ -1053,5 +1053,69 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 	if len(r) != 3 {
 		t.Error("expected 3 results")
+	}
+}
+
+func TestGetDepositRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, z, canManipulateRealOrders)
+
+	_, err := z.GetDepositRecords(context.Background(), &WalletRecordsRequest{
+		Currency: currency.BTC,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, z, canManipulateRealOrders)
+
+	_, err := z.GetWithdrawalRecords(context.Background(), &WalletRecordsRequest{
+		Currency: currency.BTC,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSingleOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, z, canManipulateRealOrders)
+
+	_, err := z.GetSingleOrder(context.Background(), "1337", "", currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, z, canManipulateRealOrders)
+
+	_, err := z.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, z, canManipulateRealOrders)
+
+	_, err := z.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, z, canManipulateRealOrders)
+
+	_, err := z.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }

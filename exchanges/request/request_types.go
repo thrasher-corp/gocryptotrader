@@ -49,7 +49,6 @@ type Item struct {
 	Headers       map[string]string
 	Body          io.Reader
 	Result        interface{}
-	AuthRequest   bool
 	NonceEnabled  bool
 	Verbose       bool
 	HTTPDebugging bool
@@ -69,9 +68,9 @@ type RetryPolicy func(resp *http.Response, err error) (bool, error)
 // RequesterOption is a function option that can be applied to configure a Requester when creating it.
 type RequesterOption func(*Requester)
 
-// Generate defines a closure for functionality outside of the requester to
+// Generate defines a closure for functionality outside the requester to
 // generate a new *http.Request on every attempt. This minimizes the chance of
-// being outside of the receive window if application rate limiting reduces outbound
+// being outside the receive window if application rate limiting reduces outbound
 // requests.
 type Generate func() (*Item, error)
 

@@ -49,6 +49,18 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = l.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cp, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = l.CurrencyPairs.EnablePair(asset.Spot, cp)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
 
@@ -280,9 +292,7 @@ func TestGetWithdrawRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	_, err := l.GetWithdrawalRecords(context.Background(),
-		currency.ETH.Lower().String(),
-		"0", "1", "20")
+	_, err := l.GetWithdrawalRecords(context.Background(), currency.ETH.Lower().String(), 0, 1, 20)
 	if err != nil {
 		t.Error(err)
 	}
@@ -408,7 +418,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	var input order.GetOrdersRequest
+	var input order.MultiOrderRequest
 	input.Side = order.Buy
 	input.AssetType = asset.Spot
 	input.Type = order.AnyType
@@ -423,7 +433,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	var input order.GetOrdersRequest
+	var input order.MultiOrderRequest
 	input.Side = order.Buy
 	input.AssetType = asset.Spot
 	input.Type = order.AnyType
@@ -436,17 +446,16 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("eth_btc")
+	cp, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetHistoricCandles(context.Background(), cp, asset.Spot, kline.OneMin, time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = l.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneMin, time.Now().Add(-24*time.Hour), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = l.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, time.Now().Add(-24*time.Hour), time.Now())
+	_, err = l.GetHistoricCandles(context.Background(), cp, asset.Spot, kline.OneHour, time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,12 +465,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Add(-time.Minute * 2)
 	end := time.Now()
-	pair, err := currency.NewPairFromString("eth_btc")
+	cp, err := currency.NewPairFromString(testCurrencyPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = l.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, end)
+	_, err = l.GetHistoricCandlesExtended(context.Background(), cp, asset.Spot, kline.OneMin, startTime, end)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -548,7 +556,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("eth_btc")
+	cp, err := currency.NewPairFromString(testCurrencyPair)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -587,5 +595,37 @@ func TestGetStatus(t *testing.T) {
 				t.Fatalf("received: '%v' but expected: '%v'", resp, tt.resp)
 			}
 		})
+	}
+}
+
+func TestGetTimestamp(t *testing.T) {
+	t.Parallel()
+	tt, err := l.GetTimestamp(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	if tt.IsZero() {
+		t.Error("expected time")
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	tt, err := l.GetServerTime(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if tt.IsZero() {
+		t.Error("expected time")
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
+
+	_, err := l.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }

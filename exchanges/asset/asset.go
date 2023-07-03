@@ -10,6 +10,8 @@ import (
 var (
 	// ErrNotSupported is an error for an unsupported asset type
 	ErrNotSupported = errors.New("unsupported asset type")
+	// ErrNotEnabled returned when a supported asset type is disabled
+	ErrNotEnabled = errors.New("asset type disabled")
 )
 
 // Item stores the asset type

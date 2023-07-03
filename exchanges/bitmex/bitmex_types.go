@@ -564,12 +564,13 @@ type AffiliateStatus struct {
 type TransactionInfo struct {
 	Account        int64     `json:"account"`
 	Address        string    `json:"address"`
-	Amount         int64     `json:"amount"`
+	Amount         float64   `json:"amount"`
 	Currency       string    `json:"currency"`
-	Fee            int64     `json:"fee"`
+	Fee            float64   `json:"fee"`
 	Text           string    `json:"text"`
 	Timestamp      time.Time `json:"timestamp"`
 	TransactID     string    `json:"transactID"`
+	Network        string    `json:"network"`
 	TransactStatus string    `json:"transactStatus"`
 	TransactTime   string    `json:"transactTime"`
 	TransactType   string    `json:"transactType"`

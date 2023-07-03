@@ -228,16 +228,15 @@ func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period 
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if size <= 0 || size > 1200 {
-		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	path := common.EncodeURLValues(fContractKline, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
@@ -271,16 +270,16 @@ func (h *HUOBI) FLastTradeData(ctx context.Context, symbol currency.Pair) (FLast
 
 // FRequestPublicBatchTrades gets public batch trades for a futures contract
 func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.Pair, size int64) (FBatchTradesForContractData, error) {
-	var resp FBatchTradesForContractData
 	params := url.Values{}
 	symbolValue, err := h.formatFuturesPair(symbol)
 	if err != nil {
-		return resp, err
+		return FBatchTradesForContractData{}, err
 	}
 	params.Set("symbol", symbolValue)
-	if size > 1 && size < 2000 {
+	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
+	var resp FBatchTradesForContractData
 	path := common.EncodeURLValues(fContractBatchTradeRecords, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
@@ -1182,27 +1181,24 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Headers:       headers,
 			Body:          body,
 			Result:        &tempResp,
-			AuthRequest:   true,
 			Verbose:       h.Verbose,
 			HTTPDebugging: h.HTTPDebugging,
 			HTTPRecording: h.HTTPRecording,
 		}, nil
 	}
 
-	err = h.SendPayload(ctx, request.Unset, newRequest)
+	err = h.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
 
 	var errCap errorCapture
-	if err := json.Unmarshal(tempResp, &errCap); err == nil {
+	if err = json.Unmarshal(tempResp, &errCap); err == nil {
 		if errCap.ErrMsgType1 != "" {
-			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType1,
-				errors.New(errCap.ErrMsgType1))
+			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType1, errCap.ErrMsgType1)
 		}
 		if errCap.ErrMsgType2 != "" {
-			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType2,
-				errors.New(errCap.ErrMsgType2))
+			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType2, errCap.ErrMsgType2)
 		}
 	}
 	return json.Unmarshal(tempResp, result)
