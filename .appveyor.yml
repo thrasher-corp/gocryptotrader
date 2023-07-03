@@ -5,6 +5,8 @@ image: Visual Studio 2022 # See https://www.appveyor.com/docs/build-environment/
 clone_folder: c:\gopath\src\github.com\thrasher-corp\gocryptotrader
 
 cache:
+  - '%LOCALAPPDATA%\go-build' -> appveyor.yml
+  - '%GOPATH%\pkg\mod' -> appveyor.yml
   - '%APPDATA%\npm-cache'
   - '%GOPATH%\pkg\mod'
   - '%LOCALAPPDATA%\go-build'
