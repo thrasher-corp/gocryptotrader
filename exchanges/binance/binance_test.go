@@ -2410,6 +2410,7 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
+	b.HTTPRecording = true
 	bAssets := b.GetAssetTypes(false)
 	for i := range bAssets {
 		cps, err := b.GetAvailablePairs(bAssets[i])
