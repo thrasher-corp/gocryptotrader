@@ -29,11 +29,11 @@ var dataHistoryCommands = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "start_date",
-					Usage: "formatted as: 2006-01-02 15:04:05",
+					Usage: "formatted as: " + time.DateTime,
 				},
 				&cli.StringFlag{
 					Name:  "end_date",
-					Usage: "formatted as: 2006-01-02 15:04:05",
+					Usage: "formatted as: " + time.DateTime,
 				},
 			},
 			Action: getDataHistoryJobsBetween,
@@ -221,13 +221,13 @@ var (
 		},
 		&cli.StringFlag{
 			Name:        "start_date",
-			Usage:       "formatted as: 2006-01-02 15:04:05",
+			Usage:       "formatted as: " + time.DateTime,
 			Value:       time.Now().AddDate(-1, 0, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end_date",
-			Usage:       "formatted as: 2006-01-02 15:04:05",
+			Usage:       "formatted as: " + time.DateTime,
 			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &endTime,
 		},
