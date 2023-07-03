@@ -2,7 +2,6 @@ package exmo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -96,8 +95,7 @@ func (e *EXMO) GetCurrency(ctx context.Context) ([]string, error) {
 // GetUserInfo returns the user info
 func (e *EXMO) GetUserInfo(ctx context.Context) (UserInfo, error) {
 	var result UserInfo
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoUserInfo, url.Values{}, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoUserInfo, url.Values{}, &result)
 }
 
 // CreateOrder creates an order
@@ -117,11 +115,7 @@ func (e *EXMO) CreateOrder(ctx context.Context, pair, orderType string, price, a
 	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderCreate, v, &resp)
-	if !resp.Result {
-		return -1, errors.New(resp.Error)
-	}
-	return resp.OrderID, err
+	return resp.OrderID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderCreate, v, &resp)
 }
 
 // CancelExistingOrder cancels an order by the orderID
@@ -133,18 +127,13 @@ func (e *EXMO) CancelExistingOrder(ctx context.Context, orderID int64) error {
 		Error  string `json:"error"`
 	}
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderCancel, v, &resp)
-	if !resp.Result {
-		return errors.New(resp.Error)
-	}
-	return err
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderCancel, v, &resp)
 }
 
 // GetOpenOrders returns the users open orders
 func (e *EXMO) GetOpenOrders(ctx context.Context) (map[string]OpenOrders, error) {
 	result := make(map[string]OpenOrders)
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOpenOrders, url.Values{}, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOpenOrders, url.Values{}, &result)
 }
 
 // GetUserTrades returns the user trades
@@ -161,8 +150,7 @@ func (e *EXMO) GetUserTrades(ctx context.Context, pair, offset, limit string) (m
 		v.Set("limit", limit)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoUserTrades, v, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoUserTrades, v, &result)
 }
 
 // GetCancelledOrders returns a list of cancelled orders
@@ -178,8 +166,7 @@ func (e *EXMO) GetCancelledOrders(ctx context.Context, offset, limit string) ([]
 		v.Set("limit", limit)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoCancelledOrders, v, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoCancelledOrders, v, &result)
 }
 
 // GetOrderTrades returns a history of order trade details for the specific orderID
@@ -188,8 +175,7 @@ func (e *EXMO) GetOrderTrades(ctx context.Context, orderID int64) (OrderTrades, 
 	v := url.Values{}
 	v.Set("order_id", strconv.FormatInt(orderID, 10))
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderTrades, v, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoOrderTrades, v, &result)
 }
 
 // GetRequiredAmount calculates the sum of buying a certain amount of currency
@@ -199,8 +185,7 @@ func (e *EXMO) GetRequiredAmount(ctx context.Context, pair string, amount float6
 	v.Set("pair", pair)
 	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 	var result RequiredAmount
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoRequiredAmount, v, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoRequiredAmount, v, &result)
 }
 
 // GetCryptoDepositAddress returns a list of addresses for cryptocurrency deposits
@@ -215,15 +200,16 @@ func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, 
 	case map[string]interface{}:
 		mapString := make(map[string]string)
 		for key, value := range r {
-			v, ok := value.(string)
-			if !ok {
-				return nil, errors.New("unable to type assert value data")
+			if key == "error" {
+				if strVal, ok := value.(string); ok && strVal != "" {
+					return nil, fmt.Errorf("%w %s", request.ErrAuthRequestFailed, strVal)
+				}
 			}
-			mapString[key] = v
+			mapString[key] = fmt.Sprintf("%v", value)
 		}
 		return mapString, nil
 	default:
-		return nil, errors.New("no addresses found, generate required addresses via site")
+		return nil, fmt.Errorf("%w no addresses found, generate via website", request.ErrAuthRequestFailed)
 	}
 }
 
@@ -251,14 +237,7 @@ func (e *EXMO) WithdrawCryptocurrency(ctx context.Context, currency, address, in
 
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoWithdrawCrypt, v, &resp)
-	if err != nil {
-		return -1, err
-	}
-	if resp.Success == 0 || !resp.Result {
-		return -1, errors.New(resp.Error)
-	}
-	return resp.TaskID, err
+	return resp.TaskID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoWithdrawCrypt, v, &resp)
 }
 
 // GetWithdrawTXID gets the result of a withdrawal request
@@ -272,8 +251,7 @@ func (e *EXMO) GetWithdrawTXID(ctx context.Context, taskID int64) (string, error
 	v.Set("task_id", strconv.FormatInt(taskID, 10))
 
 	var result response
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoGetWithdrawTXID, v, &result)
-	return result.TXID, err
+	return result.TXID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoGetWithdrawTXID, v, &result)
 }
 
 // ExcodeCreate creates an EXMO coupon
@@ -283,8 +261,7 @@ func (e *EXMO) ExcodeCreate(ctx context.Context, currency string, amount float64
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result ExcodeCreate
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoExcodeCreate, v, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoExcodeCreate, v, &result)
 }
 
 // ExcodeLoad loads an EXMO coupon
@@ -293,8 +270,7 @@ func (e *EXMO) ExcodeLoad(ctx context.Context, excode string) (ExcodeLoad, error
 	v.Set("code", excode)
 
 	var result ExcodeLoad
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoExcodeLoad, v, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoExcodeLoad, v, &result)
 }
 
 // GetWalletHistory returns the users deposit/withdrawal history
@@ -303,8 +279,7 @@ func (e *EXMO) GetWalletHistory(ctx context.Context, date int64) (WalletHistory,
 	v.Set("date", strconv.FormatInt(date, 10))
 
 	var result WalletHistory
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoWalletHistory, v, &result)
-	return result, err
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoWalletHistory, v, &result)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -324,7 +299,7 @@ func (e *EXMO) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path 
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -364,13 +339,12 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.
 			Headers:       headers,
 			Body:          strings.NewReader(payload),
 			Result:        result,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       e.Verbose,
 			HTTPDebugging: e.HTTPDebugging,
 			HTTPRecording: e.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -1888,14 +1888,14 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	var enabledPairs currency.Pairs
-	var getOrdersRequest order.GetOrdersRequest
+	var getOrdersRequest order.MultiOrderRequest
 	var err error
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
 		enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
 		if err != nil {
 			t.Fatal(err)
 		}
-		getOrdersRequest = order.GetOrdersRequest{
+		getOrdersRequest = order.MultiOrderRequest{
 			Type:      order.Limit,
 			Pairs:     append([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}, enabledPairs[:3]...),
 			AssetType: asset.Futures,
@@ -1912,7 +1912,7 @@ func TestGetOrderHistory(t *testing.T) {
 		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		getOrdersRequest = order.GetOrdersRequest{
+		getOrdersRequest = order.MultiOrderRequest{
 			Type:      order.Limit,
 			Pairs:     []currency.Pair{spotTradablePair},
 			AssetType: asset.Spot,
@@ -1941,7 +1941,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	var getOrdersRequest order.GetOrdersRequest
+	var getOrdersRequest order.MultiOrderRequest
 	var enabledPairs currency.Pairs
 	var err error
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
@@ -1949,7 +1949,7 @@ func TestGetActiveOrders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		getOrdersRequest = order.GetOrdersRequest{
+		getOrdersRequest = order.MultiOrderRequest{
 			Type:      order.Limit,
 			Pairs:     enabledPairs,
 			AssetType: asset.Spot,
@@ -1968,7 +1968,7 @@ func TestGetActiveOrders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		getOrdersRequest = order.GetOrdersRequest{
+		getOrdersRequest = order.MultiOrderRequest{
 			Type:      order.Limit,
 			Pairs:     enabledPairs,
 			AssetType: asset.Margin,
@@ -1987,7 +1987,7 @@ func TestGetActiveOrders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		getOrdersRequest = order.GetOrdersRequest{
+		getOrdersRequest = order.MultiOrderRequest{
 			Type:      order.Limit,
 			Pairs:     enabledPairs,
 			AssetType: asset.Futures,
@@ -2638,7 +2638,7 @@ func setupWS() {
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetFundingHistory(context.Background())
+	_, err := ku.GetAccountFundingHistory(context.Background())
 	if err != nil {
 		t.Error(err)
 	}

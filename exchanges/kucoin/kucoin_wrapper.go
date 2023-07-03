@@ -526,9 +526,9 @@ func (ku *Kucoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (ku *Kucoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (ku *Kucoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	withdrawalsData, err := ku.GetWithdrawalList(ctx, "", "", time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
@@ -537,9 +537,9 @@ func (ku *Kucoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return nil, err
 	}
-	fundingData := make([]exchange.FundHistory, len(withdrawalsData.Items)+len(depositsData.Items))
+	fundingData := make([]exchange.FundingHistory, len(withdrawalsData.Items)+len(depositsData.Items))
 	for x := range depositsData.Items {
-		fundingData[x] = exchange.FundHistory{
+		fundingData[x] = exchange.FundingHistory{
 			Timestamp:    depositsData.Items[x].CreatedAt.Time(),
 			ExchangeName: ku.Name,
 			TransferType: "deposit",
@@ -551,7 +551,7 @@ func (ku *Kucoin) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	}
 	length := len(depositsData.Items)
 	for x := range withdrawalsData.Items {
-		fundingData[length+x] = exchange.FundHistory{
+		fundingData[length+x] = exchange.FundingHistory{
 			Fee:             withdrawalsData.Items[x].Fee,
 			Timestamp:       withdrawalsData.Items[x].UpdatedAt.Time(),
 			ExchangeName:    ku.Name,
@@ -794,8 +794,8 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (ku *Kucoin) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+func (ku *Kucoin) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -848,36 +848,36 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if err := ku.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	pair, err := ku.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	switch assetType {
 	case asset.Futures:
 		orderDetail, err := ku.GetFuturesOrderDetails(ctx, orderID)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		nPair, err := currency.NewPairFromString(orderDetail.Symbol)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		oType, err := order.StringToOrderType(orderDetail.OrderType)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		side, err := order.StringToOrderSide(orderDetail.Side)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		if !pair.IsEmpty() && !nPair.Equal(pair) {
-			return order.Detail{}, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
+			return nil, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
 		}
-		return order.Detail{
+		return &order.Detail{
 			Exchange:        ku.Name,
 			OrderID:         orderDetail.ID,
 			Pair:            pair,
@@ -892,24 +892,24 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	case asset.Spot, asset.Margin:
 		orderDetail, err := ku.GetOrderByID(ctx, orderID)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		nPair, err := currency.NewPairFromString(orderDetail.Symbol)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		oType, err := order.StringToOrderType(orderDetail.Type)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		side, err := order.StringToOrderSide(orderDetail.Side)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 		if !pair.IsEmpty() && !nPair.Equal(pair) {
-			return order.Detail{}, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
+			return nil, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
 		}
-		return order.Detail{
+		return &order.Detail{
 			Exchange:        ku.Name,
 			OrderID:         orderDetail.ID,
 			Pair:            pair,
@@ -924,7 +924,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Date:            orderDetail.CreatedAt.Time(),
 		}, nil
 	default:
-		return order.Detail{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 }
 
@@ -983,7 +983,7 @@ func (ku *Kucoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if getOrdersRequest == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -1111,7 +1111,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.G
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if getOrdersRequest == nil {
 		return nil, common.ErrNilPointer
 	}

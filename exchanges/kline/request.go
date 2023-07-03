@@ -14,8 +14,9 @@ import (
 var (
 	// ErrUnsetName is an error for when the exchange name is not set
 	ErrUnsetName = errors.New("unset exchange name")
-	// ErrNoTimeSeriesDataToConvert returned when no candlestick data is available for specific instrument
-	ErrNoTimeSeriesDataToConvert    = errors.New("no time series data to convert")
+	// ErrNoTimeSeriesDataToConvert is returned when no data can be processed
+	ErrNoTimeSeriesDataToConvert = errors.New("no candle data returned to process")
+
 	errNilRequest                   = errors.New("nil kline request")
 	errInvalidSpecificEndpointLimit = errors.New("specific endpoint limit must be greater than 0")
 
@@ -189,6 +190,15 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	}
 
 	return holder, err
+}
+
+// Size returns the max length of return for pre-allocation.
+func (r *Request) Size() int {
+	if r == nil {
+		return 0
+	}
+
+	return int(TotalCandlesPerInterval(r.Start, r.End, r.ExchangeInterval))
 }
 
 // ExtendedRequest used in extended functionality for when candles requested

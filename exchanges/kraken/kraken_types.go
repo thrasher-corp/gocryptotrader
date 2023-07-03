@@ -44,6 +44,8 @@ const (
 	futuresOrderbook    = "/api/v3/orderbook"
 	futuresInstruments  = "/api/v3/instruments"
 	futuresTradeHistory = "/api/v3/history"
+	futuresCandles      = "charts/v1/"
+	futuresPublicTrades = "history/v2/market/"
 
 	futuresSendOrder         = "/api/v3/sendorder"
 	futuresCancelOrder       = "/api/v3/cancelorder"
@@ -724,9 +726,8 @@ type OrderVars struct {
 type RequestParamsTimeForceType string
 
 var (
-	// KrakenRequestParamsTimeGTC GTC
-	KrakenRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// KrakenRequestParamsTimeIOC IOC
-	KrakenRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
+	// RequestParamsTimeGTC GTC
+	RequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
+	// RequestParamsTimeIOC IOC
+	RequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )

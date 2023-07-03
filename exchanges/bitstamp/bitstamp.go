@@ -561,7 +561,7 @@ func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -615,13 +615,12 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Headers:       headers,
 			Body:          readerValues,
 			Result:        &interim,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -634,7 +633,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" || errCap.Status == errStr {
 			if errCap.Error != "" { // v1 errors
-				return errors.New(errCap.Error)
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
 			switch data := errCap.Reason.(type) { // v2 errors
 			case map[string]interface{}:

@@ -175,7 +175,7 @@ type PaymentDetails struct {
 // TransferData stores data from asset transfers
 type TransferData struct {
 	ID             string         `json:"id"`
-	AssetName      string         `json:"assetName"`
+	AssetName      currency.Code  `json:"assetName"`
 	Amount         float64        `json:"amount,string"`
 	RequestType    string         `json:"type"`
 	CreationTime   time.Time      `json:"creationTime"`

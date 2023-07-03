@@ -169,11 +169,10 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 			Method:        http.MethodPost,
 			Path:          endpointPath + publicBullets,
 			Result:        &response,
-			AuthRequest:   true,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
 			HTTPRecording: ku.HTTPRecording}, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // GetAuthenticatedInstanceServers retrieves server instances for authenticated users.
@@ -1238,9 +1237,11 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 		if err != nil {
 			return nil, err
 		}
-		subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, a)
-		if err != nil {
-			return nil, err
+		if !subscriptions[x].Currency.IsEmpty() {
+			subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, a)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if subscriptions[x].Asset == asset.Futures {
 			subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, asset.Futures)

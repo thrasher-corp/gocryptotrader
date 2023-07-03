@@ -1674,7 +1674,7 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl r
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
 			HTTPRecording: ku.HTTPRecording}, nil
-	})
+	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1742,11 +1742,10 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 			Headers:       headers,
 			Body:          body,
 			Result:        &resp,
-			AuthRequest:   true,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
 			HTTPRecording: ku.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
