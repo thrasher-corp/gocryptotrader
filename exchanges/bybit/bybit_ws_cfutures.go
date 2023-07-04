@@ -44,6 +44,13 @@ const (
 	wsOrderbookActionUpdate = "update"
 	wsOrderbookActionInsert = "insert"
 	wsKlineV2               = "klineV2"
+
+	// private endpoints
+	wsPosition  = "position"
+	wsExecution = "execution"
+	wsOrder     = "order"
+	wsStopOrder = "stop_order"
+	wsWallet    = "wallet"
 )
 
 var pingRequest = WsFuturesReq{Topic: stream.Ping}

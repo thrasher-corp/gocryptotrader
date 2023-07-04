@@ -33,16 +33,6 @@ const (
 	wsTrades            = "trade"
 	wsKlines            = "kline"
 
-	// private endpoints
-	wsPosition  = "position"
-	wsExecution = "execution"
-	wsOrder     = "order"
-	wsWallet    = "wallet"
-	wsGreeks    = "greeks"
-	wsDCP       = "dcp"
-
-	wsStopOrder = "stop_order"
-
 	wsAccountInfo    = "outboundAccountInfo"
 	wsOrderExecution = "executionReport"
 	wsTickerInfo     = "ticketInfo"
@@ -86,7 +76,6 @@ func (by *Bybit) WsConnect(ctx context.Context) error {
 
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth(ctx context.Context) error {
-	fmt.Println("AUTH CALLED")
 	var dialer websocket.Dialer
 	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -126,7 +115,6 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	fmt.Println("SUBSCRIBE CALLED:", len(channelsToSubscribe))
 	var errs error
 	for i := range channelsToSubscribe {
 		var subReq WsReq
@@ -217,18 +205,6 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 				})
 		}
 	}
-
-	if by.IsWebsocketAuthenticationSupported() {
-		subscriptions = append(subscriptions, []stream.ChannelSubscription{
-			{Channel: wsPosition, Asset: asset.Spot},
-			{Channel: wsExecution, Asset: asset.Spot},
-			{Channel: wsOrder, Asset: asset.Spot},
-			{Channel: wsWallet, Asset: asset.Spot},
-			{Channel: wsGreeks, Asset: asset.Spot},
-			{Channel: wsDCP, Asset: asset.Spot},
-		}...)
-	}
-
 	return subscriptions, nil
 }
 
