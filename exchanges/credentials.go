@@ -83,15 +83,6 @@ func (a *API) SetSubAccount(sub string) {
 // CheckCredentials checks to see if the required fields have been set before
 // sending an authenticated API request
 func (b *Base) CheckCredentials(creds *account.Credentials, isContext bool) error {
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !creds.IsEmpty() && !creds.SecretBase64Decoded {
-		decodedResult, err := crypto.Base64Decode(creds.Secret)
-		if err != nil {
-			return fmt.Errorf("%s API secret %w: %s", b.Name, errBase64DecodeFailure, err)
-		}
-		creds.Secret = string(decodedResult)
-		creds.SecretBase64Decoded = true
-	}
-
 	if b.SkipAuthCheck {
 		return nil
 	}
@@ -192,6 +183,15 @@ func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
 	if b.API.CredentialsValidator.RequiresClientID &&
 		(creds.ClientID == "" || creds.ClientID == config.DefaultAPIClientID) {
 		return fmt.Errorf("%s %w", b.Name, errRequiresAPIClientID)
+	}
+
+	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !creds.SecretBase64Decoded {
+		decodedResult, err := crypto.Base64Decode(creds.Secret)
+		if err != nil {
+			return fmt.Errorf("%s API secret %w: %s", b.Name, errBase64DecodeFailure, err)
+		}
+		creds.Secret = string(decodedResult)
+		creds.SecretBase64Decoded = true
 	}
 
 	return nil

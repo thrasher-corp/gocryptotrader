@@ -33,9 +33,8 @@ func TestGetCredentials(t *testing.T) {
 
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	ctx = account.DeployCredentialsToContext(context.Background(), &account.Credentials{
-		Key:                 "meow",
-		Secret:              "invalidb64",
-		SecretBase64Decoded: false,
+		Key:    "meow",
+		Secret: "invalidb64",
 	})
 	if _, err = b.GetCredentials(ctx); !errors.Is(err, errBase64DecodeFailure) {
 		t.Fatalf("received: %v but expected: %v", err, errBase64DecodeFailure)
@@ -43,9 +42,8 @@ func TestGetCredentials(t *testing.T) {
 
 	const expectedBase64DecodedOutput = "hello world"
 	ctx = account.DeployCredentialsToContext(context.Background(), &account.Credentials{
-		Key:                 "meow",
-		Secret:              "aGVsbG8gd29ybGQ=",
-		SecretBase64Decoded: false,
+		Key:    "meow",
+		Secret: "aGVsbG8gd29ybGQ=",
 	})
 	creds, err := b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
@@ -147,16 +145,21 @@ func TestVerifyAPICredentials(t *testing.T) {
 	t.Parallel()
 
 	type tester struct {
-		Key              string
-		Secret           string
-		ClientID         string
-		PEMKey           string
-		RequiresPEM      bool
-		RequiresKey      bool
-		RequiresSecret   bool
-		RequiresClientID bool
-		Expected         error
+		Key                        string
+		Secret                     string
+		ClientID                   string
+		PEMKey                     string
+		RequiresPEM                bool
+		RequiresKey                bool
+		RequiresSecret             bool
+		RequiresClientID           bool
+		RequiresBase64DecodeSecret bool
+		UseSetCredentials          bool
+		CheckBase64DecodedOutput   bool
+		Expected                   error
 	}
+
+	const expectedBase64DecodedOutput = "hello world"
 
 	testCases := []tester{
 		// Empty credentials
@@ -173,34 +176,48 @@ func TestVerifyAPICredentials(t *testing.T) {
 		// test clientID
 		{RequiresClientID: true, Expected: errRequiresAPIClientID, Key: "bruh"},
 		{RequiresClientID: true, ClientID: "cli3nt1D"},
+		// test requires base64 decode secret
+		{RequiresBase64DecodeSecret: true, RequiresSecret: true, Expected: errRequiresAPISecret, Key: "bruh"},
+		{RequiresBase64DecodeSecret: true, Secret: "%%", Expected: errBase64DecodeFailure},
+		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", CheckBase64DecodedOutput: true},
+		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", UseSetCredentials: true, CheckBase64DecodedOutput: true},
 	}
 
 	setupBase := func(tData *tester) *Base {
 		b := &Base{
 			API: API{
 				CredentialsValidator: CredentialsValidator{
-					RequiresKey:      tData.RequiresKey,
-					RequiresSecret:   tData.RequiresSecret,
-					RequiresClientID: tData.RequiresClientID,
-					RequiresPEM:      tData.RequiresPEM,
+					RequiresKey:                tData.RequiresKey,
+					RequiresSecret:             tData.RequiresSecret,
+					RequiresClientID:           tData.RequiresClientID,
+					RequiresPEM:                tData.RequiresPEM,
+					RequiresBase64DecodeSecret: tData.RequiresBase64DecodeSecret,
 				},
 			},
 		}
-		b.API.SetKey(tData.Key)
-		b.API.SetSecret(tData.Secret)
-		b.API.SetClientID(tData.ClientID)
-		b.API.SetPEMKey(tData.PEMKey)
+		if tData.UseSetCredentials {
+			b.SetCredentials(tData.Key, tData.Secret, tData.ClientID, "", tData.PEMKey, "")
+		} else {
+			b.API.SetKey(tData.Key)
+			b.API.SetSecret(tData.Secret)
+			b.API.SetClientID(tData.ClientID)
+			b.API.SetPEMKey(tData.PEMKey)
+		}
 		return b
 	}
 
-	for x := range testCases {
-		testData := &testCases[x]
-		x := x
+	for x, tc := range testCases {
+		x, tc := x, tc
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
-			b := setupBase(testData)
-			if err := b.VerifyAPICredentials(b.API.credentials); !errors.Is(err, testData.Expected) {
-				t.Errorf("Test %d: expected: %v: got %v", x+1, testData.Expected, err)
+			b := setupBase(&tc)
+			if err := b.VerifyAPICredentials(b.API.credentials); !errors.Is(err, tc.Expected) {
+				t.Errorf("Test %d: expected: %v: got %v", x+1, tc.Expected, err)
+			}
+			if tc.CheckBase64DecodedOutput {
+				if b.API.credentials.Secret != expectedBase64DecodedOutput {
+					t.Errorf("Test %d: expected: %v: got %v", x+1, expectedBase64DecodedOutput, b.API.credentials.Secret)
+				}
 			}
 		})
 	}
