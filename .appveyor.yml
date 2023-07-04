@@ -36,7 +36,7 @@ services:
 
 init:
   - set PATH=%POSTGRES_PATH%\bin;%PATH%
-  - set PATH=C:\go119\bin;%PATH%
+  - set PATH=C:\go\bin;%PATH%
 
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
