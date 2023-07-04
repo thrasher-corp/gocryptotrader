@@ -235,7 +235,7 @@ func TestUFuturesOrderbook(t *testing.T) {
 
 func TestURecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.URecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 5)
+	_, err := b.URecentTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 1000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2410,18 +2410,23 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	b.HTTPRecording = true
-	bAssets := b.GetAssetTypes(false)
-	for i := range bAssets {
-		cps, err := b.GetAvailablePairs(bAssets[i])
-		if err != nil {
-			t.Error(err)
-		}
-		_, err = b.GetRecentTrades(context.Background(),
-			cps[0], bAssets[i])
-		if err != nil {
-			t.Error(err)
-		}
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := b.GetRecentTrades(context.Background(),
+		pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetRecentTrades(context.Background(),
+		pair, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	pair.Base = currency.NewCode("BTCUSD")
+	pair.Quote = currency.PERP
+	_, err = b.GetRecentTrades(context.Background(),
+		pair, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
