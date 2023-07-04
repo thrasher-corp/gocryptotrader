@@ -43,12 +43,13 @@ var (
 
 // Credentials define parameters that allow for an authenticated request.
 type Credentials struct {
-	Key             string
-	Secret          string
-	ClientID        string // TODO: Implement with exchange orders functionality
-	PEMKey          string
-	SubAccount      string
-	OneTimePassword string
+	Key                 string
+	Secret              string
+	ClientID            string // TODO: Implement with exchange orders functionality
+	PEMKey              string
+	SubAccount          string
+	OneTimePassword     string
+	SecretBase64Decoded bool
 	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
 }
 
