@@ -657,12 +657,12 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKCoin) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (o *OKCoin) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	return o.handleSubscriptions("subscribe", channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKCoin) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (o *OKCoin) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return o.handleSubscriptions("unsubscribe", channelsToUnsubscribe)
 }
 

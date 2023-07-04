@@ -303,7 +303,7 @@ func (g *Gateio) OptionsSubscribe(channelsToUnsubscribe []stream.ChannelSubscrip
 }
 
 // OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsUnsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) OptionsUnsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return g.handleOptionsSubscription("unsubscribe", channelsToUnsubscribe)
 }
 

@@ -575,7 +575,7 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -600,7 +600,7 @@ func (b *Binance) Subscribe(ctx context.Context, channelsToSubscribe []stream.Ch
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}

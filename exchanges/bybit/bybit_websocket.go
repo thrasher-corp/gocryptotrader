@@ -114,7 +114,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		var subReq WsReq
@@ -149,7 +149,7 @@ func (by *Bybit) Subscribe(ctx context.Context, channelsToSubscribe []stream.Cha
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var errs error
 
 	for i := range channelsToUnsubscribe {

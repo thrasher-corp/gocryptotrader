@@ -569,7 +569,7 @@ subs:
 }
 
 // Subscribe subscribes to a set of channels
-func (bi *Binanceus) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (bi *Binanceus) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	payload := WebsocketPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -594,7 +594,7 @@ func (bi *Binanceus) Subscribe(ctx context.Context, channelsToSubscribe []stream
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (bi *Binanceus) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (bi *Binanceus) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	payload := WebsocketPayload{
 		Method: "UNSUBSCRIBE",
 	}

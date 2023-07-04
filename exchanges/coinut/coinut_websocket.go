@@ -615,7 +615,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (c *COINUT) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)

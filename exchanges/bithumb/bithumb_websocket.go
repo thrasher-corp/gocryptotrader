@@ -194,7 +194,7 @@ func (b *Bithumb) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bithumb) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	subs := make(map[string]*WsSubscribe)
 	for i := range channelsToSubscribe {
 		s, ok := subs[channelsToSubscribe[i].Channel]

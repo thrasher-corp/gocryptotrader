@@ -184,8 +184,8 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]stream.Channel
 }
 
 // DeliveryFuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) DeliveryFuturesSubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
-	return g.handleDeliveryFuturesSubscription(ctx, "subscribe", channelsToUnsubscribe)
+func (g *Gateio) DeliveryFuturesSubscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+	return g.handleDeliveryFuturesSubscription(ctx, "subscribe", channelsToSubscribe)
 }
 
 // DeliveryFuturesUnsubscribe sends a websocket message to stop receiving data from the channel

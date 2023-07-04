@@ -88,7 +88,7 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gemini) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (g *Gemini) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	channels := make([]string, 0, len(channelsToSubscribe))
 	for x := range channelsToSubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToSubscribe[x].Channel) {
@@ -132,7 +132,7 @@ func (g *Gemini) Subscribe(ctx context.Context, channelsToSubscribe []stream.Cha
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gemini) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gemini) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	channels := make([]string, 0, len(channelsToUnsubscribe))
 	for x := range channelsToUnsubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToUnsubscribe[x].Channel) {

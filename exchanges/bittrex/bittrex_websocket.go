@@ -251,7 +251,7 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bittrex) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bittrex) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var x int
 	var errs error
 	for x = 0; x+wsMessageRateLimit < len(channelsToSubscribe); x += wsMessageRateLimit {
@@ -310,7 +310,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
-func (b *Bittrex) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Bittrex) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var x int
 	var errs error
 	for x = 0; x+wsMessageRateLimit < len(channelsToUnsubscribe); x += wsMessageRateLimit {

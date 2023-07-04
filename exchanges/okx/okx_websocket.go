@@ -348,12 +348,12 @@ func (ok *Okx) wsFunnelConnectionData(ws stream.Connection) {
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Subscribe(_ context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
 }
 

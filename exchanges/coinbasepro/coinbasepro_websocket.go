@@ -457,7 +457,7 @@ subscriptions:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	unsubscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 	}
