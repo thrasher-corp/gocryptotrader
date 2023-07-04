@@ -319,12 +319,12 @@ func (c *CustomEx) SupportsWebsocket() bool {
 }
 
 // SubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) SubscribeToWebsocketChannels(_ []stream.ChannelSubscription) error {
+func (c *CustomEx) SubscribeToWebsocketChannels(context.Context, []stream.ChannelSubscription) error {
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) UnsubscribeToWebsocketChannels(_ []stream.ChannelSubscription) error {
+func (c *CustomEx) UnsubscribeToWebsocketChannels(context.Context, []stream.ChannelSubscription) error {
 	return nil
 }
 

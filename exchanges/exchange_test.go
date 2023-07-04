@@ -1256,7 +1256,7 @@ func TestSetupDefaults(t *testing.T) {
 		RunningURL:            "ws://something.com",
 		Connector:             func(context.Context) error { return nil },
 		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
-		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
+		Subscriber:            func(context.Context, []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1605,7 +1605,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		RunningURL:            "ws://something.com",
 		Connector:             func(context.Context) error { return nil },
 		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
-		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
+		Subscriber:            func(context.Context, []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -2051,13 +2051,13 @@ func TestFlushWebsocketChannels(t *testing.T) {
 
 func TestSubscribeToWebsocketChannels(t *testing.T) {
 	b := Base{}
-	err := b.SubscribeToWebsocketChannels(nil)
+	err := b.SubscribeToWebsocketChannels(context.Background(), nil)
 	if err == nil {
 		t.Fatal(err)
 	}
 
 	b.Websocket = &stream.Websocket{}
-	err = b.SubscribeToWebsocketChannels(nil)
+	err = b.SubscribeToWebsocketChannels(context.Background(), nil)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -2065,13 +2065,13 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 
 func TestUnsubscribeToWebsocketChannels(t *testing.T) {
 	b := Base{}
-	err := b.UnsubscribeToWebsocketChannels(nil)
+	err := b.UnsubscribeToWebsocketChannels(context.Background(), nil)
 	if err == nil {
 		t.Fatal(err)
 	}
 
 	b.Websocket = &stream.Websocket{}
-	err = b.UnsubscribeToWebsocketChannels(nil)
+	err = b.UnsubscribeToWebsocketChannels(context.Background(), nil)
 	if err == nil {
 		t.Fatal(err)
 	}

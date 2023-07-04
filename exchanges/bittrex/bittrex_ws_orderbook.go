@@ -22,7 +22,7 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
-func (b *Bittrex) setupOrderbookManager() {
+func (b *Bittrex) setupOrderbookManager(ctx context.Context) {
 	if b.obm == nil {
 		b.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
@@ -42,7 +42,7 @@ func (b *Bittrex) setupOrderbookManager() {
 
 	for i := 0; i < maxWSOrderbookWorkers; i++ {
 		// 10 workers for synchronising book
-		b.SynchroniseWebsocketOrderbook()
+		b.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 
@@ -190,7 +190,7 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (b *Bittrex) SynchroniseWebsocketOrderbook() {
+func (b *Bittrex) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	b.Websocket.Wg.Add(1)
 	go func() {
 		defer b.Websocket.Wg.Done()
@@ -205,7 +205,7 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 					}
 				}
 			case j := <-b.obm.jobs:
-				err := b.processJob(j.Pair)
+				err := b.processJob(ctx, j.Pair)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
 						"%s processing websocket orderbook error %v",
@@ -217,8 +217,8 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 }
 
 // processJob fetches and processes orderbook updates
-func (b *Bittrex) processJob(p currency.Pair) error {
-	err := b.SeedLocalOBCache(context.TODO(), p)
+func (b *Bittrex) processJob(ctx context.Context, p currency.Pair) error {
+	err := b.SeedLocalOBCache(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)

@@ -79,7 +79,7 @@ func setupWSTestAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go c.wsReadData()
+	go c.wsReadData(context.Background())
 	err = c.wsAuthenticate(context.Background())
 	if err != nil {
 		t.Error(err)

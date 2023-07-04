@@ -49,7 +49,7 @@ func (c *COINUT) WsConnect(ctx context.Context) error {
 	}
 
 	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	go c.wsReadData(ctx)
 
 	if !c.instrumentMap.IsLoaded() {
 		_, err = c.WsGetInstruments()
@@ -71,7 +71,7 @@ func (c *COINUT) WsConnect(ctx context.Context) error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *COINUT) wsReadData() {
+func (c *COINUT) wsReadData(ctx context.Context) {
 	defer c.Websocket.Wg.Done()
 
 	for {
@@ -99,7 +99,7 @@ func (c *COINUT) wsReadData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				err = c.wsHandleData(context.TODO(), individualJSON)
+				err = c.wsHandleData(ctx, individualJSON)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
@@ -111,7 +111,7 @@ func (c *COINUT) wsReadData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
-			err = c.wsHandleData(context.TODO(), resp.Raw)
+			err = c.wsHandleData(ctx, resp.Raw)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
@@ -615,7 +615,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (c *COINUT) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
@@ -644,7 +644,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
+func (c *COINUT) Unsubscribe(_ context.Context, channelToUnsubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelToUnsubscribe {
 		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)

@@ -556,7 +556,7 @@ func TestWsTicker(t *testing.T) {
     "volume24h": "299.12936654",
     "messageType": "tick"
   }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -571,7 +571,7 @@ func TestWsTrade(t *testing.T) {
     "side": "Ask",
     "messageType": "trade"
   }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -588,7 +588,7 @@ func TestWsFundChange(t *testing.T) {
   "fee": "0",
   "messageType": "fundChange"
 }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -610,7 +610,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
           [ "101", "6.32", 2 ] ],
       "messageType": "orderbookUpdate"
   }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -623,7 +623,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
     "messageType": "orderbookUpdate",
 	"checksum": "2513007604"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -635,7 +635,7 @@ func TestWsHeartbeats(t *testing.T) {
   "code": 3,
   "message": "invalid channel names"
 }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(context.Background(), pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -645,7 +645,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 3,
 "message": "invalid marketIds"
 }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(context.Background(), pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -655,7 +655,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 1,
 "message": "authentication failed. invalid key"
 }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(context.Background(), pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -674,7 +674,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:19.339Z",
     "messageType": "orderChange"
   }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -697,7 +697,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:50:39.658Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -714,7 +714,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -737,7 +737,7 @@ func TestWsOrders(t *testing.T) {
 	"timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -754,7 +754,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

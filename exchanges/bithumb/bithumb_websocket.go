@@ -27,7 +27,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (b *Bithumb) WsConnect(context.Context) error {
+func (b *Bithumb) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -46,7 +46,7 @@ func (b *Bithumb) WsConnect(context.Context) error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(ctx)
 	return nil
 }
 
@@ -194,7 +194,7 @@ func (b *Bithumb) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bithumb) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	subs := make(map[string]*WsSubscribe)
 	for i := range channelsToSubscribe {
 		s, ok := subs[channelsToSubscribe[i].Channel]

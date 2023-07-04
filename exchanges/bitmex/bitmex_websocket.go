@@ -108,7 +108,7 @@ func (b *Bitmex) WsConnect(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			return b.Websocket.SubscribeToChannels(authsubs)
+			return b.Websocket.SubscribeToChannels(ctx, authsubs)
 		}
 	}
 	return nil
@@ -627,7 +627,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bitmex) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	for i := range channelsToSubscribe {
@@ -643,7 +643,7 @@ func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Bitmex) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var unsubscriber WebsocketRequest
 	unsubscriber.Command = "unsubscribe"
 

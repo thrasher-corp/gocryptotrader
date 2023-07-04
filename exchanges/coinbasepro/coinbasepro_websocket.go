@@ -28,7 +28,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (c *CoinbasePro) WsConnect(context.Context) error {
+func (c *CoinbasePro) WsConnect(ctx context.Context) error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -39,12 +39,12 @@ func (c *CoinbasePro) WsConnect(context.Context) error {
 	}
 
 	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	go c.wsReadData(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *CoinbasePro) wsReadData() {
+func (c *CoinbasePro) wsReadData(ctx context.Context) {
 	defer c.Websocket.Wg.Done()
 
 	for {
@@ -52,14 +52,14 @@ func (c *CoinbasePro) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := c.wsHandleData(resp.Raw)
+		err := c.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
+func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 	msgType := wsMsgType{}
 	err := json.Unmarshal(respRaw, &msgType)
 	if err != nil {
@@ -165,7 +165,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
 		}
 
-		creds, err := c.GetCredentials(context.TODO())
+		creds, err := c.GetCredentials(ctx)
 		if err != nil {
 			c.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: c.Name,
@@ -400,11 +400,11 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var creds *account.Credentials
 	var err error
 	if c.IsWebsocketAuthenticationSupported() {
-		creds, err = c.GetCredentials(context.TODO())
+		creds, err = c.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -457,7 +457,7 @@ subscriptions:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	unsubscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 	}

@@ -540,11 +540,11 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
+func (p *Poloniex) Subscribe(ctx context.Context, sub []stream.ChannelSubscription) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
-		creds, err = p.GetCredentials(context.TODO())
+		creds, err = p.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -587,11 +587,11 @@ channels:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
+func (p *Poloniex) Unsubscribe(ctx context.Context, unsub []stream.ChannelSubscription) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
-		creds, err = p.GetCredentials(context.TODO())
+		creds, err = p.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}

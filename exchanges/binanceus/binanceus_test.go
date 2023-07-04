@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binanceus TestMain()", err)
 	}
-	bi.setupOrderbookManager()
+	bi.setupOrderbookManager(context.Background())
 	err = bi.Start(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		log.Fatalf("%s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
@@ -1405,7 +1405,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
-	bi.setupOrderbookManager()
+	bi.setupOrderbookManager(context.Background())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []OrderbookItem{

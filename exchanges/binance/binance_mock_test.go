@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binance setup error", err)
 	}
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(context.Background())
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {

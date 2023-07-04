@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binance setup error", err)
 	}
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(context.Background())
 	request.MaxRequestJobs = 100
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)

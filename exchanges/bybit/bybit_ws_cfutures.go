@@ -56,7 +56,7 @@ const (
 var pingRequest = WsFuturesReq{Topic: stream.Ping}
 
 // WsCoinConnect connects to a CMF websocket feed
-func (by *Bybit) WsCoinConnect() error {
+func (by *Bybit) WsCoinConnect(ctx context.Context) error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -82,7 +82,7 @@ func (by *Bybit) WsCoinConnect() error {
 	by.Websocket.Wg.Add(1)
 	go by.wsCoinReadData()
 	if by.IsWebsocketAuthenticationSupported() {
-		err = by.WsCoinAuth(context.TODO())
+		err = by.WsCoinAuth(ctx)
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)

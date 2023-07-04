@@ -67,8 +67,8 @@ var defaultSetup = &WebsocketSetup{
 	DefaultURL:   "testDefaultURL",
 	RunningURL:   "wss://testRunningURL",
 	Connector:    func(ctx context.Context) error { return nil },
-	Subscriber:   func(_ []ChannelSubscription) error { return nil },
-	Unsubscriber: func(_ []ChannelSubscription) error { return nil },
+	Subscriber:   func(context.Context, []ChannelSubscription) error { return nil },
+	Unsubscriber: func(context.Context, []ChannelSubscription) error { return nil },
 	GenerateSubscriptions: func() ([]ChannelSubscription, error) {
 		return []ChannelSubscription{
 			{Channel: "TestSub"},
@@ -150,14 +150,14 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriberUnset)
 	}
 
-	websocketSetup.Subscriber = func([]ChannelSubscription) error { return nil }
+	websocketSetup.Subscriber = func(context.Context, []ChannelSubscription) error { return nil }
 	websocketSetup.Features.Unsubscribe = true
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errWebsocketUnsubscriberUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketUnsubscriberUnset)
 	}
 
-	websocketSetup.Unsubscriber = func([]ChannelSubscription) error { return nil }
+	websocketSetup.Unsubscriber = func(context.Context, []ChannelSubscription) error { return nil }
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errWebsocketSubscriptionsGeneratorUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriptionsGeneratorUnset)
@@ -499,18 +499,18 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fnSub := func(subs []ChannelSubscription) error {
+	fnSub := func(ctx context.Context, subs []ChannelSubscription) error {
 		ws.AddSuccessfulSubscriptions(subs...)
 		return nil
 	}
-	fnUnsub := func(unsubs []ChannelSubscription) error {
+	fnUnsub := func(ctx context.Context, unsubs []ChannelSubscription) error {
 		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
 		return nil
 	}
 	ws.Subscriber = fnSub
 	ws.Unsubscriber = fnUnsub
 
-	err = ws.UnsubscribeChannels(nil)
+	err = ws.UnsubscribeChannels(context.Background(), nil)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -522,29 +522,29 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 
 	// unsub when no subscribed channel
-	err = ws.UnsubscribeChannels(subs)
+	err = ws.UnsubscribeChannels(context.Background(), subs)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	err = ws.SubscribeToChannels(subs)
+	err = ws.SubscribeToChannels(context.Background(), subs)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// subscribe when already subscribed
-	err = ws.SubscribeToChannels(subs)
+	err = ws.SubscribeToChannels(context.Background(), subs)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
 	// subscribe to nothing
-	err = ws.SubscribeToChannels(nil)
+	err = ws.SubscribeToChannels(context.Background(), nil)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	err = ws.UnsubscribeChannels(subs)
+	err = ws.UnsubscribeChannels(context.Background(), subs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,11 +558,11 @@ func TestResubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fnSub := func(subs []ChannelSubscription) error {
+	fnSub := func(_ context.Context, subs []ChannelSubscription) error {
 		ws.AddSuccessfulSubscriptions(subs...)
 		return nil
 	}
-	fnUnsub := func(unsubs []ChannelSubscription) error {
+	fnUnsub := func(_ context.Context, unsubs []ChannelSubscription) error {
 		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
 		return nil
 	}
@@ -570,17 +570,17 @@ func TestResubscribe(t *testing.T) {
 	ws.Unsubscriber = fnUnsub
 
 	channel := []ChannelSubscription{{Channel: "resubTest"}}
-	err = ws.ResubscribeToChannel(&channel[0])
+	err = ws.ResubscribeToChannel(context.Background(), &channel[0])
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	err = ws.SubscribeToChannels(channel)
+	err = ws.SubscribeToChannels(context.Background(), channel)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = ws.ResubscribeToChannel(&channel[0])
+	err = ws.ResubscribeToChannel(context.Background(), &channel[0])
 	if err != nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -1076,7 +1076,7 @@ func (g *GenSubs) generateSubs() ([]ChannelSubscription, error) {
 	return superduperchannelsubs, nil
 }
 
-func (g *GenSubs) SUBME(subs []ChannelSubscription) error {
+func (g *GenSubs) SUBME(_ context.Context, subs []ChannelSubscription) error {
 	if len(subs) == 0 {
 		return errors.New("WOW")
 	}
@@ -1084,7 +1084,7 @@ func (g *GenSubs) SUBME(subs []ChannelSubscription) error {
 	return nil
 }
 
-func (g *GenSubs) UNSUBME(unsubs []ChannelSubscription) error {
+func (g *GenSubs) UNSUBME(_ context.Context, unsubs []ChannelSubscription) error {
 	if len(unsubs) == 0 {
 		return errors.New("WOW")
 	}
@@ -1246,7 +1246,7 @@ func TestEnable(t *testing.T) {
 		GenerateSubs: func() ([]ChannelSubscription, error) {
 			return []ChannelSubscription{{Channel: "test"}}, nil
 		},
-		Subscriber: func(cs []ChannelSubscription) error { return nil },
+		Subscriber: func(context.Context, []ChannelSubscription) error { return nil },
 	}
 
 	err := web.Enable(context.Background(), true)

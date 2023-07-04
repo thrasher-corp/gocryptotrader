@@ -54,10 +54,10 @@ type Websocket struct {
 
 	// Subscriber function for package defined websocket subscriber
 	// functionality
-	Subscriber func([]ChannelSubscription) error
+	Subscriber func(context.Context, []ChannelSubscription) error
 	// Unsubscriber function for packaged defined websocket unsubscriber
 	// functionality
-	Unsubscriber func([]ChannelSubscription) error
+	Unsubscriber func(context.Context, []ChannelSubscription) error
 	// GenerateSubs function for package defined websocket generate
 	// subscriptions functionality
 	GenerateSubs func() ([]ChannelSubscription, error)
@@ -102,9 +102,9 @@ type WebsocketSetup struct {
 	DefaultURL             string
 	RunningURL             string
 	RunningURLAuth         string
-	Connector              func(ctx context.Context) error
-	Subscriber             func([]ChannelSubscription) error
-	Unsubscriber           func([]ChannelSubscription) error
+	Connector              func(context.Context) error
+	Subscriber             func(context.Context, []ChannelSubscription) error
+	Unsubscriber           func(context.Context, []ChannelSubscription) error
 	GenerateSubscriptions  func() ([]ChannelSubscription, error)
 	Features               *protocol.Features
 	ConnectionMonitorDelay time.Duration

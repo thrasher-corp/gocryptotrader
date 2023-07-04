@@ -497,7 +497,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (h *HitBTC) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		subscribe := WsRequest{
@@ -529,7 +529,7 @@ func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
 		unsubscribeChannel := strings.Replace(channelsToUnsubscribe[i].Channel,

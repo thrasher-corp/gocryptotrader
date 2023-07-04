@@ -22,7 +22,7 @@ import (
 )
 
 // WsFuturesConnect connects to a Futures websocket feed
-func (by *Bybit) WsFuturesConnect() error {
+func (by *Bybit) WsFuturesConnect(ctx context.Context) error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -47,7 +47,7 @@ func (by *Bybit) WsFuturesConnect() error {
 
 	go by.wsFuturesReadData()
 	if by.IsWebsocketAuthenticationSupported() {
-		err = by.WsFuturesAuth(context.TODO())
+		err = by.WsFuturesAuth(ctx)
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)

@@ -42,7 +42,7 @@ func (o *OKCoin) WsConnect(ctx context.Context) error {
 	}
 
 	o.Websocket.Wg.Add(1)
-	go o.WsReadData()
+	go o.WsReadData(ctx)
 
 	if o.IsWebsocketAuthenticationSupported() {
 		err = o.WsLogin(ctx)
@@ -92,7 +92,7 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 }
 
 // WsReadData receives and passes on websocket messages for processing
-func (o *OKCoin) WsReadData() {
+func (o *OKCoin) WsReadData(ctx context.Context) {
 	defer o.Websocket.Wg.Done()
 
 	for {
@@ -100,7 +100,7 @@ func (o *OKCoin) WsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := o.WsHandleData(resp.Raw)
+		err := o.WsHandleData(ctx, resp.Raw)
 		if err != nil {
 			o.Websocket.DataHandler <- err
 		}
@@ -108,7 +108,7 @@ func (o *OKCoin) WsReadData() {
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (o *OKCoin) WsHandleData(respRaw []byte) error {
+func (o *OKCoin) WsHandleData(ctx context.Context, respRaw []byte) error {
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
@@ -122,7 +122,7 @@ func (o *OKCoin) WsHandleData(respRaw []byte) error {
 			okcoinWsCandle43200s, okcoinWsCandle86400s, okcoinWsCandle604900s:
 			return o.wsProcessCandles(respRaw)
 		case okcoinWsDepth, okcoinWsDepth5:
-			return o.WsProcessOrderBook(respRaw)
+			return o.WsProcessOrderBook(ctx, respRaw)
 		case okcoinWsTicker:
 			return o.wsProcessTickers(respRaw)
 		case okcoinWsTrade:
@@ -389,7 +389,7 @@ func (o *OKCoin) wsProcessCandles(respRaw []byte) error {
 }
 
 // WsProcessOrderBook Validates the checksum and updates internal orderbook values
-func (o *OKCoin) WsProcessOrderBook(respRaw []byte) error {
+func (o *OKCoin) WsProcessOrderBook(ctx context.Context, respRaw []byte) error {
 	var response WebsocketOrderBooksData
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -405,7 +405,7 @@ func (o *OKCoin) WsProcessOrderBook(respRaw []byte) error {
 		if response.Action == okcoinWsOrderbookPartial {
 			err := o.WsProcessPartialOrderBook(&response.Data[i], c, a)
 			if err != nil {
-				err2 := o.wsResubscribeToOrderbook(&response)
+				err2 := o.wsResubscribeToOrderbook(ctx, &response)
 				if err2 != nil {
 					o.Websocket.DataHandler <- err2
 				}
@@ -417,7 +417,7 @@ func (o *OKCoin) WsProcessOrderBook(respRaw []byte) error {
 			}
 			err := o.WsProcessUpdateOrderbook(&response.Data[i], c, a)
 			if err != nil {
-				err2 := o.wsResubscribeToOrderbook(&response)
+				err2 := o.wsResubscribeToOrderbook(ctx, &response)
 				if err2 != nil {
 					o.Websocket.DataHandler <- err2
 				}
@@ -428,7 +428,7 @@ func (o *OKCoin) WsProcessOrderBook(respRaw []byte) error {
 	return nil
 }
 
-func (o *OKCoin) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) error {
+func (o *OKCoin) wsResubscribeToOrderbook(ctx context.Context, response *WebsocketOrderBooksData) error {
 	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -440,7 +440,7 @@ func (o *OKCoin) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) err
 			Currency: c,
 			Asset:    a,
 		}
-		err := o.Websocket.ResubscribeToChannel(channelToResubscribe)
+		err := o.Websocket.ResubscribeToChannel(ctx, channelToResubscribe)
 		if err != nil {
 			return fmt.Errorf("%s resubscribe to orderbook error %s", o.Name, err)
 		}
@@ -657,12 +657,12 @@ func (o *OKCoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKCoin) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (o *OKCoin) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	return o.handleSubscriptions("subscribe", channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKCoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (o *OKCoin) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return o.handleSubscriptions("unsubscribe", channelsToUnsubscribe)
 }
 

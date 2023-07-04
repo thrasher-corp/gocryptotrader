@@ -1123,20 +1123,20 @@ func (b *Base) FlushWebsocketChannels(ctx context.Context, allowAutoSubscribe bo
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+func (b *Base) SubscribeToWebsocketChannels(ctx context.Context, channels []stream.ChannelSubscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.SubscribeToChannels(channels)
+	return b.Websocket.SubscribeToChannels(ctx, channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+func (b *Base) UnsubscribeToWebsocketChannels(ctx context.Context, channels []stream.ChannelSubscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.UnsubscribeChannels(channels)
+	return b.Websocket.UnsubscribeChannels(ctx, channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions

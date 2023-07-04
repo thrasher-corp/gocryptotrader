@@ -280,7 +280,7 @@ func (w *Websocket) Connect(ctx context.Context, allowAutoSubscribe bool) error 
 		if err != nil {
 			return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 		}
-		err = w.Subscriber(subs)
+		err = w.Subscriber(ctx, subs)
 		if err != nil {
 			return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 		}
@@ -500,7 +500,7 @@ func (w *Websocket) FlushChannels(ctx context.Context, allowAutoSubscribe bool) 
 		subs, unsubs := w.GetChannelDifference(newsubs)
 		if w.features.Unsubscribe {
 			if len(unsubs) != 0 {
-				err := w.UnsubscribeChannels(unsubs)
+				err := w.UnsubscribeChannels(ctx, unsubs)
 				if err != nil {
 					return err
 				}
@@ -510,7 +510,7 @@ func (w *Websocket) FlushChannels(ctx context.Context, allowAutoSubscribe bool) 
 		if len(subs) < 1 {
 			return nil
 		}
-		return w.SubscribeToChannels(subs)
+		return w.SubscribeToChannels(ctx, subs)
 	} else if w.features.FullPayloadSubscribe {
 		// FullPayloadSubscribe means that the endpoint requires all
 		// subscriptions to be sent via the websocket connection e.g. if you are
@@ -527,7 +527,7 @@ func (w *Websocket) FlushChannels(ctx context.Context, allowAutoSubscribe bool) 
 			w.subscriptionMutex.Lock()
 			w.subscriptions = nil
 			w.subscriptionMutex.Unlock()
-			return w.SubscribeToChannels(newsubs)
+			return w.SubscribeToChannels(ctx, newsubs)
 		}
 		return nil
 	}
@@ -876,7 +876,7 @@ newsubs:
 }
 
 // UnsubscribeChannels unsubscribes from a websocket channel
-func (w *Websocket) UnsubscribeChannels(channels []ChannelSubscription) error {
+func (w *Websocket) UnsubscribeChannels(ctx context.Context, channels []ChannelSubscription) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: channels not populated cannot remove",
 			w.exchangeName)
@@ -896,20 +896,20 @@ channels:
 			channels[x])
 	}
 	w.subscriptionMutex.Unlock()
-	return w.Unsubscriber(channels)
+	return w.Unsubscriber(ctx, channels)
 }
 
 // ResubscribeToChannel resubscribes to channel
-func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription) error {
-	err := w.UnsubscribeChannels([]ChannelSubscription{*subscribedChannel})
+func (w *Websocket) ResubscribeToChannel(ctx context.Context, subscribedChannel *ChannelSubscription) error {
+	err := w.UnsubscribeChannels(ctx, []ChannelSubscription{*subscribedChannel})
 	if err != nil {
 		return err
 	}
-	return w.SubscribeToChannels([]ChannelSubscription{*subscribedChannel})
+	return w.SubscribeToChannels(ctx, []ChannelSubscription{*subscribedChannel})
 }
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
+func (w *Websocket) SubscribeToChannels(ctx context.Context, channels []ChannelSubscription) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
 			w.exchangeName)
@@ -926,7 +926,7 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 		}
 	}
 	w.subscriptionMutex.Unlock()
-	if err := w.Subscriber(channels); err != nil {
+	if err := w.Subscriber(ctx, channels); err != nil {
 		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
 	}
 	return nil

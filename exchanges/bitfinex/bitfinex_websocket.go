@@ -1543,7 +1543,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bitfinex) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	checksum := make(map[string]interface{})
 	checksum["event"] = "conf"
 	checksum["flags"] = bitfinexChecksumFlag + bitfinexWsSequenceFlag
@@ -1573,7 +1573,7 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Bitfinex) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
 		req := make(map[string]interface{})

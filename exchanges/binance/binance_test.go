@@ -2105,7 +2105,7 @@ func TestWsTradeUpdate(t *testing.T) {
 func TestWsDepthUpdate(t *testing.T) {
 	binanceOrderBookLock.Lock()
 	defer binanceOrderBookLock.Unlock()
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(context.Background())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []OrderbookItem{

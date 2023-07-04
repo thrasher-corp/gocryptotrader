@@ -544,11 +544,11 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (h *HUOBI) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		creds, err = h.GetCredentials(context.TODO())
+		creds, err = h.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -584,11 +584,11 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (h *HUOBI) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		creds, err = h.GetCredentials(context.TODO())
+		creds, err = h.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}

@@ -24,7 +24,7 @@ import (
 const wsUSDTKline = "candle"
 
 // WsUSDTConnect connects to a USDT websocket feed
-func (by *Bybit) WsUSDTConnect() error {
+func (by *Bybit) WsUSDTConnect(ctx context.Context) error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -49,7 +49,7 @@ func (by *Bybit) WsUSDTConnect() error {
 
 	go by.wsUSDTReadData()
 	if by.IsWebsocketAuthenticationSupported() {
-		err = by.WsUSDTAuth(context.TODO())
+		err = by.WsUSDTAuth(ctx)
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)

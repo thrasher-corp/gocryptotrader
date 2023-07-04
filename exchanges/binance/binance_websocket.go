@@ -77,7 +77,7 @@ func (b *Binance) WsConnect(ctx context.Context) error {
 	}
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		go b.KeepAuthKeyAlive()
+		go b.KeepAuthKeyAlive(ctx)
 	}
 
 	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
@@ -89,11 +89,11 @@ func (b *Binance) WsConnect(ctx context.Context) error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(ctx)
 	return nil
 }
 
-func (b *Binance) setupOrderbookManager() {
+func (b *Binance) setupOrderbookManager(ctx context.Context) {
 	if b.obm == nil {
 		b.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
@@ -114,13 +114,13 @@ func (b *Binance) setupOrderbookManager() {
 
 	for i := 0; i < maxWSOrderbookWorkers; i++ {
 		// 10 workers for synchronising book
-		b.SynchroniseWebsocketOrderbook()
+		b.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
-func (b *Binance) KeepAuthKeyAlive() {
+func (b *Binance) KeepAuthKeyAlive(ctx context.Context) {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	ticks := time.NewTicker(time.Minute * 30)
@@ -130,7 +130,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 			ticks.Stop()
 			return
 		case <-ticks.C:
-			err := b.MaintainWsAuthStreamKey(context.TODO())
+			err := b.MaintainWsAuthStreamKey(ctx)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				log.Warnf(log.ExchangeSys,
@@ -575,7 +575,7 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -600,7 +600,7 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}
@@ -738,7 +738,7 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (b *Binance) SynchroniseWebsocketOrderbook() {
+func (b *Binance) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	b.Websocket.Wg.Add(1)
 	go func() {
 		defer b.Websocket.Wg.Done()
@@ -753,7 +753,7 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 					}
 				}
 			case j := <-b.obm.jobs:
-				err := b.processJob(j.Pair)
+				err := b.processJob(ctx, j.Pair)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
 						"%s processing websocket orderbook error %v",
@@ -765,8 +765,8 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 }
 
 // processJob fetches and processes orderbook updates
-func (b *Binance) processJob(p currency.Pair) error {
-	err := b.SeedLocalCache(context.TODO(), p)
+func (b *Binance) processJob(ctx context.Context, p currency.Pair) error {
+	err := b.SeedLocalCache(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)

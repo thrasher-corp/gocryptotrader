@@ -228,7 +228,7 @@ func (ok *Okx) WsConnect(ctx context.Context) error {
 	}
 	ok.Websocket.Wg.Add(2)
 	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
-	go ok.WsReadData()
+	go ok.WsReadData(ctx)
 	go ok.WsResponseMultiplexer.Run()
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
@@ -348,12 +348,12 @@ func (ok *Okx) wsFunnelConnectionData(ws stream.Connection) {
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
 }
 
@@ -531,14 +531,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 }
 
 // WsReadData read coming messages thought the websocket connection and process the data.
-func (ok *Okx) WsReadData() {
+func (ok *Okx) WsReadData(ctx context.Context) {
 	defer ok.Websocket.Wg.Done()
 	for {
 		select {
 		case <-ok.Websocket.ShutdownC:
 			select {
 			case resp := <-responseStream:
-				err := ok.WsHandleData(resp.Raw)
+				err := ok.WsHandleData(ctx, resp.Raw)
 				if err != nil {
 					select {
 					case ok.Websocket.DataHandler <- err:
@@ -550,7 +550,7 @@ func (ok *Okx) WsReadData() {
 			}
 			return
 		case resp := <-responseStream:
-			err := ok.WsHandleData(resp.Raw)
+			err := ok.WsHandleData(ctx, resp.Raw)
 			if err != nil {
 				ok.Websocket.DataHandler <- err
 			}
@@ -559,7 +559,7 @@ func (ok *Okx) WsReadData() {
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (ok *Okx) WsHandleData(respRaw []byte) error {
+func (ok *Okx) WsHandleData(ctx context.Context, respRaw []byte) error {
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -669,7 +669,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelOrderBooks50TBT,
 		okxChannelBBOTBT,
 		okxChannelOrderBooksTBT:
-		return ok.wsProcessOrderBooks(respRaw)
+		return ok.wsProcessOrderBooks(ctx, respRaw)
 	case okxChannelOptSummary:
 		var response WsOptionSummary
 		return ok.wsProcessPushData(respRaw, &response)
@@ -753,7 +753,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 }
 
 // wsProcessOrderBooks processes "snapshot" and "update" order book
-func (ok *Okx) wsProcessOrderBooks(data []byte) error {
+func (ok *Okx) wsProcessOrderBooks(ctx context.Context, data []byte) error {
 	var response WsOrderBook
 	var err error
 	err = json.Unmarshal(data, &response)
@@ -790,7 +790,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
-				err = ok.Subscribe([]stream.ChannelSubscription{
+				err = ok.Subscribe(ctx, []stream.ChannelSubscription{
 					{
 						Channel:  response.Argument.Channel,
 						Asset:    assets[0],

@@ -109,9 +109,9 @@ func (b *Bittrex) WsConnect(ctx context.Context) error {
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
 	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	go b.wsReadData(ctx)
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(ctx)
 	b.tickerCache = &TickerCache{
 		MarketSummaries: make(map[string]*MarketSummaryData),
 		Tickers:         make(map[string]*TickerData),
@@ -251,7 +251,7 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bittrex) Subscribe(ctx context.Context, channelsToSubscribe []stream.ChannelSubscription) error {
 	var x int
 	var errs error
 	for x = 0; x+wsMessageRateLimit < len(channelsToSubscribe); x += wsMessageRateLimit {
@@ -310,7 +310,7 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
-func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Bittrex) Unsubscribe(ctx context.Context, channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var x int
 	var errs error
 	for x = 0; x+wsMessageRateLimit < len(channelsToUnsubscribe); x += wsMessageRateLimit {
@@ -369,7 +369,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 }
 
 // wsReadData gets and passes on websocket messages for processing
-func (b *Bittrex) wsReadData() {
+func (b *Bittrex) wsReadData(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -383,7 +383,7 @@ func (b *Bittrex) wsReadData() {
 				return
 			}
 
-			err := b.wsHandleData(resp.Raw)
+			err := b.wsHandleData(ctx, resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
@@ -410,7 +410,7 @@ func (b *Bittrex) wsDecodeMessage(encodedMessage string, v interface{}) error {
 	return json.Unmarshal(message, v)
 }
 
-func (b *Bittrex) wsHandleData(respRaw []byte) error {
+func (b *Bittrex) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var response WsEventResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -483,7 +483,7 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 			if b.Verbose {
 				log.Debugf(log.WebsocketMgr, "%s - Re-authenticating.\n", b.Name)
 			}
-			err = b.WsAuth(context.TODO())
+			err = b.WsAuth(ctx)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
