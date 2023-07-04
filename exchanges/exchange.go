@@ -63,7 +63,7 @@ func (b *Base) SetRequester(r *request.Requester) error {
 }
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
-func (b *Base) SetClientProxyAddress(ctx context.Context, addr string, allowAutoSubscribe bool) error {
+func (b *Base) SetClientProxyAddress(ctx context.Context, addr string, allowWebsocketAutoSubscribe bool) error {
 	if addr == "" {
 		return nil
 	}
@@ -78,7 +78,7 @@ func (b *Base) SetClientProxyAddress(ctx context.Context, addr string, allowAuto
 	}
 
 	if b.Websocket != nil {
-		return b.Websocket.SetProxyAddress(ctx, addr, allowAutoSubscribe)
+		return b.Websocket.SetProxyAddress(ctx, addr, allowWebsocketAutoSubscribe)
 	}
 	return nil
 }
