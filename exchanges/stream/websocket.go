@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -230,7 +231,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 
 // Connect initiates a websocket connection by using a package defined connection
 // function
-func (w *Websocket) Connect() error {
+func (w *Websocket) Connect(ctx context.Context, allowAutoSubscribe bool) error {
 	if w.connector == nil {
 		return errors.New("websocket connect function not set, cannot continue")
 	}
@@ -253,7 +254,7 @@ func (w *Websocket) Connect() error {
 	w.trafficMonitor()
 	w.setConnectingStatus(true)
 
-	err := w.connector()
+	err := w.connector(ctx)
 	if err != nil {
 		w.setConnectingStatus(false)
 		return fmt.Errorf("%v Error connecting %s",
@@ -264,7 +265,7 @@ func (w *Websocket) Connect() error {
 	w.setInit(true)
 
 	if !w.IsConnectionMonitorRunning() {
-		err = w.connectionMonitor()
+		err = w.connectionMonitor(ctx, allowAutoSubscribe)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr,
 				"%s cannot start websocket connection monitor %v",
@@ -273,13 +274,16 @@ func (w *Websocket) Connect() error {
 		}
 	}
 
-	subs, err := w.GenerateSubs() // regenerate state on new connection
-	if err != nil {
-		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
-	}
-	err = w.Subscriber(subs)
-	if err != nil {
-		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+	if allowAutoSubscribe {
+		var subs []ChannelSubscription
+		subs, err = w.GenerateSubs() // regenerate state on new connection
+		if err != nil {
+			return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+		}
+		err = w.Subscriber(subs)
+		if err != nil {
+			return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+		}
 	}
 	return nil
 }
@@ -295,14 +299,14 @@ func (w *Websocket) Disable() error {
 }
 
 // Enable enables the exchange websocket protocol
-func (w *Websocket) Enable() error {
+func (w *Websocket) Enable(ctx context.Context, allowAutoSubscribe bool) error {
 	if w.IsConnected() || w.IsEnabled() {
 		return fmt.Errorf("websocket is already enabled for exchange %s",
 			w.exchangeName)
 	}
 
 	w.setEnabled(true)
-	return w.Connect()
+	return w.Connect(ctx, allowAutoSubscribe)
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -352,7 +356,7 @@ func (w *Websocket) dataMonitor() {
 }
 
 // connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor() error {
+func (w *Websocket) connectionMonitor(ctx context.Context, allowAutoSubscribe bool) error {
 	if w.checkAndSetMonitorRunning() {
 		return errAlreadyRunning
 	}
@@ -403,7 +407,7 @@ func (w *Websocket) connectionMonitor() error {
 				}
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
-					err := w.Connect()
+					err := w.Connect(ctx, allowAutoSubscribe)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, err)
 					}
@@ -478,7 +482,7 @@ func (w *Websocket) Shutdown() error {
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (w *Websocket) FlushChannels() error {
+func (w *Websocket) FlushChannels(ctx context.Context, allowAutoSubscribe bool) error {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%s websocket: service not enabled", w.exchangeName)
 	}
@@ -531,7 +535,7 @@ func (w *Websocket) FlushChannels() error {
 	if err := w.Shutdown(); err != nil {
 		return err
 	}
-	return w.Connect()
+	return w.Connect(ctx, allowAutoSubscribe)
 }
 
 // trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
@@ -788,7 +792,7 @@ func (w *Websocket) GetWebsocketURL() string {
 }
 
 // SetProxyAddress sets websocket proxy address
-func (w *Websocket) SetProxyAddress(proxyAddr string) error {
+func (w *Websocket) SetProxyAddress(ctx context.Context, proxyAddr string, allowAutoSubscribe bool) error {
 	if proxyAddr != "" {
 		_, err := url.ParseRequestURI(proxyAddr)
 		if err != nil {
@@ -828,7 +832,7 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 				return err
 			}
 		}
-		return w.Connect()
+		return w.Connect(ctx, allowAutoSubscribe)
 	}
 	return nil
 }

@@ -65,13 +65,13 @@ type TickerCache struct {
 }
 
 // WsConnect connects to a websocket feed
-func (b *Bittrex) WsConnect() error {
+func (b *Bittrex) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 
 	var wsHandshakeData WsSignalRHandshakeData
-	err := b.WsSignalRHandshake(context.TODO(), &wsHandshakeData)
+	err := b.WsSignalRHandshake(ctx, &wsHandshakeData)
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (b *Bittrex) WsConnect() error {
 	}
 
 	if b.IsWebsocketAuthenticationSupported() {
-		err = b.WsAuth(context.TODO())
+		err = b.WsAuth(ctx)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)

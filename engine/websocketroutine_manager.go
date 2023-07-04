@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -135,7 +136,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 				}
 
 				if ws.IsEnabled() {
-					err = ws.Connect()
+					err = ws.Connect(context.TODO(), false /*this will not auto-subscribe to websocket subscriptions*/)
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
@@ -145,7 +146,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
 
-					err = ws.FlushChannels()
+					err = ws.FlushChannels(context.TODO(), true /*this will auto-subscribe to websocket subscriptions*/)
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
 					}

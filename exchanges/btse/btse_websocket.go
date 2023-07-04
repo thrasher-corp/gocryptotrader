@@ -27,7 +27,7 @@ const (
 )
 
 // WsConnect connects the websocket client
-func (b *BTSE) WsConnect() error {
+func (b *BTSE) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -45,7 +45,7 @@ func (b *BTSE) WsConnect() error {
 	go b.wsReadData()
 
 	if b.IsWebsocketAuthenticationSupported() {
-		err = b.WsAuthenticate(context.TODO())
+		err = b.WsAuthenticate(ctx)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)

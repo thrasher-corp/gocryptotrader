@@ -65,7 +65,7 @@ const (
 )
 
 // WsConnect initiates a new websocket connection
-func (b *Bitmex) WsConnect() error {
+func (b *Bitmex) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -97,7 +97,7 @@ func (b *Bitmex) WsConnect() error {
 	go b.wsReadData()
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		err = b.websocketSendAuth(context.TODO())
+		err = b.websocketSendAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",

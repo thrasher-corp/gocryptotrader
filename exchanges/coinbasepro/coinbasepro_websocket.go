@@ -28,7 +28,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (c *CoinbasePro) WsConnect() error {
+func (c *CoinbasePro) WsConnect(context.Context) error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}

@@ -30,7 +30,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (z *ZB) WsConnect() error {
+func (z *ZB) WsConnect(context.Context) error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}

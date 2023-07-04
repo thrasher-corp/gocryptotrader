@@ -39,7 +39,7 @@ var checksumStore = make(map[int]*checksum)
 var cMtx sync.Mutex
 
 // WsConnect starts a new websocket connection
-func (b *Bitfinex) WsConnect() error {
+func (b *Bitfinex) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -66,7 +66,7 @@ func (b *Bitfinex) WsConnect() error {
 		}
 		b.Websocket.Wg.Add(1)
 		go b.wsReadData(b.Websocket.AuthConn)
-		err = b.WsSendAuth(context.TODO())
+		err = b.WsSendAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",

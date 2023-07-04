@@ -63,14 +63,13 @@ func (b *Base) SetRequester(r *request.Requester) error {
 }
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
-func (b *Base) SetClientProxyAddress(addr string) error {
+func (b *Base) SetClientProxyAddress(ctx context.Context, addr string, allowAutoSubscribe bool) error {
 	if addr == "" {
 		return nil
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("setting proxy address error %s", err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -79,10 +78,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 
 	if b.Websocket != nil {
-		err = b.Websocket.SetProxyAddress(addr)
-		if err != nil {
-			return err
-		}
+		return b.Websocket.SetProxyAddress(ctx, addr, allowAutoSubscribe)
 	}
 	return nil
 }
@@ -604,7 +600,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.SetAPICredentialDefaults()
 
-	err = b.SetClientProxyAddress(exch.ProxyAddress)
+	err = b.SetClientProxyAddress(context.TODO(), exch.ProxyAddress, false /*will not allow auto-subscribe with client proxy change*/)
 	if err != nil {
 		return err
 	}
@@ -1118,11 +1114,11 @@ func (b *Base) IsWebsocketEnabled() bool {
 
 // FlushWebsocketChannels refreshes websocket channel subscriptions based on
 // websocket features. Used in the event of a pair/asset or subscription change.
-func (b *Base) FlushWebsocketChannels() error {
+func (b *Base) FlushWebsocketChannels(ctx context.Context, allowAutoSubscribe bool) error {
 	if b.Websocket == nil {
 		return nil
 	}
-	return b.Websocket.FlushChannels()
+	return b.Websocket.FlushChannels(ctx, allowAutoSubscribe)
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

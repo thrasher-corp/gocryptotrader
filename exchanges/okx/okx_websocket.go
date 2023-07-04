@@ -214,7 +214,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (ok *Okx) WsConnect() error {
+func (ok *Okx) WsConnect(ctx context.Context) error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -243,7 +243,7 @@ func (ok *Okx) WsConnect() error {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
-		err = ok.WsAuth(context.TODO(), &authDialer)
+		err = ok.WsAuth(ctx, &authDialer)
 		if err != nil {
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}

@@ -2597,7 +2597,7 @@ func setupWS() {
 	if !sharedtestvalues.AreAPICredentialsSet(ok) {
 		ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := ok.WsConnect()
+	err := ok.WsConnect(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}

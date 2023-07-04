@@ -36,7 +36,7 @@ var (
 )
 
 // WsConnect connects to a websocket feed
-func (b *BTCMarkets) WsConnect() error {
+func (b *BTCMarkets) WsConnect(context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}

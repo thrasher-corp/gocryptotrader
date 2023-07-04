@@ -59,7 +59,7 @@ const (
 var comms = make(chan WsMessage)
 
 // WsConnect initiates a new websocket connection
-func (h *HUOBI) WsConnect() error {
+func (h *HUOBI) WsConnect(ctx context.Context) error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -77,7 +77,7 @@ func (h *HUOBI) WsConnect() error {
 				h.Name,
 				err)
 		}
-		err = h.wsLogin(context.TODO())
+		err = h.wsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",

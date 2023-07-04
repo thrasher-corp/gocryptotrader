@@ -36,7 +36,7 @@ const (
 var comms = make(chan stream.Response)
 
 // WsConnect initiates a websocket connection
-func (g *Gemini) WsConnect() error {
+func (g *Gemini) WsConnect(ctx context.Context) error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -52,7 +52,7 @@ func (g *Gemini) WsConnect() error {
 	go g.wsFunnelConnectionData(g.Websocket.Conn)
 
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		err := g.WsAuth(context.TODO(), &dialer)
+		err := g.WsAuth(ctx, &dialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - websocket authentication failed: %v\n", g.Name, err)
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)

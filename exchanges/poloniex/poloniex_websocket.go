@@ -52,7 +52,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (p *Poloniex) WsConnect() error {
+func (p *Poloniex) WsConnect(ctx context.Context) error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -62,7 +62,7 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	err = p.loadCurrencyDetails(context.TODO())
+	err = p.loadCurrencyDetails(ctx)
 	if err != nil {
 		return err
 	}

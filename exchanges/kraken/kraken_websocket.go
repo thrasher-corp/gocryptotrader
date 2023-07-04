@@ -83,7 +83,7 @@ var cancelOrdersStatus = make(map[int64]*struct {
 })
 
 // WsConnect initiates a websocket connection
-func (k *Kraken) WsConnect() error {
+func (k *Kraken) WsConnect(ctx context.Context) error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -100,7 +100,7 @@ func (k *Kraken) WsConnect() error {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
-		authToken, err = k.GetWebsocketToken(context.TODO())
+		authToken, err = k.GetWebsocketToken(ctx)
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,

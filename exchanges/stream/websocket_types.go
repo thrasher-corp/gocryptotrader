@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -44,7 +45,7 @@ type Websocket struct {
 	exchangeName                 string
 	m                            sync.Mutex
 	connectionMutex              sync.RWMutex
-	connector                    func() error
+	connector                    func(ctx context.Context) error
 
 	subscriptionMutex sync.Mutex
 	subscriptions     []ChannelSubscription
@@ -101,7 +102,7 @@ type WebsocketSetup struct {
 	DefaultURL             string
 	RunningURL             string
 	RunningURLAuth         string
-	Connector              func() error
+	Connector              func(ctx context.Context) error
 	Subscriber             func([]ChannelSubscription) error
 	Unsubscriber           func([]ChannelSubscription) error
 	GenerateSubscriptions  func() ([]ChannelSubscription, error)

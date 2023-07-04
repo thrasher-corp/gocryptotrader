@@ -42,7 +42,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (bi *Binanceus) WsConnect() error {
+func (bi *Binanceus) WsConnect(ctx context.Context) error {
 	if !bi.Websocket.IsEnabled() || !bi.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -51,7 +51,7 @@ func (bi *Binanceus) WsConnect() error {
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
 	if bi.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = bi.GetWsAuthStreamKey(context.TODO())
+		listenKey, err = bi.GetWsAuthStreamKey(ctx)
 		if err != nil {
 			bi.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,

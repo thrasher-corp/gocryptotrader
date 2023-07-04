@@ -31,7 +31,7 @@ const (
 )
 
 // WsConnect starts a new connection with the websocket API
-func (h *HitBTC) WsConnect() error {
+func (h *HitBTC) WsConnect(ctx context.Context) error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -45,7 +45,7 @@ func (h *HitBTC) WsConnect() error {
 	go h.wsReadData()
 
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		err = h.wsLogin(context.TODO())
+		err = h.wsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 		}

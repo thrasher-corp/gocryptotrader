@@ -38,7 +38,7 @@ var (
 // wss://wsapi-eu.coinut.com
 
 // WsConnect intiates a websocket connection
-func (c *COINUT) WsConnect() error {
+func (c *COINUT) WsConnect(ctx context.Context) error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -57,7 +57,7 @@ func (c *COINUT) WsConnect() error {
 			return err
 		}
 	}
-	err = c.wsAuthenticate(context.TODO())
+	err = c.wsAuthenticate(ctx)
 	if err != nil {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Errorln(log.WebsocketMgr, err)

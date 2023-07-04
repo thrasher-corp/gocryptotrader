@@ -25,7 +25,7 @@ const (
 )
 
 // WsConnect connects to a websocket feed
-func (b *Bitstamp) WsConnect() error {
+func (b *Bitstamp) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -37,7 +37,7 @@ func (b *Bitstamp) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	err = b.seedOrderBook(context.TODO())
+	err = b.seedOrderBook(ctx)
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}

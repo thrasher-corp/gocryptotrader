@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +27,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (b *Bithumb) WsConnect() error {
+func (b *Bithumb) WsConnect(context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}

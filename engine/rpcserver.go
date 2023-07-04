@@ -2015,7 +2015,7 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 }
 
 // SetExchangePair enables/disabled the specified pair(s) on an exchange
-func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePairRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) SetExchangePair(ctx context.Context, r *gctrpc.SetExchangePairRequest) (*gctrpc.GenericResponse, error) {
 	exchCfg, err := s.Config.GetExchangeConfig(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -2090,7 +2090,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 	}
 
 	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.FlushWebsocketChannels(ctx, true /*this will auto-subscribe to websocket subscriptions*/)
 		if err != nil {
 			newErrors = common.AppendError(newErrors, err)
 		}
@@ -2907,7 +2907,7 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 }
 
 // SetAllExchangePairs enables or disables an exchanges pairs
-func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchangeAllPairsRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) SetAllExchangePairs(ctx context.Context, r *gctrpc.SetExchangeAllPairsRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -2955,7 +2955,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 	}
 
 	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.FlushWebsocketChannels(ctx, true /* this will auto-subscribe to websocket subscriptions*/)
 		if err != nil {
 			return nil, err
 		}
@@ -2989,7 +2989,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 	}
 
 	if exch.IsWebsocketEnabled() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.FlushWebsocketChannels(ctx, true /* this will auto-subscribe to websocket subscriptions*/)
 		if err != nil {
 			return nil, err
 		}
@@ -3032,7 +3032,7 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 }
 
 // WebsocketSetEnabled enables or disables the websocket client
-func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) WebsocketSetEnabled(ctx context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3049,7 +3049,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 	}
 
 	if r.Enable {
-		err = w.Enable()
+		err = w.Enable(ctx, true /* this will auto-subscribe to websocket subscriptions*/)
 		if err != nil {
 			return nil, err
 		}
@@ -3098,7 +3098,7 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 }
 
 // WebsocketSetProxy sets client websocket connection proxy
-func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) WebsocketSetProxy(ctx context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3109,7 +3109,7 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetProxyAddress(r.Proxy)
+	err = w.SetProxyAddress(ctx, r.Proxy, true /* this will auto-subscribe to websocket subscriptions*/)
 	if err != nil {
 		return nil, err
 	}

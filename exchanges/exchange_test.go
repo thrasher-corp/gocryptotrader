@@ -191,11 +191,11 @@ func TestSetClientProxyAddress(t *testing.T) {
 		Requester: requester}
 
 	newBase.Websocket = stream.New()
-	err = newBase.SetClientProxyAddress("")
+	err = newBase.SetClientProxyAddress(context.Background(), "", true)
 	if err != nil {
 		t.Error(err)
 	}
-	err = newBase.SetClientProxyAddress(":invalid")
+	err = newBase.SetClientProxyAddress(context.Background(), ":invalid", true)
 	if err == nil {
 		t.Error("SetClientProxyAddress parsed invalid URL")
 	}
@@ -204,13 +204,13 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("SetClientProxyAddress error", err)
 	}
 
-	err = newBase.SetClientProxyAddress("http://www.valid.com")
+	err = newBase.SetClientProxyAddress(context.Background(), "http://www.valid.com", true)
 	if err != nil {
 		t.Error("SetClientProxyAddress error", err)
 	}
 
 	// calling this again will cause the ws check to fail
-	err = newBase.SetClientProxyAddress("http://www.valid.com")
+	err = newBase.SetClientProxyAddress(context.Background(), "http://www.valid.com", true)
 	if err == nil {
 		t.Error("trying to set the same proxy addr should thrown an err for ws")
 	}
@@ -1254,14 +1254,14 @@ func TestSetupDefaults(t *testing.T) {
 		Features:              &protocol.Features{},
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
-		Connector:             func() error { return nil },
+		Connector:             func(context.Context) error { return nil },
 		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
 		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Websocket.Enable()
+	err = b.Websocket.Enable(context.Background(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1603,7 +1603,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		Features:              &protocol.Features{},
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
-		Connector:             func() error { return nil },
+		Connector:             func(context.Context) error { return nil },
 		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
 		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
@@ -2037,13 +2037,13 @@ func TestGetWebsocket(t *testing.T) {
 
 func TestFlushWebsocketChannels(t *testing.T) {
 	b := Base{}
-	err := b.FlushWebsocketChannels()
+	err := b.FlushWebsocketChannels(context.Background(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	b.Websocket = &stream.Websocket{}
-	err = b.FlushWebsocketChannels()
+	err = b.FlushWebsocketChannels(context.Background(), true)
 	if err == nil {
 		t.Fatal(err)
 	}

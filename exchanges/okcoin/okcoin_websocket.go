@@ -25,7 +25,7 @@ import (
 )
 
 // WsConnect initiates a websocket connection
-func (o *OKCoin) WsConnect() error {
+func (o *OKCoin) WsConnect(ctx context.Context) error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -45,7 +45,7 @@ func (o *OKCoin) WsConnect() error {
 	go o.WsReadData()
 
 	if o.IsWebsocketAuthenticationSupported() {
-		err = o.WsLogin(context.TODO())
+		err = o.WsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
