@@ -499,7 +499,7 @@ type Currencies struct {
 	Locked    convert.StringToFloat64 `json:"l"`
 }
 
-// wsOrderUpdate defines websocket account order update data
+// WsOrderUpdate defines websocket account order update data
 type WsOrderUpdate struct {
 	EventType                         string                  `json:"e"`
 	EventTime                         string                  `json:"E"`
