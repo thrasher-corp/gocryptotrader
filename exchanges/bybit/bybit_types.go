@@ -12,29 +12,30 @@ import (
 )
 
 var (
-	errTypeAssert                = errors.New("type assertion failed")
-	errStrParsing                = errors.New("parsing string failed")
-	errInvalidSide               = errors.New("invalid side")
-	errInvalidInterval           = errors.New("invalid interval")
-	errInvalidPeriod             = errors.New("invalid period")
-	errInvalidStartTime          = errors.New("startTime can't be zero or missing")
-	errInvalidQuantity           = errors.New("quantity can't be zero or missing")
-	errInvalidBasePrice          = errors.New("basePrice can't be empty or missing")
-	errInvalidStopPrice          = errors.New("stopPrice can't be empty or missing")
-	errInvalidTimeInForce        = errors.New("timeInForce can't be empty or missing")
-	errInvalidTakeProfitStopLoss = errors.New("takeProfitStopLoss can't be empty or missing")
-	errInvalidMargin             = errors.New("margin can't be empty")
-	errInvalidLeverage           = errors.New("leverage can't be zero or less then it")
-	errInvalidRiskID             = errors.New("riskID can't be zero or lesser")
-	errInvalidPositionMode       = errors.New("position mode is invalid")
-	errInvalidOrderType          = errors.New("orderType can't be empty or missing")
-	errInvalidMode               = errors.New("mode can't be empty or missing")
-	errInvalidBuyLeverage        = errors.New("buyLeverage can't be zero or less then it")
-	errInvalidSellLeverage       = errors.New("sellLeverage can't be zero or less then it")
-	errInvalidOrderRequest       = errors.New("order request param can't be nil")
-	errInvalidOrderFilter        = errors.New("invalid order filter")
-	errInvalidCategory           = errors.New("invalid category")
-	errInvalidCoin               = errors.New("coin can't be empty")
+	errTypeAssert                 = errors.New("type assertion failed")
+	errStrParsing                 = errors.New("parsing string failed")
+	errInvalidSide                = errors.New("invalid side")
+	errInvalidInterval            = errors.New("invalid interval")
+	errInvalidPeriod              = errors.New("invalid period")
+	errInvalidStartTime           = errors.New("startTime can't be zero or missing")
+	errInvalidQuantity            = errors.New("quantity can't be zero or missing")
+	errInvalidBasePrice           = errors.New("basePrice can't be empty or missing")
+	errInvalidStopPrice           = errors.New("stopPrice can't be empty or missing")
+	errInvalidTimeInForce         = errors.New("timeInForce can't be empty or missing")
+	errInvalidTakeProfitStopLoss  = errors.New("takeProfitStopLoss can't be empty or missing")
+	errInvalidMargin              = errors.New("margin can't be empty")
+	errInvalidLeverage            = errors.New("leverage can't be zero or less then it")
+	errInvalidRiskID              = errors.New("riskID can't be zero or lesser")
+	errInvalidPositionMode        = errors.New("position mode is invalid")
+	errInvalidOrderType           = errors.New("orderType can't be empty or missing")
+	errInvalidMode                = errors.New("mode can't be empty or missing")
+	errInvalidBuyLeverage         = errors.New("buyLeverage can't be zero or less then it")
+	errInvalidSellLeverage        = errors.New("sellLeverage can't be zero or less then it")
+	errInvalidOrderRequest        = errors.New("order request param can't be nil")
+	errInvalidOrderFilter         = errors.New("invalid order filter")
+	errInvalidCategory            = errors.New("invalid category")
+	errEitherSymbolOrCoinRequired = errors.New("either symbol or coin required")
+	errInvalidCoin                = errors.New("coin can't be empty")
 
 	errStopOrderOrOrderLinkIDMissing = errors.New("at least one should be present among stopOrderID and orderLinkID")
 	errOrderOrOrderLinkIDMissing     = errors.New("at least one should be present among orderID and orderLinkID")
@@ -42,6 +43,7 @@ var (
 	errOrderLinkIDMissing = errors.New("order link id missing")
 
 	errSymbolMissing              = errors.New("symbol missing")
+	errInvalidAutoAddMarginValue  = errors.New("invalid add auto margin value")
 	errUnsupportedOrderType       = errors.New("unsupported order type")
 	errEmptyOrderIDs              = errors.New("orderIDs can't be empty")
 	errMissingPrice               = errors.New("price should be present for Limit and LimitMaker orders")
@@ -1421,4 +1423,122 @@ type BorrowQuota struct {
 // SetDCPParams represents the set disconnect cancel all parameters.
 type SetDCPParams struct {
 	TimeWindow int64 `json:"timeWindow"`
+}
+
+// PositionInfoList represents a list of positions infos.
+type PositionInfoList struct {
+	Category       string         `json:"category"`
+	NextPageCursor string         `json:"nextPageCursor"`
+	List           []PositionInfo `json:"list"`
+}
+
+// PositionInfo represents a position info item.
+type PositionInfo struct {
+	PositionIndex    int64                   `json:"positionIdx"`
+	RiskID           int64                   `json:"riskId"`
+	RiskLimitValue   string                  `json:"riskLimitValue"`
+	Symbol           string                  `json:"symbol"`
+	Side             string                  `json:"side"`
+	Size             convert.StringToFloat64 `json:"size"`
+	AveragePrice     convert.StringToFloat64 `json:"avgPrice"`
+	PositionValue    convert.StringToFloat64 `json:"positionValue"`
+	TradeMode        int64                   `json:"tradeMode"`
+	PositionStatus   string                  `json:"positionStatus"`
+	AutoAddMargin    int64                   `json:"autoAddMargin"`
+	AdlRankIndicator int64                   `json:"adlRankIndicator"`
+	Leverage         convert.StringToFloat64 `json:"leverage"`
+	PositionBalance  convert.StringToFloat64 `json:"positionBalance"`
+	MarkPrice        convert.StringToFloat64 `json:"markPrice"`
+	LiqPrice         convert.StringToFloat64 `json:"liqPrice"`
+	BustPrice        convert.StringToFloat64 `json:"bustPrice"`
+	PositionMM       convert.StringToFloat64 `json:"positionMM"`
+	PositionIM       convert.StringToFloat64 `json:"positionIM"`
+	TpslMode         string                  `json:"tpslMode"`
+	TakeProfit       convert.StringToFloat64 `json:"takeProfit"`
+	StopLoss         convert.StringToFloat64 `json:"stopLoss"`
+	TrailingStop     convert.StringToFloat64 `json:"trailingStop"`
+	UnrealisedPnl    convert.StringToFloat64 `json:"unrealisedPnl"`
+	CumRealisedPnl   convert.StringToFloat64 `json:"cumRealisedPnl"`
+	CreatedTime      convert.ExchangeTime    `json:"createdTime"`
+	UpdatedTime      convert.ExchangeTime    `json:"updatedTime"`
+}
+
+// SetLeverageParams parameters to set the leverage.
+type SetLeverageParams struct {
+	Category     string  `json:"category"`
+	Symbol       string  `json:"symbol"`
+	BuyLeverage  float64 `json:"buyLeverage,string"`  // [0, max leverage of corresponding risk limit]. Note: Under one-way mode, buyLeverage must be the same as sellLeverage
+	SellLeverage float64 `json:"sellLeverage,string"` // [0, max leverage of corresponding risk limit]. Note: Under one-way mode, buyLeverage must be the same as sellLeverage
+}
+
+// SwitchTradeModeParams parameters to switch between cross margin and isolated margin trade mode.
+type SwitchTradeModeParams struct {
+	Category     string  `json:"category"`
+	Symbol       string  `json:"symbol"`
+	BuyLeverage  float64 `json:"buyLeverage,string"`
+	SellLeverage float64 `json:"sellLeverage,string"`
+	TradeMode    int64   `json:"tradeMode"` // 0: cross margin. 1: isolated margin
+}
+
+// TPSLModeParams paramaters for settle Take Profit(TP) or Stop Loss(SL) mode.
+type TPSLModeParams struct {
+	Category string `json:"category"`
+	Symbol   string `json:"symbol"`
+	TpslMode string `json:"tpSlMode"` // TP/SL mode. Full,Partial
+}
+
+// TPSLModeResponse represents response for the take profit and stop loss mode change.
+type TPSLModeResponse struct {
+	TPSLMode string `json:"tpSlMode"`
+}
+
+// SwitchPositionModeParams represents a position switch mode parameters.
+type SwitchPositionModeParams struct {
+	Category     string        `json:"category"`
+	Symbol       currency.Pair `json:"symbol"` // Symbol name. Either symbol or coin is required. symbol has a higher priority
+	Coin         currency.Code `json:"coin"`
+	PositionMode int64         `json:"mode"` // Position mode. 0: Merged Single. 3: Both Sides
+}
+
+// SetRiskLimitParam represents a risk limit set parameter.
+type SetRiskLimitParam struct {
+	Category     string        `json:"category"`
+	Symbol       currency.Pair `json:"symbol"` // Symbol name. Either symbol or coin is required. symbol has a higher priority
+	RiskID       int64         `json:"riskId"`
+	PositionMode int64         `json:"positionIdx"` // Used to identify positions in different position modes. For hedge mode, it is required '0': one-way mode '1': hedge-mode Buy side '2': hedge-mode Sell side
+}
+
+// RiskLimitResponse represents a risk limit response.
+type RiskLimitResponse struct {
+	RiskID         int64  `json:"riskId"`
+	RiskLimitValue string `json:"riskLimitValue"`
+	Category       string `json:"category"`
+}
+
+// TradingStopParams take profit, stop loss or trailing stop for the position.
+type TradingStopParams struct {
+	Category                 string        `json:"category"`
+	Symbol                   currency.Pair `json:"symbol"` // Symbol name. Either symbol or coin is required. symbol has a higher priority
+	TakeProfit               string        `json:"takeProfit,omitempty"`
+	StopLoss                 string        `json:"stopLoss,omitempty"`
+	TrailingStop             string        `json:"trailingStop,omitempty"`
+	TakeProfitTriggerType    string        `json:"tpTriggerBy,omitempty"`
+	StopLossTriggerType      string        `json:"slTriggerBy,omitempty"`
+	ActivePrice              string        `json:"activePrice,omitempty"`
+	TakeProfitOrStopLossMode string        `json:"tpslMode,omitempty"`
+	TakeProfitOrderType      string        `json:"tpOrderType,omitempty"`
+	StopLossOrderType        string        `json:"slOrderType,omitempty"`
+	TakeProfitSize           float64       `json:"tpSize,string,omitempty"`
+	StopLossSize             float64       `json:"slSize,string,omitempty"`
+	TakeProfitLimitPrice     float64       `json:"tpLimitPrice,string,omitempty"`
+	StopLossLimitPrice       float64       `json:"slLimitPrice,string,omitempty"`
+	PositionIndex            int64         `json:"positionIdx,omitempty"`
+}
+
+// AutoAddMarginParams represents parameters for auto add margin
+type AutoAddMarginParams struct {
+	Category      string        `json:"category,omitempty"`
+	Symbol        currency.Pair `json:"symbol,omitempty"`
+	AutoAddmargin int64         `json:"autoAddmargin,string,omitempty"`
+	PositionMode  int64         `json:"positionIdx,string,omitempty"`
 }

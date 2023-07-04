@@ -583,24 +583,6 @@ func (by *Bybit) SetTradingAndStop(ctx context.Context, positionMode int64, symb
 	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetTradingStop, params, nil, &resp, futuresSetTradingStopRate)
 }
 
-// SetLeverage sets leverage
-func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) (float64, error) {
-	resp := struct {
-		Result float64 `json:"result"`
-		Error
-	}{}
-	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
-	if err != nil {
-		return resp.Result, err
-	}
-	params.Set("symbol", symbolValue)
-	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
-	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
-
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetLeverage, params, nil, &resp, futuresSetLeverageRate)
-}
-
 // ChangePositionMode switches mode between One-Way or Hedge Mode
 func (by *Bybit) ChangePositionMode(ctx context.Context, symbol currency.Pair, mode int64) error {
 	params := url.Values{}
@@ -729,29 +711,29 @@ func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, exec
 }
 
 // SetRiskLimit sets risk limit
-func (by *Bybit) SetRiskLimit(ctx context.Context, symbol currency.Pair, riskID, positionMode int64) (int64, error) {
-	resp := struct {
-		Result struct {
-			RiskID int64 `json:"risk_id"`
-		} `json:"result"`
-		Error
-	}{}
+// func (by *Bybit) SetRiskLimit(ctx context.Context, symbol currency.Pair, riskID, positionMode int64) (int64, error) {
+// 	resp := struct {
+// 		Result struct {
+// 			RiskID int64 `json:"risk_id"`
+// 		} `json:"result"`
+// 		Error
+// 	}{}
 
-	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
-	if err != nil {
-		return resp.Result.RiskID, err
-	}
-	params.Set("symbol", symbolValue)
+// 	params := url.Values{}
+// 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
+// 	if err != nil {
+// 		return resp.Result.RiskID, err
+// 	}
+// 	params.Set("symbol", symbolValue)
 
-	if riskID <= 0 {
-		return resp.Result.RiskID, errInvalidRiskID
-	}
-	params.Set("risk_id", strconv.FormatInt(riskID, 10))
+// 	if riskID <= 0 {
+// 		return resp.Result.RiskID, errInvalidRiskID
+// 	}
+// 	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
-	if positionMode < 0 || positionMode > 2 {
-		return resp.Result.RiskID, errInvalidPositionMode
-	}
-	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
-	return resp.Result.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetRiskLimit, params, nil, &resp, futuresDefaultRate)
-}
+// 	if positionMode < 0 || positionMode > 2 {
+// 		return resp.Result.RiskID, errInvalidPositionMode
+// 	}
+// 	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
+// 	return resp.Result.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetRiskLimit, params, nil, &resp, futuresDefaultRate)
+// }

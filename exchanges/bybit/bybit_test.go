@@ -1584,21 +1584,6 @@ func TestGetRiskLimit(t *testing.T) {
 // 	}
 // }
 
-// func TestSetAutoAddMargin(t *testing.T) {
-// 	t.Parallel()
-// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-// 	pair, err := currency.NewPairFromString("BTCUSDT")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	err = b.SetAutoAddMargin(context.Background(), pair, true, "Sell")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
-
 // func TestChangeUSDTMargin(t *testing.T) {
 // 	t.Parallel()
 // 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -1609,21 +1594,6 @@ func TestGetRiskLimit(t *testing.T) {
 // 	}
 
 // 	err = b.ChangeUSDTMargin(context.Background(), pair, 1, 1, true)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
-
-// func TestSwitchPositionMode(t *testing.T) {
-// 	t.Parallel()
-// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-// 	pair, err := currency.NewPairFromString("BTCUSDT")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	err = b.SwitchPositionMode(context.Background(), pair, "BothSide")
 // 	if err != nil {
 // 		t.Error(err)
 // 	}
@@ -4033,5 +4003,232 @@ func TestSetDisconnectCancelAll(t *testing.T) {
 	err = b.SetDisconnectCancelAll(context.Background(), &SetDCPParams{TimeWindow: 300})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetPositionInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPositionInfo(context.Background(), "", "", "", "", "", 20)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetPositionInfo(context.Background(), "spot", "", "", "", "", 20)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetPositionInfo(context.Background(), "linear", "BTCUSDT", "", "", "", 20)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPositionInfo(context.Background(), "option", "BTC-7JUL23-27000-C", "BTC", "", "", 20)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetLeverage(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SetLeverage(context.Background(), &SetLeverageParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT"})
+	if !errors.Is(err, errInvalidLeverage) {
+		t.Fatalf("expected %v, got %v", errInvalidLeverage, err)
+	}
+	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSwitchTradeMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SwitchTradeMode(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: "BTCUSDT"})
+	if !errors.Is(err, errInvalidLeverage) {
+		t.Fatalf("expected %v, got %v", errInvalidLeverage, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3, TradeMode: 2})
+	if !errors.Is(err, errInvalidTradeModeValue) {
+		t.Fatalf("expected %v, got %v", errInvalidTradeModeValue, err)
+	}
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3, TradeMode: 1})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetTakeProfitStopLossMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SetTakeProfitStopLossMode(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{
+		Category: "spot",
+	})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "linear", Symbol: "BTCUSDT"})
+	if !errors.Is(err, errTakeProfitOrStopLossModeMissing) {
+		t.Fatalf("expected %v, got %v", errTakeProfitOrStopLossModeMissing, err)
+	}
+	_, err = b.SetTakeProfitStopLossMode(context.Background(), &TPSLModeParams{Category: "linear", Symbol: "BTCUSDT", TpslMode: "Partial"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSwitchPositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SwitchPositionMode(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{Category: "linear"})
+	if !errors.Is(err, errEitherSymbolOrCoinRequired) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	cp, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{Category: "linear", Symbol: cp, PositionMode: 3})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetRiskLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SetRiskLimit(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Errorf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{Category: "linear", PositionMode: -2})
+	if !errors.Is(err, errInvalidPositionMode) {
+		t.Errorf("expected %v, got %v", errInvalidPositionMode, err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{Category: "linear"})
+	if !errors.Is(err, errSymbolMissing) {
+		t.Errorf("expected %v, got %v", errSymbolMissing, err)
+	}
+	cp, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{
+		Category:     "linear",
+		RiskID:       1234,
+		Symbol:       cp,
+		PositionMode: 0,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetTradingStop(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetTradingStop(context.Background(), &TradingStopParams{})
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Errorf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	err = b.SetTradingStop(context.Background(), &TradingStopParams{Category: "spot"})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	err = b.SetTradingStop(context.Background(), &TradingStopParams{
+		Category:                 "linear",
+		Symbol:                   currency.NewPair(currency.XRP, currency.USDT),
+		TakeProfit:               "0.5",
+		StopLoss:                 "0.2",
+		TakeProfitTriggerType:    "MarkPrice",
+		StopLossTriggerType:      "IndexPrice",
+		TakeProfitOrStopLossMode: "Partial",
+		TakeProfitOrderType:      "Limit",
+		StopLossOrderType:        "Limit",
+		TakeProfitSize:           50,
+		StopLossSize:             50,
+		TakeProfitLimitPrice:     0.49,
+		StopLossLimitPrice:       0.21,
+		PositionIndex:            0,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetAutoAddMargin(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.SetAutoAddMargin(context.Background(), &AutoAddMarginParams{
+		Category:      "inverse",
+		Symbol:        pair,
+		AutoAddmargin: 0,
+		PositionMode:  2,
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }

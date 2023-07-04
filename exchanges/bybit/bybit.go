@@ -93,6 +93,16 @@ const (
 	amendBatchOrder       = "/v5/order/amend-batch"
 	cancelBatchOrder      = "/v5/order/cancel-batch"
 	tradeBorrowCheck      = "/v5/order/spot-borrow-check"
+
+	// Position endpoints
+	getPositionList          = "/v5/position/list"
+	positionSetLeverage      = "/v5/position/set-leverage"
+	switchTradeMode          = "/v5/position/switch-isolated"
+	setTPSLMode              = "/v5/position/set-tpsl-mode"
+	switchPositionMode       = "/v5/position/switch-mode"
+	setPositionRiskLimit     = "/v5/position/set-risk-limit"
+	stopTradingPosition      = "/v5/position/trading-stop"
+	positionSetAutoAddMargin = "/v5/position/set-auto-add-margin"
 )
 
 var (
@@ -104,6 +114,9 @@ var (
 	errNonePointerArgument                = errors.New("argument must be pointer")
 	errEitherOrderIDOROrderLinkIDRequired = errors.New("either orderId or orderLinkId required")
 	errNoOrderPassed                      = errors.New("no order passed")
+	errSymbolOrSettleCoinRequired         = errors.New("provide symbol or settleCoin at least one")
+	errInvalidTradeModeValue              = errors.New("invalid trade mode value")
+	errTakeProfitOrStopLossModeMissing    = errors.New("TP/SL mode missing")
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
@@ -830,6 +843,204 @@ func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) 
 	}
 	var resp interface{}
 	return by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, "/v5/order/disconnected-cancel-all", nil, arg, &resp, privateSpotRate)
+}
+
+// -------------------------------------------------  Position Endpoints ---------------------------------------------------
+
+// GetPositionInfo retrives real-time position data, such as position size, cumulative realizedPNL.
+func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin, settleCoin, cursor string, limit int64) (*PositionInfoList, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "linear" && category != "inverse" && category != "option" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	if symbol == "" && settleCoin == "" {
+		return nil, errSymbolOrSettleCoinRequired
+	}
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	params.Set("category", category)
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if settleCoin != "" {
+		params.Set("settleCoin", settleCoin)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp PositionInfoList
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, getPositionList, params, nil, &resp, privateSpotRate)
+}
+
+// SetLeverage sets a leverage from 0 to max leverage of corresponding risk limit
+func (by *Bybit) SetLeverage(ctx context.Context, arg *SetLeverageParams) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	if arg.Symbol == "" {
+		return errSymbolMissing
+	}
+	switch {
+	case arg.BuyLeverage <= 0:
+		return fmt.Errorf("%w code: 10001 msg: invalid buy leverage %f", errInvalidLeverage, arg.BuyLeverage)
+	case arg.BuyLeverage != arg.SellLeverage:
+		return fmt.Errorf("%w, buy leverage not equal sell leverage", errInvalidLeverage)
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, positionSetLeverage, nil, arg, &resp, privateSpotRate)
+}
+
+// SwitchTradeMode sets the trade mode value either to 'cross' or 'isolated'.
+// Select cross margin mode or isolated margin mode per symbol level
+func (by *Bybit) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	switch {
+	case arg.Symbol == "":
+		return errSymbolMissing
+	case arg.BuyLeverage <= 0:
+		return fmt.Errorf("%w code: 10001 msg: invalid buy leverage %f", errInvalidLeverage, arg.BuyLeverage)
+	case arg.BuyLeverage != arg.SellLeverage:
+		return fmt.Errorf("%w, buy leverage not equal sell leverage", errInvalidLeverage)
+	case arg.TradeMode != 0 && arg.TradeMode != 1:
+		return errInvalidTradeModeValue
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, switchTradeMode, nil, arg, &resp, privateSpotRate)
+}
+
+// SetTakeProfitStopLossMode set partial TP/SL mode, you can set the TP/SL size smaller than position size.
+func (by *Bybit) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModeParams) (*TPSLModeResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return nil, errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	switch {
+	case arg.Symbol == "":
+		return nil, errSymbolMissing
+	case arg.TpslMode == "":
+		return nil, errTakeProfitOrStopLossModeMissing
+	}
+	var resp *TPSLModeResponse
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, setTPSLMode, nil, arg, &resp, privateSpotRate)
+}
+
+// SwitchPositionMode switch the position mode for USDT perpetual and Inverse futures.
+// If you are in one-way Mode, you can only open one position on Buy or Sell side.
+// If you are in hedge mode, you can open both Buy and Sell side positions simultaneously.
+// switches mode between MergedSingle: One-Way Mode or BothSide: Hedge Mode
+func (by *Bybit) SwitchPositionMode(ctx context.Context, arg *SwitchPositionModeParams) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	if arg.Symbol.IsEmpty() && arg.Coin.IsEmpty() {
+		return errEitherSymbolOrCoinRequired
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, switchPositionMode, nil, arg, &resp, privateSpotRate)
+}
+
+// SetRiskLimit risk limit will limit the maximum position value you can hold under different margin requirements.
+// If you want to hold a bigger position size, you need more margin. This interface can set the risk limit of a single position.
+// If the order exceeds the current risk limit when placing an order, it will be rejected.
+// '0': one-way mode '1': hedge-mode Buy side '2': hedge-mode Sell side
+func (by *Bybit) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*RiskLimitResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return nil, errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	if arg.PositionMode < 0 || arg.PositionMode > 2 {
+		return nil, errInvalidPositionMode
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, errSymbolMissing
+	}
+	var resp RiskLimitResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, setPositionRiskLimit, nil, arg, &resp, privateSpotRate)
+}
+
+// SetTradingStop set the take profit, stop loss or trailing stop for the position.
+func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	if arg.Symbol.IsEmpty() {
+		return errSymbolMissing
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, stopTradingPosition, nil, arg, &resp, privateSpotRate)
+}
+
+// SetAutoAddMargin sets auto add margin
+func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParams) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	if arg.Symbol.IsEmpty() {
+		return errSymbolMissing
+	}
+	if arg.AutoAddmargin != 0 && arg.AutoAddmargin != 1 {
+		return errInvalidAutoAddMarginValue
+	}
+	if arg.PositionMode < 0 || arg.PositionMode > 2 {
+		return errInvalidPositionMode
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, positionSetAutoAddMargin, nil, arg, &resp, privateSpotRate)
 }
 
 // ---------------------------------------------------------------- Old ----------------------------------------------------------------

@@ -745,27 +745,6 @@ func (by *Bybit) GetUSDTPositions(ctx context.Context, symbol currency.Pair) ([]
 	return data, nil
 }
 
-// SetAutoAddMargin sets auto add margin
-func (by *Bybit) SetAutoAddMargin(ctx context.Context, symbol currency.Pair, autoAddMargin bool, side string) error {
-	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	params.Set("symbol", symbolValue)
-	if side == "" {
-		return errInvalidSide
-	}
-	params.Set("side", side)
-
-	if autoAddMargin {
-		params.Set("take_profit", "true")
-	} else {
-		params.Set("take_profit", "false")
-	}
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, nil, nil, uFuturesSetMarginRate)
-}
-
 // ChangeUSDTMargin switches margin between cross or isolated
 func (by *Bybit) ChangeUSDTMargin(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
 	params := url.Values{}
@@ -784,22 +763,6 @@ func (by *Bybit) ChangeUSDTMargin(ctx context.Context, symbol currency.Pair, buy
 	}
 
 	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, nil, nil, uFuturesSwitchMargin)
-}
-
-// SwitchPositionMode switches mode between MergedSingle: One-Way Mode or BothSide: Hedge Mode
-func (by *Bybit) SwitchPositionMode(ctx context.Context, symbol currency.Pair, mode string) error {
-	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	params.Set("symbol", symbolValue)
-	if mode == "" {
-		return errInvalidMode
-	}
-	params.Set("mode", mode)
-
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPositionMode, params, nil, nil, uFuturesSwitchPosition)
 }
 
 // ChangeUSDTMode switches mode between full or partial position
