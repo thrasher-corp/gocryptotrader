@@ -1050,16 +1050,16 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		return err
 	}
 	var errCap SpotAuthError
-	if err = json.Unmarshal(interim, &errCap); err == nil {
-		if errCap.Error != nil {
-			switch e := errCap.Error.(type) {
-			case []string:
-				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e[0])
-			case string, []interface{}, interface{}:
+	if err = json.Unmarshal(interim, &errCap); err == nil && errCap.Error != nil {
+		switch e := errCap.Error.(type) {
+		case []string:
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e[0])
+		case []interface{}: // no error will be an empty []interface{}
+			if len(e) > 0 {
 				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e)
-			default:
-				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
+		default:
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e)
 		}
 	}
 	err = json.Unmarshal(interim, result)
