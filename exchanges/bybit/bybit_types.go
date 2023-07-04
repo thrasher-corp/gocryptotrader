@@ -482,8 +482,8 @@ type WsTrade struct {
 	TradeData  WsTradeData `json:"data"`
 }
 
-// wsAccount defines websocket account info data
-type wsAccount struct {
+// WsAccount defines websocket account info data
+type WsAccount struct {
 	EventType   string       `json:"e"`
 	EventTime   string       `json:"E"`
 	CanTrade    bool         `json:"T"`
@@ -500,7 +500,7 @@ type Currencies struct {
 }
 
 // wsOrderUpdate defines websocket account order update data
-type wsOrderUpdate struct {
+type WsOrderUpdate struct {
 	EventType                         string                  `json:"e"`
 	EventTime                         string                  `json:"E"`
 	Symbol                            string                  `json:"s"`
@@ -528,8 +528,8 @@ type wsOrderUpdate struct {
 	Leverage                          convert.StringToFloat64 `json:"v"`
 }
 
-// wsOrderFilled defines websocket account order filled data
-type wsOrderFilled struct {
+// WsOrderFilled defines websocket account order filled data
+type WsOrderFilled struct {
 	EventType         string                  `json:"e"`
 	EventTime         string                  `json:"E"`
 	Symbol            string                  `json:"s"`

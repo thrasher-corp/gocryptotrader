@@ -540,6 +540,24 @@ func TestWSOrderExecution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	pressXToJSON = []byte(`[{"e":"executionReport","E":"1688442177725","s":"USDTEUR","c":"1688442177507","S":"SELL","o":"MARKET_OF_BASE","f":"GTC","q":"2","p":"0","X":"NEW","i":"1457153032031615232","M":"0","l":"0","z":"0","L":"0","n":"0","N":"","u":true,"w":true,"m":false,"O":"1688442177715","Z":"0","A":"0","C":false,"v":"0","d":"NO_LIQ"}]`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pressXToJSON = []byte(`[{"e":"executionReport","E":"1688442177735","s":"USDTEUR","c":"1688442177507","S":"SELL","o":"MARKET_OF_BASE","f":"GTC","q":"2","p":"0","X":"FILLED","i":"1457153032031615232","M":"1457149298866233600","l":"2","z":"2","L":"0.9178","n":"0.0018356","N":"EUR","u":true,"w":true,"m":false,"O":"1688442177715","Z":"1.8356","A":"0","C":false,"v":"0","d":"NO_LIQ","t":"2260000000096235041"}]`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pressXToJSON = []byte(`[{"e":"executionReport","E":"1688444694367","s":"USDTEUR","c":"1688444694211","S":"BUY","o":"MARKET_OF_QUOTE","f":"GTC","q":"1.841105","p":"0","X":"PARTIALLY_FILLED","i":"1457174143020576768","M":"1457148866987162112","l":"2","z":"2","L":"0.9181","n":"0.002","N":"USDT","u":true,"w":true,"m":false,"O":"1688444694341","Z":"1.8362","A":"0","C":false,"v":"0","d":"NO_LIQ","t":"2260000000096245378"}]`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestWSTickerInfo(t *testing.T) {

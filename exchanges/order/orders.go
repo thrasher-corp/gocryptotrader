@@ -1063,7 +1063,7 @@ func StringToOrderType(oType string) (Type, error) {
 	switch oType {
 	case Limit.String(), "EXCHANGE LIMIT":
 		return Limit, nil
-	case Market.String(), "EXCHANGE MARKET":
+	case Market.String(), "EXCHANGE MARKET", "MARKET_OF_BASE", "MARKET_OF_QUOTE":
 		return Market, nil
 	case ImmediateOrCancel.String(), "IMMEDIATE OR CANCEL", "IOC", "EXCHANGE IOC":
 		return ImmediateOrCancel, nil

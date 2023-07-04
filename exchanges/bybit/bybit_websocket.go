@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -216,10 +217,12 @@ func stringToOrderStatus(status string) (order.Status, error) {
 		return order.Cancelled, nil
 	case "REJECTED":
 		return order.Rejected, nil
-	case "TRADE":
+	case "TRADE", "PARTIALLY_FILLED":
 		return order.PartiallyFilled, nil
 	case "EXPIRED":
 		return order.Expired, nil
+	case "FILLED":
+		return order.Filled, nil
 	default:
 		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
@@ -379,22 +382,42 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 
 			switch e {
 			case wsAccountInfo:
-				var data []wsAccount
+				var data []WsAccount
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %w",
 						by.Name,
 						err)
 				}
-				by.Websocket.DataHandler <- data
+
+				if len(data) == 0 {
+					return fmt.Errorf("%v - no account data returned", by.Name)
+				}
+
+				balanceChanges := make([]account.Change, len(data[0].Balance))
+				for x := range data[0].Balance {
+					balanceChanges[x] = account.Change{
+						Exchange: by.Name,
+						Asset:    asset.Spot,
+						Currency: currency.NewCode(data[0].Balance[x].Asset),
+						Amount:   data[0].Balance[x].Available.Float64(),
+					}
+				}
+
+				by.Websocket.DataHandler <- balanceChanges
 				return nil
 			case wsOrderExecution:
-				var data []wsOrderUpdate
+				var data []WsOrderUpdate
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to executionReport structure %w",
 						by.Name,
 						err)
+				}
+
+				avail, err := by.GetAvailablePairs(asset.Spot)
+				if err != nil {
+					return err
 				}
 
 				for j := range data {
@@ -425,12 +448,12 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						}
 					}
 
-					p, err := by.extractCurrencyPair(data[j].Symbol, asset.Spot)
+					pair, err := avail.DeriveFrom(data[j].Symbol)
 					if err != nil {
 						return err
 					}
 
-					by.Websocket.DataHandler <- order.Detail{
+					by.Websocket.DataHandler <- &order.Detail{
 						Price:           data[j].Price.Float64(),
 						Amount:          data[j].Quantity.Float64(),
 						ExecutedAmount:  data[j].CumulativeFilledQuantity.Float64(),
@@ -442,7 +465,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						Status:          oStatus,
 						AssetType:       asset.Spot,
 						Date:            data[j].OrderCreationTime.Time(),
-						Pair:            p,
+						Pair:            pair,
 						ClientOrderID:   data[j].ClientOrderID,
 						Trades: []order.TradeHistory{
 							{
@@ -456,12 +479,17 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				}
 				return nil
 			case wsTickerInfo:
-				var data []wsOrderFilled
+				var data []WsOrderFilled
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to ticketInfo structure %w",
 						by.Name,
 						err)
+				}
+
+				avail, err := by.GetAvailablePairs(asset.Spot)
+				if err != nil {
+					return err
 				}
 
 				for j := range data {
@@ -475,7 +503,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						}
 					}
 
-					p, err := by.extractCurrencyPair(data[j].Symbol, asset.Spot)
+					p, err := avail.DeriveFrom(data[j].Symbol)
 					if err != nil {
 						return err
 					}
