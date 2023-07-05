@@ -1535,10 +1535,98 @@ type TradingStopParams struct {
 	PositionIndex            int64         `json:"positionIdx,omitempty"`
 }
 
-// AutoAddMarginParams represents parameters for auto add margin
-type AutoAddMarginParams struct {
+// AddRemoveMarginParams represents parameters for auto add margin
+type AddRemoveMarginParams struct {
 	Category      string        `json:"category,omitempty"`
 	Symbol        currency.Pair `json:"symbol,omitempty"`
 	AutoAddmargin int64         `json:"autoAddmargin,string,omitempty"`
 	PositionMode  int64         `json:"positionIdx,string,omitempty"`
+}
+
+// AddOrReduceMargin represents a add or reduce margin response.
+type AddOrReduceMargin struct {
+	Category                 string                  `json:"category"`
+	Symbol                   string                  `json:"symbol"`
+	PositionIndex            int64                   `json:"positionIdx"` // position mode index
+	RiskID                   int64                   `json:"riskId"`
+	RiskLimitValue           string                  `json:"riskLimitValue"`
+	Size                     convert.StringToFloat64 `json:"size"`
+	PositionValue            string                  `json:"positionValue"`
+	AveragePrice             convert.StringToFloat64 `json:"avgPrice"`
+	LiquidationPrice         convert.StringToFloat64 `json:"liqPrice"`
+	BustPrice                convert.StringToFloat64 `json:"bustPrice"`
+	MarkPrice                convert.StringToFloat64 `json:"markPrice"`
+	Leverage                 string                  `json:"leverage"`
+	AutoAddMargin            int64                   `json:"autoAddMargin"`
+	PositionStatus           string                  `json:"positionStatus"`
+	PositionIM               convert.StringToFloat64 `json:"positionIM"`
+	PositionMM               convert.StringToFloat64 `json:"positionMM"`
+	UnrealisedProfitAndLoss  convert.StringToFloat64 `json:"unrealisedPnl"`
+	CumRealisedProfitAndLoss convert.StringToFloat64 `json:"cumRealisedPnl"`
+	StopLoss                 convert.StringToFloat64 `json:"stopLoss"`
+	TakeProfit               convert.StringToFloat64 `json:"takeProfit"`
+	TrailingStop             convert.StringToFloat64 `json:"trailingStop"`
+	CreatedTime              convert.ExchangeTime    `json:"createdTime"`
+	UpdatedTime              convert.ExchangeTime    `json:"updatedTime"`
+}
+
+// ExecutionResponse represents users order execution response
+type ExecutionResponse struct {
+	NextPageCursor string      `json:"nextPageCursor"`
+	Category       string      `json:"category"`
+	List           []Execution `json:"list"`
+}
+
+// Execution represents execution record
+type Execution struct {
+	Symbol                 string                  `json:"symbol"`
+	OrderType              string                  `json:"orderType"`
+	UnderlyingPrice        convert.StringToFloat64 `json:"underlyingPrice"`
+	IndexPrice             convert.StringToFloat64 `json:"indexPrice"`
+	OrderLinkID            string                  `json:"orderLinkId"`
+	Side                   string                  `json:"side"`
+	OrderID                string                  `json:"orderId"`
+	StopOrderType          string                  `json:"stopOrderType"`
+	LeavesQuantity         string                  `json:"leavesQty"`
+	ExecTime               string                  `json:"execTime"`
+	IsMaker                bool                    `json:"isMaker"`
+	ExecFee                convert.StringToFloat64 `json:"execFee"`
+	FeeRate                convert.StringToFloat64 `json:"feeRate"`
+	ExecID                 string                  `json:"execId"`
+	TradeImpliedVolatility string                  `json:"tradeIv"`
+	BlockTradeID           string                  `json:"blockTradeId"`
+	MarkPrice              convert.StringToFloat64 `json:"markPrice"`
+	ExecPrice              convert.StringToFloat64 `json:"execPrice"`
+	MarkIv                 string                  `json:"markIv"`
+	OrderQuantity          string                  `json:"orderQty"`
+	ExecValue              string                  `json:"execValue"`
+	ExecType               string                  `json:"execType"`
+	OrderPrice             convert.StringToFloat64 `json:"orderPrice"`
+	ExecQuantity           convert.StringToFloat64 `json:"execQty"`
+	ClosedSize             convert.StringToFloat64 `json:"closedSize"`
+}
+
+// ClosedProfitAndLossResponse represents list of closed profit and loss records
+type ClosedProfitAndLossResponse struct {
+	NextPageCursor string `json:"nextPageCursor"`
+	Category       string `json:"category"`
+	List           []struct {
+		Symbol              string                  `json:"symbol"`
+		OrderType           string                  `json:"orderType"`
+		Leverage            string                  `json:"leverage"`
+		UpdatedTime         convert.ExchangeTime    `json:"updatedTime"`
+		Side                string                  `json:"side"`
+		OrderID             string                  `json:"orderId"`
+		ClosedPnl           string                  `json:"closedPnl"`
+		AvgEntryPrice       convert.StringToFloat64 `json:"avgEntryPrice"`
+		Quantity            convert.StringToFloat64 `json:"qty"`
+		CumulatedEntryValue string                  `json:"cumEntryValue"`
+		CreatedTime         convert.ExchangeTime    `json:"createdTime"`
+		OrderPrice          convert.StringToFloat64 `json:"orderPrice"`
+		ClosedSize          convert.StringToFloat64 `json:"closedSize"`
+		AvgExitPrice        convert.StringToFloat64 `json:"avgExitPrice"`
+		ExecutionType       string                  `json:"execType"`
+		FillCount           convert.StringToFloat64 `json:"fillCount"`
+		CumulatedExitValue  string                  `json:"cumExitValue"`
+	} `json:"list"`
 }

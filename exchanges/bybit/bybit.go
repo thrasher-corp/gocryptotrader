@@ -103,6 +103,9 @@ const (
 	setPositionRiskLimit     = "/v5/position/set-risk-limit"
 	stopTradingPosition      = "/v5/position/trading-stop"
 	positionSetAutoAddMargin = "/v5/position/set-auto-add-margin"
+	addOrRemoveMargin        = "/v5/position/add-margin"
+	positionExecutionList    = "/v5/execution/list"
+	positionClosedPNL        = "/v5/position/closed-pnl"
 )
 
 var (
@@ -1019,7 +1022,7 @@ func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) err
 }
 
 // SetAutoAddMargin sets auto add margin
-func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParams) error {
+func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AddRemoveMarginParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -1041,6 +1044,98 @@ func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParams)
 	}
 	var resp interface{}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, positionSetAutoAddMargin, nil, arg, &resp, privateSpotRate)
+}
+
+// AddOrReduceMargin manually add or reduce margin for isolated margin position
+func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddRemoveMarginParams) (*AddOrReduceMargin, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	switch arg.Category {
+	case "":
+		return nil, errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, errSymbolMissing
+	}
+	if arg.AutoAddmargin != 0 && arg.AutoAddmargin != 1 {
+		return nil, errInvalidAutoAddMarginValue
+	}
+	if arg.PositionMode < 0 || arg.PositionMode > 2 {
+		return nil, errInvalidPositionMode
+	}
+	var resp AddOrReduceMargin
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, addOrRemoveMargin, nil, arg, &resp, privateSpotRate)
+}
+
+// GetExecution retrives users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
+func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+	params, err := fillCategoryAndSymbol(category, symbol, true)
+	if err != nil {
+		return nil, err
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp ExecutionResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, positionExecutionList, params, nil, &resp, privateSpotRate)
+}
+
+// GetClosedPnL retrives user's closed profit and loss records. The results are sorted by createdTime in descending order.
+func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
+	switch category {
+	case "":
+		return nil, errCategoryNotSet
+	case "linear", "inverse":
+	default:
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp ClosedProfitAndLossResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, positionClosedPNL, params, nil, &resp, privateSpotRate)
 }
 
 // ---------------------------------------------------------------- Old ----------------------------------------------------------------

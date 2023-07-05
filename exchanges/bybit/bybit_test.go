@@ -4222,7 +4222,7 @@ func TestSetAutoAddMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = b.SetAutoAddMargin(context.Background(), &AutoAddMarginParams{
+	err = b.SetAutoAddMargin(context.Background(), &AddRemoveMarginParams{
 		Category:      "inverse",
 		Symbol:        pair,
 		AutoAddmargin: 0,
@@ -4230,5 +4230,44 @@ func TestSetAutoAddMargin(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+func TestAddOrReduceMargin(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.AddOrReduceMargin(context.Background(), &AddRemoveMarginParams{
+		Category:      "inverse",
+		Symbol:        pair,
+		AutoAddmargin: 0,
+		PositionMode:  2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExecution(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetExecution(context.Background(), "spot", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetClosedPnL(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetClosedPnL(context.Background(), "spot", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", err, errInvalidCategory)
+	}
+	_, err = b.GetClosedPnL(context.Background(), "linear", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
