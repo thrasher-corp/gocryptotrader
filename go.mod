@@ -3,7 +3,7 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.17
 
 require (
-	github.com/d5/tengo/v2 v2.16.0
+	github.com/d5/tengo/v2 v2.16.1
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/mux v1.8.0
@@ -28,7 +28,7 @@ require (
 	golang.org/x/time v0.3.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc
 	google.golang.org/grpc v1.56.1
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 )
 
 require (
