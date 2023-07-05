@@ -3813,6 +3813,7 @@ func TestGetOpenOrders(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestCancelAllTradeOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -4269,5 +4270,22 @@ func TestGetClosedPnL(t *testing.T) {
 	_, err = b.GetClosedPnL(context.Background(), "linear", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetPreUpgradeOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeOrderHistory(context.Background(), "", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 100)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	}
+	_, err = b.GetPreUpgradeOrderHistory(context.Background(), "option", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errBaseNotSet) {
+		t.Fatalf("expected %v, got %v", errBaseNotSet, err)
+	}
+	_, err = b.GetPreUpgradeOrderHistory(context.Background(), "linear", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
 	}
 }

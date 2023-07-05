@@ -106,6 +106,9 @@ const (
 	addOrRemoveMargin        = "/v5/position/add-margin"
 	positionExecutionList    = "/v5/execution/list"
 	positionClosedPNL        = "/v5/position/closed-pnl"
+
+	// Pre-Upgrade endpoints
+	preUpgradeOrderHistory = "/v5/pre-upgrade/order/history"
 )
 
 var (
@@ -698,7 +701,9 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 
 // GetTradeOrderHistory retrives order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
 // If you want to get real-time order information, you could query this endpoint or rely on the websocket stream (recommended).
-func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, settleCoin, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
+func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
+	baseCoin, settleCoin, orderFilter, orderStatus, cursor string,
+	startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -1136,6 +1141,53 @@ func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor stri
 	}
 	var resp ClosedProfitAndLossResponse
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, positionClosedPNL, params, nil, &resp, privateSpotRate)
+}
+
+// ---------------------------------------------------------------- Pre-Upgrade ----------------------------------------------------------------
+
+// GetPreUpgradeOrderHistory the account is upgraded to a Unified account, you can get the orders which occurred before the upgrade.
+func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	} else if category != "linear" && category != "inverse" && category != "option" {
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	params.Set("category", category)
+	if category == "option" && baseCoin == "" {
+		return nil, fmt.Errorf("%w, baseCoin is required", errBaseNotSet)
+	} else if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	}
+	if orderStatus != "" {
+		params.Set("orderStatus", orderStatus)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp TradeOrders
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeOrderHistory, params, nil, &resp, privateSpotRate)
 }
 
 // ---------------------------------------------------------------- Old ----------------------------------------------------------------
