@@ -536,7 +536,7 @@ func TestMuxPublish(t *testing.T) {
 	}
 
 	// demonstrate that jobs go back to not being sent after unsubscribing
-	err = mux.Unsubscribe(itemID, pipe.C)
+	err = mux.Unsubscribe(itemID, pipe.c)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
