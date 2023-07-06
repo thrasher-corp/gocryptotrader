@@ -1630,3 +1630,202 @@ type ClosedProfitAndLossResponse struct {
 		CumulatedExitValue  string                  `json:"cumExitValue"`
 	} `json:"list"`
 }
+
+type paramsConfig struct {
+	Spot            bool
+	Option          bool
+	Linear          bool
+	Inverse         bool
+	MendatorySymbol bool
+
+	OptionalCategory bool
+	OptionalBaseCoin bool
+}
+
+// TransactionLog represents a transaction log history.
+type TransactionLog struct {
+	NextPageCursor string               `json:"nextPageCursor"`
+	List           []TransactionLogItem `json:"list"`
+}
+
+// TransactionLogItem represents a transaction log item information.
+type TransactionLogItem struct {
+	Symbol          string                  `json:"symbol"`
+	Side            string                  `json:"side"`
+	Funding         string                  `json:"funding"`
+	OrderLinkID     string                  `json:"orderLinkId"`
+	OrderID         string                  `json:"orderId"`
+	Fee             convert.StringToFloat64 `json:"fee"`
+	Change          string                  `json:"change"`
+	CashFlow        string                  `json:"cashFlow"`
+	TransactionTime convert.ExchangeTime    `json:"transactionTime"`
+	Type            string                  `json:"type"`
+	FeeRate         convert.StringToFloat64 `json:"feeRate"`
+	BonusChange     convert.StringToFloat64 `json:"bonusChange"`
+	Size            convert.StringToFloat64 `json:"size"`
+	Qty             convert.StringToFloat64 `json:"qty"`
+	CashBalance     convert.StringToFloat64 `json:"cashBalance"`
+	Currency        string                  `json:"currency"`
+	Category        string                  `json:"category"`
+	TradePrice      convert.StringToFloat64 `json:"tradePrice"`
+	TradeID         string                  `json:"tradeId"`
+}
+
+// PreUpdateOptionDeliveryRecord represents delivery records of Option
+type PreUpdateOptionDeliveryRecord struct {
+	NextPageCursor string `json:"nextPageCursor"`
+	Category       string `json:"category"`
+	List           []struct {
+		Symbol        string                  `json:"symbol"`
+		Side          string                  `json:"side"`
+		DeliveryTime  convert.ExchangeTime    `json:"deliveryTime"`
+		ExercisePrice convert.StringToFloat64 `json:"strike"`
+		Fee           convert.StringToFloat64 `json:"fee"`
+		Position      string                  `json:"position"`
+		DeliveryPrice convert.StringToFloat64 `json:"deliveryPrice"`
+		DeliveryRpl   string                  `json:"deliveryRpl"` // Realized PnL of the delivery
+	} `json:"list"`
+}
+
+// SettlementSession represents a USDC settlement session.
+type SettlementSession struct {
+	NextPageCursor string `json:"nextPageCursor"`
+	Category       string `json:"category"`
+	List           []struct {
+		RealisedProfitAndLoss string                  `json:"realisedPnl"`
+		Symbol                string                  `json:"symbol"`
+		Side                  string                  `json:"side"`
+		MarkPrice             convert.StringToFloat64 `json:"markPrice"`
+		Size                  convert.StringToFloat64 `json:"size"`
+		CreatedTime           convert.ExchangeTime    `json:"createdTime"`
+		SessionAveragePrice   convert.StringToFloat64 `json:"sessionAvgPrice"`
+	} `json:"list"`
+}
+
+// WalletBalance represents wallet balance
+type WalletBalance struct {
+	List []struct {
+		TotalEquity            convert.StringToFloat64 `json:"totalEquity"`
+		AccountIMRate          convert.StringToFloat64 `json:"accountIMRate"`
+		TotalMarginBalance     convert.StringToFloat64 `json:"totalMarginBalance"`
+		TotalInitialMargin     convert.StringToFloat64 `json:"totalInitialMargin"`
+		AccountType            string                  `json:"accountType"`
+		TotalAvailableBalance  convert.StringToFloat64 `json:"totalAvailableBalance"`
+		AccountMMRate          convert.StringToFloat64 `json:"accountMMRate"`
+		TotalPerpUPL           string                  `json:"totalPerpUPL"`
+		TotalWalletBalance     convert.StringToFloat64 `json:"totalWalletBalance"`
+		AccountLTV             string                  `json:"accountLTV"` // Account LTV: account total borrowed size / (account total equity + account total borrowed size).
+		TotalMaintenanceMargin convert.StringToFloat64 `json:"totalMaintenanceMargin"`
+		Coin                   []struct {
+			AvailableToBorrow      convert.StringToFloat64 `json:"availableToBorrow"`
+			Bonus                  convert.StringToFloat64 `json:"bonus"`
+			AccruedInterest        string                  `json:"accruedInterest"`
+			AvailableToWithdraw    convert.StringToFloat64 `json:"availableToWithdraw"`
+			TotalOrderIM           string                  `json:"totalOrderIM"`
+			Equity                 convert.StringToFloat64 `json:"equity"`
+			TotalPositionMM        string                  `json:"totalPositionMM"`
+			USDValue               convert.StringToFloat64 `json:"usdValue"`
+			UnrealisedPnl          convert.StringToFloat64 `json:"unrealisedPnl"`
+			BorrowAmount           convert.StringToFloat64 `json:"borrowAmount"`
+			TotalPositionIM        string                  `json:"totalPositionIM"`
+			WalletBalance          convert.StringToFloat64 `json:"walletBalance"`
+			CummulativeRealisedPnl convert.StringToFloat64 `json:"cumRealisedPnl"`
+			Coin                   string                  `json:"coin"`
+		} `json:"coin"`
+	} `json:"list"`
+}
+
+// UnifiedAccountUpgradeResponse represents a response parameter for update to unified account.
+type UnifiedAccountUpgradeResponse struct {
+	UnifiedUpdateStatus string `json:"unifiedUpdateStatus"`
+	UnifiedUpdateMsg    struct {
+		Messages []string `json:"msg"`
+	} `json:"unifiedUpdateMsg"`
+}
+
+// BorrowHistory represents interest records.
+type BorrowHistory struct {
+	NextPageCursor string `json:"nextPageCursor"`
+	List           []struct {
+		CreatedTime               convert.ExchangeTime    `json:"createdTime"`
+		CostExemption             string                  `json:"costExemption"`
+		InterestBearingBorrowSize string                  `json:"InterestBearingBorrowSize"`
+		Currency                  string                  `json:"currency"`
+		HourlyBorrowRate          convert.StringToFloat64 `json:"hourlyBorrowRate"`
+		BorrowCost                convert.StringToFloat64 `json:"borrowCost"`
+	} `json:"list"`
+}
+
+// CollateralInfo represents collateral information of the current unified margin account.
+type CollateralInfo struct {
+	List []struct {
+		BorrowAmount        convert.StringToFloat64 `json:"borrowAmount"`
+		AvailableToBorrow   string                  `json:"availableToBorrow"`
+		FreeBorrowingAmount convert.StringToFloat64 `json:"freeBorrowingAmount"`
+		Borrowable          bool                    `json:"borrowable"`
+		Currency            string                  `json:"currency"`
+		MaxBorrowingAmount  convert.StringToFloat64 `json:"maxBorrowingAmount"`
+		HourlyBorrowRate    convert.StringToFloat64 `json:"hourlyBorrowRate"`
+		MarginCollateral    bool                    `json:"marginCollateral"`
+		CollateralRatio     convert.StringToFloat64 `json:"collateralRatio"`
+	} `json:"list"`
+}
+
+// CoinGreeks represents current account greeks information.
+type CoinGreeks struct {
+	List []struct {
+		BaseCoin   string                  `json:"baseCoin"`
+		TotalDelta convert.StringToFloat64 `json:"totalDelta"`
+		TotalGamma convert.StringToFloat64 `json:"totalGamma"`
+		TotalVega  convert.StringToFloat64 `json:"totalVega"`
+		TotalTheta convert.StringToFloat64 `json:"totalTheta"`
+	} `json:"list"`
+}
+
+// FeeRate represents maker and taker fee rate information for a symbol.
+type FeeRate struct {
+	Symbol       string                  `json:"symbol"`
+	TakerFeeRate convert.StringToFloat64 `json:"takerFeeRate"`
+	MakerFeeRate convert.StringToFloat64 `json:"makerFeeRate"`
+}
+
+// AccountInfo represents margin mode account information.
+type AccountInfo struct {
+	MarginMode          string               `json:"marginMode"`
+	UpdatedTime         convert.ExchangeTime `json:"updatedTime"`
+	UnifiedMarginStatus int64                `json:"unifiedMarginStatus"`
+	DcpStatus           string               `json:"dcpStatus"`
+	TimeWindow          int64                `json:"timeWindow"`
+	SmpGroup            int64                `json:"smpGroup"`
+}
+
+// SetMarginModeResponse represents a response for setting margin mode.
+type SetMarginModeResponse struct {
+	Reasons []struct {
+		ReasonCode string `json:"reasonCode"`
+		ReasonMsg  string `json:"reasonMsg"`
+	} `json:"reasons"`
+}
+
+// MMPRequestParam represents an MMP request parameter.
+type MMPRequestParam struct {
+	BaseCoin           string                  `json:"baseCoin"`
+	TimeWindowMS       int64                   `json:"window,string"`
+	FrozenPeriod       int64                   `json:"frozenPeriod,string"`
+	TradeQuantityLimit convert.StringToFloat64 `json:"qtyLimit"`
+	DeltaLimit         convert.StringToFloat64 `json:"deltaLimit"`
+}
+
+// MMPStates represents an MMP states.
+type MMPStates struct {
+	Result []struct {
+		BaseCoin           string                  `json:"baseCoin"`
+		MmpEnabled         bool                    `json:"mmpEnabled"`
+		Window             string                  `json:"window"`
+		FrozenPeriod       string                  `json:"frozenPeriod"`
+		TradeQuantityLimit convert.StringToFloat64 `json:"qtyLimit"`
+		DeltaLimit         convert.StringToFloat64 `json:"deltaLimit"`
+		MmpFrozenUntil     convert.StringToFloat64 `json:"mmpFrozenUntil"`
+		MmpFrozen          bool                    `json:"mmpFrozen"`
+	} `json:"result"`
+}

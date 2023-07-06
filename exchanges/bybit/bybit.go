@@ -108,7 +108,15 @@ const (
 	positionClosedPNL        = "/v5/position/closed-pnl"
 
 	// Pre-Upgrade endpoints
-	preUpgradeOrderHistory = "/v5/pre-upgrade/order/history"
+	preUpgradeOrderHistory          = "/v5/pre-upgrade/order/history"
+	preUpgradeExecutionList         = "/v5/pre-upgrade/execution/list"
+	preUpgradePositionClosedPNL     = "/v5/pre-upgrade/position/closed-pnl"
+	preUpgradeAccountTransactionLog = "/v5/pre-upgrade/account/transaction-log"
+	preUpgradeAssetDeliveryRecord   = "/v5/pre-upgrade/asset/delivery-record"
+	preUpgradeAssetSettlementRecord = "/v5/pre-upgrade/asset/settlement-record"
+	accountWalletBalanceRequired    = "/v5/account/wallet-balance"
+	accountUpgradeToUTA             = "/v5/account/upgrade-to-uta"
+	accountBorrowHistory            = "/v5/account/borrow-history"
 )
 
 var (
@@ -123,6 +131,10 @@ var (
 	errSymbolOrSettleCoinRequired         = errors.New("provide symbol or settleCoin at least one")
 	errInvalidTradeModeValue              = errors.New("invalid trade mode value")
 	errTakeProfitOrStopLossModeMissing    = errors.New("TP/SL mode missing")
+	errMissingAccountType                 = errors.New("account type not specified")
+	errTimeWindowRequired                 = errors.New("time window is required")
+	errFrozenPeriodRequired               = errors.New("frozen period required")
+	errQuantityLimitRequired              = errors.New("quantity limit required")
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
@@ -1112,32 +1124,9 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 
 // GetClosedPnL retrives user's closed profit and loss records. The results are sorted by createdTime in descending order.
 func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
-	switch category {
-	case "":
-		return nil, errCategoryNotSet
-	case "linear", "inverse":
-	default:
-		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
-	}
-	params := url.Values{}
-	params.Set("category", category)
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	if cursor != "" {
-		params.Set("cursor", cursor)
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if cursor != "" {
-		params.Set("cursor", cursor)
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
 	}
 	var resp ClosedProfitAndLossResponse
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, positionClosedPNL, params, nil, &resp, privateSpotRate)
@@ -1145,19 +1134,26 @@ func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor stri
 
 // ---------------------------------------------------------------- Pre-Upgrade ----------------------------------------------------------------
 
-// GetPreUpgradeOrderHistory the account is upgraded to a Unified account, you can get the orders which occurred before the upgrade.
-func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
-	if category == "" {
-		return nil, errCategoryNotSet
-	} else if category != "linear" && category != "inverse" && category != "option" {
-		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
-	}
+func fillOrderAndExecutionFetchParams(ac paramsConfig, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (url.Values, error) {
 	params := url.Values{}
-	if symbol != "" {
+	switch {
+	case !ac.OptionalCategory && category == "":
+		return nil, errCategoryNotSet
+	case ac.OptionalCategory && category == "":
+	case (!ac.Linear && category == "linear") ||
+		(!ac.Option && category == "option") ||
+		(!ac.Inverse && category == "inverse") ||
+		(!ac.Spot && category == "spot"):
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	default:
+		params.Set("category", category)
+	}
+	if ac.MendatorySymbol && symbol == "" {
+		return nil, errSymbolMissing
+	} else if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	params.Set("category", category)
-	if category == "option" && baseCoin == "" {
+	if category == "option" && baseCoin == "" && !ac.OptionalBaseCoin {
 		return nil, fmt.Errorf("%w, baseCoin is required", errBaseNotSet)
 	} else if baseCoin != "" {
 		params.Set("baseCoin", baseCoin)
@@ -1186,9 +1182,292 @@ func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	return params, nil
+}
+
+// GetPreUpgradeOrderHistory the account is upgraded to a Unified account, you can get the orders which occurred before the upgrade.
+func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Option: true, Inverse: true}, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
 	var resp TradeOrders
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeOrderHistory, params, nil, &resp, privateSpotRate)
 }
+
+// GetPreUpgradeTradeHistory retrieves users' execution records which occurred before you upgraded the account to a Unified account, sorted by execTime in descending order
+func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Option: false, Inverse: true}, category, symbol, baseCoin, orderID, orderLinkID, "", "", cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	if executionType != "" {
+		params.Set("executionType", executionType)
+	}
+	var resp ExecutionResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeExecutionList, params, nil, &resp, privateSpotRate)
+}
+
+// GetPreUpgradeClosedPnL retrives user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
+func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true, MendatorySymbol: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	var resp ClosedProfitAndLossResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradePositionClosedPNL, params, nil, &resp, privateSpotRate)
+}
+
+// GetPreUpgradeTransactionLog retrives transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified account.
+func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	if transactionType != "" {
+		params.Set("type", transactionType)
+	}
+	var resp TransactionLog
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAccountTransactionLog, params, nil, &resp, privateSpotRate)
+}
+
+// GetPreUpgradeOptionDeliveryRecord retrives delivery records of Option before you upgraded the account to a Unified account, sorted by deliveryTime in descending order
+func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*PreUpdateOptionDeliveryRecord, error) {
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, Option: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
+	if err != nil {
+		return nil, err
+	}
+	if !expiryDate.IsZero() {
+		params.Set("expData", expiryDate.Format("02Jan06"))
+	}
+	var resp PreUpdateOptionDeliveryRecord
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAssetDeliveryRecord, params, nil, &resp, privateSpotRate)
+}
+
+// GetPreUpgradeUSDCSessionSettlement retrives session settlement records of USDC perpetual before you upgrade the account to Unified account.
+func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
+	if err != nil {
+		return nil, err
+	}
+	var resp SettlementSession
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAssetSettlementRecord, params, nil, &resp, privateSpotRate)
+}
+
+// ---------------------------------------------------------------- Account Endpoints ----------------------------------------------------------------
+
+// GetWalletBalance represents wallet balance, query asset information of each currency, and account risk rate information.
+// By default, currency information with assets or liabilities of 0 is not returned.
+// Unified account: UNIFIED (trade spot/linear/options), CONTRACT(trade inverse)
+// Normal account: CONTRACT, SPOT
+func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string) (*WalletBalance, error) {
+	params := url.Values{}
+	if accountType == "" {
+		return nil, errMissingAccountType
+	} else {
+		params.Set("accountType", accountType)
+	}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	var resp WalletBalance
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, accountWalletBalanceRequired, params, nil, &resp, privateSpotRate)
+}
+
+// UpgradeToUnifiedAccount upgrades the account to unified account.
+func (by *Bybit) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUpgradeResponse, error) {
+	var resp UnifiedAccountUpgradeResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, accountUpgradeToUTA, nil, nil, &resp, privateSpotRate)
+}
+
+// GetBorrowHistory retrives interest records, sorted in reverse order of creation time.
+func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	var resp BorrowHistory
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/borrow-history", params, nil, &resp, privateSpotRate)
+}
+
+// GetCollateralInfo retrives the collateral information of the current unified margin account,
+// including loan interest rate, loanable amount, collateral conversion rate,
+// whether it can be mortgaged as margin, etc.
+func (by *Bybit) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	var resp CollateralInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, privateSpotRate)
+}
+
+// GetCoinGreeks retrives current account Greeks information
+func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreeks, error) {
+	params := url.Values{}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	var resp CoinGreeks
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin-greeks", params, nil, &resp, privateSpotRate)
+}
+
+// GetFeeRate retrives the trading fee rate.
+func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) ([]Fee, error) {
+	params := url.Values{}
+	if !common.StringDataContains(validCategory, category) {
+		// NOTE: Opted to fail here because if the user passes in an invalid
+		// category the error returned is this
+		// `Bybit raw response: {"retCode":10005,"retMsg":"Permission denied, please check your API key permissions.","result":{},"retExtInfo":{},"time":1683694010783}`
+		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
+	}
+	var resp AccountFee
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, nil, &resp, privateSpotRate)
+}
+
+// GetAccountInfo retrieves the margin mode configuration of the account.
+func (by *Bybit) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
+	var resp AccountInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/info", nil, nil, &resp, privateSpotRate)
+}
+
+// GetTransactionLog retrieves transaction logs in Unified account.
+func (by *Bybit) GetTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, OptionalCategory: true, Linear: true, Option: true, Spot: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	if transactionType != "" {
+		params.Set("type", transactionType)
+	}
+	var resp TransactionLog
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/transaction-log", params, nil, &resp, privateSpotRate)
+}
+
+// SetMarginMode set margin mode to  either of ISOLATED_MARGIN, REGULAR_MARGIN(i.e. Cross margin), PORTFOLIO_MARGIN
+func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarginModeResponse, error) {
+	if marginMode == "" {
+		return nil, fmt.Errorf("%w, margin mode should be either of ISOLATED_MARGIN, REGULAR_MARGIN, or PORTFOLIO_MARGIN", errInvalidMode)
+	}
+	arg := &struct {
+		SetMarginMode string `json:"setMarginMode"`
+	}{SetMarginMode: marginMode}
+
+	var resp SetMarginModeResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-margin-mode", nil, arg, &resp, privateSpotRate)
+}
+
+// SetMMP Market Maker Protection (MMP) is an automated mechanism designed to protect market makers (MM) against liquidity risks and over-exposure in the market.
+// It prevents simultaneous trade executions on quotes provided by the MM within a short time span.
+// The MM can automatically pull their quotes if the number of contracts traded for an underlying asset exceeds the configured threshold within a certain time frame.
+// Once MMP is triggered, any pre-existing MMP orders will be automatically canceled, and new orders tagged as MMP will be rejected for a specific duration — known as the frozen period — so that MM can reassess the market and modify the quotes.
+//
+// How to enable MMP​
+// Send an email to Bybit (financial.inst@bybit.com) or contact your business development (BD) manager to apply for MMP. After processed, the default settings are as below table:
+func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.BaseCoin == "" {
+		return errBaseNotSet
+	}
+	if arg.TimeWindowMS <= 0 {
+		return errTimeWindowRequired
+	}
+	if arg.FrozenPeriod <= 0 {
+		return errFrozenPeriodRequired
+	}
+	if arg.TradeQuantityLimit <= 0 {
+		return fmt.Errorf("%w, trade quantity limit required", errQuantityLimitRequired)
+	}
+	if arg.DeltaLimit <= 0 {
+		return fmt.Errorf("%w, delta limit is required", errQuantityLimitRequired)
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &resp, privateSpotRate)
+}
+
+// ResetMMP resets MMP.
+// once the mmp triggered, you can unfreeze the account by this endpoint
+func (by *Bybit) ResetMMP(ctx context.Context, baseCoin string) error {
+	if baseCoin == "" {
+		return errBaseNotSet
+	}
+	arg := &struct {
+		BaseCoin string `json:"baseCoin"`
+	}{BaseCoin: baseCoin}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, arg, &resp, privateSpotRate)
+}
+
+// GetMMPState retrive Market Maker Protection (MMP) states for different coins.
+func (by *Bybit) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, error) {
+	if baseCoin == "" {
+		return nil, errBaseNotSet
+	}
+	arg := &struct {
+		BaseCoin string `json:"baseCoin"`
+	}{BaseCoin: baseCoin}
+	var resp MMPStates
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-state", nil, arg, &resp, privateSpotRate)
+}
+
+// GetFeeRate returns user account fee
+// Valid  category: "spot", "linear", "inverse", "option"
+// func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
+// 	if category == "" {
+// 		return nil, errCategoryNotSet
+// 	}
+
+// 	if !common.StringDataContains(validCategory, category) {
+// 		// NOTE: Opted to fail here because if the user passes in an invalid
+// 		// category the error returned is this
+// 		// `Bybit raw response: {"retCode":10005,"retMsg":"Permission denied, please check your API key permissions.","result":{},"retExtInfo":{},"time":1683694010783}`
+// 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+// 	}
+
+// 	params := url.Values{}
+// 	params.Set("category", category)
+// 	if symbol != "" {
+// 		params.Set("symbol", symbol)
+// 	}
+// 	if baseCoin != "" {
+// 		params.Set("baseCoin", baseCoin)
+// 	}
+
+// 	result := struct {
+// 		Data *AccountFee `json:"result"`
+// 		Error
+// 	}{}
+
+// 	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, bybitAccountFee, params, nil, &result, privateFeeRate)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return result.Data, nil
+// }
 
 // ---------------------------------------------------------------- Old ----------------------------------------------------------------
 
@@ -1645,17 +1924,6 @@ func (by *Bybit) GetTradeHistory(ctx context.Context, limit int64, symbol, fromI
 	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitTradeHistory, params, nil, &resp, privateSpotRate)
 }
 
-// GetWalletBalance returns user wallet balance
-func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
-	resp := struct {
-		Data struct {
-			Balances []Balance `json:"balances"`
-		} `json:"result"`
-		Error
-	}{}
-	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, nil, &resp, privateSpotRate)
-}
-
 // GetSpotServerTime returns server time
 func (by *Bybit) GetSpotServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
@@ -1701,42 +1969,6 @@ func (by *Bybit) WithdrawFund(ctx context.Context, coin, chain, address, tag, am
 		params["tag"] = tag
 	}
 	return resp.Data.ID, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitWithdrawFund, nil, params, &resp, privateSpotRate)
-}
-
-// GetFeeRate returns user account fee
-// Valid  category: "spot", "linear", "inverse", "option"
-func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
-	if category == "" {
-		return nil, errCategoryNotSet
-	}
-
-	if !common.StringDataContains(validCategory, category) {
-		// NOTE: Opted to fail here because if the user passes in an invalid
-		// category the error returned is this
-		// `Bybit raw response: {"retCode":10005,"retMsg":"Permission denied, please check your API key permissions.","result":{},"retExtInfo":{},"time":1683694010783}`
-		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
-	}
-
-	params := url.Values{}
-	params.Set("category", category)
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	if baseCoin != "" {
-		params.Set("baseCoin", baseCoin)
-	}
-
-	result := struct {
-		Data *AccountFee `json:"result"`
-		Error
-	}{}
-
-	err := by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, bybitAccountFee, params, nil, &result, privateFeeRate)
-	if err != nil {
-		return nil, err
-	}
-
-	return result.Data, nil
 }
 
 // SendHTTPRequest sends an unauthenticated request

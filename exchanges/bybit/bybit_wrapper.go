@@ -720,18 +720,18 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	info.Exchange = by.Name
 	switch assetType {
 	case asset.Spot:
-		balances, err := by.GetWalletBalance(ctx)
+		balances, err := by.GetWalletBalance(ctx, "SPOT", "")
 		if err != nil {
 			return info, err
 		}
 
-		currencyBalance := make([]account.Balance, len(balances))
-		for i := range balances {
+		currencyBalance := make([]account.Balance, len(balances.List))
+		for i := range balances.List {
 			currencyBalance[i] = account.Balance{
-				Currency: currency.NewCode(balances[i].CoinName),
-				Total:    balances[i].Total.Float64(),
-				Hold:     balances[i].Locked.Float64(),
-				Free:     balances[i].Total.Float64() - balances[i].Locked.Float64(),
+				// Currency: currency.NewCode(balances.List[i].CoinName),
+				// Total:    balances.List[i].TotalWalletBalance.Float64(),
+				// Hold:     balances.List[i].Float64(),
+				// Free:     balances.List[i].Total.Float64() - balances.List[i].Locked.Float64(),
 			}
 		}
 

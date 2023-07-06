@@ -361,16 +361,6 @@ func TestGetOrderBook(t *testing.T) {
 // 	}
 // }
 
-// func TestGetWalletBalance(t *testing.T) {
-// 	t.Parallel()
-// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-// 	_, err := b.GetWalletBalance(context.Background())
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
-
 // func TestGetSpotServerTime(t *testing.T) {
 // 	t.Parallel()
 // 	_, err := b.GetSpotServerTime(context.Background())
@@ -4285,6 +4275,208 @@ func TestGetPreUpgradeOrderHistory(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errBaseNotSet, err)
 	}
 	_, err = b.GetPreUpgradeOrderHistory(context.Background(), "linear", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeTradeHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeTradeHistory(context.Background(), "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errCategoryNotSet) {
+		t.Fatalf("found %v, expected %v", err, errCategoryNotSet)
+	}
+	_, err = b.GetPreUpgradeTradeHistory(context.Background(), "option", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("found %v, expected %v", err, errInvalidCategory)
+	}
+	_, err = b.GetPreUpgradeTradeHistory(context.Background(), "linear", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeClosedPnL(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeClosedPnL(context.Background(), "option", "BTCUSDT", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetPreUpgradeClosedPnL(context.Background(), "linear", "BTCUSDT", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeTransactionLog(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeTransactionLog(context.Background(), "option", "", "", "", time.Time{}, time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("found %v, expected %v", err, errInvalidCategory)
+	}
+	_, err = b.GetPreUpgradeTransactionLog(context.Background(), "linear", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeOptionDeliveryRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeOptionDeliveryRecord(context.Background(), "linear", "", "", time.Time{}, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Error(err)
+	}
+	_, err = b.GetPreUpgradeOptionDeliveryRecord(context.Background(), "option", "", "", time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPreUpgradeUSDCSessionSettlement(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPreUpgradeUSDCSessionSettlement(context.Background(), "option", "", "", 10)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetPreUpgradeUSDCSessionSettlement(context.Background(), "linear", "", "", 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWalletBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetWalletBalance(context.Background(), "SPOT", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpgradeToUnifiedAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.UpgradeToUnifiedAccount(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetBorrowHistory(context.Background(), "BTC", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCollateralInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetCollateralInfo(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCoinGreeks(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetCoinGreeks(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFeeRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetFeeRate(context.Background(), "something", "", "BTC")
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetFeeRate(context.Background(), "linear", "", "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTransactionLog(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetTransactionLog(context.Background(), "option", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetTransactionLog(context.Background(), "linear", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetMarginMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SetMarginMode(context.Background(), "PORTFOLIO_MARGIN")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetMMP(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetMMP(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("found %v, expected %v", err, errNilArgument)
+	}
+	b.Verbose = true
+	err = b.SetMMP(context.Background(), &MMPRequestParam{
+		BaseCoin:           "ETH",
+		TimeWindowMS:       5000,
+		FrozenPeriod:       100000,
+		TradeQuantityLimit: 50,
+		DeltaLimit:         20,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestResetMMP(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.ResetMMP(context.Background(), "USDT")
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("found %v, expected %v", err, errNilArgument)
+	}
+	err = b.ResetMMP(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMMPState(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	b.Verbose = true
+	_, err := b.GetMMPState(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
 	}
