@@ -17,7 +17,7 @@ import (
 const (
 	wsEndpoint       = "wss://pubwss.bithumb.com/pub/ws"
 	tickerTimeLayout = "20060102150405"
-	tradeTimeLayout  = "2006-01-02 15:04:05.000000"
+	tradeTimeLayout  = time.DateTime + ".000000"
 )
 
 var (
