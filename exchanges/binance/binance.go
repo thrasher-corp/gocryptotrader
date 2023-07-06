@@ -73,8 +73,7 @@ const (
 	withdrawHistory  = "/sapi/v1/capital/withdraw/history"
 	depositAddress   = "/sapi/v1/capital/deposit/address"
 
-	defaultRecvWindow     = 5 * time.Second
-	binanceSAPITimeLayout = "2006-01-02 15:04:05"
+	defaultRecvWindow = 5 * time.Second
 )
 
 // GetInterestHistory gets interest history for currency/currencies provided
