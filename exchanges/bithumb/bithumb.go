@@ -355,7 +355,7 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType string
 	}
 
 	if !after.IsZero() {
-		params.Set("after", after.Format(common.SimpleTimeFormat))
+		params.Set("after", after.Format(time.DateTime))
 	}
 
 	return response,

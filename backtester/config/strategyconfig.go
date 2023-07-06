@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -316,8 +317,8 @@ func (c *Config) PrintSetting() {
 		log.Infoln(common.Config, common.CMDColours.H2+"------------------API Settings-------------------------------"+common.CMDColours.Default)
 		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
 		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.Config, "Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(common.Config, "End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(common.Config, "Start date: %v", c.DataSettings.APIData.StartDate.Format(time.DateTime))
+		log.Infof(common.Config, "End date: %v", c.DataSettings.APIData.EndDate.Format(time.DateTime))
 	}
 	if c.DataSettings.CSVData != nil {
 		log.Infoln(common.Config, common.CMDColours.H2+"------------------CSV Settings-------------------------------"+common.CMDColours.Default)
@@ -329,7 +330,7 @@ func (c *Config) PrintSetting() {
 		log.Infoln(common.Config, common.CMDColours.H2+"------------------Database Settings--------------------------"+common.CMDColours.Default)
 		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)
 		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.Config, "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(common.Config, "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(common.Config, "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(time.DateTime))
+		log.Infof(common.Config, "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(time.DateTime))
 	}
 }

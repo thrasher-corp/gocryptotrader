@@ -53,6 +53,9 @@ type Dispatcher struct {
 
 	// dispatcher write protection
 	m sync.RWMutex
+	// subscriberCount atomically stores the amount of subscription endpoints
+	// to verify whether to send out any jobs
+	subscriberCount int32
 }
 
 // job defines a relaying job associated with a ticket which allows routing to

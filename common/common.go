@@ -26,10 +26,8 @@ import (
 )
 
 const (
-	// SimpleTimeFormat a common, but non-implemented time format in golang
-	SimpleTimeFormat = "2006-01-02 15:04:05"
 	// SimpleTimeFormatWithTimezone a common, but non-implemented time format in golang
-	SimpleTimeFormatWithTimezone = "2006-01-02 15:04:05 MST"
+	SimpleTimeFormatWithTimezone = time.DateTime + " MST"
 	// GctExt is the extension for GCT Tengo script files
 	GctExt         = ".gct"
 	defaultTimeout = time.Second * 15

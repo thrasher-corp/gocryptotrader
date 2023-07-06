@@ -29,11 +29,11 @@ var dataHistoryCommands = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "start_date",
-					Usage: "formatted as: 2006-01-02 15:04:05",
+					Usage: "formatted as: " + time.DateTime,
 				},
 				&cli.StringFlag{
 					Name:  "end_date",
-					Usage: "formatted as: 2006-01-02 15:04:05",
+					Usage: "formatted as: " + time.DateTime,
 				},
 			},
 			Action: getDataHistoryJobsBetween,
@@ -221,14 +221,14 @@ var (
 		},
 		&cli.StringFlag{
 			Name:        "start_date",
-			Usage:       "formatted as: 2006-01-02 15:04:05",
-			Value:       time.Now().AddDate(-1, 0, 0).Format(common.SimpleTimeFormat),
+			Usage:       "formatted as: " + time.DateTime,
+			Value:       time.Now().AddDate(-1, 0, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end_date",
-			Usage:       "formatted as: 2006-01-02 15:04:05",
-			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Usage:       "formatted as: " + time.DateTime,
+			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &endTime,
 		},
 		&cli.Uint64Flag{
@@ -399,11 +399,11 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -544,11 +544,11 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 	} else {
 		endTime = c.Args().Get(1)
 	}
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
