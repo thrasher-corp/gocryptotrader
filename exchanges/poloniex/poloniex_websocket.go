@@ -913,7 +913,7 @@ func (p *Poloniex) processAccountOrderLimit(notification []interface{}) error {
 	}
 
 	var timeParse time.Time
-	timeParse, err = time.Parse(common.SimpleTimeFormat, ts)
+	timeParse, err = time.Parse(time.DateTime, ts)
 	if err != nil {
 		return err
 	}
@@ -1051,7 +1051,7 @@ func (p *Poloniex) processAccountTrades(notification []interface{}) error {
 	if !ok {
 		return fmt.Errorf("%w time not string", errTypeAssertionFailure)
 	}
-	timeParse, err := time.Parse(common.SimpleTimeFormat, t)
+	timeParse, err := time.Parse(time.DateTime, t)
 	if err != nil {
 		return err
 	}

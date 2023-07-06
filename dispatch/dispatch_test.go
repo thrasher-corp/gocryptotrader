@@ -246,7 +246,7 @@ func TestPublish(t *testing.T) {
 
 	d = NewDispatcher()
 
-	err = d.publish(nonEmptyUUID, "lol")
+	err = d.publish(nonEmptyUUID, "test")
 	if !errors.Is(err, nil) { // If not running, don't send back an error.
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -266,15 +266,17 @@ func TestPublish(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
 	}
 
-	// max out worker processing
-	for x := 0; x < 100; x++ {
-		err2 := d.publish(nonEmptyUUID, "lol")
+	// demonstrate job limit error
+	d.routes[nonEmptyUUID] = []chan interface{}{
+		make(chan interface{}),
+	}
+	for x := 0; x < 200; x++ {
+		err2 := d.publish(nonEmptyUUID, "test")
 		if !errors.Is(err2, nil) {
 			err = err2
 			break
 		}
 	}
-
 	if !errors.Is(err, errDispatcherJobsAtLimit) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherJobsAtLimit)
 	}
@@ -492,6 +494,19 @@ func TestMuxPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// demonstrate that jobs do not get published when the limit should be reached
+	// but there is no listener associated with job
+	for x := 0; x < 200; x++ {
+		err2 := mux.Publish("test", itemID)
+		if !errors.Is(err2, nil) {
+			err = err2
+			break
+		}
+	}
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	pipe, err := mux.Subscribe(itemID)
 	if err != nil {
 		t.Error(err)
@@ -508,6 +523,35 @@ func TestMuxPublish(t *testing.T) {
 
 	<-pipe.Channel()
 
+	// demonstrate that jobs can be limited when subscribed
+	for x := 0; x < 200; x++ {
+		err2 := mux.Publish("test", itemID)
+		if !errors.Is(err2, nil) {
+			err = err2
+			break
+		}
+	}
+	if !errors.Is(err, errDispatcherJobsAtLimit) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherJobsAtLimit)
+	}
+
+	// demonstrate that jobs go back to not being sent after unsubscribing
+	err = mux.Unsubscribe(itemID, pipe.c)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	for x := 0; x < 200; x++ {
+		err2 := mux.Publish("test", itemID)
+		if !errors.Is(err2, nil) {
+			err = err2
+			break
+		}
+	}
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	// Shut down dispatch system
 	err = d.stop()
 	if err != nil {
@@ -515,7 +559,7 @@ func TestMuxPublish(t *testing.T) {
 	}
 }
 
-// 2363419	       468.7 ns/op	     142 B/op	       1 allocs/op
+// 13636467	        84.26 ns/op	     141 B/op	       1 allocs/op
 func BenchmarkSubscribe(b *testing.B) {
 	d := NewDispatcher()
 	err := d.start(0, 0)
