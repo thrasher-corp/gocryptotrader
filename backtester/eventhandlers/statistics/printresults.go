@@ -153,7 +153,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			}
 			result = fmt.Sprintf(colour+
 				"%v %v%v%v| Price: %v\tDirection: %v",
-				ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+				ev.GetTime().Format(time.DateTime),
 				fSIL(ev.GetExchange(), limit12),
 				fSIL(ev.GetAssetType().String(), limit10),
 				fSIL(ev.Pair().String(), limit14),
@@ -169,7 +169,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			}
 			result = fmt.Sprintf(colour+
 				"%v %v%v%v| Price: %v\tDirection %v\tOrder placed: Amount: %v\tFee: %v\tTotal: %v",
-				ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+				ev.GetTime().Format(time.DateTime),
 				fSIL(ev.GetExchange(), limit12),
 				fSIL(ev.GetAssetType().String(), limit10),
 				fSIL(ev.Pair().String(), limit14),
@@ -183,7 +183,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 		}
 	case signal.Event:
 		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
-			ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+			ev.GetTime().Format(time.DateTime),
 			fSIL(ev.GetExchange(), limit12),
 			fSIL(ev.GetAssetType().String(), limit10),
 			fSIL(ev.Pair().String(), limit14),
@@ -192,7 +192,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 		result += common.CMDColours.Default
 	case data2.Event:
 		result = fmt.Sprintf("%v %v%v%v| Price: $%v",
-			ev.GetTime().Format(gctcommon.SimpleTimeFormat),
+			ev.GetTime().Format(time.DateTime),
 			fSIL(ev.GetExchange(), limit12),
 			fSIL(ev.GetAssetType().String(), limit10),
 			fSIL(ev.Pair().String(), limit14),

@@ -333,10 +333,10 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 	var err error
 	defaultStart := time.Now().Add(-time.Hour * 24 * 365)
 	defaultEnd := time.Now()
-	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(time.DateTime))
 	startDate = quickParse(reader)
 	if startDate != "" {
-		cfg.DataSettings.APIData.StartDate, err = time.Parse(gctcommon.SimpleTimeFormat, startDate)
+		cfg.DataSettings.APIData.StartDate, err = time.Parse(time.DateTime, startDate)
 		if err != nil {
 			return err
 		}
@@ -344,10 +344,10 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 		cfg.DataSettings.APIData.StartDate = defaultStart
 	}
 
-	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(time.DateTime))
 	endDate = quickParse(reader)
 	if endDate != "" {
-		cfg.DataSettings.APIData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
+		cfg.DataSettings.APIData.EndDate, err = time.Parse(time.DateTime, endDate)
 		if err != nil {
 			return err
 		}
@@ -373,10 +373,10 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	var err error
 	defaultStart := time.Now().Add(-time.Hour * 24 * 365)
 	defaultEnd := time.Now()
-	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(time.DateTime))
 	startDate := quickParse(reader)
 	if startDate != "" {
-		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(gctcommon.SimpleTimeFormat, startDate)
+		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(time.DateTime, startDate)
 		if err != nil {
 			return err
 		}
@@ -384,9 +384,9 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		cfg.DataSettings.DatabaseData.StartDate = defaultStart
 	}
 
-	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(time.DateTime))
 	if endDate := quickParse(reader); endDate != "" {
-		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
+		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(time.DateTime, endDate)
 		if err != nil {
 			return err
 		}
