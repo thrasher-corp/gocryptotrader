@@ -188,7 +188,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 		if missingDataStreak >= s.rsiPeriod.IntPart() {
 			return nil, fmt.Errorf("missing data exceeds RSI period length of %v at %s and will distort results. %w",
 				s.rsiPeriod,
-				t.Format(gctcommon.SimpleTimeFormat),
+				t.Format(time.DateTime),
 				base.ErrTooMuchBadData)
 		}
 		resp[i] = data[i].InexactFloat64()
