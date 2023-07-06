@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -166,14 +167,23 @@ func (d *Dispatcher) relayer() {
 	for {
 		select {
 		case j := <-d.jobs:
+			if j.ID.IsNil() {
+				// empty jobs from `channelCapacity` length are sent upon shutdown
+				// every real job created has an ID set
+				continue
+			}
 			d.rMtx.RLock()
-			if pipes, ok := d.routes[j.ID]; ok {
-				for i := range pipes {
-					select {
-					case pipes[i] <- j.Data:
-					default:
-						// no receiver; don't wait. This limits complexity.
-					}
+			pipes, ok := d.routes[j.ID]
+			if !ok {
+				log.Warnf(log.DispatchMgr, "%v: %v\n", errDispatcherUUIDNotFoundInRouteList, j.ID)
+				d.rMtx.RUnlock()
+				continue
+			}
+			for i := range pipes {
+				select {
+				case pipes[i] <- j.Data:
+				default:
+					// no receiver; don't wait. This limits complexity.
 				}
 			}
 			d.rMtx.RUnlock()
@@ -247,6 +257,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	}
 
 	d.routes[id] = append(d.routes[id], ch)
+	atomic.AddInt32(&d.subscriberCount, 1)
 	return ch, nil
 }
 
@@ -287,6 +298,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error 
 		pipes[i] = pipes[len(pipes)-1]
 		pipes[len(pipes)-1] = nil
 		d.routes[id] = pipes[:len(pipes)-1]
+		atomic.AddInt32(&d.subscriberCount, -1)
 
 		// Drain and put the used chan back in pool; only if it is not closed.
 		select {
