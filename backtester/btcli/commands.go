@@ -42,12 +42,12 @@ var executeStrategyFromFileCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "starttimeoverride",
 			Aliases: []string{"s"},
-			Usage:   fmt.Sprintf("override the strategy file's start time using your local time. eg '%v'", time.Now().Truncate(time.Hour).AddDate(0, -1, 0).Format(common.SimpleTimeFormat)),
+			Usage:   fmt.Sprintf("override the strategy file's start time using your local time. eg '%v'", time.Now().Truncate(time.Hour).AddDate(0, -1, 0).Format(time.DateTime)),
 		},
 		&cli.StringFlag{
 			Name:    "endtimeoverride",
 			Aliases: []string{"e"},
-			Usage:   fmt.Sprintf("override the strategy file's end time using your local time. eg '%v'", time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat)),
+			Usage:   fmt.Sprintf("override the strategy file's end time using your local time. eg '%v'", time.Now().Truncate(time.Hour).Format(time.DateTime)),
 		},
 		&cli.Uint64Flag{
 			Name:    "intervaloverride",
@@ -100,13 +100,13 @@ func executeStrategyFromFile(c *cli.Context) error {
 
 	var s, e time.Time
 	if startTimeOverride != "" {
-		s, err = time.ParseInLocation(common.SimpleTimeFormat, startTimeOverride, time.Local)
+		s, err = time.ParseInLocation(time.DateTime, startTimeOverride, time.Local)
 		if err != nil {
 			return fmt.Errorf("invalid time format for start: %v", err)
 		}
 	}
 	if endTimeOverride != "" {
-		e, err = time.ParseInLocation(common.SimpleTimeFormat, endTimeOverride, time.Local)
+		e, err = time.ParseInLocation(time.DateTime, endTimeOverride, time.Local)
 		if err != nil {
 			return fmt.Errorf("invalid time format for end: %v", err)
 		}

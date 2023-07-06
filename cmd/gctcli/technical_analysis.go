@@ -49,13 +49,13 @@ var commonFlag = []cli.Flag{
 	&cli.StringFlag{
 		Name:        "start",
 		Usage:       "the start date",
-		Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+		Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 		Destination: &taStartTime,
 	},
 	&cli.StringFlag{
 		Name:        "end",
 		Usage:       "the end date",
-		Value:       time.Now().Format(common.SimpleTimeFormat),
+		Value:       time.Now().Format(time.DateTime),
 		Destination: &taEndTime,
 	},
 }
@@ -296,11 +296,11 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -411,11 +411,11 @@ func getBollingerBands(c *cli.Context) error {
 		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -567,11 +567,11 @@ func getMACD(c *cli.Context) error {
 		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -707,11 +707,11 @@ func getCoco(c *cli.Context) error {
 		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
