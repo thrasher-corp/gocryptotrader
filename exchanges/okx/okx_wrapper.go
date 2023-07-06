@@ -225,18 +225,13 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	//nolint:revive // We want this explicit return inside the if
-	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
 		RateLimit:            500,
-	}); err != nil {
-		return err
-	}
-
-	return nil
+	})
 }
 
 // Start starts the Okx go routine
