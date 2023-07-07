@@ -116,7 +116,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 
 	for assetItem, limitTests := range tests {
-
 		if err := k.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
 			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
 		}
