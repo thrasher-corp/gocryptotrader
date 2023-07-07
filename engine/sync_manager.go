@@ -42,7 +42,6 @@ var (
 	DefaultSyncerTimeoutWebsocket = time.Minute
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
-	errSyncPairNotFound           = errors.New("exchange currency pair syncer not found")
 	errCouldNotSyncNewData        = errors.New("could not sync new data")
 )
 
