@@ -329,8 +329,7 @@ func (k *Kraken) Run(ctx context.Context) {
 	}
 
 	if k.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
-		err := k.UpdateTradablePairs(ctx, forceUpdate)
-		if err != nil {
+		if err := k.UpdateTradablePairs(ctx, forceUpdate); err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update tradable pairs. Err: %s",
 				k.Name,
@@ -339,10 +338,18 @@ func (k *Kraken) Run(ctx context.Context) {
 	} else {
 		// If not updating tradable pairs we still need to call FetchTradablePairs for the side-effect of LoadLimits
 		// TODO: Execution for futures not implemented
-		if _, err := k.FetchTradablePairs(ctx, asset.Spot); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to load spot pair execution limits. Err: %s", k.Name, err)
+		if err := k.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
+			log.Errorln(log.ExchangeSys, err.Error())
 		}
 	}
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if _, err := k.FetchTradablePairs(ctx, a); err != nil {
+		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", k.Name, a, err)
+	}
+	return nil
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

@@ -99,7 +99,7 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 }
 
-func TestExecutionLimits(t *testing.T) {
+func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
 	type limitTest struct {
@@ -116,9 +116,8 @@ func TestExecutionLimits(t *testing.T) {
 	}
 
 	for assetItem, limitTests := range tests {
-		// FetchTradablePairs updates Pair Limits in the exchange
-		_, err := k.FetchTradablePairs(context.Background(), assetItem)
-		if err != nil {
+
+		if err := k.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
 			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
 		}
 
