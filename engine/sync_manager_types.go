@@ -13,7 +13,6 @@ import (
 type syncBase struct {
 	IsUsingWebsocket bool
 	IsUsingREST      bool
-	IsProcessing     bool
 	LastUpdated      time.Time
 	HaveData         bool
 	NumErrors        int

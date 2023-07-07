@@ -408,7 +408,6 @@ func (m *syncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 		s.NumErrors++
 	}
 	s.HaveData = true
-	s.IsProcessing = false
 	if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
 		removedCounter++
 		log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
