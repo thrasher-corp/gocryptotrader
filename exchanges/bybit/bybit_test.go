@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -4477,6 +4478,393 @@ func TestGetMMPState(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	b.Verbose = true
 	_, err := b.GetMMPState(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCoinExchangeRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetCoinExchangeRecords(context.Background(), "", "", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDeliveryRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDeliveryRecord(context.Background(), "spot", "", "", time.Now().Add(time.Hour*40), 20)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatal(err)
+	}
+	_, err = b.GetDeliveryRecord(context.Background(), "linear", "", "", time.Now().Add(time.Hour*40), 20)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestGetUSDCSessionSettlement(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUSDCSessionSettlement(context.Background(), "option", "", "", 10)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetUSDCSessionSettlement(context.Background(), "linear", "", "", 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAssetInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAssetInfo(context.Background(), "", "BTC")
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatal(err)
+	}
+	_, err = b.GetAssetInfo(context.Background(), "SPOT", "BTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAllCoinBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAllCoinBalance(context.Background(), "", "", "", 0)
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.GetAllCoinBalance(context.Background(), "SPOT", "", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetSingleCoinBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSingleCoinBalance(context.Background(), "", "", "", 0, 0)
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.GetSingleCoinBalance(context.Background(), "SPOT", currency.BTC.String(), "", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetTransferableCoin(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetTransferableCoin(context.Background(), "SPOT", "OPTION")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateInternalTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CreateInternalTransfer(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{})
+	if !errors.Is(err, errMissingTransferID) {
+		t.Fatalf("expected %v, got %v", errMissingTransferID, err)
+	}
+	transferID, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+	})
+	if !errors.Is(err, order.ErrAmountIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountIsInvalid, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+		Amount:     123.456,
+	})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED"})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456,
+		ToAccountType:   "CONTRACT",
+		FromAccountType: "UNIFIED"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInternalTransferRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	transferID, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetInternalTransferRecords(context.Background(), transferID.String(), currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubUID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubUID(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestEnableUniversalTransferForSubUID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.EnableUniversalTransferForSubUID(context.Background())
+	if !errors.Is(err, errMembersIDsNotSet) {
+		t.Fatalf("expected %v, got %v", errMembersIDsNotSet, err)
+	}
+	transferID1, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	transferID2, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.EnableUniversalTransferForSubUID(context.Background(), transferID1.String(), transferID2.String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateUniversalTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateUniversalTransfer(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{})
+	if !errors.Is(err, errMissingTransferID) {
+		t.Fatalf("expected %v, got %v", errMissingTransferID, err)
+	}
+	transferID, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+	})
+	if !errors.Is(err, order.ErrAmountIsInvalid) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountIsInvalid, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC,
+		Amount:     123.456,
+	})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED"})
+	if !errors.Is(err, errMissingAccountType) {
+		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
+	}
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
+		Coin: currency.BTC, Amount: 123.456,
+		ToAccountType:   "CONTRACT",
+		FromAccountType: "UNIFIED"})
+	if !errors.Is(err, errMemberIDRequired) {
+		t.Fatalf("expected %v, got %v", errMemberIDRequired, err)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456,
+		ToAccountType:   "CONTRACT",
+		FromAccountType: "UNIFIED",
+		FromMemberID:    123,
+		ToMemberID:      456,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUniversalTransferRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	transferID, err := uuid.NewV7()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetUniversalTransferRecords(context.Background(), transferID.String(), currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllowedDepositCoinInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAllowedDepositCoinInfo(context.Background(), "BTC", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetDepositAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.SetDepositAccount(context.Background(), "SPOT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDepositRecords(context.Background(), "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubDepositRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubDepositRecords(context.Background(), "12345", "", "nextPageCursor", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInternalDepositRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInternalDepositRecordsOffChain(context.Background(), currency.ETH.String(), "", time.Time{}, time.Time{}, 8)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMasterDepositAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetMasterDepositAddress(context.Background(), currency.LTC, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubDepositAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubDepositAddress(context.Background(), currency.LTC, "LTC", "12345")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCoinInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetCoinInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetWithdrawalRecords(context.Background(), currency.LTC, "", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawableAmount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetWithdrawableAmount(context.Background(), currency.LTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawCurrency(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.WithdrawCurrency(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.BTC})
+	if !errors.Is(err, errMissingChainInformation) {
+		t.Fatalf("expected %v, got %v", errMissingChainInformation, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC"})
+	if !errors.Is(err, errMissingAddressInfo) {
+		t.Fatalf("expected %v, got %v", errMissingAddressInfo, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234"})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 123})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCancelWithdrawal(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelWithdrawal(context.Background(), "")
+	if !errors.Is(err, errMissingWithdrawalID) {
+		t.Fatalf("expected %v, got %v", errMissingWithdrawalID, err)
+	}
+	_, err = b.CancelWithdrawal(context.Background(), "12314")
 	if err != nil {
 		t.Error(err)
 	}

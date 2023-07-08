@@ -125,6 +125,8 @@ var (
 	errInvalidTriggerDirection            = errors.New("invalid trigger direction")
 	errInvalidTriggerPriceType            = errors.New("invalid trigger price type")
 	errNilArgument                        = errors.New("nil argument")
+	errMissingTransferID                  = errors.New("transfer ID is required")
+	errMemberIDRequired                   = errors.New("member ID is required")
 	errNonePointerArgument                = errors.New("argument must be pointer")
 	errEitherOrderIDOROrderLinkIDRequired = errors.New("either orderId or orderLinkId required")
 	errNoOrderPassed                      = errors.New("no order passed")
@@ -132,6 +134,11 @@ var (
 	errInvalidTradeModeValue              = errors.New("invalid trade mode value")
 	errTakeProfitOrStopLossModeMissing    = errors.New("TP/SL mode missing")
 	errMissingAccountType                 = errors.New("account type not specified")
+	errMembersIDsNotSet                   = errors.New("members IDs not set")
+	errMissingChainType                   = errors.New("missing chain type is empty")
+	errMissingChainInformation            = errors.New("missing transfer chain")
+	errMissingAddressInfo                 = errors.New("address is required")
+	errMissingWithdrawalID                = errors.New("missing withdrawal id")
 	errTimeWindowRequired                 = errors.New("time window is required")
 	errFrozenPeriodRequired               = errors.New("frozen period required")
 	errQuantityLimitRequired              = errors.New("quantity limit required")
@@ -1431,6 +1438,486 @@ func (by *Bybit) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, 
 	}{BaseCoin: baseCoin}
 	var resp MMPStates
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-state", nil, arg, &resp, privateSpotRate)
+}
+
+// ---------------------------------------------------------------- Assets ----------------------------------------------------------------
+
+// GetCoinExchangeRecords queries the coin exchange records.
+func (by *Bybit) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, cursor string, limit int64) (*CoinExchangeRecords, error) {
+	params := url.Values{}
+	if fromCoin != "" {
+		params.Set("fromCoin", fromCoin)
+	}
+	if toCoin != "" {
+		params.Set("toCoin", toCoin)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp CoinExchangeRecords
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/order-record", params, nil, &resp, privateSpotRate)
+}
+
+// GetDeliveryRecord retrieves delivery records of USDC futures and Options, sorted by deliveryTime in descending order
+func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*DeliveryRecord, error) {
+	validCategory = []string{"linear", "option"}
+	if !common.StringDataContains(validCategory, category) {
+		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !expiryDate.IsZero() {
+		params.Set("expData", expiryDate.Format("02Jan06"))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp DeliveryRecord
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/delivery-record", params, nil, &resp, privateSpotRate)
+}
+
+// GetUSDCSessionSettlement retrieves session settlement records of USDC perpetual and futures
+func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
+	validCategory = []string{"linear"}
+	if !common.StringDataContains(validCategory, category) {
+		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp SettlementSession
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/settlement-record", params, nil, &resp, privateSpotRate)
+}
+
+// GetSpotAccountInfo retrieves asset information
+func (by *Bybit) GetAssetInfo(ctx context.Context, accountType, coin string) (AccountInfos, error) {
+	if accountType == "" {
+		return nil, errMissingAccountType
+	}
+	params := url.Values{}
+	params.Set("accountType", accountType)
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	var resp AccountInfos
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-asset-info", params, nil, &resp, privateSpotRate)
+}
+
+func fillCoinBalanceFetchParams(accountType, memberID, coin string, withBonus int64, coinRequired bool) (url.Values, error) {
+	if accountType == "" {
+		return nil, errMissingAccountType
+	}
+	params := url.Values{}
+	params.Set("accountType", accountType)
+	if memberID != "" {
+		params.Set("memberId", memberID)
+	}
+	if coinRequired && coin == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if withBonus > 0 {
+		params.Set("withBonus", strconv.FormatInt(withBonus, 10))
+	}
+	return params, nil
+}
+
+// GetAllCoinBalance retrieves all coin balance of all account types under the master account, and sub account.
+// It is not allowed to get master account coin balance via sub account api key.
+func (by *Bybit) GetAllCoinBalance(ctx context.Context, accountType, memberID, coin string, withBonus int64) (*CoinBalances, error) {
+	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, false)
+	if err != nil {
+		return nil, err
+	}
+	var resp CoinBalances
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-account-coins-balance", params, nil, &resp, privateSpotRate)
+}
+
+// GetSingleCoinBalance retrieves the balance of a specific coin in a specific account type. Supports querying sub UID's balance.
+func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, memberID string, withBonus, withTransferSafeAmount int64) (*CoinBalances, error) {
+	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, true)
+	if err != nil {
+		return nil, err
+	}
+	if withTransferSafeAmount > 0 {
+		params.Set("withTransferSafeAmount", strconv.FormatInt(withTransferSafeAmount, 10))
+	}
+	var resp CoinBalances
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-account-coin-balance", params, nil, &resp, privateSpotRate)
+}
+
+// GetTransferableCoin the transferable coin list between each account type
+func (by *Bybit) GetTransferableCoin(ctx context.Context, fromAccountType, toAccountType string) (*TransferableCoins, error) {
+	if fromAccountType == "" {
+		return nil, fmt.Errorf("%w, from account type not specified", errMissingAccountType)
+	}
+	if toAccountType == "" {
+		return nil, fmt.Errorf("%w, to account type not specified", errMissingAccountType)
+	}
+	params := url.Values{}
+	params.Set("fromAccountType", fromAccountType)
+	params.Set("toAccountType", toAccountType)
+	var resp TransferableCoins
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-transfer-coin-list", params, nil, &resp, privateSpotRate)
+}
+
+// CreateInternalTransfer create the internal transfer between different account types under the same UID.
+// Each account type has its own acceptable coins, e.g, you cannot transfer USDC from SPOT to CONTRACT.
+// Please refer to transferable coin list API to find out more.
+func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
+	if arg == nil {
+		return "", errNilArgument
+	}
+	if arg.TransferID.IsNil() {
+		return "", errMissingTransferID
+	}
+	if arg.Coin.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return "", order.ErrAmountIsInvalid
+	}
+	if arg.FromAccountType == "" {
+		return "", fmt.Errorf("%w, from account type not specified", errMissingAccountType)
+	}
+	if arg.ToAccountType == "" {
+		return "", fmt.Errorf("%w, to account type not specified", errMissingAccountType)
+	}
+	resp := &struct {
+		TransferID string `json:"transferId"`
+	}{}
+	return resp.TransferID, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/inter-transfer", nil, arg, &resp, privateSpotRate)
+}
+
+// GetInternalTransferRecords retrieves the internal transfer records between different account types under the same UID.
+func (by *Bybit) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
+	params, err := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	var resp TransferResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, privateSpotRate)
+}
+
+// GetSubUID retrieves the sub UIDs under a main UID
+func (by *Bybit) GetSubUID(ctx context.Context) (*SubUID, error) {
+	var resp SubUID
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-sub-member-list", nil, nil, &resp, privateSpotRate)
+}
+
+// EnableUniversalTransferForSubUID Transfer between sub-sub or main-sub
+// Use this endpoint to enable a subaccount to take part in a universal transfer. It is a one-time switch which, once thrown, enables a subaccount permanently.
+// If not set, your subaccount cannot use universal transfers.
+func (by *Bybit) EnableUniversalTransferForSubUID(ctx context.Context, subMemberIDS ...string) error {
+	if len(subMemberIDS) == 0 {
+		return errMembersIDsNotSet
+	}
+	arg := map[string][]string{
+		"subMemberIds": subMemberIDS,
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/save-transfer-sub-member", nil, &arg, &resp, privateSpotRate)
+}
+
+// CreateUniversalTransfer transfer between sub-sub or main-sub. Please make sure you have enabled universal transfer on your sub UID in advance.
+// To use sub acct api key, it must have "SubMemberTransferList" permission
+// When use sub acct api key, it can only transfer to main account
+// You can not transfer between the same UID
+func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
+	if arg == nil {
+		return "", errNilArgument
+	}
+	if arg.TransferID.IsNil() {
+		return "", errMissingTransferID
+	}
+	if arg.Coin.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return "", order.ErrAmountIsInvalid
+	}
+	if arg.FromAccountType == "" {
+		return "", fmt.Errorf("%w, from account type not specified", errMissingAccountType)
+	}
+	if arg.ToAccountType == "" {
+		return "", fmt.Errorf("%w, to account type not specified", errMissingAccountType)
+	}
+	if arg.FromMemberID == 0 {
+		return "", fmt.Errorf("%w, fromMemberId is missing", errMemberIDRequired)
+	}
+	if arg.ToMemberID == 0 {
+		return "", fmt.Errorf("%w, toMemberId is missing", errMemberIDRequired)
+	}
+	resp := &struct {
+		TransferID string `json:"transferId"`
+	}{}
+	return resp.TransferID, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/universal-transfer", nil, arg, &resp, privateSpotRate)
+}
+
+func fillTransferQueryParams(transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (url.Values, error) {
+	params := url.Values{}
+	if transferID != "" {
+		params.Set("transferId", transferID)
+	}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return params, nil
+}
+
+// GetUniversalTransferRecords query universal transfer records
+// Main acct api key or Sub acct api key are both supported
+// Main acct api key needs "SubMemberTransfer" permission
+// Sub acct api key needs "SubMemberTransferList" permission
+func (by *Bybit) GetUniversalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
+	params, err := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	var resp TransferResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, privateSpotRate)
+}
+
+// GetAllowedDepositCoinInfo retrieves allowed deposit coin information. To find out paired chain of coin, please refer coin info api.
+func (by *Bybit) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cursor string, limit int64) (*AllowedDepositCoinInfo, error) {
+	params := url.Values{}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if chain != "" {
+		params.Set("chain", chain)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp AllowedDepositCoinInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-allowed-list", params, nil, &resp, privateSpotRate)
+}
+
+// SetDepositAccount sets auto transfer account after deposit. The same function as the setting for Deposit on web GUI
+func (by *Bybit) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {
+	if accountType == "" {
+		return nil, errMissingAccountType
+	}
+	arg := &struct {
+		AccountType string `json:"accountType"`
+	}{
+		AccountType: accountType,
+	}
+	var resp StatusResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/deposit/deposit-to-account", nil, &arg, &resp, privateSpotRate)
+}
+
+func fillDepositRecordsParams(coin, cursor string, startTime, endTime time.Time, limit int64) (url.Values, error) {
+	params := url.Values{}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return params, nil
+}
+
+// GetDepositRecords query deposit records.
+func (by *Bybit) GetDepositRecords(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
+	params, err := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	var resp DepositRecords
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-record", params, nil, &resp, privateSpotRate)
+}
+
+// GetSubDepositRecords query subaccount's deposit records by main UID's API key. on chain
+func (by *Bybit) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
+	if subMemberID == "" {
+		return nil, errMembersIDsNotSet
+	}
+	params, err := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("subMemberId", subMemberID)
+	var resp DepositRecords
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-sub-member-record", params, nil, &resp, privateSpotRate)
+}
+
+// GetInternalDepositRecordsOffChain retrieves deposit records within the Bybit platform. These transactions are not on the blockchain.
+func (by *Bybit) GetInternalDepositRecordsOffChain(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*InternalDepositRecords, error) {
+	params, err := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	var resp InternalDepositRecords
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-internal-record", params, nil, &resp, privateSpotRate)
+}
+
+// GetMasterDepositAddress retrieves the deposit address information of MASTER account.
+func (by *Bybit) GetMasterDepositAddress(ctx context.Context, coin currency.Code, chainType string) (*DepositAddresses, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	if chainType != "" {
+		params.Set("chainType", chainType)
+	}
+	var resp DepositAddresses
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-address", params, nil, &resp, privateSpotRate)
+}
+
+// GetSubDepositAddress retrieves the deposit address information of SUB account.
+func (by *Bybit) GetSubDepositAddress(ctx context.Context, coin currency.Code, chainType, subMemberID string) (*DepositAddresses, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if chainType == "" {
+		return nil, errMissingChainType
+	}
+	if subMemberID == "" {
+		return nil, errMembersIDsNotSet
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	params.Set("chainType", chainType)
+	params.Set("subMemberId", subMemberID)
+	var resp DepositAddresses
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-sub-member-address", params, nil, &resp, privateSpotRate)
+}
+
+// GetCoinInfo retrieves coin information, including chain information, withdraw and deposit status.
+func (by *Bybit) GetCoinInfo(ctx context.Context, coin currency.Code) (*CoinInfo, error) {
+	params := url.Values{}
+	if coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	var resp CoinInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin/query-info", params, nil, &resp, privateSpotRate)
+}
+
+// GetWithdrawalRecords query withdrawal records.
+// endTime - startTime should be less than 30 days. Query last 30 days records by default.
+// Can query by the master UID's api key only
+func (by *Bybit) GetWithdrawalRecords(ctx context.Context, coin currency.Code, withdrawalID, withdrawType, cursor string, startTime, endTime time.Time, limit int64) (*WithdrawalRecords, error) {
+	params := url.Values{}
+	if withdrawalID != "" {
+		params.Set("withdrawID", withdrawalID)
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if withdrawType != "" {
+		params.Set("withdrawType", withdrawType)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp WithdrawalRecords
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/query-record", params, nil, &resp, privateSpotRate)
+}
+
+// GetWithdrawableAmount retrieves withdrawable amount information using currency code
+func (by *Bybit) GetWithdrawableAmount(ctx context.Context, coin currency.Code) (*WithdrawableAmount, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	var resp WithdrawableAmount
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/withdrawable-amount", params, nil, &resp, privateSpotRate)
+}
+
+// WithdrawCurrency Withdraw assets from your Bybit account. You can make an off-chain transfer if the target wallet address is from Bybit. This means that no blockchain fee will be charged.
+func (by *Bybit) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (string, error) {
+	if arg == nil {
+		return "", errNilArgument
+	}
+	if arg.Coin.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Chain == "" {
+		return "", errMissingChainInformation
+	}
+	if arg.Address == "" {
+		return "", errMissingAddressInfo
+	}
+	if arg.Amount <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	if arg.Timestamp == 0 {
+		arg.Timestamp = time.Now().UnixMilli()
+	}
+	resp := &struct {
+		ID string `json:"id"`
+	}{}
+	return resp.ID, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/withdraw/create", nil, arg, &resp, privateSpotRate)
+}
+
+// CancelWithdrawal cancel the withdrawal
+func (by *Bybit) CancelWithdrawal(ctx context.Context, id string) (*StatusResponse, error) {
+	if id == "" {
+		return nil, errMissingWithdrawalID
+	}
+	arg := &struct {
+		ID string `json:"id"`
+	}{
+		ID: id,
+	}
+	var resp StatusResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/withdraw/cancel", nil, arg, &resp, privateSpotRate)
 }
 
 // GetFeeRate returns user account fee

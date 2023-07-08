@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1828,4 +1829,226 @@ type MMPStates struct {
 		MmpFrozenUntil     convert.StringToFloat64 `json:"mmpFrozenUntil"`
 		MmpFrozen          bool                    `json:"mmpFrozen"`
 	} `json:"result"`
+}
+
+// CoinExchangeRecords represents a coin exchange records.
+type CoinExchangeRecords struct {
+	OrderBody []struct {
+		FromCoin              string                  `json:"fromCoin"`
+		FromAmount            convert.StringToFloat64 `json:"fromAmount"`
+		ToCoin                string                  `json:"toCoin"`
+		ToAmount              convert.StringToFloat64 `json:"toAmount"`
+		ExchangeRate          convert.StringToFloat64 `json:"exchangeRate"`
+		CreatedTime           convert.ExchangeTime    `json:"createdTime"`
+		ExchangeTransactionID string                  `json:"exchangeTxId"`
+	} `json:"orderBody"`
+	NextPageCursor string `json:"nextPageCursor"`
+}
+
+// DeliveryRecord represents delivery records of USDC futures and Options.
+type DeliveryRecord struct {
+	NextPageCursor string `json:"nextPageCursor"`
+	Category       string `json:"category"`
+	List           []struct {
+		Symbol                        string                  `json:"symbol"`
+		Side                          string                  `json:"side"`
+		DeliveryTime                  convert.ExchangeTime    `json:"deliveryTime"`
+		ExercisePrice                 convert.StringToFloat64 `json:"strike"`
+		Fee                           convert.StringToFloat64 `json:"fee"`
+		Position                      convert.StringToFloat64 `json:"position"`
+		DeliveryPrice                 convert.StringToFloat64 `json:"deliveryPrice"`
+		DeliveryRealizedProfitAndLoss convert.StringToFloat64 `json:"deliveryRpl"`
+	} `json:"list"`
+}
+
+// AccountInfos represents account type and account information
+type AccountInfos map[string]struct {
+	Status string `json:"status"`
+	Assets []struct {
+		Coin     string `json:"coin"`
+		Frozen   string `json:"frozen"`
+		Free     string `json:"free"`
+		Withdraw string `json:"withdraw"`
+	} `json:"assets"`
+}
+
+// CoinBalances represents coin balances for a specific asset type.
+type CoinBalances struct {
+	AccountType string `json:"accountType"`
+	BizType     int    `json:"bizType"`
+	AccountID   string `json:"accountId"`
+	MemberID    string `json:"memberId"`
+	Balance     struct {
+		Coin               string                  `json:"coin"`
+		WalletBalance      convert.StringToFloat64 `json:"walletBalance"`
+		TransferBalance    convert.StringToFloat64 `json:"transferBalance"`
+		Bonus              convert.StringToFloat64 `json:"bonus"`
+		TransferSafeAmount string                  `json:"transferSafeAmount"`
+	} `json:"balance"`
+}
+
+// TransferableCoins represents list of transferable coins.
+type TransferableCoins struct {
+	List []string `json:"list"`
+}
+
+// TransferParams represents parameters from internal coin transfer.
+type TransferParams struct {
+	TransferID      uuid.UUID               `json:"transferId"`
+	Coin            currency.Code           `json:"coin"`
+	Amount          convert.StringToFloat64 `json:"amount,string"`
+	FromAccountType string                  `json:"fromAccountType"`
+	ToAccountType   string                  `json:"toAccountType"`
+
+	// Added for universal transfers
+	FromMemberID int64 `json:"fromMemberId"`
+	ToMemberID   int64 `json:"toMemberId"`
+}
+
+// TransferResponse represents a transfer response
+type TransferResponse struct {
+	List []struct {
+		TransferID      string                  `json:"transferId"`
+		Coin            string                  `json:"coin"`
+		Amount          convert.StringToFloat64 `json:"amount"`
+		FromAccountType string                  `json:"fromAccountType"`
+		ToAccountType   string                  `json:"toAccountType"`
+		Timestamp       convert.ExchangeTime    `json:"timestamp"`
+		Status          string                  `json:"status"`
+
+		// Returned with universal transfer IDs.
+		FromMemberID string `json:"fromMemberId"`
+		ToMemberID   string `json:"toMemberId"`
+	} `json:"list"`
+	NextPageCursor string `json:"nextPageCursor"`
+}
+
+// SubUID represents a sub-users ID
+type SubUID struct {
+	SubMemberIds             []string `json:"subMemberIds"`
+	TransferableSubMemberIds []string `json:"transferableSubMemberIds"`
+}
+
+// AllowedDepositCoinInfo represents coin deposit information.
+type AllowedDepositCoinInfo struct {
+	ConfigList []struct {
+		Coin               string `json:"coin"`
+		Chain              string `json:"chain"`
+		CoinShowName       string `json:"coinShowName"`
+		ChainType          string `json:"chainType"`
+		BlockConfirmNumber int    `json:"blockConfirmNumber"`
+		MinDepositAmount   string `json:"minDepositAmount"`
+	} `json:"configList"`
+	NextPageCursor string `json:"nextPageCursor"`
+}
+
+// StatusResponse represents account information
+type StatusResponse struct {
+	Status int64 `json:"status"` // 1: SUCCESS 0: FAIL
+}
+
+// DepositRecords
+type DepositRecords struct {
+	Rows []struct {
+		Coin          string `json:"coin"`
+		Chain         string `json:"chain"`
+		Amount        string `json:"amount"`
+		TxID          string `json:"txID"`
+		Status        int    `json:"status"`
+		ToAddress     string `json:"toAddress"`
+		Tag           string `json:"tag"`
+		DepositFee    string `json:"depositFee"`
+		SuccessAt     string `json:"successAt"`
+		Confirmations string `json:"confirmations"`
+		TxIndex       string `json:"txIndex"`
+		BlockHash     string `json:"blockHash"`
+	} `json:"rows"`
+	NextPageCursor string `json:"nextPageCursor"`
+}
+
+// InternalDepositRecords represents internal deposit records response instances
+type InternalDepositRecords struct {
+	Rows []struct {
+		ID          string                  `json:"id"`
+		Amount      convert.StringToFloat64 `json:"amount"`
+		Type        int64                   `json:"type"`
+		Coin        string                  `json:"coin"`
+		Address     string                  `json:"address"`
+		Status      int64                   `json:"status"`
+		CreatedTime convert.ExchangeTime    `json:"createdTime"`
+	} `json:"rows"`
+	NextPageCursor string `json:"nextPageCursor"`
+}
+
+// DepositAddresses represents deposit address information.
+type DepositAddresses struct {
+	Coin   string `json:"coin"`
+	Chains []struct {
+		ChainType      string `json:"chainType"`
+		AddressDeposit string `json:"addressDeposit"`
+		TagDeposit     string `json:"tagDeposit"`
+		Chain          string `json:"chain"`
+	} `json:"chains"`
+}
+
+// CoinInfo represents coin info information.
+type CoinInfo struct {
+	Rows []struct {
+		Name         string                  `json:"name"`
+		Coin         string                  `json:"coin"`
+		RemainAmount convert.StringToFloat64 `json:"remainAmount"`
+		Chains       []struct {
+			ChainType             string                  `json:"chainType"`
+			Confirmation          string                  `json:"confirmation"`
+			WithdrawFee           convert.StringToFloat64 `json:"withdrawFee"`
+			DepositMin            convert.StringToFloat64 `json:"depositMin"`
+			WithdrawMin           convert.StringToFloat64 `json:"withdrawMin"`
+			Chain                 string                  `json:"chain"`
+			ChainDeposit          convert.StringToFloat64 `json:"chainDeposit"`
+			ChainWithdraw         string                  `json:"chainWithdraw"`
+			MinAccuracy           convert.StringToFloat64 `json:"minAccuracy"`
+			WithdrawPercentageFee convert.StringToFloat64 `json:"withdrawPercentageFee"`
+		} `json:"chains"`
+	} `json:"rows"`
+}
+
+// WithdrawalRecords represents a list of withdrawal records.
+type WithdrawalRecords struct {
+	Rows []struct {
+		Coin          string                  `json:"coin"`
+		Chain         string                  `json:"chain"`
+		Amount        convert.StringToFloat64 `json:"amount"`
+		TransactionID string                  `json:"txID"`
+		Status        string                  `json:"status"`
+		ToAddress     string                  `json:"toAddress"`
+		Tag           string                  `json:"tag"`
+		WithdrawFee   convert.StringToFloat64 `json:"withdrawFee"`
+		CreateTime    convert.ExchangeTime    `json:"createTime"`
+		UpdateTime    convert.ExchangeTime    `json:"updateTime"`
+		WithdrawID    string                  `json:"withdrawId"`
+		WithdrawType  int                     `json:"withdrawType"`
+	} `json:"rows"`
+	NextPageCursor string `json:"nextPageCursor"`
+}
+
+// WithdrawableAmount represents withdrawable amount information for each currency code
+type WithdrawableAmount struct {
+	LimitAmountUsd     string `json:"limitAmountUsd"`
+	WithdrawableAmount map[string]struct {
+		Coin               string                  `json:"coin"`
+		WithdrawableAmount convert.StringToFloat64 `json:"withdrawableAmount"`
+		AvailableBalance   convert.StringToFloat64 `json:"availableBalance"`
+	} `json:"withdrawableAmount"`
+}
+
+// WithdrawalParam represents asset withdrawal request parameter.
+type WithdrawalParam struct {
+	Coin        currency.Code           `json:"coin,omitempty"`
+	Chain       string                  `json:"chain,omitempty"`
+	Address     string                  `json:"address,omitempty"`
+	Tag         string                  `json:"tag,omitempty"`
+	Amount      convert.StringToFloat64 `json:"amount,omitempty,string"`
+	Timestamp   int64                   `json:"timestamp,omitempty"`
+	ForceChain  int64                   `json:"forceChain,omitempty"`
+	AccountType string                  `json:"accountType,omitempty"`
 }
