@@ -290,6 +290,9 @@ func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 		if err != nil {
 			return err
 		}
+		if len(pairs) == 0 {
+			continue
+		}
 		err = ku.UpdatePairs(pairs, assets[a], false, forceUpdate)
 		if err != nil {
 			return err
