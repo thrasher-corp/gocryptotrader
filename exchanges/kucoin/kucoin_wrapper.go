@@ -37,6 +37,11 @@ func (ku *Kucoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = ku.BaseCurrencies
 
+	err := ku.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
 	if ku.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := ku.UpdateTradablePairs(ctx, true)
 		if err != nil {
