@@ -2153,18 +2153,6 @@ func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params
 	return nil
 }
 
-func (d *Deribit) sendWsPayloadWithoutLimiter(input *WsRequest, response *wsResponse) error {
-	payload, err := d.Websocket.Conn.SendMessageReturnResponse(input.ID, input)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(payload, response)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // sendWsPayload handles sending Websocket requests
 func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, response *wsResponse) error {
 	if input == nil {
