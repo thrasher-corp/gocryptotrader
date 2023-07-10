@@ -346,6 +346,9 @@ func (k *Kraken) Run(ctx context.Context) {
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
 	if _, err := k.FetchTradablePairs(ctx, a); err != nil {
 		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", k.Name, a, err)
 	}
