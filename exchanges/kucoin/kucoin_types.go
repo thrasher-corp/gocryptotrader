@@ -31,7 +31,6 @@ var (
 	errNoValidResponseFromServer = errors.New("no valid response from server")
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
-	errInvalidFundValue          = errors.New("invalid fund value")
 	errInvalidLeverage           = errors.New("invalid leverage value")
 	errInvalidClientOrderID      = errors.New("invalid client order ID")
 
