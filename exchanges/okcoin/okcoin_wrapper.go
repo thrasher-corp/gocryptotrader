@@ -1073,7 +1073,6 @@ func (o *Okcoin) GetHistoricTrades(ctx context.Context, pair currency.Pair, asse
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
-	const limit = 100
 	pair, err := o.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err

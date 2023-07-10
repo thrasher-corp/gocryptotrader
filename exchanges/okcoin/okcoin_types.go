@@ -462,32 +462,6 @@ type WebsocketOrderBooksData struct {
 	Data   []WebsocketOrderBook `json:"data"`
 }
 
-// WebsocketSpotOrderResponse contains formatted data for spot user orders
-type WebsocketSpotOrderResponse struct {
-	Table string `json:"table"`
-	Data  []struct {
-		ClientOid      string                  `json:"client_oid"`
-		CreatedAt      time.Time               `json:"created_at"`
-		FilledNotional convert.StringToFloat64 `json:"filled_notional"`
-		FilledSize     convert.StringToFloat64 `json:"filled_size"`
-		InstrumentID   string                  `json:"instrument_id"`
-		LastFillPx     convert.StringToFloat64 `json:"last_fill_px"`
-		LastFillQty    convert.StringToFloat64 `json:"last_fill_qty"`
-		LastFillTime   time.Time               `json:"last_fill_time"`
-		MarginTrading  convert.StringToFloat64 `json:"margin_trading"`
-		Notional       string                  `json:"notional"`
-		OrderID        string                  `json:"order_id"`
-		OrderType      convert.StringToFloat64 `json:"order_type"`
-		Price          convert.StringToFloat64 `json:"price"`
-		Side           string                  `json:"side"`
-		Size           convert.StringToFloat64 `json:"size"`
-		State          int64                   `json:"state,string"`
-		Status         string                  `json:"status"`
-		Timestamp      time.Time               `json:"timestamp"`
-		Type           string                  `json:"type"`
-	} `json:"data"`
-}
-
 // WebsocketErrorResponse yo
 type WebsocketErrorResponse struct {
 	Event     string `json:"event"`

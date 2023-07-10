@@ -92,9 +92,8 @@ func (o *Okcoin) WsConnect() error {
 		MessageType: websocket.TextMessage,
 	})
 
-	o.Websocket.Wg.Add(2)
-	go o.funnelWebsocketConn(o.Websocket.Conn)
-	go o.WsReadData()
+	o.Websocket.Wg.Add(1)
+	go o.WsReadData(o.Websocket.Conn)
 
 	if o.IsWebsocketAuthenticationSupported() {
 		err = o.WsLogin(context.TODO(), &dialer)
@@ -120,7 +119,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	o.Websocket.Wg.Add(1)
-	go o.funnelWebsocketConn(o.Websocket.AuthConn)
+	go o.WsReadData(o.Websocket.AuthConn)
 	o.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Second * 25,
 		Message:     []byte("ping"),
@@ -155,47 +154,17 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 	return nil
 }
 
-var messageChan = make(chan stream.Response)
-
-func (o *Okcoin) funnelWebsocketConn(conn stream.Connection) {
+// WsReadData receives and passes on websocket messages for processing
+func (o *Okcoin) WsReadData(conn stream.Connection) {
 	defer o.Websocket.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		messageChan <- resp
-	}
-}
-
-// WsReadData receives and passes on websocket messages for processing
-func (o *Okcoin) WsReadData() {
-	defer o.Websocket.Wg.Done()
-	for {
-		select {
-		case <-o.Websocket.ShutdownC:
-			select {
-			case resp := <-messageChan:
-				err := o.WsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case o.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", o.Name, err)
-					}
-				}
-			default:
-			}
-			return
-		case data := <-messageChan:
-			err := o.WsHandleData(data.Raw)
-			if err != nil {
-				o.Websocket.DataHandler <- err
-			}
-			err = o.WsHandleData(data.Raw)
-			if err != nil {
-				o.Websocket.DataHandler <- err
-			}
+		err := o.WsHandleData(resp.Raw)
+		if err != nil {
+			o.Websocket.DataHandler <- err
 		}
 	}
 }
@@ -359,28 +328,6 @@ func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	return nil
 }
 
-// StringToOrderStatus converts order status IDs to internal types
-func StringToOrderStatus(num int64) (order.Status, error) {
-	switch num {
-	case -2:
-		return order.Rejected, nil
-	case -1:
-		return order.Cancelled, nil
-	case 0:
-		return order.Active, nil
-	case 1:
-		return order.PartiallyFilled, nil
-	case 2:
-		return order.Filled, nil
-	case 3:
-		return order.New, nil
-	case 4:
-		return order.PendingCancel, nil
-	default:
-		return order.UnknownStatus, fmt.Errorf("%v not recognised as order status", num)
-	}
-}
-
 func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 	var resp WebsocketOrderbookResponse
 	err := json.Unmarshal(respRaw, &resp)
@@ -414,13 +361,13 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 		}
 		base.Asks = make([]orderbook.Item, len(resp.Data[0].Asks))
 		for a := range resp.Data[0].Asks {
-			base.Asks[a].Amount = resp.Data[0].Asks[a][0].Float64()
-			base.Asks[a].Price = resp.Data[0].Asks[a][1].Float64()
+			base.Asks[a].Amount = resp.Data[0].Asks[a][1].Float64()
+			base.Asks[a].Price = resp.Data[0].Asks[a][0].Float64()
 		}
 		base.Bids = make([]orderbook.Item, len(resp.Data[0].Bids))
 		for b := range resp.Data[0].Bids {
-			base.Bids[b].Amount = resp.Data[0].Bids[b][0].Float64()
-			base.Bids[b].Price = resp.Data[0].Bids[b][1].Float64()
+			base.Bids[b].Amount = resp.Data[0].Bids[b][1].Float64()
+			base.Bids[b].Price = resp.Data[0].Bids[b][0].Float64()
 		}
 		var signedChecksum int32
 		signedChecksum, err = o.CalculateChecksum(&resp.Data[0])
@@ -438,101 +385,32 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 		}
 		return o.Websocket.Orderbook.LoadSnapshot(&base)
 	}
-
-	resp.Data[0].prepareOrderbook()
-	if len(resp.Data[0].Asks)+len(resp.Data[0].Bids) == 0 {
-		return nil
-	}
-	update := orderbook.Update{
-		Asset: asset.Spot,
-		Pair:  cp,
-	}
-	update.Asks = make([]orderbook.Item, len(resp.Data[0].Asks))
-	for a := range resp.Data[0].Asks {
-		update.Asks[a].Amount = resp.Data[0].Asks[a][1].Float64()
-		update.Asks[a].Price = resp.Data[0].Asks[a][0].Float64()
-	}
-	update.Bids = make([]orderbook.Item, len(resp.Data[0].Bids))
-	for b := range resp.Data[0].Bids {
-		update.Bids[b].Amount = resp.Data[0].Bids[b][1].Float64()
-		update.Bids[b].Price = resp.Data[0].Bids[b][0].Float64()
-	}
-	var signedChecksum int32
-	resp.Data[0].Asks = filterOrderbookDataAskBidValue(resp.Data[0].Asks)
-	resp.Data[0].Bids = filterOrderbookDataAskBidValue(resp.Data[0].Bids)
-	signedChecksum, err = o.CalculateChecksum(&resp.Data[0])
-	if err != nil {
-		return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
-	}
-	if int64(signedChecksum) != resp.Data[0].Checksum {
-		return fmt.Errorf("%s channel: Orderbook for %v update checksum invalid",
-			o.Name,
-			cp)
-	}
-	return o.Websocket.Orderbook.Update(&update)
-}
-
-func (o *Okcoin) wsProcessOrder(respRaw []byte) error {
-	var resp WebsocketSpotOrderResponse
-	err := json.Unmarshal(respRaw, &resp)
+	asks, err := o.AppendWsOrderbookItems(resp.Data[0].Asks)
 	if err != nil {
 		return err
 	}
-	for i := range resp.Data {
-		var oType order.Type
-		var oSide order.Side
-		var oStatus order.Status
-		oType, err = order.StringToOrderType(resp.Data[i].Type)
-		if err != nil {
-			o.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: o.Name,
-				OrderID:  resp.Data[i].OrderID,
-				Err:      err,
-			}
-		}
-		oSide, err = order.StringToOrderSide(resp.Data[i].Side)
-		if err != nil {
-			o.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: o.Name,
-				OrderID:  resp.Data[i].OrderID,
-				Err:      err,
-			}
-		}
-		oStatus, err = StringToOrderStatus(resp.Data[i].State)
-		if err != nil {
-			o.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: o.Name,
-				OrderID:  resp.Data[i].OrderID,
-				Err:      err,
-			}
-		}
-
-		pair, err := currency.NewPairFromString(resp.Data[i].InstrumentID)
-		if err != nil {
-			o.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: o.Name,
-				OrderID:  resp.Data[i].OrderID,
-				Err:      err,
-			}
-		}
-
-		o.Websocket.DataHandler <- &order.Detail{
-			ImmediateOrCancel: resp.Data[i].OrderType == 3,
-			FillOrKill:        resp.Data[i].OrderType == 2,
-			PostOnly:          resp.Data[i].OrderType == 1,
-			Price:             resp.Data[i].Price.Float64(),
-			Amount:            resp.Data[i].Size.Float64(),
-			ExecutedAmount:    resp.Data[i].LastFillQty.Float64(),
-			RemainingAmount:   resp.Data[i].Size.Float64() - resp.Data[i].LastFillQty.Float64(),
-			Exchange:          o.Name,
-			OrderID:           resp.Data[i].OrderID,
-			Type:              oType,
-			Side:              oSide,
-			Status:            oStatus,
-			AssetType:         o.GetAssetTypeFromTableName(resp.Table),
-			Date:              resp.Data[i].CreatedAt,
-			Pair:              pair,
-		}
+	bids, err := o.AppendWsOrderbookItems(resp.Data[0].Bids)
+	if err != nil {
+		return err
+	}
+	update := orderbook.Update{
+		Asset:      asset.Spot,
+		Pair:       cp,
+		UpdateTime: resp.Data[0].Timestamp.Time(),
+		Asks:       asks,
+		Bids:       bids,
+	}
+	err = o.Websocket.Orderbook.Update(&update)
+	if err != nil {
+		return err
+	}
+	updatedOb, err := o.Websocket.Orderbook.GetOrderbook(cp, asset.Spot)
+	if err != nil {
+		return err
+	}
+	checksum := o.CalculateOrderbookUpdateChecksum(updatedOb)
+	if int64(checksum) != resp.Data[0].Checksum {
+		return fmt.Errorf("checksum failed, calculated '%v' received '%v'", checksum, resp.Data)
 	}
 	return nil
 }
@@ -642,31 +520,14 @@ func (o *Okcoin) wsProcessCandles(respRaw []byte) error {
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *Okcoin) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.Item, error) {
+func (o *Okcoin) AppendWsOrderbookItems(entries [][]okcoinNumber) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
-		amount, err := strconv.ParseFloat(entries[j][1].(string), 64)
-		if err != nil {
-			return nil, err
-		}
-		price, err := strconv.ParseFloat(entries[j][0].(string), 64)
-		if err != nil {
-			return nil, err
-		}
+		amount := entries[j][1].Float64()
+		price := entries[j][0].Float64()
 		items[j] = orderbook.Item{Amount: amount, Price: price}
 	}
 	return items, nil
-}
-
-func filterOrderbookDataAskBidValue(values [][]okcoinNumber) [][]okcoinNumber {
-	newValues := make([][]okcoinNumber, 0, len(values))
-	for v := range values {
-		if values[v][1].Float64() == 0 {
-			continue
-		}
-		newValues = append(newValues, values[v])
-	}
-	return newValues
 }
 
 // CalculateChecksum alternates over the first 25 bid and ask
@@ -697,6 +558,31 @@ func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, er
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
 	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
+}
+
+// CalculateOrderbookUpdateChecksum calculated the orderbook update checksum using currency pair full snapshot.
+func (o *Okcoin) CalculateOrderbookUpdateChecksum(orderbookData *orderbook.Base) int32 {
+	var checksum strings.Builder
+	for i := 0; i < allowableIterations; i++ {
+		if len(orderbookData.Bids)-1 >= i {
+			bidPrice := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
+			bidAmount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
+			checksum.WriteString(bidPrice +
+				currency.ColonDelimiter +
+				bidAmount +
+				currency.ColonDelimiter)
+		}
+		if len(orderbookData.Asks)-1 >= i {
+			askPrice := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
+			askAmount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
+			checksum.WriteString(askPrice +
+				currency.ColonDelimiter +
+				askAmount +
+				currency.ColonDelimiter)
+		}
+	}
+	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
@@ -912,36 +798,4 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		o.Websocket.AddSuccessfulSubscriptions(channels...)
 	}
 	return nil
-}
-
-// GetWsChannelWithoutOrderType takes WebsocketDataResponse.Table and returns
-// The base channel name eg receive "spot/depth5:BTC-USDT" return "depth5"
-func (o *Okcoin) GetWsChannelWithoutOrderType(table string) string {
-	index := strings.Index(table, "/")
-	if index == -1 {
-		return table
-	}
-	channel := table[index+1:]
-	index = strings.Index(channel, ":")
-	// Some events do not contain a currency
-	if index == -1 {
-		return channel
-	}
-
-	return channel[:index]
-}
-
-// GetAssetTypeFromTableName gets the asset type from the table name
-// eg "spot/ticker:BTCUSD" results in "SPOT"
-func (o *Okcoin) GetAssetTypeFromTableName(table string) asset.Item {
-	assetIndex := strings.Index(table, "/")
-	switch table[:assetIndex] {
-	case asset.Spot.String():
-		return asset.Spot
-	default:
-		log.Warnf(log.ExchangeSys, "%s unhandled asset type %s",
-			o.Name,
-			table[:assetIndex])
-		return asset.Empty
-	}
 }
