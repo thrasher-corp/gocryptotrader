@@ -528,3 +528,147 @@ func TestUnmarshalMarshal(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 }
+
+func TestIsAssetPairEnabled(t *testing.T) {
+	t.Parallel()
+	pm := initTest(t)
+	cp := NewPairWithDelimiter("BTC", "USD", "-")
+	err := pm.IsAssetPairEnabled(asset.Spot, cp)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = pm.IsAssetPairEnabled(asset.Futures, cp)
+	if !errors.Is(err, asset.ErrNotEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
+	}
+
+	cp = NewPairWithDelimiter("XRP", "DOGE", "-")
+	err = pm.IsAssetPairEnabled(asset.Spot, cp)
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
+	}
+
+	err = pm.IsAssetPairEnabled(asset.PerpetualSwap, cp)
+	if !errors.Is(err, errAssetNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetNotFound)
+	}
+
+	err = pm.IsAssetPairEnabled(asset.Item(1337), cp)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
+	err = pm.IsAssetPairEnabled(asset.PerpetualSwap, cp)
+	if !errors.Is(err, ErrAssetIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetIsNil)
+	}
+
+	err = pm.IsAssetPairEnabled(asset.PerpetualSwap, EMPTYPAIR)
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
+	}
+}
+
+func TestEnsureOnePairEnabled(t *testing.T) {
+	t.Parallel()
+	p := NewPair(BTC, USDT)
+	pm := PairsManager{
+		Pairs: map[asset.Item]*PairStore{
+			asset.Futures: {},
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(true),
+				Available: []Pair{
+					p,
+				},
+			},
+		},
+	}
+	pair, item, err := pm.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(pm.Pairs[asset.Spot].Enabled) != 1 {
+		t.Errorf("received: '%v' but expected: '%v'", len(pm.Pairs[asset.Spot].Enabled), 1)
+	}
+	if item != asset.Spot || !pair.Equal(p) {
+		t.Errorf("received: '%v %v' but expected: '%v %v'", item, p, asset.Spot, p)
+	}
+
+	pair, item, err = pm.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(pm.Pairs[asset.Spot].Enabled) != 1 {
+		t.Errorf("received: '%v' but expected: '%v'", len(pm.Pairs[asset.Spot].Enabled), 1)
+	}
+
+	if item != asset.Empty || !pair.Equal(EMPTYPAIR) {
+		t.Errorf("received: '%v %v' but expected: '%v %v'", item, p, asset.Empty, EMPTYPAIR)
+	}
+
+	pm = PairsManager{
+		Pairs: map[asset.Item]*PairStore{
+			asset.Futures: {
+				AssetEnabled: convert.BoolPtr(true),
+				Available: []Pair{
+					NewPair(BTC, USDC),
+				},
+			},
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(true),
+				Enabled: []Pair{
+					p,
+				},
+				Available: []Pair{
+					p,
+				},
+			},
+		},
+	}
+	pair, item, err = pm.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(pm.Pairs[asset.Spot].Enabled) != 1 {
+		t.Errorf("received: '%v' but expected: '%v'", len(pm.Pairs[asset.Spot].Enabled), 1)
+	}
+	if len(pm.Pairs[asset.Futures].Enabled) != 0 {
+		t.Errorf("received: '%v' but expected: '%v'", len(pm.Pairs[asset.Futures].Enabled), 0)
+	}
+	if item != asset.Empty || !pair.Equal(EMPTYPAIR) {
+		t.Errorf("received: '%v %v' but expected: '%v %v'", item, p, asset.Empty, EMPTYPAIR)
+	}
+
+	pm = PairsManager{
+		Pairs: map[asset.Item]*PairStore{
+			asset.Futures: {
+				AssetEnabled: convert.BoolPtr(true),
+				Available:    []Pair{p},
+			},
+			asset.Options: {
+				AssetEnabled: convert.BoolPtr(true),
+				Available:    []Pair{},
+			},
+		},
+	}
+	pair, item, err = pm.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(pm.Pairs[asset.Futures].Enabled) != 1 {
+		t.Errorf("received: '%v' but expected: '%v'", len(pm.Pairs[asset.Futures].Enabled), 1)
+	}
+	if item != asset.Futures || !pair.Equal(p) {
+		t.Errorf("received: '%v %v' but expected: '%v %v'", item, p, asset.Futures, p)
+	}
+
+	pm = PairsManager{
+		Pairs: map[asset.Item]*PairStore{},
+	}
+	_, _, err = pm.EnsureOnePairEnabled()
+	if !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Errorf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
+	}
+}

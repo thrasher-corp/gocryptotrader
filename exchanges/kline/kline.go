@@ -580,8 +580,8 @@ func (h *IntervalRangeHolder) createDateSummaryRange(start, end time.Time, hasDa
 
 	return fmt.Sprintf("%s data between %s and %s",
 		dataString,
-		start.Format(common.SimpleTimeFormat),
-		end.Format(common.SimpleTimeFormat))
+		start.Format(time.DateTime),
+		end.Format(time.DateTime))
 }
 
 // CreateIntervalTime is a simple helper function to set the time twice

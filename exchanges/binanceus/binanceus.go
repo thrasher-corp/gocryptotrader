@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -108,8 +107,7 @@ const (
 	userAccountStream = "/api/v3/userDataStream"
 
 	// Other Consts
-	defaultRecvWindow      = 5 * time.Second
-	binanceUSAPITimeLayout = "2006-01-02 15:04:05"
+	defaultRecvWindow = 5 * time.Second
 
 	// recvWindowSize5000
 	recvWindowSize5000 = 5000
@@ -129,10 +127,7 @@ var (
 	errIncompleteArguments                    = errors.New("missing required argument")
 	errStartTimeOrFromIDNotSet                = errors.New("please set StartTime or FromId, but not both")
 	errIncorrectLimitValues                   = errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
-	errUnableToTypeAssertResponseData         = errors.New("unable to type assert responseData")
-	errUnableToTypeAssertInvalidData          = errors.New("unable to type assert individualData")
 	errUnexpectedKlineDataLength              = errors.New("unexpected kline data length")
-	errUnableToTypeAssertTradeCount           = errors.New("unable to type assert trade count")
 	errMissingRequiredArgumentCoin            = errors.New("missing required argument,coin")
 	errMissingRequiredArgumentNetwork         = errors.New("missing required argument,network")
 	errAmountValueMustBeGreaterThan0          = errors.New("amount must be greater than 0")
@@ -298,7 +293,6 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 			err := bi.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				log.Warnln(log.ExchangeSys, err.Error())
 				return resp, err
 			}
 		}
@@ -476,14 +470,14 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 	}
 	responseData, ok := resp.([]interface{})
 	if !ok {
-		return nil, errUnableToTypeAssertResponseData
+		return nil, common.GetTypeAssertError("[]interface{}", resp, "responseData")
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
 		individualData, ok := responseData[x].([]interface{})
 		if !ok {
-			return nil, errUnableToTypeAssertInvalidData
+			return nil, common.GetTypeAssertError("[]interface{}", responseData[x], "individualData")
 		}
 		if len(individualData) != 12 {
 			return nil, errUnexpectedKlineDataLength
@@ -518,7 +512,7 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 			return nil, err
 		}
 		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, errUnableToTypeAssertTradeCount
+			return nil, common.GetTypeAssertError("float64", individualData[8], "trade count")
 		}
 		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
 			return nil, err
@@ -1792,7 +1786,7 @@ func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, pa
 	}
 	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -1820,7 +1814,7 @@ func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.U
 
 	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -1861,11 +1855,10 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 			Path:          fullPath,
 			Headers:       headers,
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       bi.Verbose,
 			HTTPDebugging: bi.HTTPDebugging,
 			HTTPRecording: bi.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1908,7 +1901,6 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		Path:          endpointPath + userAccountStream,
 		Headers:       headers,
 		Result:        &resp,
-		AuthRequest:   true,
 		Verbose:       bi.Verbose,
 		HTTPDebugging: bi.HTTPDebugging,
 		HTTPRecording: bi.HTTPRecording,
@@ -1916,7 +1908,7 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	err = bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return "", err
 	}
@@ -1953,7 +1945,6 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 		Method:        http.MethodPut,
 		Path:          path,
 		Headers:       headers,
-		AuthRequest:   true,
 		Verbose:       bi.Verbose,
 		HTTPDebugging: bi.HTTPDebugging,
 		HTTPRecording: bi.HTTPRecording,
@@ -1961,7 +1952,7 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // CloseUserDataStream Close out a user data stream.
@@ -1990,7 +1981,6 @@ func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 		Method:        http.MethodDelete,
 		Path:          path,
 		Headers:       headers,
-		AuthRequest:   true,
 		Verbose:       bi.Verbose,
 		HTTPDebugging: bi.HTTPDebugging,
 		HTTPRecording: bi.HTTPRecording,
@@ -1998,5 +1988,5 @@ func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 
 	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }

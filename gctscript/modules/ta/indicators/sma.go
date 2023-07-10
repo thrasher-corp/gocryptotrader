@@ -7,6 +7,7 @@ import (
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gct-ta/indicators"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -51,7 +52,7 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	for x := range ohlcvInputData {
 		t, ok := ohlcvInputData[x].([]interface{})
 		if !ok {
-			return nil, errors.New("unable to type assert ohlcvInputData")
+			return nil, common.GetTypeAssertError("[]interface{}", ohlcvInputData[x])
 		}
 		if len(t) < 5 {
 			return nil, errors.New("ohlcvInputData invalid data length")

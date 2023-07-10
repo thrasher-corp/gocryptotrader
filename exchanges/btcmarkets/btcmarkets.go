@@ -815,7 +815,7 @@ func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result in
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
@@ -867,14 +867,13 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 			Headers:       headers,
 			Body:          body,
 			Result:        result,
-			AuthRequest:   true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording,
 		}, nil
 	}
 
-	return b.SendPayload(ctx, f, newRequest)
+	return b.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

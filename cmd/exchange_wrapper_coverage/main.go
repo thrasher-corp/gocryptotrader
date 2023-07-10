@@ -130,17 +130,18 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 
 		for y := range outputs {
 			incoming := outputs[y].Interface()
-			if reflect.TypeOf(incoming) == errType {
-				err, ok := incoming.(error)
-				if !ok {
-					return nil, fmt.Errorf("%s type assertion failure for %v", name, incoming)
-				}
-				if errors.Is(err, common.ErrNotYetImplemented) {
-					funcs = append(funcs, name)
-				}
-				// found error; there should not be another error in this slice.
-				break
+			if reflect.TypeOf(incoming) != errType {
+				continue
 			}
+			err, ok := incoming.(error)
+			if !ok {
+				return nil, fmt.Errorf("%s type assertion failure for %v", name, incoming)
+			}
+			if errors.Is(err, common.ErrNotYetImplemented) {
+				funcs = append(funcs, name)
+			}
+			// found error; there should not be another error in this slice.
+			break
 		}
 	}
 	return funcs, nil

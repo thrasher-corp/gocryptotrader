@@ -384,14 +384,14 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 			continue
 		}
 		for j := range enabledCurrencies {
-			fpair, err := c.FormatExchangeCurrency(enabledCurrencies[j],
+			fPair, err := c.FormatExchangeCurrency(enabledCurrencies[j],
 				asset.Spot)
 			if err != nil {
 				return nil, err
 			}
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
-				Currency: fpair,
+				Currency: fPair,
 				Asset:    asset.Spot,
 			})
 		}

@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -34,9 +36,12 @@ const (
 	zbDepth                           = "depth"
 	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
 	zbGetOrdersGet                    = "getOrders"
+	zbGetOrder                        = "getOrder"
 	zbWithdraw                        = "withdraw"
 	zbDepositAddress                  = "getUserAddress"
 	zbMultiChainDepositAddress        = "getPayinAddress"
+	zbWithdrawalRecords               = "getWithdrawRecord"
+	zbDepositRecords                  = "getChargeRecord"
 )
 
 // ZB is the overarching type across this package
@@ -68,13 +73,45 @@ func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (i
 		return 0, err
 	}
 	if result.Code != 1000 {
-		return 0, fmt.Errorf("unsuccessful new order, message: %s code: %d", result.Message, result.Code)
+		return 0, fmt.Errorf("%w unsuccessful new order, message: %s code: %d", request.ErrAuthRequestFailed, result.Message, result.Code)
 	}
 	newOrderID, err := strconv.ParseInt(result.ID, 10, 64)
 	if err != nil {
 		return 0, err
 	}
 	return newOrderID, nil
+}
+
+// GetDepositRecords returns the deposit records
+func (z *ZB) GetDepositRecords(ctx context.Context, arg *WalletRecordsRequest) (*DepositRecordsResponse, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w WalletRecordsRequest", common.ErrNilPointer)
+	}
+	var resp DepositRecordsResponse
+	vals := url.Values{}
+	vals.Set("method", "getChargeRecord")
+	vals.Set("currency", arg.Currency.String())
+	if arg.PageSize > 0 {
+		vals.Set("pageIndex", strconv.FormatInt(arg.PageIndex, 10))
+	}
+	if arg.PageIndex > 0 {
+		vals.Set("pageSize", strconv.FormatInt(arg.PageSize, 10))
+	}
+	return &resp, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
+}
+
+// GetWithdrawalRecords returns the withdrawal records
+func (z *ZB) GetWithdrawalRecords(ctx context.Context, arg *WalletRecordsRequest) (*WithdrawalRecordsResponse, error) {
+	if arg == nil {
+		return nil, fmt.Errorf("%w WalletRecordsRequest", common.ErrNilPointer)
+	}
+	var resp WithdrawalRecordsResponse
+	vals := url.Values{}
+	vals.Set("method", "getWithdrawRecord")
+	vals.Set("currency", arg.Currency.String())
+	vals.Set("pageIndex", strconv.FormatInt(arg.PageIndex, 10))
+	vals.Set("pageSize", strconv.FormatInt(arg.PageSize, 10))
+	return &resp, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
 }
 
 // CancelExistingOrder cancels an order
@@ -102,7 +139,7 @@ func (z *ZB) CancelExistingOrder(ctx context.Context, orderID int64, symbol stri
 	}
 
 	if result.Code != 1000 {
-		return errors.New(result.Message)
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, result.Message)
 	}
 	return nil
 }
@@ -137,8 +174,7 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(ctx context.Context, currency st
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("pageSize", strconv.FormatInt(pagesize, 10))
 
-	err = z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
-	return result, err
+	return result, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 }
 
 // GetOrders returns finished orders
@@ -155,6 +191,32 @@ func (z *ZB) GetOrders(ctx context.Context, currency string, pageindex, side int
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("tradeType", strconv.FormatInt(side, 10))
 	return response, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &response, request.Auth)
+}
+
+// GetSingleOrder Get single buy order or sell order
+func (z *ZB) GetSingleOrder(ctx context.Context, orderID, customerOrderID string, currency currency.Pair) (*Order, error) {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var response Order
+	pFmt, err := z.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+
+	vals := url.Values{}
+	vals.Set("accesskey", creds.Key)
+	vals.Set("method", zbGetOrder)
+	vals.Set("currency", pFmt.Format(currency))
+	if orderID != "" {
+		vals.Set("id", orderID)
+	}
+	if customerOrderID != "" {
+		vals.Set("customerOrderId", customerOrderID)
+	}
+
+	return &response, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &response, request.Auth)
 }
 
 // GetMarkets returns market information including pricing, symbols and
@@ -360,7 +422,7 @@ func (z *ZB) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, 
 
 	return z.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -401,14 +463,13 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 			Method:        httpMethod,
 			Path:          urlPath,
 			Result:        &intermediary,
-			AuthRequest:   true,
 			Verbose:       z.Verbose,
 			HTTPDebugging: z.HTTPDebugging,
 			HTTPRecording: z.HTTPRecording,
 		}, nil
 	}
 
-	err = z.SendPayload(ctx, f, newRequest)
+	err = z.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -421,7 +482,8 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.Code > 1000 {
-			return fmt.Errorf("error code: %d error code message: %s error message: %s",
+			return fmt.Errorf("%w error code: %d error code message: %s error message: %s",
+				request.ErrAuthRequestFailed,
 				errCap.Code,
 				errorCode[errCap.Code],
 				errCap.Message)
@@ -523,7 +585,7 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 		return "", err
 	}
 	if resp.Code != 1000 {
-		return "", errors.New(resp.Message)
+		return "", fmt.Errorf("%w %v", request.ErrAuthRequestFailed, resp.Message)
 	}
 
 	return resp.ID, nil

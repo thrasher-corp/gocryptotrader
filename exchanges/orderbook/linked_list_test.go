@@ -2137,6 +2137,10 @@ func TestFinalizeFields(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
+	// These tests demonstrate the imprecision of relying on floating point numbers
+	// That a different OS will return different numbers: macOS: `716.9999999997499` vs '716.9999999995343'
+	// speed is important, but having tests look for exact floating point numbers shows that one
+	// could have a different impact simply from running it on a different computer
 	if mov.SlippageCost != 716.9999999995343 {
 		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 716.9999999995343)
 	}

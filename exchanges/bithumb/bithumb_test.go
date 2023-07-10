@@ -78,7 +78,7 @@ func TestGetTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTradablePairs(context.Background())
 	if err != nil {
-		t.Error("Bithumb GetTradablePairs() error", err)
+		t.Error(err)
 	}
 }
 
@@ -94,7 +94,7 @@ func TestGetAllTickers(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetAllTickers(context.Background())
 	if err != nil {
-		t.Error("Bithumb GetAllTickers() error", err)
+		t.Error(err)
 	}
 }
 
@@ -102,15 +102,16 @@ func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetOrderBook(context.Background(), testCurrency)
 	if err != nil {
-		t.Error("Bithumb GetOrderBook() error", err)
+		t.Error(err)
 	}
 }
 
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetTransactionHistory(context.Background(), testCurrency)
 	if err != nil {
-		t.Error("Bithumb GetTransactionHistory() error", err)
+		t.Error(err)
 	}
 }
 
@@ -139,7 +140,7 @@ func TestGetAccountBalance(t *testing.T) {
 
 	_, err := b.GetAccountBalance(context.Background(), testCurrency)
 	if err == nil {
-		t.Error("Bithumb GetAccountBalance() Expected error")
+		t.Error(err)
 	}
 }
 
@@ -148,68 +149,82 @@ func TestGetWalletAddress(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetWalletAddress(context.Background(), currency.BTC)
-	if err == nil {
-		t.Error("Bithumb GetWalletAddress() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetLastTransaction(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetLastTransaction(context.Background())
 	if err == nil {
-		t.Error("Bithumb GetLastTransaction() Expected error")
+		t.Error(err)
 	}
 }
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetOrders(context.Background(),
-		"1337", order.Bid.Lower(), "100", "", testCurrency)
-	if err == nil {
-		t.Error("Bithumb GetOrders() Expected error")
+		"1337", order.Bid.Lower(), 100, time.Time{}, currency.BTC, currency.KRW)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetUserTransactions(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetUserTransactions(context.Background())
-	if err == nil {
-		t.Error("Bithumb GetUserTransactions() Expected error")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetUserTransactions(context.Background(), 0, 0, 0, currency.EMPTYCODE, currency.EMPTYCODE)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestPlaceTrade(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.PlaceTrade(context.Background(),
 		testCurrency, order.Bid.Lower(), 0, 0)
-	if err == nil {
-		t.Error("Bithumb PlaceTrade() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
 	_, err := b.GetOrderDetails(context.Background(),
 		"1337", order.Bid.Lower(), testCurrency)
-	if err == nil {
-		t.Error("Bithumb GetOrderDetails() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestCancelTrade(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.CancelTrade(context.Background(), "", "", "")
-	if err == nil {
-		t.Error("Bithumb CancelTrade() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.WithdrawCrypto(context.Background(),
 		"LQxiDhKU7idKiWQhx4ALKYkBx8xKEQVxJR", "", "ltc", 0)
-	if err == nil {
-		t.Error("Bithumb WithdrawCrypto() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -217,35 +232,41 @@ func TestRequestKRWDepositDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.RequestKRWDepositDetails(context.Background())
-	if err == nil {
-		t.Error("Bithumb RequestKRWDepositDetails() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestRequestKRWWithdraw(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	_, err := b.RequestKRWWithdraw(context.Background(),
 		"102_bank", "1337", 1000)
-	if err == nil {
-		t.Error("Bithumb RequestKRWWithdraw() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestMarketBuyOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	p := currency.NewPair(currency.BTC, currency.KRW)
 	_, err := b.MarketBuyOrder(context.Background(), p, 0)
-	if err == nil {
-		t.Error("Bithumb MarketBuyOrder() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestMarketSellOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	p := currency.NewPair(currency.BTC, currency.KRW)
 	_, err := b.MarketSellOrder(context.Background(), p, 0)
-	if err == nil {
-		t.Error("Bithumb MarketSellOrder() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -365,7 +386,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Side:      order.Sell,
 		AssetType: asset.Spot,
@@ -381,10 +402,11 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
+		Pairs:     currency.Pairs{currency.NewPair(currency.BTC, currency.KRW)},
 	}
 
 	_, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)
@@ -489,6 +511,8 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+
 	curr, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -501,8 +525,8 @@ func TestModifyOrder(t *testing.T) {
 		Pair:      curr,
 		AssetType: asset.Spot,
 	})
-	if err == nil {
-		t.Error("ModifyOrder() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -610,7 +634,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, time.Now())
-	if !errors.Is(err, common.ErrNotYetImplemented) {
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Fatal(err)
 	}
 }
@@ -747,5 +771,35 @@ func TestUpdateCurrencyStates(t *testing.T) {
 	err := b.UpdateCurrencyStates(context.Background(), asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }

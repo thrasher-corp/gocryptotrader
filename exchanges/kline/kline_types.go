@@ -44,8 +44,6 @@ const (
 )
 
 var (
-	// ErrUnsetInterval is an error for date range calculation
-	ErrUnsetInterval = errors.New("cannot calculate range, interval unset")
 	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
 	ErrRequestExceedsExchangeLimits = errors.New("request will exceed exchange limits, please reduce start-end time window or use GetHistoricCandlesExtended")
 	// ErrUnsupportedInterval returns when the provided interval is not supported by an exchange

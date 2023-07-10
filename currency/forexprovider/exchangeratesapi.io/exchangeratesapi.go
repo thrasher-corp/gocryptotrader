@@ -272,7 +272,7 @@ func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, resu
 	}
 	err := e.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return fmt.Errorf("exchangeRatesAPI: SendHTTPRequest error %s with path %s",
 			err,

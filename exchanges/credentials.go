@@ -185,12 +185,15 @@ func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
 		return fmt.Errorf("%s %w", b.Name, errRequiresAPIClientID)
 	}
 
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !b.LoadedByConfig {
-		_, err := crypto.Base64Decode(creds.Secret)
+	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !creds.SecretBase64Decoded {
+		decodedResult, err := crypto.Base64Decode(creds.Secret)
 		if err != nil {
 			return fmt.Errorf("%s API secret %w: %s", b.Name, errBase64DecodeFailure, err)
 		}
+		creds.Secret = string(decodedResult)
+		creds.SecretBase64Decoded = true
 	}
+
 	return nil
 }
 
@@ -218,6 +221,7 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 			return
 		}
 		b.API.credentials.Secret = string(result)
+		b.API.credentials.SecretBase64Decoded = true
 	} else {
 		b.API.credentials.Secret = apiSecret
 	}

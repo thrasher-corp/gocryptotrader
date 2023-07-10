@@ -721,7 +721,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 
 		holdings, ok := data.(*account.Holdings)
 		if !ok {
-			return common.GetAssertError("*account.Holdings", data)
+			return common.GetTypeAssertError("*account.Holdings", data)
 		}
 
 		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
@@ -957,7 +957,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		return nil, err
 	}
 
-	request := &order.GetOrdersRequest{
+	request := &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{cp},
 		AssetType: a,
 		Type:      order.AnyType,
@@ -1983,7 +1983,7 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 			return nil, err
 		}
 		if !assetTypes.Contains(a) {
-			return nil, fmt.Errorf("specified asset %s is not supported by exchange", a)
+			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 		}
 	}
 
@@ -2195,7 +2195,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 
 		d, ok := data.(orderbook.Outbound)
 		if !ok {
-			return common.GetAssertError("orderbook.Outbound", data)
+			return common.GetTypeAssertError("orderbook.Outbound", data)
 		}
 
 		resp := &gctrpc.OrderbookResponse{}
@@ -2280,7 +2280,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 
 		t, ok := data.(*ticker.Price)
 		if !ok {
-			return common.GetAssertError("*ticker.Price", data)
+			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2333,7 +2333,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 		t, ok := data.(*ticker.Price)
 		if !ok {
-			return common.GetAssertError("*ticker.Price", data)
+			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2575,7 +2575,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
-			log.Errorf(log.GRPCSys, "%v", common.GetAssertError("*gctscript.VM", v))
+			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))
 			return false
 		}
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
@@ -2609,7 +2609,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 	vm, ok := v.(*gctscript.VM)
 	if !ok {
-		return nil, errors.New("unable to type assert gctscript.VM")
+		return nil, common.GetTypeAssertError("*gctscript.VM", v)
 	}
 	resp := &gctrpc.GCTScriptQueryResponse{
 		Status: MsgStatusOK,
@@ -2677,7 +2677,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 	vm, ok := v.(*gctscript.VM)
 	if !ok {
-		return nil, errors.New("unable to type assert gctscript.VM")
+		return nil, common.GetTypeAssertError("*gctscript.VM", v)
 	}
 	err = vm.Shutdown()
 	status := " terminated"
@@ -3921,11 +3921,11 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 			for _, v := range result.Results {
 				for i := range v {
 					jobResults = append(jobResults, &gctrpc.DataHistoryJobResult{
-						StartDate: v[i].IntervalStartDate.Format(common.SimpleTimeFormat),
-						EndDate:   v[i].IntervalEndDate.Format(common.SimpleTimeFormat),
+						StartDate: v[i].IntervalStartDate.Format(time.DateTime),
+						EndDate:   v[i].IntervalEndDate.Format(time.DateTime),
 						HasData:   v[i].Status == dataHistoryStatusComplete,
 						Message:   v[i].Result,
-						RunDate:   v[i].Date.Format(common.SimpleTimeFormat),
+						RunDate:   v[i].Date.Format(time.DateTime),
 					})
 				}
 			}
@@ -3941,8 +3941,8 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 			Base:      result.Pair.Base.String(),
 			Quote:     result.Pair.Quote.String(),
 		},
-		StartDate:                result.StartDate.Format(common.SimpleTimeFormat),
-		EndDate:                  result.EndDate.Format(common.SimpleTimeFormat),
+		StartDate:                result.StartDate.Format(time.DateTime),
+		EndDate:                  result.EndDate.Format(time.DateTime),
 		Interval:                 int64(result.Interval.Duration()),
 		RequestSizeLimit:         result.RequestSizeLimit,
 		MaxRetryAttempts:         result.MaxRetryAttempts,
@@ -3979,8 +3979,8 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, _ *gctrpc.GetInf
 				Base:      jobs[i].Pair.Base.String(),
 				Quote:     jobs[i].Pair.Quote.String(),
 			},
-			StartDate:                jobs[i].StartDate.Format(common.SimpleTimeFormat),
-			EndDate:                  jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			StartDate:                jobs[i].StartDate.Format(time.DateTime),
+			EndDate:                  jobs[i].EndDate.Format(time.DateTime),
 			Interval:                 int64(jobs[i].Interval.Duration()),
 			RequestSizeLimit:         jobs[i].RequestSizeLimit,
 			MaxRetryAttempts:         jobs[i].MaxRetryAttempts,
@@ -4033,8 +4033,8 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 				Base:      jobs[i].Pair.Base.String(),
 				Quote:     jobs[i].Pair.Quote.String(),
 			},
-			StartDate:                jobs[i].StartDate.Format(common.SimpleTimeFormat),
-			EndDate:                  jobs[i].EndDate.Format(common.SimpleTimeFormat),
+			StartDate:                jobs[i].StartDate.Format(time.DateTime),
+			EndDate:                  jobs[i].EndDate.Format(time.DateTime),
 			Interval:                 int64(jobs[i].Interval.Duration()),
 			RequestSizeLimit:         jobs[i].RequestSizeLimit,
 			MaxRetryAttempts:         jobs[i].MaxRetryAttempts,
@@ -4076,8 +4076,8 @@ func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDat
 			Base:      job.Pair.Base.String(),
 			Quote:     job.Pair.Quote.String(),
 		},
-		StartDate:               job.StartDate.Format(common.SimpleTimeFormat),
-		EndDate:                 job.EndDate.Format(common.SimpleTimeFormat),
+		StartDate:               job.StartDate.Format(time.DateTime),
+		EndDate:                 job.EndDate.Format(time.DateTime),
 		Interval:                int64(job.Interval.Duration()),
 		Status:                  job.Status.String(),
 		DataType:                job.DataType.String(),

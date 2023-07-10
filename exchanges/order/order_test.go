@@ -263,6 +263,14 @@ func TestOrderSides(t *testing.T) {
 	}
 }
 
+func TestTitle(t *testing.T) {
+	t.Parallel()
+	orderType := Limit
+	if orderType.Title() != "Limit" {
+		t.Errorf("received '%v' expected 'Limit'", orderType.Title())
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 
@@ -1316,13 +1324,13 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Fatal("should return nil")
 	}
 
-	var getOrders *GetOrdersRequest
+	var getOrders *MultiOrderRequest
 	err = getOrders.Validate()
 	if !errors.Is(err, ErrGetOrdersRequestIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrGetOrdersRequestIsNil)
 	}
 
-	getOrders = new(GetOrdersRequest)
+	getOrders = new(MultiOrderRequest)
 	err = getOrders.Validate()
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
@@ -1897,7 +1905,7 @@ func TestDeriveCancel(t *testing.T) {
 }
 
 func TestGetOrdersRequest_Filter(t *testing.T) {
-	request := new(GetOrdersRequest)
+	request := new(MultiOrderRequest)
 	request.AssetType = asset.Spot
 	request.Type = AnyType
 	request.Side = AnySide
