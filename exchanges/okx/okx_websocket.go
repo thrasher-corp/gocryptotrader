@@ -1644,6 +1644,8 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 	for {
 		select {
 		case <-m.shutdown:
+			// We've consumed the shutdown, so create a new chan for subsequent runs
+			m.shutdown = make(chan bool)
 			return
 		case <-tickerData.C:
 			for x, myChan := range m.WsResponseChannelsMap {
