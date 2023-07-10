@@ -30,6 +30,7 @@ var (
 	timeout       time.Duration
 	exchangeCreds account.Credentials
 	verbose       bool
+	ignoreTimeout bool
 )
 
 const defaultTimeout = time.Second * 30
@@ -56,7 +57,9 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 	}
 
 	var cancel context.CancelFunc
-	c.Context, cancel = context.WithTimeout(c.Context, timeout)
+	if !ignoreTimeout {
+		c.Context, cancel = context.WithTimeout(c.Context, timeout)
+	}
 	if !exchangeCreds.IsEmpty() {
 		flag, values := exchangeCreds.GetMetaData()
 		c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
@@ -145,6 +148,12 @@ func main() {
 			Name:        "verbose",
 			Usage:       "allows the request to generate a more verbose outputs server side",
 			Destination: &verbose,
+		},
+		&cli.BoolFlag{
+			Name:        "ignoretimeout",
+			Aliases:     []string{"it"},
+			Usage:       "ignores the context timeout for requests",
+			Destination: &ignoreTimeout,
 		},
 	}
 	app.Commands = []*cli.Command{
