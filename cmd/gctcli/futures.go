@@ -157,14 +157,14 @@ var futuresCommands = &cli.Command{
 					Name:        "start",
 					Aliases:     []string{"sd"},
 					Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
-					Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Aliases:     []string{"ed"},
 					Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 				&cli.BoolFlag{

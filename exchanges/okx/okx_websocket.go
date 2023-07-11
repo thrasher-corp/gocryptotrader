@@ -245,6 +245,7 @@ func (ok *Okx) WsConnect() error {
 		authDialer.WriteBufferSize = 8192
 		err = ok.WsAuth(context.TODO(), &authDialer)
 		if err != nil {
+			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}

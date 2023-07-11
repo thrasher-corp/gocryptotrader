@@ -528,6 +528,7 @@ var excludedMethodNames = map[string]struct{}{
 	"GetOrderExecutionLimits":        {}, // Not widely supported/implemented feature
 	"UpdateCurrencyStates":           {}, // Not widely supported/implemented feature
 	"UpdateOrderExecutionLimits":     {}, // Not widely supported/implemented feature
+	"CheckOrderExecutionLimits":      {}, // Not widely supported/implemented feature
 	"CanTradePair":                   {}, // Not widely supported/implemented feature
 	"CanTrade":                       {}, // Not widely supported/implemented feature
 	"CanWithdraw":                    {}, // Not widely supported/implemented feature
