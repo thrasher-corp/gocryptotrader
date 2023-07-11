@@ -228,7 +228,10 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 	}
 	balances := make(map[string]Balance)
 	for k := range balance {
-		curr := k[0:3]
+		curr, _, found := strings.Cut(k, "_")
+		if !found {
+			return balances, fmt.Errorf("%s encountered unexpected currency key without underscore separator: %s", b.Name, k)
+		}
 		_, ok := balances[strings.ToUpper(curr)]
 		if !ok {
 			avail, _ := strconv.ParseFloat(balance[curr+"_available"], 64)

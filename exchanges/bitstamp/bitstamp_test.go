@@ -230,7 +230,7 @@ func TestGetEURUSDConversionRate(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetBalance(context.Background())
+	bal, err := b.GetBalance(context.Background())
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil && !mockTests:
 		t.Error("GetBalance() error", err)
@@ -238,6 +238,33 @@ func TestGetBalance(t *testing.T) {
 		t.Error("Expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Error("GetBalance() error", err)
+	case mockTests:
+		for k, e := range map[string]Balance{
+			"USDT": {
+				Available: 42.42,
+				Balance:   1337.42,
+				Reserved:  1295.00,
+			},
+			"BTC": {
+				Available: 9.1,
+				Balance:   11.2,
+				Reserved:  2.1,
+			},
+		} {
+			if got, ok := bal[k]; !ok {
+				t.Error("Expected to find USDT balance")
+			} else {
+				if got.Available != e.Available {
+					t.Errorf("Incorrect Available balance for %s; Expected: %v Got: %v", k, e.Available, got.Available)
+				}
+				if got.Balance != e.Balance {
+					t.Errorf("Incorrect Balance for %s; Expected: %v Got: %v", k, e.Balance, got.Balance)
+				}
+				if got.Reserved != e.Reserved {
+					t.Errorf("Incorrect Reserved balance for %s; Expected: %v Got: %v", k, e.Reserved, got.Reserved)
+				}
+			}
+		}
 	}
 }
 
