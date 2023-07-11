@@ -385,14 +385,14 @@ var futuresCommands = &cli.Command{
 					Name:        "start",
 					Aliases:     []string{"sd"},
 					Usage:       "<start> rounded down to the nearest hour",
-					Value:       time.Now().AddDate(0, 0, -7).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Value:       time.Now().AddDate(0, 0, -7).Truncate(time.Hour).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Aliases:     []string{"ed"},
 					Usage:       "<end> rounded down to the nearest hour",
-					Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
 					Destination: &endTime,
 				},
 				&cli.BoolFlag{
@@ -769,11 +769,11 @@ func getFundingRates(c *cli.Context) error {
 			return err
 		}
 	}
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -1291,7 +1291,7 @@ func getFuturePositionOrders(c *cli.Context) error {
 			startTime = c.Args().Get(3)
 		}
 	}
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
@@ -1301,7 +1301,7 @@ func getFuturePositionOrders(c *cli.Context) error {
 			endTime = c.Args().Get(4)
 		}
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
