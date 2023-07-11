@@ -125,6 +125,9 @@ var (
 	errInvalidTriggerDirection            = errors.New("invalid trigger direction")
 	errInvalidTriggerPriceType            = errors.New("invalid trigger price type")
 	errNilArgument                        = errors.New("nil argument")
+	errMissingUserID                      = errors.New("sub user id missing")
+	errMissingusername                    = errors.New("username is missing")
+	errInvalidMemberType                  = errors.New("invalid member type")
 	errMissingTransferID                  = errors.New("transfer ID is required")
 	errMemberIDRequired                   = errors.New("member ID is required")
 	errNonePointerArgument                = errors.New("argument must be pointer")
@@ -1918,6 +1921,129 @@ func (by *Bybit) CancelWithdrawal(ctx context.Context, id string) (*StatusRespon
 	}
 	var resp StatusResponse
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/withdraw/cancel", nil, arg, &resp, privateSpotRate)
+}
+
+// -------------------------- User endpoints --------------------
+
+// CreateNewSubUserID created a new sub user id. Use master user's api key only.
+func (by *Bybit) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParams) (*SubUserItem, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Username == "" {
+		return nil, errMissingusername
+	}
+	if arg.MemberType <= 0 {
+		return nil, errInvalidMemberType
+	}
+	var resp SubUserItem
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-member", nil, &arg, &resp, privateSpotRate)
+}
+
+// CreateSubUIDAPIKey create new API key for those newly created sub UID. Use master user's api key only.
+func (by *Bybit) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam) (*SubUIDAPIResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Subuid <= 0 {
+		return nil, fmt.Errorf("%w, subuid", errMissingUserID)
+	}
+	var resp SubUIDAPIResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/query-sub-members", nil, arg, &resp, privateSpotRate)
+}
+
+// GetSubUIDList get all sub uid of master account. Use master user's api key only.
+func (by *Bybit) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
+	resp := &struct {
+		SubMembers []SubUserItem `json:"subMembers"`
+	}{}
+	return resp.SubMembers, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-sub-members", nil, nil, &resp, privateSpotRate)
+}
+
+// FreezeSubUID freeze Sub UID. Use master user's api key only.
+func (by *Bybit) FreezeSubUID(ctx context.Context, subUID string, frozen bool) error {
+	params := url.Values{}
+	if subUID == "" {
+		return fmt.Errorf("%w, subuid", errMissingUserID)
+	}
+	params.Set("subuid", subUID)
+	if frozen {
+		params.Set("frozen", "0")
+	} else {
+		params.Set("frozen", "1")
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/frozen-sub-member", params, nil, &resp, privateSpotRate)
+}
+
+// GetAPIKeyInformation retrieves the information of the api key.
+// Use the api key pending to be checked to call the endpoint.
+// Both master and sub user's api key are applicable.
+func (by *Bybit) GetAPIKeyInformation(ctx context.Context) (*SubUIDAPIResponse, error) {
+	var resp SubUIDAPIResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-api", nil, nil, &resp, privateSpotRate)
+}
+
+// GetUIDWalletType retrieves available wallet types for the master account or sub account
+func (by *Bybit) GetUIDWalletType(ctx context.Context, memberIDS string) (*WalletType, error) {
+	if memberIDS == "" {
+		return nil, errMembersIDsNotSet
+	}
+	var resp WalletType
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/get-member-type", nil, nil, &resp, privateSpotRate)
+}
+
+// ModifyMasterAPIKey modify the settings of master api key.
+// Use the api key pending to be modified to call the endpoint. Use master user's api key only.
+func (by *Bybit) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
+	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
+		return nil, errNilArgument
+	}
+	var resp SubUIDAPIResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-api", nil, arg, &resp, privateSpotRate)
+}
+
+// ModifySubAPIKey modifies the settings of sub api key. Use the api key pending to be modified to call the endpoint. Use sub user's api key only.
+func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
+	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
+		return nil, errNilArgument
+	}
+	var resp SubUIDAPIResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-sub-api", nil, &arg, &resp, privateSpotRate)
+}
+
+// DeleteMasterAPIKey delete the api key of master account.
+// Use the api key pending to be delete to call the endpoint. Use master user's api key only.
+func (by *Bybit) DeleteMasterAPIKey(ctx context.Context) error {
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-api", nil, nil, &resp, privateSpotRate)
+}
+
+// DeleteSubAccountAPIKey delete the api key of sub account.
+// Use the api key pending to be delete to call the endpoint. Use sub user's api key only.
+func (by *Bybit) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID string) error {
+	if subAccountUID == "" {
+		return fmt.Errorf("%w, sub-account id missing", errMissingUserID)
+	}
+	arg := &struct {
+		UID string `json:"uid"`
+	}{
+		UID: subAccountUID,
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-sub-api", nil, arg, &resp, privateSpotRate)
+}
+
+// GetAffiliateUserInfo the API is used for affiliate to get their users information
+// The master account uid of affiliate's client
+func (by *Bybit) GetAffiliateUserInfo(ctx context.Context, uid string) (*AffiliateCustomerInfo, error) {
+	if uid == "" {
+		return nil, errMissingUserID
+	}
+	params := url.Values{}
+	params.Set("uid", uid)
+	var resp AffiliateCustomerInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/aff-customer-info", params, nil, &resp, privateSpotRate)
 }
 
 // GetFeeRate returns user account fee

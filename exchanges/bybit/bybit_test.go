@@ -4869,3 +4869,156 @@ func TestCancelWithdrawal(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestCreateNewSubUserID(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateNewSubUserID(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{MemberType: 1, Switch: 1, Note: "test"})
+	if !errors.Is(err, errMissingusername) {
+		t.Fatalf("expected %v, got %v", errMissingusername, err)
+	}
+	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{Username: "Sami", Switch: 1, Note: "test"})
+	if !errors.Is(err, errInvalidMemberType) {
+		t.Fatalf("expected %v, got %v", errInvalidMemberType, err)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{Username: "sami", MemberType: 1, Switch: 1, Note: "test"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateSubUIDAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := b.CreateSubUIDAPIKey(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.CreateSubUIDAPIKey(context.Background(), &SubUIDAPIKeyParam{})
+	if !errors.Is(err, errMissingUserID) {
+		t.Fatalf("expected %v, got %v", errMissingUserID, err)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err = b.CreateSubUIDAPIKey(context.Background(), &SubUIDAPIKeyParam{
+		Subuid:      53888000,
+		Note:        "testxxx",
+		ReadOnly:    0,
+		Permissions: map[string][]string{"Wallet": {"AccountTransfer"}},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubUIDList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubUIDList(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFreezeSubUID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.FreezeSubUID(context.Background(), "1234", true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAPIKeyInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAPIKeyInformation(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUIDWalletType(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUIDWalletType(context.Background(), "234234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestModifyMasterAPIKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ModifyMasterAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.ModifyMasterAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
+		ReadOnly: 0,
+		IPs:      []string{"*"},
+		Permissions: map[string][]string{
+			"ContractTrade": {"Order", "Position"},
+			"Spot":          {"SpotTrade"},
+			"Wallet":        {"AccountTransfer", "SubMemberTransfer"},
+			"Options":       {"OptionsTrade"},
+			"Derivatives":   {"DerivativesTrade"},
+			"CopyTrading":   {"CopyTrading"},
+			"BlockTrade":    {},
+			"Exchange":      {"ExchangeHistory"},
+			"NFT":           {"NFTQueryProductList"}},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestModifySubAPIKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ModifySubAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Fatalf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.ModifySubAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
+		ReadOnly: 0,
+		IPs:      []string{"*"},
+		Permissions: map[string][]string{
+			"ContractTrade": {},
+			"Spot":          {"SpotTrade"},
+			"Wallet":        {"AccountTransfer"},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteMasterAPIKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.DeleteMasterAPIKey(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteSubAPIKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.DeleteSubAccountAPIKey(context.Background(), "12434")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAffiliateUserInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAffiliateUserInfo(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}

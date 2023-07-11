@@ -2052,3 +2052,101 @@ type WithdrawalParam struct {
 	ForceChain  int64                   `json:"forceChain,omitempty"`
 	AccountType string                  `json:"accountType,omitempty"`
 }
+
+// CreateSubUserParams parameter to create a new sub user id. Use master user's api key only.
+type CreateSubUserParams struct {
+	Username   string `json:"username,omitempty"`   // Give a username of the new sub user id.
+	Password   string `json:"password,omitempty"`   // Set the password for the new sub user id. 8-30 characters, must include numbers, capital and little letters.
+	MemberType int64  `json:"memberType,omitempty"` // '1': normal sub account, '6': custodial sub account
+	Switch     int64  `json:"switch,omitempty"`     // '0': turn off quick login (default) '1': turn on quick login
+	IsUTC      bool   `json:"isUta,omitempty"`
+	Note       string `json:"note,omitempty"`
+}
+
+// SubUserItem represents a sub user response instance.
+type SubUserItem struct {
+	UID        string `json:"uid"`
+	Username   string `json:"username"`
+	MemberType int64  `json:"memberType"`
+	Status     int64  `json:"status"`
+	Remark     string `json:"remark"`
+}
+
+// SubUIDAPIKeyParam represents a sub-user ID API key creation paramter.
+type SubUIDAPIKeyParam struct {
+	Subuid int64  `json:"subuid"`
+	Note   string `json:"note"`
+
+	ReadOnly int64 `json:"readOnly"`
+
+	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
+	// don't pass ips or pass with ["*"] means no bind
+	// No ip bound api key will be invalid after 90 days
+	// api key will be invalid after 7 days once the account password is changed
+	IPs []string `json:"ips"`
+
+	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
+	Permissions map[string][]string `json:"permissions,omitempty"`
+}
+
+// SubUIDAPIResponse represents sub UID API key response.
+type SubUIDAPIResponse struct {
+	ID          string              `json:"id"`
+	Note        string              `json:"note"`
+	APIKey      string              `json:"apiKey"`
+	ReadOnly    int64               `json:"readOnly"`
+	Secret      string              `json:"secret"`
+	Permissions map[string][]string `json:"permissions"`
+
+	IPS           []string  `json:"ips"`
+	Type          int64     `json:"type"`
+	DeadlineDay   int64     `json:"deadlineDay"`
+	ExpiredAt     time.Time `json:"expiredAt"`
+	CreatedAt     time.Time `json:"createdAt"`
+	Unified       int64     `json:"unified"`
+	Uta           int64     `json:"uta"`
+	UserID        int64     `json:"userID"`
+	InviterID     int64     `json:"inviterID"`
+	VipLevel      string    `json:"vipLevel"`
+	MktMakerLevel string    `json:"mktMakerLevel"`
+	AffiliateID   int64     `json:"affiliateID"`
+	RsaPublicKey  string    `json:"rsaPublicKey"`
+	IsMaster      bool      `json:"isMaster"`
+}
+
+// WalletType represents available wallet types for the master account or sub account
+type WalletType struct {
+	Accounts []struct {
+		UID         string   `json:"uid"`
+		AccountType []string `json:"accountType"`
+	} `json:"accounts"`
+}
+
+// SubUIDAPIKeyUpdateParam represents a sub-user ID API key update paramter.
+type SubUIDAPIKeyUpdateParam struct {
+	ReadOnly int64 `json:"readOnly"`
+	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
+	// don't pass ips or pass with ["*"] means no bind
+	// No ip bound api key will be invalid after 90 days
+	// api key will be invalid after 7 days once the account password is changed
+	IPs []string `json:"ips"`
+	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
+	Permissions map[string][]string `json:"permissions,omitempty"`
+}
+
+// AffiliateCustomerInfo represents user information
+type AffiliateCustomerInfo struct {
+	UID                 string                  `json:"uid"`
+	TakerVol30Day       convert.StringToFloat64 `json:"takerVol30Day"`
+	MakerVol30Day       convert.StringToFloat64 `json:"makerVol30Day"`
+	TradeVol30Day       convert.StringToFloat64 `json:"tradeVol30Day"`
+	DepositAmount30Day  convert.StringToFloat64 `json:"depositAmount30Day"`
+	TakerVol365Day      convert.StringToFloat64 `json:"takerVol365Day"`
+	MakerVol365Day      convert.StringToFloat64 `json:"makerVol365Day"`
+	TradeVol365Day      convert.StringToFloat64 `json:"tradeVol365Day"`
+	DepositAmount365Day convert.StringToFloat64 `json:"depositAmount365Day"`
+	TotalWalletBalance  convert.StringToFloat64 `json:"totalWalletBalance"`
+	DepositUpdateTime   time.Time               `json:"depositUpdateTime"`
+	VipLevel            string                  `json:"vipLevel"`
+	VolUpdateTime       time.Time               `json:"volUpdateTime"`
+}
