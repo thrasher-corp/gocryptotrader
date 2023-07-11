@@ -210,6 +210,47 @@ func TestFetchTradablePairs(t *testing.T) {
 	}
 }
 
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
+		t.Error("Bitstamp UpdateTradablePairs() error", err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	type limitTest struct {
+		pair currency.Pair
+		step float64
+		min  float64
+	}
+
+	tests := map[asset.Item][]limitTest{
+		asset.Spot: {
+			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 20},
+			{currency.NewPair(currency.BTC, currency.USDT), 0.01, 20},
+		},
+	}
+	for assetItem, limitTests := range tests {
+		if err := b.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
+			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
+		}
+		for _, limitTest := range limitTests {
+			limits, err := b.GetOrderExecutionLimits(assetItem, limitTest.pair)
+			if err != nil {
+				t.Errorf("Bitstamp GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
+				continue
+			}
+			if got := limits.PriceStepIncrementSize; got != limitTest.step {
+				t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
+			}
+			if got := limits.MinimumBaseAmount; got != limitTest.min {
+				t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
+			}
+		}
+	}
+}
+
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTransactions(context.Background(),

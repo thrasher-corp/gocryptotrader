@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -266,37 +267,47 @@ func (b *Bitstamp) Run(ctx context.Context) {
 		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := b.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
+	if b.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
+		if err := b.UpdateTradablePairs(ctx, forceUpdate); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				b.Name,
+				err)
+		}
+	} else {
+		if err := b.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
+			log.Errorln(log.ExchangeSys, err.Error())
+		}
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitstamp) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
+func (b *Bitstamp) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	symbols, err := b.GetTradingPairs(ctx)
 	if err != nil {
 		return nil, err
 	}
-
+	var pair currency.Pair
 	pairs := make([]currency.Pair, 0, len(symbols))
-	for x := range symbols {
+	limits := make([]order.MinMaxLevel, 0, len(symbols))
+	for x, info := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
 		}
-		var pair currency.Pair
 		pair, err = currency.NewPairFromString(symbols[x].Name)
 		if err != nil {
 			return nil, err
 		}
+		limits = append(limits, order.MinMaxLevel{
+			Asset:                  a,
+			Pair:                   pair,
+			PriceStepIncrementSize: 1 / math.Pow10(info.CounterDecimals),
+			MinimumBaseAmount:      info.MinimumOrder,
+		})
 		pairs = append(pairs, pair)
+	}
+	if err := b.LoadLimits(limits); err != nil {
+		log.Errorf(log.ExchangeSys, "%s Error loading exchange limits: %v", b.Name, err)
 	}
 	return pairs, nil
 }
@@ -313,6 +324,17 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 		return err
 	}
 	return b.EnsureOnePairEnabled()
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	if _, err := b.FetchTradablePairs(ctx, a); err != nil {
+		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", b.Name, a, err)
+	}
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
