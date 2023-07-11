@@ -1097,13 +1097,13 @@ var getOrdersCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:        "start",
 			Usage:       "start date, optional. Will filter any results before this date",
-			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
 			Usage:       "end date, optional. Will filter any results after this date",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
 		},
 	},
@@ -1162,11 +1162,11 @@ func getOrders(c *cli.Context) error {
 		}
 	}
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -2820,13 +2820,13 @@ var withdrawalRequestCommand = &cli.Command{
 				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "the start date to get withdrawals from. Any withdrawal before this date will be filtered",
-					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+					Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "the end date to get withdrawals from. Any withdrawal after this date will be filtered",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 				&cli.Int64Flag{
@@ -2991,11 +2991,11 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		limit = limitStr
 	}
 
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3327,14 +3327,14 @@ var getAuditEventCommand = &cli.Command{
 			Name:        "start",
 			Aliases:     []string{"s"},
 			Usage:       "start date to search",
-			Value:       time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
+			Value:       time.Now().Add(-time.Hour).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
 			Aliases:     []string{"e"},
 			Usage:       "end time to search",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
 		},
 		&cli.StringFlag{
@@ -3382,12 +3382,12 @@ func getAuditEvent(c *cli.Context) error {
 		}
 	}
 
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4018,13 +4018,13 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:        "start",
 			Usage:       "the date to begin retrieveing candles. Any candles before this date will be filtered",
-			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
 			Usage:       "the date to end retrieveing candles. Any candles after this date will be filtered",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
 		},
 		&cli.BoolFlag{
@@ -4133,11 +4133,11 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4210,13 +4210,13 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:        "start",
 			Usage:       "<start> rounded down to the nearest hour",
-			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
 			Usage:       "<end> rounded down to the nearest hour",
-			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
 			Destination: &endTime,
 		},
 	},
@@ -4282,11 +4282,11 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4371,14 +4371,14 @@ var getMarginRatesHistoryCommand = &cli.Command{
 			Name:        "start",
 			Aliases:     []string{"sd"},
 			Usage:       "<start>",
-			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
 			Aliases:     []string{"ed"},
 			Usage:       "<end>",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
 		},
 		&cli.BoolFlag{
@@ -4503,11 +4503,11 @@ func getMarginRatesHistory(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}

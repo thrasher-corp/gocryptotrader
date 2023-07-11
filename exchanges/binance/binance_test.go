@@ -117,23 +117,6 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 }
 
-func TestParseSAPITime(t *testing.T) {
-	t.Parallel()
-	tm, err := time.Parse(binanceSAPITimeLayout, "2021-05-27 03:56:46")
-	if err != nil {
-		t.Fatal(tm)
-	}
-	tm = tm.UTC()
-	if tm.Year() != 2021 ||
-		tm.Month() != 5 ||
-		tm.Day() != 27 ||
-		tm.Hour() != 3 ||
-		tm.Minute() != 56 ||
-		tm.Second() != 46 {
-		t.Fatal("incorrect values")
-	}
-}
-
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	r, err := b.UpdateTicker(context.Background(), testPairMapping, asset.Spot)

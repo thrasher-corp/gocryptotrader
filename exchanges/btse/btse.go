@@ -613,5 +613,5 @@ func (b *BTSE) calculateTradingFee(ctx context.Context, feeBuilder *exchange.Fee
 }
 
 func parseOrderTime(timeStr string) (time.Time, error) {
-	return time.Parse(common.SimpleTimeFormat, timeStr)
+	return time.Parse(time.DateTime, timeStr)
 }
