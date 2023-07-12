@@ -1,6 +1,6 @@
 module github.com/thrasher-corp/gocryptotrader
 
-go 1.17
+go 1.20
 
 require (
 	github.com/d5/tengo/v2 v2.16.1
