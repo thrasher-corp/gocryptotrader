@@ -13,21 +13,24 @@ import (
 type syncBase struct {
 	IsUsingWebsocket bool
 	IsUsingREST      bool
-	IsProcessing     bool
 	LastUpdated      time.Time
 	HaveData         bool
 	NumErrors        int
 }
 
-// currencyPairSyncAgent stores the sync agent info
-type currencyPairSyncAgent struct {
-	Created   time.Time
+// currencyPairKey is the map key for the sync agents
+type currencyPairKey struct {
 	Exchange  string
 	AssetType asset.Item
 	Pair      currency.Pair
-	Ticker    syncBase
-	Orderbook syncBase
-	Trade     syncBase
+}
+
+// currencyPairSyncAgent stores the sync agent info
+type currencyPairSyncAgent struct {
+	currencyPairKey
+	Created  time.Time
+	trackers []*syncBase
+	locks    []sync.Mutex
 }
 
 // SyncManagerConfig stores the currency pair synchronization manager config
@@ -49,6 +52,7 @@ type syncManager struct {
 	initSyncCompleted              int32
 	initSyncStarted                int32
 	started                        int32
+	shutdown                       chan bool
 	format                         currency.PairFormat
 	initSyncStartTime              time.Time
 	fiatDisplayCurrency            currency.Code
@@ -57,7 +61,7 @@ type syncManager struct {
 	initSyncWG                     sync.WaitGroup
 	inService                      sync.WaitGroup
 
-	currencyPairs            []currencyPairSyncAgent
+	currencyPairs            map[currencyPairKey]*currencyPairSyncAgent
 	tickerBatchLastRequested map[string]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
