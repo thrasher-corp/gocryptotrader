@@ -298,36 +298,33 @@ func (bot *Engine) Start() error {
 	if bot == nil {
 		return errors.New("engine instance is nil")
 	}
-	var err error
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 
 	if bot.Settings.EnableDatabaseManager {
-		bot.DatabaseManager, err = SetupDatabaseConnectionManager(&bot.Config.Database)
-		if err != nil {
+		if d, err := SetupDatabaseConnectionManager(&bot.Config.Database); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to setup: %v", err)
 		} else {
-			err = bot.DatabaseManager.Start(&bot.ServicesWG)
-			if err != nil && !errors.Is(err, database.ErrDatabaseSupportDisabled) {
+			bot.DatabaseManager = d
+			if err := bot.DatabaseManager.Start(&bot.ServicesWG); err != nil && !errors.Is(err, database.ErrDatabaseSupportDisabled) {
 				gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 			}
 		}
 	}
 
 	if bot.Settings.EnableDispatcher {
-		if err = dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit); err != nil {
+		if err := dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
 	}
 
 	// Sets up internet connectivity monitor
 	if bot.Settings.EnableConnectivityMonitor {
-		bot.connectionManager, err = setupConnectionManager(&bot.Config.ConnectionMonitor)
-		if err != nil {
+		if c, err := setupConnectionManager(&bot.Config.ConnectionMonitor); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to setup: %v", err)
 		} else {
-			err = bot.connectionManager.Start()
-			if err != nil {
+			bot.connectionManager = c
+			if err := bot.connectionManager.Start(); err != nil {
 				gctlog.Errorf(gctlog.Global, "Connection manager unable to start: %v", err)
 			}
 		}
@@ -335,16 +332,16 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableNTPClient {
 		if bot.Config.NTPClient.Level == 0 {
-			var responseMessage string
-			responseMessage, err = bot.Config.SetNTPCheck(os.Stdin)
+			responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
 			if err != nil {
 				return fmt.Errorf("unable to set NTP check: %w", err)
 			}
 			gctlog.Infoln(gctlog.TimeMgr, responseMessage)
 		}
-		bot.ntpManager, err = setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
-		if err != nil {
+		if n, err := setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
+		} else {
+			bot.ntpManager = n
 		}
 	}
 
@@ -377,35 +374,34 @@ func (bot *Engine) Start() error {
 	}
 
 	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
-	err = bot.SetupExchanges()
-	if err != nil {
+	if err := bot.SetupExchanges(); err != nil {
 		return err
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		bot.CommunicationsManager, err = SetupCommunicationManager(&bot.Config.Communications)
-		if err != nil {
+		if c, err := SetupCommunicationManager(&bot.Config.Communications); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to setup: %s", err)
 		} else {
-			err = bot.CommunicationsManager.Start()
-			if err != nil {
+			bot.CommunicationsManager = c
+			if err := bot.CommunicationsManager.Start(); err != nil {
 				gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %s", err)
 			}
 		}
 	}
 
-	err = currency.RunStorageUpdater(currency.BotOverrides{
-		Coinmarketcap:     bot.Settings.EnableCoinmarketcapAnalysis,
-		CurrencyConverter: bot.Settings.EnableCurrencyConverter,
-		CurrencyLayer:     bot.Settings.EnableCurrencyLayer,
-		ExchangeRates:     bot.Settings.EnableExchangeRates,
-		Fixer:             bot.Settings.EnableFixer,
-		OpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
-		ExchangeRateHost:  bot.Settings.EnableExchangeRateHost,
-	},
+	if err := currency.RunStorageUpdater(
+		currency.BotOverrides{
+			Coinmarketcap:     bot.Settings.EnableCoinmarketcapAnalysis,
+			CurrencyConverter: bot.Settings.EnableCurrencyConverter,
+			CurrencyLayer:     bot.Settings.EnableCurrencyLayer,
+			ExchangeRates:     bot.Settings.EnableExchangeRates,
+			Fixer:             bot.Settings.EnableFixer,
+			OpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
+			ExchangeRateHost:  bot.Settings.EnableExchangeRateHost,
+		},
 		&bot.Config.Currency,
-		bot.Settings.DataDir)
-	if err != nil {
+		bot.Settings.DataDir,
+	); err != nil {
 		gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %s", err)
 	}
 
@@ -415,12 +411,11 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			bot.portfolioManager, err = setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
-			if err != nil {
+			if p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio); err != nil {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
-				err = bot.portfolioManager.Start(&bot.ServicesWG)
-				if err != nil {
+				bot.portfolioManager = p
+				if err := bot.portfolioManager.Start(&bot.ServicesWG); err != nil {
 					gctlog.Errorf(gctlog.Global, "portfolio manager unable to start: %s", err)
 				}
 			}
@@ -429,43 +424,40 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableDataHistoryManager {
 		if bot.dataHistoryManager == nil {
-			bot.dataHistoryManager, err = SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager, &bot.Config.DataHistoryManager)
-			if err != nil {
+			if d, err := SetupDataHistoryManager(bot.ExchangeManager, bot.DatabaseManager, &bot.Config.DataHistoryManager); err != nil {
 				gctlog.Errorf(gctlog.Global, "database history manager unable to setup: %s", err)
 			} else {
-				err = bot.dataHistoryManager.Start()
-				if err != nil {
+				bot.dataHistoryManager = d
+				if err := bot.dataHistoryManager.Start(); err != nil {
 					gctlog.Errorf(gctlog.Global, "database history manager unable to start: %s", err)
 				}
 			}
 		}
 	}
 
-	bot.WithdrawManager, err = SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun)
-	if err != nil {
+	if w, err := SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, bot.Settings.EnableDryRun); err != nil {
 		return err
+	} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
+		bot.WithdrawManager = w
 	}
 
 	if bot.Settings.EnableDeprecatedRPC || bot.Settings.EnableWebsocketRPC {
-		var filePath string
-		filePath, err = config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile)
-		if err != nil {
+		if filePath, err := config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile); err != nil {
 			return err
-		}
-		bot.apiServer, err = setupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath)
-		if err != nil {
-			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
-		} else {
-			if bot.Settings.EnableDeprecatedRPC {
-				err = bot.apiServer.StartRESTServer()
-				if err != nil {
-					gctlog.Errorf(gctlog.Global, "could not start REST API server: %s", err)
+		} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
+			if a, err := setupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath); err != nil {
+				gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
+			} else {
+				bot.apiServer = a
+				if bot.Settings.EnableDeprecatedRPC {
+					if err := bot.apiServer.StartRESTServer(); err != nil {
+						gctlog.Errorf(gctlog.Global, "could not start REST API server: %s", err)
+					}
 				}
-			}
-			if bot.Settings.EnableWebsocketRPC {
-				err = bot.apiServer.StartWebsocketServer()
-				if err != nil {
-					gctlog.Errorf(gctlog.Global, "could not start websocket API server: %s", err)
+				if bot.Settings.EnableWebsocketRPC {
+					if err := bot.apiServer.StartWebsocketServer(); err != nil {
+						gctlog.Errorf(gctlog.Global, "could not start websocket API server: %s", err)
+					}
 				}
 			}
 		}
@@ -474,15 +466,14 @@ func (bot *Engine) Start() error {
 	if bot.Settings.EnableDepositAddressManager {
 		bot.DepositAddressManager = SetupDepositAddressManager()
 		go func() {
-			err = bot.DepositAddressManager.Sync(bot.GetAllExchangeCryptocurrencyDepositAddresses())
-			if err != nil {
+			if err := bot.DepositAddressManager.Sync(bot.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
 				gctlog.Errorf(gctlog.Global, "Deposit address manager unable to setup: %s", err)
 			}
 		}()
 	}
 
 	if bot.Settings.EnableOrderManager {
-		bot.OrderManager, err = SetupOrderManager(
+		if o, err := SetupOrderManager(
 			bot.ExchangeManager,
 			bot.CommunicationsManager,
 			&bot.ServicesWG,
@@ -490,8 +481,8 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)
 		} else {
-			err = bot.OrderManager.Start()
-			if err != nil {
+			bot.OrderManager = o
+			if err = bot.OrderManager.Start(); err != nil {
 				gctlog.Errorf(gctlog.Global, "Order manager unable to start: %s", err)
 			}
 		}
@@ -511,17 +502,17 @@ func (bot *Engine) Start() error {
 			PairFormatDisplay:       bot.Config.Currency.CurrencyPairFormat,
 		}
 
-		bot.currencyPairSyncer, err = setupSyncManager(
+		if s, err := setupSyncManager(
 			exchangeSyncCfg,
 			bot.ExchangeManager,
 			&bot.Config.RemoteControl,
-			bot.Settings.EnableWebsocketRoutine)
-		if err != nil {
+			bot.Settings.EnableWebsocketRoutine,
+		); err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
+			bot.currencyPairSyncer = s
 			go func() {
-				err = bot.currencyPairSyncer.Start()
-				if err != nil {
+				if err := bot.currencyPairSyncer.Start(); err != nil {
 					gctlog.Errorf(gctlog.Global, "failed to start exchange currency pair manager. Err: %s", err)
 				}
 			}()
@@ -529,51 +520,50 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.eventManager, err = setupEventManager(bot.CommunicationsManager, bot.ExchangeManager, bot.Settings.EventManagerDelay, bot.Settings.EnableDryRun)
-		if err != nil {
+		if e, err := setupEventManager(bot.CommunicationsManager, bot.ExchangeManager, bot.Settings.EventManagerDelay, bot.Settings.EnableDryRun); err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise event manager. Err: %s", err)
 		} else {
-			err = bot.eventManager.Start()
-			if err != nil {
+			bot.eventManager = e
+			if err = bot.eventManager.Start(); err != nil {
 				gctlog.Errorf(gctlog.Global, "failed to start event manager. Err: %s", err)
 			}
 		}
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		bot.WebsocketRoutineManager, err = setupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose)
-		if err != nil {
+		if w, err := setupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
 		} else {
-			err = bot.WebsocketRoutineManager.Start()
-			if err != nil {
+			bot.WebsocketRoutineManager = w
+			if err = bot.WebsocketRoutineManager.Start(); err != nil {
 				gctlog.Errorf(gctlog.Global, "failed to start websocket routine manager. Err: %s", err)
 			}
 		}
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
-		bot.gctScriptManager, err = gctscript.NewManager(&bot.Config.GCTScript)
-		if err != nil {
+		if g, err := gctscript.NewManager(&bot.Config.GCTScript); err != nil {
 			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %s", err)
-		}
-		if err = bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
-			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
+		} else {
+			bot.gctScriptManager = g
+			if err := bot.gctScriptManager.Start(&bot.ServicesWG); err != nil {
+				gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
+			}
 		}
 	}
 
 	if bot.Settings.EnableCurrencyStateManager {
-		bot.currencyStateManager, err = SetupCurrencyStateManager(
+		if c, err := SetupCurrencyStateManager(
 			bot.Config.CurrencyStateManager.Delay,
-			bot.ExchangeManager)
-		if err != nil {
+			bot.ExchangeManager,
+		); err != nil {
 			gctlog.Errorf(gctlog.Global,
 				"%s unable to setup: %s",
 				CurrencyStateManagementName,
 				err)
 		} else {
-			err = bot.currencyStateManager.Start()
-			if err != nil {
+			bot.currencyStateManager = c
+			if err := bot.currencyStateManager.Start(); err != nil {
 				gctlog.Errorf(gctlog.Global,
 					"%s unable to start: %s",
 					CurrencyStateManagementName,
@@ -581,6 +571,7 @@ func (bot *Engine) Start() error {
 			}
 		}
 	}
+
 	return nil
 }
 
