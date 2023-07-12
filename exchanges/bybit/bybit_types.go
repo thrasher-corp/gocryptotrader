@@ -2150,3 +2150,93 @@ type AffiliateCustomerInfo struct {
 	VipLevel            string                  `json:"vipLevel"`
 	VolUpdateTime       time.Time               `json:"volUpdateTime"`
 }
+
+// LeverageTokenInfo represents leverage token information.
+type LeverageTokenInfo struct {
+	FundFee          convert.StringToFloat64 `json:"fundFee"`
+	FundFeeTime      convert.ExchangeTime    `json:"fundFeeTime"`
+	LtCoin           string                  `json:"ltCoin"`
+	LtName           string                  `json:"ltName"`
+	LtStatus         string                  `json:"ltStatus"`
+	ManageFeeRate    convert.StringToFloat64 `json:"manageFeeRate"`
+	ManageFeeTime    convert.ExchangeTime    `json:"manageFeeTime"`
+	MaxPurchase      string                  `json:"maxPurchase"`
+	MaxPurchaseDaily string                  `json:"maxPurchaseDaily"`
+	MaxRedeem        string                  `json:"maxRedeem"`
+	MaxRedeemDaily   string                  `json:"maxRedeemDaily"`
+	MinPurchase      string                  `json:"minPurchase"`
+	MinRedeem        string                  `json:"minRedeem"`
+	NetValue         convert.StringToFloat64 `json:"netValue"`
+	PurchaseFeeRate  convert.StringToFloat64 `json:"purchaseFeeRate"`
+	RedeemFeeRate    convert.StringToFloat64 `json:"redeemFeeRate"`
+	Total            convert.StringToFloat64 `json:"total"`
+	Value            convert.StringToFloat64 `json:"value"`
+}
+
+// LeveragTokenMarket represents leverage token market details.
+type LeveragedTokenMarket struct {
+	Basket      convert.StringToFloat64 `json:"basket"`
+	Circulation convert.StringToFloat64 `json:"circulation"`
+	Leverage    convert.StringToFloat64 `json:"leverage"` // Real leverage calculated by last traded price
+	LTCoin      string                  `json:"ltCoin"`
+	NetValue    convert.StringToFloat64 `json:"nav"`
+	NavTime     convert.ExchangeTime    `json:"navTime"` // Update time for net asset value (in milliseconds and UTC time zone)
+}
+
+// LeverageToken represents a response instance when purchasing a leverage token.
+type LeverageToken struct {
+	Amount        convert.StringToFloat64 `json:"amount"`
+	ExecAmt       convert.StringToFloat64 `json:"execAmt"`
+	ExecQty       convert.StringToFloat64 `json:"execQty"`
+	LtCoin        string                  `json:"ltCoin"`
+	LtOrderStatus string                  `json:"ltOrderStatus"`
+	PurchaseID    string                  `json:"purchaseId"`
+	SerialNo      string                  `json:"serialNo"`
+	ValueCoin     string                  `json:"valueCoin"`
+}
+
+// RedeemToken represents leverage redeem token
+type RedeemToken struct {
+	ExecAmt       convert.StringToFloat64 `json:"execAmt"`
+	ExecQty       convert.StringToFloat64 `json:"execQty"`
+	LtCoin        string                  `json:"ltCoin"`
+	LtOrderStatus string                  `json:"ltOrderStatus"`
+	Quantity      convert.StringToFloat64 `json:"quantity"`
+	RedeemID      string                  `json:"redeemId"`
+	SerialNo      string                  `json:"serialNo"`
+	ValueCoin     string                  `json:"valueCoin"`
+}
+
+// RedeemPurchaseRecord represents a purchase and redeem record instance.
+type RedeemPurchaseRecord struct {
+	Amount        convert.StringToFloat64 `json:"amount"`
+	Fee           convert.StringToFloat64 `json:"fee"`
+	LtCoin        string                  `json:"ltCoin"`
+	LtOrderStatus string                  `json:"ltOrderStatus"`
+	LtOrderType   string                  `json:"ltOrderType"`
+	OrderID       string                  `json:"orderId"`
+	OrderTime     convert.ExchangeTime    `json:"orderTime"`
+	SerialNo      string                  `json:"serialNo"`
+	UpdateTime    convert.ExchangeTime    `json:"updateTime"`
+	Value         convert.StringToFloat64 `json:"value"`
+	ValueCoin     string                  `json:"valueCoin"`
+}
+
+// SpotMarginMode represents data about whether spot margin trade is on / off
+type SpotMarginMode struct {
+	SpotMarginMode string `json:"spotMarginMode"`
+}
+
+// MarginCoinInfo represents margin coin information.
+type MarginCoinInfo struct {
+	Coin             string `json:"coin"`
+	ConversionRate   string `json:"conversionRate"`
+	LiquidationOrder int    `json:"liquidationOrder"`
+}
+
+// BorrowableCoinInfo represents borrowable coin information.
+type BorrowableCoinInfo struct {
+	BorrowingPrecision int64  `json:"borrowingPrecision"`
+	Coin               string `json:"coin"`
+	RepaymentPrecision int64  `json:"repaymentPrecision"`
+}

@@ -1948,21 +1948,6 @@ func TestGetRiskLimit(t *testing.T) {
 // 	}
 // }
 
-// func TestSetLeverage(t *testing.T) {
-// 	t.Parallel()
-// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-
-// 	pair, err := currency.NewPairFromString("BTCUSDZ22")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	_, err = b.SetLeverage(context.Background(), pair, 10, 10)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
-
 // func TestChangePositionMode(t *testing.T) {
 // 	t.Parallel()
 // 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -5018,6 +5003,91 @@ func TestGetAffiliateUserInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAffiliateUserInfo(context.Background(), "1234")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLeverageTokenInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLeverageTokenInfo(context.Background(), currency.NewCode("BTC3L"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLeveragedTokenMarket(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLeveragedTokenMarket(context.Background(), currency.EMPTYCODE)
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.GetLeveragedTokenMarket(context.Background(), currency.NewCode("BTC3L"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPurchaseLeverageToken(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.PurchaseLeverageToken(context.Background(), currency.BTC3L, 100, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRedeemLeverageToken(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.RedeemLeverageToken(context.Background(), currency.BTC3L, 100, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPurchaseAndRedemptionRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetPurchaseAndRedemptionRecords(context.Background(), currency.EMPTYCODE, "", "", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestToggleMarginTrade(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ToggleMarginTrade(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetSpotMarginTradeLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetSpotMarginTradeLeverage(context.Background(), 3)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+}
+
+func TestGetMarginCoinInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetMarginCoinInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowableCoinInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetBorrowableCoinInfo(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}

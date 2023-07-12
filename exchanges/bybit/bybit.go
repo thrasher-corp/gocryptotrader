@@ -2046,6 +2046,156 @@ func (by *Bybit) GetAffiliateUserInfo(ctx context.Context, uid string) (*Affilia
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/aff-customer-info", params, nil, &resp, privateSpotRate)
 }
 
+// ----------------------------------------------------------------------------  Spot Leverage Token ----------------------------------------------------------------
+
+// GetLeverageTokenInfo query leverage token information
+// Abbreviation of the LT, such as BTC3L
+func (by *Bybit) GetLeverageTokenInfo(ctx context.Context, ltCoin currency.Code) ([]LeverageTokenInfo, error) {
+	params := url.Values{}
+	if !ltCoin.IsEmpty() {
+		params.Set("ltCoin", ltCoin.String())
+	}
+	resp := &struct {
+		List []LeverageTokenInfo `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/info", params, nil, &resp, privateSpotRate)
+}
+
+// GetLeveragedTokenMarket retrieves leverage token market information
+func (by *Bybit) GetLeveragedTokenMarket(ctx context.Context, ltCoin currency.Code) (*LeveragedTokenMarket, error) {
+	if ltCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
+	}
+	params := url.Values{}
+	params.Set("ltCoin", ltCoin.String())
+	var resp LeveragedTokenMarket
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/reference", params, nil, &resp, privateSpotRate)
+}
+
+// PurchaseLeverageToken purcases a leverage token.
+func (by *Bybit) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code, amount float64, serialNumber string) (*LeverageToken, error) {
+	if ltCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	arg := &struct {
+		LTCoin       string  `json:"ltCoin"`
+		LTAmount     float64 `json:"amount,string"`
+		SerialNumber string  `json:"serialNo,omitempty"`
+	}{
+		LTCoin:       ltCoin.String(),
+		LTAmount:     amount,
+		SerialNumber: serialNumber,
+	}
+	var resp LeverageToken
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-lever-token/purchase", nil, arg, &resp, privateSpotRate)
+}
+
+// RedeemLeverageToken redeem leverage token
+func (by *Bybit) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, quantity float64, serialNumber string) (*RedeemToken, error) {
+	if ltCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if quantity <= 0 {
+		return nil, fmt.Errorf("%w, quantity=%f", order.ErrAmountBelowMin, quantity)
+	}
+	arg := &struct {
+		LTCoin       string  `json:"ltCoin"`
+		Quantity     float64 `json:"quantity,string"`
+		SerialNumber string  `json:"serialNo,omitempty"`
+	}{
+		LTCoin:       ltCoin.String(),
+		Quantity:     quantity,
+		SerialNumber: serialNumber,
+	}
+	var resp RedeemToken
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-lever-token/redeem", nil, &arg, &resp, privateSpotRate)
+}
+
+// GetPurchaseAndRedemptionRecords retrieves purchase or redeem history.
+// ltOrderType	false	integer	LT order type. 1: purchase, 2: redemption
+func (by *Bybit) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin currency.Code, orderID, serialNo string, startTime, endTime time.Time, ltOrderType, limit int64) ([]RedeemPurchaseRecord, error) {
+	params := url.Values{}
+	if !ltCoin.IsEmpty() {
+		params.Set("ltCoin", ltCoin.String())
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if serialNo != "" {
+		params.Set("serialNo", serialNo)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if ltOrderType != 0 {
+		params.Set("ltOrderType", strconv.FormatInt(ltOrderType, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := &struct {
+		List []RedeemPurchaseRecord `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/order-record", params, nil, &resp, privateSpotRate)
+}
+
+// ---------------------------------------------------------------- Spot Margin Trade (UTA) ----------------------------------------------------------------
+
+// ToggleMarginTrade turn on / off spot margin trade
+// Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
+// spotMarginMode '1': on, '0': off
+func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+	arg := &SpotMarginMode{}
+	if spotMarginMode {
+		arg.SpotMarginMode = "1"
+	} else {
+		arg.SpotMarginMode = "0"
+	}
+	var resp SpotMarginMode
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/switch-mode", nil, arg, &resp, privateSpotRate)
+}
+
+// SetSpotMarginTradeLeverage set the user's maximum leverage in spot cross margin
+func (by *Bybit) SetSpotMarginTradeLeverage(ctx context.Context, leverage float64) error {
+	if leverage <= 2 {
+		return fmt.Errorf("%w, Leverage. [2, 10].", errInvalidLeverage)
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/set-leverage", nil, &map[string]string{"leverage": strconv.FormatFloat(leverage, 'f', -1, 64)}, &resp, privateSpotRate)
+}
+
+// ---------------------------------------------------------------- Spot Margin Trade (Normal) ----------------------------------------------------------------
+
+// GetMarginCoinInfo retrieves margin coin information.
+func (by *Bybit) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	resp := &struct {
+		List []MarginCoinInfo `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/pledge-token", params, nil, &resp, privateSpotRate)
+}
+
+// GetBorrowableCoinInfo retrieves borrowable coin info list.
+func (by *Bybit) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) ([]BorrowableCoinInfo, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	resp := &struct {
+		List []BorrowableCoinInfo `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/borrow-token", params, nil, &resp, privateSpotRate)
+}
+
 // GetFeeRate returns user account fee
 // Valid  category: "spot", "linear", "inverse", "option"
 // func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
