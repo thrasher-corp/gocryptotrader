@@ -494,22 +494,19 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 }
 
 // GetBalance returns your balance associated with your keys
-func (k *Kraken) GetBalance(ctx context.Context) (map[string]float64, error) {
+func (k *Kraken) GetBalance(ctx context.Context) (map[string]Balance, error) {
 	var response struct {
-		Error  []string          `json:"error"`
-		Result map[string]string `json:"result"`
+		Error  []string           `json:"error"`
+		Result map[string]Balance `json:"result"`
 	}
 
 	if err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenBalance, url.Values{}, &response); err != nil {
 		return nil, err
 	}
 
-	result := make(map[string]float64)
+	result := make(map[string]Balance)
 	for curency, balance := range response.Result {
-		var err error
-		if result[curency], err = strconv.ParseFloat(balance, 64); err != nil {
-			return nil, err
-		}
+		result[curency] = balance
 	}
 
 	return result, GetError(response.Error)
