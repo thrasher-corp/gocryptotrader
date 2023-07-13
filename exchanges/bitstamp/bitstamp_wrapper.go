@@ -274,23 +274,24 @@ func (b *Bitstamp) Run(ctx context.Context) {
 				b.Name,
 				err)
 		}
-	} else {
-		if err := b.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
+	}
+
+	for _, a := range b.GetAssetTypes(true) {
+		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
 			log.Errorln(log.ExchangeSys, err.Error())
 		}
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitstamp) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (b *Bitstamp) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	symbols, err := b.GetTradingPairs(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var pair currency.Pair
 	pairs := make([]currency.Pair, 0, len(symbols))
-	limits := make([]order.MinMaxLevel, 0, len(symbols))
-	for x, info := range symbols {
+	for x := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
 		}
@@ -298,16 +299,7 @@ func (b *Bitstamp) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                  a,
-			Pair:                   pair,
-			PriceStepIncrementSize: 1 / math.Pow10(info.CounterDecimals),
-			MinimumBaseAmount:      info.MinimumOrder,
-		})
 		pairs = append(pairs, pair)
-	}
-	if err := b.LoadLimits(limits); err != nil {
-		log.Errorf(log.ExchangeSys, "%s Error loading exchange limits: %v", b.Name, err)
 	}
 	return pairs, nil
 }
@@ -331,8 +323,28 @@ func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	if _, err := b.FetchTradablePairs(ctx, a); err != nil {
-		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", b.Name, a, err)
+	symbols, err := b.GetTradingPairs(ctx)
+	if err != nil {
+		return err
+	}
+	limits := make([]order.MinMaxLevel, 0, len(symbols))
+	for x, info := range symbols {
+		if symbols[x].Trading != "Enabled" {
+			continue
+		}
+		pair, err := currency.NewPairFromString(symbols[x].Name)
+		if err != nil {
+			return err
+		}
+		limits = append(limits, order.MinMaxLevel{
+			Asset:                  a,
+			Pair:                   pair,
+			PriceStepIncrementSize: 1 / math.Pow10(info.CounterDecimals),
+			MinimumBaseAmount:      info.MinimumOrder,
+		})
+	}
+	if err := b.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
 	}
 	return nil
 }
