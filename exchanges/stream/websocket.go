@@ -50,7 +50,6 @@ var (
 	errClosedConnection                     = errors.New("use of closed network connection")
 	errDisconnectedConnectionShutdown       = errors.New("cannot shutdown a disconnected websocket")
 	errReconnectingConnectionShutdown       = errors.New("cannot shutdown, in the process of reconnection")
-	errWebsocketSubscriptionFilterUnset     = errors.New("websocket subscription filter function not set")
 )
 
 var globalReporter Reporter

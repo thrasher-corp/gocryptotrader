@@ -54,8 +54,6 @@ type WrapperWebsocket struct {
 	canUseAuthenticatedEndpoints bool
 	enabled                      bool
 	Init                         bool
-	connected                    bool
-	connecting                   bool
 	verbose                      bool
 	dataMonitorRunning           bool
 	trafficTimeout               time.Duration

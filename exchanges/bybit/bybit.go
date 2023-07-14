@@ -323,19 +323,6 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 // Get24HrsChange returns price change statistics for the last 24 hours
 // If symbol not passed then it will return price change statistics for all pairs
 func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChangeStats, error) {
-	type priceChangeStats struct {
-		Time         bybitTime               `json:"time"`
-		Symbol       string                  `json:"symbol"`
-		BestBidPrice convert.StringToFloat64 `json:"bestBidPrice"`
-		BestAskPrice convert.StringToFloat64 `json:"bestAskPrice"`
-		LastPrice    convert.StringToFloat64 `json:"lastPrice"`
-		OpenPrice    convert.StringToFloat64 `json:"openPrice"`
-		HighPrice    convert.StringToFloat64 `json:"highPrice"`
-		LowPrice     convert.StringToFloat64 `json:"lowPrice"`
-		Volume       convert.StringToFloat64 `json:"volume"`
-		QuoteVolume  convert.StringToFloat64 `json:"quoteVolume"`
-	}
-
 	if symbol != "" {
 		resp := struct {
 			Data PriceChangeStats `json:"result"`
@@ -409,15 +396,6 @@ func (by *Bybit) GetLastTradedPrice(ctx context.Context, symbol string) ([]LastT
 // GetBestBidAskPrice returns best BID and ASK price
 // If symbol not passed then it will return best BID and ASK price for all pairs
 func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]TickerData, error) {
-	type bestTicker struct {
-		Symbol      string                  `json:"symbol"`
-		BidPrice    convert.StringToFloat64 `json:"bidPrice"`
-		BidQuantity convert.StringToFloat64 `json:"bidQty"`
-		AskPrice    convert.StringToFloat64 `json:"askPrice"`
-		AskQuantity convert.StringToFloat64 `json:"askQty"`
-		Time        bybitTime               `json:"time"`
-	}
-
 	if symbol != "" {
 		resp := struct {
 			Data TickerData `json:"result"`

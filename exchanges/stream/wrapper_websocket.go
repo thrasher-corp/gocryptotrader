@@ -555,11 +555,13 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 		verbose:                w.verbose,
 		enabled:                w.enabled,
 		connector:              s.Connector,
-		features:               w.features,
-		runningURLAuth:         s.RunningURLAuth,
-		ShutdownC:              make(chan struct{}),
-		AssetShutdownC:         w.ShutdownC,
-		AssetType:              s.AssetType,
+		canUseAuthenticatedEndpoints: s.CanUseAuthenticatedEndpoints ||
+			w.canUseAuthenticatedEndpoints,
+		features:       w.features,
+		runningURLAuth: s.RunningURLAuth,
+		ShutdownC:      make(chan struct{}),
+		AssetShutdownC: w.ShutdownC,
+		AssetType:      s.AssetType,
 	}
 	err := assetWebsocket.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {

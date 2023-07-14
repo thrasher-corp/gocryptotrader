@@ -97,14 +97,15 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
-	Subscriber            func([]ChannelSubscription) error
-	Unsubscriber          func([]ChannelSubscription) error
-	GenerateSubscriptions func() ([]ChannelSubscription, error)
-	AssetType             asset.Item
+	DefaultURL                   string
+	RunningURL                   string
+	RunningURLAuth               string
+	Connector                    func() error
+	Subscriber                   func([]ChannelSubscription) error
+	Unsubscriber                 func([]ChannelSubscription) error
+	GenerateSubscriptions        func() ([]ChannelSubscription, error)
+	AssetType                    asset.Item
+	CanUseAuthenticatedEndpoints bool
 }
 
 // WebsocketWrapperSetup defines variables for setting up the websocket wrapper instance
