@@ -504,12 +504,7 @@ func (k *Kraken) GetBalance(ctx context.Context) (map[string]Balance, error) {
 		return nil, err
 	}
 
-	result := make(map[string]Balance)
-	for curency, balance := range response.Result {
-		result[curency] = balance
-	}
-
-	return result, GetError(response.Error)
+	return response.Result, GetError(response.Error)
 }
 
 // GetWithdrawInfo gets withdrawal fees
