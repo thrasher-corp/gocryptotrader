@@ -234,8 +234,9 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 	if by.IsAssetWebsocketSupported(asset.USDTMarginedFutures) {
 		usdtMarginedFuturesWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
-			DefaultURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
-			RunningURL:            bybitWebsocketCoinMarginedFuturesPublicV2,
+			DefaultURL:            bybitWebsocketUSDTMarginedFuturesPublicV2,
+			RunningURL:            bybitWebsocketUSDTMarginedFuturesPublicV2,
+			RunningURLAuth:        bybitWebsocketUSDTMarginedFuturesPrivateV2,
 			Connector:             by.WsUSDTConnect,
 			Subscriber:            by.SubscribeUSDT,
 			Unsubscriber:          by.UnsubscribeUSDT,
@@ -246,7 +247,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			return err
 		}
 		err = usdtMarginedFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
-			URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
+			URL:                  bybitWebsocketUSDTMarginedFuturesPublicV2,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		})
@@ -254,7 +255,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			return err
 		}
 		err = usdtMarginedFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
-			URL:                  bybitWebsocketUSDTMarginedFuturesPublicV2,
+			URL:                  bybitWebsocketUSDTMarginedFuturesPrivateV2,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 			Authenticated:        true,
@@ -302,6 +303,15 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
+		err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Authenticated:        true,
 		})
 		if err != nil {
 			return err

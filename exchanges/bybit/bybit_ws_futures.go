@@ -296,7 +296,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 					return err
 				}
 			case wsOperationDelta:
-				var response WsCoinDeltaOrderbook
+				var response WsFuturesDeltaOrderbook
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err

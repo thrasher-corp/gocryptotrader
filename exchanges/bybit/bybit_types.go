@@ -555,16 +555,16 @@ type WsFuturesOrderbook struct {
 // WsUSDTOrderbook stores ws usdt orderbook
 type WsUSDTOrderbook struct {
 	Topic string `json:"topic"`
-	Type  string `json:"string"`
+	Type  string `json:"type"`
 	Data  struct {
 		OBData []WsFuturesOrderbookData `json:"order_book"`
 	} `json:"data"`
 }
 
-// WsCoinDeltaOrderbook stores ws coinmargined orderbook
-type WsCoinDeltaOrderbook struct {
+// WsFuturesDeltaOrderbook stores ws futures orderbook deltas
+type WsFuturesDeltaOrderbook struct {
 	Topic  string `json:"topic"`
-	Type   string `json:"string"`
+	Type   string `json:"type"`
 	OBData struct {
 		Delete []WsFuturesOrderbookData `json:"delete"`
 		Update []WsFuturesOrderbookData `json:"update"`
@@ -663,7 +663,7 @@ type WsTicker struct {
 // WsDeltaTicker stores ws ticker
 type WsDeltaTicker struct {
 	Topic string `json:"topic"`
-	Type  string `json:"string"`
+	Type  string `json:"type"`
 	Data  struct {
 		Delete []WsTickerData `json:"delete"`
 		Update []WsTickerData `json:"update"`
@@ -723,12 +723,14 @@ type WsFuturesTicker struct {
 // WsDeltaFuturesTicker stores ws delta future ticker
 type WsDeltaFuturesTicker struct {
 	Topic string `json:"topic"`
-	Type  string `json:"string"`
+	Type  string `json:"type"`
 	Data  struct {
 		Delete []WsFuturesTickerData `json:"delete"`
 		Update []WsFuturesTickerData `json:"update"`
 		Insert []WsFuturesTickerData `json:"insert"`
 	} `json:"data"`
+	CrossSeq  int64     `json:"coss_seq"`
+	Timestamp bybitTime `json:"timestamp_e6"`
 }
 
 // WsLiquidationData stores ws liquidation data
