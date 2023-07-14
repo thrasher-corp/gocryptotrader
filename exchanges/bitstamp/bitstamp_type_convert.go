@@ -2,11 +2,10 @@ package bitstamp
 
 import (
 	"encoding/json"
-	"regexp"
+	"fmt"
 	"strconv"
+	"strings"
 )
-
-var currRE = regexp.MustCompile(`^[\d.]+`)
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
 func (p *TradingPair) UnmarshalJSON(data []byte) error {
@@ -19,11 +18,13 @@ func (p *TradingPair) UnmarshalJSON(data []byte) error {
 	}
 
 	err := json.Unmarshal(data, t)
-	if err == nil {
-		if m := currRE.FindString(t.MinimumOrder); len(m) > 0 {
-			p.MinimumOrder, err = strconv.ParseFloat(m, 64)
-		}
+	if err != nil {
+		return err
 	}
-
+	before, _, found := strings.Cut(t.MinimumOrder, " ")
+	if !found {
+		return fmt.Errorf("unhandled minimum order string: %s", t.MinimumOrder)
+	}
+	p.MinimumOrder, err = strconv.ParseFloat(before, 64)
 	return err
 }
