@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"regexp"
 
@@ -38,7 +37,7 @@ type fKeyDestroyer struct {
 
 func (f *fKeyDestroyer) Read(b []byte) (int, error) {
 	if f.buf == nil {
-		all, err := ioutil.ReadAll(f.reader)
+		all, err := io.ReadAll(f.reader)
 		if err != nil {
 			return 0, err
 		}

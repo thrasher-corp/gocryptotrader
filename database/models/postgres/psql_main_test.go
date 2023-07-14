@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -167,7 +166,7 @@ func (p *pgTester) pgEnv() []string {
 }
 
 func (p *pgTester) makePGPassFile() error {
-	tmp, err := ioutil.TempFile("", "pgpass")
+	tmp, err := os.CreateTemp("", "pgpass")
 	if err != nil {
 		return errors.Wrap(err, "failed to create option file")
 	}
