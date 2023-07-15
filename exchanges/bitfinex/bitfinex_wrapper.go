@@ -264,8 +264,18 @@ func (b *Bitfinex) Run(ctx context.Context) {
 		b.PrintEnabledPairs()
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates {
-		return
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				b.Name,
+				err)
+		}
+	}
+	for _, a := range b.GetAssetTypes(true) {
+		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
+			log.Errorln(log.ExchangeSys, err.Error())
+		}
 	}
 
 	err := b.UpdateTradablePairs(ctx, false)
@@ -320,6 +330,25 @@ func (b *Bitfinex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 		}
 	}
 	return b.EnsureOnePairEnabled()
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	pairs, err := b.GetSiteInfoConfigData(ctx, a)
+	if err != nil {
+		return err
+	}
+	limits := make([]order.MinMaxLevel, 0, len(pairs))
+	for v := range pairs {
+		limits = append(limits, pairs[v])
+	}
+	if err := b.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
+	}
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

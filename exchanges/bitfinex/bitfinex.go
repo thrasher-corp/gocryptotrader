@@ -88,6 +88,9 @@ const (
 	bitfinexFuturesPairs       = "conf/pub:list:pair:futures"    // TODO: Implement
 	bitfinexSecuritiesPairs    = "conf/pub:list:pair:securities" // TODO: Implement
 
+	bitfinexInfoPairs       = "conf/pub:info:pair"
+	bitfinexInfoFuturePairs = "conf/pub:info:pair:futures"
+
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
 	// activity. Cancelling orders will be possible.
@@ -470,10 +473,9 @@ func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 	}
 }
 
-// GetSiteListConfigData returns site configuration data by pub:{Action}:{Object}:{Detail}
+// GetSiteListConfigData returns site configuration data by pub:list:{Object}:{Detail}
 // string sets.
 // NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
-// ALSO: This only accesses the lists not the maps.
 func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]string, error) {
 	if set == "" {
 		return nil, errSetCannotBeEmpty
@@ -489,6 +491,74 @@ func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]str
 		return nil, errors.New("invalid response")
 	}
 	return resp[0], nil
+}
+
+// GetSiteInfoConfigData returns site configuration data by pub:info:{AssetType} as a map
+// path should be bitfinexInfoPairs or bitfinexInfoPairsFuture???
+// NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
+func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) (map[currency.Pair]order.MinMaxLevel, error) {
+	pairs := map[currency.Pair]order.MinMaxLevel{}
+	var path string
+	switch assetType {
+	case asset.Spot:
+		path = bitfinexInfoPairs
+	case asset.Futures:
+		path = bitfinexInfoFuturePairs
+	default:
+		return pairs, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
+	}
+	url := bitfinexAPIVersion2 + path
+	var resp [][][]any
+
+	err := b.SendHTTPRequest(ctx, exchange.RestSpot, url, &resp, status)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) != 1 {
+		return nil, errors.New("response did not contain only one item")
+	}
+	data := resp[0]
+	for i := range data {
+		pairSymbol, ok := data[i][0].(string)
+		if !ok {
+			return pairs, fmt.Errorf("could not convert first item in SiteInfoConfigData to string: Type is %T", data[i][0])
+		}
+		if strings.Contains(pairSymbol, "TEST") {
+			continue
+		}
+		// SIC: Array type really is any. It contains nils and strings
+		info, ok := data[i][1].([]any)
+		if !ok {
+			return pairs, fmt.Errorf("could not convert second item in SiteInfoConfigData to []any; Type is %T", data[i][1])
+		}
+		minOrder, err := anyToFloat64(info[3])
+		if err != nil {
+			return pairs, fmt.Errorf("could not convert MinOrderAmount: %s", err)
+		}
+		maxOrder, err := anyToFloat64(info[4])
+		if err != nil {
+			return pairs, fmt.Errorf("could not convert MaxOrderAmount: %s", err)
+		}
+		pair, err := currency.NewPairFromString(pairSymbol)
+		if err != nil {
+			return pairs, err
+		}
+		pairs[pair] = order.MinMaxLevel{
+			Asset:             assetType,
+			Pair:              pair,
+			MinimumBaseAmount: minOrder,
+			MaximumBaseAmount: maxOrder,
+		}
+	}
+	return pairs, nil
+}
+
+func anyToFloat64(a any) (float64, error) {
+	s, ok := a.(string)
+	if !ok {
+		return 0, fmt.Errorf("could not convert to string; Type is %T", s)
+	}
+	return strconv.ParseFloat(s, 64)
 }
 
 // GetDerivativeStatusInfo gets status data for the queried derivative

@@ -158,6 +158,38 @@ func TestGetPairs(t *testing.T) {
 	}
 }
 
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
+		t.Error("Bitfinex UpdateTradablePairs() error", err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	tests := map[asset.Item][]currency.Pair{
+		asset.Spot: {
+			currency.NewPair(currency.ETH, currency.UST),
+			currency.NewPair(currency.BTC, currency.UST),
+		},
+	}
+	for assetItem, pairs := range tests {
+		if err := b.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
+			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
+		}
+		for _, pair := range pairs {
+			limits, err := b.GetOrderExecutionLimits(assetItem, pair)
+			if err != nil {
+				t.Errorf("GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, pair, err)
+				continue
+			}
+			if limits.MinimumBaseAmount == 0 {
+				t.Errorf("UpdateOrderExecutionLimits empty minimum base amount; Pair: %s Expected Limit: %v", pair, limits.MinimumBaseAmount)
+			}
+		}
+	}
+}
+
 func TestAppendOptionalDelimiter(t *testing.T) {
 	t.Parallel()
 	curr1, err := currency.NewPairFromString("BTCUSD")
