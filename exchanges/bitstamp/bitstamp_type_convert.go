@@ -2,7 +2,6 @@ package bitstamp
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -21,10 +20,10 @@ func (p *TradingPair) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	before, _, found := strings.Cut(t.MinimumOrder, " ")
-	if !found {
-		return fmt.Errorf("unhandled minimum order string: %s", t.MinimumOrder)
+	minOrderStr := t.MinimumOrder
+	if prefix, _, found := strings.Cut(t.MinimumOrder, " "); found {
+		minOrderStr = prefix
 	}
-	p.MinimumOrder, err = strconv.ParseFloat(before, 64)
+	p.MinimumOrder, err = strconv.ParseFloat(minOrderStr, 64)
 	return err
 }
