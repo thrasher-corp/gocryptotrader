@@ -561,8 +561,8 @@ type WsUSDTOrderbook struct {
 	} `json:"data"`
 }
 
-// WsCoinDeltaOrderbook stores ws coinmargined orderbook
-type WsCoinDeltaOrderbook struct {
+// WsFuturesDeltaOrderbook stores ws futures orderbook deltas
+type WsFuturesDeltaOrderbook struct {
 	Topic  string `json:"topic"`
 	Type   string `json:"type"`
 	OBData struct {
