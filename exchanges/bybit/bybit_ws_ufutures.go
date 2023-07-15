@@ -24,9 +24,7 @@ import (
 
 const (
 	wsUSDTKline = "candle"
-)
 
-const (
 	bybitWebsocketUSDTMarginedFuturesPublicV2  = "wss://stream.bybit.com/realtime_public"
 	bybitWebsocketUSDTMarginedFuturesPrivateV2 = "wss://stream.bybit.com/realtime_private"
 )
@@ -39,8 +37,6 @@ var (
 		wsUSDTKline,
 		wsLiquidation,
 	}
-	// responseStreamUSDT a channel thought which the data coming from the two websocket connection will go through.
-	responseStreamUSDT = make(chan stream.Response)
 )
 
 // WsUSDTConnect connects to a USDT websocket feed
@@ -71,53 +67,36 @@ func (by *Bybit) WsUSDTConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
-	by.Websocket.Wg.Add(2)
-	go by.wsFunnelUSDTConnectionData(ufuturesWebsocket.Conn)
-	go by.wsUSDTFuturesReadData()
-	by.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	by.Websocket.Wg.Add(1)
+	go by.wsUSDTFuturesReadData(ufuturesWebsocket.Conn)
+	by.Websocket.SetCanUseAuthenticatedEndpoints(true, asset.USDTMarginedFutures)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		err = by.WsUSDTAuth(context.TODO(), &dialer)
 		if err != nil {
 			by.Websocket.DataHandler <- err
-			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			by.Websocket.SetCanUseAuthenticatedEndpoints(false, asset.USDTMarginedFutures)
 		}
 	}
 	return nil
 }
 
-// wsFunnelUSDTConnectionData receives data from multiple connection and pass the data
-// to wsRead through a channel responseStream
-func (by *Bybit) wsFunnelUSDTConnectionData(ws stream.Connection) {
-	defer by.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		responseStreamUSDT <- stream.Response{Raw: resp.Raw}
-	}
-}
-
 // wsUSDTFuturesReadData read coming messages thought the websocket connection and process the data.
-func (by *Bybit) wsUSDTFuturesReadData() {
+func (by *Bybit) wsUSDTFuturesReadData(ws stream.Connection) {
 	defer by.Websocket.Wg.Done()
+	usdtMarginedFuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.USDTMarginedFutures)
+	}
 	for {
 		select {
-		case <-by.Websocket.ShutdownC:
-			select {
-			case resp := <-responseStreamUSDT:
-				err := by.wsUSDTHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case by.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", by.Name, err)
-					}
-				}
-			default:
-			}
+		case <-usdtMarginedFuturesWebsocket.ShutdownC:
 			return
-		case resp := <-responseStreamUSDT:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+
 			err := by.wsUSDTHandleData(resp.Raw)
 			if err != nil {
 				by.Websocket.DataHandler <- err
@@ -142,7 +121,7 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context, dialer *websocket.Dialer) error
 		return err
 	}
 	by.Websocket.Wg.Add(1)
-	go by.wsFunnelUSDTConnectionData(ufuturesWebsocket.AuthConn)
+	go by.wsUSDTFuturesReadData(ufuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -237,14 +216,13 @@ func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription)
 		argStr := formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params)
 		switch channelsToSubscribe[i].Channel {
 		case wsOrder25, wsUSDTKline, wsInstrument, wsOrder200, wsTrade:
-			{
-				formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, channelsToSubscribe[i].Asset)
-				if err != nil {
-					errs = common.AppendError(errs, err)
-					continue
-				}
-				argStr += dot + formattedPair.String()
+			var formattedPair currency.Pair
+			formattedPair, err = by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, channelsToSubscribe[i].Asset)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				continue
 			}
+			argStr += dot + formattedPair.String()
 		}
 		sub.Args = append(sub.Args, argStr)
 
@@ -252,9 +230,8 @@ func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
-		} else {
-			usdtMarginedFuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 		}
+		usdtMarginedFuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
@@ -318,12 +295,11 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				}
 
 				var p currency.Pair
-				p, err = by.extractCurrencyPair(response.Data.OBData[0].Symbol, asset.USDTMarginedFutures)
+				p, err = by.extractCurrencyPair(response.Data[0].Symbol, asset.USDTMarginedFutures)
 				if err != nil {
 					return err
 				}
-
-				err = by.processOrderbook(response.Data.OBData,
+				err = by.processOrderbook(response.Data,
 					wsOperationSnapshot,
 					p,
 					asset.USDTMarginedFutures)
@@ -480,9 +456,9 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					Last:         response.Ticker.LastPrice.Float64(),
 					High:         response.Ticker.HighPrice24h.Float64(),
 					Low:          response.Ticker.LowPrice24h.Float64(),
-					Bid:          response.Ticker.BidPrice,
-					Ask:          response.Ticker.AskPrice,
-					Volume:       response.Ticker.Volume24h,
+					Bid:          response.Ticker.BidPrice.Float64(),
+					Ask:          response.Ticker.AskPrice.Float64(),
+					Volume:       response.Ticker.Volume24h.Float64(),
 					Close:        response.Ticker.PrevPrice24h.Float64(),
 					LastUpdated:  response.Ticker.UpdateAt,
 					AssetType:    asset.USDTMarginedFutures,
@@ -503,16 +479,20 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 						if err != nil {
 							return err
 						}
-
+						var tickerData *ticker.Price
+						tickerData, err = by.FetchTicker(context.Background(), p, asset.USDTMarginedFutures)
+						if err != nil {
+							return err
+						}
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Delete[x].LastPrice.Float64(),
-							High:         response.Data.Delete[x].HighPrice24h.Float64(),
-							Low:          response.Data.Delete[x].LowPrice24h.Float64(),
-							Bid:          response.Data.Delete[x].BidPrice,
-							Ask:          response.Data.Delete[x].AskPrice,
-							Volume:       response.Data.Delete[x].Volume24h,
-							Close:        response.Data.Delete[x].PrevPrice24h.Float64(),
+							Last:         compareAndSet(tickerData.Last, response.Data.Delete[x].LastPrice.Float64()),
+							High:         compareAndSet(tickerData.High, response.Data.Delete[x].HighPrice24h.Float64()),
+							Low:          compareAndSet(tickerData.Low, response.Data.Delete[x].LowPrice24h.Float64()),
+							Bid:          compareAndSet(tickerData.Bid, response.Data.Delete[x].BidPrice.Float64()),
+							Ask:          compareAndSet(tickerData.Ask, response.Data.Delete[x].AskPrice.Float64()),
+							Volume:       compareAndSet(tickerData.Volume, response.Data.Delete[x].Volume24h.Float64()),
+							Close:        compareAndSet(tickerData.Close, response.Data.Delete[x].PrevPrice24h.Float64()),
 							LastUpdated:  response.Data.Delete[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
@@ -522,21 +502,28 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 				if len(response.Data.Update) > 0 {
 					for x := range response.Data.Update {
+						if response.Data.Update[x] == (WsTickerData{}) {
+							continue
+						}
 						var p currency.Pair
 						p, err = by.extractCurrencyPair(response.Data.Update[x].Symbol, asset.USDTMarginedFutures)
 						if err != nil {
 							return err
 						}
-
+						var tickerData *ticker.Price
+						tickerData, err = by.FetchTicker(context.Background(), p, asset.USDTMarginedFutures)
+						if err != nil {
+							return err
+						}
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
-							Last:         response.Data.Update[x].LastPrice.Float64(),
-							High:         response.Data.Update[x].HighPrice24h.Float64(),
-							Low:          response.Data.Update[x].LowPrice24h.Float64(),
-							Bid:          response.Data.Update[x].BidPrice,
-							Ask:          response.Data.Update[x].AskPrice,
-							Volume:       response.Data.Update[x].Volume24h,
-							Close:        response.Data.Update[x].PrevPrice24h.Float64(),
+							Last:         compareAndSet(tickerData.Last, response.Data.Update[x].LastPrice.Float64()),
+							High:         compareAndSet(tickerData.High, response.Data.Update[x].HighPrice24h.Float64()),
+							Low:          compareAndSet(tickerData.Low, response.Data.Update[x].LowPrice24h.Float64()),
+							Bid:          compareAndSet(tickerData.Bid, response.Data.Update[x].BidPrice.Float64()),
+							Ask:          compareAndSet(tickerData.Ask, response.Data.Update[x].AskPrice.Float64()),
+							Volume:       compareAndSet(tickerData.Volume, response.Data.Update[x].Volume24h.Float64()),
+							Close:        compareAndSet(tickerData.Close, response.Data.Update[x].PrevPrice24h.Float64()),
 							LastUpdated:  response.Data.Update[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
@@ -557,9 +544,9 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 							Last:         response.Data.Insert[x].LastPrice.Float64(),
 							High:         response.Data.Insert[x].HighPrice24h.Float64(),
 							Low:          response.Data.Insert[x].LowPrice24h.Float64(),
-							Bid:          response.Data.Insert[x].BidPrice,
-							Ask:          response.Data.Insert[x].AskPrice,
-							Volume:       response.Data.Insert[x].Volume24h,
+							Bid:          response.Data.Insert[x].BidPrice.Float64(),
+							Ask:          response.Data.Insert[x].AskPrice.Float64(),
+							Volume:       response.Data.Insert[x].Volume24h.Float64(),
 							Close:        response.Data.Insert[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Insert[x].UpdateAt,
 							AssetType:    asset.USDTMarginedFutures,
@@ -782,4 +769,11 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 	}
 
 	return nil
+}
+
+func compareAndSet(prevVal, newVal float64) float64 {
+	if newVal != 0 {
+		return newVal
+	}
+	return prevVal
 }

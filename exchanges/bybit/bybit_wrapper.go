@@ -202,14 +202,15 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 	if by.IsAssetWebsocketSupported(asset.Spot) {
 		spotWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
-			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
-			RunningURL:            wsRunningEndpoint,
-			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
-			Connector:             by.WsConnect,
-			Subscriber:            by.Subscribe,
-			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
-			AssetType:             asset.Spot,
+			DefaultURL:                   bybitWSBaseURL + wsSpotPublicTopicV2,
+			RunningURL:                   wsRunningEndpoint,
+			RunningURLAuth:               bybitWSBaseURL + wsSpotPrivate,
+			Connector:                    by.WsConnect,
+			Subscriber:                   by.Subscribe,
+			Unsubscriber:                 by.Unsubscribe,
+			GenerateSubscriptions:        by.GenerateDefaultSubscriptions,
+			AssetType:                    asset.Spot,
+			CanUseAuthenticatedEndpoints: true,
 		})
 		if err != nil {
 			return err

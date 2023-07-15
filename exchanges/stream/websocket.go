@@ -107,6 +107,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 
 	if c.Authenticated {
 		w.AuthConn = newConn
+		w.SetCanUseAuthenticatedEndpoints(true)
 	} else {
 		w.Conn = newConn
 	}

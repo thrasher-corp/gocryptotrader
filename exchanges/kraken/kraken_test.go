@@ -1184,10 +1184,8 @@ func setupWsTests(t *testing.T) {
 		t.Error(err)
 	}
 	authToken = token
-	comms := make(chan stream.Response)
-	go k.wsFunnelConnectionData(spotWebsocket.Conn, comms)
-	go k.wsFunnelConnectionData(spotWebsocket.AuthConn, comms)
-	go k.wsReadData(comms)
+	go k.wsReadData(spotWebsocket.Conn)
+	go k.wsReadData(spotWebsocket.AuthConn)
 	go func() {
 		err := k.wsPingHandler()
 		if err != nil {

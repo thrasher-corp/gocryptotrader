@@ -66,9 +66,6 @@ var (
 		wsKlineV2,
 		wsLiquidation,
 	}
-
-	// responseStreamCoin a channel thought which the data coming from the two websocket connection will go through.
-	responseStreamCoin = make(chan stream.Response)
 )
 
 // WsCoinConnect connects to a CMF websocket feed
@@ -99,9 +96,8 @@ func (by *Bybit) WsCoinConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
-	by.Websocket.Wg.Add(2)
-	go by.wsFunnelCoinConnectionData(cfuturesWebsocket.Conn)
-	go by.wsCoinReadData()
+	by.Websocket.Wg.Add(1)
+	go by.wsCoinReadData(cfuturesWebsocket.Conn)
 	by.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		err = by.WsCoinAuth(context.TODO(), &dialer)
@@ -113,39 +109,23 @@ func (by *Bybit) WsCoinConnect() error {
 	return nil
 }
 
-// wsFunnelCoinConnectionData receives data from multiple connection and pass the data
-// to wsRead through a channel responseStream
-func (by *Bybit) wsFunnelCoinConnectionData(ws stream.Connection) {
-	defer by.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		responseStreamCoin <- stream.Response{Raw: resp.Raw}
-	}
-}
-
 // wsCoinReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsCoinReadData() {
+func (by *Bybit) wsCoinReadData(ws stream.Connection) {
 	defer by.Websocket.Wg.Done()
+	coinMarginedFuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.CoinMarginedFutures)
+	}
 	for {
 		select {
-		case <-by.Websocket.ShutdownC:
-			select {
-			case resp := <-responseStreamCoin:
-				err := by.wsCoinHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case by.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", by.Name, err)
-					}
-				}
-			default:
-			}
+		case <-coinMarginedFuturesWebsocket.ShutdownC:
 			return
-		case resp := <-responseStreamCoin:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+
 			err := by.wsCoinHandleData(resp.Raw)
 			if err != nil {
 				by.Websocket.DataHandler <- err
@@ -170,7 +150,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context, dialer *websocket.Dialer) error
 		return err
 	}
 	by.Websocket.Wg.Add(1)
-	go by.wsFunnelUSDTConnectionData(cfuturesWebsocket.AuthConn)
+	go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -265,14 +245,13 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 		argStr := formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params)
 		switch channelsToSubscribe[i].Channel {
 		case wsOrder25, wsCoinKline, wsInstrument, wsOrder200, wsTrade:
-			{
-				formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, channelsToSubscribe[i].Asset)
-				if err != nil {
-					errs = common.AppendError(errs, err)
-					continue
-				}
-				argStr += dot + formattedPair.String()
+			var formattedPair currency.Pair
+			formattedPair, err = by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, channelsToSubscribe[i].Asset)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				continue
 			}
+			argStr += dot + formattedPair.String()
 		}
 		sub.Args = append(sub.Args, argStr)
 
@@ -280,9 +259,8 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
-		} else {
-			cfuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 		}
+		cfuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
@@ -547,7 +525,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 						if err != nil {
 							return err
 						}
-						tickerPrice, err := ticker.GetTicker(by.Name, p, asset.CoinMarginedFutures)
+						var tickerPrice *ticker.Price
+						tickerPrice, err = ticker.GetTicker(by.Name, p, asset.CoinMarginedFutures)
 						if err != nil {
 							return err
 						}
@@ -568,10 +547,10 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 							tickerPrice.Ask = response.Data.Update[x].AskPrice.Float64()
 						}
 						if response.Data.Update[x].Volume24h != 0 {
-							tickerPrice.Volume = float64(response.Data.Update[x].Volume24h)
+							tickerPrice.Volume = response.Data.Update[x].Volume24h
 						}
 						if response.Data.Update[x].TurnOver24h != 0 {
-							tickerPrice.QuoteVolume = float64(response.Data.Update[x].TurnOver24h)
+							tickerPrice.QuoteVolume = response.Data.Update[x].TurnOver24h
 						}
 						if response.Data.Update[x].PrevPrice24h.Float64() != 0 {
 							tickerPrice.Close = response.Data.Update[x].PrevPrice24h.Float64()
@@ -812,7 +791,7 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			item := orderbook.Item{
 				Price:  data[i].Price.Float64(),
 				Amount: data[i].Size,
-				ID:     data[i].ID,
+				ID:     data[i].ID.Int64(),
 			}
 			switch {
 			case strings.EqualFold(data[i].Side, sideSell):
@@ -843,7 +822,7 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			item := orderbook.Item{
 				Price:  data[i].Price.Float64(),
 				Amount: data[i].Size,
-				ID:     data[i].ID,
+				ID:     data[i].ID.Int64(),
 			}
 
 			switch {

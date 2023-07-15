@@ -32,9 +32,6 @@ var defaultDeliveryFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
-// responseDeliveryFuturesStream a channel thought which the data coming from the two websocket connection will go through.
-var responseDeliveryFuturesStream = make(chan stream.Response)
-
 var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
@@ -73,10 +70,9 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(3)
-	go g.wsReadDeliveryFuturesData()
-	go g.wsFunnelDeliveryFuturesConnectionData(deliveryFuturesWebsocket.Conn)
-	go g.wsFunnelDeliveryFuturesConnectionData(deliveryFuturesWebsocket.AuthConn)
+	g.Websocket.Wg.Add(2)
+	go g.wsReadDeliveryFuturesData(deliveryFuturesWebsocket.Conn)
+	go g.wsReadDeliveryFuturesData(deliveryFuturesWebsocket.AuthConn)
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "successful connection to %v\n",
 			g.Websocket.GetWebsocketURL())
@@ -99,7 +95,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 }
 
 // wsReadDeliveryFuturesData read coming messages thought the websocket connection and pass the data to wsHandleFuturesData for further process.
-func (g *Gateio) wsReadDeliveryFuturesData() {
+func (g *Gateio) wsReadDeliveryFuturesData(ws stream.Connection) {
 	defer g.Websocket.Wg.Done()
 	deliveryFuturesWebsocket, err := g.Websocket.GetAssetWebsocket(asset.DeliveryFutures)
 	if err != nil {
@@ -108,38 +104,17 @@ func (g *Gateio) wsReadDeliveryFuturesData() {
 	for {
 		select {
 		case <-deliveryFuturesWebsocket.ShutdownC:
-			select {
-			case resp := <-responseDeliveryFuturesStream:
-				err := g.wsHandleFuturesData(resp.Raw, asset.DeliveryFutures)
-				if err != nil {
-					select {
-					case g.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", g.Name, err)
-					}
-				}
-			default:
-			}
 			return
-		case resp := <-responseDeliveryFuturesStream:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 			err := g.wsHandleFuturesData(resp.Raw, asset.DeliveryFutures)
 			if err != nil {
 				g.Websocket.DataHandler <- err
 			}
 		}
-	}
-}
-
-// wsFunnelDeliveryFuturesConnectionData receives data from multiple connection and pass the data
-// to wsRead through a channel responseStream
-func (g *Gateio) wsFunnelDeliveryFuturesConnectionData(ws stream.Connection) {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		responseDeliveryFuturesStream <- stream.Response{Raw: resp.Raw}
 	}
 }
 

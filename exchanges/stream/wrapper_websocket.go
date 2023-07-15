@@ -327,17 +327,32 @@ func (w *WrapperWebsocket) Setup(s *WebsocketWrapperSetup) error {
 
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in
 // a thread safe manner
-func (w *WrapperWebsocket) SetCanUseAuthenticatedEndpoints(val bool) {
+// if asset types set the value will affect only the provided asset types
+func (w *WrapperWebsocket) SetCanUseAuthenticatedEndpoints(val bool, assetTypes ...asset.Item) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
+	if len(assetTypes) > 0 {
+		for a := range assetTypes {
+			assetWs, okay := w.AssetTypeWebsockets[assetTypes[a]]
+			if okay {
+				assetWs.SetCanUseAuthenticatedEndpoints(val)
+			}
+		}
+	}
 	w.canUseAuthenticatedEndpoints = val
 }
 
 // CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in
 // a thread safe manner
-func (w *WrapperWebsocket) CanUseAuthenticatedEndpoints() bool {
+func (w *WrapperWebsocket) CanUseAuthenticatedEndpoints(assetTypes ...asset.Item) bool {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
+	if len(assetTypes) > 0 && assetTypes[0] != asset.Empty {
+		assetWs, okay := w.AssetTypeWebsockets[assetTypes[0]]
+		if okay {
+			return assetWs.CanUseAuthenticatedEndpoints()
+		}
+	}
 	return w.canUseAuthenticatedEndpoints
 }
 

@@ -47,49 +47,6 @@ var (
 
 var validCategory = []string{"spot", "linear", "inverse", "option"}
 
-// bybitTimeSec provides an internal conversion helper
-type bybitTimeSec time.Time
-
-// UnmarshalJSON is custom json unmarshaller for bybitTimeSec
-func (b *bybitTimeSec) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	*b = bybitTimeSec(time.Unix(timestamp, 0))
-	return nil
-}
-
-// Time returns a time.Time object
-func (b bybitTimeSec) Time() time.Time {
-	return time.Time(b)
-}
-
-// bybitTimeSecStr provides an internal conversion helper
-type bybitTimeSecStr time.Time
-
-// UnmarshalJSON is custom json unmarshaller for bybitTimeSec
-func (b *bybitTimeSecStr) UnmarshalJSON(data []byte) error {
-	var timestamp string
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-
-	t, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return err
-	}
-	*b = bybitTimeSecStr(time.Unix(t, 0))
-	return nil
-}
-
-// Time returns a time.Time object
-func (b bybitTimeSecStr) Time() time.Time {
-	return time.Time(b)
-}
-
 // bybitTime provides an internal conversion helper
 type bybitTime time.Time
 
@@ -540,7 +497,7 @@ type wsOrderFilled struct {
 type WsFuturesOrderbookData struct {
 	Price  convert.StringToFloat64 `json:"price"`
 	Symbol string                  `json:"symbol"`
-	ID     int64                   `json:"id"`
+	ID     bybitNumber             `json:"id"`
 	Side   string                  `json:"side"`
 	Size   float64                 `json:"size"`
 }
@@ -552,13 +509,14 @@ type WsFuturesOrderbook struct {
 	OBData []WsFuturesOrderbookData `json:"data"`
 }
 
+type wsUSDTOBData []WsFuturesOrderbookData
+
 // WsUSDTOrderbook stores ws usdt orderbook
 type WsUSDTOrderbook struct {
-	Topic string `json:"topic"`
-	Type  string `json:"type"`
-	Data  struct {
-		OBData []WsFuturesOrderbookData `json:"order_book"`
-	} `json:"data"`
+	Topic       string       `json:"topic"`
+	Type        string       `json:"type"`
+	Data        wsUSDTOBData `json:"data"`
+	TimestampE6 bybitTime    `json:"timestamp_e6"`
 }
 
 // WsFuturesDeltaOrderbook stores ws futures orderbook deltas
@@ -592,17 +550,17 @@ type WsFuturesTrade struct {
 
 // WsFuturesKlineData stores ws future kline data
 type WsFuturesKlineData struct {
-	StartTime bybitTimeSec `json:"start"`
-	EndTime   bybitTimeSec `json:"end"`
-	Close     float64      `json:"close"`
-	Open      float64      `json:"open"`
-	High      float64      `json:"high"`
-	Low       float64      `json:"low"`
-	Volume    float64      `json:"volume"`
-	TurnOver  float64      `json:"turnover"`
-	Confirm   bool         `json:"confirm"`
-	CrossSeq  int64        `json:"coss_seq"`
-	Timestamp bybitTime    `json:"timestamp"`
+	StartTime bybitTime `json:"start"`
+	EndTime   bybitTime `json:"end"`
+	Close     float64   `json:"close"`
+	Open      float64   `json:"open"`
+	High      float64   `json:"high"`
+	Low       float64   `json:"low"`
+	Volume    float64   `json:"volume"`
+	TurnOver  float64   `json:"turnover"`
+	Confirm   bool      `json:"confirm"`
+	CrossSeq  int64     `json:"coss_seq"`
+	Timestamp bybitTime `json:"timestamp"`
 }
 
 // WsFuturesKline stores ws future kline
@@ -629,25 +587,25 @@ type WsTickerData struct {
 	ID                    int64                   `json:"id"`
 	Symbol                string                  `json:"symbol"`
 	LastPrice             convert.StringToFloat64 `json:"last_price"`
-	BidPrice              float64                 `json:"bid1_price"`
-	AskPrice              float64                 `json:"ask1_price"`
+	BidPrice              convert.StringToFloat64 `json:"bid1_price"`
+	AskPrice              convert.StringToFloat64 `json:"ask1_price"`
 	LastDirection         string                  `json:"last_tick_direction"`
 	PrevPrice24h          convert.StringToFloat64 `json:"prev_price_24h"`
-	Price24hPercentChange float64                 `json:"price_24h_pcnt_e6"`
-	Price1hPercentChange  float64                 `json:"price_1h_pcnt_e6"`
+	Price24hPercentChange convert.StringToFloat64 `json:"price_24h_pcnt_e6"`
+	Price1hPercentChange  convert.StringToFloat64 `json:"price_1h_pcnt_e6"`
 	HighPrice24h          convert.StringToFloat64 `json:"high_price_24h"`
 	LowPrice24h           convert.StringToFloat64 `json:"low_price_24h"`
 	PrevPrice1h           convert.StringToFloat64 `json:"prev_price_1h"`
 	MarkPrice             convert.StringToFloat64 `json:"mark_price"`
 	IndexPrice            convert.StringToFloat64 `json:"index_price"`
-	OpenInterest          float64                 `json:"open_interest"`
-	OpenValue             float64                 `json:"open_value_e8"`
-	TotalTurnOver         float64                 `json:"total_turnover_e8"`
-	TurnOver24h           float64                 `json:"turnover_24h_e8"`
-	TotalVolume           float64                 `json:"total_volume"`
-	Volume24h             float64                 `json:"volume_24h"`
-	FundingRate           int64                   `json:"funding_rate_e6"`
-	PredictedFundingRate  float64                 `json:"predicted_funding_rate_e6"`
+	OpenInterest          bybitNumber             `json:"open_interest"`
+	OpenValue             bybitNumber             `json:"open_value_e8"`
+	TotalTurnOver         bybitNumber             `json:"total_turnover_e8"`
+	TurnOver24h           bybitNumber             `json:"turnover_24h_e8"`
+	TotalVolume           bybitNumber             `json:"total_volume"`
+	Volume24h             bybitNumber             `json:"volume_24h"`
+	FundingRate           convert.StringToFloat64 `json:"funding_rate_e6"`
+	PredictedFundingRate  convert.StringToFloat64 `json:"predicted_funding_rate_e6"`
 	CreatedAt             time.Time               `json:"created_at"`
 	UpdateAt              time.Time               `json:"updated_at"`
 	NextFundingAt         time.Time               `json:"next_funding_time"`

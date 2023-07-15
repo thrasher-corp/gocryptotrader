@@ -27,11 +27,7 @@ import (
 
 var (
 	errInvalidChecksum = errors.New("invalid checksum")
-	// responseStream a channel thought which the data coming from the two websocket connection will go through.
-	responseStream = make(chan stream.Response)
-)
 
-var (
 	// defaultSubscribedChannels list of channels which are subscribed by default
 	defaultSubscribedChannels = []string{
 		okxChannelTrades,
@@ -49,9 +45,7 @@ var (
 	candlestickChannelsMap    = map[string]bool{okxChannelCandle1Y: true, okxChannelCandle6M: true, okxChannelCandle3M: true, okxChannelCandle1M: true, okxChannelCandle1W: true, okxChannelCandle1D: true, okxChannelCandle2D: true, okxChannelCandle3D: true, okxChannelCandle5D: true, okxChannelCandle12H: true, okxChannelCandle6H: true, okxChannelCandle4H: true, okxChannelCandle2H: true, okxChannelCandle1H: true, okxChannelCandle30m: true, okxChannelCandle15m: true, okxChannelCandle5m: true, okxChannelCandle3m: true, okxChannelCandle1m: true, okxChannelCandle1Yutc: true, okxChannelCandle3Mutc: true, okxChannelCandle1Mutc: true, okxChannelCandle1Wutc: true, okxChannelCandle1Dutc: true, okxChannelCandle2Dutc: true, okxChannelCandle3Dutc: true, okxChannelCandle5Dutc: true, okxChannelCandle12Hutc: true, okxChannelCandle6Hutc: true}
 	candlesticksMarkPriceMap  = map[string]bool{okxChannelMarkPriceCandle1Y: true, okxChannelMarkPriceCandle6M: true, okxChannelMarkPriceCandle3M: true, okxChannelMarkPriceCandle1M: true, okxChannelMarkPriceCandle1W: true, okxChannelMarkPriceCandle1D: true, okxChannelMarkPriceCandle2D: true, okxChannelMarkPriceCandle3D: true, okxChannelMarkPriceCandle5D: true, okxChannelMarkPriceCandle12H: true, okxChannelMarkPriceCandle6H: true, okxChannelMarkPriceCandle4H: true, okxChannelMarkPriceCandle2H: true, okxChannelMarkPriceCandle1H: true, okxChannelMarkPriceCandle30m: true, okxChannelMarkPriceCandle15m: true, okxChannelMarkPriceCandle5m: true, okxChannelMarkPriceCandle3m: true, okxChannelMarkPriceCandle1m: true, okxChannelMarkPriceCandle1Yutc: true, okxChannelMarkPriceCandle3Mutc: true, okxChannelMarkPriceCandle1Mutc: true, okxChannelMarkPriceCandle1Wutc: true, okxChannelMarkPriceCandle1Dutc: true, okxChannelMarkPriceCandle2Dutc: true, okxChannelMarkPriceCandle3Dutc: true, okxChannelMarkPriceCandle5Dutc: true, okxChannelMarkPriceCandle12Hutc: true, okxChannelMarkPriceCandle6Hutc: true}
 	candlesticksIndexPriceMap = map[string]bool{okxChannelIndexCandle1Y: true, okxChannelIndexCandle6M: true, okxChannelIndexCandle3M: true, okxChannelIndexCandle1M: true, okxChannelIndexCandle1W: true, okxChannelIndexCandle1D: true, okxChannelIndexCandle2D: true, okxChannelIndexCandle3D: true, okxChannelIndexCandle5D: true, okxChannelIndexCandle12H: true, okxChannelIndexCandle6H: true, okxChannelIndexCandle4H: true, okxChannelIndexCandle2H: true, okxChannelIndexCandle1H: true, okxChannelIndexCandle30m: true, okxChannelIndexCandle15m: true, okxChannelIndexCandle5m: true, okxChannelIndexCandle3m: true, okxChannelIndexCandle1m: true, okxChannelIndexCandle1Yutc: true, okxChannelIndexCandle3Mutc: true, okxChannelIndexCandle1Mutc: true, okxChannelIndexCandle1Wutc: true, okxChannelIndexCandle1Dutc: true, okxChannelIndexCandle2Dutc: true, okxChannelIndexCandle3Dutc: true, okxChannelIndexCandle5Dutc: true, okxChannelIndexCandle12Hutc: true, okxChannelIndexCandle6Hutc: true}
-)
 
-var (
 	pingMsg = []byte("ping")
 	pongMsg = []byte("pong")
 )
@@ -230,8 +224,7 @@ func (ok *Okx) WsConnect() error {
 		return err
 	}
 	ok.Websocket.Wg.Add(2)
-	go ok.wsFunnelConnectionData(spotWebsocket.Conn)
-	go ok.WsReadData()
+	go ok.WsReadData(spotWebsocket.Conn)
 	go ok.WsResponseMultiplexer.Run()
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
@@ -269,7 +262,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsFunnelConnectionData(spotWebsocket.AuthConn)
+	go ok.WsReadData(spotWebsocket.AuthConn)
 	spotWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
@@ -339,19 +332,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 				ok.Name,
 				request.Operation)
 		}
-	}
-}
-
-// wsFunnelConnectionData receives data from multiple connection and pass the data
-// to wsRead through a channel responseStream
-func (ok *Okx) wsFunnelConnectionData(ws stream.Connection) {
-	defer ok.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		responseStream <- stream.Response{Raw: resp.Raw}
 	}
 }
 
@@ -542,32 +522,22 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 }
 
 // WsReadData read coming messages thought the websocket connection and process the data.
-func (ok *Okx) WsReadData() {
+func (ok *Okx) WsReadData(ws stream.Connection) {
 	defer ok.Websocket.Wg.Done()
 	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
-		return
 	}
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:
-			select {
-			case resp := <-responseStream:
-				err := ok.WsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case ok.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", ok.Name, err)
-					}
-				}
-			default:
-			}
 			return
-		case resp := <-responseStream:
-			err := ok.WsHandleData(resp.Raw)
-			if err != nil {
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			if err := ok.WsHandleData(resp.Raw); err != nil {
 				ok.Websocket.DataHandler <- err
 			}
 		}

@@ -97,10 +97,8 @@ func (k *Kraken) WsConnect() error {
 		return err
 	}
 
-	comms := make(chan stream.Response)
 	k.Websocket.Wg.Add(2)
-	go k.wsReadData(comms)
-	go k.wsFunnelConnectionData(spotWebsocket.Conn, comms)
+	go k.wsReadData(spotWebsocket.Conn)
 
 	if k.IsWebsocketAuthenticationSupported() {
 		authToken, err = k.GetWebsocketToken(context.TODO())
@@ -120,7 +118,7 @@ func (k *Kraken) WsConnect() error {
 					err)
 			} else {
 				k.Websocket.Wg.Add(1)
-				go k.wsFunnelConnectionData(spotWebsocket.AuthConn, comms)
+				go k.wsReadData(spotWebsocket.AuthConn)
 				err = k.wsAuthPingHandler()
 				if err != nil {
 					log.Errorf(log.ExchangeSys,
@@ -142,20 +140,8 @@ func (k *Kraken) WsConnect() error {
 	return nil
 }
 
-// wsFunnelConnectionData funnels both auth and public ws data into one manageable place
-func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.Response) {
-	defer k.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		comms <- resp
-	}
-}
-
 // wsReadData receives and passes on websocket messages for processing
-func (k *Kraken) wsReadData(comms chan stream.Response) {
+func (k *Kraken) wsReadData(ws stream.Connection) {
 	defer k.Websocket.Wg.Done()
 	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
@@ -166,23 +152,12 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := k.wsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case k.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr,
-							"%s websocket handle data error: %v",
-							k.Name,
-							err)
-					}
-				}
-			default:
-			}
 			return
-		case resp := <-comms:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 			err := k.wsHandleData(resp.Raw)
 			if err != nil {
 				k.Websocket.DataHandler <- fmt.Errorf("%s - unhandled websocket data: %v",
