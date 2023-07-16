@@ -116,7 +116,6 @@ const (
 	preUpgradeAssetSettlementRecord = "/v5/pre-upgrade/asset/settlement-record"
 	accountWalletBalanceRequired    = "/v5/account/wallet-balance"
 	accountUpgradeToUTA             = "/v5/account/upgrade-to-uta"
-	accountBorrowHistory            = "/v5/account/borrow-history"
 )
 
 var (
@@ -2195,6 +2194,124 @@ func (by *Bybit) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) 
 	}{}
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/borrow-token", params, nil, &resp, privateSpotRate)
 }
+
+// GetInterestAndQuota retrieves interest and quota information.
+func (by *Bybit) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*InterestAndQuota, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	var resp InterestAndQuota
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/loan-info", params, nil, &resp, privateSpotRate)
+}
+
+// GetLoanAccountInfo retrieves loan account information.
+func (by *Bybit) GetLoanAccountInfo(ctx context.Context) (*AccountLoanInfo, error) {
+	var resp AccountLoanInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/account", nil, nil, &resp, privateSpotRate)
+}
+
+// Borrow borrows a coin.
+func (by *Bybit) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.AmountToBorrow <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp BorrowResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/loan", nil, arg, &resp, privateSpotRate)
+}
+
+// Repay repay a debt.
+func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.AmountToBorrow <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp RepayResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/repay", nil, arg, &resp, privateSpotRate)
+}
+
+// GetBorrowOrderDetail represents the borrow order detail.
+// Status '0'(default)：get all kinds of status '1'：uncleared '2'：cleared
+func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, status, limit int64) ([]BorrowOrderDetail, error) {
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := &struct {
+		List []BorrowOrderDetail `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/orders", params, nil, &resp, privateSpotRate)
+}
+
+// GetRepaymentOrderDetail retrieves repayment order detail.
+func (by *Bybit) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, limit int64) ([]CoinRepaymentResponse, error) {
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := &struct {
+		List []CoinRepaymentResponse `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/repay-history", params, nil, &resp, privateSpotRate)
+}
+
+// ToggleMarginTradeNormal turn on / off spot margin trade
+// Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
+// spotMarginMode '1': on, '0': off
+func (by *Bybit) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+	arg := &SpotMarginMode{}
+	if spotMarginMode {
+		arg.SpotMarginMode = "1"
+	} else {
+		arg.SpotMarginMode = "0"
+	}
+	var resp SpotMarginMode
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/switch-mode", nil, arg, &resp, privateSpotRate)
+}
+
+// ----------------------------------------- Institutional Lending -----------------------------------------
+
+// GetProductInfo represents a product info.
+func (by *Bybit) GetProductInfo(ctx context.Context, productID string) (*InstitutionalProductInfo, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	var resp InstitutionalProductInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/product-infos", params, nil, &resp, privateSpotRate)
+}
+
+// func (by *(Bybit) GetMarginCoinInfo(ctx context.Context, productID string) ()
 
 // GetFeeRate returns user account fee
 // Valid  category: "spot", "linear", "inverse", "option"

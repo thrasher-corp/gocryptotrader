@@ -5092,3 +5092,102 @@ func TestGetBorrowableCoinInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetInterestAndQuota(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInterestAndQuota(context.Background(), currency.EMPTYCODE)
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.GetInterestAndQuota(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLoanAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLoanAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBorrow(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.Borrow(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.Borrow(context.Background(), &LendArgument{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.Borrow(context.Background(), &LendArgument{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.Borrow(context.Background(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestRepay(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.Repay(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = b.Repay(context.Background(), &LendArgument{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.Repay(context.Background(), &LendArgument{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.Repay(context.Background(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowOrderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetBorrowOrderDetail(context.Background(), time.Time{}, time.Time{}, currency.BTC, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRepaymentOrderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetRepaymentOrderDetail(context.Background(), time.Time{}, time.Time{}, currency.BTC, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestToggleMarginTradeNormal(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.ToggleMarginTradeNormal(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetProductInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetProductInfo(context.Background(), "78")
+	if err != nil {
+		t.Error(err)
+	}
+}

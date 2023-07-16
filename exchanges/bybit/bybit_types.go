@@ -2240,3 +2240,98 @@ type BorrowableCoinInfo struct {
 	Coin               string `json:"coin"`
 	RepaymentPrecision int64  `json:"repaymentPrecision"`
 }
+
+// InterestAndQuota represents interest and quota information.
+type InterestAndQuota struct {
+	Coin           string                  `json:"coin"`
+	InterestRate   string                  `json:"interestRate"`
+	LoanAbleAmount convert.StringToFloat64 `json:"loanAbleAmount"`
+	MaxLoanAmount  convert.StringToFloat64 `json:"maxLoanAmount"`
+}
+
+// AccountLoanInfo covers: Margin trade (Normal Account)
+type AccountLoanInfo struct {
+	AcctBalanceSum  convert.StringToFloat64 `json:"acctBalanceSum"`
+	DebtBalanceSum  convert.StringToFloat64 `json:"debtBalanceSum"`
+	LoanAccountList []struct {
+		Interest     string                  `json:"interest"`
+		Loan         string                  `json:"loan"`
+		Locked       string                  `json:"locked"`
+		TokenID      string                  `json:"tokenId"`
+		Free         convert.StringToFloat64 `json:"free"`
+		RemainAmount convert.StringToFloat64 `json:"remainAmount"`
+		Total        convert.StringToFloat64 `json:"total"`
+	} `json:"loanAccountList"`
+	RiskRate     convert.StringToFloat64 `json:"riskRate"`
+	Status       int64                   `json:"status"`
+	SwitchStatus int64                   `json:"switchStatus"`
+}
+
+// BorrowResponse represents borrow response transaction id.
+type BorrowResponse struct {
+	TransactID string `json:"transactId"`
+}
+
+// LendArgument represents currency borrow and repay parameter.
+type LendArgument struct {
+	Coin           currency.Code `json:"coin"`
+	AmountToBorrow float64       `json:"qty,string"`
+}
+
+// RepayResponse represents a repay id
+type RepayResponse struct {
+	RepayID string `json:"repayId"`
+}
+
+// BorrowOrderDetail represents a borrow order detail info.
+type BorrowOrderDetail struct {
+	ID              string                  `json:"id"`
+	AccountID       string                  `json:"accountId"`
+	Coin            string                  `json:"coin"`
+	CreatedTime     convert.ExchangeTime    `json:"createdTime"`
+	InterestAmount  convert.StringToFloat64 `json:"interestAmount"`
+	InterestBalance convert.StringToFloat64 `json:"interestBalance"`
+	LoanAmount      convert.StringToFloat64 `json:"loanAmount"`
+	LoanBalance     convert.StringToFloat64 `json:"loanBalance"`
+	RemainAmount    convert.StringToFloat64 `json:"remainAmount"`
+	Status          int64                   `json:"status"`
+	Type            int64                   `json:"type"`
+}
+
+// CoinRepaymentResponse represents a coin repayment detail.
+type CoinRepaymentResponse struct {
+	AccountID          string                  `json:"accountId"`
+	Coin               string                  `json:"coin"`
+	RepaidAmount       convert.StringToFloat64 `json:"repaidAmount"`
+	RepayID            string                  `json:"repayId"`
+	RepayMarginOrderID string                  `json:"repayMarginOrderId"`
+	RepayTime          convert.ExchangeTime    `json:"repayTime"`
+	TransactIds        []struct {
+		RepaidAmount       convert.StringToFloat64 `json:"repaidAmount"`
+		RepaidInterest     convert.StringToFloat64 `json:"repaidInterest"`
+		RepaidPrincipal    convert.StringToFloat64 `json:"repaidPrincipal"`
+		RepaidSerialNumber convert.StringToFloat64 `json:"repaidSerialNumber"`
+		TransactID         string                  `json:"transactId"`
+	} `json:"transactIds"`
+}
+
+// InstitutionalProductInfo represents institutional product info.
+type InstitutionalProductInfo struct {
+	MarginProductInfo []struct {
+		ProductID           string   `json:"productId"`
+		Leverage            string   `json:"leverage"`
+		SupportSpot         int64    `json:"supportSpot"`
+		SupportContract     int64    `json:"supportContract"`
+		WithdrawLine        string   `json:"withdrawLine"`
+		TransferLine        string   `json:"transferLine"`
+		SpotBuyLine         string   `json:"spotBuyLine"`
+		SpotSellLine        string   `json:"spotSellLine"`
+		ContractOpenLine    string   `json:"contractOpenLine"`
+		LiquidationLine     string   `json:"liquidationLine"`
+		StopLiquidationLine string   `json:"stopLiquidationLine"`
+		ContractLeverage    string   `json:"contractLeverage"`
+		TransferRatio       string   `json:"transferRatio"`
+		SpotSymbols         []string `json:"spotSymbols"`
+		ContractSymbols     []string `json:"contractSymbols"`
+	} `json:"marginProductInfo"`
+}
