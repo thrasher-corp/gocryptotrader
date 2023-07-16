@@ -198,22 +198,22 @@ type WebsocketOrder struct {
 		UID            string `json:"uid"`
 	} `json:"arg"`
 	Data []struct {
-		AccFillSize                float64                 `json:"accFillSz"`
+		AccFillSize                convert.StringToFloat64 `json:"accFillSz"`
 		AmendResult                string                  `json:"amendResult"`
-		AveragePrice               float64                 `json:"avgPx"`
+		AveragePrice               convert.StringToFloat64 `json:"avgPx"`
 		CreateTime                 okcoinTime              `json:"cTime"`
 		Category                   string                  `json:"category"`
 		Currency                   string                  `json:"ccy"`
 		ClientOrdID                string                  `json:"clOrdId"`
 		Code                       string                  `json:"code"`
 		ExecType                   string                  `json:"execType"`
-		Fee                        float64                 `json:"fee"`
+		Fee                        convert.StringToFloat64 `json:"fee"`
 		FeeCurrency                string                  `json:"feeCcy"`
 		FillFee                    convert.StringToFloat64 `json:"fillFee"`
 		FillFeeCurrency            string                  `json:"fillFeeCcy"`
 		FillNotionalUsd            convert.StringToFloat64 `json:"fillNotionalUsd"`
-		FillPrice                  float64                 `json:"fillPx"`
-		FillSize                   float64                 `json:"fillSz"`
+		FillPrice                  convert.StringToFloat64 `json:"fillPx"`
+		FillSize                   convert.StringToFloat64 `json:"fillSz"`
 		FillTime                   okcoinTime              `json:"fillTime"`
 		InstrumentID               string                  `json:"instId"`
 		InstrumentType             string                  `json:"instType"`
@@ -230,20 +230,20 @@ type WebsocketOrder struct {
 		ReduceOnly                 string                  `json:"reduceOnly"`
 		ClientRequestID            string                  `json:"reqId"`
 		Side                       string                  `json:"side"`
-		StopLossOrderPrice         float64                 `json:"slOrdPx"`
-		StopLossTriggerPrice       float64                 `json:"slTriggerPx"`
+		StopLossOrderPrice         convert.StringToFloat64 `json:"slOrdPx"`
+		StopLossTriggerPrice       convert.StringToFloat64 `json:"slTriggerPx"`
 		StopLossTriggerPriceType   string                  `json:"slTriggerPxType"`
 		Source                     string                  `json:"source"`
 		State                      string                  `json:"state"`
-		Size                       float64                 `json:"sz"`
+		Size                       convert.StringToFloat64 `json:"sz"`
 		Tag                        string                  `json:"tag"`
 		TradeMode                  string                  `json:"tdMode"`
 		TargetCurrency             string                  `json:"tgtCcy"`
-		TakeProfitOrdPrice         float64                 `json:"tpOrdPx"`
-		TakeProfitTriggerPrice     float64                 `json:"tpTriggerPx"`
+		TakeProfitOrdPrice         convert.StringToFloat64 `json:"tpOrdPx"`
+		TakeProfitTriggerPrice     convert.StringToFloat64 `json:"tpTriggerPx"`
 		TakeProfitTriggerPriceType string                  `json:"tpTriggerPxType"`
 		TradeID                    string                  `json:"tradeId"`
-		UTime                      okcoinTime              `json:"uTime"`
+		UpdateTime                 okcoinTime              `json:"uTime"`
 	} `json:"data"`
 }
 
@@ -510,7 +510,7 @@ type Instrument struct {
 	MaxStopSize    okcoinNumber            `json:"maxStopSz"`
 	MaxTwapSize    okcoinNumber            `json:"maxTwapSz"`
 	MaxTriggerSize okcoinNumber            `json:"maxTriggerSz"`
-	MinSize        okcoinNumber            `json:"minSz"`
+	MinSize        okcoinNumber            `json:"minSz"` // Minimum order size
 	QuoteCurrency  string                  `json:"quoteCcy"`
 	OptionType     string                  `json:"optType"`
 	SettleCurrency string                  `json:"settleCcy"`

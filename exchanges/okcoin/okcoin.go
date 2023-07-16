@@ -67,7 +67,7 @@ var (
 	errTpTriggerOrderPriceTypeRequired        = errors.New("'take-profit-order-price-type' is required")
 	errStopLossTriggerPriceTypeRequired       = errors.New("'stop-loss-trigger-price' is required")
 	errCallbackRatioOrCallbackSpeedRequired   = errors.New("either Callback ration or callback spread is required")
-	errTimeIntervlaInformationRequired        = errors.New("time interval information is required")
+	errTimeIntervalInformationRequired        = errors.New("time interval information is required")
 	errOrderTypeRequired                      = errors.New("order type is required")
 	errNoAccountDepositAddress                = errors.New("no account deposit address")
 	errQuoteIDRequired                        = errors.New("quote id is required")
@@ -91,9 +91,10 @@ const (
 // List trading pairs and get the trading limit, price, and more information of different trading pairs.
 func (o *Okcoin) GetInstruments(ctx context.Context, instrumentType, instrumentID string) ([]Instrument, error) {
 	params := url.Values{}
-	if instrumentType != "" {
-		params.Set("instType", instrumentType)
+	if instrumentType == "" {
+		return nil, errInstrumentTypeMissing
 	}
+	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
@@ -128,9 +129,10 @@ func (o *Okcoin) GetSystemTime(ctx context.Context) (time.Time, error) {
 // GetTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
 func (o *Okcoin) GetTickers(ctx context.Context, instrumentType string) ([]TickerData, error) {
 	params := url.Values{}
-	if instrumentType != "" {
-		params.Set("instType", instrumentType)
+	if instrumentType == "" {
+		return nil, errInstrumentTypeMissing
 	}
+	params.Set("instType", instrumentType)
 	var resp []TickerData
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, typeMarket, common.EncodeURLValues("tickers", params), nil, &resp, false)
 }
@@ -171,7 +173,7 @@ func (o *Okcoin) GetOrderbook(ctx context.Context, instrumentID string, sideDept
 }
 
 // GetCandlesticks retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
-func (o *Okcoin) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, after, before time.Time, limit int64) ([]CandlestickData, error) {
+func (o *Okcoin) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, after, before time.Time, limit int64, utcOpeningPrice bool) ([]CandlestickData, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -180,7 +182,7 @@ func (o *Okcoin) GetCandlesticks(ctx context.Context, instrumentID string, inter
 	var err error
 	if interval != kline.Interval(0) {
 		var intervalString string
-		intervalString, err = intervalToString(interval, false)
+		intervalString, err = intervalToString(interval, utcOpeningPrice)
 		if err != nil {
 			return nil, err
 		}
@@ -1520,7 +1522,7 @@ func (arg *AlgoOrderRequestParam) validateAlgoOrder() error {
 			return fmt.Errorf("%w, order type %s", errPriceLimitRequired, arg.OrderType)
 		}
 		if arg.TimeInterval == "" {
-			return errTimeIntervlaInformationRequired
+			return errTimeIntervalInformationRequired
 		}
 	}
 	return nil

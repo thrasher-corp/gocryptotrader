@@ -296,7 +296,7 @@ func (o *Okcoin) wsProcessOrders(respRaw []byte) error {
 
 	algoOrder := make([]fill.Data, len(resp.Data))
 	for x := range resp.Data {
-		side, err := order.StringToOrderSide(resp.Data[x].PositionSide)
+		side, err := order.StringToOrderSide(resp.Data[x].Side)
 		if err != nil {
 			return err
 		}
@@ -310,8 +310,8 @@ func (o *Okcoin) wsProcessOrders(respRaw []byte) error {
 			OrderID:       resp.Data[x].OrderID,
 			ClientOrderID: resp.Data[x].ClientOrdID,
 			TradeID:       resp.Data[x].TradeID,
-			Price:         resp.Data[x].FillPrice,
-			Amount:        resp.Data[x].Size,
+			Price:         resp.Data[x].FillPrice.Float64(),
+			Amount:        resp.Data[x].Size.Float64(),
 		}
 	}
 	o.Websocket.DataHandler <- algoOrder
@@ -384,6 +384,9 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 			return err
 		}
 		return o.Websocket.Orderbook.LoadSnapshot(&base)
+	}
+	if len(resp.Data[0].Asks)+len(resp.Data[0].Bids) == 0 {
+		return nil
 	}
 	asks, err := o.AppendWsOrderbookItems(resp.Data[0].Asks)
 	if err != nil {

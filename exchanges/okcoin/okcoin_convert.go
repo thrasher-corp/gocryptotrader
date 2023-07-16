@@ -82,5 +82,8 @@ func (a *okcoinNumber) UnmarshalJSON(data []byte) error {
 // Float64 returns a float64 value from okcoinNumber instance.
 func (a *okcoinNumber) Float64() float64 { return float64(*a) }
 
+// Int64 returns a int64 value from okcoinNumber instance.
+func (a *okcoinNumber) Int64() int64 { return int64(*a) }
+
 // String returns string wrapped float64 value from okcoinNumber instance.
 func (a *okcoinNumber) String() string { return strconv.FormatFloat(float64(*a), 'f', -1, 64) }

@@ -48,7 +48,7 @@ func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	return exchCfg, nil
 }
 
-// SetDefaults method assigns the default values for OKCoin
+// SetDefaults method assigns the default values for Okcoin
 func (o *Okcoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.Name = okcoinExchangeName
@@ -64,7 +64,10 @@ func (o *Okcoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
+	err = o.DisableAssetWebsocketSupport(asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -207,7 +210,7 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the OKCoin go routine
+// Start starts the Okcoin go routine
 func (o *Okcoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
@@ -220,7 +223,7 @@ func (o *Okcoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-// Run implements the OKCoin wrapper
+// Run implements the Okcoin wrapper
 func (o *Okcoin) Run(ctx context.Context) {
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys,
@@ -233,55 +236,57 @@ func (o *Okcoin) Run(ctx context.Context) {
 	forceUpdate := false
 	var err error
 	if !o.BypassConfigFormatUpgrades {
-		var format currency.PairFormat
-		format, err = o.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				o.Name,
-				err)
-			return
-		}
-		var enabled, avail currency.Pairs
-		enabled, err = o.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				o.Name,
-				err)
-			return
-		}
-
-		avail, err = o.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				o.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-				format.Delimiter +
-				currency.USD.String()})
+		for _, a := range o.GetAssetTypes(true) {
+			var format currency.PairFormat
+			format, err = o.GetPairFormat(a, false)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies.\n",
-					o.Name)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, o.Name, asset.Spot, p)
-				forceUpdate = true
+					"%s failed to update currencies. Err: %s\n",
+					o.Name,
+					err)
+				return
+			}
+			var enabled, avail currency.Pairs
+			enabled, err = o.CurrencyPairs.GetPairs(a, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					o.Name,
+					err)
+				return
+			}
 
-				err = o.UpdatePairs(p, asset.Spot, true, true)
+			avail, err = o.CurrencyPairs.GetPairs(a, false)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					o.Name,
+					err)
+				return
+			}
+
+			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+				!common.StringDataContains(avail.Strings(), format.Delimiter) {
+				var p currency.Pairs
+				p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
+					format.Delimiter +
+					currency.USD.String()})
 				if err != nil {
 					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						o.Name,
-						err)
-					return
+						"%s failed to update currencies.\n",
+						o.Name)
+				} else {
+					log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, o.Name, a, p)
+					forceUpdate = true
+
+					err = o.UpdatePairs(p, a, true, true)
+					if err != nil {
+						log.Errorf(log.ExchangeSys,
+							"%s failed to update currencies. Err: %s\n",
+							o.Name,
+							err)
+						return
+					}
 				}
 			}
 		}
@@ -300,7 +305,7 @@ func (o *Okcoin) Run(ctx context.Context) {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if a != asset.Spot {
+	if !o.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, a)
 	}
 	prods, err := o.GetInstruments(ctx, "SPOT", "")
@@ -323,16 +328,23 @@ func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (o *Okcoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := o.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
+	assets := o.GetAssetTypes(true)
+	for a := range assets {
+		pairs, err := o.FetchTradablePairs(ctx, assets[a])
+		if err != nil {
+			return err
+		}
+		err = o.UpdatePairs(pairs, assets[a], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-	return o.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (o *Okcoin) UpdateTickers(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
+	if !o.SupportsAsset(a) {
 		return fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, a)
 	}
 	tickers, err := o.GetTickers(ctx, "SPOT")
@@ -392,7 +404,7 @@ func (o *Okcoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (o *Okcoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if assetType != asset.Spot {
+	if !o.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
 	var err error
@@ -439,7 +451,7 @@ func (o *Okcoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (*o
 	}
 	params := make([]CancelTradeOrderRequest, len(args))
 	for x := range args {
-		if args[x].AssetType != asset.Spot {
+		if !o.SupportsAsset(args[x].AssetType) {
 			return cancelBatchResponse, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, args[x].AssetType)
 		}
 		err = args[x].Validate()
@@ -510,28 +522,28 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if !p.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	orderbookLite, err := o.GetOrderbook(ctx, p.String(), o.WebsocketOrderbookBufferLimit)
+	orderbookList, err := o.GetOrderbook(ctx, p.String(), 400)
 	if err != nil {
 		return nil, err
 	}
-	book.Bids = make(orderbook.Items, len(orderbookLite.Bids))
-	for x := range orderbookLite.Bids {
-		book.Bids[x].Amount, err = strconv.ParseFloat(orderbookLite.Bids[x][1], 64)
+	book.Bids = make(orderbook.Items, len(orderbookList.Bids))
+	for x := range orderbookList.Bids {
+		book.Bids[x].Amount, err = strconv.ParseFloat(orderbookList.Bids[x][1], 64)
 		if err != nil {
 			return nil, err
 		}
-		book.Bids[x].Price, err = strconv.ParseFloat(orderbookLite.Bids[x][0], 64)
+		book.Bids[x].Price, err = strconv.ParseFloat(orderbookList.Bids[x][0], 64)
 		if err != nil {
 			return book, err
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookLite.Asks))
-	for x := range orderbookLite.Bids {
-		book.Asks[x].Amount, err = strconv.ParseFloat(orderbookLite.Asks[x][1], 64)
+	book.Asks = make(orderbook.Items, len(orderbookList.Asks))
+	for x := range orderbookList.Asks {
+		book.Asks[x].Amount, err = strconv.ParseFloat(orderbookList.Asks[x][1], 64)
 		if err != nil {
 			return nil, err
 		}
-		book.Asks[x].Price, err = strconv.ParseFloat(orderbookLite.Asks[x][0], 64)
+		book.Asks[x].Price, err = strconv.ParseFloat(orderbookList.Asks[x][0], 64)
 		if err != nil {
 			return book, err
 		}
@@ -545,7 +557,7 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (o *Okcoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	if assetType != asset.Spot {
+	if !o.SupportsAsset(assetType) {
 		return account.Holdings{}, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
 	currencies, err := o.GetAccountBalance(ctx)
@@ -677,7 +689,7 @@ func (o *Okcoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	if s == nil {
 		return nil, fmt.Errorf("%w, place order request parameter can not be null", common.ErrNilPointer)
 	}
-	if s.AssetType != asset.Spot {
+	if !o.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	err := s.Validate()
@@ -724,11 +736,11 @@ func (o *Okcoin) ModifyOrder(ctx context.Context, req *order.Modify) (*order.Mod
 	if req == nil {
 		return nil, fmt.Errorf("%w, modify request parameter can not be null", common.ErrNilPointer)
 	}
-	if req.AssetType != asset.Spot {
+	if !o.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w, asset: %v", asset.ErrNotSupported, req.AssetType)
 	}
 	var err error
-	req.Pair, err = o.FormatExchangeCurrency(req.Pair, asset.Spot)
+	req.Pair, err = o.FormatExchangeCurrency(req.Pair, req.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -786,7 +798,7 @@ func (o *Okcoin) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.Canc
 
 // GetOrderInfo returns order information based on order ID
 func (o *Okcoin) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	if assetType != asset.Spot {
+	if !o.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 	if err := o.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
@@ -948,7 +960,7 @@ func (o *Okcoin) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	}
 	var resp []order.Detail
 	for x := range req.Pairs {
-		req.Pairs[x], err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		req.Pairs[x], err = o.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
 		if err != nil {
 			return nil, err
 		}
@@ -1001,7 +1013,7 @@ func (o *Okcoin) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	}
 	var resp []order.Detail
 	for x := range req.Pairs {
-		req.Pairs[x], err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		req.Pairs[x], err = o.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
 		if err != nil {
 			return nil, err
 		}
@@ -1070,7 +1082,7 @@ func (o *Okcoin) ValidateCredentials(ctx context.Context, assetType asset.Item) 
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (o *Okcoin) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, start, end time.Time) ([]trade.Data, error) {
-	if assetType != asset.Spot {
+	if !o.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, assetType)
 	}
 	pair, err := o.FormatExchangeCurrency(pair, assetType)
@@ -1129,18 +1141,18 @@ allTrades:
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (o *Okcoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	if a != asset.Spot {
+	if !o.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
 	}
 	req, err := o.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
 	}
-	pair, err = o.FormatExchangeCurrency(pair, asset.Spot)
+	pair, err = o.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return nil, err
 	}
-	timeSeries, err := o.GetCandlesticks(ctx, pair.String(), interval, req.End, req.Start, 300)
+	timeSeries, err := o.GetCandlesticks(ctx, pair.String(), interval, req.End, req.Start, 300, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1160,7 +1172,7 @@ func (o *Okcoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (o *Okcoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	if a != asset.Spot {
+	if !o.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w, asset type %v", asset.ErrNotSupported, a)
 	}
 	req, err := o.GetKlineExtendedRequest(pair, a, interval, start, end)
@@ -1197,4 +1209,36 @@ func (o *Okcoin) ValidateAPICredentials(ctx context.Context, assetType asset.Ite
 // GetServerTime returns the current exchange server time.
 func (o *Okcoin) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return o.GetSystemTime(ctx)
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (o *Okcoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !o.SupportsAsset(a) {
+		return asset.ErrNotSupported
+	}
+	instrumentsList, err := o.GetInstruments(ctx, "SPOT", "")
+	if err != nil {
+		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", o.Name, a, err)
+	}
+
+	limits := make([]order.MinMaxLevel, 0, len(instrumentsList))
+	for index := range instrumentsList {
+		pair, err := currency.NewPairFromString(instrumentsList[index].InstrumentID)
+		if err != nil {
+			return err
+		}
+		limits = append(limits, order.MinMaxLevel{
+			Asset:                  a,
+			Pair:                   pair,
+			PriceStepIncrementSize: instrumentsList[index].TickSize.Float64(),
+			MinimumBaseAmount:      instrumentsList[index].MinSize.Float64(),
+			MaxIcebergParts:        instrumentsList[index].MaxIcebergSz.Int64(),
+			MarketMinQty:           instrumentsList[index].MaxMarketSize.Float64(),
+			MarketMaxQty:           instrumentsList[index].MaxMarketSize.Float64(),
+		})
+	}
+	if err := o.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading %s exchange limits: %v", o.Name, a, err)
+	}
+	return nil
 }
