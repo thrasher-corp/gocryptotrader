@@ -89,7 +89,7 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -156,7 +156,7 @@ func (b *Binance) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pa
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesRecentTrades+params.Encode(), cFuturesDefaultRate, &resp)
@@ -174,7 +174,7 @@ func (b *Binance) GetFuturesHistoricalTrades(ctx context.Context, symbol currenc
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesHistoricalTrades, params, cFuturesHistoricalTradesRate, &resp)
@@ -189,7 +189,7 @@ func (b *Binance) GetPastPublicTrades(ctx context.Context, symbol currency.Pair,
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if fromID != 0 {
@@ -207,7 +207,7 @@ func (b *Binance) GetFuturesAggregatedTradesList(ctx context.Context, symbol cur
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if fromID != 0 {
@@ -246,7 +246,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		}
 		params.Set("symbol", symbolValue)
 	}
-	if limit > 0 && limit <= 1500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -365,7 +365,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 		return nil, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
-	if limit > 0 && limit <= 1500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -480,7 +480,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	params.Set("pair", pair)
-	if limit > 0 && limit <= 1500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -599,7 +599,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -755,7 +755,7 @@ func (b *Binance) FuturesGetFundingHistory(ctx context.Context, symbol currency.
 		}
 		params.Set("symbol", symbolValue)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -833,7 +833,7 @@ func (b *Binance) GetOpenInterestStats(ctx context.Context, pair, contractType, 
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -855,7 +855,7 @@ func (b *Binance) GetTraderFuturesAccountRatio(ctx context.Context, pair, period
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -877,7 +877,7 @@ func (b *Binance) GetTraderFuturesPositionsRatio(ctx context.Context, pair, peri
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -899,7 +899,7 @@ func (b *Binance) GetMarketRatio(ctx context.Context, pair, period string, limit
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -921,7 +921,7 @@ func (b *Binance) GetFuturesTakerVolume(ctx context.Context, pair, contractType,
 		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, period) {
@@ -947,7 +947,7 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair, contractType, p
 		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, period) {
@@ -1216,7 +1216,7 @@ func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol currency.Pair,
 	if orderID != 0 {
 		params.Set("orderID", strconv.FormatInt(orderID, 10))
 	}
-	if limit > 0 && limit <= 100 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {

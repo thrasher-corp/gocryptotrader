@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1139,4 +1140,55 @@ func (b *BTSE) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, erro
 		return time.Time{}, err
 	}
 	return st.ISO, nil
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if item != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	marketSummary, err := b.GetMarketSummary(ctx, "", false)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, 0, len(marketSummary))
+	for i := range marketSummary {
+		var cp currency.Pair
+		cp, err = currency.NewPairFromString(marketSummary[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		settlementCurrencies := make(currency.Currencies, len(marketSummary[i].AvailableSettlement))
+		var s, e time.Time
+		var ct futures.ContractType
+		s = time.UnixMilli(marketSummary[i].OpenTime)
+		e = time.UnixMilli(marketSummary[i].CloseTime)
+		if marketSummary[i].TimeBasedContract {
+			if e.Sub(s) > kline.OneMonth.Duration() {
+				ct = futures.Quarterly
+			} else {
+				ct = futures.Monthly
+			}
+		} else {
+			ct = futures.Perpetual
+		}
+		for j := range marketSummary[i].AvailableSettlement {
+			settlementCurrencies[j] = currency.NewCode(marketSummary[i].AvailableSettlement[j])
+		}
+
+		resp = append(resp, futures.Contract{
+			Name:                 cp,
+			Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
+			Asset:                item,
+			SettlementCurrencies: settlementCurrencies,
+			StartDate:            s,
+			EndDate:              e,
+			IsActive:             marketSummary[i].Active,
+			Type:                 ct,
+		})
+	}
+	return resp, nil
 }

@@ -19,6 +19,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -3146,7 +3147,7 @@ func TestInstrument(t *testing.T) {
 	if i.Category != "1" {
 		t.Error("expected 1 category")
 	}
-	if i.ContractMultiplier != "1" {
+	if i.ContractMultiplier != 1 {
 		t.Error("expected 1 contract multiplier")
 	}
 	if i.ContractType != "linear" {
@@ -3374,4 +3375,32 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	if !found {
 		t.Errorf("received %v expected %v", assets, asset.Spot)
 	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	resp, err := ok.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	for i := range resp {
+		t.Log(resp[i].Name, resp[i].Type)
+	}
+	resp, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	for i := range resp {
+		t.Log(resp[i].Name, resp[i].Type)
+	}
+
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -57,7 +58,7 @@ type store struct {
 	commsManager              iCommsManager
 	exchangeManager           iExchangeManager
 	wg                        *sync.WaitGroup
-	futuresPositionController order.PositionController
+	futuresPositionController futures.PositionController
 }
 
 // OrderSubmitResponse contains the order response along with an internal order ID

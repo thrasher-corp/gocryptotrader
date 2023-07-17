@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -915,11 +916,11 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   marginRateHistoryResponse,
 		})
 
-		positionSummaryRequest := &order.PositionSummaryRequest{
+		positionSummaryRequest := &futures.PositionSummaryRequest{
 			Asset: assetTypes[i],
 			Pair:  p,
 		}
-		var positionSummaryResponse *order.PositionSummary
+		var positionSummaryResponse *futures.PositionSummary
 		positionSummaryResponse, err = e.GetPositionSummary(context.TODO(), positionSummaryRequest)
 		msg = ""
 		if err != nil {
@@ -933,7 +934,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{positionSummaryResponse}),
 		})
 
-		calculatePNLRequest := &order.PNLCalculatorRequest{
+		calculatePNLRequest := &futures.PNLCalculatorRequest{
 			Pair:             p,
 			Underlying:       p.Base,
 			Asset:            assetTypes[i],
@@ -945,7 +946,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			EntryAmount:      decimal.NewFromInt(1337),
 			PreviousPrice:    decimal.NewFromInt(1337),
 		}
-		var calculatePNLResponse *order.PNLResult
+		var calculatePNLResponse *futures.PNLResult
 		calculatePNLResponse, err = e.CalculatePNL(context.TODO(), calculatePNLRequest)
 		msg = ""
 		if err != nil {
@@ -959,7 +960,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculatePNLResponse}),
 		})
 
-		collateralCalculator := &order.CollateralCalculator{
+		collateralCalculator := &futures.CollateralCalculator{
 			CollateralCurrency: p.Quote,
 			Asset:              assetTypes[i],
 			Side:               testOrderSide,
@@ -968,7 +969,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			LockedCollateral:   decimal.NewFromInt(1337),
 			UnrealisedPNL:      decimal.NewFromInt(1337),
 		}
-		var scaleCollateralResponse *order.CollateralByCurrency
+		var scaleCollateralResponse *futures.CollateralByCurrency
 		scaleCollateralResponse, err = e.ScaleCollateral(context.TODO(), collateralCalculator)
 		msg = ""
 		if err != nil {
@@ -982,10 +983,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{scaleCollateralResponse}),
 		})
 
-		totalCollateralCalculator := &order.TotalCollateralCalculator{
-			CollateralAssets: []order.CollateralCalculator{*collateralCalculator},
+		totalCollateralCalculator := &futures.TotalCollateralCalculator{
+			CollateralAssets: []futures.CollateralCalculator{*collateralCalculator},
 		}
-		var calculateTotalCollateralResponse *order.TotalCollateralResponse
+		var calculateTotalCollateralResponse *futures.TotalCollateralResponse
 		calculateTotalCollateralResponse, err = e.CalculateTotalCollateral(context.TODO(), totalCollateralCalculator)
 		msg = ""
 		if err != nil {
@@ -999,8 +1000,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculateTotalCollateralResponse}),
 		})
 
-		var futuresPositionsResponse []order.PositionDetails
-		futuresPositionsRequest := &order.PositionsRequest{
+		var futuresPositionsResponse []futures.PositionDetails
+		futuresPositionsRequest := &futures.PositionsRequest{
 			Asset:     assetTypes[i],
 			Pairs:     currency.Pairs{p},
 			StartDate: time.Now().Add(-time.Hour),

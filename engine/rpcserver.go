@@ -35,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -4212,7 +4213,7 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		ai)
 }
 
-func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPayments, includeFundingRates, includeOrders, includePredictedRate bool) *gctrpc.FuturePosition {
+func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPayments, includeFundingRates, includeOrders, includePredictedRate bool) *gctrpc.FuturePosition {
 	response := &gctrpc.FuturePosition{
 		Exchange: position.Exchange,
 		Asset:    position.Asset.String(),
@@ -4302,7 +4303,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	if r == nil {
 		return nil, fmt.Errorf("%w GetManagedPositionRequest", common.ErrNilPointer)
 	}
-	if err := order.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
 		return nil, err
 	}
 	if r.Pair == nil {
@@ -4326,7 +4327,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 		return nil, err
 	}
 	if !ai.IsFutures() {
-		return nil, fmt.Errorf("%w '%v'", order.ErrNotFuturesAsset, ai)
+		return nil, fmt.Errorf("%w '%v'", futures.ErrNotFuturesAsset, ai)
 	}
 	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
@@ -4351,7 +4352,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if r == nil {
 		return nil, fmt.Errorf("%w GetAllManagedPositions", common.ErrNilPointer)
 	}
-	if err := order.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
 		return nil, err
 	}
 	positions, err := s.OrderManager.GetAllOpenFuturesPositions()
@@ -4374,7 +4375,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if r == nil {
 		return nil, fmt.Errorf("%w GetFuturesPositions", common.ErrNilPointer)
 	}
-	if err := order.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
 		return nil, err
 	}
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -4396,7 +4397,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		return nil, err
 	}
 	if !ai.IsFutures() {
-		return nil, fmt.Errorf("%s %w", ai, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", ai, futures.ErrNotFuturesAsset)
 	}
 	var start, end time.Time
 	if r.StartDate != "" {
@@ -4425,7 +4426,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if creds.SubAccount != "" {
 		subAccount = "for subaccount: " + creds.SubAccount
 	}
-	positionDetails, err := exch.GetFuturesPositions(ctx, &order.PositionsRequest{
+	positionDetails, err := exch.GetFuturesPositions(ctx, &futures.PositionsRequest{
 		Asset:     ai,
 		Pairs:     currency.Pairs{cp},
 		StartDate: start,
@@ -4445,7 +4446,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	for i := range positionDetails[0].Orders {
 		err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&positionDetails[0].Orders[i])
 		if err != nil {
-			if !errors.Is(err, order.ErrPositionClosed) {
+			if !errors.Is(err, futures.ErrPositionClosed) {
 				return nil, err
 			}
 		}
@@ -4517,8 +4518,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		totalRealisedPNL = totalRealisedPNL.Add(pos[i].RealisedPNL)
 		totalUnrealisedPNL = totalUnrealisedPNL.Add(pos[i].UnrealisedPNL)
 		if r.GetPositionStats {
-			var stats *order.PositionSummary
-			stats, err = exch.GetPositionSummary(ctx, &order.PositionSummaryRequest{
+			var stats *futures.PositionSummary
+			stats, err = exch.GetPositionSummary(ctx, &futures.PositionSummaryRequest{
 				Asset: pos[i].Asset,
 				Pair:  pos[i].Pair,
 			})
@@ -4659,7 +4660,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		return nil, err
 	}
 	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
 	start := time.Now().AddDate(0, -1, 0)
 	end := time.Now()
@@ -4835,7 +4836,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
 	ai, err := exch.FetchAccountInfo(ctx, a)
 	if err != nil {
@@ -4874,11 +4875,11 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 
-	calculators := make([]order.CollateralCalculator, 0, len(acc.Currencies))
+	calculators := make([]futures.CollateralCalculator, 0, len(acc.Currencies))
 	for i := range acc.Currencies {
 		total := decimal.NewFromFloat(acc.Currencies[i].Total)
 		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
-		cal := order.CollateralCalculator{
+		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].Currency,
 			Asset:              a,
@@ -4906,7 +4907,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		calculators = append(calculators, cal)
 	}
 
-	calc := &order.TotalCollateralCalculator{
+	calc := &futures.TotalCollateralCalculator{
 		CollateralAssets: calculators,
 		CalculateOffline: r.CalculateOffline,
 		FetchPositions:   true,

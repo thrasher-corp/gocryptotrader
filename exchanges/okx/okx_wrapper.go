@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1712,4 +1713,59 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (ok *Okx) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
 	return a == asset.PerpetualSwap, nil
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !ok.SupportsAsset(item) || item == asset.Options {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	instType := ok.GetInstrumentTypeFromAssetItem(item)
+	result, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		InstrumentType: instType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, len(result))
+	for i := range result {
+		var cp, underlying currency.Pair
+		underlying, err = currency.NewPairFromString(result[i].Underlying)
+		if err != nil {
+			return nil, err
+		}
+		cp, err = currency.NewPairFromString(result[i].InstrumentID)
+		if err != nil {
+			return nil, err
+		}
+		settleCurr := currency.NewCode(result[i].SettlementCurrency)
+		var ct futures.ContractType
+		if item == asset.PerpetualSwap {
+			ct = futures.Perpetual
+		} else {
+			switch result[i].Alias {
+			case "this_week", "next_week":
+				ct = futures.Weekly
+			case "quarter", "next_quarter":
+				ct = futures.Quarterly
+			}
+		}
+		resp[i] = futures.Contract{
+			Name:                 cp,
+			Underlying:           underlying,
+			SettlementCurrencies: currency.Currencies{settleCurr},
+			MarginCurrency:       settleCurr,
+			Asset:                item,
+			StartDate:            result[i].ListTime,
+			EndDate:              result[i].ExpTime,
+			IsActive:             result[i].State == "live",
+			Multiplier:           result[i].ContractMultiplier.Float64(),
+			MaxLeverage:          result[i].MaxLeverage,
+			Type:                 ct,
+		}
+	}
+	return resp, nil
 }

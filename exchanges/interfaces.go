@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -141,14 +142,15 @@ type FunctionalityChecker interface {
 
 // FuturesManagement manages futures orders, pnl and collateral calculations
 type FuturesManagement interface {
-	GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
-	ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*order.CollateralByCurrency, error)
-	CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error)
-	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error)
+	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
+	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*futures.CollateralByCurrency, error)
+	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)
+	GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error)
 	GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error)
 	GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
-	order.PNLCalculation
+	futures.PNLCalculation
+	GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error)
 }

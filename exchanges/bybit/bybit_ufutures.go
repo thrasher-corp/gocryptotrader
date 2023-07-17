@@ -72,7 +72,7 @@ func (by *Bybit) GetUSDTFuturesKlineData(ctx context.Context, symbol currency.Pa
 	}
 	params.Set("symbol", symbolValue)
 
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -101,7 +101,7 @@ func (by *Bybit) GetUSDTPublicTrades(ctx context.Context, symbol currency.Pair, 
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -122,7 +122,7 @@ func (by *Bybit) GetUSDTMarkPriceKline(ctx context.Context, symbol currency.Pair
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -151,7 +151,7 @@ func (by *Bybit) GetUSDTIndexPriceKline(ctx context.Context, symbol currency.Pai
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -180,7 +180,7 @@ func (by *Bybit) GetUSDTPremiumIndexPriceKline(ctx context.Context, symbol curre
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
@@ -327,7 +327,7 @@ func (by *Bybit) GetActiveUSDTFuturesOrders(ctx context.Context, symbol currency
 	if page > 0 && page <= 50 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if orderID != "" {
@@ -559,7 +559,7 @@ func (by *Bybit) GetConditionalUSDTFuturesOrders(ctx context.Context, symbol cur
 	if direction != "" {
 		params.Set("order", direction)
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if page != 0 {
@@ -940,7 +940,7 @@ func (by *Bybit) GetUSDTTradeRecords(ctx context.Context, symbol currency.Pair, 
 	if page != 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetTrades, params, nil, &resp, uFuturesGetTradesRate)
@@ -975,7 +975,7 @@ func (by *Bybit) GetClosedUSDTTrades(ctx context.Context, symbol currency.Pair, 
 	if page > 0 && page <= 50 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetClosedTrades, params, nil, &resp, uFuturesGetClosedTradesRate)

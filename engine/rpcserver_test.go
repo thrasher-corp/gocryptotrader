@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -58,9 +59,9 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
-func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (f fExchange) GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	leet := decimal.NewFromInt(1337)
-	return &order.PositionSummary{
+	return &futures.PositionSummary{
 		MaintenanceMarginRequirement: leet,
 		InitialMarginRequirement:     leet,
 		EstimatedLiquidationPrice:    leet,
@@ -76,15 +77,15 @@ func (f fExchange) GetPositionSummary(context.Context, *order.PositionSummaryReq
 	}, nil
 }
 
-func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (f fExchange) GetFuturesPositions(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionDetails, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]order.PositionDetails, len(req.Pairs))
+	resp := make([]futures.PositionDetails, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
-		resp[i] = order.PositionDetails{
+		resp[i] = futures.PositionDetails{
 			Exchange: f.GetName(),
 			Asset:    req.Asset,
 			Pair:     req.Pairs[i],
@@ -283,12 +284,12 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 }
 
 // CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
-func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
-	return &order.TotalCollateralResponse{
+func (f fExchange) CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error) {
+	return &futures.TotalCollateralResponse{
 		CollateralCurrency:             currency.USD,
 		AvailableMaintenanceCollateral: decimal.NewFromInt(1338),
 		AvailableCollateral:            decimal.NewFromInt(1337),
-		UsedBreakdown: &order.UsedCollateralBreakdown{
+		UsedBreakdown: &futures.UsedCollateralBreakdown{
 			LockedInStakes:                  decimal.NewFromInt(3),
 			LockedInNFTBids:                 decimal.NewFromInt(3),
 			LockedInFeeVoucher:              decimal.NewFromInt(3),
@@ -296,7 +297,7 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 			LockedInSpotOrders:              decimal.NewFromInt(3),
 			LockedAsCollateral:              decimal.NewFromInt(3),
 		},
-		BreakdownByCurrency: []order.CollateralByCurrency{
+		BreakdownByCurrency: []futures.CollateralByCurrency{
 			{
 				Currency:               currency.USD,
 				TotalFunds:             decimal.NewFromInt(1330),
@@ -307,7 +308,7 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 				Currency:   currency.DOGE,
 				TotalFunds: decimal.NewFromInt(1000),
 				ScaledUsed: decimal.NewFromInt(6),
-				ScaledUsedBreakdown: &order.UsedCollateralBreakdown{
+				ScaledUsedBreakdown: &futures.UsedCollateralBreakdown{
 					LockedInStakes:                  decimal.NewFromInt(1),
 					LockedInNFTBids:                 decimal.NewFromInt(1),
 					LockedInFeeVoucher:              decimal.NewFromInt(1),
@@ -2390,8 +2391,8 @@ func TestGetFuturesPositions(t *testing.T) {
 			Quote:     cp.Quote.String(),
 		},
 	})
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 }
 
@@ -2482,8 +2483,8 @@ func TestGetCollateral(t *testing.T) {
 		Asset:            asset.Spot.String(),
 		IncludeBreakdown: true,
 	})
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
@@ -3014,8 +3015,8 @@ func TestGetFundingRates(t *testing.T) {
 
 	request.Asset = asset.Spot.String()
 	_, err = s.GetFundingRates(context.Background(), request)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received: '%v' but expected: '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	request.Asset = asset.Futures.String()
@@ -3216,8 +3217,8 @@ func TestGetManagedPosition(t *testing.T) {
 
 	request.Asset = asset.Spot.String()
 	_, err = s.GetManagedPosition(context.Background(), request)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	request.Asset = asset.Futures.String()
@@ -3228,8 +3229,8 @@ func TestGetManagedPosition(t *testing.T) {
 	s.OrderManager.started = 1
 	s.OrderManager.activelyTrackFuturesPositions = true
 	_, err = s.GetManagedPosition(context.Background(), request)
-	if !errors.Is(err, order.ErrPositionNotFound) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
+	if !errors.Is(err, futures.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrPositionNotFound)
 	}
 
 	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
@@ -3341,8 +3342,8 @@ func TestGetAllManagedPositions(t *testing.T) {
 	}
 	s.OrderManager.started = 1
 	_, err = s.GetAllManagedPositions(context.Background(), request)
-	if !errors.Is(err, order.ErrNoPositionsFound) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNoPositionsFound)
+	if !errors.Is(err, futures.ErrNoPositionsFound) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNoPositionsFound)
 	}
 
 	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{

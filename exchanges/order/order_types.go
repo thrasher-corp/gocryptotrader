@@ -26,9 +26,8 @@ var (
 	ErrClientOrderIDNotSupported  = errors.New("client order id not supported")
 	ErrUnsupportedOrderType       = errors.New("unsupported order type")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
-	ErrNoRates = errors.New("no rates")
-
-	errCannotLiquidate = errors.New("cannot liquidate position")
+	ErrNoRates         = errors.New("no rates")
+	ErrCannotLiquidate = errors.New("cannot liquidate position")
 )
 
 // Submit contains all properties of an order that may be required

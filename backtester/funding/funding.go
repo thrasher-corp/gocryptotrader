@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -607,7 +608,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 
 	for x := range exchanges {
 		exchName := strings.ToLower(exchanges[x].GetName())
-		exchangeCollateralCalculator := &gctorder.TotalCollateralCalculator{
+		exchangeCollateralCalculator := &futures.TotalCollateralCalculator{
 			CalculateOffline: !isLive,
 		}
 		for y := range f.items {
@@ -637,7 +638,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 				side = gctorder.Sell
 			}
 
-			exchangeCollateralCalculator.CollateralAssets = append(exchangeCollateralCalculator.CollateralAssets, gctorder.CollateralCalculator{
+			exchangeCollateralCalculator.CollateralAssets = append(exchangeCollateralCalculator.CollateralAssets, futures.CollateralCalculator{
 				CalculateOffline:   !isLive,
 				CollateralCurrency: f.items[y].currency,
 				Asset:              f.items[y].asset,
@@ -648,7 +649,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 			})
 		}
 
-		var collateral *gctorder.TotalCollateralResponse
+		var collateral *futures.TotalCollateralResponse
 		collateral, err = exchanges[x].CalculateTotalCollateral(context.TODO(), exchangeCollateralCalculator)
 		if err != nil {
 			return err
@@ -685,7 +686,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error
-	calculator := gctorder.TotalCollateralCalculator{
+	calculator := futures.TotalCollateralCalculator{
 		CalculateOffline: !isLive,
 	}
 
@@ -722,7 +723,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 			side = gctorder.Sell
 		}
 
-		calculator.CollateralAssets = append(calculator.CollateralAssets, gctorder.CollateralCalculator{
+		calculator.CollateralAssets = append(calculator.CollateralAssets, futures.CollateralCalculator{
 			CalculateOffline:   !isLive,
 			CollateralCurrency: f.items[i].currency,
 			Asset:              f.items[i].asset,

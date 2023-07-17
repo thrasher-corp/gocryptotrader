@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1984,6 +1985,12 @@ func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bo
 		return false, err
 	}
 	return availables.Contains(instrument, true), nil
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (g *Gateio) GetFuturesContractDetails(_ context.Context, item asset.Item) ([]futures.Contract, error) {
+	// Todo: update when GateIOv4 merged
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -377,15 +378,12 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		return pairs, nil
 	case asset.USDCMarginedFutures:
-		allPairs, err := by.GetUSDCContracts(ctx, currency.EMPTYPAIR, "", 0)
+		allPairs, err := by.GetUSDCContracts(ctx, currency.EMPTYPAIR, "", "ONLINE", 1000)
 		if err != nil {
 			return nil, err
 		}
 		pairs := make([]currency.Pair, 0, len(allPairs))
 		for x := range allPairs {
-			if allPairs[x].Status != "ONLINE" {
-				continue
-			}
 			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, "PERP")
 			if err != nil {
 				return nil, err
@@ -2147,4 +2145,173 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	return by.LoadLimits(limits)
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !by.SupportsAsset(item) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+
+	if item == asset.CoinMarginedFutures {
+		result, err := by.GetInstrumentInfo(ctx, "inverse", "", "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(result.List))
+		for i := range result.List {
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromString(result.List[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
+			underlying, err = currency.NewPairFromStrings(result.List[i].BaseCoin, result.List[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(result.List[i].ContractType)
+			var s, e time.Time
+			s = time.UnixMilli(int64(result.List[i].LaunchTime.Float64()))
+			e = time.UnixMilli(int64(result.List[i].DeliveryTime.Float64()))
+
+			var ct futures.ContractType
+			if contractType == "inverseperpetual" {
+				ct = futures.Perpetual
+			} else if contractType == "inversefutures" {
+				contractLength := e.Sub(s)
+				if contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration() {
+					ct = futures.HalfYearly
+				} else {
+					ct = futures.SemiAnnually
+				}
+			}
+
+			resp = append(resp, futures.Contract{
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				IsActive:             strings.ToLower(result.List[i].Status) == "trading",
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.NewCode(result.List[i].SettleCoin)},
+				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
+			})
+		}
+		return resp, nil
+	}
+
+	result, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, 0, len(result.List))
+	switch item {
+	case asset.USDCMarginedFutures:
+		for i := range result.List {
+			if result.List[i].SettleCoin != "USDC" {
+				continue
+			}
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromString(result.List[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
+			underlying, err = currency.NewPairFromStrings(result.List[i].BaseCoin, result.List[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(result.List[i].ContractType)
+			var s, e time.Time
+			s = time.UnixMilli(int64(result.List[i].LaunchTime.Float64()))
+			e = time.UnixMilli(int64(result.List[i].DeliveryTime.Float64()))
+
+			var ct futures.ContractType
+			if contractType == "linearperpetual" {
+				ct = futures.Perpetual
+			} else if contractType == "linearfutures" {
+				contractLength := e.Sub(s)
+				switch {
+				case contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Weekly
+				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Fortnightly
+				case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.Quarterly
+				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.HalfYearly
+				}
+			}
+
+			resp = append(resp, futures.Contract{
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				IsActive:             strings.ToLower(result.List[i].Status) == "trading",
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.USDC},
+				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
+			})
+		}
+		return resp, nil
+	case asset.USDTMarginedFutures:
+		for i := range result.List {
+			if result.List[i].SettleCoin != "USDT" {
+				continue
+			}
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromString(result.List[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
+			underlying, err = currency.NewPairFromStrings(result.List[i].BaseCoin, result.List[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(result.List[i].ContractType)
+			var s, e time.Time
+			s = time.UnixMilli(int64(result.List[i].LaunchTime.Float64()))
+			e = time.UnixMilli(int64(result.List[i].DeliveryTime.Float64()))
+
+			var ct futures.ContractType
+			if contractType == "linearperpetual" {
+				ct = futures.Perpetual
+			} else if contractType == "linearfutures" {
+				contractLength := e.Sub(s)
+				switch {
+				case contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Weekly
+				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Fortnightly
+				case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.Quarterly
+				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.HalfYearly
+				}
+			}
+
+			resp = append(resp, futures.Contract{
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				IsActive:             strings.ToLower(result.List[i].Status) == "trading",
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.USDT},
+				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
+			})
+		}
+		return resp, nil
+	}
+
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }

@@ -122,7 +122,7 @@ func (by *Bybit) GetActiveFuturesOrders(ctx context.Context, symbol currency.Pai
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if cursor != "" {
@@ -345,7 +345,7 @@ func (by *Bybit) GetConditionalFuturesOrders(ctx context.Context, symbol currenc
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if cursor != "" {
@@ -685,7 +685,7 @@ func (by *Bybit) GetTradeRecords(ctx context.Context, symbol currency.Pair, orde
 	if page != 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -721,7 +721,7 @@ func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, exec
 	if page > 0 && page <= 50 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 

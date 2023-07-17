@@ -168,7 +168,7 @@ func (b *Binance) URecentTrades(ctx context.Context, symbol currency.Pair, fromI
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesRecentTrades+params.Encode(), uFuturesDefaultRate, &resp)
@@ -186,7 +186,7 @@ func (b *Binance) UFuturesHistoricalTrades(ctx context.Context, symbol currency.
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesHistoricalTrades, params, uFuturesHistoricalTradesRate, &resp)
@@ -204,7 +204,7 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol currency.Pair, f
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -229,7 +229,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		return nil, errors.New("invalid interval")
 	}
 	params.Set("interval", interval)
-	if limit > 0 && limit <= 1500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -489,7 +489,7 @@ func (b *Binance) UOpenInterestStats(ctx context.Context, symbol currency.Pair, 
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -515,7 +515,7 @@ func (b *Binance) UTopAcccountsLongShortRatio(ctx context.Context, symbol curren
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -541,7 +541,7 @@ func (b *Binance) UTopPostionsLongShortRatio(ctx context.Context, symbol currenc
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -567,7 +567,7 @@ func (b *Binance) UGlobalLongShortRatio(ctx context.Context, symbol currency.Pai
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -593,7 +593,7 @@ func (b *Binance) UTakerBuySellVol(ctx context.Context, symbol currency.Pair, pe
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -859,7 +859,7 @@ func (b *Binance) UAllAccountOrders(ctx context.Context, symbol currency.Pair, o
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -952,7 +952,7 @@ func (b *Binance) UPositionMarginChangeHistory(ctx context.Context, symbol curre
 		return resp, errors.New("invalid margin changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -991,7 +991,7 @@ func (b *Binance) UAccountTradesHistory(ctx context.Context, symbol currency.Pai
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1019,7 +1019,7 @@ func (b *Binance) UAccountIncomeHistory(ctx context.Context, symbol currency.Pai
 		}
 		params.Set("incomeType", incomeType)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1079,7 +1079,7 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 		}
 		params.Set("autoCloseType", autoCloseType)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {

@@ -3009,6 +3009,7 @@ var (
 	FLUSD            = NewCode("FLUSD")
 	DUSD             = NewCode("DUSD")
 	STETH            = NewCode("STETH")
+	SWAP             = NewCode("SWAP")
 
 	stables = Currencies{
 		USDT,
