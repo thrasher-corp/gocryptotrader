@@ -5191,3 +5191,117 @@ func TestGetProductInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetInstitutionalLengingMarginCoinInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInstitutionalLengingMarginCoinInfo(context.Background(), "123")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInstitutionalLoanOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInstitutionalLoanOrders(context.Background(), "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInstitutionalRepayOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetInstitutionalRepayOrders(context.Background(), time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLTV(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLTV(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetC2CLendingCoinInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetC2CLendingCoinInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestC2CDepositFunds(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.C2CDepositFunds(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Error(err)
+	}
+	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestC2CRedeemFunds(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.C2CRedeemFunds(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Error(err)
+	}
+	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetC2CLendingOrderRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetC2CLendingOrderRecords(context.Background(), currency.EMPTYCODE, "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetC2CLendingAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetC2CLendingAccountInfo(context.Background(), currency.LTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBrokerEarning(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetBrokerEarning(context.Background(), "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}

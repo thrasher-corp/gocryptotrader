@@ -2335,3 +2335,135 @@ type InstitutionalProductInfo struct {
 		ContractSymbols     []string `json:"contractSymbols"`
 	} `json:"marginProductInfo"`
 }
+
+// InstitutionalMarginCoinInfo represents margin coin info for institutional lending
+// token and tokens convert information.
+type InstitutionalMarginCoinInfo struct {
+	MarginToken []struct {
+		ProductID string `json:"productId"`
+		TokenInfo []struct {
+			Token            string `json:"token"`
+			ConvertRatioList []struct {
+				Ladder       string                  `json:"ladder"`
+				ConvertRatio convert.StringToFloat64 `json:"convertRatio"`
+			} `json:"convertRatioList"`
+		} `json:"tokenInfo"`
+	} `json:"marginToken"`
+}
+
+// LoanOrderDetails retrieves institutional loan order detail item.
+type LoanOrderDetails struct {
+	OrderID             string                  `json:"orderId"`
+	OrderProductID      string                  `json:"orderProductId"`
+	ParentUID           string                  `json:"parentUid"`
+	LoanTime            convert.ExchangeTime    `json:"loanTime"`
+	LoanCoin            string                  `json:"loanCoin"`
+	LoanAmount          convert.StringToFloat64 `json:"loanAmount"`
+	UnpaidAmount        convert.StringToFloat64 `json:"unpaidAmount"`
+	UnpaidInterest      convert.StringToFloat64 `json:"unpaidInterest"`
+	RepaidAmount        convert.StringToFloat64 `json:"repaidAmount"`
+	RepaidInterest      convert.StringToFloat64 `json:"repaidInterest"`
+	InterestRate        convert.StringToFloat64 `json:"interestRate"`
+	Status              int64                   `json:"status"`
+	Leverage            string                  `json:"leverage"`
+	SupportSpot         int64                   `json:"supportSpot"`
+	SupportContract     int64                   `json:"supportContract"`
+	WithdrawLine        convert.StringToFloat64 `json:"withdrawLine"`
+	TransferLine        convert.StringToFloat64 `json:"transferLine"`
+	SpotBuyLine         convert.StringToFloat64 `json:"spotBuyLine"`
+	SpotSellLine        convert.StringToFloat64 `json:"spotSellLine"`
+	ContractOpenLine    convert.StringToFloat64 `json:"contractOpenLine"`
+	LiquidationLine     convert.StringToFloat64 `json:"liquidationLine"`
+	StopLiquidationLine convert.StringToFloat64 `json:"stopLiquidationLine"`
+	ContractLeverage    convert.StringToFloat64 `json:"contractLeverage"`
+	TransferRatio       convert.StringToFloat64 `json:"transferRatio"`
+	SpotSymbols         []string                `json:"spotSymbols"`
+	ContractSymbols     []string                `json:"contractSymbols"`
+}
+
+// OrderRepayInfo represents repaid information information.
+type OrderRepayInfo struct {
+	RepayOrderID string               `json:"repayOrderId"`
+	RepaidTime   convert.ExchangeTime `json:"repaidTime"`
+	Token        string               `json:"token"`
+	Quantity     convert.ExchangeTime `json:"quantity"`
+	Interest     convert.ExchangeTime `json:"interest"`
+	BusinessType string               `json:"businessType"`
+	Status       string               `json:"status"`
+}
+
+// LTVInfo represents institutional lending Loan-to-value(LTV)
+type LTVInfo struct {
+	LtvInfo []struct {
+		LoanToValue    string                  `json:"ltv"`
+		ParentUID      string                  `json:"parentUid"`
+		SubAccountUids []string                `json:"subAccountUids"`
+		UnpaidAmount   convert.StringToFloat64 `json:"unpaidAmount"`
+		UnpaidInfo     []struct {
+			Token          string                  `json:"token"`
+			UnpaidQty      convert.StringToFloat64 `json:"unpaidQty"`
+			UnpaidInterest convert.StringToFloat64 `json:"unpaidInterest"`
+		} `json:"unpaidInfo"`
+		Balance     string `json:"balance"`
+		BalanceInfo []struct {
+			Token           string                  `json:"token"`
+			Price           convert.StringToFloat64 `json:"price"`
+			Qty             convert.StringToFloat64 `json:"qty"`
+			ConvertedAmount convert.StringToFloat64 `json:"convertedAmount"`
+		} `json:"balanceInfo"`
+	} `json:"ltvInfo"`
+}
+
+// C2CLendingCoinInfo represent contract-to-contract lending coin information.
+type C2CLendingCoinInfo struct {
+	Coin            string                  `json:"coin"`
+	LoanToPoolRatio convert.StringToFloat64 `json:"loanToPoolRatio"`
+	MaxRedeemQty    convert.StringToFloat64 `json:"maxRedeemQty"`
+	MinPurchaseQty  convert.StringToFloat64 `json:"minPurchaseQty"`
+	Precision       convert.StringToFloat64 `json:"precision"`
+	Rate            convert.StringToFloat64 `json:"rate"`
+}
+
+// C2CLendingFundsParams represents deposit funds parameter
+type C2CLendingFundsParams struct {
+	Coin         currency.Code `json:"coin"`
+	Quantity     float64       `json:"quantity,string"`
+	SerialNumber string        `json:"serialNO"`
+}
+
+// C2CLendingFundResponse represents contract-to-contract deposit funds item.
+type C2CLendingFundResponse struct {
+	Coin         string                  `json:"coin"`
+	OrderID      string                  `json:"orderId"`
+	SerialNumber string                  `json:"serialNo"`
+	Status       string                  `json:"status"`
+	CreatedTime  convert.ExchangeTime    `json:"createdTime"`
+	Quantity     convert.StringToFloat64 `json:"quantity"`
+	UpdatedTime  convert.ExchangeTime    `json:"updatedTime"`
+
+	// added for redeem funds
+	PrincipalQty string `json:"principalQty"`
+
+	// added for to distinguish between redeem funds and deposit funds
+	OrderType string `json:"orderType"`
+}
+
+// LendingAccountInfo represents contract-to-contract lending account info item.
+type LendingAccountInfo struct {
+	Coin              string                  `json:"coin"`
+	PrincipalInterest string                  `json:"principalInterest"`
+	PrincipalQty      convert.StringToFloat64 `json:"principalQty"`
+	PrincipalTotal    convert.StringToFloat64 `json:"principalTotal"`
+	Quantity          convert.StringToFloat64 `json:"quantity"`
+}
+
+// BrokerEarningItem represents contract-to-contract broker earning item.
+type BrokerEarningItem struct {
+	UserID   string               `json:"userId"`
+	BizType  string               `json:"bizType"`
+	Symbol   string               `json:"symbol"`
+	Coin     string               `json:"coin"`
+	Earning  string               `json:"earning"`
+	OrderID  string               `json:"orderId"`
+	ExecTime convert.ExchangeTime `json:"execTime"`
+}

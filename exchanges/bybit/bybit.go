@@ -2311,7 +2311,171 @@ func (by *Bybit) GetProductInfo(ctx context.Context, productID string) (*Institu
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/product-infos", params, nil, &resp, privateSpotRate)
 }
 
-// func (by *(Bybit) GetMarginCoinInfo(ctx context.Context, productID string) ()
+// GetInstitutionalLengingMarginCoinInfo retrieves institutional lending margin coin information.
+// ProductId. If not passed, then return all product margin coin. For spot, it returns coin that convertRation greater than 0.
+func (by *Bybit) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	var resp InstitutionalMarginCoinInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ensure-tokens-convert", params, nil, &resp, privateSpotRate)
+}
+
+// GetInstitutionalLoanOrders retrieves institutional loan orders.
+func (by *Bybit) GetInstitutionalLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time, limit int64) ([]LoanOrderDetails, error) {
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := &struct {
+		Loans []LoanOrderDetails `json:"loanInfo"`
+	}{}
+	return resp.Loans, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/loan-order", params, nil, &resp, privateSpotRate)
+}
+
+// GetInstitutionalRepayOrders retrieves list of repaid order information.
+func (by *Bybit) GetInstitutionalRepayOrders(ctx context.Context, startTime, endTime time.Time, limit int64) ([]OrderRepayInfo, error) {
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := &struct {
+		RepayInfo []OrderRepayInfo `json:"repayInfo"`
+	}{}
+	return resp.RepayInfo, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/repaid-history", params, nil, &resp, privateSpotRate)
+}
+
+// GetLTV retrieves a loan-to-value(LTV)
+func (by *Bybit) GetLTV(ctx context.Context) (*LTVInfo, error) {
+	var resp LTVInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, privateSpotRate)
+}
+
+// --------------------------------------------------------- Contract-to-contract lending ----------------------------------------------------
+
+// GetC2CLendingCoinInfo retrieves C2C basic information of lending coins
+func (by *Bybit) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) ([]C2CLendingCoinInfo, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	resp := &struct {
+		List []C2CLendingCoinInfo `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/info", params, nil, &resp, privateSpotRate)
+}
+
+// C2CDepositFunds lending funds to Bybit asset pool
+func (by *Bybit) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp C2CLendingFundResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/purchase", nil, &arg, &resp, privateSpotRate)
+}
+
+// C2CRedeemFunds withdraw funds from the Bybit asset pool.
+func (by *Bybit) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp C2CLendingFundResponse
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/redeem", nil, &arg, &resp, privateSpotRate)
+}
+
+// GetC2CLendingOrderRecords retrieves lending or redeem history
+func (by *Bybit) GetC2CLendingOrderRecords(ctx context.Context, coin currency.Code, orderID, orderType string, startTime, endTime time.Time, limit int64) ([]C2CLendingFundResponse, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderType != "" {
+		params.Set("orderType", orderType)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := &struct {
+		List []C2CLendingFundResponse `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/history-order", params, nil, &resp, privateSpotRate)
+}
+
+// GetC2CLendingAccountInfo retrieves C2C lending account information.
+func (by *Bybit) GetC2CLendingAccountInfo(ctx context.Context, coin currency.Code) (*LendingAccountInfo, error) {
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	var resp LendingAccountInfo
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/account", params, nil, &resp, privateSpotRate)
+}
+
+//  ---------------------------------------------------------------- Broker endoint ----------------------------------------------------------------
+
+// GetBrokerEarning exchange broker master account to query
+// The data can support up to past 6 months until T-1
+// startTime & endTime are either entered at the same time or not entered
+// Business type. 'SPOT', 'DERIVATIVES', 'OPTIONS'
+func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor string, startTime, endTime time.Time, limit int64) ([]BrokerEarningItem, error) {
+	params := url.Values{}
+	if businessType != "" {
+		params.Set("bizType", businessType)
+	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	resp := &struct {
+		List []BrokerEarningItem `json:"list"`
+	}{}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, privateSpotRate)
+}
 
 // GetFeeRate returns user account fee
 // Valid  category: "spot", "linear", "inverse", "option"
