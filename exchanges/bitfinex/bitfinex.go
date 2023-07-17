@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -497,7 +498,7 @@ func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]str
 // path should be bitfinexInfoPairs or bitfinexInfoPairsFuture???
 // NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
 func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) (map[currency.Pair]order.MinMaxLevel, error) {
-	pairs := map[currency.Pair]order.MinMaxLevel{}
+
 	var path string
 	switch assetType {
 	case asset.Spot:
@@ -505,7 +506,7 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	case asset.Futures:
 		path = bitfinexInfoFuturePairs
 	default:
-		return pairs, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
+		return nil, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
 	}
 	url := bitfinexAPIVersion2 + path
 	var resp [][][]any
@@ -517,31 +518,38 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	if len(resp) != 1 {
 		return nil, errors.New("response did not contain only one item")
 	}
+	pairs := map[currency.Pair]order.MinMaxLevel{}
 	data := resp[0]
 	for i := range data {
 		pairSymbol, ok := data[i][0].(string)
+		if len(data[i]) != 2 {
+			return nil, errors.New("response contained a tuple without exactly 2 items")
+		}
 		if !ok {
-			return pairs, fmt.Errorf("could not convert first item in SiteInfoConfigData to string: Type is %T", data[i][0])
+			return nil, fmt.Errorf("could not convert first item in SiteInfoConfigData to string: Type is %T", data[i][0])
 		}
 		if strings.Contains(pairSymbol, "TEST") {
 			continue
 		}
 		// SIC: Array type really is any. It contains nils and strings
 		info, ok := data[i][1].([]any)
+		if len(info) < 5 {
+			return nil, errors.New("response contained order info with less than 5 elements")
+		}
 		if !ok {
-			return pairs, fmt.Errorf("could not convert second item in SiteInfoConfigData to []any; Type is %T", data[i][1])
+			return nil, fmt.Errorf("could not convert second item in SiteInfoConfigData to []any; Type is %T", data[i][1])
 		}
-		minOrder, err := anyToFloat64(info[3])
+		minOrder, err := convert.FloatFromString(info[3])
 		if err != nil {
-			return pairs, fmt.Errorf("could not convert MinOrderAmount: %s", err)
+			return nil, fmt.Errorf("could not convert MinOrderAmount: %s", err)
 		}
-		maxOrder, err := anyToFloat64(info[4])
+		maxOrder, err := convert.FloatFromString(info[4])
 		if err != nil {
-			return pairs, fmt.Errorf("could not convert MaxOrderAmount: %s", err)
+			return nil, fmt.Errorf("could not convert MaxOrderAmount: %s", err)
 		}
 		pair, err := currency.NewPairFromString(pairSymbol)
 		if err != nil {
-			return pairs, err
+			return nil, err
 		}
 		pairs[pair] = order.MinMaxLevel{
 			Asset:             assetType,
@@ -551,14 +559,6 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		}
 	}
 	return pairs, nil
-}
-
-func anyToFloat64(a any) (float64, error) {
-	s, ok := a.(string)
-	if !ok {
-		return 0, fmt.Errorf("could not convert to string; Type is %T", s)
-	}
-	return strconv.ParseFloat(s, 64)
 }
 
 // GetDerivativeStatusInfo gets status data for the queried derivative
