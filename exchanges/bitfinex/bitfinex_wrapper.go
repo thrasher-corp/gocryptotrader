@@ -342,8 +342,8 @@ func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return err
 	}
 	limits := make([]order.MinMaxLevel, 0, len(pairs))
-	for _, v := range pairs {
-		limits = append(limits, v)
+	for i := range pairs {
+		limits = append(limits, pairs[i])
 	}
 	if err := b.LoadLimits(limits); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)

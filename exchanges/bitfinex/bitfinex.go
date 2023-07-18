@@ -498,7 +498,6 @@ func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]str
 // path should be bitfinexInfoPairs or bitfinexInfoPairsFuture???
 // NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
 func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) (map[currency.Pair]order.MinMaxLevel, error) {
-
 	var path string
 	switch assetType {
 	case asset.Spot:
