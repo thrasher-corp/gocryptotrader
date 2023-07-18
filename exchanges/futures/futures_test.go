@@ -1114,7 +1114,7 @@ func TestMPTLiquidate(t *testing.T) {
 	}
 
 	err = e.Liquidate(decimal.Zero, time.Time{})
-	if !errors.Is(err, order.errCannotLiquidate) {
+	if !errors.Is(err, order.ErrCannotLiquidate) {
 		t.Error(err)
 	}
 
@@ -1169,7 +1169,7 @@ func TestPositionLiquidate(t *testing.T) {
 	}
 
 	err = p.Liquidate(decimal.Zero, time.Time{})
-	if !errors.Is(err, order.errCannotLiquidate) {
+	if !errors.Is(err, order.ErrCannotLiquidate) {
 		t.Error(err)
 	}
 

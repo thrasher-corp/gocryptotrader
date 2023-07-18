@@ -1191,7 +1191,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			case contractDuration <= kline.OneMonth.Duration()+kline.ThreeWeek.Duration():
 				ct = futures.Monthly
 			case contractDuration <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
-				ct = futures.ThreeMonths
+				ct = futures.Quarterly
 			case contractDuration <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
 				ct = futures.HalfYearly
 			case contractDuration <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():

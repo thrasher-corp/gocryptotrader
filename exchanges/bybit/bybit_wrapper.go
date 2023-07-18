@@ -378,12 +378,15 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		return pairs, nil
 	case asset.USDCMarginedFutures:
-		allPairs, err := by.GetUSDCContracts(ctx, currency.EMPTYPAIR, "", "ONLINE", 1000)
+		allPairs, err := by.GetUSDCContracts(ctx, currency.EMPTYPAIR, "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
 		pairs := make([]currency.Pair, 0, len(allPairs))
 		for x := range allPairs {
+			if allPairs[x].Status != "ONLINE" {
+				continue
+			}
 			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, "PERP")
 			if err != nil {
 				return nil, err
@@ -500,6 +503,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 		}
 	case asset.USDCMarginedFutures:
 		for x := range enabled {
+			if enabled[x].IsEmpty() {
+				panic("wow")
+			}
 			formattedPair, err := by.FormatExchangeCurrency(enabled[x], assetType)
 			if err != nil {
 				return err
@@ -2100,7 +2106,11 @@ func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.P
 	if err != nil {
 		return currency.EMPTYPAIR, err
 	}
-	return pairs.DeriveFrom(symbol)
+	pair, err := pairs.DeriveFrom(symbol)
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	return pair, nil
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -2196,7 +2206,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                item,
 				StartDate:            s,
 				EndDate:              e,
-				IsActive:             strings.ToLower(result.List[i].Status) == "trading",
+				IsActive:             strings.EqualFold(result.List[i].Status, "trading"),
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(result.List[i].SettleCoin)},
 				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
@@ -2254,7 +2264,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                item,
 				StartDate:            s,
 				EndDate:              e,
-				IsActive:             strings.ToLower(result.List[i].Status) == "trading",
+				IsActive:             strings.EqualFold(result.List[i].Status, "trading"),
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDC},
 				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
@@ -2304,7 +2314,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                item,
 				StartDate:            s,
 				EndDate:              e,
-				IsActive:             strings.ToLower(result.List[i].Status) == "trading",
+				IsActive:             strings.EqualFold(result.List[i].Status, "trading"),
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDT},
 				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),

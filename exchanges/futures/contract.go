@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// Contract holds details on futures contracts
 type Contract struct {
 	Name       currency.Pair
 	Underlying currency.Pair
@@ -22,8 +23,10 @@ type Contract struct {
 	MaxLeverage          float64
 }
 
+// ContractType holds the various style of contracts offered by futures exchanges
 type ContractType uint8
 
+// Contract type definitions
 const (
 	Unset ContractType = iota
 	Perpetual

@@ -218,7 +218,6 @@ func TestGetActiveInstruments(t *testing.T) {
 
 func TestGetActiveAndIndexInstruments(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetActiveAndIndexInstruments(context.Background())
 	if err != nil {
 		t.Error("GetActiveAndIndexInstruments() error", err)

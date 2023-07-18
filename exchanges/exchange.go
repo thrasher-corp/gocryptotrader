@@ -1660,6 +1660,7 @@ func (b *Base) Shutdown() error {
 	return b.Requester.Shutdown()
 }
 
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (b *Base) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }

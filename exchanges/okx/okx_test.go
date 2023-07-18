@@ -3402,5 +3402,4 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	for i := range resp {
 		t.Log(resp[i].Name, resp[i].Type)
 	}
-
 }

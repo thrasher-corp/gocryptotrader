@@ -1734,10 +1734,6 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			return nil, err
 		}
 
-		var ct futures.ContractType
-		if item == asset.PerpetualSwap {
-			ct = futures.Perpetual
-		}
 		var s, e time.Time
 		if result.Instruments[i].OpeningDate != "" {
 			s, err = time.Parse(time.RFC3339, result.Instruments[i].OpeningDate)
@@ -1745,7 +1741,8 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				return nil, err
 			}
 		}
-		if result.Instruments[i].LastTradingTime == "" {
+		var ct futures.ContractType
+		if result.Instruments[i].LastTradingTime == "" || item == asset.PerpetualSwap {
 			ct = futures.Perpetual
 		} else {
 			e, err = time.Parse(time.RFC3339, result.Instruments[i].LastTradingTime)

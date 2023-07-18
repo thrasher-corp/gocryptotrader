@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -547,6 +548,7 @@ var acceptableErrors = []error{
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
+	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

@@ -3486,24 +3486,22 @@ func TestForceFileStandard(t *testing.T) {
 
 func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetInstrumentInfo(context.Background(), "linear", "", "", "", "", 1000)
 	if err != nil {
 		t.Error(err)
 	}
-	//_, err = b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 1000)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	//_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 1000)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	//_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "BTC", "", 1000)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	time.Sleep(time.Second)
+	_, err = b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 1000)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 1000)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "BTC", "", 1000)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {
@@ -3517,25 +3515,19 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp, err := b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	for i := range resp {
-		t.Log(resp[i])
-	}
-	resp, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
+
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	for i := range resp {
-		t.Log(resp[i])
-	}
-	resp, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	for i := range resp {
-		t.Log(resp[i])
-	}
+
 }
