@@ -3388,18 +3388,12 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp, err := ok.GetFuturesContractDetails(context.Background(), asset.Futures)
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	for i := range resp {
-		t.Log(resp[i].Name, resp[i].Type)
-	}
-	resp, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
 	if !errors.Is(err, nil) {
 		t.Error(err)
-	}
-	for i := range resp {
-		t.Log(resp[i].Name, resp[i].Type)
 	}
 }

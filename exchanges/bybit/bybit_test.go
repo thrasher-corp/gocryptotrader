@@ -3529,5 +3529,4 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-
 }
