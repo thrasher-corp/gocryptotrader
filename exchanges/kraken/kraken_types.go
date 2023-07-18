@@ -18,7 +18,7 @@ const (
 	krakenDepth            = "Depth"
 	krakenTrades           = "Trades"
 	krakenSpread           = "Spread"
-	krakenBalance          = "Balance"
+	krakenBalance          = "BalanceEx"
 	krakenTradeBalance     = "TradeBalance"
 	krakenOpenOrders       = "OpenOrders"
 	krakenClosedOrders     = "ClosedOrders"
@@ -202,6 +202,12 @@ type Spread struct {
 	Time time.Time
 	Bid  float64
 	Ask  float64
+}
+
+// Balance represents account asset balances
+type Balance struct {
+	Total float64 `json:"balance,string"`
+	Hold  float64 `json:"hold_trade,string"`
 }
 
 // TradeBalanceOptions type
