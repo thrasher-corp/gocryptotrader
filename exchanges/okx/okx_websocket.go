@@ -225,7 +225,6 @@ func (ok *Okx) WsConnect() error {
 	}
 	ok.Websocket.Wg.Add(2)
 	go ok.WsReadData(spotWebsocket.Conn)
-	go ok.WsResponseMultiplexer.Run()
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -1683,6 +1682,10 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 	tickerData := time.NewTicker(time.Second)
 	for {
 		select {
+		case <-m.shutdown:
+			// We've consumed the shutdown, so create a new chan for subsequent runs
+			m.shutdown = make(chan bool)
+			return
 		case <-tickerData.C:
 			for x, myChan := range m.WsResponseChannelsMap {
 				if myChan == nil {
@@ -1715,6 +1718,12 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 			}
 		}
 	}
+}
+
+// Shutdown causes the multiplexer to exit its Run loop
+// All channels are left open, but websocket shutdown first will ensure no more messages block on multiplexer reading
+func (m *wsRequestDataChannelsMultiplexer) Shutdown() {
+	close(m.shutdown)
 }
 
 // wsChannelSubscription sends a subscription or unsubscription request for different channels through the websocket stream.
