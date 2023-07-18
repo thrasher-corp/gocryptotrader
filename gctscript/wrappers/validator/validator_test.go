@@ -155,7 +155,7 @@ func TestWrapper_Pairs(t *testing.T) {
 
 	_, err = testWrapper.Pairs(exchError.String(), false, asset.Spot)
 	if err == nil {
-		t.Fatal("expected Pair to return error on invalid name")
+		t.Fatal("expected Pairs to return error on invalid name")
 	}
 }
 

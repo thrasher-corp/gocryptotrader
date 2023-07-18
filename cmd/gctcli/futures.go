@@ -215,7 +215,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getfundingrates",
 			Aliases:   []string{"funding", "f"},
 			Usage:     "returns funding rate data between two dates",
-			ArgsUsage: "<exchange> <asset> <pairs> <start> <end> <includepredicted> <includepayments>",
+			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <paymentcurrency> <includepredicted> <includepayments> <respecthistorylimits>",
 			Action:    getFundingRates,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -273,7 +273,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getlatestfundingrate",
 			Aliases:   []string{"latestrate", "lr", "r8"},
 			Usage:     "returns the latest funding rate data",
-			ArgsUsage: "<exchange> <asset> <pairs> <start> <end> <includepredicted> <includepayments>",
+			ArgsUsage: "<exchange> <asset> <pair> <includepredicted>",
 			Action:    getLatestFundingRate,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -797,29 +797,29 @@ func getFundingRates(c *cli.Context) error {
 	if c.IsSet("paymentcurrency") {
 		paymentCurrency = c.String("paymentcurrency")
 	} else {
-		paymentCurrency = c.Args().Get(3)
+		paymentCurrency = c.Args().Get(5)
 	}
 
 	if c.IsSet("includepredicted") {
 		includePredicted = c.Bool("includepredicted")
-	} else if c.Args().Get(5) != "" {
-		includePredicted, err = strconv.ParseBool(c.Args().Get(5))
+	} else if c.Args().Get(6) != "" {
+		includePredicted, err = strconv.ParseBool(c.Args().Get(6))
 		if err != nil {
 			return err
 		}
 	}
 	if c.IsSet("includepayments") {
 		includePayments = c.Bool("includepayments")
-	} else if c.Args().Get(6) != "" {
-		includePayments, err = strconv.ParseBool(c.Args().Get(6))
+	} else if c.Args().Get(7) != "" {
+		includePayments, err = strconv.ParseBool(c.Args().Get(7))
 		if err != nil {
 			return err
 		}
 	}
 	if c.IsSet("respecthistorylimits") {
 		respectFundingRateHistoryLimits = c.Bool("respecthistorylimits")
-	} else if c.Args().Get(7) != "" {
-		respectFundingRateHistoryLimits, err = strconv.ParseBool(c.Args().Get(6))
+	} else if c.Args().Get(8) != "" {
+		respectFundingRateHistoryLimits, err = strconv.ParseBool(c.Args().Get(8))
 		if err != nil {
 			return err
 		}
