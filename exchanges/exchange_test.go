@@ -2656,6 +2656,15 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 	}
 }
 
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrFunctionNotSupported)
+	}
+}
+
 func TestGetCurrencyForRealisedPNL(t *testing.T) {
 	t.Parallel()
 	b := Base{}
