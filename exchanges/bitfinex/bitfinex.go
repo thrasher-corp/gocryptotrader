@@ -520,10 +520,10 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	pairs := map[currency.Pair]order.MinMaxLevel{}
 	data := resp[0]
 	for i := range data {
-		pairSymbol, ok := data[i][0].(string)
 		if len(data[i]) != 2 {
 			return nil, errors.New("response contained a tuple without exactly 2 items")
 		}
+		pairSymbol, ok := data[i][0].(string)
 		if !ok {
 			return nil, fmt.Errorf("could not convert first item in SiteInfoConfigData to string: Type is %T", data[i][0])
 		}
@@ -532,11 +532,11 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		}
 		// SIC: Array type really is any. It contains nils and strings
 		info, ok := data[i][1].([]any)
-		if len(info) < 5 {
-			return nil, errors.New("response contained order info with less than 5 elements")
-		}
 		if !ok {
 			return nil, fmt.Errorf("could not convert second item in SiteInfoConfigData to []any; Type is %T", data[i][1])
+		}
+		if len(info) < 5 {
+			return nil, errors.New("response contained order info with less than 5 elements")
 		}
 		minOrder, err := convert.FloatFromString(info[3])
 		if err != nil {
