@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	subscribe   = "subscribe"
-	unsubscribe = "unsubscribe"
-	dot         = "."
+	wsAuth        = "auth"
+	wsSubscribe   = "subscribe"
+	wsUnsubscribe = "unsubscribe"
+	dot           = "."
 
 	// public endpoints
 	wsOrder25     = "orderBookL2_25"
@@ -100,7 +101,14 @@ func (by *Bybit) WsCoinConnect() error {
 	go by.wsCoinReadData(cfuturesWebsocket.Conn)
 	by.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		err = by.WsCoinAuth(context.TODO(), &dialer)
+		err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
+		if err != nil {
+			return err
+		}
+		by.Websocket.Wg.Add(1)
+		go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
+
+		err = by.WsCoinAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -135,7 +143,7 @@ func (by *Bybit) wsCoinReadData(ws stream.Connection) {
 }
 
 // WsCoinAuth sends an authentication message to receive auth data
-func (by *Bybit) WsCoinAuth(ctx context.Context, dialer *websocket.Dialer) error {
+func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
@@ -145,12 +153,6 @@ func (by *Bybit) WsCoinAuth(ctx context.Context, dialer *websocket.Dialer) error
 		return err
 	}
 
-	err = cfuturesWebsocket.AuthConn.Dial(dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	by.Websocket.Wg.Add(1)
-	go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -240,7 +242,7 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 	var errs error
 	for i := range channelsToSubscribe {
 		var sub WsFuturesReq
-		sub.Topic = subscribe
+		sub.Topic = wsSubscribe
 
 		argStr := formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params)
 		switch channelsToSubscribe[i].Channel {
@@ -282,7 +284,7 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 	var errs error
 	for i := range channelsToUnsubscribe {
 		var unSub WsFuturesReq
-		unSub.Topic = unsubscribe
+		unSub.Topic = wsUnsubscribe
 
 		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.CoinMarginedFutures)
 		if err != nil {
@@ -300,6 +302,45 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 	return errs
 }
 
+func (by *Bybit) wsCoinHandleResp(wsFuturesResp *WsFuturesResp) error {
+	switch wsFuturesResp.Request.Topic {
+	case wsAuth:
+		if !wsFuturesResp.Success {
+			cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+			if err != nil {
+				return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
+			}
+			switch wsFuturesResp.RetMsg {
+			case "error:request expired":
+				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - retrying..", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
+				err = by.WsCoinAuth(context.TODO())
+				if err != nil {
+					cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
+					return err
+				}
+			default:
+				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
+				cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
+			}
+			return nil
+		}
+		if by.Verbose {
+			log.Debugf(log.ExchangeSys, "%s Asset Type %v Authentication succeeded", by.Name, asset.CoinMarginedFutures)
+			return nil
+		}
+	case wsSubscribe:
+		if !wsFuturesResp.Success {
+			log.Errorf(log.ExchangeSys, "%s Asset Type %v Subscription failed: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.Request.Args)
+		}
+	case wsUnsubscribe:
+	default:
+		if !wsFuturesResp.Success {
+			log.Errorf(log.ExchangeSys, "%s Asset Type %v Unsubscription failed: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.Request.Args)
+		}
+	}
+	return nil
+}
+
 func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
@@ -309,10 +350,15 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		if by.Verbose {
-			log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandle message on websocket: %v\n", by.Name, asset.CoinMarginedFutures, multiStreamData)
+		var wsFuturesResp WsFuturesResp
+		err = json.Unmarshal(respRaw, &wsFuturesResp)
+		if err != nil {
+			if by.Verbose {
+				log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandled message on websocket: %v\n", by.Name, asset.CoinMarginedFutures, multiStreamData)
+			}
+			return nil
 		}
-		return nil
+		return by.wsCoinHandleResp(&wsFuturesResp)
 	}
 
 	topics := strings.Split(t, dot)

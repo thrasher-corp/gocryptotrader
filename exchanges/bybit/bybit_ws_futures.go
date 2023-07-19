@@ -172,7 +172,7 @@ func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscripti
 	var errs error
 	for i := range channelsToSubscribe {
 		var sub WsFuturesReq
-		sub.Topic = subscribe
+		sub.Topic = wsSubscribe
 
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
 		switch channelsToSubscribe[i].Channel {
@@ -198,7 +198,7 @@ func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscr
 	var errs error
 	for i := range channelsToUnsubscribe {
 		var unSub WsFuturesReq
-		unSub.Topic = unsubscribe
+		unSub.Topic = wsUnsubscribe
 
 		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.Futures)
 		if err != nil {
@@ -253,7 +253,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
 		if by.Verbose {
-			log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandle message on websocket: %v\n", by.Name, asset.Futures, multiStreamData)
+			log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandled message on websocket: %v\n", by.Name, asset.Futures, multiStreamData)
 		}
 		return nil
 	}

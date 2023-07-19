@@ -348,10 +348,26 @@ type WsReq struct {
 	Parameters interface{} `json:"params"`
 }
 
+// WsResp stores futures ws response
+type WsResp struct {
+	Success bool   `json:"success"`
+	RetMsg  string `json:"ret_msg"`
+	ConnID  string `json:"conn_id"`
+	Request WsReq  `json:"request"`
+}
+
 // WsFuturesReq stores futures ws request
 type WsFuturesReq struct {
 	Topic string   `json:"op"`
 	Args  []string `json:"args"`
+}
+
+// WsFuturesResp stores futures ws response
+type WsFuturesResp struct {
+	Success bool         `json:"success"`
+	RetMsg  string       `json:"ret_msg"`
+	ConnID  string       `json:"conn_id"`
+	Request WsFuturesReq `json:"request"`
 }
 
 // WsParams store ws parameters
@@ -696,7 +712,7 @@ type WsLiquidationData struct {
 	Symbol    string                  `json:"symbol"`
 	Side      string                  `json:"side"`
 	Price     convert.StringToFloat64 `json:"price"`
-	Qty       float64                 `json:"qty"`
+	Qty       convert.StringToFloat64 `json:"qty"`
 	Timestamp bybitTime               `json:"time"`
 }
 
