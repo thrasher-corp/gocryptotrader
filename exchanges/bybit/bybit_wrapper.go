@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -60,29 +58,49 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
 
-	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
-	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures, asset.USDCMarginedFutures)
+	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Linear, asset.Inverse)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
+	spotLinearInversePairStore := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true}}
+	err = by.StoreAssetPairFormat(asset.Spot, spotLinearInversePairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = by.StoreAssetPairFormat(asset.Linear, spotLinearInversePairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = by.StoreAssetPairFormat(asset.Inverse, spotLinearInversePairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = by.StoreAssetPairFormat(asset.Options, currency.PairStore{RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, ConfigFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
+	err = by.DisableAssetWebsocketSupport(asset.Inverse)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.Futures)
+	err = by.DisableAssetWebsocketSupport(asset.Linear)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.USDCMarginedFutures)
+	err = by.DisableAssetWebsocketSupport(asset.Options)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = by.DisableAssetWebsocketSupport(asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -284,117 +302,54 @@ func (by *Bybit) Run(ctx context.Context) {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if !by.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
-	}
-
 	var pair currency.Pair
 	switch a {
-	case asset.Spot:
-		allPairs, err := by.GetAllSpotPairs(ctx)
+	case asset.Spot, asset.Linear, asset.Inverse:
+		allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", "", "", 0)
 		if err != nil {
 			return nil, err
 		}
-		pairs := make([]currency.Pair, len(allPairs))
-		for x := range allPairs {
-			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCurrency,
-				allPairs[x].QuoteCurrency)
+		pairs := make([]currency.Pair, len(allPairs.List))
+		for x := range allPairs.List {
+			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
 			pairs[x] = pair
 		}
 		return pairs, nil
-	case asset.CoinMarginedFutures:
-		allPairs, err := by.GetSymbolsInfo(ctx)
-		if err != nil {
-			return nil, err
-		}
-		pairs := make([]currency.Pair, 0, len(allPairs))
-		for x := range allPairs {
-			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USD" {
-				continue
-			}
-
-			contractSplit := strings.Split(allPairs[x].Name, allPairs[x].BaseCurrency)
-			if len(contractSplit) != 2 {
-				log.Warnf(log.ExchangeSys, "%s base currency %s cannot split contract name %s cannot add to tradable pairs",
-					by.Name,
-					allPairs[x].BaseCurrency,
-					allPairs[x].Name)
-				continue
-			}
-
-			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCurrency,
-				contractSplit[1])
+	case asset.Options:
+		baseCoins := []string{"BTC"}
+		pairs := []currency.Pair{}
+		for b := range baseCoins {
+			allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", baseCoins[0], "", 0)
 			if err != nil {
 				return nil, err
 			}
-			pairs = append(pairs, pair)
+			println(baseCoins[b], len(allPairs.List))
+			for x := range allPairs.List {
+				pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				pairs = append(pairs, pair)
+			}
 		}
 		return pairs, nil
-	case asset.USDTMarginedFutures:
-		allPairs, err := by.GetSymbolsInfo(ctx)
-		if err != nil {
-			return nil, err
-		}
-		pairs := make([]currency.Pair, 0, len(allPairs))
-		for x := range allPairs {
-			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USDT" {
-				continue
-			}
-
-			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCurrency,
-				allPairs[x].QuoteCurrency)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
-		return pairs, nil
-	case asset.Futures:
-		allPairs, err := by.GetSymbolsInfo(ctx)
-		if err != nil {
-			return nil, err
-		}
-		pairs := make([]currency.Pair, 0, len(allPairs))
-		for x := range allPairs {
-			if allPairs[x].Status != "Trading" {
-				continue
-			}
-
-			symbol := allPairs[x].BaseCurrency + allPairs[x].QuoteCurrency
-			filter := strings.Split(allPairs[x].Name, symbol)
-			if len(filter) != 2 || filter[1] == "" {
-				continue
-			}
-
-			pair, err = currency.NewPairFromStrings(symbol, filter[1])
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
-		return pairs, nil
-	case asset.USDCMarginedFutures:
-		allPairs, err := by.GetUSDCContracts(ctx, currency.EMPTYPAIR, "", 0)
-		if err != nil {
-			return nil, err
-		}
-		pairs := make([]currency.Pair, 0, len(allPairs))
-		for x := range allPairs {
-			if allPairs[x].Status != "ONLINE" {
-				continue
-			}
-			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, "PERP")
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
-		return pairs, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	return nil, nil
+}
+
+func getCategoryName(a asset.Item) string {
+	switch a {
+	case asset.Spot, asset.Linear, asset.Inverse:
+		return a.String()
+	case asset.Options:
+		return "option"
+	default:
+		return ""
+	}
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -420,34 +375,33 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 	if err != nil {
 		return err
 	}
+	println("\n\n")
+	println(avail.Join())
+	println("\n\n")
 
 	enabled, err := by.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
 	}
-
+	var ticks *TickerData
 	switch assetType {
-	case asset.Spot:
-		ticks, err := by.GetTickers(ctx, "spot", "", "", time.Time{})
+	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+		var baseCoin string
+		if assetType == asset.Options {
+			baseCoin = "BTC"
+		}
+		ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", baseCoin, time.Time{})
 		if err != nil {
 			return err
 		}
-
 		for x := range ticks.List {
 			pair, err := avail.DeriveFrom(ticks.List[x].Symbol)
 			if err != nil {
-				// These symbols below do not have a spot market but are in fact
-				// perpetuals.
-				if ticks.List[x].Symbol == "ZECUSDT" || ticks.List[x].Symbol == "DASHUSDT" {
-					continue
-				}
 				return err
 			}
-
 			if !enabled.Contains(pair, true) {
 				continue
 			}
-
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.List[x].LastPrice.Float64(),
 				High:         ticks.List[x].HighPrice24H.Float64(),
@@ -459,73 +413,8 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				Volume:       ticks.List[x].Volume24H.Float64(),
 				Pair:         pair,
 				ExchangeName: by.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return err
-			}
-		}
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.EMPTYPAIR)
-		if err != nil {
-			return err
-		}
-
-		for p := range enabled {
-			formattedPair, err := by.FormatExchangeCurrency(enabled[p], assetType)
-			if err != nil {
-				return err
-			}
-
-			for y := range tick {
-				if tick[y].Symbol != formattedPair.String() {
-					continue
-				}
-				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
-				if err != nil {
-					return err
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice.Float64(),
-					High:         tick[y].HighPrice24h.Float64(),
-					Low:          tick[y].LowPrice24h.Float64(),
-					Bid:          tick[y].BidPrice.Float64(),
-					Ask:          tick[y].AskPrice.Float64(),
-					Volume:       tick[y].Volume24h,
-					Open:         tick[y].OpenValue.Float64(),
-					Pair:         cp,
-					ExchangeName: by.Name,
-					AssetType:    assetType})
-				if err != nil {
-					return err
-				}
-			}
-		}
-	case asset.USDCMarginedFutures:
-		for x := range enabled {
-			formattedPair, err := by.FormatExchangeCurrency(enabled[x], assetType)
-			if err != nil {
-				return err
-			}
-
-			tick, err := by.GetUSDCSymbols(ctx, formattedPair)
-			if err != nil {
-				return err
-			}
-
-			cp, err := by.extractCurrencyPair(tick.Symbol, assetType)
-			if err != nil {
-				return err
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick.LastPrice.Float64(),
-				High:         tick.High24h.Float64(),
-				Low:          tick.Low24h.Float64(),
-				Bid:          tick.Bid.Float64(),
-				Ask:          tick.Ask.Float64(),
-				Volume:       tick.Volume24h.Float64(),
-				Pair:         cp,
-				ExchangeName: by.Name,
-				AssetType:    assetType})
+				AssetType:    assetType,
+			})
 			if err != nil {
 				return err
 			}
@@ -538,96 +427,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	formattedPair, err := by.FormatExchangeCurrency(p, assetType)
-	if err != nil {
+	if err := by.UpdateTickers(ctx, assetType); err != nil {
 		return nil, err
 	}
-
-	switch assetType {
-	case asset.Spot:
-		tick, err := by.Get24HrsChange(ctx, formattedPair.String())
-		if err != nil {
-			return nil, err
-		}
-
-		for y := range tick {
-			cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
-			if err != nil {
-				return nil, err
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice.Float64(),
-				High:         tick[y].HighPrice.Float64(),
-				Low:          tick[y].LowPrice.Float64(),
-				Bid:          tick[y].BestBidPrice.Float64(),
-				Ask:          tick[y].BestAskPrice.Float64(),
-				Volume:       tick[y].Volume.Float64(),
-				QuoteVolume:  tick[y].QuoteVolume.Float64(),
-				Open:         tick[y].OpenPrice.Float64(),
-				Pair:         cp,
-				LastUpdated:  tick[y].Time.Time(),
-				ExchangeName: by.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return nil, err
-			}
-		}
-
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		tick, err := by.GetFuturesSymbolPriceTicker(ctx, formattedPair)
-		if err != nil {
-			return nil, err
-		}
-
-		for y := range tick {
-			cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
-			if err != nil {
-				return nil, err
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice.Float64(),
-				High:         tick[y].HighPrice24h.Float64(),
-				Low:          tick[y].LowPrice24h.Float64(),
-				Bid:          tick[y].BidPrice.Float64(),
-				Ask:          tick[y].AskPrice.Float64(),
-				Volume:       tick[y].Volume24h,
-				Open:         tick[y].OpenValue.Float64(),
-				Pair:         cp,
-				ExchangeName: by.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return nil, err
-			}
-		}
-
-	case asset.USDCMarginedFutures:
-		tick, err := by.GetUSDCSymbols(ctx, formattedPair)
-		if err != nil {
-			return nil, err
-		}
-
-		cp, err := by.extractCurrencyPair(tick.Symbol, assetType)
-		if err != nil {
-			return nil, err
-		}
-		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tick.LastPrice.Float64(),
-			High:         tick.High24h.Float64(),
-			Low:          tick.Low24h.Float64(),
-			Bid:          tick.Bid.Float64(),
-			Ask:          tick.Ask.Float64(),
-			Volume:       tick.Volume24h.Float64(),
-			Pair:         cp,
-			ExchangeName: by.Name,
-			AssetType:    assetType})
-		if err != nil {
-			return nil, err
-		}
-
-	default:
-		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
-	}
-
 	return ticker.GetTicker(by.Name, p, assetType)
 }
 
@@ -671,19 +473,14 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	}
 
 	switch assetType {
-	case asset.Spot:
-		orderbookNew, err = by.GetOrderBook(ctx, assetType.String(), formattedPair.String(), 0)
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		// orderbookNew, err = by.GetFuturesOrderbook(ctx, "linear", formattedPair.String(), 0)
-	case asset.USDCMarginedFutures:
-		orderbookNew, err = by.GetUSDCFuturesOrderbook(ctx, formattedPair)
+	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+		orderbookNew, err = by.GetOrderBook(ctx, getCategoryName(assetType), formattedPair.String(), 0)
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
 		return nil, err
 	}
-
 	book := &orderbook.Base{
 		Exchange:        by.Name,
 		Pair:            formattedPair,
@@ -692,14 +489,12 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		Bids:            make([]orderbook.Item, len(orderbookNew.Bids)),
 		Asks:            make([]orderbook.Item, len(orderbookNew.Asks)),
 	}
-
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
@@ -738,24 +533,24 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		acc.Currencies = currencyBalance
 
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		balances, err := by.GetFutureWalletBalance(ctx, "")
-		if err != nil {
-			return info, err
-		}
+		// balances, err := by.GetFutureWalletBalance(ctx, "")
+		// if err != nil {
+		// 	return info, err
+		// }
 
-		var i int
-		currencyBalance := make([]account.Balance, len(balances))
-		for coinName, data := range balances {
-			currencyBalance[i] = account.Balance{
-				Currency: currency.NewCode(coinName),
-				Total:    data.WalletBalance,
-				Hold:     data.WalletBalance - data.AvailableBalance,
-				Free:     data.AvailableBalance,
-			}
-			i++
-		}
+		// var i int
+		// currencyBalance := make([]account.Balance, len(balances))
+		// for coinName, data := range balances {
+		// 	currencyBalance[i] = account.Balance{
+		// 		Currency: currency.NewCode(coinName),
+		// 		Total:    data.WalletBalance,
+		// 		Hold:     data.WalletBalance - data.AvailableBalance,
+		// 		Free:     data.AvailableBalance,
+		// 	}
+		// 	i++
+		// }
 
-		acc.Currencies = currencyBalance
+		// acc.Currencies = currencyBalance
 
 	case asset.USDCMarginedFutures:
 		balance, err := by.GetUSDCWalletBalance(ctx)
@@ -812,24 +607,24 @@ func (by *Bybit) GetAccountFundingHistory(_ context.Context) ([]exchange.Funding
 func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	switch a {
 	case asset.CoinMarginedFutures:
-		w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", c, 0, 0)
-		if err != nil {
-			return nil, err
-		}
+		// w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", c, 0, 0)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		withdrawHistory := make([]exchange.WithdrawalHistory, len(w))
-		for i := range w {
-			withdrawHistory[i] = exchange.WithdrawalHistory{
-				Status:          w[i].Status,
-				TransferID:      strconv.FormatInt(w[i].ID, 10),
-				Currency:        w[i].Coin,
-				Amount:          w[i].Amount.Float64(),
-				Fee:             w[i].Fee,
-				CryptoToAddress: w[i].Address,
-				CryptoTxID:      w[i].TxID,
-				Timestamp:       w[i].UpdatedAt,
-			}
-		}
+		withdrawHistory := make([]exchange.WithdrawalHistory, 9)
+		// for i := range w {
+		// 	withdrawHistory[i] = exchange.WithdrawalHistory{
+		// 		Status:          w[i].Status,
+		// 		TransferID:      strconv.FormatInt(w[i].ID, 10),
+		// 		Currency:        w[i].Coin,
+		// 		Amount:          w[i].Amount.Float64(),
+		// 		Fee:             w[i].Fee,
+		// 		CryptoToAddress: w[i].Address,
+		// 		CryptoTxID:      w[i].TxID,
+		// 		Timestamp:       w[i].UpdatedAt,
+		// 	}
+		// }
 		return withdrawHistory, nil
 	default:
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
@@ -847,21 +642,21 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 
 	switch assetType {
 	case asset.Spot:
-		tradeData, err := by.GetTrades(ctx, formattedPair.String(), 0)
-		if err != nil {
-			return nil, err
-		}
+		// tradeData, err := by.GetTrades(ctx, formattedPair.String(), 0)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		for i := range tradeData {
-			resp = append(resp, trade.Data{
-				Exchange:     by.Name,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Volume,
-				Timestamp:    tradeData[i].Time,
-			})
-		}
+		// for i := range tradeData {
+		// 	resp = append(resp, trade.Data{
+		// 		Exchange:     by.Name,
+		// 		CurrencyPair: p,
+		// 		AssetType:    assetType,
+		// 		Price:        tradeData[i].Price,
+		// 		Amount:       tradeData[i].Volume,
+		// 		Timestamp:    tradeData[i].Time,
+		// 	})
+		// }
 
 	case asset.CoinMarginedFutures, asset.Futures:
 		tradeData, err := by.GetPublicTrades(ctx, formattedPair, 0)
@@ -960,93 +755,93 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		timeInForce := BybitRequestParamsTimeGTC
-		var requestParamsOrderType string
-		switch s.Type {
-		case order.Market:
-			timeInForce = ""
-			requestParamsOrderType = BybitRequestParamsOrderMarket
-		case order.Limit:
-			requestParamsOrderType = BybitRequestParamsOrderLimit
-		default:
-			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
-		}
+		// timeInForce := BybitRequestParamsTimeGTC
+		// var requestParamsOrderType string
+		// switch s.Type {
+		// case order.Market:
+		// 	timeInForce = ""
+		// 	requestParamsOrderType = BybitRequestParamsOrderMarket
+		// case order.Limit:
+		// 	requestParamsOrderType = BybitRequestParamsOrderLimit
+		// default:
+		// 	return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
+		// }
 
-		var orderRequest = PlaceOrderRequest{
-			Symbol:      formattedPair.String(),
-			Side:        sideType,
-			Price:       s.Price,
-			Quantity:    s.Amount,
-			TradeType:   requestParamsOrderType,
-			TimeInForce: timeInForce,
-			OrderLinkID: s.ClientOrderID,
-		}
+		// var orderRequest = PlaceOrderRequest{
+		// 	Symbol:      formattedPair.String(),
+		// 	Side:        sideType,
+		// 	Price:       s.Price,
+		// 	Quantity:    s.Amount,
+		// 	TradeType:   requestParamsOrderType,
+		// 	TimeInForce: timeInForce,
+		// 	OrderLinkID: s.ClientOrderID,
+		// }
 		var response *OrderResponse
-		response, err = by.CreatePostOrder(ctx, &orderRequest)
-		if err != nil {
-			return nil, err
-		}
+		// response, err = by.CreatePostOrder(ctx, &orderRequest)
+		// if err != nil {
+		// 	return nil, err
+		// }
 		orderID = response.OrderID
 		// if response.ExecutedQty == response.Quantity {
 		// 	status = order.Filled
 		// }
 	case asset.CoinMarginedFutures:
-		timeInForce := "GoodTillCancel"
-		var oType string
-		switch s.Type {
-		case order.Market:
-			oType = "Market"
-		case order.Limit:
-			oType = "Limit"
-		default:
-			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
-		}
-		var o FuturesOrderDataResp
-		o, err = by.CreateCoinFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
-			s.ClientOrderID, "", "",
-			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
-		if err != nil {
-			return nil, err
-		}
-		orderID = o.OrderID
+		// timeInForce := "GoodTillCancel"
+		// var oType string
+		// switch s.Type {
+		// case order.Market:
+		// 	oType = "Market"
+		// case order.Limit:
+		// 	oType = "Limit"
+		// default:
+		// 	return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
+		// }
+		// var o FuturesOrderDataResp
+		// o, err = by.CreateCoinFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
+		// 	s.ClientOrderID, "", "",
+		// 	s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// orderID = o.OrderID
 	case asset.USDTMarginedFutures:
-		timeInForce := "GoodTillCancel"
-		var oType string
-		switch s.Type {
-		case order.Market:
-			oType = "Market"
-		case order.Limit:
-			oType = "Limit"
-		default:
-			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
-		}
-		var o FuturesOrderDataResp
-		o, err = by.CreateUSDTFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
-			s.ClientOrderID, "", "",
-			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
-		if err != nil {
-			return nil, err
-		}
-		orderID = o.OrderID
+		// timeInForce := "GoodTillCancel"
+		// var oType string
+		// switch s.Type {
+		// case order.Market:
+		// 	oType = "Market"
+		// case order.Limit:
+		// 	oType = "Limit"
+		// default:
+		// 	return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
+		// }
+		// var o FuturesOrderDataResp
+		// o, err = by.CreateUSDTFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
+		// 	s.ClientOrderID, "", "",
+		// 	s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// orderID = o.OrderID
 	case asset.Futures:
-		timeInForce := "GoodTillCancel"
-		var oType string
-		switch s.Type {
-		case order.Market:
-			oType = "Market"
-		case order.Limit:
-			oType = "Limit"
-		default:
-			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
-		}
-		var o FuturesOrderDataResp
-		o, err = by.CreateFuturesOrder(ctx, 0, formattedPair, sideType, oType, timeInForce,
-			s.ClientOrderID, "", "",
-			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
-		if err != nil {
-			return nil, err
-		}
-		orderID = o.OrderID
+		// timeInForce := "GoodTillCancel"
+		// var oType string
+		// switch s.Type {
+		// case order.Market:
+		// 	oType = "Market"
+		// case order.Limit:
+		// 	oType = "Limit"
+		// default:
+		// 	return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
+		// }
+		// var o FuturesOrderDataResp
+		// o, err = by.CreateFuturesOrder(ctx, 0, formattedPair, sideType, oType, timeInForce,
+		// 	s.ClientOrderID, "", "",
+		// 	s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// orderID = o.OrderID
 	case asset.USDCMarginedFutures:
 		timeInForce := "GoodTillCancel"
 		var oType string
@@ -1091,11 +886,11 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	)
 	switch action.AssetType {
 	case asset.CoinMarginedFutures:
-		orderID, err = by.ReplaceActiveCoinFuturesOrders(ctx, action.Pair, action.OrderID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
+		// orderID, err = by.ReplaceActiveCoinFuturesOrders(ctx, action.Pair, action.OrderID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
 	case asset.USDTMarginedFutures:
-		orderID, err = by.ReplaceActiveUSDTFuturesOrders(ctx, action.Pair, action.OrderID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
+		// orderID, err = by.ReplaceActiveUSDTFuturesOrders(ctx, action.Pair, action.OrderID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
 	case asset.Futures:
-		orderID, err = by.ReplaceActiveFuturesOrders(ctx, action.Pair, action.OrderID, action.ClientOrderID, "", "", action.Amount, action.Price, 0, 0)
+		// orderID, err = by.ReplaceActiveFuturesOrders(ctx, action.Pair, action.OrderID, action.ClientOrderID, "", "", action.Amount, action.Price, 0, 0)
 	case asset.USDCMarginedFutures:
 		// TODO: take suggestion related to orderFilter. option accepted by bybit Order/StopOrder
 		orderID, err = by.ModifyUSDCOrder(ctx, action.Pair, "Order", action.OrderID, action.ClientOrderID, action.Price, action.Amount, 0, 0, 0, 0, 0)
@@ -1123,13 +918,13 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	var err error
 	switch ord.AssetType {
 	case asset.Spot:
-		_, err = by.CancelExistingOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		// _, err = by.CancelExistingOrder(ctx, ord.OrderID, ord.ClientOrderID)
 	case asset.CoinMarginedFutures:
-		_, err = by.CancelActiveCoinFuturesOrders(ctx, ord.Pair, ord.OrderID, ord.ClientOrderID)
+		// _, err = by.CancelActiveCoinFuturesOrders(ctx, ord.Pair, ord.OrderID, ord.ClientOrderID)
 	case asset.USDTMarginedFutures:
-		_, err = by.CancelActiveUSDTFuturesOrders(ctx, ord.Pair, ord.OrderID, ord.ClientOrderID)
+		// _, err = by.CancelActiveUSDTFuturesOrders(ctx, ord.Pair, ord.OrderID, ord.ClientOrderID)
 	case asset.Futures:
-		_, err = by.CancelActiveFuturesOrders(ctx, ord.Pair, ord.OrderID, ord.ClientOrderID)
+		// _, err = by.CancelActiveFuturesOrders(ctx, ord.Pair, ord.OrderID, ord.ClientOrderID)
 	case asset.USDCMarginedFutures:
 		_, err = by.CancelUSDCOrder(ctx, ord.Pair, "Order", ord.OrderID, ord.ClientOrderID)
 	default:
@@ -1154,16 +949,16 @@ func (by *Bybit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*orde
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	cancelledOrders, err := by.BatchCancelOrderByIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
+	// cancelledOrders, err := by.BatchCancelOrderByIDs(ctx, ids)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
-	for i := range ids {
-		resp.Status[ids[i]] = strconv.FormatBool(cancelledOrders)
-	}
+	// for i := range ids {
+	// resp.Status[ids[i]] = strconv.FormatBool(cancelledOrders)
+	// }
 	return resp, nil
 }
 
@@ -1178,57 +973,57 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot:
-		activeOrder, err := by.ListOpenOrders(ctx, orderCancellation.Pair.String(), "", 0)
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
+		// activeOrder, err := by.ListOpenOrders(ctx, orderCancellation.Pair.String(), "", 0)
+		// if err != nil {
+		// 	return cancelAllOrdersResponse, err
+		// }
 
-		if len(activeOrder) == 0 { // avoid further call if no active order present
-			break
-		}
-		var orderType, side string
-		if orderCancellation.Type != order.UnknownType {
-			orderType = orderCancellation.Type.String()
-		}
-		if orderCancellation.Side != order.UnknownSide {
-			side = orderCancellation.Side.Title()
-		}
+		// if len(activeOrder) == 0 { // avoid further call if no active order present
+		// 	break
+		// }
+		// var orderType, side string
+		// if orderCancellation.Type != order.UnknownType {
+		// 	orderType = orderCancellation.Type.String()
+		// }
+		// if orderCancellation.Side != order.UnknownSide {
+		// 	side = orderCancellation.Side.Title()
+		// }
 
-		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Pair.String(), side, orderType)
-		if !successful {
-			status = "failed"
-		}
-		if err != nil {
-			status = err.Error()
-		}
-		for i := range activeOrder {
-			cancelAllOrdersResponse.Status[activeOrder[i].OrderID] = status
-		}
+		// successful, err := by.BatchCancelOrder(ctx, orderCancellation.Pair.String(), side, orderType)
+		// if !successful {
+		// 	status = "failed"
+		// }
+		// if err != nil {
+		// 	status = err.Error()
+		// }
+		// for i := range activeOrder {
+		// 	cancelAllOrdersResponse.Status[activeOrder[i].OrderID] = status
+		// }
 
 	case asset.CoinMarginedFutures:
-		resp, err := by.CancelAllActiveCoinFuturesOrders(ctx, orderCancellation.Pair)
-		if err != nil {
-			status = err.Error()
-		}
-		for i := range resp {
-			cancelAllOrdersResponse.Status[resp[i].OrderID] = status
-		}
+		// resp, err := by.CancelAllActiveCoinFuturesOrders(ctx, orderCancellation.Pair)
+		// if err != nil {
+		// 	status = err.Error()
+		// }
+		// for i := range resp {
+		// 	cancelAllOrdersResponse.Status[resp[i].OrderID] = status
+		// }
 	case asset.USDTMarginedFutures:
-		resp, err := by.CancelAllActiveUSDTFuturesOrders(ctx, orderCancellation.Pair)
-		if err != nil {
-			status = err.Error()
-		}
-		for i := range resp {
-			cancelAllOrdersResponse.Status[resp[i]] = status
-		}
+		// resp, err := by.CancelAllActiveUSDTFuturesOrders(ctx, orderCancellation.Pair)
+		// if err != nil {
+		// 	status = err.Error()
+		// }
+		// for i := range resp {
+		// 	cancelAllOrdersResponse.Status[resp[i]] = status
+		// }
 	case asset.Futures:
-		resp, err := by.CancelAllActiveFuturesOrders(ctx, orderCancellation.Pair)
-		if err != nil {
-			status = err.Error()
-		}
-		for i := range resp {
-			cancelAllOrdersResponse.Status[resp[i].CancelOrderID] = status
-		}
+		// resp, err := by.CancelAllActiveFuturesOrders(ctx, orderCancellation.Pair)
+		// if err != nil {
+		// 	status = err.Error()
+		// }
+		// for i := range resp {
+		// 	cancelAllOrdersResponse.Status[resp[i].CancelOrderID] = status
+		// }
 	case asset.USDCMarginedFutures:
 		activeOrder, err := by.GetActiveUSDCOrder(ctx, orderCancellation.Pair, "PERPETUAL", "", "", "", "", "", 0)
 		if err != nil {
@@ -1262,109 +1057,112 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 	switch assetType {
 	case asset.Spot:
-		resp, err := by.QueryOrder(ctx, orderID, "")
-		if err != nil {
-			return nil, err
-		}
+		// resp, err := by.QueryOrder(ctx, orderID, "")
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		return &order.Detail{
-			Amount:         resp.Quantity.Float64(),
-			Exchange:       by.Name,
-			OrderID:        resp.OrderID,
-			ClientOrderID:  resp.OrderLinkID,
-			Side:           getSide(resp.Side),
-			Type:           getTradeType(resp.TradeType),
-			Pair:           pair,
-			Cost:           resp.CummulativeQuoteQty.Float64(),
-			AssetType:      assetType,
-			Status:         getOrderStatus(resp.Status),
-			Price:          resp.Price.Float64(),
-			ExecutedAmount: resp.ExecutedQty.Float64(),
-			Date:           resp.Time.Time(),
-			LastUpdated:    resp.UpdateTime.Time(),
-		}, nil
+		// return &order.Detail{
+		// 	Amount:         resp.Quantity.Float64(),
+		// 	Exchange:       by.Name,
+		// 	OrderID:        resp.OrderID,
+		// 	ClientOrderID:  resp.OrderLinkID,
+		// 	Side:           getSide(resp.Side),
+		// 	Type:           getTradeType(resp.TradeType),
+		// 	Pair:           pair,
+		// 	Cost:           resp.CummulativeQuoteQty.Float64(),
+		// 	AssetType:      assetType,
+		// 	Status:         getOrderStatus(resp.Status),
+		// 	Price:          resp.Price.Float64(),
+		// 	ExecutedAmount: resp.ExecutedQty.Float64(),
+		// 	Date:           resp.Time.Time(),
+		// 	LastUpdated:    resp.UpdateTime.Time(),
+		// }, nil
+		return nil, nil
 
 	case asset.CoinMarginedFutures:
-		resp, err := by.GetActiveRealtimeCoinOrders(ctx, pair, orderID, "")
-		if err != nil {
-			return nil, err
-		}
+		// resp, err := by.GetActiveRealtimeCoinOrders(ctx, pair, orderID, "")
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		if len(resp) != 1 {
-			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
-		}
+		// if len(resp) != 1 {
+		// 	return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+		// }
 
-		return &order.Detail{
-			Amount:         resp[0].Qty,
-			Exchange:       by.Name,
-			OrderID:        resp[0].OrderID,
-			ClientOrderID:  resp[0].OrderLinkID,
-			Side:           getSide(resp[0].Side),
-			Type:           getTradeType(resp[0].OrderType),
-			Pair:           pair,
-			Cost:           resp[0].CumulativeQty.Float64(),
-			AssetType:      assetType,
-			Status:         getOrderStatus(resp[0].OrderStatus),
-			Price:          resp[0].Price,
-			ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
-			Date:           resp[0].CreatedAt,
-			LastUpdated:    resp[0].UpdatedAt,
-		}, nil
+		// return &order.Detail{
+		// 	Amount:         resp[0].Qty,
+		// 	Exchange:       by.Name,
+		// 	OrderID:        resp[0].OrderID,
+		// 	ClientOrderID:  resp[0].OrderLinkID,
+		// 	Side:           getSide(resp[0].Side),
+		// 	Type:           getTradeType(resp[0].OrderType),
+		// 	Pair:           pair,
+		// 	Cost:           resp[0].CumulativeQty.Float64(),
+		// 	AssetType:      assetType,
+		// 	Status:         getOrderStatus(resp[0].OrderStatus),
+		// 	Price:          resp[0].Price,
+		// 	ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
+		// 	Date:           resp[0].CreatedAt,
+		// 	LastUpdated:    resp[0].UpdatedAt,
+		// }, nil
+		return nil, nil
 
 	case asset.USDTMarginedFutures:
-		resp, err := by.GetActiveUSDTRealtimeOrders(ctx, pair, orderID, "")
-		if err != nil {
-			return nil, err
-		}
+		// resp, err := by.GetActiveUSDTRealtimeOrders(ctx, pair, orderID, "")
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		if len(resp) != 1 {
-			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
-		}
+		// if len(resp) != 1 {
+		// 	return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+		// }
 
-		return &order.Detail{
-			Amount:         resp[0].Qty,
-			Exchange:       by.Name,
-			OrderID:        resp[0].OrderID,
-			ClientOrderID:  resp[0].OrderLinkID,
-			Side:           getSide(resp[0].Side),
-			Type:           getTradeType(resp[0].OrderType),
-			Pair:           pair,
-			Cost:           resp[0].CumulativeQty.Float64(),
-			AssetType:      assetType,
-			Status:         getOrderStatus(resp[0].OrderStatus),
-			Price:          resp[0].Price,
-			ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
-			Date:           resp[0].CreatedAt,
-			LastUpdated:    resp[0].UpdatedAt,
-		}, nil
+		// return &order.Detail{
+		// 	Amount:         resp[0].Qty,
+		// 	Exchange:       by.Name,
+		// 	OrderID:        resp[0].OrderID,
+		// 	ClientOrderID:  resp[0].OrderLinkID,
+		// 	Side:           getSide(resp[0].Side),
+		// 	Type:           getTradeType(resp[0].OrderType),
+		// 	Pair:           pair,
+		// 	Cost:           resp[0].CumulativeQty.Float64(),
+		// 	AssetType:      assetType,
+		// 	Status:         getOrderStatus(resp[0].OrderStatus),
+		// 	Price:          resp[0].Price,
+		// 	ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
+		// 	Date:           resp[0].CreatedAt,
+		// 	LastUpdated:    resp[0].UpdatedAt,
+		// }, nil
+		return nil, nil
 
 	case asset.Futures:
-		resp, err := by.GetActiveRealtimeOrders(ctx, pair, orderID, "")
-		if err != nil {
-			return nil, err
-		}
+		// resp, err := by.GetActiveRealtimeOrders(ctx, pair, orderID, "")
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		if len(resp) != 1 {
-			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
-		}
+		// if len(resp) != 1 {
+		// 	return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+		// }
 
-		return &order.Detail{
-			Amount:         resp[0].Qty,
-			Exchange:       by.Name,
-			OrderID:        resp[0].OrderID,
-			ClientOrderID:  resp[0].OrderLinkID,
-			Side:           getSide(resp[0].Side),
-			Type:           getTradeType(resp[0].OrderType),
-			Pair:           pair,
-			Cost:           resp[0].CumulativeQty.Float64(),
-			AssetType:      assetType,
-			Status:         getOrderStatus(resp[0].OrderStatus),
-			Price:          resp[0].Price,
-			ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
-			Date:           resp[0].CreatedAt,
-			LastUpdated:    resp[0].UpdatedAt,
-		}, nil
-
+		// return &order.Detail{
+		// 	Amount:         resp[0].Qty,
+		// 	Exchange:       by.Name,
+		// 	OrderID:        resp[0].OrderID,
+		// 	ClientOrderID:  resp[0].OrderLinkID,
+		// 	Side:           getSide(resp[0].Side),
+		// 	Type:           getTradeType(resp[0].OrderType),
+		// 	Pair:           pair,
+		// 	Cost:           resp[0].CumulativeQty.Float64(),
+		// 	AssetType:      assetType,
+		// 	Status:         getOrderStatus(resp[0].OrderStatus),
+		// 	Price:          resp[0].Price,
+		// 	ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
+		// 	Date:           resp[0].CreatedAt,
+		// 	LastUpdated:    resp[0].UpdatedAt,
+		// }, nil
+		return nil, nil
 	case asset.USDCMarginedFutures:
 		resp, err := by.GetActiveUSDCOrder(ctx, pair, "PERPETUAL", orderID, "", "", "", "", 0)
 		if err != nil {
@@ -1398,35 +1196,35 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
-	dAddressInfo, err := by.GetDepositAddressForCurrency(ctx, cryptocurrency.String())
-	if err != nil {
-		return nil, err
-	}
+	// dAddressInfo, err := by.GetDepositAddressForCurrency(ctx, cryptocurrency.String())
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	for x := range dAddressInfo.Chains {
-		if dAddressInfo.Chains[x].Chain == chain || chain == "" {
-			return &deposit.Address{
-				Address: dAddressInfo.Chains[x].DepositAddress,
-				Tag:     dAddressInfo.Chains[x].DepositTag,
-				Chain:   dAddressInfo.Chains[x].Chain,
-			}, nil
-		}
-	}
+	// for x := range dAddressInfo.Chains {
+	// 	if dAddressInfo.Chains[x].Chain == chain || chain == "" {
+	// 		return &deposit.Address{
+	// 			Address: dAddressInfo.Chains[x].DepositAddress,
+	// 			Tag:     dAddressInfo.Chains[x].DepositTag,
+	// 			Chain:   dAddressInfo.Chains[x].Chain,
+	// 		}, nil
+	// 	}
+	// }
 	return nil, fmt.Errorf("%w for currency: %s chain: %s", deposit.ErrAddressNotFound, cryptocurrency, chain)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
 func (by *Bybit) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	info, err := by.GetDepositAddressForCurrency(ctx, cryptocurrency.String())
-	if err != nil {
-		return nil, err
-	}
+	// info, err := by.GetDepositAddressForCurrency(ctx, cryptocurrency.String())
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	availableChains := make([]string, len(info.Chains))
-	for x := range info.Chains {
-		availableChains[x] = info.Chains[x].Chain
-	}
+	availableChains := make([]string, 90)
+	// for x := range info.Chains {
+	// 	availableChains[x] = info.Chains[x].Chain
+	// }
 	return availableChains, nil
 }
 
@@ -1436,18 +1234,18 @@ func (by *Bybit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
-	wID, err := by.WithdrawFund(ctx,
-		withdrawRequest.Currency.String(),
-		withdrawRequest.Crypto.Chain,
-		withdrawRequest.Crypto.Address,
-		withdrawRequest.Crypto.AddressTag,
-		amountStr)
-	if err != nil {
-		return nil, err
-	}
+	// amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
+	// wID, err := by.WithdrawFund(ctx,
+	// 	withdrawRequest.Currency.String(),
+	// 	withdrawRequest.Crypto.Chain,
+	// 	withdrawRequest.Crypto.Address,
+	// 	withdrawRequest.Crypto.AddressTag,
+	// 	amountStr)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return &withdraw.ExchangeResponse{
-		ID: wID,
+		ID: "0", // wID,
 	}, nil
 }
 
@@ -1482,109 +1280,109 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
-		openOrders, err := by.ListOpenOrders(ctx, "", "", 0)
-		if err != nil {
-			return nil, err
-		}
+		// openOrders, err := by.ListOpenOrders(ctx, "", "", 0)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		for x := range openOrders {
-			for i := range req.Pairs {
-				if req.Pairs[i].String() == openOrders[x].SymbolName {
-					orders = append(orders, order.Detail{
-						Amount:        openOrders[x].Quantity.Float64(),
-						Date:          openOrders[x].Time.Time(),
-						Exchange:      by.Name,
-						OrderID:       openOrders[x].OrderID,
-						ClientOrderID: openOrders[x].OrderLinkID,
-						Side:          getSide(openOrders[x].Side),
-						Type:          getTradeType(openOrders[x].TradeType),
-						Price:         openOrders[x].Price.Float64(),
-						Status:        getOrderStatus(openOrders[x].Status),
-						Pair:          req.Pairs[i],
-						AssetType:     req.AssetType,
-						LastUpdated:   openOrders[x].UpdateTime.Time(),
-					})
-				}
-			}
-		}
+		// for x := range openOrders {
+		// 	for i := range req.Pairs {
+		// 		if req.Pairs[i].String() == openOrders[x].SymbolName {
+		// 			orders = append(orders, order.Detail{
+		// 				Amount:        openOrders[x].Quantity.Float64(),
+		// 				Date:          openOrders[x].Time.Time(),
+		// 				Exchange:      by.Name,
+		// 				OrderID:       openOrders[x].OrderID,
+		// 				ClientOrderID: openOrders[x].OrderLinkID,
+		// 				Side:          getSide(openOrders[x].Side),
+		// 				Type:          getTradeType(openOrders[x].TradeType),
+		// 				Price:         openOrders[x].Price.Float64(),
+		// 				Status:        getOrderStatus(openOrders[x].Status),
+		// 				Pair:          req.Pairs[i],
+		// 				AssetType:     req.AssetType,
+		// 				LastUpdated:   openOrders[x].UpdateTime.Time(),
+		// 			})
+		// 		}
+		// 	}
+		// }
 	case asset.CoinMarginedFutures:
-		for i := range req.Pairs {
-			openOrders, err := by.GetActiveCoinFuturesOrders(ctx, req.Pairs[i], "", "", "", 0)
-			if err != nil {
-				return nil, err
-			}
+		// for i := range req.Pairs {
+		// 	openOrders, err := by.GetActiveCoinFuturesOrders(ctx, req.Pairs[i], "", "", "", 0)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			for x := range openOrders {
-				orders = append(orders, order.Detail{
-					Price:           openOrders[x].Price,
-					Amount:          openOrders[x].Qty,
-					ExecutedAmount:  openOrders[x].Qty - openOrders[x].LeavesQty,
-					RemainingAmount: openOrders[x].LeavesQty,
-					Fee:             openOrders[x].CumulativeFee,
-					Exchange:        by.Name,
-					OrderID:         openOrders[x].OrderID,
-					ClientOrderID:   openOrders[x].OrderLinkID,
-					Type:            getTradeType(openOrders[x].OrderType),
-					Side:            getSide(openOrders[x].Side),
-					Status:          getOrderStatus(openOrders[x].OrderStatus),
-					Pair:            req.Pairs[i],
-					AssetType:       req.AssetType,
-					Date:            openOrders[x].CreatedAt,
-				})
-			}
-		}
+		// 	for x := range openOrders {
+		// 		orders = append(orders, order.Detail{
+		// 			Price:           openOrders[x].Price,
+		// 			Amount:          openOrders[x].Qty,
+		// 			ExecutedAmount:  openOrders[x].Qty - openOrders[x].LeavesQty,
+		// 			RemainingAmount: openOrders[x].LeavesQty,
+		// 			Fee:             openOrders[x].CumulativeFee,
+		// 			Exchange:        by.Name,
+		// 			OrderID:         openOrders[x].OrderID,
+		// 			ClientOrderID:   openOrders[x].OrderLinkID,
+		// 			Type:            getTradeType(openOrders[x].OrderType),
+		// 			Side:            getSide(openOrders[x].Side),
+		// 			Status:          getOrderStatus(openOrders[x].OrderStatus),
+		// 			Pair:            req.Pairs[i],
+		// 			AssetType:       req.AssetType,
+		// 			Date:            openOrders[x].CreatedAt,
+		// 		})
+		// 	}
+		// }
 	case asset.USDTMarginedFutures:
-		for i := range req.Pairs {
-			openOrders, err := by.GetActiveUSDTFuturesOrders(ctx, req.Pairs[i], "", "", "", "", 0, 0)
-			if err != nil {
-				return nil, err
-			}
+		// for i := range req.Pairs {
+		// 	openOrders, err := by.GetActiveUSDTFuturesOrders(ctx, req.Pairs[i], "", "", "", "", 0, 0)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			for x := range openOrders {
-				orders = append(orders, order.Detail{
-					Price:           openOrders[x].Price,
-					Amount:          openOrders[x].Qty,
-					ExecutedAmount:  openOrders[x].Qty - openOrders[x].LeavesQty,
-					RemainingAmount: openOrders[x].LeaveValue,
-					Fee:             openOrders[x].CumulativeFee,
-					Exchange:        by.Name,
-					OrderID:         openOrders[x].OrderID,
-					ClientOrderID:   openOrders[x].OrderLinkID,
-					Type:            getTradeType(openOrders[x].OrderType),
-					Side:            getSide(openOrders[x].Side),
-					Status:          getOrderStatus(openOrders[x].OrderStatus),
-					Pair:            req.Pairs[i],
-					AssetType:       asset.USDTMarginedFutures,
-					Date:            openOrders[x].CreatedAt,
-				})
-			}
-		}
+		// 	for x := range openOrders {
+		// 		orders = append(orders, order.Detail{
+		// 			Price:           openOrders[x].Price,
+		// 			Amount:          openOrders[x].Qty,
+		// 			ExecutedAmount:  openOrders[x].Qty - openOrders[x].LeavesQty,
+		// 			RemainingAmount: openOrders[x].LeaveValue,
+		// 			Fee:             openOrders[x].CumulativeFee,
+		// 			Exchange:        by.Name,
+		// 			OrderID:         openOrders[x].OrderID,
+		// 			ClientOrderID:   openOrders[x].OrderLinkID,
+		// 			Type:            getTradeType(openOrders[x].OrderType),
+		// 			Side:            getSide(openOrders[x].Side),
+		// 			Status:          getOrderStatus(openOrders[x].OrderStatus),
+		// 			Pair:            req.Pairs[i],
+		// 			AssetType:       asset.USDTMarginedFutures,
+		// 			Date:            openOrders[x].CreatedAt,
+		// 		})
+		// 	}
+		// }
 	case asset.Futures:
-		for i := range req.Pairs {
-			openOrders, err := by.GetActiveFuturesOrders(ctx, req.Pairs[i], "", "", "", 0)
-			if err != nil {
-				return nil, err
-			}
+		// for i := range req.Pairs {
+		// 	openOrders, err := by.GetActiveFuturesOrders(ctx, req.Pairs[i], "", "", "", 0)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			for x := range openOrders {
-				orders = append(orders, order.Detail{
-					Price:           openOrders[x].Price,
-					Amount:          openOrders[x].Qty,
-					ExecutedAmount:  openOrders[x].Qty - openOrders[x].LeavesQty,
-					RemainingAmount: openOrders[x].LeavesQty,
-					Fee:             openOrders[x].CumulativeFee,
-					Exchange:        by.Name,
-					OrderID:         openOrders[x].OrderID,
-					ClientOrderID:   openOrders[x].OrderLinkID,
-					Type:            getTradeType(openOrders[x].OrderType),
-					Side:            getSide(openOrders[x].Side),
-					Status:          getOrderStatus(openOrders[x].OrderStatus),
-					Pair:            req.Pairs[i],
-					AssetType:       req.AssetType,
-					Date:            openOrders[x].CreatedAt,
-				})
-			}
-		}
+		// 	for x := range openOrders {
+		// 		orders = append(orders, order.Detail{
+		// 			Price:           openOrders[x].Price,
+		// 			Amount:          openOrders[x].Qty,
+		// 			ExecutedAmount:  openOrders[x].Qty - openOrders[x].LeavesQty,
+		// 			RemainingAmount: openOrders[x].LeavesQty,
+		// 			Fee:             openOrders[x].CumulativeFee,
+		// 			Exchange:        by.Name,
+		// 			OrderID:         openOrders[x].OrderID,
+		// 			ClientOrderID:   openOrders[x].OrderLinkID,
+		// 			Type:            getTradeType(openOrders[x].OrderType),
+		// 			Side:            getSide(openOrders[x].Side),
+		// 			Status:          getOrderStatus(openOrders[x].OrderStatus),
+		// 			Pair:            req.Pairs[i],
+		// 			AssetType:       req.AssetType,
+		// 			Date:            openOrders[x].CreatedAt,
+		// 		})
+		// 	}
+		// }
 	case asset.USDCMarginedFutures:
 		openOrders, err := by.GetActiveUSDCOrder(ctx, currency.EMPTYPAIR, "PERPETUAL", "", "", "", "", "", 0)
 		if err != nil {
@@ -1629,123 +1427,123 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
-		resp, err := by.GetPastOrders(ctx, "", req.FromOrderID, 0, req.StartTime, req.EndTime)
-		if err != nil {
-			return nil, err
-		}
+		// resp, err := by.GetPastOrders(ctx, "", req.FromOrderID, 0, req.StartTime, req.EndTime)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
-		for i := range resp {
-			// here, we are not using getSide because in sample response's sides are in upper
-			var side order.Side
-			side, err = order.StringToOrderSide(resp[i].Side)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
-			}
+		// for i := range resp {
+		// 	// here, we are not using getSide because in sample response's sides are in upper
+		// 	var side order.Side
+		// 	side, err = order.StringToOrderSide(resp[i].Side)
+		// 	if err != nil {
+		// 		log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
+		// 	}
 
-			var pair currency.Pair
-			pair, err = currency.NewPairFromString(resp[i].Symbol)
-			if err != nil {
-				return nil, err
-			}
-			detail := order.Detail{
-				Amount:          resp[i].Quantity.Float64(),
-				ExecutedAmount:  resp[i].ExecutedQty.Float64(),
-				RemainingAmount: resp[i].Quantity.Float64() - resp[i].ExecutedQty.Float64(),
-				Cost:            resp[i].CummulativeQuoteQty.Float64(),
-				Date:            resp[i].Time.Time(),
-				LastUpdated:     resp[i].UpdateTime.Time(),
-				Exchange:        by.Name,
-				OrderID:         resp[i].OrderID,
-				Side:            side,
-				Type:            getTradeType(resp[i].TradeType),
-				Price:           resp[i].Price.Float64(),
-				Pair:            pair,
-				Status:          getOrderStatus(resp[i].Status),
-			}
-			orders = append(orders, detail)
-		}
+		// 	var pair currency.Pair
+		// 	pair, err = currency.NewPairFromString(resp[i].Symbol)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
+		// 	detail := order.Detail{
+		// 		Amount:          resp[i].Quantity.Float64(),
+		// 		ExecutedAmount:  resp[i].ExecutedQty.Float64(),
+		// 		RemainingAmount: resp[i].Quantity.Float64() - resp[i].ExecutedQty.Float64(),
+		// 		Cost:            resp[i].CummulativeQuoteQty.Float64(),
+		// 		Date:            resp[i].Time.Time(),
+		// 		LastUpdated:     resp[i].UpdateTime.Time(),
+		// 		Exchange:        by.Name,
+		// 		OrderID:         resp[i].OrderID,
+		// 		Side:            side,
+		// 		Type:            getTradeType(resp[i].TradeType),
+		// 		Price:           resp[i].Price.Float64(),
+		// 		Pair:            pair,
+		// 		Status:          getOrderStatus(resp[i].Status),
+		// 	}
+		// 	orders = append(orders, detail)
+		// }
 		order.FilterOrdersByPairs(&orders, req.Pairs)
 	case asset.CoinMarginedFutures:
-		for i := range req.Pairs {
-			resp, err := by.GetClosedCoinTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
-			if err != nil {
-				return nil, err
-			}
+		// for i := range req.Pairs {
+		// 	resp, err := by.GetClosedCoinTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			for i := range resp {
-				var pair currency.Pair
-				pair, err = currency.NewPairFromString(resp[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				detail := order.Detail{
-					Amount:   resp[i].Qty,
-					Date:     resp[i].CreatedAt.Time(),
-					Exchange: by.Name,
-					OrderID:  resp[i].OrderID,
-					Side:     getSide(resp[i].OrderSide),
-					Type:     getTradeType(resp[i].OrderType),
-					Price:    resp[i].OrderPrice,
-					Pair:     pair,
-					Leverage: resp[i].Leverage,
-				}
-				orders = append(orders, detail)
-			}
-		}
+		// 	for i := range resp {
+		// 		var pair currency.Pair
+		// 		pair, err = currency.NewPairFromString(resp[i].Symbol)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+		// 		detail := order.Detail{
+		// 			Amount:   resp[i].Qty,
+		// 			Date:     resp[i].CreatedAt.Time(),
+		// 			Exchange: by.Name,
+		// 			OrderID:  resp[i].OrderID,
+		// 			Side:     getSide(resp[i].OrderSide),
+		// 			Type:     getTradeType(resp[i].OrderType),
+		// 			Price:    resp[i].OrderPrice,
+		// 			Pair:     pair,
+		// 			Leverage: resp[i].Leverage,
+		// 		}
+		// 		orders = append(orders, detail)
+		// 	}
+		// }
 	case asset.Futures:
-		for i := range req.Pairs {
-			resp, err := by.GetClosedTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
-			if err != nil {
-				return nil, err
-			}
+		// for i := range req.Pairs {
+		// 	resp, err := by.GetClosedTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			for i := range resp {
-				var pair currency.Pair
-				pair, err = currency.NewPairFromString(resp[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				detail := order.Detail{
-					Amount:   resp[i].Qty,
-					Date:     resp[i].CreatedAt.Time(),
-					Exchange: by.Name,
-					OrderID:  resp[i].OrderID,
-					Side:     getSide(resp[i].OrderSide),
-					Type:     getTradeType(resp[i].OrderType),
-					Price:    resp[i].OrderPrice,
-					Pair:     pair,
-					Leverage: resp[i].Leverage,
-				}
-				orders = append(orders, detail)
-			}
-		}
+		// 	for i := range resp {
+		// 		var pair currency.Pair
+		// 		pair, err = currency.NewPairFromString(resp[i].Symbol)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+		// 		detail := order.Detail{
+		// 			Amount:   resp[i].Qty,
+		// 			Date:     resp[i].CreatedAt.Time(),
+		// 			Exchange: by.Name,
+		// 			OrderID:  resp[i].OrderID,
+		// 			Side:     getSide(resp[i].OrderSide),
+		// 			Type:     getTradeType(resp[i].OrderType),
+		// 			Price:    resp[i].OrderPrice,
+		// 			Pair:     pair,
+		// 			Leverage: resp[i].Leverage,
+		// 		}
+		// 		orders = append(orders, detail)
+		// 	}
+		// }
 	case asset.USDTMarginedFutures:
-		for i := range req.Pairs {
-			resp, err := by.GetClosedUSDTTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
-			if err != nil {
-				return nil, err
-			}
+		// for i := range req.Pairs {
+		// 	resp, err := by.GetClosedUSDTTrades(ctx, req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			for i := range resp {
-				var pair currency.Pair
-				pair, err = currency.NewPairFromString(resp[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				detail := order.Detail{
-					Amount:   resp[i].Qty,
-					Date:     resp[i].CreatedAt.Time(),
-					Exchange: by.Name,
-					OrderID:  resp[i].OrderID,
-					Side:     getSide(resp[i].OrderSide),
-					Type:     getTradeType(resp[i].OrderType),
-					Price:    resp[i].OrderPrice,
-					Pair:     pair,
-					Leverage: resp[i].Leverage,
-				}
-				orders = append(orders, detail)
-			}
-		}
+		// 	for i := range resp {
+		// 		var pair currency.Pair
+		// 		pair, err = currency.NewPairFromString(resp[i].Symbol)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+		// 		detail := order.Detail{
+		// 			Amount:   resp[i].Qty,
+		// 			Date:     resp[i].CreatedAt.Time(),
+		// 			Exchange: by.Name,
+		// 			OrderID:  resp[i].OrderID,
+		// 			Side:     getSide(resp[i].OrderSide),
+		// 			Type:     getTradeType(resp[i].OrderType),
+		// 			Price:    resp[i].OrderPrice,
+		// 			Pair:     pair,
+		// 			Leverage: resp[i].Leverage,
+		// 		}
+		// 		orders = append(orders, detail)
+		// 	}
+		// }
 	case asset.USDCMarginedFutures:
 		resp, err := by.GetUSDCOrderHistory(ctx, currency.EMPTYPAIR, "PERPETUAL", "", "", "", "", "", 0)
 		if err != nil {
@@ -2010,17 +1808,17 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 func (by *Bybit) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
 	switch a {
 	case asset.Spot:
-		info, err := by.GetSpotServerTime(ctx)
-		if err != nil {
-			return time.Time{}, err
-		}
-		return info, nil
+		// info, err := by.GetSpotServerTime(ctx)
+		// if err != nil {
+		// 	return time.Time{}, err
+		// }
+		// return info, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures, asset.USDCMarginedFutures:
-		info, err := by.GetFuturesServerTime(ctx)
-		if err != nil {
-			return time.Time{}, err
-		}
-		return info, nil
+		// info, err := by.GetFuturesServerTime(ctx)
+		// if err != nil {
+		// 	return time.Time{}, err
+		// }
+		// return info, nil
 	}
 	return time.Time{}, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 }
@@ -2035,40 +1833,40 @@ func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.P
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	avail, err := by.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
+	// avail, err := by.GetAvailablePairs(a)
+	// if err != nil {
+	// 	return err
+	// }
 
 	var limits []order.MinMaxLevel
 	switch a {
 	case asset.Spot:
-		var pairsData []PairData
-		pairsData, err = by.GetAllSpotPairs(ctx)
-		if err != nil {
-			return err
-		}
+		// var pairsData []PairData
+		// pairsData, err = by.GetAllSpotPairs(ctx)
+		// if err != nil {
+		// 	return err
+		// }
 
-		limits = make([]order.MinMaxLevel, 0, len(pairsData))
-		for x := range pairsData {
-			var pair currency.Pair
-			pair, err = avail.DeriveFrom(pairsData[x].Name)
-			if err != nil {
-				return err
-			}
+		// limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		// for x := range pairsData {
+		// 	var pair currency.Pair
+		// 	pair, err = avail.DeriveFrom(pairsData[x].Name)
+		// 	if err != nil {
+		// 		return err
+		// 	}
 
-			limits = append(limits, order.MinMaxLevel{
-				Asset:                   a,
-				Pair:                    pair,
-				AmountStepIncrementSize: pairsData[x].BasePrecision.Float64(),
-				QuoteStepIncrementSize:  pairsData[x].QuotePrecision.Float64(),
-				MinimumBaseAmount:       pairsData[x].MinTradeQuantity.Float64(),
-				MaximumBaseAmount:       pairsData[x].MaxTradeQuantity.Float64(),
-				MinimumQuoteAmount:      pairsData[x].MinTradeAmount.Float64(),
-				MaximumQuoteAmount:      pairsData[x].MaxTradeAmount.Float64(),
-				PriceStepIncrementSize:  pairsData[x].MinPricePrecision.Float64(),
-			})
-		}
+		// 	limits = append(limits, order.MinMaxLevel{
+		// 		Asset:                   a,
+		// 		Pair:                    pair,
+		// 		AmountStepIncrementSize: pairsData[x].BasePrecision.Float64(),
+		// 		QuoteStepIncrementSize:  pairsData[x].QuotePrecision.Float64(),
+		// 		MinimumBaseAmount:       pairsData[x].MinTradeQuantity.Float64(),
+		// 		MaximumBaseAmount:       pairsData[x].MaxTradeQuantity.Float64(),
+		// 		MinimumQuoteAmount:      pairsData[x].MinTradeAmount.Float64(),
+		// 		MaximumQuoteAmount:      pairsData[x].MaxTradeAmount.Float64(),
+		// 		PriceStepIncrementSize:  pairsData[x].MinPricePrecision.Float64(),
+		// 	})
+		// }
 	default:
 		// TODO: Add in other assets
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)

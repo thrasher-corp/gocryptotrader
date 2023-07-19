@@ -40,8 +40,13 @@ const (
 	USDCMarginedFutures
 	Options
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options
+	// added to represent linear futures, and inverse futures trading in bybit v5 exchange
+	// for derivative (perpetual or futures).
+	Linear
+	Inverse
+
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Linear | Inverse
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | Linear | Inverse
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -59,6 +64,8 @@ const (
 	usdtMarginedFutures    = "usdtmarginedfutures"
 	usdcMarginedFutures    = "usdcmarginedfutures"
 	options                = "options"
+	linear                 = "linear"
+	inverse                = "inverse"
 )
 
 var (
@@ -105,6 +112,10 @@ func (a Item) String() string {
 		return usdcMarginedFutures
 	case Options:
 		return options
+	case Linear:
+		return linear
+	case Inverse:
+		return inverse
 	default:
 		return ""
 	}
@@ -206,6 +217,10 @@ func New(input string) (Item, error) {
 		return USDCMarginedFutures, nil
 	case options, "option":
 		return Options, nil
+	case linear:
+		return Linear, nil
+	case inverse:
+		return Inverse, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,

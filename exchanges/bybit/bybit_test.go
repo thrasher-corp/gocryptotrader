@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -27,6 +28,8 @@ const (
 )
 
 var b = &Bybit{}
+
+var spotTradablePair, linearTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -52,10 +55,10 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	// err = b.UpdateTradablePairs(context.Background(), false)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	err = fetchTradablePairs()
+	if err != nil {
+		log.Fatalf("%s %v", b.Name, err)
+	}
 
 	// Turn on all pairs for testing
 	supportedAssets := b.GetAssetTypes(false)
@@ -70,7 +73,6 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-
 	os.Exit(m.Run())
 }
 
@@ -2083,139 +2085,85 @@ func TestGetRiskLimit(t *testing.T) {
 // 	}
 // }
 
-// // test cases for Wrapper
-// func TestUpdateTicker(t *testing.T) {
-// 	t.Parallel()
-// 	pair, err := currency.NewPairFromString("BTCUSDT")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+// test cases for Wrapper
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.UpdateTicker(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateTicker(context.Background(), pair, asset.Linear)
+	if err != nil {
+		t.Error(err)
+	}
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	_, err = b.UpdateTicker(context.Background(), pair, asset.Spot)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+	_, err = b.UpdateTicker(context.Background(), pair1, asset.Inverse)
+	if err != nil {
+		t.Error(err)
+	}
 
-// 	_, err = b.UpdateTicker(context.Background(), pair, asset.USDTMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+	// Futures update dynamically, so fetch the available tradable futures for this test
+	availPairs, err := b.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	pair1, err := currency.NewPairFromString("BTCUSD")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	// Needs to be set before calling extractCurrencyPair
+	if err = b.SetPairs(availPairs, asset.Futures, true); err != nil {
+		t.Fatal(err)
+	}
 
-// 	_, err = b.UpdateTicker(context.Background(), pair1, asset.CoinMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+	_, err = b.UpdateTicker(context.Background(), availPairs[0], asset.Options)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-// 	// Futures update dynamically, so fetch the available tradable futures for this test
-// 	availPairs, err := b.FetchTradablePairs(context.Background(), asset.Futures)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	// Needs to be set before calling extractCurrencyPair
-// 	if err = b.SetPairs(availPairs, asset.Futures, true); err != nil {
-// 		t.Fatal(err)
-// 	}
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
 
-// 	_, err = b.UpdateTicker(context.Background(), availPairs[0], asset.Futures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
 
-// 	pair3, err := currency.NewPairFromString("BTCPERP")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
 
-// 	_, err = b.UpdateTicker(context.Background(), pair3, asset.USDCMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
 
-// func TestUpdateOrderbook(t *testing.T) {
-// 	t.Parallel()
-// 	pair, err := currency.NewPairFromString("BTCUSDT")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	pair1, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Spot)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.UpdateOrderbook(context.Background(), pair, asset.CoinMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.UpdateOrderbook(context.Background(), pair, asset.USDTMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Futures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	pair1, err := currency.NewPairFromString("BTCPERP")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	_, err = b.UpdateOrderbook(context.Background(), pair1, asset.USDCMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
-
-// func TestFetchTradablePairs(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := b.FetchTradablePairs(context.Background(), asset.Spot)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.FetchTradablePairs(context.Background(), asset.USDCMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
-
-// func TestUpdateTradablePairs(t *testing.T) {
-// 	t.Parallel()
-// 	err := b.UpdateTradablePairs(context.Background(), false)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	err = b.UpdateTradablePairs(context.Background(), true)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+	_, err = b.UpdateOrderbook(context.Background(), pair1, asset.USDCMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 // func TestGetRecentTrades(t *testing.T) {
 // 	t.Parallel()
@@ -3361,29 +3309,26 @@ func TestGetRiskLimit(t *testing.T) {
 // 	}
 // }
 
-// func TestUpdateTickers(t *testing.T) {
-// 	t.Parallel()
-// 	supportedAssets := b.GetAssetTypes(false)
-// 	ctx := context.Background()
-// 	for x := range supportedAssets {
-// 		err := b.UpdateTickers(ctx, supportedAssets[x])
-// 		if err != nil {
-// 			t.Fatalf("%v %v\n", supportedAssets[x], err)
-// 		}
-
-// 		avail, err := b.GetAvailablePairs(supportedAssets[x])
-// 		if err != nil {
-// 			t.Fatalf("%v %v\n", supportedAssets[x], err)
-// 		}
-
-// 		for y := range avail {
-// 			_, err = ticker.GetTicker(b.GetName(), avail[y], supportedAssets[x])
-// 			if err != nil {
-// 				t.Fatalf("%v %v %v\n", avail[y], supportedAssets[x], err)
-// 			}
-// 		}
-// 	}
-// }
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	err := b.UpdateTickers(ctx, asset.Spot)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.Spot, err)
+	}
+	err = b.UpdateTickers(ctx, asset.Linear)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.Linear, err)
+	}
+	err = b.UpdateTickers(ctx, asset.Inverse)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.Inverse, err)
+	}
+	err = b.UpdateTickers(ctx, asset.Options)
+	if err != nil {
+		t.Fatalf("%v %v\n", asset.Options, err)
+	}
+}
 
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
@@ -5304,4 +5249,32 @@ func TestGetBrokerEarning(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func fetchTradablePairs() error {
+	err := b.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		return err
+	}
+	tradables, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	spotTradablePair = tradables[0]
+	tradables, err = b.GetEnabledPairs(asset.Linear)
+	if err != nil {
+		return err
+	}
+	linearTradablePair = tradables[0]
+	tradables, err = b.GetEnabledPairs(asset.Inverse)
+	if err != nil {
+		return err
+	}
+	inverseTradablePair = tradables[0]
+	tradables, err = b.GetEnabledPairs(asset.Options)
+	if err != nil {
+		return err
+	}
+	optionsTradablePair = tradables[0]
+	return nil
 }
