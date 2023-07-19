@@ -52,7 +52,7 @@ func (d *Deribit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error
 func (d *Deribit) SetDefaults() {
 	d.Name = "Deribit"
 	d.Enabled = true
-	d.Verbose = false
+	d.Verbose = true
 	d.API.CredentialsValidator.RequiresKey = true
 	d.API.CredentialsValidator.RequiresSecret = true
 
@@ -318,7 +318,6 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		tickerData, err = d.GetPublicTicker(ctx, instrumentID)
 	}
 	if err != nil {
-		fmt.Printf("ERROR: %v %s", assetType, instrumentID)
 		return nil, err
 	}
 	resp := ticker.Price{
