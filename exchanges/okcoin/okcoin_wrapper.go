@@ -351,7 +351,7 @@ func (o *Okcoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	enabledPairs, err := o.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := o.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (o *Okcoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 			LastUpdated:  tickers[i].Timestamp.Time(),
 			Volume:       tickers[i].Vol24H.Float64(),
 			Open:         tickers[i].Open24H.Float64(),
-			AssetType:    asset.Spot,
+			AssetType:    a,
 			ExchangeName: o.Name,
 			Pair:         cp,
 		})
