@@ -2018,7 +2018,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					IsActive:             !contracts[j].InDelisting,
 					Type:                 futures.Perpetual,
 					SettlementCurrencies: currency.Currencies{currency.NewCode(settlePairs[k])},
-					Multiplier:           contracts[j].QuantoMultiplier,
+					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
 				}
 			}

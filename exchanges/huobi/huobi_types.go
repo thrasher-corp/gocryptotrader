@@ -478,7 +478,7 @@ type SwapMarketsData struct {
 	ContractCode   string  `json:"contract_code"`
 	ContractSize   float64 `json:"contract_size"`
 	PriceTick      float64 `json:"price_tick"`
-	SettlementDate int64   `json:"settlement_date,string"`
+	SettlementDate string  `json:"settlement_date"`
 	CreateDate     string  `json:"create_date"`
 	DeliveryTime   string  `json:"delivery_time"`
 	ContractStatus int64   `json:"contract_status"`

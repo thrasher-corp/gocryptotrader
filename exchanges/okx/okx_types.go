@@ -282,7 +282,7 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract.
 type Instrument struct {
-	InstrumentType                  asset.Item              `json:"instType"`
+	InstrumentType                  string                  `json:"instType"`
 	InstrumentID                    string                  `json:"instId"`
 	InstrumentFamily                string                  `json:"instFamily"`
 	Underlying                      string                  `json:"uly"`
@@ -290,26 +290,26 @@ type Instrument struct {
 	BaseCurrency                    string                  `json:"baseCcy"`
 	QuoteCurrency                   string                  `json:"quoteCcy"`
 	SettlementCurrency              string                  `json:"settleCcy"`
-	ContractValue                   string                  `json:"ctVal"`
+	ContractValue                   convert.StringToFloat64 `json:"ctVal"`
 	ContractMultiplier              convert.StringToFloat64 `json:"ctMult"`
 	ContractValueCurrency           string                  `json:"ctValCcy"`
 	OptionType                      string                  `json:"optType"`
 	StrikePrice                     string                  `json:"stk"`
-	ListTime                        time.Time               `json:"listTime"`
-	ExpTime                         time.Time               `json:"expTime"`
-	MaxLeverage                     float64                 `json:"lever"`
-	TickSize                        float64                 `json:"tickSz"`
-	LotSize                         float64                 `json:"lotSz"`
-	MinimumOrderSize                float64                 `json:"minSz"`
+	ListTime                        okxTime                 `json:"listTime"`
+	ExpTime                         okxTime                 `json:"expTime"`
+	MaxLeverage                     convert.StringToFloat64 `json:"lever"`
+	TickSize                        convert.StringToFloat64 `json:"tickSz"`
+	LotSize                         convert.StringToFloat64 `json:"lotSz"`
+	MinimumOrderSize                convert.StringToFloat64 `json:"minSz"`
 	ContractType                    string                  `json:"ctType"`
 	Alias                           string                  `json:"alias"`
 	State                           string                  `json:"state"`
-	MaxQuantityOfSpotLimitOrder     float64                 `json:"maxLmtSz"`
-	MaxQuantityOfMarketLimitOrder   float64                 `json:"maxMktSz"`
-	MaxQuantityOfSpotTwapLimitOrder float64                 `json:"maxTwapSz"`
-	MaxSpotIcebergSize              float64                 `json:"maxIcebergSz"`
-	MaxTriggerSize                  float64                 `json:"maxTriggerSz"`
-	MaxStopSize                     float64                 `json:"maxStopSz"`
+	MaxQuantityOfSpotLimitOrder     convert.StringToFloat64 `json:"maxLmtSz"`
+	MaxQuantityOfMarketLimitOrder   convert.StringToFloat64 `json:"maxMktSz"`
+	MaxQuantityOfSpotTwapLimitOrder convert.StringToFloat64 `json:"maxTwapSz"`
+	MaxSpotIcebergSize              convert.StringToFloat64 `json:"maxIcebergSz"`
+	MaxTriggerSize                  convert.StringToFloat64 `json:"maxTriggerSz"`
+	MaxStopSize                     convert.StringToFloat64 `json:"maxStopSz"`
 }
 
 // DeliveryHistoryDetail holds instrument id and delivery price information detail

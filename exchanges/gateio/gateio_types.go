@@ -648,31 +648,31 @@ type OrderbookOfLendingLoan struct {
 type FuturesContract struct {
 	Name                  string                  `json:"name"`
 	Type                  string                  `json:"type"`
-	QuantoMultiplier      float64                 `json:"quanto_multiplier,string"`
-	RefDiscountRate       float64                 `json:"ref_discount_rate,string"`
-	OrderPriceDeviate     string                  `json:"order_price_deviate"`
-	MaintenanceRate       float64                 `json:"maintenance_rate,string"`
+	QuantoMultiplier      convert.StringToFloat64 `json:"quanto_multiplier"`
+	RefDiscountRate       convert.StringToFloat64 `json:"ref_discount_rate"`
+	OrderPriceDeviate     convert.StringToFloat64 `json:"order_price_deviate"`
+	MaintenanceRate       convert.StringToFloat64 `json:"maintenance_rate"`
 	MarkType              string                  `json:"mark_type"`
-	LastPrice             float64                 `json:"last_price,string"`
-	MarkPrice             float64                 `json:"mark_price,string"`
-	IndexPrice            float64                 `json:"index_price,string"`
-	FundingRateIndicative string                  `json:"funding_rate_indicative"`
-	MarkPriceRound        string                  `json:"mark_price_round"`
+	LastPrice             convert.StringToFloat64 `json:"last_price"`
+	MarkPrice             convert.StringToFloat64 `json:"mark_price"`
+	IndexPrice            convert.StringToFloat64 `json:"index_price"`
+	FundingRateIndicative convert.StringToFloat64 `json:"funding_rate_indicative"`
+	MarkPriceRound        convert.StringToFloat64 `json:"mark_price_round"`
 	FundingOffset         int64                   `json:"funding_offset"`
 	InDelisting           bool                    `json:"in_delisting"`
-	RiskLimitBase         string                  `json:"risk_limit_base"`
-	InterestRate          string                  `json:"interest_rate"`
-	OrderPriceRound       string                  `json:"order_price_round"`
+	RiskLimitBase         convert.StringToFloat64 `json:"risk_limit_base"`
+	InterestRate          convert.StringToFloat64 `json:"interest_rate"`
+	OrderPriceRound       convert.StringToFloat64 `json:"order_price_round"`
 	OrderSizeMin          int64                   `json:"order_size_min"`
-	RefRebateRate         string                  `json:"ref_rebate_rate"`
+	RefRebateRate         convert.StringToFloat64 `json:"ref_rebate_rate"`
 	FundingInterval       int64                   `json:"funding_interval"`
-	RiskLimitStep         string                  `json:"risk_limit_step"`
-	LeverageMin           string                  `json:"leverage_min"`
+	RiskLimitStep         convert.StringToFloat64 `json:"risk_limit_step"`
+	LeverageMin           convert.StringToFloat64 `json:"leverage_min"`
 	LeverageMax           convert.StringToFloat64 `json:"leverage_max"`
-	RiskLimitMax          string                  `json:"risk_limit_max"`
-	MakerFeeRate          float64                 `json:"maker_fee_rate,string"`
-	TakerFeeRate          float64                 `json:"taker_fee_rate,string"`
-	FundingRate           float64                 `json:"funding_rate,string"`
+	RiskLimitMax          convert.StringToFloat64 `json:"risk_limit_max"`
+	MakerFeeRate          convert.StringToFloat64 `json:"maker_fee_rate"`
+	TakerFeeRate          convert.StringToFloat64 `json:"taker_fee_rate"`
+	FundingRate           convert.StringToFloat64 `json:"funding_rate"`
 	OrderSizeMax          int64                   `json:"order_size_max"`
 	FundingNextApply      gateioTime              `json:"funding_next_apply"`
 	ConfigChangeTime      gateioTime              `json:"config_change_time"`
@@ -680,7 +680,7 @@ type FuturesContract struct {
 	TradeSize             int64                   `json:"trade_size"`
 	PositionSize          int64                   `json:"position_size"`
 	LongUsers             int64                   `json:"long_users"`
-	FundingImpactValue    string                  `json:"funding_impact_value"`
+	FundingImpactValue    convert.StringToFloat64 `json:"funding_impact_value"`
 	OrdersLimit           int64                   `json:"orders_limit"`
 	TradeID               int64                   `json:"trade_id"`
 	OrderbookID           int64                   `json:"orderbook_id"`
@@ -805,29 +805,29 @@ type DeliveryContract struct {
 	Type                string                  `json:"type"`
 	QuantoMultiplier    convert.StringToFloat64 `json:"quanto_multiplier"`
 	MarkType            string                  `json:"mark_type"`
-	LastPrice           float64                 `json:"last_price,string"`
-	MarkPrice           float64                 `json:"mark_price,string"`
-	IndexPrice          float64                 `json:"index_price,string"`
-	BasisRate           string                  `json:"basis_rate"`
-	BasisValue          string                  `json:"basis_value"`
-	BasisImpactValue    string                  `json:"basis_impact_value"`
-	SettlePrice         float64                 `json:"settle_price,string"`
+	LastPrice           convert.StringToFloat64 `json:"last_price"`
+	MarkPrice           convert.StringToFloat64 `json:"mark_price"`
+	IndexPrice          convert.StringToFloat64 `json:"index_price"`
+	BasisRate           convert.StringToFloat64 `json:"basis_rate"`
+	BasisValue          convert.StringToFloat64 `json:"basis_value"`
+	BasisImpactValue    convert.StringToFloat64 `json:"basis_impact_value"`
+	SettlePrice         convert.StringToFloat64 `json:"settle_price"`
 	SettlePriceInterval int64                   `json:"settle_price_interval"`
 	SettlePriceDuration int64                   `json:"settle_price_duration"`
-	SettleFeeRate       string                  `json:"settle_fee_rate"`
-	OrderPriceRound     string                  `json:"order_price_round"`
-	MarkPriceRound      string                  `json:"mark_price_round"`
-	LeverageMin         string                  `json:"leverage_min"`
+	SettleFeeRate       convert.StringToFloat64 `json:"settle_fee_rate"`
+	OrderPriceRound     convert.StringToFloat64 `json:"order_price_round"`
+	MarkPriceRound      convert.StringToFloat64 `json:"mark_price_round"`
+	LeverageMin         convert.StringToFloat64 `json:"leverage_min"`
 	LeverageMax         convert.StringToFloat64 `json:"leverage_max"`
-	MaintenanceRate     string                  `json:"maintenance_rate"`
-	RiskLimitBase       string                  `json:"risk_limit_base"`
-	RiskLimitStep       string                  `json:"risk_limit_step"`
-	RiskLimitMax        string                  `json:"risk_limit_max"`
-	MakerFeeRate        string                  `json:"maker_fee_rate"`
-	TakerFeeRate        string                  `json:"taker_fee_rate"`
-	RefDiscountRate     string                  `json:"ref_discount_rate"`
-	RefRebateRate       string                  `json:"ref_rebate_rate"`
-	OrderPriceDeviate   string                  `json:"order_price_deviate"`
+	MaintenanceRate     convert.StringToFloat64 `json:"maintenance_rate"`
+	RiskLimitBase       convert.StringToFloat64 `json:"risk_limit_base"`
+	RiskLimitStep       convert.StringToFloat64 `json:"risk_limit_step"`
+	RiskLimitMax        convert.StringToFloat64 `json:"risk_limit_max"`
+	MakerFeeRate        convert.StringToFloat64 `json:"maker_fee_rate"`
+	TakerFeeRate        convert.StringToFloat64 `json:"taker_fee_rate"`
+	RefDiscountRate     convert.StringToFloat64 `json:"ref_discount_rate"`
+	RefRebateRate       convert.StringToFloat64 `json:"ref_rebate_rate"`
+	OrderPriceDeviate   convert.StringToFloat64 `json:"order_price_deviate"`
 	OrderSizeMin        int64                   `json:"order_size_min"`
 	OrderSizeMax        int64                   `json:"order_size_max"`
 	OrdersLimit         int64                   `json:"orders_limit"`

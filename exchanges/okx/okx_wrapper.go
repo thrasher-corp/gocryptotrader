@@ -352,8 +352,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		limits[x] = order.MinMaxLevel{
 			Pair:                   pair,
 			Asset:                  a,
-			PriceStepIncrementSize: insts[x].TickSize,
-			MinimumBaseAmount:      insts[x].MinimumOrderSize,
+			PriceStepIncrementSize: insts[x].TickSize.Float64(),
+			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
 		}
 	}
 
@@ -1759,11 +1759,11 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			SettlementCurrencies: currency.Currencies{settleCurr},
 			MarginCurrency:       settleCurr,
 			Asset:                item,
-			StartDate:            result[i].ListTime,
-			EndDate:              result[i].ExpTime,
+			StartDate:            result[i].ListTime.Time,
+			EndDate:              result[i].ExpTime.Time,
 			IsActive:             result[i].State == "live",
 			Multiplier:           result[i].ContractMultiplier.Float64(),
-			MaxLeverage:          result[i].MaxLeverage,
+			MaxLeverage:          result[i].MaxLeverage.Float64(),
 			Type:                 ct,
 		}
 	}

@@ -3153,7 +3153,7 @@ func TestInstrument(t *testing.T) {
 	if i.ContractType != "linear" {
 		t.Error("expected linear contract type")
 	}
-	if i.ContractValue != "0.0001" {
+	if i.ContractValue.Float64() != 0.0001 {
 		t.Error("expected 0.0001 contract value")
 	}
 	if i.ContractValueCurrency != currency.BTC.String() {
@@ -3168,7 +3168,8 @@ func TestInstrument(t *testing.T) {
 	if i.InstrumentID != "BTC-USDC-SWAP" {
 		t.Error("expected BTC-USDC-SWAP instrument ID")
 	}
-	if i.InstrumentType != asset.PerpetualSwap {
+	swap := ok.GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
+	if i.InstrumentType != swap {
 		t.Error("expected SWAP instrument type")
 	}
 	if i.MaxLeverage != 125 {
@@ -3379,6 +3380,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
+	ok.Verbose = true
 	_, err := ok.GetFuturesContractDetails(context.Background(), asset.Spot)
 	if !errors.Is(err, futures.ErrNotFuturesAsset) {
 		t.Error(err)
