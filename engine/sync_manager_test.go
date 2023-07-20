@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -283,52 +284,55 @@ func TestSyncManagerUpdate(t *testing.T) {
 
 	m.initSyncStarted = 1
 	// orderbook not enabled
-	err = m.Update("", currency.EMPTYPAIR, 1, 1, nil)
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	m.config.SynchronizeOrderbook = true
 	// ticker not enabled
-	err = m.Update("", currency.EMPTYPAIR, 1, 0, nil)
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	m.config.SynchronizeTicker = true
 	// trades not enabled
-	err = m.Update("", currency.EMPTYPAIR, 1, 2, nil)
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	m.config.SynchronizeTrades = true
-	err = m.Update("", currency.EMPTYPAIR, 1, 1336, nil)
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, 1336, nil)
 	if !errors.Is(err, errUnknownSyncItem) {
 		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncItem)
 	}
 
-	err = m.Update("", currency.EMPTYPAIR, 1, 1, nil)
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
 	if !errors.Is(err, errCouldNotSyncNewData) {
 		t.Fatalf("received %v, but expected: %v", err, errCouldNotSyncNewData)
 	}
 
-	m.currencyPairs = append(m.currencyPairs, currencyPairSyncAgent{AssetType: 1})
+	m.add(currencyPairKey{
+		AssetType: asset.Spot,
+		Pair:      currency.EMPTYPAIR.Format(currency.PairFormat{Uppercase: true}),
+	}, syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match
-	err = m.Update("", currency.EMPTYPAIR, 1, 1, errors.New("test"))
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, errors.New("test"))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	// ticker match
-	err = m.Update("", currency.EMPTYPAIR, 1, 0, errors.New("test"))
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, errors.New("test"))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	// trades match
-	err = m.Update("", currency.EMPTYPAIR, 1, 2, errors.New("test"))
+	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, errors.New("test"))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}

@@ -380,38 +380,37 @@ func TestGetDefaultConfigurations(t *testing.T) {
 
 			defaultCfg, err := exch.GetDefaultConfig(context.Background())
 			if err != nil {
-				// Use Error instead of fatal to allow all issues to arise
-				t.Error(err)
+				t.Fatal(err)
 			}
 
 			if defaultCfg == nil {
-				t.Error("expected config")
+				t.Fatal("expected config")
 			}
 
-			if cfg.Name == "" {
+			if defaultCfg.Name == "" {
 				t.Error("name unset SetDefaults() not called")
 			}
 
-			if !cfg.Enabled {
-				t.Error("expected enabled", cfg.Name)
+			if !defaultCfg.Enabled {
+				t.Error("expected enabled", defaultCfg.Name)
 			}
 
 			if exch.SupportsWebsocket() {
-				if cfg.WebsocketResponseCheckTimeout <= 0 {
-					t.Error("expected websocketResponseCheckTimeout to be greater than 0", cfg.Name)
+				if defaultCfg.WebsocketResponseCheckTimeout <= 0 {
+					t.Error("expected websocketResponseCheckTimeout to be greater than 0", defaultCfg.Name)
 				}
 
-				if cfg.WebsocketResponseMaxLimit <= 0 {
-					t.Error("expected WebsocketResponseMaxLimit to be greater than 0", cfg.Name)
+				if defaultCfg.WebsocketResponseMaxLimit <= 0 {
+					t.Error("expected WebsocketResponseMaxLimit to be greater than 0", defaultCfg.Name)
 				}
 
-				if cfg.WebsocketTrafficTimeout <= 0 {
-					t.Error("expected WebsocketTrafficTimeout to be greater than 0", cfg.Name)
+				if defaultCfg.WebsocketTrafficTimeout <= 0 {
+					t.Error("expected WebsocketTrafficTimeout to be greater than 0", defaultCfg.Name)
 				}
 			}
 
 			// Makes sure the config is valid and can be used to setup the exchange
-			if err := exch.Setup(cfg); err != nil {
+			if err := exch.Setup(defaultCfg); err != nil {
 				t.Fatal(err)
 			}
 		})

@@ -174,16 +174,14 @@ func (ok *Okx) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (ok *Okx) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		ok.SetEnabled(false)
 		return nil
 	}
-	err = ok.SetupDefaults(exch)
-	if err != nil {
+	if err := ok.SetupDefaults(exch); err != nil {
 		return err
 	}
 
@@ -192,13 +190,14 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Register:              make(chan *wsRequestInfo),
 		Unregister:            make(chan string),
 		Message:               make(chan *wsIncomingData),
+		shutdown:              make(chan bool),
 	}
 
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	err = ok.Websocket.Setup(&stream.WebsocketSetup{
+	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            okxAPIWebsocketPublicURL,
 		RunningURL:            wsRunningEndpoint,
@@ -210,19 +209,21 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
-	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+
+	go ok.WsResponseMultiplexer.Run()
+
+	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
+
 	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -273,6 +274,18 @@ func (ok *Okx) Run(ctx context.Context) {
 				err)
 		}
 	}
+}
+
+// Shutdown calls Base.Shutdown and then shuts down the response multiplexer
+func (ok *Okx) Shutdown() error {
+	if err := ok.Base.Shutdown(); err != nil {
+		return err
+	}
+
+	// Must happen after the Websocket shutdown in Base.Shutdown, so there are no new blocking writes to the multiplexer
+	ok.WsResponseMultiplexer.Shutdown()
+
+	return nil
 }
 
 // GetServerTime returns the current exchange server time.
