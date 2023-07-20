@@ -3171,6 +3171,7 @@ type wsRequestDataChannelsMultiplexer struct {
 	Register              chan *wsRequestInfo
 	Unregister            chan string
 	Message               chan *wsIncomingData
+	shutdown              chan bool
 }
 
 // wsSubscriptionParameters represents toggling boolean values for subscription parameters.

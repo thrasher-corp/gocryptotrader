@@ -81,13 +81,13 @@ var tradeCommand = &cli.Command{
 				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
-					Value:       time.Now().Add(-time.Hour * 6).Format(common.SimpleTimeFormat),
+					Value:       time.Now().Add(-time.Hour * 6).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end> WARNING: large date ranges may take considerable time",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 			},
@@ -116,13 +116,13 @@ var tradeCommand = &cli.Command{
 				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
-					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+					Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end>",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 			},
@@ -151,13 +151,13 @@ var tradeCommand = &cli.Command{
 				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start> rounded down to the nearest hour",
-					Value:       time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Value:       time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end> rounded down to the nearest hour",
-					Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
 					Destination: &endTime,
 				},
 			},
@@ -193,13 +193,13 @@ var tradeCommand = &cli.Command{
 				&cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
-					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+					Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end>",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 				&cli.BoolFlag{
@@ -267,11 +267,11 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -396,11 +396,11 @@ func getSavedTrades(c *cli.Context) error {
 	}
 
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -547,11 +547,11 @@ func getHistoricTrades(c *cli.Context) error {
 		}
 	}
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -685,11 +685,11 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}

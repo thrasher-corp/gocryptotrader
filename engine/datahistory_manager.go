@@ -1015,7 +1015,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		apiCandles.Candles[i] = can
 
 		if len(candleIssues) > 0 {
-			candleIssues = append([]string{fmt.Sprintf("issues found at %v", can.Time.Format(common.SimpleTimeFormat))}, candleIssues...)
+			candleIssues = append([]string{fmt.Sprintf("issues found at %v", can.Time.Format(time.DateTime))}, candleIssues...)
 			validationIssues = append(validationIssues, candleIssues...)
 			r.Status = dataHistoryStatusFailed
 			apiCandles.Candles[i].ValidationIssues = strings.Join(candleIssues, ", ")

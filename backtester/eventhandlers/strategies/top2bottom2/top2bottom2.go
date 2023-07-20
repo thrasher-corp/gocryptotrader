@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -265,7 +264,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 		if missingDataStreak >= s.mfiPeriod.IntPart() {
 			return nil, fmt.Errorf("missing data exceeds mfi period length of %v at %s and will distort results. %w",
 				s.mfiPeriod,
-				t.Format(gctcommon.SimpleTimeFormat),
+				t.Format(time.DateTime),
 				base.ErrTooMuchBadData)
 		}
 		resp[i] = data[i].InexactFloat64()
