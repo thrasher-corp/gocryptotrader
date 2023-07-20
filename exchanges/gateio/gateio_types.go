@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -645,44 +646,44 @@ type OrderbookOfLendingLoan struct {
 
 // FuturesContract represents futures contract detailed data.
 type FuturesContract struct {
-	Name                  string     `json:"name"`
-	Type                  string     `json:"type"`
-	QuantoMultiplier      float64    `json:"quanto_multiplier,string"`
-	RefDiscountRate       float64    `json:"ref_discount_rate,string"`
-	OrderPriceDeviate     string     `json:"order_price_deviate"`
-	MaintenanceRate       float64    `json:"maintenance_rate,string"`
-	MarkType              string     `json:"mark_type"`
-	LastPrice             float64    `json:"last_price,string"`
-	MarkPrice             float64    `json:"mark_price,string"`
-	IndexPrice            float64    `json:"index_price,string"`
-	FundingRateIndicative string     `json:"funding_rate_indicative"`
-	MarkPriceRound        string     `json:"mark_price_round"`
-	FundingOffset         int64      `json:"funding_offset"`
-	InDelisting           bool       `json:"in_delisting"`
-	RiskLimitBase         string     `json:"risk_limit_base"`
-	InterestRate          string     `json:"interest_rate"`
-	OrderPriceRound       string     `json:"order_price_round"`
-	OrderSizeMin          int64      `json:"order_size_min"`
-	RefRebateRate         string     `json:"ref_rebate_rate"`
-	FundingInterval       int64      `json:"funding_interval"`
-	RiskLimitStep         string     `json:"risk_limit_step"`
-	LeverageMin           string     `json:"leverage_min"`
-	LeverageMax           string     `json:"leverage_max"`
-	RiskLimitMax          string     `json:"risk_limit_max"`
-	MakerFeeRate          float64    `json:"maker_fee_rate,string"`
-	TakerFeeRate          float64    `json:"taker_fee_rate,string"`
-	FundingRate           float64    `json:"funding_rate,string"`
-	OrderSizeMax          int64      `json:"order_size_max"`
-	FundingNextApply      gateioTime `json:"funding_next_apply"`
-	ConfigChangeTime      gateioTime `json:"config_change_time"`
-	ShortUsers            int64      `json:"short_users"`
-	TradeSize             int64      `json:"trade_size"`
-	PositionSize          int64      `json:"position_size"`
-	LongUsers             int64      `json:"long_users"`
-	FundingImpactValue    string     `json:"funding_impact_value"`
-	OrdersLimit           int64      `json:"orders_limit"`
-	TradeID               int64      `json:"trade_id"`
-	OrderbookID           int64      `json:"orderbook_id"`
+	Name                  string                  `json:"name"`
+	Type                  string                  `json:"type"`
+	QuantoMultiplier      float64                 `json:"quanto_multiplier,string"`
+	RefDiscountRate       float64                 `json:"ref_discount_rate,string"`
+	OrderPriceDeviate     string                  `json:"order_price_deviate"`
+	MaintenanceRate       float64                 `json:"maintenance_rate,string"`
+	MarkType              string                  `json:"mark_type"`
+	LastPrice             float64                 `json:"last_price,string"`
+	MarkPrice             float64                 `json:"mark_price,string"`
+	IndexPrice            float64                 `json:"index_price,string"`
+	FundingRateIndicative string                  `json:"funding_rate_indicative"`
+	MarkPriceRound        string                  `json:"mark_price_round"`
+	FundingOffset         int64                   `json:"funding_offset"`
+	InDelisting           bool                    `json:"in_delisting"`
+	RiskLimitBase         string                  `json:"risk_limit_base"`
+	InterestRate          string                  `json:"interest_rate"`
+	OrderPriceRound       string                  `json:"order_price_round"`
+	OrderSizeMin          int64                   `json:"order_size_min"`
+	RefRebateRate         string                  `json:"ref_rebate_rate"`
+	FundingInterval       int64                   `json:"funding_interval"`
+	RiskLimitStep         string                  `json:"risk_limit_step"`
+	LeverageMin           string                  `json:"leverage_min"`
+	LeverageMax           convert.StringToFloat64 `json:"leverage_max"`
+	RiskLimitMax          string                  `json:"risk_limit_max"`
+	MakerFeeRate          float64                 `json:"maker_fee_rate,string"`
+	TakerFeeRate          float64                 `json:"taker_fee_rate,string"`
+	FundingRate           float64                 `json:"funding_rate,string"`
+	OrderSizeMax          int64                   `json:"order_size_max"`
+	FundingNextApply      gateioTime              `json:"funding_next_apply"`
+	ConfigChangeTime      gateioTime              `json:"config_change_time"`
+	ShortUsers            int64                   `json:"short_users"`
+	TradeSize             int64                   `json:"trade_size"`
+	PositionSize          int64                   `json:"position_size"`
+	LongUsers             int64                   `json:"long_users"`
+	FundingImpactValue    string                  `json:"funding_impact_value"`
+	OrdersLimit           int64                   `json:"orders_limit"`
+	TradeID               int64                   `json:"trade_id"`
+	OrderbookID           int64                   `json:"orderbook_id"`
 }
 
 // TradingHistoryItem represents futures trading history item.
@@ -798,45 +799,45 @@ type LiquidationHistory struct {
 
 // DeliveryContract represents a delivery contract instance detail.
 type DeliveryContract struct {
-	Name                string     `json:"name"`
-	Underlying          string     `json:"underlying"`
-	Cycle               string     `json:"cycle"`
-	Type                string     `json:"type"`
-	QuantoMultiplier    string     `json:"quanto_multiplier"`
-	MarkType            string     `json:"mark_type"`
-	LastPrice           float64    `json:"last_price,string"`
-	MarkPrice           float64    `json:"mark_price,string"`
-	IndexPrice          float64    `json:"index_price,string"`
-	BasisRate           string     `json:"basis_rate"`
-	BasisValue          string     `json:"basis_value"`
-	BasisImpactValue    string     `json:"basis_impact_value"`
-	SettlePrice         float64    `json:"settle_price,string"`
-	SettlePriceInterval int64      `json:"settle_price_interval"`
-	SettlePriceDuration int64      `json:"settle_price_duration"`
-	SettleFeeRate       string     `json:"settle_fee_rate"`
-	OrderPriceRound     string     `json:"order_price_round"`
-	MarkPriceRound      string     `json:"mark_price_round"`
-	LeverageMin         string     `json:"leverage_min"`
-	LeverageMax         string     `json:"leverage_max"`
-	MaintenanceRate     string     `json:"maintenance_rate"`
-	RiskLimitBase       string     `json:"risk_limit_base"`
-	RiskLimitStep       string     `json:"risk_limit_step"`
-	RiskLimitMax        string     `json:"risk_limit_max"`
-	MakerFeeRate        string     `json:"maker_fee_rate"`
-	TakerFeeRate        string     `json:"taker_fee_rate"`
-	RefDiscountRate     string     `json:"ref_discount_rate"`
-	RefRebateRate       string     `json:"ref_rebate_rate"`
-	OrderPriceDeviate   string     `json:"order_price_deviate"`
-	OrderSizeMin        int64      `json:"order_size_min"`
-	OrderSizeMax        int64      `json:"order_size_max"`
-	OrdersLimit         int64      `json:"orders_limit"`
-	OrderbookID         int64      `json:"orderbook_id"`
-	TradeID             int64      `json:"trade_id"`
-	TradeSize           int64      `json:"trade_size"`
-	PositionSize        int64      `json:"position_size"`
-	ExpireTime          gateioTime `json:"expire_time"`
-	ConfigChangeTime    gateioTime `json:"config_change_time"`
-	InDelisting         bool       `json:"in_delisting"`
+	Name                string                  `json:"name"`
+	Underlying          string                  `json:"underlying"`
+	Cycle               string                  `json:"cycle"`
+	Type                string                  `json:"type"`
+	QuantoMultiplier    convert.StringToFloat64 `json:"quanto_multiplier"`
+	MarkType            string                  `json:"mark_type"`
+	LastPrice           float64                 `json:"last_price,string"`
+	MarkPrice           float64                 `json:"mark_price,string"`
+	IndexPrice          float64                 `json:"index_price,string"`
+	BasisRate           string                  `json:"basis_rate"`
+	BasisValue          string                  `json:"basis_value"`
+	BasisImpactValue    string                  `json:"basis_impact_value"`
+	SettlePrice         float64                 `json:"settle_price,string"`
+	SettlePriceInterval int64                   `json:"settle_price_interval"`
+	SettlePriceDuration int64                   `json:"settle_price_duration"`
+	SettleFeeRate       string                  `json:"settle_fee_rate"`
+	OrderPriceRound     string                  `json:"order_price_round"`
+	MarkPriceRound      string                  `json:"mark_price_round"`
+	LeverageMin         string                  `json:"leverage_min"`
+	LeverageMax         convert.StringToFloat64 `json:"leverage_max"`
+	MaintenanceRate     string                  `json:"maintenance_rate"`
+	RiskLimitBase       string                  `json:"risk_limit_base"`
+	RiskLimitStep       string                  `json:"risk_limit_step"`
+	RiskLimitMax        string                  `json:"risk_limit_max"`
+	MakerFeeRate        string                  `json:"maker_fee_rate"`
+	TakerFeeRate        string                  `json:"taker_fee_rate"`
+	RefDiscountRate     string                  `json:"ref_discount_rate"`
+	RefRebateRate       string                  `json:"ref_rebate_rate"`
+	OrderPriceDeviate   string                  `json:"order_price_deviate"`
+	OrderSizeMin        int64                   `json:"order_size_min"`
+	OrderSizeMax        int64                   `json:"order_size_max"`
+	OrdersLimit         int64                   `json:"orders_limit"`
+	OrderbookID         int64                   `json:"orderbook_id"`
+	TradeID             int64                   `json:"trade_id"`
+	TradeSize           int64                   `json:"trade_size"`
+	PositionSize        int64                   `json:"position_size"`
+	ExpireTime          gateioTime              `json:"expire_time"`
+	ConfigChangeTime    gateioTime              `json:"config_change_time"`
+	InDelisting         bool                    `json:"in_delisting"`
 }
 
 // DeliveryTradingHistory represents futures trading history

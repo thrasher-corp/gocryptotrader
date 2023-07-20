@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -3384,5 +3385,26 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		if mm.AmountStepIncrementSize <= 0 {
 			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
 		}
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = g.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = g.GetFuturesContractDetails(context.Background(), asset.DeliveryFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = g.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
 	}
 }
