@@ -45,7 +45,6 @@ func (h *HitBTC) WsConnect() error {
 		return err
 	}
 
-	h.Websocket.Wg.Add(1)
 	go h.wsReadData()
 
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
@@ -60,21 +59,27 @@ func (h *HitBTC) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (h *HitBTC) wsReadData() {
-	defer h.Websocket.Wg.Done()
 	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := spotWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 
-		err := h.wsHandleData(resp.Raw)
-		if err != nil {
-			h.Websocket.DataHandler <- err
+			err := h.wsHandleData(resp.Raw)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

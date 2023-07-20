@@ -97,7 +97,6 @@ func (k *Kraken) WsConnect() error {
 		return err
 	}
 
-	k.Websocket.Wg.Add(2)
 	go k.wsReadData(spotWebsocket.Conn)
 
 	if k.IsWebsocketAuthenticationSupported() {
@@ -117,7 +116,6 @@ func (k *Kraken) WsConnect() error {
 					k.Name,
 					err)
 			} else {
-				k.Websocket.Wg.Add(1)
 				go k.wsReadData(spotWebsocket.AuthConn)
 				err = k.wsAuthPingHandler()
 				if err != nil {
@@ -142,13 +140,13 @@ func (k *Kraken) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (k *Kraken) wsReadData(ws stream.Connection) {
-	defer k.Websocket.Wg.Done()
 	spotWebsocket, err := k.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
-
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:

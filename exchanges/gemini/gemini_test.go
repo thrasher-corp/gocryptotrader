@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -574,7 +575,12 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	go g.wsReadData()
+	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
+		return
+	}
+	go g.wsReadData(spotWebsocket.AuthConn)
 	err = g.WsAuth(context.Background(), &dialer)
 	if err != nil {
 		t.Error(err)

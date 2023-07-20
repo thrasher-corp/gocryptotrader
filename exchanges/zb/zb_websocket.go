@@ -45,7 +45,6 @@ func (z *ZB) WsConnect() error {
 		return err
 	}
 
-	z.Websocket.Wg.Add(1)
 	go z.wsReadData()
 	return nil
 }
@@ -53,20 +52,26 @@ func (z *ZB) WsConnect() error {
 // wsReadData handles all the websocket data coming from the websocket
 // connection
 func (z *ZB) wsReadData() {
-	defer z.Websocket.Wg.Done()
 	spotWebsocket, err := z.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := spotWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := z.wsHandleData(resp.Raw)
-		if err != nil {
-			z.Websocket.DataHandler <- err
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := z.wsHandleData(resp.Raw)
+			if err != nil {
+				z.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

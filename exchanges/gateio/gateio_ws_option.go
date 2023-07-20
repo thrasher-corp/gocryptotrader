@@ -96,7 +96,6 @@ func (g *Gateio) WsOptionsConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(1)
 	go g.wsReadOptionsConnData()
 	optionsWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Websocket:   true,
@@ -292,20 +291,26 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stre
 
 // wsReadOptionsConnData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadOptionsConnData() {
-	defer g.Websocket.Wg.Done()
 	optionsWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Options)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Options)
 		return
 	}
+	optionsWebsocket.Wg.Add(1)
+	defer optionsWebsocket.Wg.Done()
 	for {
-		resp := optionsWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-optionsWebsocket.ShutdownC:
 			return
-		}
-		err := g.wsHandleOptionsData(resp.Raw)
-		if err != nil {
-			g.Websocket.DataHandler <- err
+		default:
+			resp := optionsWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := g.wsHandleOptionsData(resp.Raw)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

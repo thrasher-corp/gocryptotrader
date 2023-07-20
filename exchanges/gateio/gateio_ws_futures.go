@@ -94,7 +94,6 @@ func (g *Gateio) WsFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(2)
 	go g.wsReadFuturesData(futuresWebsocket.Conn)
 	go g.wsReadFuturesData(futuresWebsocket.AuthConn)
 	if g.Verbose {
@@ -177,12 +176,13 @@ func (g *Gateio) FuturesUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscr
 
 // wsReadFuturesData read coming messages thought the websocket connection and pass the data to wsHandleFuturesData for further process.
 func (g *Gateio) wsReadFuturesData(ws stream.Connection) {
-	defer g.Websocket.Wg.Done()
 	futuresWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Futures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Futures)
 		return
 	}
+	futuresWebsocket.Wg.Add(1)
+	defer futuresWebsocket.Wg.Done()
 	for {
 		select {
 		case <-futuresWebsocket.ShutdownC:

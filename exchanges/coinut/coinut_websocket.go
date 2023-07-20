@@ -52,7 +52,6 @@ func (c *COINUT) WsConnect() error {
 		return err
 	}
 
-	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
 
 	if !c.instrumentMap.IsLoaded() {
@@ -76,12 +75,13 @@ func (c *COINUT) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (c *COINUT) wsReadData() {
-	defer c.Websocket.Wg.Done()
 	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {

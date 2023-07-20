@@ -80,7 +80,6 @@ func (bi *Binanceus) WsConnect() error {
 	}
 
 	if bi.Websocket.CanUseAuthenticatedEndpoints() {
-		bi.Websocket.Wg.Add(1)
 		go bi.KeepAuthKeyAlive()
 	}
 
@@ -90,7 +89,7 @@ func (bi *Binanceus) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
-	bi.Websocket.Wg.Add(1)
+	spotWebsocket.Wg.Add(1)
 	go bi.wsReadData()
 
 	bi.setupOrderbookManager()
@@ -100,7 +99,6 @@ func (bi *Binanceus) WsConnect() error {
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (bi *Binanceus) KeepAuthKeyAlive() {
-	defer bi.Websocket.Wg.Done()
 	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
 	defer func() {
 		er := bi.CloseUserDataStream(context.Background())
@@ -115,6 +113,8 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	// Looping in 30 Minutes and updating the listenKey
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
@@ -135,12 +135,12 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 
 // wsReadData receives and passes on websocket messages for processing
 func (bi *Binanceus) wsReadData() {
-	defer bi.Websocket.Wg.Done()
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	defer spotWebsocket.Wg.Done()
 	for {
 		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
@@ -671,9 +671,9 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 		log.Errorf(log.WebsocketMgr, "%v asset type: %v", err, asset.Spot)
 		return
 	}
-	bi.Websocket.Wg.Add(1)
+	spotWebsocket.Wg.Add(1)
 	go func() {
-		defer bi.Websocket.Wg.Done()
+		defer spotWebsocket.Wg.Done()
 		for {
 			select {
 			case <-spotWebsocket.ShutdownC:

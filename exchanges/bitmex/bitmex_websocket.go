@@ -97,7 +97,6 @@ func (b *Bitmex) WsConnect() error {
 			welcomeResp.Limit.Remaining)
 	}
 
-	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
@@ -120,12 +119,13 @@ func (b *Bitmex) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitmex) wsReadData() {
-	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {

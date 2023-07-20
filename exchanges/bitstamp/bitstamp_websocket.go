@@ -47,7 +47,6 @@ func (b *Bitstamp) WsConnect() error {
 		b.Websocket.DataHandler <- err
 	}
 
-	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	return nil
@@ -55,20 +54,26 @@ func (b *Bitstamp) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitstamp) wsReadData() {
-	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := spotWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := b.wsHandleData(resp.Raw)
-		if err != nil {
-			b.Websocket.DataHandler <- err
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := b.wsHandleData(resp.Raw)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

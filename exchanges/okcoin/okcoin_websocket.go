@@ -45,7 +45,6 @@ func (o *OKCoin) WsConnect() error {
 			o.Websocket.GetWebsocketURL())
 	}
 
-	o.Websocket.Wg.Add(1)
 	go o.WsReadData()
 
 	if o.IsWebsocketAuthenticationSupported() {
@@ -101,20 +100,26 @@ func (o *OKCoin) WsLogin(ctx context.Context) error {
 
 // WsReadData receives and passes on websocket messages for processing
 func (o *OKCoin) WsReadData() {
-	defer o.Websocket.Wg.Done()
 	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := spotWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := o.WsHandleData(resp.Raw)
-		if err != nil {
-			o.Websocket.DataHandler <- err
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := o.WsHandleData(resp.Raw)
+			if err != nil {
+				o.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

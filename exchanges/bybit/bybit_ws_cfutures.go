@@ -97,17 +97,9 @@ func (by *Bybit) WsCoinConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
-	by.Websocket.Wg.Add(1)
 	go by.wsCoinReadData(cfuturesWebsocket.Conn)
-	by.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	by.Websocket.SetCanUseAuthenticatedEndpoints(true, asset.CoinMarginedFutures)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
-		if err != nil {
-			return err
-		}
-		by.Websocket.Wg.Add(1)
-		go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
-
 		err = by.WsCoinAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
@@ -119,11 +111,13 @@ func (by *Bybit) WsCoinConnect() error {
 
 // wsCoinReadData gets and passes on websocket messages for processing
 func (by *Bybit) wsCoinReadData(ws stream.Connection) {
-	defer by.Websocket.Wg.Done()
 	coinMarginedFuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.CoinMarginedFutures)
+		return
 	}
+	coinMarginedFuturesWebsocket.Wg.Add(1)
+	defer coinMarginedFuturesWebsocket.Wg.Done()
 	for {
 		select {
 		case <-coinMarginedFuturesWebsocket.ShutdownC:
@@ -153,6 +147,12 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		return err
 	}
 
+	var dialer websocket.Dialer
+	err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -168,7 +168,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return cfuturesWebsocket.Conn.SendJSONMessage(req)
+	return cfuturesWebsocket.AuthConn.SendJSONMessage(req)
 }
 
 // GenerateCoinMarginedFuturesDefaultSubscriptions returns channel subscriptions for futures instruments
@@ -510,11 +510,11 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				Pair:       p,
 				AssetType:  asset.CoinMarginedFutures,
 				Exchange:   by.Name,
-				OpenPrice:  response.KlineData[i].Open,
-				HighPrice:  response.KlineData[i].High,
-				LowPrice:   response.KlineData[i].Low,
-				ClosePrice: response.KlineData[i].Close,
-				Volume:     response.KlineData[i].Volume,
+				OpenPrice:  response.KlineData[i].Open.Float64(),
+				HighPrice:  response.KlineData[i].High.Float64(),
+				LowPrice:   response.KlineData[i].Low.Float64(),
+				ClosePrice: response.KlineData[i].Close.Float64(),
+				Volume:     response.KlineData[i].Volume.Float64(),
 				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}

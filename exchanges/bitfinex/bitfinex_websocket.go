@@ -27,8 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var comms = make(chan stream.Response)
-
 type checksum struct {
 	Token    int
 	Sequence int64
@@ -55,7 +53,6 @@ func (b *Bitfinex) WsConnect() error {
 			err)
 	}
 
-	b.Websocket.Wg.Add(1)
 	go b.wsReadData(spotWebsocket.Conn)
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
@@ -67,7 +64,6 @@ func (b *Bitfinex) WsConnect() error {
 				err)
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
-		b.Websocket.Wg.Add(1)
 		go b.wsReadData(spotWebsocket.AuthConn)
 		err = b.WsSendAuth(context.TODO())
 		if err != nil {
@@ -79,51 +75,27 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
-	b.Websocket.Wg.Add(1)
-	go b.WsDataHandler()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitfinex) wsReadData(ws stream.Connection) {
-	defer b.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		comms <- resp
-	}
-}
-
-// WsDataHandler handles data from wsReadData
-func (b *Bitfinex) WsDataHandler() {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
-	defer b.Websocket.Wg.Done()
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := b.wsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case b.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr,
-							"%s websocket handle data error: %v",
-							b.Name,
-							err)
-					}
-				}
-			default:
-			}
 			return
-		case resp := <-comms:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 			if resp.Type != websocket.TextMessage {
 				continue
 			}

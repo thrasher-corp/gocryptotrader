@@ -41,8 +41,6 @@ const (
 	cancel = "cancel" // event for unsubscribe
 )
 
-var comms = make(chan stream.Response)
-
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
@@ -63,7 +61,6 @@ func (by *Bybit) WsConnect() error {
 		Delay:       bybitWebsocketTimer,
 	})
 
-	by.Websocket.Wg.Add(1)
 	go by.wsReadData(spotWebsocket.Conn)
 	if by.IsWebsocketAuthenticationSupported() {
 		err = by.WsAuth(context.TODO())
@@ -73,8 +70,6 @@ func (by *Bybit) WsConnect() error {
 		}
 	}
 
-	by.Websocket.Wg.Add(1)
-	go by.WsDataHandler()
 	return nil
 }
 
@@ -96,9 +91,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 		Delay:       bybitWebsocketTimer,
 	})
 
-	by.Websocket.Wg.Add(1)
 	go by.wsReadData(spotWebsocket.AuthConn)
-
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -191,18 +184,6 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 	return errs
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (by *Bybit) wsReadData(ws stream.Connection) {
-	defer by.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		comms <- resp
-	}
-}
-
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
@@ -247,19 +228,24 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-// WsDataHandler handles data from wsReadData
-func (by *Bybit) WsDataHandler() {
-	defer by.Websocket.Wg.Done()
+// wsReadData receives and passes on websocket messages for processing
+func (by *Bybit) wsReadData(ws stream.Connection) {
 	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:
 			return
-		case resp := <-comms:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 			err := by.wsHandleData(resp.Raw)
 			if err != nil {
 				by.Websocket.DataHandler <- err

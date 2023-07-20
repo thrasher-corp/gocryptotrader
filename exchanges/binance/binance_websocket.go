@@ -89,7 +89,6 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
-	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 	b.setupOrderbookManager()
 	return nil
@@ -123,13 +122,13 @@ func (b *Binance) setupOrderbookManager() {
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (b *Binance) KeepAuthKeyAlive() {
-	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
@@ -149,12 +148,14 @@ func (b *Binance) KeepAuthKeyAlive() {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
-	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
+
 	for {
 		resp := spotWebsocket.Conn.ReadMessage()
 		if resp.Raw == nil {
@@ -758,14 +759,14 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
 func (b *Binance) SynchroniseWebsocketOrderbook() {
-	b.Websocket.Wg.Add(1)
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
 	go func() {
-		defer b.Websocket.Wg.Done()
+		defer spotWebsocket.Wg.Done()
 		for {
 			select {
 			case <-spotWebsocket.ShutdownC:

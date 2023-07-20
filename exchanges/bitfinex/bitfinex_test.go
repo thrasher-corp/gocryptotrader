@@ -1023,7 +1023,6 @@ func setupWs() {
 		log.Fatal(err)
 	}
 	go b.wsReadData(b.Websocket.AssetTypeWebsockets[asset.Spot].AuthConn)
-	go b.WsDataHandler()
 }
 
 // TestWsAuth dials websocket, sends login request.

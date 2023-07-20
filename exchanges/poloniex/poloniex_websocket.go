@@ -71,9 +71,7 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	p.Websocket.Wg.Add(1)
 	go p.wsReadData()
-
 	return nil
 }
 
@@ -104,20 +102,26 @@ func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
 
 // wsReadData handles data from the websocket connection
 func (p *Poloniex) wsReadData() {
-	defer p.Websocket.Wg.Done()
 	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := spotWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := p.wsHandleData(resp.Raw)
-		if err != nil {
-			p.Websocket.DataHandler <- fmt.Errorf("%s: %w", p.Name, err)
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := p.wsHandleData(resp.Raw)
+			if err != nil {
+				p.Websocket.DataHandler <- fmt.Errorf("%s: %w", p.Name, err)
+			}
 		}
 	}
 }

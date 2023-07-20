@@ -221,12 +221,13 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	go ok.WsResponseMultiplexer.Run()
-	if err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{

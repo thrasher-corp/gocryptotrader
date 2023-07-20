@@ -32,9 +32,6 @@ const (
 	geminiWsOrderEvents            = "order/events"
 )
 
-// Instantiates a communications channel between websocket connections
-var comms = make(chan stream.Response)
-
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
@@ -50,10 +47,7 @@ func (g *Gemini) WsConnect() error {
 		return err
 	}
 
-	g.Websocket.Wg.Add(2)
-	go g.wsReadData()
-	go g.wsFunnelConnectionData(spotWebsocket.Conn)
-
+	go g.wsReadData(spotWebsocket.Conn)
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		err := g.WsAuth(context.TODO(), &dialer)
 		if err != nil {
@@ -232,53 +226,38 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
-	go g.wsFunnelConnectionData(spotWebsocket.AuthConn)
+	go g.wsReadData(spotWebsocket.AuthConn)
 	return nil
 }
 
-// wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
-func (g *Gemini) wsFunnelConnectionData(ws stream.Connection) {
-	defer g.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		comms <- stream.Response{Raw: resp.Raw}
-	}
-}
-
 // wsReadData receives and passes on websocket messages for processing
-func (g *Gemini) wsReadData() {
-	defer g.Websocket.Wg.Done()
+func (g *Gemini) wsReadData(ws stream.Connection) {
 	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := g.wsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case g.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr,
-							"%s websocket handle data error: %v",
-							g.Name,
-							err)
-					}
-				}
-			default:
-			}
 			return
-		case resp := <-comms:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 			err := g.wsHandleData(resp.Raw)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				select {
+				case g.Websocket.DataHandler <- err:
+				default:
+					log.Errorf(log.WebsocketMgr,
+						"%s websocket handle data error: %v",
+						g.Name,
+						err)
+				}
 			}
 		}
 	}

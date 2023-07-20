@@ -46,23 +46,21 @@ func (b *Bithumb) WsConnect() error {
 			err)
 	}
 
-	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	b.setupOrderbookManager()
-	subscriptions, _ := b.GenerateSubscriptions()
-	return b.Subscribe(subscriptions)
-	// return nil
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bithumb) wsReadData() {
-	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:

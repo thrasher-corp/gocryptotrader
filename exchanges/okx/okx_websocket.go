@@ -223,7 +223,6 @@ func (ok *Okx) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	ok.Websocket.Wg.Add(2)
 	go ok.WsReadData(spotWebsocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
@@ -260,7 +259,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
-	ok.Websocket.Wg.Add(1)
 	go ok.WsReadData(spotWebsocket.AuthConn)
 	spotWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
@@ -522,11 +520,12 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 // WsReadData read coming messages thought the websocket connection and process the data.
 func (ok *Okx) WsReadData(ws stream.Connection) {
-	defer ok.Websocket.Wg.Done()
 	spotWebsocket, err := ok.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:

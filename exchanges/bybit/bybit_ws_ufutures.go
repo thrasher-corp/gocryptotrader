@@ -67,7 +67,6 @@ func (by *Bybit) WsUSDTConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
-	by.Websocket.Wg.Add(1)
 	go by.wsUSDTFuturesReadData(ufuturesWebsocket.Conn)
 	by.Websocket.SetCanUseAuthenticatedEndpoints(true, asset.USDTMarginedFutures)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
@@ -82,11 +81,13 @@ func (by *Bybit) WsUSDTConnect() error {
 
 // wsUSDTFuturesReadData read coming messages thought the websocket connection and process the data.
 func (by *Bybit) wsUSDTFuturesReadData(ws stream.Connection) {
-	defer by.Websocket.Wg.Done()
 	usdtMarginedFuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.USDTMarginedFutures)
+		return
 	}
+	usdtMarginedFuturesWebsocket.Wg.Add(1)
+	defer usdtMarginedFuturesWebsocket.Wg.Done()
 	for {
 		select {
 		case <-usdtMarginedFuturesWebsocket.ShutdownC:
@@ -120,7 +121,6 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context, dialer *websocket.Dialer) error
 	if err != nil {
 		return err
 	}
-	by.Websocket.Wg.Add(1)
 	go by.wsUSDTFuturesReadData(ufuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
@@ -426,11 +426,11 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				Pair:       p,
 				AssetType:  asset.USDTMarginedFutures,
 				Exchange:   by.Name,
-				OpenPrice:  response.KlineData[i].Open,
-				HighPrice:  response.KlineData[i].High,
-				LowPrice:   response.KlineData[i].Low,
-				ClosePrice: response.KlineData[i].Close,
-				Volume:     response.KlineData[i].Volume,
+				OpenPrice:  response.KlineData[i].Open.Float64(),
+				HighPrice:  response.KlineData[i].High.Float64(),
+				LowPrice:   response.KlineData[i].Low.Float64(),
+				ClosePrice: response.KlineData[i].Close.Float64(),
+				Volume:     response.KlineData[i].Volume.Float64(),
 				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}

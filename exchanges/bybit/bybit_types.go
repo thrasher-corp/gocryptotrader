@@ -566,17 +566,17 @@ type WsFuturesTrade struct {
 
 // WsFuturesKlineData stores ws future kline data
 type WsFuturesKlineData struct {
-	StartTime bybitTime `json:"start"`
-	EndTime   bybitTime `json:"end"`
-	Close     float64   `json:"close"`
-	Open      float64   `json:"open"`
-	High      float64   `json:"high"`
-	Low       float64   `json:"low"`
-	Volume    float64   `json:"volume"`
-	TurnOver  float64   `json:"turnover"`
-	Confirm   bool      `json:"confirm"`
-	CrossSeq  int64     `json:"coss_seq"`
-	Timestamp bybitTime `json:"timestamp"`
+	StartTime bybitTime   `json:"start"`
+	EndTime   bybitTime   `json:"end"`
+	Close     bybitNumber `json:"close"`
+	Open      bybitNumber `json:"open"`
+	High      bybitNumber `json:"high"`
+	Low       bybitNumber `json:"low"`
+	Volume    bybitNumber `json:"volume"`
+	TurnOver  bybitNumber `json:"turnover"`
+	Confirm   bool        `json:"confirm"`
+	CrossSeq  int64       `json:"coss_seq"`
+	Timestamp bybitTime   `json:"timestamp"`
 }
 
 // WsFuturesKline stores ws future kline

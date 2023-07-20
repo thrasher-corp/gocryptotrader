@@ -77,10 +77,14 @@ func setupWsTests(t *testing.T) {
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
-	go h.wsReadData()
+	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return
+	}
+	go h.wsReadData(spotWebsocket.AuthConn)
+
 	var dialer websocket.Dialer
-	err := h.wsAuthenticatedDial(&dialer)
+	err = h.wsAuthenticatedDial(&dialer)
 	if err != nil {
 		t.Fatal(err)
 	}

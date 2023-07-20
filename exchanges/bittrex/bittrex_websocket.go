@@ -111,7 +111,6 @@ func (b *Bittrex) WsConnect() error {
 
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
-	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
 	b.setupOrderbookManager()
@@ -385,11 +384,12 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 
 // wsReadData gets and passes on websocket messages for processing
 func (b *Bittrex) wsReadData() {
-	defer b.Websocket.Wg.Done()
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:

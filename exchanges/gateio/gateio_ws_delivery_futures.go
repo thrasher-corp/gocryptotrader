@@ -70,7 +70,6 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.Wg.Add(2)
 	go g.wsReadDeliveryFuturesData(deliveryFuturesWebsocket.Conn)
 	go g.wsReadDeliveryFuturesData(deliveryFuturesWebsocket.AuthConn)
 	if g.Verbose {
@@ -96,11 +95,12 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 
 // wsReadDeliveryFuturesData read coming messages thought the websocket connection and pass the data to wsHandleFuturesData for further process.
 func (g *Gateio) wsReadDeliveryFuturesData(ws stream.Connection) {
-	defer g.Websocket.Wg.Done()
 	deliveryFuturesWebsocket, err := g.Websocket.GetAssetWebsocket(asset.DeliveryFutures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.DeliveryFutures)
 	}
+	deliveryFuturesWebsocket.Wg.Add(1)
+	defer deliveryFuturesWebsocket.Wg.Done()
 	for {
 		select {
 		case <-deliveryFuturesWebsocket.ShutdownC:

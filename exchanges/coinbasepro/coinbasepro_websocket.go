@@ -43,26 +43,31 @@ func (c *CoinbasePro) WsConnect() error {
 		return err
 	}
 
-	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (c *CoinbasePro) wsReadData() {
-	defer c.Websocket.Wg.Done()
 	spotWebsocket, err := c.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := spotWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := c.wsHandleData(resp.Raw)
-		if err != nil {
-			c.Websocket.DataHandler <- err
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := c.wsHandleData(resp.Raw)
+			if err != nil {
+				c.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

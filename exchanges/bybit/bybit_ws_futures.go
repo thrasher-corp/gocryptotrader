@@ -60,7 +60,6 @@ func (by *Bybit) WsFuturesConnect() error {
 	if by.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
-	by.Websocket.Wg.Add(1)
 	go by.wsFuturesReadData()
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		err = by.WsFuturesAuth(context.TODO())
@@ -218,13 +217,13 @@ func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscr
 
 // wsFuturesReadData gets and passes on websocket messages for processing
 func (by *Bybit) wsFuturesReadData() {
-	defer by.Websocket.Wg.Done()
 	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Futures)
 		return
 	}
-
+	futuresWebsocket.Wg.Add(1)
+	defer futuresWebsocket.Wg.Done()
 	for {
 		select {
 		case <-futuresWebsocket.ShutdownC:
@@ -413,11 +412,11 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				Pair:       p,
 				AssetType:  asset.Futures,
 				Exchange:   by.Name,
-				OpenPrice:  response.KlineData[i].Open,
-				HighPrice:  response.KlineData[i].High,
-				LowPrice:   response.KlineData[i].Low,
-				ClosePrice: response.KlineData[i].Close,
-				Volume:     response.KlineData[i].Volume,
+				OpenPrice:  response.KlineData[i].Open.Float64(),
+				HighPrice:  response.KlineData[i].High.Float64(),
+				LowPrice:   response.KlineData[i].Low.Float64(),
+				ClosePrice: response.KlineData[i].Close.Float64(),
+				Volume:     response.KlineData[i].Volume.Float64(),
 				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}

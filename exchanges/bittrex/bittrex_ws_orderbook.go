@@ -196,9 +196,9 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
-	b.Websocket.Wg.Add(1)
+	spotWebsocket.Wg.Add(1)
 	go func() {
-		defer b.Websocket.Wg.Done()
+		defer spotWebsocket.Wg.Done()
 		for {
 			select {
 			case <-spotWebsocket.ShutdownC:

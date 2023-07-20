@@ -295,14 +295,15 @@ func (w *Websocket) Shutdown() error {
 		}
 	}
 
+	close(w.ShutdownC)
+	w.Wg.Wait()
+	w.ShutdownC = make(chan struct{})
+
 	// flush any subscriptions from last connection if needed
 	w.subscriptionMutex.Lock()
 	w.subscriptions = nil
 	w.subscriptionMutex.Unlock()
 
-	close(w.ShutdownC)
-	w.Wg.Wait()
-	w.ShutdownC = make(chan struct{})
 	if !isAssetItemChannelClosed(w.AssetShutdownC) {
 		w.AssetShutdownC <- w.AssetType
 	} else if w.verbose {

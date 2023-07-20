@@ -55,9 +55,6 @@ const (
 	rateLimit  = 20
 )
 
-// Instantiates a communications channel between websocket connections
-var comms = make(chan WsMessage)
-
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
@@ -87,8 +84,6 @@ func (h *HUOBI) WsConnect() error {
 		}
 	}
 
-	h.Websocket.Wg.Add(1)
-	go h.wsReadData()
 	return nil
 }
 
@@ -101,8 +96,7 @@ func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
-	h.Websocket.Wg.Add(1)
-	go h.wsFunnelConnectionData(spotWebsocket.Conn, wsMarketURL)
+	go h.wsReadData(spotWebsocket.Conn)
 	return nil
 }
 
@@ -120,54 +114,37 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 		return err
 	}
 
-	h.Websocket.Wg.Add(1)
-	go h.wsFunnelConnectionData(spotWebsocket.AuthConn, wsAccountsOrdersURL)
+	go h.wsReadData(spotWebsocket.AuthConn)
 	return nil
 }
 
-// wsFunnelConnectionData manages data from multiple endpoints and passes it to
-// a channel
-func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
-	defer h.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		comms <- WsMessage{Raw: resp.Raw, URL: url}
-	}
-}
-
 // wsReadData receives and passes on websocket messages for processing
-func (h *HUOBI) wsReadData() {
-	defer h.Websocket.Wg.Done()
+func (h *HUOBI) wsReadData(ws stream.Connection) {
 	spotWebsocket, err := h.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
 		select {
 		case <-spotWebsocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := h.wsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case h.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr,
-							"%s websocket handle data error: %v",
-							h.Name,
-							err)
-					}
-				}
-			default:
-			}
 			return
-		case resp := <-comms:
+		default:
+			resp := ws.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
 			err := h.wsHandleData(resp.Raw)
 			if err != nil {
-				h.Websocket.DataHandler <- err
+				select {
+				case h.Websocket.DataHandler <- err:
+				default:
+					log.Errorf(log.WebsocketMgr,
+						"%s websocket handle data error: %v",
+						h.Name,
+						err)
+				}
 			}
 		}
 	}

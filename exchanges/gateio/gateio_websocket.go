@@ -88,7 +88,6 @@ func (g *Gateio) WsConnect() error {
 		Message:     pingMessage,
 		MessageType: websocket.TextMessage,
 	})
-	g.Websocket.Wg.Add(1)
 	go g.wsReadConnData()
 	return nil
 }
@@ -104,20 +103,26 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, dtime time.T
 
 // wsReadConnData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadConnData() {
-	defer g.Websocket.Wg.Done()
 	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Spot)
 		return
 	}
+	spotWebsocket.Wg.Add(1)
+	defer spotWebsocket.Wg.Done()
 	for {
-		resp := spotWebsocket.Conn.ReadMessage()
-		if resp.Raw == nil {
+		select {
+		case <-spotWebsocket.ShutdownC:
 			return
-		}
-		err := g.wsHandleData(resp.Raw)
-		if err != nil {
-			g.Websocket.DataHandler <- err
+		default:
+			resp := spotWebsocket.Conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			err := g.wsHandleData(resp.Raw)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
 		}
 	}
 }
