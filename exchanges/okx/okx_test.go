@@ -3380,7 +3380,6 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
 	_, err := ok.GetFuturesContractDetails(context.Background(), asset.Spot)
 	if !errors.Is(err, futures.ErrNotFuturesAsset) {
 		t.Error(err)
