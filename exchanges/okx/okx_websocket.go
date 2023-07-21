@@ -536,7 +536,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
-	// fmt.Println("RAW DATA: ", string(respRaw))
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -730,22 +729,6 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	return nil
 }
 
-// WsOrderbook5 stores the orderbook data for orderbook 5 websocket
-type WsOrderbook5 struct {
-	Argument struct {
-		Channel      string `json:"channel"`
-		InstrumentID string `json:"instId"`
-	} `json:"arg"`
-	Data []Book5Data `json:"data"`
-}
-
-type Book5Data struct {
-	Asks         [][4]string `json:"asks"`
-	Bids         [][4]string `json:"bids"`
-	InstrumentID string      `json:"instId"`
-	Ts           int64       `json:"ts,string"`
-}
-
 // wsProcessOrderbook5 processes orderbook data
 func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	var resp WsOrderbook5
@@ -816,7 +799,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 			Asset:           assets[x],
 			Asks:            asks,
 			Bids:            bids,
-			LastUpdated:     time.UnixMilli(resp.Data[0].Ts),
+			LastUpdated:     time.UnixMilli(resp.Data[0].TimestampMilli),
 			Pair:            pair,
 			Exchange:        ok.Name,
 			VerifyOrderbook: ok.CanVerifyOrderbook,
