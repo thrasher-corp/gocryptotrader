@@ -1526,7 +1526,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					}
 					params["key"] = "trade:1m:" + prefix + enabledPairs[k].String() + fundingPeriod
 				} else {
-					params["symbol"] = enabledPairs[k].String()
+					params["symbol"] = enabledPairs[k].Format(currency.EMPTYFORMAT).Upper().String()
 				}
 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
