@@ -2170,14 +2170,14 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	if err != nil {
 		return nil, err
 	}
-
 	linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
 	if err != nil {
 		return nil, err
 	}
 
-	if item == asset.CoinMarginedFutures {
-		resp := make([]futures.Contract, 0, len(inverseContracts.List))
+	resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
+	switch item {
+	case asset.CoinMarginedFutures:
 		for i := range inverseContracts.List {
 			if inverseContracts.List[i].SettleCoin == "USDT" || inverseContracts.List[i].SettleCoin == "USDC" {
 				continue
@@ -2206,7 +2206,6 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			if contractType == "inverseperpetual" {
 				ct = futures.Perpetual
 			} else if contractType == "inversefutures" {
-				//
 				contractLength := e.Sub(s)
 				if contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration() {
 					ct = futures.HalfYearly
@@ -2228,10 +2227,6 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			})
 		}
 		return resp, nil
-	}
-
-	resp := make([]futures.Contract, 0, len(inverseContracts.List))
-	switch item {
 	case asset.USDCMarginedFutures:
 		var instruments []InstrumentInfo
 		for i := range linearContracts.List {
