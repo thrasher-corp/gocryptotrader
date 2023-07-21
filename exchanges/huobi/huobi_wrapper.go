@@ -2107,9 +2107,9 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 		}
 		resp := make([]futures.Contract, 0, len(result))
 		for x := range result {
-			contractSplitIndex := strings.Index(result[x].ContractCode, result[x].Symbol)
+			contractSplitIndex := strings.Split(result[x].ContractCode, currency.DashDelimiter)
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(result[x].ContractCode[0:contractSplitIndex], result[x].ContractCode[contractSplitIndex:])
+			cp, err = currency.NewPairFromStrings(contractSplitIndex[0], contractSplitIndex[1])
 			if err != nil {
 				return nil, err
 			}
@@ -2142,9 +2142,9 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 		}
 		resp := make([]futures.Contract, 0, len(result.Data))
 		for x := range result.Data {
-			contractSplitIndex := strings.Index(result.Data[x].ContractCode, result.Data[x].Symbol)
+			contractSplitIndex := strings.Split(result.Data[x].ContractCode, result.Data[x].Symbol)
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(result.Data[x].ContractCode[0:contractSplitIndex], result.Data[x].ContractCode[contractSplitIndex:])
+			cp, err = currency.NewPairFromStrings(result.Data[x].Symbol, contractSplitIndex[1])
 			if err != nil {
 				return nil, err
 			}

@@ -2775,4 +2775,8 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+	_, err = h.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
 }
