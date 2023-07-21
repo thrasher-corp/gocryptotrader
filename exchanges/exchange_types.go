@@ -164,12 +164,13 @@ type FeaturesEnabled struct {
 
 // FeaturesSupported stores the exchanges supported features
 type FeaturesSupported struct {
-	REST                  bool
-	RESTCapabilities      protocol.Features
-	Websocket             bool
-	WebsocketCapabilities protocol.Features
-	WithdrawPermissions   uint32
-	Kline                 kline.ExchangeCapabilitiesSupported
+	REST                                            bool
+	RESTCapabilities                                protocol.Features
+	Websocket                                       bool
+	WebsocketCapabilities                           protocol.Features
+	WebsocketMaxSubscriptionsPerConnectionSupported int
+	WithdrawPermissions                             uint32
+	Kline                                           kline.ExchangeCapabilitiesSupported
 }
 
 // Endpoints stores running url endpoints for exchanges

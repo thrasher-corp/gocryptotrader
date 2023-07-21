@@ -120,7 +120,8 @@ func (ok *Okx) SetDefaults() {
 				CancelOrders:           true,
 				ModifyOrder:            true,
 			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto,
+			WebsocketMaxSubscriptionsPerConnectionSupported: 240,
+			WithdrawPermissions:                             exchange.AutoWithdrawCrypto,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,

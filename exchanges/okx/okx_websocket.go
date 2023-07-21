@@ -358,6 +358,12 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
+	if operationSubscribe == operation && len(subscriptions) > int(ok.Features.Supports.WebsocketMaxSubscriptionsPerConnectionSupported) {
+		return fmt.Errorf("max amount of subscriptions per connection is %v, you tried to subscribe to %v channels",
+			ok.Features.Supports.WebsocketMaxSubscriptionsPerConnectionSupported,
+			len(subscriptions))
+	}
+
 	request := WSSubscriptionInformationList{
 		Operation: operation,
 		Arguments: []SubscriptionInfo{},
@@ -530,6 +536,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
+	// fmt.Println("RAW DATA: ", string(respRaw))
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -634,8 +641,9 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelPriceLimit:
 		var response WsMarkPrice
 		return ok.wsProcessPushData(respRaw, &response)
+	case okxChannelOrderBooks5:
+		return ok.wsProcessOrderbook5(respRaw)
 	case okxChannelOrderBooks,
-		okxChannelOrderBooks5,
 		okxChannelOrderBooks50TBT,
 		okxChannelBBOTBT,
 		okxChannelOrderBooksTBT:
@@ -722,11 +730,108 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	return nil
 }
 
+// WsOrderbook5 stores the orderbook data for orderbook 5 websocket
+type WsOrderbook5 struct {
+	Argument struct {
+		Channel      string `json:"channel"`
+		InstrumentID string `json:"instId"`
+	} `json:"arg"`
+	Data []Book5Data `json:"data"`
+}
+
+type Book5Data struct {
+	Asks         [][4]string `json:"asks"`
+	Bids         [][4]string `json:"bids"`
+	InstrumentID string      `json:"instId"`
+	Ts           int64       `json:"ts,string"`
+}
+
+// wsProcessOrderbook5 processes orderbook data
+func (ok *Okx) wsProcessOrderbook5(data []byte) error {
+	var resp WsOrderbook5
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+
+	assets, err := ok.GetAssetsFromInstrumentTypeOrID("", resp.Argument.InstrumentID)
+	if err != nil {
+		return err
+	}
+
+	for x := range assets {
+		var avail currency.Pairs
+		avail, err = ok.GetAvailablePairs(assets[x])
+		if err != nil {
+			return err
+		}
+
+		var pair currency.Pair
+		pair, err = avail.DeriveFrom(strings.Replace(resp.Argument.InstrumentID, "-", "", 1))
+		if err != nil {
+			return err
+		}
+
+		var enabled currency.Pairs
+		enabled, err = ok.GetEnabledPairs(assets[x])
+		if err != nil {
+			return err
+		}
+
+		if !enabled.Contains(pair, true) {
+			continue
+		}
+
+		if len(resp.Data) != 1 {
+			return fmt.Errorf("%s - no data returned", ok.Name)
+		}
+
+		asks := make([]orderbook.Item, len(resp.Data[0].Asks))
+		for x := range resp.Data[0].Asks {
+			asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
+			if err != nil {
+				return err
+			}
+
+			asks[x].Amount, err = strconv.ParseFloat(resp.Data[0].Asks[x][1], 64)
+			if err != nil {
+				return err
+			}
+		}
+
+		bids := make([]orderbook.Item, len(resp.Data[0].Bids))
+		for x := range resp.Data[0].Bids {
+			bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
+			if err != nil {
+				return err
+			}
+
+			bids[x].Amount, err = strconv.ParseFloat(resp.Data[0].Bids[x][1], 64)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Asset:           assets[x],
+			Asks:            asks,
+			Bids:            bids,
+			LastUpdated:     time.UnixMilli(resp.Data[0].Ts),
+			Pair:            pair,
+			Exchange:        ok.Name,
+			VerifyOrderbook: ok.CanVerifyOrderbook,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // wsProcessOrderBooks processes "snapshot" and "update" order book
 func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	var response WsOrderBook
-	var err error
-	err = json.Unmarshal(data, &response)
+	err := json.Unmarshal(data, &response)
 	if err != nil {
 		return err
 	}
@@ -1222,10 +1327,6 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 				Channel: subs[c],
 			})
 		}
-	}
-	if len(subscriptions) >= 240 {
-		log.Warnf(log.WebsocketMgr, "OKx has 240 subscription limit, only subscribing within limit. Requested %v", len(subscriptions))
-		subscriptions = subscriptions[:239]
 	}
 	return subscriptions, nil
 }
