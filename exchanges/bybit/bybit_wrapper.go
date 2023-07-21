@@ -2166,32 +2166,47 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 
+	inverseContracts, err := by.GetInstrumentInfo(ctx, "inverse", "", "", "", "", 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+	if err != nil {
+		return nil, err
+	}
+
 	if item == asset.CoinMarginedFutures {
-		result, err := by.GetInstrumentInfo(ctx, "inverse", "", "", "", "", 1000)
-		if err != nil {
-			return nil, err
-		}
-		resp := make([]futures.Contract, 0, len(result.List))
-		for i := range result.List {
+		resp := make([]futures.Contract, 0, len(inverseContracts.List))
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin == "USDT" || inverseContracts.List[i].SettleCoin == "USDC" {
+				continue
+			}
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromString(result.List[i].Symbol)
+			splitCoin := strings.Split(inverseContracts.List[i].Symbol, inverseContracts.List[i].BaseCoin)
+			if len(splitCoin) != 2 {
+				continue
+			}
+
+			cp, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, splitCoin[1])
 			if err != nil {
 				return nil, err
 			}
 
-			underlying, err = currency.NewPairFromStrings(result.List[i].BaseCoin, result.List[i].QuoteCoin)
+			underlying, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, inverseContracts.List[i].QuoteCoin)
 			if err != nil {
 				return nil, err
 			}
-			contractType := strings.ToLower(result.List[i].ContractType)
+			contractType := strings.ToLower(inverseContracts.List[i].ContractType)
 			var s, e time.Time
-			s = time.UnixMilli(int64(result.List[i].LaunchTime.Float64()))
-			e = time.UnixMilli(int64(result.List[i].DeliveryTime.Float64()))
+			s = time.UnixMilli(int64(inverseContracts.List[i].LaunchTime.Float64()))
+			e = time.UnixMilli(int64(inverseContracts.List[i].DeliveryTime.Float64()))
 
 			var ct futures.ContractType
 			if contractType == "inverseperpetual" {
 				ct = futures.Perpetual
 			} else if contractType == "inversefutures" {
+				//
 				contractLength := e.Sub(s)
 				if contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration() {
 					ct = futures.HalfYearly
@@ -2206,40 +2221,50 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                item,
 				StartDate:            s,
 				EndDate:              e,
-				IsActive:             strings.EqualFold(result.List[i].Status, "trading"),
+				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
 				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(result.List[i].SettleCoin)},
-				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
+				SettlementCurrencies: currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
+				MaxLeverage:          inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 			})
 		}
 		return resp, nil
 	}
 
-	result, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]futures.Contract, 0, len(result.List))
+	resp := make([]futures.Contract, 0, len(inverseContracts.List))
 	switch item {
 	case asset.USDCMarginedFutures:
-		for i := range result.List {
-			if result.List[i].SettleCoin != "USDC" {
+		var instruments []InstrumentInfo
+		for i := range linearContracts.List {
+			if linearContracts.List[i].SettleCoin != "USDC" {
+				continue
+			}
+			instruments = append(instruments, linearContracts.List[i])
+		}
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin != "USDC" {
+				continue
+			}
+			instruments = append(instruments, inverseContracts.List[i])
+		}
+		for i := range instruments {
+			splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
+			if len(splitCoin) != 2 {
 				continue
 			}
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromString(result.List[i].Symbol)
+			cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
 			if err != nil {
 				return nil, err
 			}
 
-			underlying, err = currency.NewPairFromStrings(result.List[i].BaseCoin, result.List[i].QuoteCoin)
+			underlying, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].QuoteCoin)
 			if err != nil {
 				return nil, err
 			}
-			contractType := strings.ToLower(result.List[i].ContractType)
+			contractType := strings.ToLower(instruments[i].ContractType)
 			var s, e time.Time
-			s = time.UnixMilli(int64(result.List[i].LaunchTime.Float64()))
-			e = time.UnixMilli(int64(result.List[i].DeliveryTime.Float64()))
+			s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
+			e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
 
 			var ct futures.ContractType
 			if contractType == "linearperpetual" {
@@ -2264,32 +2289,46 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                item,
 				StartDate:            s,
 				EndDate:              e,
-				IsActive:             strings.EqualFold(result.List[i].Status, "trading"),
+				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDC},
-				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
+				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
 			})
 		}
 		return resp, nil
 	case asset.USDTMarginedFutures:
-		for i := range result.List {
-			if result.List[i].SettleCoin != "USDT" {
+		var instruments []InstrumentInfo
+		for i := range linearContracts.List {
+			if linearContracts.List[i].SettleCoin != "USDT" {
+				continue
+			}
+			instruments = append(instruments, linearContracts.List[i])
+		}
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin != "USDT" {
+				continue
+			}
+			instruments = append(instruments, inverseContracts.List[i])
+		}
+		for i := range instruments {
+			splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
+			if len(splitCoin) != 2 {
 				continue
 			}
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromString(result.List[i].Symbol)
+			cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
 			if err != nil {
 				return nil, err
 			}
 
-			underlying, err = currency.NewPairFromStrings(result.List[i].BaseCoin, result.List[i].QuoteCoin)
+			underlying, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].QuoteCoin)
 			if err != nil {
 				return nil, err
 			}
-			contractType := strings.ToLower(result.List[i].ContractType)
+			contractType := strings.ToLower(instruments[i].ContractType)
 			var s, e time.Time
-			s = time.UnixMilli(int64(result.List[i].LaunchTime.Float64()))
-			e = time.UnixMilli(int64(result.List[i].DeliveryTime.Float64()))
+			s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
+			e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
 
 			var ct futures.ContractType
 			if contractType == "linearperpetual" {
@@ -2314,10 +2353,10 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                item,
 				StartDate:            s,
 				EndDate:              e,
-				IsActive:             strings.EqualFold(result.List[i].Status, "trading"),
+				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDT},
-				MaxLeverage:          result.List[i].LeverageFilter.MaxLeverage.Float64(),
+				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
 			})
 		}
 		return resp, nil
