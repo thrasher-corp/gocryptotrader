@@ -100,12 +100,6 @@ func (by *Bybit) WsCoinConnect() error {
 	go by.wsCoinReadData(cfuturesWebsocket.Conn)
 	by.Websocket.SetCanUseAuthenticatedEndpoints(true, asset.CoinMarginedFutures)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		var dialer websocket.Dialer
-		err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
-		if err != nil {
-			return err
-		}
-		go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
 		err = by.WsCoinAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
@@ -152,7 +146,12 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	var dialer websocket.Dialer
+	err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
