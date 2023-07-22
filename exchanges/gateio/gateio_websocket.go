@@ -60,7 +60,7 @@ var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
-	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
+	if !g.Websocket.IsEnabled() || !g.IsEnabled() || !g.IsAssetWebsocketSupported(asset.Spot) {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	spotWebsocket, err := g.Websocket.GetAssetWebsocket(asset.Spot)

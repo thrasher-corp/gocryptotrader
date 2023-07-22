@@ -71,7 +71,7 @@ var (
 
 // WsCoinConnect connects to a CMF websocket feed
 func (by *Bybit) WsCoinConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
@@ -100,6 +100,12 @@ func (by *Bybit) WsCoinConnect() error {
 	go by.wsCoinReadData(cfuturesWebsocket.Conn)
 	by.Websocket.SetCanUseAuthenticatedEndpoints(true, asset.CoinMarginedFutures)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
+		var dialer websocket.Dialer
+		err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
+		if err != nil {
+			return err
+		}
+		go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
 		err = by.WsCoinAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
@@ -147,12 +153,6 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		return err
 	}
 
-	var dialer websocket.Dialer
-	err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -310,18 +310,8 @@ func (by *Bybit) wsCoinHandleResp(wsFuturesResp *WsFuturesResp) error {
 			if err != nil {
 				return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
 			}
-			switch wsFuturesResp.RetMsg {
-			case "error:request expired":
-				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - retrying..", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
-				err = by.WsCoinAuth(context.TODO())
-				if err != nil {
-					cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
-					return err
-				}
-			default:
-				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
-				cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
-			}
+			log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
+			cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
 			return nil
 		}
 		if by.Verbose {
@@ -342,6 +332,7 @@ func (by *Bybit) wsCoinHandleResp(wsFuturesResp *WsFuturesResp) error {
 }
 
 func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {

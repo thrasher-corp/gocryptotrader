@@ -41,7 +41,7 @@ var (
 
 // WsUSDTConnect connects to a USDT websocket feed
 func (by *Bybit) WsUSDTConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.USDTMarginedFutures) {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	ufuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)

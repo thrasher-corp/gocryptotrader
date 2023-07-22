@@ -35,7 +35,7 @@ var defaultFuturesSubscriptionChannels = []string{
 
 // WsFuturesConnect connects to a Futures websocket feed
 func (by *Bybit) WsFuturesConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Futures) {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
