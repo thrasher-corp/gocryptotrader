@@ -367,7 +367,7 @@ func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	}
 
 	if err := k.LoadLimits(limits); err != nil {
-		return fmt.Errorf("%s Error loading %s exchange limits: %v", k.Name, a, err)
+		return fmt.Errorf("%s Error loading %s exchange limits: %w", k.Name, a, err)
 	}
 
 	return nil
