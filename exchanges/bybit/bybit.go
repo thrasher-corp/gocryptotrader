@@ -37,34 +37,6 @@ const (
 	sideBuy  = "Buy"
 	sideSell = "Sell"
 
-	// Public endpoints
-	bybitSpotGetSymbols   = "/spot/v1/symbols"
-	bybitCandlestickChart = "/spot/quote/v1/kline"
-	bybitOrderBook        = "/spot/quote/v1/depth"
-	bybitRecentTrades     = "/spot/quote/v1/trades"
-	bybit24HrsChange      = "/spot/quote/v1/ticker/24hr"
-	bybitLastTradedPrice  = "/spot/quote/v1/ticker/price"
-	bybitMergedOrderBook  = "/spot/quote/v1/depth/merged"
-	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
-	// bybitGetTickersV5     = "/v5/market/tickers"
-
-	// Authenticated endpoints
-	bybitSpotOrder                = "/spot/v1/order" // create, query, cancel
-	bybitFastCancelSpotOrder      = "/spot/v1/order/fast"
-	bybitBatchCancelSpotOrder     = "/spot/order/batch-cancel"
-	bybitFastBatchCancelSpotOrder = "/spot/order/batch-fast-cancel"
-	bybitBatchCancelByIDs         = "/spot/order/batch-cancel-by-ids"
-	bybitOpenOrder                = "/spot/v1/open-orders"
-	bybitPastOrder                = "/spot/v1/history-orders"
-	bybitTradeHistory             = "/spot/v1/myTrades"
-	bybitWalletBalance            = "/spot/v1/account"
-	bybitServerTime               = "/spot/v1/time"
-	bybitAccountFee               = "/v5/account/fee-rate"
-
-	// Account asset endpoint
-	bybitGetDepositAddress = "/asset/v1/private/deposit/address"
-	bybitWithdrawFund      = "/asset/v1/private/withdraw"
-
 	// --------- New ----------------------------------------------------------------
 	instrumentsInfo            = "market/instruments-info"
 	klineInfos                 = "market/kline"
@@ -209,6 +181,12 @@ func stringToInterval(s string) (kline.Interval, error) {
 	default:
 		return 0, kline.ErrInvalidInterval
 	}
+}
+
+// GetBybitServerTime retrieves bybit server time
+func (by *Bybit) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
+	var resp ServerTime
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, "/v5/market/time", publicSpotRate, &resp)
 }
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
@@ -2507,7 +2485,6 @@ func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor stri
 // 	if err != nil {
 // 		return nil, err
 // 	}
-
 // 	return result.Data, nil
 // }
 

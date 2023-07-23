@@ -1188,9 +1188,10 @@
      "configFormat": {
       "uppercase": true
      },
-     "useGlobalFormat": true,
+     "useGlobalFormat": false,
      "assetTypes": [
       "spot",
+      "margin",
       "linear",
       "inverse",
       "options"

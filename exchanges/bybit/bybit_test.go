@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -22,8 +23,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "s4PX4VwwVXPh5LiF83"
+	apiSecret               = "3Ap7GeFGW7EExS8AOgtmwpeB5bRTU34BFjjD"
 	canManipulateRealOrders = false
 )
 
@@ -44,6 +45,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
+	exchCfg.Enabled = true
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.AuthenticatedWebsocketSupport = false
 	exchCfg.API.Credentials.Key = apiKey
@@ -53,11 +55,6 @@ func TestMain(m *testing.M) {
 	err = b.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	err = fetchTradablePairs()
-	if err != nil {
-		log.Fatalf("%s %v", b.Name, err)
 	}
 
 	// Turn on all pairs for testing
@@ -72,6 +69,11 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	err = instantiateTradablePairs()
+	if err != nil {
+		log.Fatalf("%s %v", b.Name, err)
 	}
 	os.Exit(m.Run())
 }
@@ -2165,49 +2167,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
-// func TestGetRecentTrades(t *testing.T) {
-// 	t.Parallel()
-// 	pair, err := currency.NewPairFromString("BTCUSDT")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	_, err = b.GetRecentTrades(context.Background(), pair, asset.Spot)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.GetRecentTrades(context.Background(), pair, asset.USDTMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	pair1, err := currency.NewPairFromString("BTCUSD")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	_, err = b.GetRecentTrades(context.Background(), pair1, asset.CoinMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.GetRecentTrades(context.Background(), pair1, asset.Futures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	pair2, err := currency.NewPairFromString("BTCPERP")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	_, err = b.GetRecentTrades(context.Background(), pair2, asset.USDCMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
-
 // func TestGetHistoricCandles(t *testing.T) {
 // 	t.Parallel()
 // 	pair, err := currency.NewPairFromString("BTCUSDT")
@@ -2833,21 +2792,6 @@ func TestUpdateOrderbook(t *testing.T) {
 // 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUSDC)
 // 	if err != nil {
 // 		t.Error(err)
-// 	}
-// }
-
-// func TestGetWithdrawalsHistory(t *testing.T) {
-// 	t.Parallel()
-// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-// 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.CoinMarginedFutures)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	_, err = b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
-// 	if err == nil {
-// 		t.Error("GetWithdrawalsHistory() Spot Expected error")
 // 	}
 // }
 
@@ -4283,10 +4227,12 @@ func TestGetPreUpgradeUSDCSessionSettlement(t *testing.T) {
 func TestGetWalletBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetWalletBalance(context.Background(), "SPOT", "")
+	result, err := b.GetWalletBalance(context.Background(), "UNIFIED", "")
 	if err != nil {
 		t.Fatal(err)
+	} else {
+		val, _ := json.Marshal(result)
+		println(string(val))
 	}
 }
 
@@ -5251,7 +5197,7 @@ func TestGetBrokerEarning(t *testing.T) {
 	}
 }
 
-func fetchTradablePairs() error {
+func instantiateTradablePairs() error {
 	err := b.UpdateTradablePairs(context.Background(), true)
 	if err != nil {
 		return err
@@ -5277,4 +5223,97 @@ func fetchTradablePairs() error {
 	}
 	optionsTradablePair = tradables[0]
 	return nil
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.UpdateAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.CoinMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+	results, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error("GetWithdrawalsHistory()", err)
+	} else {
+		val, _ := json.Marshal(results)
+		println(string(val))
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair, asset.Options)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair1, asset.Inverse)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair2, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair2, asset.Linear)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetRecentTrades(context.Background(), pair1, asset.CoinMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestGetBybitServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetBybitServerTime(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetServerTime(context.Background(), asset.Empty)
+	if err != nil {
+		t.Error(err)
+	}
 }

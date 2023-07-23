@@ -57,32 +57,32 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresKey = true
 	by.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true}
-
-	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Linear, asset.Inverse)
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
+	requestFormat := &currency.PairFormat{Uppercase: true}
+	spotPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
+	err := by.StoreAssetPairFormat(asset.Spot, spotPairStore)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.Spot, err)
 	}
-
-	spotLinearInversePairStore := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true}}
-	err = by.StoreAssetPairFormat(asset.Spot, spotLinearInversePairStore)
+	marginPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
+	err = by.StoreAssetPairFormat(asset.Margin, marginPairStore)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.Margin, err)
 	}
-	err = by.StoreAssetPairFormat(asset.Linear, spotLinearInversePairStore)
+	linearPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
+	err = by.StoreAssetPairFormat(asset.Linear, linearPairStore)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.Linear, err)
 	}
-	err = by.StoreAssetPairFormat(asset.Inverse, spotLinearInversePairStore)
+	inversePairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
+	err = by.StoreAssetPairFormat(asset.Inverse, inversePairStore)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.Inverse, err)
 	}
-	err = by.StoreAssetPairFormat(asset.Options, currency.PairStore{RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, ConfigFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
+	optionPairStore := currency.PairStore{RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, ConfigFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}}
+	err = by.StoreAssetPairFormat(asset.Options, optionPairStore)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.Options, err)
 	}
 
 	err = by.DisableAssetWebsocketSupport(asset.Inverse)
@@ -204,7 +204,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	if !exch.Enabled {
 		by.SetEnabled(false)
 		return nil
@@ -304,7 +303,7 @@ func (by *Bybit) Run(ctx context.Context) {
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var pair currency.Pair
 	switch a {
-	case asset.Spot, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.Margin, asset.Linear, asset.Inverse:
 		allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", "", "", 0)
 		if err != nil {
 			return nil, err
@@ -343,7 +342,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 func getCategoryName(a asset.Item) string {
 	switch a {
-	case asset.Spot, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.Margin, asset.Linear, asset.Inverse:
 		return a.String()
 	case asset.Options:
 		return "option"
@@ -355,12 +354,14 @@ func getCategoryName(a asset.Item) string {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := by.GetAssetTypes(false)
+	assetTypes := by.GetAssetTypes(true)
+	println("\n\n\n", assetTypes.JoinToString(","), "\n\n\n")
 	for i := range assetTypes {
 		pairs, err := by.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}
+		println(pairs.Join())
 		err = by.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
 		if err != nil {
 			return err
@@ -508,65 +509,45 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(by.Name, formattedPair, assetType)
 }
 
+func getAccountType(a asset.Item) string {
+	switch a {
+	case asset.Spot, asset.Linear, asset.Options:
+		return "UNIFIED"
+	default:
+		return "CONTRACT"
+	}
+}
+
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = by.Name
 	switch assetType {
-	case asset.Spot:
-		balances, err := by.GetWalletBalance(ctx, "SPOT", "")
+	case asset.Spot, asset.Options, asset.Linear, asset.Inverse:
+		balances, err := by.GetWalletBalance(ctx, getAccountType(assetType), "")
 		if err != nil {
 			return info, err
 		}
 
-		currencyBalance := make([]account.Balance, len(balances.List))
+		currencyBalance := []account.Balance{}
 		for i := range balances.List {
-			currencyBalance[i] = account.Balance{
-				// Currency: currency.NewCode(balances.List[i].CoinName),
-				// Total:    balances.List[i].TotalWalletBalance.Float64(),
-				// Hold:     balances.List[i].Float64(),
-				// Free:     balances.List[i].Total.Float64() - balances.List[i].Locked.Float64(),
+			for c := range balances.List[i].Coin {
+				balance := account.Balance{
+					Currency: currency.NewCode(balances.List[i].Coin[0].Coin),
+					Total:    balances.List[i].TotalWalletBalance.Float64(),
+					Free:     balances.List[i].Coin[0].AvailableToWithdraw.Float64(),
+					// AvailableWithoutBorrow: balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+					Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
+					Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+				}
+				if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
+					balance.Free = balances.List[i].Coin[0].AvailableBalanceForSpot.Float64()
+				}
+				currencyBalance = append(currencyBalance, balance)
 			}
 		}
-
 		acc.Currencies = currencyBalance
-
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		// balances, err := by.GetFutureWalletBalance(ctx, "")
-		// if err != nil {
-		// 	return info, err
-		// }
-
-		// var i int
-		// currencyBalance := make([]account.Balance, len(balances))
-		// for coinName, data := range balances {
-		// 	currencyBalance[i] = account.Balance{
-		// 		Currency: currency.NewCode(coinName),
-		// 		Total:    data.WalletBalance,
-		// 		Hold:     data.WalletBalance - data.AvailableBalance,
-		// 		Free:     data.AvailableBalance,
-		// 	}
-		// 	i++
-		// }
-
-		// acc.Currencies = currencyBalance
-
-	case asset.USDCMarginedFutures:
-		balance, err := by.GetUSDCWalletBalance(ctx)
-		if err != nil {
-			return info, err
-		}
-
-		acc.Currencies = []account.Balance{
-			{
-				Currency: currency.USD,
-				Total:    balance.WalletBalance.Float64(),
-				Hold:     balance.WalletBalance.Float64() - balance.AvailableBalance.Float64(),
-				Free:     balance.AvailableBalance.Float64(),
-			},
-		}
-
 	default:
 		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
@@ -606,25 +587,25 @@ func (by *Bybit) GetAccountFundingHistory(_ context.Context) ([]exchange.Funding
 // GetWithdrawalsHistory returns previous withdrawals data
 func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	switch a {
-	case asset.CoinMarginedFutures:
-		// w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", c, 0, 0)
-		// if err != nil {
-		// 	return nil, err
-		// }
+	case asset.Spot, asset.Margin, asset.Options, asset.Linear, asset.Inverse:
+		withdrawals, err := by.GetWithdrawalRecords(ctx, c, "", "2", "", time.Time{}, time.Time{}, 0)
+		if err != nil {
+			return nil, err
+		}
 
-		withdrawHistory := make([]exchange.WithdrawalHistory, 9)
-		// for i := range w {
-		// 	withdrawHistory[i] = exchange.WithdrawalHistory{
-		// 		Status:          w[i].Status,
-		// 		TransferID:      strconv.FormatInt(w[i].ID, 10),
-		// 		Currency:        w[i].Coin,
-		// 		Amount:          w[i].Amount.Float64(),
-		// 		Fee:             w[i].Fee,
-		// 		CryptoToAddress: w[i].Address,
-		// 		CryptoTxID:      w[i].TxID,
-		// 		Timestamp:       w[i].UpdatedAt,
-		// 	}
-		// }
+		withdrawHistory := make([]exchange.WithdrawalHistory, len(withdrawals.Rows))
+		for i := range withdrawals.Rows {
+			withdrawHistory[i] = exchange.WithdrawalHistory{
+				TransferID:      withdrawals.Rows[i].WithdrawID,
+				Status:          withdrawals.Rows[i].Status,
+				Currency:        withdrawals.Rows[i].Coin,
+				Amount:          withdrawals.Rows[i].Amount.Float64(),
+				Fee:             withdrawals.Rows[i].WithdrawFee.Float64(),
+				CryptoToAddress: withdrawals.Rows[i].ToAddress,
+				CryptoTxID:      withdrawals.Rows[i].TransactionID,
+				Timestamp:       withdrawals.Rows[i].UpdateTime.Time(),
+			}
+		}
 		return withdrawHistory, nil
 	default:
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
@@ -639,78 +620,37 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-
+	limit := int64(500)
+	if assetType == asset.Spot {
+		limit = 60
+	}
+	var tradeData *TradingHistory
 	switch assetType {
-	case asset.Spot:
-		// tradeData, err := by.GetTrades(ctx, formattedPair.String(), 0)
-		// if err != nil {
-		// 	return nil, err
-		// }
-
-		// for i := range tradeData {
-		// 	resp = append(resp, trade.Data{
-		// 		Exchange:     by.Name,
-		// 		CurrencyPair: p,
-		// 		AssetType:    assetType,
-		// 		Price:        tradeData[i].Price,
-		// 		Amount:       tradeData[i].Volume,
-		// 		Timestamp:    tradeData[i].Time,
-		// 	})
-		// }
-
-	case asset.CoinMarginedFutures, asset.Futures:
-		tradeData, err := by.GetPublicTrades(ctx, formattedPair, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range tradeData {
-			resp = append(resp, trade.Data{
-				Exchange:     by.Name,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Qty,
-				Timestamp:    tradeData[i].Time,
-			})
-		}
-
-	case asset.USDTMarginedFutures:
-		tradeData, err := by.GetUSDTPublicTrades(ctx, formattedPair, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range tradeData {
-			resp = append(resp, trade.Data{
-				Exchange:     by.Name,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Qty,
-				Timestamp:    tradeData[i].Time,
-			})
-		}
-
-	case asset.USDCMarginedFutures:
-		tradeData, err := by.GetUSDCLatestTrades(ctx, formattedPair, "PERPETUAL", 0)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range tradeData {
-			resp = append(resp, trade.Data{
-				Exchange:     by.Name,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Price:        tradeData[i].OrderPrice.Float64(),
-				Amount:       tradeData[i].OrderQty.Float64(),
-				Timestamp:    tradeData[i].Timestamp.Time(),
-			})
-		}
-
+	case asset.Spot, asset.Linear, asset.Inverse:
+		tradeData, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), "", "", limit)
+	case asset.Options:
+		tradeData, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), formattedPair.Base.String(), "", limit)
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	}
+	if err != nil {
+		return nil, err
+	}
+	for i := range tradeData.List {
+		side, err := order.StringToOrderSide(tradeData.List[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     by.Name,
+			CurrencyPair: formattedPair,
+			AssetType:    assetType,
+			Price:        tradeData.List[i].Price.Float64(),
+			Amount:       tradeData.List[i].Size.Float64(),
+			Timestamp:    tradeData.List[i].TradeTime.Time(),
+			TID:          tradeData.List[i].ExecutionID,
+			Side:         side,
+		})
 	}
 
 	if by.IsSaveTradeDataEnabled() {
@@ -754,7 +694,36 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	var orderID string
 	status := order.New
 	switch s.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Options, asset.Linear, asset.Inverse:
+		by.PlaceOrder(ctx, &PlaceOrderParams{
+			Category:        getCategoryName(s.AssetType),
+			Symbol:          formattedPair,
+			Side:            s.Side.String(),
+			OrderType:       s.Type.String(),
+			OrderQuantity:   s.Amount,
+			Price:           s.Price,
+			OrderLinkID:     s.ClientOrderID,
+			WhetherToBorrow: s.AssetType == asset.Margin,
+			ReduceOnly:      s.ReduceOnly,
+			// TriggerDirection: s.TriggerPrice.Float64()
+			TriggerPrice: s.TriggerPrice,
+			// TriggerPriceType: s.Trigger
+			// OrderImpliedVolatility
+			// PositionIdx
+			// ReduceOnly
+			// TakeProfitPrice
+			// TakeProfitTriggerBy
+			// StopLossTriggerBy
+			// StopLossPrice
+			// CloseOnTrigger
+			// SMPExecutionType
+			// MarketMakerProtection
+			// TpslMode
+			// TpOrderType
+			// SlOrderType
+			// TpLimitPrice
+			// SlLimitPrice
+		})
 		// timeInForce := BybitRequestParamsTimeGTC
 		// var requestParamsOrderType string
 		// switch s.Type {
@@ -1805,22 +1774,12 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 }
 
 // GetServerTime returns the current exchange server time.
-func (by *Bybit) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
-	switch a {
-	case asset.Spot:
-		// info, err := by.GetSpotServerTime(ctx)
-		// if err != nil {
-		// 	return time.Time{}, err
-		// }
-		// return info, nil
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures, asset.USDCMarginedFutures:
-		// info, err := by.GetFuturesServerTime(ctx)
-		// if err != nil {
-		// 	return time.Time{}, err
-		// }
-		// return info, nil
+func (by *Bybit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	info, err := by.GetBybitServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
 	}
-	return time.Time{}, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	return info.TimeNano.Time(), err
 }
 
 func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {

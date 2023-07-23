@@ -1718,20 +1718,21 @@ type WalletBalance struct {
 		AccountLTV             string                  `json:"accountLTV"` // Account LTV: account total borrowed size / (account total equity + account total borrowed size).
 		TotalMaintenanceMargin convert.StringToFloat64 `json:"totalMaintenanceMargin"`
 		Coin                   []struct {
-			AvailableToBorrow      convert.StringToFloat64 `json:"availableToBorrow"`
-			Bonus                  convert.StringToFloat64 `json:"bonus"`
-			AccruedInterest        string                  `json:"accruedInterest"`
-			AvailableToWithdraw    convert.StringToFloat64 `json:"availableToWithdraw"`
-			TotalOrderIM           string                  `json:"totalOrderIM"`
-			Equity                 convert.StringToFloat64 `json:"equity"`
-			TotalPositionMM        string                  `json:"totalPositionMM"`
-			USDValue               convert.StringToFloat64 `json:"usdValue"`
-			UnrealisedPnl          convert.StringToFloat64 `json:"unrealisedPnl"`
-			BorrowAmount           convert.StringToFloat64 `json:"borrowAmount"`
-			TotalPositionIM        string                  `json:"totalPositionIM"`
-			WalletBalance          convert.StringToFloat64 `json:"walletBalance"`
-			CummulativeRealisedPnl convert.StringToFloat64 `json:"cumRealisedPnl"`
-			Coin                   string                  `json:"coin"`
+			AvailableToBorrow       convert.StringToFloat64 `json:"availableToBorrow"`
+			Bonus                   convert.StringToFloat64 `json:"bonus"`
+			AccruedInterest         string                  `json:"accruedInterest"`
+			AvailableToWithdraw     convert.StringToFloat64 `json:"availableToWithdraw"`
+			AvailableBalanceForSpot convert.StringToFloat64 `json:"free"`
+			TotalOrderIM            string                  `json:"totalOrderIM"`
+			Equity                  convert.StringToFloat64 `json:"equity"`
+			TotalPositionMM         string                  `json:"totalPositionMM"`
+			USDValue                convert.StringToFloat64 `json:"usdValue"`
+			UnrealisedPnl           convert.StringToFloat64 `json:"unrealisedPnl"`
+			BorrowAmount            convert.StringToFloat64 `json:"borrowAmount"`
+			TotalPositionIM         string                  `json:"totalPositionIM"`
+			WalletBalance           convert.StringToFloat64 `json:"walletBalance"`
+			CummulativeRealisedPnl  convert.StringToFloat64 `json:"cumRealisedPnl"`
+			Coin                    string                  `json:"coin"`
 		} `json:"coin"`
 	} `json:"list"`
 }
@@ -2466,4 +2467,10 @@ type BrokerEarningItem struct {
 	Earning  string               `json:"earning"`
 	OrderID  string               `json:"orderId"`
 	ExecTime convert.ExchangeTime `json:"execTime"`
+}
+
+// ServerTime represents server time
+type ServerTime struct {
+	TimeSecond convert.ExchangeTime `json:"timeSecond"`
+	TimeNano   convert.ExchangeTime `json:"timeNano"`
 }
