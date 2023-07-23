@@ -1914,11 +1914,12 @@ const (
 	advancedAlgoOrderChannelPushData = `{ "event": "subscribe", "arg": { "channel": "algo-advance", "instType": "SPOT", "instId": "BTC-USD" } }`
 
 	// public
-	instrumentsChannelPushData = `{"event": "subscribe","arg":{"channel":"instruments","instType":"SPOT"}}`
-	tickersChannelPushData     = `{"arg": { "channel": "tickers", "instId": "BTC-USD" }, "data": [ { "instType": "SPOT", "instId": "BTC-USD", "last": "16838.75", "lastSz": "0.0027", "askPx": "16838.75", "askSz": "0.0275", "bidPx": "16836.5", "bidSz": "0.0404", "open24h": "16762.13", "high24h": "16943.44", "low24h": "16629.04", "sodUtc0": "16688.74", "sodUtc8": "16700.35", "volCcy24h": "3016898.9552", "vol24h": "179.6477", "ts": "1672842446928"}]}`
-	candlestickChannelPushData = `{ "arg": { "channel": "candle1m", "instId": "BTC-USD" }, "data": [ [ "1672913160000", "16837.25", "16837.25", "16837.25", "16837.25", "0.0438", "737.4716", "737.4716", "1" ] ] }`
-	tradesPushData             = `{ "arg": { "channel": "trades", "instId": "BTC-USD" }, "data": [ { "instId": "BTC-USD", "tradeId": "130639474", "px": "42219.9", "sz": "0.12060306", "side": "buy", "ts": "1630048897897"}]}`
-	statusChannelPushData      = `{"arg": { "channel": "status" }, "data": [{ "title": "Spot System Upgrade", "state": "scheduled", "begin": "1610019546", "href": "", "end": "1610019546", "serviceType": "1", "system": "classic", "scheDesc": "", "ts": "1597026383085"}]}`
+	instrumentsChannelPushData     = `{"event": "subscribe","arg":{"channel":"instruments","instType":"SPOT"}}`
+	instrumentsDataChannelPushData = `{ "arg": { "channel": "instruments", "instType": "SPOT" }, "data": [ { "alias": "", "baseCcy": "BTC", "category": "1", "ctMult": "", "ctType": "", "ctVal": "", "ctValCcy": "", "expTime": "", "instFamily": "", "instId": "BTC-USD", "instType": "SPOT", "lever": "", "listTime": "", "lotSz": "0.0001", "maxIcebergSz": "", "maxLmtSz": "99999999999999", "maxMktSz": "1000000", "maxStopSz": "1000000", "maxTriggerSz": "", "maxTwapSz": "", "minSz": "0.0001", "optType": "", "quoteCcy": "USD", "settleCcy": "", "state": "live", "stk": "", "tickSz": "0.01", "uly": "" } ] }`
+	tickersChannelPushData         = `{"arg": { "channel": "tickers", "instId": "BTC-USD" }, "data": [ { "instType": "SPOT", "instId": "BTC-USD", "last": "16838.75", "lastSz": "0.0027", "askPx": "16838.75", "askSz": "0.0275", "bidPx": "16836.5", "bidSz": "0.0404", "open24h": "16762.13", "high24h": "16943.44", "low24h": "16629.04", "sodUtc0": "16688.74", "sodUtc8": "16700.35", "volCcy24h": "3016898.9552", "vol24h": "179.6477", "ts": "1672842446928"}]}`
+	candlestickChannelPushData     = `{ "arg": { "channel": "candle1m", "instId": "BTC-USD" }, "data": [ [ "1672913160000", "16837.25", "16837.25", "16837.25", "16837.25", "0.0438", "737.4716", "737.4716", "1" ] ] }`
+	tradesPushData                 = `{ "arg": { "channel": "trades", "instId": "BTC-USD" }, "data": [ { "instId": "BTC-USD", "tradeId": "130639474", "px": "42219.9", "sz": "0.12060306", "side": "buy", "ts": "1630048897897"}]}`
+	statusChannelPushData          = `{"arg": { "channel": "status" }, "data": [{ "title": "Spot System Upgrade", "state": "scheduled", "begin": "1610019546", "href": "", "end": "1610019546", "serviceType": "1", "system": "classic", "scheDesc": "", "ts": "1597026383085"}]}`
 )
 
 func TestSubscriptionPushData(t *testing.T) {
@@ -1940,6 +1941,10 @@ func TestSubscriptionPushData(t *testing.T) {
 		t.Error(err)
 	}
 	err = o.WsHandleData([]byte(instrumentsChannelPushData))
+	if err != nil {
+		t.Error(err)
+	}
+	err = o.WsHandleData([]byte(instrumentsDataChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
@@ -2009,5 +2014,13 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 	if got := limits.MarketMaxQty; got != instrumentInfo[0].MaxMarketSize.Float64() {
 		t.Errorf("Okcoin UpdateOrderExecutionLimits MaxMarketSizize; Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MaxMarketSize.Float64(), got)
+	}
+}
+
+func TestReSubscribeSpecificOrderbook(t *testing.T) {
+	t.Parallel()
+	err := o.ReSubscribeSpecificOrderbook(wsOrderbooks, spotTradablePair)
+	if err != nil {
+		t.Error(err)
 	}
 }

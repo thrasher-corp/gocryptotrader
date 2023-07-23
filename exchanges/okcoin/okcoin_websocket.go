@@ -203,7 +203,7 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 			wsOrderbookL1,
 			wsOrderbookTickByTickL400,
 			wsOrderbookTickByTickL50:
-			return o.wsProcessOrderbook(respRaw)
+			return o.wsProcessOrderbook(respRaw, dataResponse.Arguments.Channel)
 		case wsStatus:
 			var resp WebsocketStatus
 			err = json.Unmarshal(respRaw, &resp)
@@ -328,7 +328,7 @@ func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	return nil
 }
 
-func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
+func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 	var resp WebsocketOrderbookResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -383,7 +383,17 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		return o.Websocket.Orderbook.LoadSnapshot(&base)
+		err = o.Websocket.Orderbook.LoadSnapshot(&base)
+		if err != nil {
+			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				err2 := o.ReSubscribeSpecificOrderbook(obChannel, base.Pair)
+				if err2 != nil {
+					return err2
+				}
+			}
+			return err
+		}
+		return nil
 	}
 	if len(resp.Data[0].Asks)+len(resp.Data[0].Bids) == 0 {
 		return nil
@@ -405,6 +415,12 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 	}
 	err = o.Websocket.Orderbook.Update(&update)
 	if err != nil {
+		if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+			err2 := o.ReSubscribeSpecificOrderbook(obChannel, update.Pair)
+			if err2 != nil {
+				return err2
+			}
+		}
 		return err
 	}
 	updatedOb, err := o.Websocket.Orderbook.GetOrderbook(cp, asset.Spot)
@@ -416,6 +432,19 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte) error {
 		return fmt.Errorf("checksum failed, calculated '%v' received '%v'", checksum, resp.Data)
 	}
 	return nil
+}
+
+// ReSubscribeSpecificOrderbook removes the subscription and the subscribes
+// again to fetch a new snapshot in the event of a de-sync event.
+func (o *Okcoin) ReSubscribeSpecificOrderbook(obChannel string, p currency.Pair) error {
+	subscription := []stream.ChannelSubscription{{
+		Channel:  obChannel,
+		Currency: p,
+	}}
+	if err := o.Unsubscribe(subscription); err != nil {
+		return err
+	}
+	return o.Subscribe(subscription)
 }
 
 // wsProcessInstruments converts instrument data and sends it to the datahandler

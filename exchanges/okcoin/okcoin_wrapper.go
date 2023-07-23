@@ -60,11 +60,7 @@ func (o *Okcoin) SetDefaults() {
 	o.API.CredentialsValidator.RequiresClientID = true
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	err := o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = o.DisableAssetWebsocketSupport(asset.Margin)
+	err := o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

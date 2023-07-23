@@ -2075,8 +2075,7 @@
     },
     "useGlobalFormat": true,
     "assetTypes": [
-     "spot",
-     "margin"
+     "spot"
     ],
     "pairs": {
      "spot": {
