@@ -337,6 +337,7 @@ type OpenInterest struct {
 // FundingRateResponse response data for the Funding Rate for an instruction type
 type FundingRateResponse struct {
 	FundingRate     convert.StringToFloat64 `json:"fundingRate"`
+	RealisedRate    convert.StringToFloat64 `json:"realizedRate"`
 	FundingTime     okxUnixMilliTime        `json:"fundingTime"`
 	InstrumentID    string                  `json:"instId"`
 	InstrumentType  string                  `json:"instType"`

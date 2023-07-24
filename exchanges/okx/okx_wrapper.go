@@ -1637,7 +1637,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 			}
 			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
 				Time: frh[i].FundingTime.Time(),
-				Rate: frh[i].FundingRate.Decimal(),
+				Rate: frh[i].RealisedRate.Decimal(),
 			})
 		}
 		if len(frh) < requestLimit {
