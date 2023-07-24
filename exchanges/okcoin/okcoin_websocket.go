@@ -55,10 +55,10 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	// wsTickers,
-	// wsCandle1D,
-	// wsTrades,
-	// wsOrderbooks,
+	wsTickers,
+	wsCandle1D,
+	wsTrades,
+	wsOrderbooks,
 	wsStatus,
 }
 
