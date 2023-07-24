@@ -337,13 +337,9 @@ func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	pairs, err := b.GetSiteInfoConfigData(ctx, a)
+	limits, err := b.GetSiteInfoConfigData(ctx, a)
 	if err != nil {
 		return err
-	}
-	limits := make([]order.MinMaxLevel, 0, len(pairs))
-	for i := range pairs {
-		limits = append(limits, pairs[i])
 	}
 	if err := b.LoadLimits(limits); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)

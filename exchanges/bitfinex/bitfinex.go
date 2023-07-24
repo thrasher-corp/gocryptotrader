@@ -497,7 +497,7 @@ func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]str
 // GetSiteInfoConfigData returns site configuration data by pub:info:{AssetType} as a map
 // path should be bitfinexInfoPairs or bitfinexInfoPairsFuture???
 // NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
-func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) (map[currency.Pair]order.MinMaxLevel, error) {
+func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) ([]order.MinMaxLevel, error) {
 	var path string
 	switch assetType {
 	case asset.Spot:
@@ -517,7 +517,7 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	if len(resp) != 1 {
 		return nil, errors.New("response did not contain only one item")
 	}
-	pairs := map[currency.Pair]order.MinMaxLevel{}
+	var pairs []order.MinMaxLevel
 	data := resp[0]
 	for i := range data {
 		if len(data[i]) != 2 {
@@ -550,12 +550,12 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		if err != nil {
 			return nil, err
 		}
-		pairs[pair] = order.MinMaxLevel{
+		pairs = append(pairs, order.MinMaxLevel{
 			Asset:             assetType,
 			Pair:              pair,
 			MinimumBaseAmount: minOrder,
 			MaximumBaseAmount: maxOrder,
-		}
+		})
 	}
 	return pairs, nil
 }

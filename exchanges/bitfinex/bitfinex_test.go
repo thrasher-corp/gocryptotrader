@@ -176,6 +176,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	for assetItem, pairs := range tests {
 		if err := b.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
 			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
+			continue
 		}
 		for _, pair := range pairs {
 			limits, err := b.GetOrderExecutionLimits(assetItem, pair)
@@ -1802,6 +1803,19 @@ func TestGetSiteListConfigData(t *testing.T) {
 
 	if len(pairs) == 0 {
 		t.Fatal("expected pairs")
+	}
+}
+
+func TestGetSiteInfoConfigData(t *testing.T) {
+	t.Parallel()
+	for _, assetType := range []asset.Item{asset.Spot, asset.Futures} {
+		pairs, err := b.GetSiteInfoConfigData(context.Background(), assetType)
+		if !errors.Is(err, nil) {
+			t.Errorf("Error from GetSiteInfoConfigData for %s type received: %v, expected: %v", assetType, err, nil)
+		}
+		if len(pairs) == 0 {
+			t.Errorf("GetSiteInfoConfigData returned no pairs for %s", assetType)
+		}
 	}
 }
 
