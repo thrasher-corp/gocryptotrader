@@ -418,9 +418,24 @@ func (w *WrapperWebsocket) Shutdown() error {
 	}
 	var errs error
 	var err error
+	errorsChan := make(chan error, len(w.AssetTypeWebsockets))
+	wg := &sync.WaitGroup{}
 	for x := range w.AssetTypeWebsockets {
-		err = w.AssetTypeWebsockets[x].Shutdown()
-		if err != nil && !errors.Is(err, errDisconnectedConnectionShutdown) {
+		// This go routined below is added to create an asynchroneous Shutdown() method call for each asset type websocket instance
+		// so that we can lower the delay incured by the synchronized Shutdown() method call of closing.
+		wg.Add(1)
+		go func(errChan chan error, ws *Websocket) {
+			defer wg.Done()
+			err = ws.Shutdown()
+			if err != nil && !errors.Is(err, errDisconnectedConnectionShutdown) {
+				errChan <- err
+			}
+		}(errorsChan, w.AssetTypeWebsockets[x])
+	}
+	wg.Wait()
+	close(errorsChan)
+	for x := range errorsChan {
+		if x != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
