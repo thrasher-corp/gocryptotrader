@@ -6,14 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-)
-
-var (
-	waitingSignatureLock sync.Mutex
-	waitingSignatures    = []string{}
 )
 
 // WsPlaceOrder place trade order through the websocket channel.
@@ -155,9 +149,6 @@ func (o *Okcoin) SendWebsocketRequest(operation string, data, result interface{}
 	} else {
 		req.Arguments = []interface{}{data}
 	}
-	waitingSignatureLock.Lock()
-	waitingSignatures = append(waitingSignatures, req.ID)
-	waitingSignatureLock.Unlock()
 	var byteData []byte
 	var err error
 	if authenticated {

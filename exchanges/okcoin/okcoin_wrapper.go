@@ -1229,7 +1229,6 @@ func (o *Okcoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			PriceStepIncrementSize: instrumentsList[index].TickSize.Float64(),
 			MinimumBaseAmount:      instrumentsList[index].MinSize.Float64(),
 			MaxIcebergParts:        instrumentsList[index].MaxIcebergSz.Int64(),
-			MarketMinQty:           instrumentsList[index].MaxMarketSize.Float64(),
 			MarketMaxQty:           instrumentsList[index].MaxMarketSize.Float64(),
 		})
 	}

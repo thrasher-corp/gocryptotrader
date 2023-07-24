@@ -481,7 +481,7 @@ func TestGetAvailableRFQPairs(t *testing.T) {
 
 func TestRequestQuote(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.RequestQuote(context.Background(), &QuoteRequestArg{
 		BaseCurrency:  currency.BTC,
 		QuoteCurrency: currency.USD,
@@ -588,7 +588,7 @@ func TestGetRFQOrderHistory(t *testing.T) {
 
 func TestDeposit(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.Deposit(context.Background(), &FiatDepositRequestArg{
 		ChannelID:         "28",
 		BankAccountNumber: "1000221891299",
@@ -601,7 +601,7 @@ func TestDeposit(t *testing.T) {
 
 func TestCancelFiatDeposit(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.CancelFiatDeposit(context.Background(), "1234")
 	if err != nil {
 		t.Error(err)
@@ -1127,8 +1127,8 @@ func TestPlaceAlgoOrder(t *testing.T) {
 		Size:         2,
 		OrderType:    "twap",
 	})
-	if !errors.Is(err, errPriceRatioOrPriveSpreadRequired) {
-		t.Errorf("found %v, but expected %v", err, errPriceRatioOrPriveSpreadRequired)
+	if !errors.Is(err, errPriceRatioOrPriceSpreadRequired) {
+		t.Errorf("found %v, but expected %v", err, errPriceRatioOrPriceSpreadRequired)
 	}
 	_, err = o.PlaceAlgoOrder(context.Background(), &AlgoOrderRequestParam{
 		InstrumentID: "BTC-USD",

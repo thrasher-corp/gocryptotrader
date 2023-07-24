@@ -55,10 +55,10 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	wsTickers,
-	wsCandle1D,
-	wsTrades,
-	wsOrderbooks,
+	// wsTickers,
+	// wsCandle1D,
+	// wsTrades,
+	// wsOrderbooks,
 	wsStatus,
 }
 
@@ -246,14 +246,6 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 		case "subscribe", "unsubscribe":
 			o.Websocket.DataHandler <- eventResponse
 		case "error":
-			waitingSignatureLock.Lock()
-			for x := range waitingSignatures {
-				if strings.Contains(dataResponse.Message, waitingSignatures[x]) {
-					o.Websocket.Match.IncomingWithData(waitingSignatures[x], respRaw)
-					return nil
-				}
-			}
-			waitingSignatureLock.Unlock()
 			if o.Verbose {
 				log.Debugf(log.ExchangeSys,
 					o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)

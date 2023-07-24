@@ -58,7 +58,7 @@ var (
 	errNoOrderbookData                        = errors.New("no orderbook data found")
 	errOrderIDOrClientOrderIDRequired         = errors.New("order id or client order id is required")
 	errSizeOrPriceRequired                    = errors.New("valid size or price has to be specified")
-	errPriceRatioOrPriveSpreadRequired        = errors.New("either price ratio or price variance is required")
+	errPriceRatioOrPriceSpreadRequired        = errors.New("either price ratio or price variance is required")
 	errSizeLimitRequired                      = errors.New("size limit is required")
 	errPriceLimitRequired                     = errors.New("price limit is required")
 	errStopLossOrTakeProfitOrderPriceRequired = errors.New("either parameter 'stop loss order price' or 'take profit order price' is required")
@@ -1502,7 +1502,7 @@ func (arg *AlgoOrderRequestParam) validateAlgoOrder() error {
 	case "iceberg":
 		//  Iceberg order
 		if arg.PriceRatio <= 0 && arg.PriceSpread <= 0 {
-			return errPriceRatioOrPriveSpreadRequired
+			return errPriceRatioOrPriceSpreadRequired
 		}
 		if arg.SizeLimit <= 0 {
 			return fmt.Errorf("%w, order type %s", errSizeLimitRequired, arg.OrderType)
@@ -1513,7 +1513,7 @@ func (arg *AlgoOrderRequestParam) validateAlgoOrder() error {
 	case "twap":
 		//  TWAP order
 		if arg.PriceRatio <= 0 && arg.PriceSpread <= 0 {
-			return errPriceRatioOrPriveSpreadRequired
+			return errPriceRatioOrPriceSpreadRequired
 		}
 		if arg.SizeLimit <= 0 {
 			return fmt.Errorf("%w, order type %s", errSizeLimitRequired, arg.OrderType)
