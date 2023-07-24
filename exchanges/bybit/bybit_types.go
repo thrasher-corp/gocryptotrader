@@ -408,6 +408,8 @@ type WsFuturesReq struct {
 }
 
 // WsParams store ws parameters
+//
+//easyjson:json
 type WsParams struct {
 	Symbol     string `json:"symbol"`
 	IsBinary   bool   `json:"binary,string"`
@@ -451,6 +453,8 @@ type KlineStream struct {
 }
 
 // WsOrderbookData stores ws orderbook data
+//
+//easyjson:json
 type WsOrderbookData struct {
 	Symbol  string            `json:"s"`
 	Time    bybitTimeMilliSec `json:"t"`
@@ -460,6 +464,8 @@ type WsOrderbookData struct {
 }
 
 // WsOrderbook stores ws orderbook data
+//
+//easyjson:json
 type WsOrderbook struct {
 	Topic      string          `json:"topic"`
 	Parameters WsParams        `json:"params"`

@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
+	"github.com/mailru/easyjson"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -190,7 +192,7 @@ func (by *Bybit) wsReadData(ws stream.Connection) {
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsKlines}
+	var channels = []string{wsOrderbook}
 	pairs, err := by.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -242,8 +244,40 @@ func (by *Bybit) WsDataHandler() {
 }
 
 func (by *Bybit) wsHandleData(respRaw []byte) error {
+	topic, err := jsonparser.GetString(respRaw, "topic")
+	if err == nil {
+		switch topic {
+		case wsOrderbook:
+			pushed, _, _, err := jsonparser.Get(respRaw, "data")
+			if err != nil {
+				return err
+			}
+
+			var data WsOrderbookData
+			err = easyjson.Unmarshal(pushed, &data)
+			if err != nil {
+				fmt.Println("sad easyjson")
+				return err
+			}
+
+			p, err := by.extractCurrencyPair(data.Symbol, asset.Spot)
+			if err != nil {
+				fmt.Println("sad extractCurrencyPair")
+				return err
+			}
+
+			err = by.wsUpdateOrderbook(&data, p, asset.Spot)
+			if err != nil {
+				fmt.Println("sad wsUpdateOrderbook")
+				return err
+			}
+			return nil
+		default:
+		}
+	}
+
 	var result interface{}
-	err := json.Unmarshal(respRaw, &result)
+	err = json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
 	}
@@ -260,22 +294,6 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 
 		if t, ok := d["topic"].(string); ok {
 			switch t {
-			case wsOrderbook:
-				var data WsOrderbook
-				err := json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return err
-				}
-				p, err := by.extractCurrencyPair(data.OBData.Symbol, asset.Spot)
-				if err != nil {
-					return err
-				}
-
-				err = by.wsUpdateOrderbook(&data.OBData, p, asset.Spot)
-				if err != nil {
-					return err
-				}
-				return nil
 			case wsTrades:
 				if !by.IsSaveTradeDataEnabled() {
 					return nil
