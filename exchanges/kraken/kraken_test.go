@@ -99,6 +99,44 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 }
 
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	type limitTest struct {
+		pair currency.Pair
+		step float64
+		min  float64
+	}
+
+	tests := map[asset.Item][]limitTest{
+		asset.Spot: {
+			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.01},
+			{currency.NewPair(currency.XBT, currency.USDT), 0.1, 0.0001},
+		},
+	}
+
+	for assetItem, limitTests := range tests {
+		if err := k.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
+			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
+		}
+
+		for _, limitTest := range limitTests {
+			limits, err := k.GetOrderExecutionLimits(assetItem, limitTest.pair)
+			if err != nil {
+				t.Errorf("Kraken GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
+				continue
+			}
+			if got := limits.PriceStepIncrementSize; got != limitTest.step {
+				t.Errorf("Kraken UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
+			}
+
+			if got := limits.MinimumBaseAmount; got != limitTest.min {
+				t.Errorf("Kraken UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
+			}
+		}
+	}
+}
+
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := k.FetchTradablePairs(context.Background(), asset.Futures)

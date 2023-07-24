@@ -148,6 +148,7 @@ func StartRPCServer(engine *Engine) {
 	opts := []grpc.ServerOption{
 		grpc.Creds(creds),
 		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(s.authenticateClient)),
+		grpc.StreamInterceptor(grpcauth.StreamServerInterceptor(s.authenticateClient)),
 	}
 	server := grpc.NewServer(opts...)
 	gctrpc.RegisterGoCryptoTraderServiceServer(server, &s)
