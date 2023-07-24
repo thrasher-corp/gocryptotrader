@@ -3,6 +3,7 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.20
 
 require (
+	github.com/buger/jsonparser v1.1.1
 	github.com/d5/tengo/v2 v2.16.1
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-querystring v1.1.0
@@ -12,6 +13,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.10.9
+	github.com/mailru/easyjson v0.7.7
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.4.0
@@ -33,7 +35,6 @@ require (
 
 require (
 	github.com/boombuler/barcode v1.0.1 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -41,7 +42,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect

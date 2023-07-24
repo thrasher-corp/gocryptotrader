@@ -192,7 +192,7 @@ func (by *Bybit) wsReadData(ws stream.Connection) {
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	var channels = []string{wsOrderbook}
+	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsKlines}
 	pairs, err := by.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -256,22 +256,15 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			var data WsOrderbookData
 			err = easyjson.Unmarshal(pushed, &data)
 			if err != nil {
-				fmt.Println("sad easyjson")
 				return err
 			}
 
 			p, err := by.extractCurrencyPair(data.Symbol, asset.Spot)
 			if err != nil {
-				fmt.Println("sad extractCurrencyPair")
 				return err
 			}
 
-			err = by.wsUpdateOrderbook(&data, p, asset.Spot)
-			if err != nil {
-				fmt.Println("sad wsUpdateOrderbook")
-				return err
-			}
-			return nil
+			return by.wsUpdateOrderbook(&data, p, asset.Spot)
 		default:
 		}
 	}
@@ -292,8 +285,8 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		if t, ok := d["topic"].(string); ok {
-			switch t {
+		if topic != "" {
+			switch topic {
 			case wsTrades:
 				if !by.IsSaveTradeDataEnabled() {
 					return nil
