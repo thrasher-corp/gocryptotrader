@@ -341,7 +341,7 @@ func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			Pair:                    pair,
 			PriceStepIncrementSize:  1 / math.Pow10(info.CounterDecimals),
 			AmountStepIncrementSize: 1 / math.Pow10(info.BaseDecimals),
-			MinimumBaseAmount:       info.MinimumOrder,
+			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
 	if err := b.LoadLimits(limits); err != nil {

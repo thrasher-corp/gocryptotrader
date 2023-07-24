@@ -244,7 +244,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			if got := limits.PriceStepIncrementSize; got != limitTest.step {
 				t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
 			}
-			if got := limits.MinimumBaseAmount; got != limitTest.min {
+			if got := limits.MinimumQuoteAmount; got != limitTest.min {
 				t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
 			}
 		}
