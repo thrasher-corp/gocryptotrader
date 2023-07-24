@@ -80,6 +80,7 @@ func StartRPCServer(server *GRPCServer) error {
 	opts := []grpc.ServerOption{
 		grpc.Creds(creds),
 		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(server.authenticateClient)),
+		grpc.StreamInterceptor(grpcauth.StreamServerInterceptor(server.authenticateClient)),
 	}
 	s := grpc.NewServer(opts...)
 	btrpc.RegisterBacktesterServiceServer(s, server)
