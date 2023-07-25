@@ -816,6 +816,8 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 	return trade.AddTradesToBuffer(k.Name, trades...)
 }
 
+var errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
+
 // wsProcessOrderBook determines if the orderbook data is partial or update
 // Then sends to appropriate fun
 func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[string]interface{}) error {
@@ -857,11 +859,11 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 
 	askSnapshot, askSnapshotExists := data["as"].([]interface{})
 	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
-	if askSnapshotExists || bidSnapshotExists {
-		return k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
+	if !askSnapshotExists && !bidSnapshotExists {
+		return errNoWebsocketOrderbookData
 	}
 
-	return nil
+	return k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
 }
 
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair

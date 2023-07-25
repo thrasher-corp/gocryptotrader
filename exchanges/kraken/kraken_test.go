@@ -2232,7 +2232,10 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	for x := range websocketLUNAEUROrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
-		if err != nil && x != len(websocketLUNAEUROrderbookUpdates)-1 { // last update checksum fails there is a problem with LUNA pairs
+		// TODO: Known issue with LUNA pairs and big number float precision
+		// storage and checksum calc. Might need to store raw strings as fields
+		// in the orderbook.Item struct.
+		if err != nil && x != len(websocketLUNAEUROrderbookUpdates)-1 {
 			t.Fatal(err)
 		}
 	}
