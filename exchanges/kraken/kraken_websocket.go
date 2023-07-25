@@ -58,10 +58,11 @@ const (
 // orderbookMutex Ensures if two entries arrive at once, only one can be
 // processed at a time
 var (
-	subscriptionChannelPair []WebsocketChannelData
-	authToken               string
-	pingRequest             = WebsocketBaseEventRequest{Event: stream.Ping}
-	m                       sync.Mutex
+	subscriptionChannelPair     []WebsocketChannelData
+	authToken                   string
+	pingRequest                 = WebsocketBaseEventRequest{Event: stream.Ping}
+	m                           sync.Mutex
+	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
 )
 
 // Channels require a topic and a currency
@@ -815,8 +816,6 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 	}
 	return trade.AddTradesToBuffer(k.Name, trades...)
 }
-
-var errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
 
 // wsProcessOrderBook determines if the orderbook data is partial or update
 // Then sends to appropriate fun
