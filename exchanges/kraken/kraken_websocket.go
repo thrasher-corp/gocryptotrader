@@ -1086,7 +1086,6 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 	}
 	update.UpdateTime = highestLastUpdate
 
-	// fmt.Printf("update %+v\n", update)
 	err := k.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		return err
@@ -1131,7 +1130,6 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 	}
 
 	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
-		fmt.Println("decPrice:", decPrice, "decAmount:", decAmount)
 		return fmt.Errorf("%s %s invalid checksum %d, expected %d",
 			b.Pair,
 			b.Asset,

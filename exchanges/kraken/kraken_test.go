@@ -2237,7 +2237,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		}
 	}
 
-	// This bad boy hs less than 10 bids and still needs a checksum calc.
+	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
 		if err != nil {
