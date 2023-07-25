@@ -629,8 +629,8 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 	// We change the / to - to maintain compatibility with REST/config
 	var pair, fPair currency.Pair
+	var err error
 	if response.Pair != "" {
-		var err error
 		pair, err = currency.NewPairFromString(response.Pair)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
@@ -642,12 +642,21 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 			return
 		}
 	}
+
+	maxDepth := 0
+	if splits := strings.Split(response.ChannelName, "-"); len(splits) > 1 {
+		maxDepth, err = strconv.Atoi(splits[1])
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
+		}
+	}
 	m.Lock()
 	defer m.Unlock()
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,
 		Pair:         fPair,
 		ChannelID:    response.ChannelID,
+		MaxDepth:     maxDepth,
 	})
 }
 
@@ -810,44 +819,48 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 // wsProcessOrderBook determines if the orderbook data is partial or update
 // Then sends to appropriate fun
 func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[string]interface{}) error {
-	askSnapshot, askSnapshotExists := data["as"].([]interface{})
-	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
-	if askSnapshotExists || bidSnapshotExists {
-		err := k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
-		if err != nil {
-			return err
-		}
-	} else {
-		askData, asksExist := data["a"].([]interface{})
-		bidData, bidsExist := data["b"].([]interface{})
+	// NOTE: Updates are a priority so check if it's an update first as we don't
+	// need multiple map lookups to check for snapshot.
+	askData, asksExist := data["a"].([]interface{})
+	bidData, bidsExist := data["b"].([]interface{})
+	if asksExist || bidsExist {
 		checksum, ok := data["c"].(string)
 		if !ok {
 			return fmt.Errorf("could not process orderbook update checksum not found")
 		}
-		if asksExist || bidsExist {
-			k.wsRequestMtx.Lock()
-			defer k.wsRequestMtx.Unlock()
-			err := k.wsProcessOrderBookUpdate(channelData, askData, bidData, checksum)
-			if err != nil {
-				go func(resub *stream.ChannelSubscription) {
-					// This was locking the main websocket reader routine and a
-					// backlog occurred. So put this into it's own go routine.
-					errResub := k.Websocket.ResubscribeToChannel(resub)
-					if errResub != nil {
-						log.Errorf(log.WebsocketMgr,
-							"resubscription failure for %v: %v",
-							resub,
-							errResub)
-					}
-				}(&stream.ChannelSubscription{
-					Channel:  krakenWsOrderbook,
-					Currency: channelData.Pair,
-					Asset:    asset.Spot,
-				})
-				return err
-			}
+
+		k.wsRequestMtx.Lock()
+		defer k.wsRequestMtx.Unlock()
+		err := k.wsProcessOrderBookUpdate(channelData, askData, bidData, checksum)
+		if err != nil {
+			outbound := channelData.Pair // Format required "XBT/USD"
+			outbound.Delimiter = "/"
+			go func(resub *stream.ChannelSubscription) {
+				// This was locking the main websocket reader routine and a
+				// backlog occurred. So put this into it's own go routine.
+				errResub := k.Websocket.ResubscribeToChannel(resub)
+				if errResub != nil {
+					log.Errorf(log.WebsocketMgr,
+						"resubscription failure for %v: %v",
+						resub,
+						errResub)
+				}
+			}(&stream.ChannelSubscription{
+				Channel:  krakenWsOrderbook,
+				Currency: outbound,
+				Asset:    asset.Spot,
+			})
+			return err
 		}
+		return nil
 	}
+
+	askSnapshot, askSnapshotExists := data["as"].([]interface{})
+	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
+	if askSnapshotExists || bidSnapshotExists {
+		return k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
+	}
+
 	return nil
 }
 
@@ -859,6 +872,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		VerifyOrderbook: k.CanVerifyOrderbook,
 		Bids:            make(orderbook.Items, len(bidData)),
 		Asks:            make(orderbook.Items, len(askData)),
+		MaxDepth:        channelData.MaxDepth,
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is
 	// timestamped per entry using the highest last update time, we can attempt
@@ -933,11 +947,10 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}, checksum string) error {
 	update := orderbook.Update{
-		Asset:    asset.Spot,
-		Pair:     channelData.Pair,
-		MaxDepth: krakenWsOrderbookDepth,
-		Bids:     make([]orderbook.Item, len(bidData)),
-		Asks:     make([]orderbook.Item, len(askData)),
+		Asset: asset.Spot,
+		Pair:  channelData.Pair,
+		Bids:  make([]orderbook.Item, len(bidData)),
+		Asks:  make([]orderbook.Item, len(askData)),
 	}
 
 	// Calculating checksum requires incoming decimal place checks for both
@@ -1072,6 +1085,8 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		}
 	}
 	update.UpdateTime = highestLastUpdate
+
+	// fmt.Printf("update %+v\n", update)
 	err := k.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		return err
@@ -1094,12 +1109,6 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 }
 
 func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) error {
-	if len(b.Asks) < 10 || len(b.Bids) < 10 {
-		return fmt.Errorf("%s %s insufficient bid and asks to calculate checksum",
-			b.Pair,
-			b.Asset)
-	}
-
 	if decPrice == 0 || decAmount == 0 {
 		return fmt.Errorf("%s %s trailing decimal count not calculated",
 			b.Pair,
@@ -1107,14 +1116,14 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 	}
 
 	var checkStr strings.Builder
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 10 && i < len(b.Asks); i++ {
 		priceStr := trim(strconv.FormatFloat(b.Asks[i].Price, 'f', decPrice, 64))
 		checkStr.WriteString(priceStr)
 		amountStr := trim(strconv.FormatFloat(b.Asks[i].Amount, 'f', decAmount, 64))
 		checkStr.WriteString(amountStr)
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 10 && i < len(b.Bids); i++ {
 		priceStr := trim(strconv.FormatFloat(b.Bids[i].Price, 'f', decPrice, 64))
 		checkStr.WriteString(priceStr)
 		amountStr := trim(strconv.FormatFloat(b.Bids[i].Amount, 'f', decAmount, 64))
@@ -1122,6 +1131,7 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 	}
 
 	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
+		fmt.Println("decPrice:", decPrice, "decAmount:", decAmount)
 		return fmt.Errorf("%s %s invalid checksum %d, expected %d",
 			b.Pair,
 			b.Asset,
@@ -1232,11 +1242,6 @@ channels:
 		}
 
 		for j := range *s {
-			if len((*s)[j].Channels) >= 20 {
-				// Batch outgoing subscriptions as there are limitations on the
-				// orderbook snapshots
-				continue
-			}
 			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Currency.String())
 			(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[i])
 			continue channels
@@ -1251,7 +1256,7 @@ channels:
 			},
 		}
 		if channelsToSubscribe[i].Channel == "book" {
-			outbound.Subscription.Depth = 1000
+			outbound.Subscription.Depth = krakenWsOrderbookDepth
 		}
 		if !channelsToSubscribe[i].Currency.IsEmpty() {
 			outbound.Pairs = []string{channelsToSubscribe[i].Currency.String()}
@@ -1265,7 +1270,7 @@ channels:
 	}
 
 	var errs error
-	for subType, subs := range subscriptions {
+	for _, subs := range subscriptions {
 		for i := range *subs {
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
 				_, err := k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
@@ -1275,13 +1280,6 @@ channels:
 				}
 				k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 				continue
-			}
-			if subType == "book" {
-				// There is an undocumented subscription limit that is present
-				// on websocket orderbooks, to subscribe to the channel while
-				// actually receiving the snapshots a rudimentary sleep is
-				// imposed and requests are batched in allotments of 20 items.
-				time.Sleep(time.Second)
 			}
 			_, err := k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 			if err != nil {

@@ -138,10 +138,10 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) {
 	tn := getNow()
 	d.m.Lock()
 	if len(update.Bids) != 0 {
-		d.bids.updateInsertByPrice(update.Bids, d.stack, update.MaxDepth, tn)
+		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, tn)
 	}
 	if len(update.Asks) != 0 {
-		d.asks.updateInsertByPrice(update.Asks, d.stack, update.MaxDepth, tn)
+		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, tn)
 	}
 	d.updateAndAlert(update)
 	d.m.Unlock()
@@ -241,6 +241,7 @@ func (d *Depth) AssignOptions(b *Base) {
 		VerifyOrderbook:  b.VerifyOrderbook,
 		restSnapshot:     b.RestSnapshot,
 		idAligned:        b.IDAlignment,
+		maxDepth:         b.MaxDepth,
 	}
 	d.m.Unlock()
 }
