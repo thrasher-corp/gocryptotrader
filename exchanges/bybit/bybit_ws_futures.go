@@ -41,7 +41,7 @@ var defaultFuturesAuthSubscriptionChannels = []string{
 
 // WsFuturesConnect connects to a Futures websocket feed
 func (by *Bybit) WsFuturesConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Futures) {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Futures) || by.CurrencyPairs.IsAssetEnabled(asset.Futures) != nil {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
@@ -77,11 +77,6 @@ func (by *Bybit) WsFuturesConnect() error {
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false, asset.Futures)
 			return nil
 		}
-		assetWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
-			Message:     pingMsg,
-			MessageType: websocket.PingMessage,
-			Delay:       bybitWebsocketTimer,
-		})
 	}
 	return nil
 }
@@ -124,14 +119,8 @@ func (by *Bybit) WsFuturesAuth(ctx context.Context, cancelFunc context.CancelFun
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
-	err = assetWebsocket.AuthConn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	go by.wsFuturesReadData(ctx, cancelFunc, assetWebsocket.AuthConn, assetWebsocket)
 
-	intNonce := (time.Now().Unix() + 1) * 1000
+	intNonce := (time.Now().Unix() + 2) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -250,12 +239,7 @@ func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscripti
 		}
 		sub.Args = append(sub.Args, argStr)
 
-		switch channelsToSubscribe[i].Channel {
-		case wsPosition, wsExecution, wsOrder, wsStopOrder, wsWallet:
-			err = assetWebsocket.AuthConn.SendJSONMessage(sub)
-		default:
-			err = assetWebsocket.Conn.SendJSONMessage(sub)
-		}
+		err = assetWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -282,12 +266,7 @@ func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscr
 			continue
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
-		switch channelsToUnsubscribe[i].Channel {
-		case wsPosition, wsExecution, wsOrder, wsStopOrder, wsWallet:
-			err = assetWebsocket.AuthConn.SendJSONMessage(sub)
-		default:
-			err = assetWebsocket.Conn.SendJSONMessage(sub)
-		}
+		err = assetWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -308,9 +287,10 @@ func (by *Bybit) wsFuturesHandleResp(wsFuturesResp *WsFuturesResp) error {
 			}
 			switch wsFuturesResp.RetMsg {
 			case "error:request expired":
+				// Consider handling the error by sending the authentication message again
 				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication request expired: %v", by.Name, asset.Futures, wsFuturesResp.RetMsg)
 			default:
-				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoing", by.Name, asset.Futures, wsFuturesResp.RetMsg)
+				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoint", by.Name, asset.Futures, wsFuturesResp.RetMsg)
 			}
 			assetWebsocket.SetCanUseAuthenticatedEndpoints(false)
 			return nil

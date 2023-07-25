@@ -45,7 +45,7 @@ var defaultUSDTMarginedFuturesAuthSubscriptionChannels = []string{
 
 // WsUSDTConnect connects to USDTMarginedFutures CMF websocket feed
 func (by *Bybit) WsUSDTConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.USDTMarginedFutures) {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.USDTMarginedFutures) || by.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures) != nil {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
@@ -81,11 +81,6 @@ func (by *Bybit) WsUSDTConnect() error {
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false, asset.USDTMarginedFutures)
 			return nil
 		}
-		assetWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
-			Message:     pingMsg,
-			MessageType: websocket.PingMessage,
-			Delay:       bybitWebsocketTimer,
-		})
 	}
 	return nil
 }
@@ -135,7 +130,7 @@ func (by *Bybit) WsUSDTAuth(ctx context.Context, cancelFunc context.CancelFunc) 
 	}
 	go by.wsUSDTReadData(ctx, cancelFunc, assetWebsocket.AuthConn, assetWebsocket)
 
-	intNonce := (time.Now().Unix() + 1) * 1000
+	intNonce := (time.Now().Unix() + 2) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -305,20 +300,30 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 func (by *Bybit) wsUSDTHandleResp(wsFuturesResp *WsFuturesResp) error {
 	switch wsFuturesResp.Request.Topic {
 	case wsAuth:
+		assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
+		if err != nil {
+			return fmt.Errorf("%w asset type: %v", err, asset.USDTMarginedFutures)
+		}
 		if !wsFuturesResp.Success {
-			assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
-			if err != nil {
-				return fmt.Errorf("%w asset type: %v", err, asset.USDTMarginedFutures)
-			}
 			switch wsFuturesResp.RetMsg {
 			case "error:request expired":
 				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication request expired: %v", by.Name, asset.USDTMarginedFutures, wsFuturesResp.RetMsg)
+				return nil
 			default:
 				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoing", by.Name, asset.USDTMarginedFutures, wsFuturesResp.RetMsg)
+				assetWebsocket.SetCanUseAuthenticatedEndpoints(false)
+				return nil
 			}
-			assetWebsocket.SetCanUseAuthenticatedEndpoints(false)
-			return nil
 		}
+		pingMsg, err := json.Marshal(pingRequest)
+		if err != nil {
+			return err
+		}
+		assetWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
+			Message:     pingMsg,
+			MessageType: websocket.PingMessage,
+			Delay:       bybitWebsocketTimer,
+		})
 		authSubs, err := by.GenerateWsUSDTDefaultAuthSubscriptions()
 		if err != nil {
 			return err

@@ -43,7 +43,7 @@ const (
 
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) || by.CurrencyPairs.IsAssetEnabled(asset.Spot) != nil {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
@@ -96,7 +96,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	intNonce := (time.Now().Unix() + 1) * 1000
+	intNonce := (time.Now().Unix() + 2) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,

@@ -286,15 +286,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		if err != nil {
 			return err
 		}
-		err = futuresWebsocket.SetupNewConnection(stream.ConnectionSetup{
-			URL:                  bybitWebsocketFuturesPublicV2,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			Authenticated:        true,
-		})
-		if err != nil {
-			return err
-		}
 	}
 	if by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		coinMarginedFuturesWebsocket, err := by.Websocket.AddWebsocket(&stream.WebsocketSetup{
@@ -313,15 +304,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		})
-		if err != nil {
-			return err
-		}
-		err = coinMarginedFuturesWebsocket.SetupNewConnection(stream.ConnectionSetup{
-			URL:                  bybitWebsocketCoinMarginedFuturesPublicV2,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			Authenticated:        true,
 		})
 		if err != nil {
 			return err

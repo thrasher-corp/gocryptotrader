@@ -73,7 +73,7 @@ var defaultCoinMarginedFuturesAuthSubscriptionChannels = []string{
 
 // WsCoinConnect connects to CoinMarginedFutures CMF websocket feed
 func (by *Bybit) WsCoinConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) || by.CurrencyPairs.IsAssetEnabled(asset.CoinMarginedFutures) != nil {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
@@ -109,11 +109,6 @@ func (by *Bybit) WsCoinConnect() error {
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false, asset.CoinMarginedFutures)
 			return nil
 		}
-		assetWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
-			Message:     pingMsg,
-			MessageType: websocket.PingMessage,
-			Delay:       bybitWebsocketTimer,
-		})
 	}
 	return nil
 }
@@ -156,13 +151,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context, cancelFunc context.CancelFunc) 
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
-	err = assetWebsocket.AuthConn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	go by.wsCoinReadData(ctx, cancelFunc, assetWebsocket.AuthConn, assetWebsocket)
-	intNonce := (time.Now().Unix() + 1) * 1000
+	intNonce := (time.Now().Unix() + 2) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -177,7 +166,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context, cancelFunc context.CancelFunc) 
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return assetWebsocket.AuthConn.SendJSONMessage(req)
+	return assetWebsocket.Conn.SendJSONMessage(req)
 }
 
 // GenerateCoinMarginedFuturesDefaultSubscriptions returns channel subscriptions for futures instruments
@@ -280,12 +269,7 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 		}
 		sub.Args = append(sub.Args, argStr)
 
-		switch channelsToSubscribe[i].Channel {
-		case wsPosition, wsExecution, wsOrder, wsStopOrder, wsWallet:
-			err = assetWebsocket.AuthConn.SendJSONMessage(sub)
-		default:
-			err = assetWebsocket.Conn.SendJSONMessage(sub)
-		}
+		err = assetWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -313,12 +297,7 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
 
-		switch channelsToUnsubscribe[i].Channel {
-		case wsPosition, wsExecution, wsOrder, wsStopOrder, wsWallet:
-			err = assetWebsocket.AuthConn.SendJSONMessage(sub)
-		default:
-			err = assetWebsocket.Conn.SendJSONMessage(sub)
-		}
+		err = assetWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -339,9 +318,10 @@ func (by *Bybit) wsCoinHandleResp(wsFuturesResp *WsFuturesResp) error {
 			}
 			switch wsFuturesResp.RetMsg {
 			case "error:request expired":
+				// Consider handling the error by sending the authentication message again
 				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication request expired: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
 			default:
-				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoing", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
+				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoint", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
 			}
 			assetWebsocket.SetCanUseAuthenticatedEndpoints(false)
 			return nil
