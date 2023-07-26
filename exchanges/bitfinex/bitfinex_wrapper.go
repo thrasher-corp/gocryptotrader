@@ -649,13 +649,23 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
+		symbolPrefix := "t"
+		if o.AssetType == asset.MarginFunding {
+			symbolPrefix = "f"
+		}
+		req := &WsNewOrderRequest{
 			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
-			Type:     o.Type.String(),
-			Symbol:   fPair.String(),
-			Amount:   o.Amount,
-			Price:    o.Price,
-		})
+			// spot needs to use the EXCHANGE variants for types
+			Type:   "EXCHANGE " + o.Type.String(),
+			Symbol: symbolPrefix + fPair.String(),
+			Amount: o.Amount,
+			Price:  o.Price,
+		}
+		if o.Side.IsShort() && o.Amount > 0 {
+			// All v2 apis use negatives for Short side
+			req.Amount *= -1
+		}
+		orderID, err = b.WsNewOrder(req)
 		if err != nil {
 			return nil, err
 		}
@@ -708,7 +718,7 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Price:   action.Price,
 			Amount:  action.Amount,
 		}
-		if action.Side == order.Sell && action.Amount > 0 {
+		if action.Side.IsShort() && action.Amount > 0 {
 			wsRequest.Amount *= -1
 		}
 		err = b.WsModifyOrder(&wsRequest)
