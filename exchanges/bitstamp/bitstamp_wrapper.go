@@ -339,8 +339,8 @@ func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		limits = append(limits, order.MinMaxLevel{
 			Asset:                   a,
 			Pair:                    pair,
-			PriceStepIncrementSize:  1 / math.Pow10(info.CounterDecimals),
-			AmountStepIncrementSize: 1 / math.Pow10(info.BaseDecimals),
+			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
+			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
