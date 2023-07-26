@@ -517,8 +517,8 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	if len(resp) != 1 {
 		return nil, errors.New("response did not contain only one item")
 	}
-	var pairs []order.MinMaxLevel
 	data := resp[0]
+	pairs := make([]order.MinMaxLevel, 0, len(data))
 	for i := range data {
 		if len(data[i]) != 2 {
 			return nil, errors.New("response contained a tuple without exactly 2 items")
