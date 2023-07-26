@@ -83,6 +83,7 @@ func (d *Depth) Retrieve() (*Base, error) {
 		PriceDuplication: d.priceDuplication,
 		IsFundingRate:    d.isFundingRate,
 		VerifyOrderbook:  d.VerifyOrderbook,
+		MaxDepth:         d.maxDepth,
 	}, nil
 }
 
