@@ -168,9 +168,9 @@ func (b *Binance) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:      true,
-				Leverage:       true,
-				CollateralMode: true,
+				Positions:            true,
+				Leverage:             true,
+				CollateralMode:       true,
 				FundingRates:         true,
 				FundingRateFrequency: kline.EightHour.Duration(),
 			},

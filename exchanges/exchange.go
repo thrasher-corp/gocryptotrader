@@ -1652,6 +1652,11 @@ func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetFuturesPositionOrders returns futures positions orders
+func (b *Base) GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetLatestFundingRate returns the latest funding rate based on request data
 func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrNotYetImplemented

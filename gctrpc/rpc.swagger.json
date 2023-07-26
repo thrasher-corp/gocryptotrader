@@ -6144,6 +6144,30 @@
         }
       }
     },
+    "gctrpcGetLeverageResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "underlyingPair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "marginType": {
+          "type": "string"
+        },
+        "leverage": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "gctrpcGetLoggerDetailsResponse": {
       "type": "object",
       "properties": {

@@ -127,13 +127,11 @@ func (ok *Okx) SetDefaults() {
 				CancelOrders:           true,
 				ModifyOrder:            true,
 			},
-			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:      true,
-				Leverage:       true,
-				CollateralMode: true,
-			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			FuturesCapabilities: exchange.FuturesCapabilities{
+				Positions:                 true,
+				Leverage:                  true,
+				CollateralMode:            true,
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				FundingRateFrequency:      kline.EightHour.Duration(),
