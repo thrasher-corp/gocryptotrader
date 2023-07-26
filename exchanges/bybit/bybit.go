@@ -191,10 +191,19 @@ func (by *Bybit) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
 func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
-	params, err := fillCategoryAndSymbol(category, symbol)
-	if err != nil {
-		return nil, err
+	switch category {
+	case "":
+		return nil, errCategoryNotSet
+	case "spot", "linear", "inverse":
+	default:
+		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
 	}
+	if symbol == "" {
+		return nil, errSymbolMissing
+	}
+	params := url.Values{}
+	params.Set("category", category)
+	params.Set("symbol", symbol)
 	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
@@ -798,9 +807,8 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
-		return nil, err
+	if arg.Category != "option" {
+		return nil, fmt.Errorf("%w, only 'option' category is allowed", errInvalidCategory)
 	}
 	if len(arg.Request) == 0 {
 		return nil, errNoOrderPassed
@@ -814,7 +822,7 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 		}
 	}
 	var resp cancelBatchResponse
-	return resp.List, by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, cancelBatchOrder, nil, arg, &resp, privateSpotRate)
+	return resp.List, by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, "/v5/order/cancel-batch", nil, arg, &resp, privateSpotRate)
 }
 
 // GetBorrowQuota retrives the qty and amount of borrowable coins in spot account.
@@ -1316,9 +1324,6 @@ func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreek
 func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) ([]Fee, error) {
 	params := url.Values{}
 	if !common.StringDataContains(validCategory, category) {
-		// NOTE: Opted to fail here because if the user passes in an invalid
-		// category the error returned is this
-		// `Bybit raw response: {"retCode":10005,"retMsg":"Permission denied, please check your API key permissions.","result":{},"retExtInfo":{},"time":1683694010783}`
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
 	}
 	if symbol != "" {

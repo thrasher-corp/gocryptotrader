@@ -34,6 +34,9 @@ var (
 	// ErrOrderNotFound is returned when no order is found
 	ErrOrderNotFound = errors.New("order not found")
 
+	// ErrUnknownPriceType returned when price type is unknown
+	ErrUnknownPriceType = errors.New("unknown price type")
+
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderSide    = errors.New("unrecognised order side")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
@@ -1259,4 +1262,34 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrOrderIDNotSet
 	}
 	return nil
+}
+
+// String implememts the stringer interface
+func (t PriceType) String() string {
+	switch t {
+	case LastPrice:
+		return "LastPrice"
+	case IndexPrice:
+		return "IndexPrice"
+	case MarkPrice:
+		return "MarkPrice"
+	default:
+		return ""
+	}
+}
+
+// StringToPriceType for converting case insensitive order side
+// and returning a real Side
+func (t PriceType) StringToPriceType(priceType string) (PriceType, error) {
+	priceType = strings.ToLower(priceType)
+	switch priceType {
+	case "lastprice", "":
+		return LastPrice, nil
+	case "indexprice":
+		return IndexPrice, nil
+	case "markprice":
+		return MarkPrice, nil
+	default:
+		return UnknownPriceType, ErrUnknownPriceType
+	}
 }

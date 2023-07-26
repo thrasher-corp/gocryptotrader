@@ -1193,18 +1193,18 @@ type DeliveryPrice struct {
 
 // PlaceOrderParams represents
 type PlaceOrderParams struct {
-	Category               string        `json:"category"`
-	Symbol                 currency.Pair `json:"symbol"`
-	Side                   string        `json:"side"`
-	OrderType              string        `json:"orderType"`  // Market, Limit
-	OrderQuantity          float64       `json:"qty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
+	Category               string        `json:"category"`   // Required
+	Symbol                 currency.Pair `json:"symbol"`     // Required
+	Side                   string        `json:"side"`       // Required
+	OrderType              string        `json:"orderType"`  // Required // Market, Limit
+	OrderQuantity          float64       `json:"qty,string"` // Required // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
 	Price                  float64       `json:"price,string,omitempty"`
 	TimeInForce            string        `json:"timeInForce,omitempty"`      // IOC and GTC
 	OrderLinkID            string        `json:"orderLinkId,omitempty"`      // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 	WhetherToBorrow        bool          `json:"-"`                          // '0' for default spot, '1' for Margin trading.
-	IsLeverage             int64         `json:"isLeverage,omitempty"`       // '0' for default spot, '1' for Margin trading.
+	IsLeverage             int64         `json:"isLeverage,omitempty"`       // Required   // '0' for default spot, '1' for Margin trading.
 	OrderFilter            string        `json:"orderFilter,omitempty"`      // Valid for spot only. Order,tpslOrder. If not passed, Order by default
-	TriggerDirection       int64         `json:"triggerDirection,omitempty"` // Conditional order param. Used to identify the expected direction of the conditional order. '1': triggered when market price rises to triggerPrice '2': triggered when market price falls to triggerPrice
+	TriggerDirection       int64         `json:"triggerDirection,omitempty"` // Required // Conditional order param. Used to identify the expected direction of the conditional order. '1': triggered when market price rises to triggerPrice '2': triggered when market price falls to triggerPrice
 	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
 	TriggerPriceType       string        `json:"triggerBy,omitempty"` // Conditional order param. Trigger price type. 'LastPrice', 'IndexPrice', 'MarkPrice'
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
@@ -1252,8 +1252,8 @@ type AmendOrderParams struct {
 	StopLossTriggerBy   string `json:"slTriggerBy,omitempty"` // The price type to trigger stop loss. MarkPrice, IndexPrice, default: LastPrice
 	TriggerPriceType    string `json:"triggerBy,omitempty"`   // Conditional order param. Trigger price type. 'LastPrice', 'IndexPrice', 'MarkPrice'
 
-	TpLimitPrice float64 `json:"tpLimitPrice,omitempty,string"`
-	SlLimitPrice float64 `json:"slLimitPrice,omitempty,string"`
+	TakeProfitLimitPrice float64 `json:"tpLimitPrice,omitempty,string"`
+	StopLossLimitPrice   float64 `json:"slLimitPrice,omitempty,string"`
 }
 
 // CancelOrderParams represents a cancel order parameters.
@@ -2044,14 +2044,14 @@ type WithdrawableAmount struct {
 
 // WithdrawalParam represents asset withdrawal request parameter.
 type WithdrawalParam struct {
-	Coin        currency.Code           `json:"coin,omitempty"`
-	Chain       string                  `json:"chain,omitempty"`
-	Address     string                  `json:"address,omitempty"`
-	Tag         string                  `json:"tag,omitempty"`
-	Amount      convert.StringToFloat64 `json:"amount,omitempty,string"`
-	Timestamp   int64                   `json:"timestamp,omitempty"`
-	ForceChain  int64                   `json:"forceChain,omitempty"`
-	AccountType string                  `json:"accountType,omitempty"`
+	Coin        currency.Code `json:"coin,omitempty"`
+	Chain       string        `json:"chain,omitempty"`
+	Address     string        `json:"address,omitempty"`
+	Tag         string        `json:"tag,omitempty"`
+	Amount      float64       `json:"amount,omitempty,string"`
+	Timestamp   int64         `json:"timestamp,omitempty"`
+	ForceChain  int64         `json:"forceChain,omitempty"`
+	AccountType string        `json:"accountType,omitempty"`
 }
 
 // CreateSubUserParams parameter to create a new sub user id. Use master user's api key only.
