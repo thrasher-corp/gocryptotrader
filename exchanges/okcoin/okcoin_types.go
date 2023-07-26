@@ -718,16 +718,16 @@ type LightningDepositDetail struct {
 
 // DepositAddress represents a currency deposit address detail
 type DepositAddress struct {
-	Chain                     string `json:"chain"`
-	ContractAddr              string `json:"ctAddr"`
-	Ccy                       string `json:"ccy"`
-	To                        string `json:"to"`
-	Address                   string `json:"addr"`
-	Selected                  bool   `json:"selected"`
-	Tag                       string `json:"tag"`
-	Memo                      string `json:"memo"`
-	DepositPaymentID          string `json:"pmtId"`
-	DepositAddressAttachement string `json:"addrEx"`
+	Chain                    string `json:"chain"`
+	ContractAddr             string `json:"ctAddr"`
+	Ccy                      string `json:"ccy"`
+	To                       string `json:"to"`
+	Address                  string `json:"addr"`
+	Selected                 bool   `json:"selected"`
+	Tag                      string `json:"tag"`
+	Memo                     string `json:"memo"`
+	DepositPaymentID         string `json:"pmtId"`
+	DepositAddressAttachment string `json:"addrEx"`
 }
 
 // DepositHistoryItem represents deposit records according to the currency, deposit status, and time range in reverse chronological order.
@@ -784,17 +784,21 @@ type WithdrawalCancellation struct {
 
 // WithdrawalOrderItem represents a withdrawal instance item
 type WithdrawalOrderItem struct {
-	Chain         string                  `json:"chain"`
-	Fee           convert.StringToFloat64 `json:"fee"`
-	Ccy           string                  `json:"ccy"`
-	ClientID      string                  `json:"clientId"`
-	Amt           convert.StringToFloat64 `json:"amt"`
-	TransactionID string                  `json:"txId"`
-	From          string                  `json:"from"`
-	To            string                  `json:"to"`
-	State         string                  `json:"state"`
-	Timestamp     okcoinTime              `json:"ts"`
-	WithdrawalID  string                  `json:"wdId"`
+	Ccy                         string                  `json:"ccy"`
+	Chain                       string                  `json:"chain"`
+	Amount                      convert.StringToFloat64 `json:"amt"`
+	Timestamp                   okcoinTime              `json:"ts"`
+	RemittingAddress            string                  `json:"from"`
+	ReceivingAddress            string                  `json:"to"`
+	Tag                         string                  `json:"tag"`
+	PaymentID                   string                  `json:"pmtId"`
+	Memo                        string                  `json:"memo"`
+	WithdrawalAddressAttachment string                  `json:"addrEx"`
+	TransactionID               string                  `json:"txId"`
+	Fee                         convert.StringToFloat64 `json:"fee"`
+	State                       string                  `json:"state"`
+	WithdrawalID                string                  `json:"wdId"`
+	ClientID                    string                  `json:"clientId"`
 }
 
 // AccountBalanceInformation represents currency balance information.
@@ -942,27 +946,28 @@ type QuoteRequestArg struct {
 
 // RFQQuoteResponse query current market quotation information
 type RFQQuoteResponse struct {
-	QuoteTimesamp okcoinTime              `json:"quoteTs"`
-	TTLMs         string                  `json:"ttlMs"`
-	ClQReqID      string                  `json:"clQReqId"`
-	QuoteID       string                  `json:"quoteId"`
-	BaseCurrency  string                  `json:"baseCcy"`
-	QuoteCurrency string                  `json:"quoteCcy"`
-	Side          string                  `json:"side"`
-	OrigRfqSize   float64                 `json:"origRfqSz"`
-	RfqSize       float64                 `json:"rfqSz"`
-	RfqSzCurrency string                  `json:"rfqSzCcy"`
-	BidPrice      convert.StringToFloat64 `json:"bidPx"`
-	BidBaseSize   convert.StringToFloat64 `json:"bidBaseSz"`
-	BidQuoteSize  convert.StringToFloat64 `json:"bidQuoteSz"`
-	AskPx         convert.StringToFloat64 `json:"askPx"`
-	AskBaseSize   convert.StringToFloat64 `json:"askBaseSz"`
-	AskQuoteSize  convert.StringToFloat64 `json:"askQuoteSz"`
+	QuoteTimestamp okcoinTime              `json:"quoteTs"`
+	TTLMs          string                  `json:"ttlMs"`
+	ClQReqID       string                  `json:"clQReqId"`
+	QuoteID        string                  `json:"quoteId"`
+	BaseCurrency   string                  `json:"baseCcy"`
+	QuoteCurrency  string                  `json:"quoteCcy"`
+	Side           string                  `json:"side"`
+	OrigRfqSize    float64                 `json:"origRfqSz"`
+	RfqSize        float64                 `json:"rfqSz"`
+	RfqSzCurrency  string                  `json:"rfqSzCcy"`
+	BidPrice       convert.StringToFloat64 `json:"bidPx"`
+	BidBaseSize    convert.StringToFloat64 `json:"bidBaseSz"`
+	BidQuoteSize   convert.StringToFloat64 `json:"bidQuoteSz"`
+	AskPx          convert.StringToFloat64 `json:"askPx"`
+	AskBaseSize    convert.StringToFloat64 `json:"askBaseSz"`
+	AskQuoteSize   convert.StringToFloat64 `json:"askQuoteSz"`
 }
 
 // PlaceRFQOrderRequest represents a place RFQ request order.
 type PlaceRFQOrderRequest struct {
 	ClientDefinedTradeRequestID string        `json:"clTReqId"`
+	ClientRFQSendingTime        int64         `json:"clTReqTs"`
 	QuoteID                     string        `json:"quoteId"`
 	BaseCurrency                currency.Code `json:"baseCcy"`
 	QuoteCurrency               currency.Code `json:"quoteCcy"`
@@ -1120,7 +1125,7 @@ type SubAccountInfo struct {
 type PlaceTradeOrderParam struct {
 	InstrumentID   currency.Pair `json:"instId"`
 	TradeMode      string        `json:"tdMode"` // Trade mode --> Margin mode: 'cross','isolated' Non-Margin mode: 'cash'
-	ClientOrderID  string        `json:"clOrdId"`
+	ClientOrderID  string        `json:"clOrdId,omitempty"`
 	Side           string        `json:"side"`                // Order side, buy sell
 	OrderType      string        `json:"ordType"`             // Order type 'market': Market order 'limit': Limit order 'post_only': Post-only order 'fok': Fill-or-kill order 'ioc': Immediate-or-cancel order
 	Price          float64       `json:"px,string,omitempty"` // Order price. Only applicable to limit,post_only,fok,ioc order.
@@ -1145,8 +1150,8 @@ type TradeOrderResponse struct {
 // CancelTradeOrderRequest represents a cancel trade order request body
 type CancelTradeOrderRequest struct {
 	InstrumentID  string `json:"instId"`
-	OrderID       string `json:"ordId"`
-	ClientOrderID string `json:"clOrdId"`
+	OrderID       string `json:"ordId,omitempty"`
+	ClientOrderID string `json:"clOrdId,omitempty"`
 }
 
 // AmendTradeOrderRequestParam represents an order cancellation request parameter

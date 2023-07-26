@@ -45,9 +45,9 @@ var (
 	errAddressMustNotBeEmptyString            = errors.New("address must be a non-empty string")
 	errSubAccountNameRequired                 = errors.New("sub-account name is required")
 	errNoValidResponseFromServer              = errors.New("no valid response")
-	errTransferIDOrClientIDRequred            = errors.New("either transfer id or cliend id is required")
+	errTransferIDOrClientIDRequired           = errors.New("either transfer id or client id is required")
 	errInvalidWithdrawalMethod                = errors.New("withdrawal method must be specified")
-	errInvalidTrasactionFeeValue              = errors.New("invalid transaction fee value")
+	errInvalidTransactionFeeValue             = errors.New("invalid transaction fee value")
 	errWithdrawalIDMissing                    = errors.New("withdrawal id is missing")
 	errTradeModeIsRequired                    = errors.New("trade mode is required")
 	errInstrumentTypeMissing                  = errors.New("instrument type is required")
@@ -423,7 +423,7 @@ func (o *Okcoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest)
 func (o *Okcoin) GetFundsTransferState(ctx context.Context, transferID, clientID, transferType string) ([]FundingTransferItem, error) {
 	params := url.Values{}
 	if transferID == "" && clientID == "" {
-		return nil, errTransferIDOrClientIDRequred
+		return nil, errTransferIDOrClientIDRequired
 	}
 	if transferID != "" {
 		params.Set("transId", transferID)
@@ -438,10 +438,10 @@ func (o *Okcoin) GetFundsTransferState(ctx context.Context, transferID, clientID
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getFundsTransferStateEPL, http.MethodGet, typeAssets, common.EncodeURLValues("transfer-state", params), nil, &resp, true)
 }
 
-// GetAssetBilsDetail query the billing record. You can get the latest 1 month historical data.
+// GetAssetBillsDetail query the billing record. You can get the latest 1 month historical data.
 // Bill type 1: Deposit 2: Withdrawal 13: Canceled withdrawal 20: Transfer to sub account 21: Transfer from sub account
 // 22: Transfer out from sub to master account 23: Transfer in from master to sub account 37: Transfer to spot 38: Transfer from spot
-func (o *Okcoin) GetAssetBilsDetail(ctx context.Context, ccy currency.Code, billType, clientSuppliedID string, before, after time.Time, limit int64) ([]AssetBillDetail, error) {
+func (o *Okcoin) GetAssetBillsDetail(ctx context.Context, ccy currency.Code, billType, clientSuppliedID string, before, after time.Time, limit int64) ([]AssetBillDetail, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -546,7 +546,7 @@ func (o *Okcoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]With
 		return nil, fmt.Errorf("%w, 'toAddr' address", errAddressMustNotBeEmptyString)
 	}
 	if arg.TransactionFee <= 0 {
-		return nil, fmt.Errorf("%w, transaction fee: %f", errInvalidTrasactionFeeValue, arg.TransactionFee)
+		return nil, fmt.Errorf("%w, transaction fee: %f", errInvalidTransactionFeeValue, arg.TransactionFee)
 	}
 	var resp []WithdrawalResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, postWithdrawalEPL, http.MethodPost, typeAssets, "withdrawal", arg, &resp, true)
@@ -841,6 +841,9 @@ func (o *Okcoin) PlaceRFQOrder(ctx context.Context, arg *PlaceRFQOrderRequest) (
 	if arg.SizeCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
+	if arg.ClientRFQSendingTime == 0 {
+		arg.ClientRFQSendingTime = time.Now().UnixMilli()
+	}
 	var resp []RFQOrderResponse
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, placeRFQOrderEPL, http.MethodPost, typeOtc, "rfq/trade", arg, &resp, true)
 }
@@ -1000,7 +1003,7 @@ func (o *Okcoin) GetFiatWithdrawalHistory(ctx context.Context, ccy currency.Code
 		params.Set("state", withdrawalState)
 	}
 	if withdrawalID != "" {
-		params.Set("depId", withdrawalID)
+		params.Set("wdId", withdrawalID)
 	}
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))

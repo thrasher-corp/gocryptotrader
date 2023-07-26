@@ -280,7 +280,7 @@ func TestGetFundsTransferState(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
 	_, err := o.GetFundsTransferState(context.Background(), "", "", "")
-	if !errors.Is(err, errTransferIDOrClientIDRequred) {
+	if !errors.Is(err, errTransferIDOrClientIDRequired) {
 		t.Error(err)
 	}
 	_, err = o.GetFundsTransferState(context.Background(), "1", "", "")
@@ -292,7 +292,7 @@ func TestGetFundsTransferState(t *testing.T) {
 func TestGetAssetBillType(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o)
-	_, err := o.GetAssetBilsDetail(context.Background(), currency.BTC, "2", "", time.Now().Add(-time.Minute), time.Now().Add(-time.Hour), 0)
+	_, err := o.GetAssetBillsDetail(context.Background(), currency.BTC, "2", "", time.Now().Add(-time.Minute), time.Now().Add(-time.Hour), 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -357,7 +357,7 @@ func TestWithdrawal(t *testing.T) {
 		t.Fatalf("found %v, expected %v", err, errInvalidWithdrawalMethod)
 	}
 	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg"})
-	if !errors.Is(err, errInvalidTrasactionFeeValue) {
+	if !errors.Is(err, errInvalidTransactionFeeValue) {
 		t.Fatalf("found %v, expected %v", err, errAddressMustNotBeEmptyString)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
@@ -2008,9 +2008,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 	if got := limits.MaxIcebergParts; got != instrumentInfo[0].MaxIcebergSz.Int64() {
 		t.Errorf("Okcoin UpdateOrderExecutionLimits MaxIcebergSize; Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MaxIcebergSz.Int64(), got)
-	}
-	if got := limits.MarketMinQty; got != instrumentInfo[0].MaxMarketSize.Float64() {
-		t.Errorf("Okcoin UpdateOrderExecutionLimits MaxMarketSizize; Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MaxMarketSize.Float64(), got)
 	}
 	if got := limits.MarketMaxQty; got != instrumentInfo[0].MaxMarketSize.Float64() {
 		t.Errorf("Okcoin UpdateOrderExecutionLimits MaxMarketSizize; Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MaxMarketSize.Float64(), got)

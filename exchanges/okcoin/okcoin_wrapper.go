@@ -664,14 +664,14 @@ func (o *Okcoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundi
 			orderStatus = "awaiting identity verification"
 		}
 		resp[len(accountDepositHistory)+i] = exchange.FundingHistory{
-			Amount:          accountWithdrawlHistory[i].Amt.Float64(),
+			Amount:          accountWithdrawlHistory[i].Amount.Float64(),
 			Currency:        accountWithdrawlHistory[i].Ccy,
 			ExchangeName:    o.Name,
 			Status:          orderStatus,
 			Timestamp:       accountWithdrawlHistory[i].Timestamp.Time(),
 			TransferID:      accountWithdrawlHistory[i].TransactionID,
 			Fee:             accountWithdrawlHistory[i].Fee.Float64(),
-			CryptoToAddress: accountWithdrawlHistory[i].To,
+			CryptoToAddress: accountWithdrawlHistory[i].ReceivingAddress,
 			CryptoTxID:      accountWithdrawlHistory[i].TransactionID,
 			CryptoChain:     accountWithdrawlHistory[i].Chain,
 			TransferType:    "withdrawal",
@@ -937,9 +937,9 @@ func (o *Okcoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 			TransferID:      withdrawals[x].WithdrawalID,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
 			Currency:        withdrawals[x].Ccy,
-			Amount:          withdrawals[x].Amt.Float64(),
+			Amount:          withdrawals[x].Amount.Float64(),
 			Fee:             withdrawals[x].Fee.Float64(),
-			CryptoToAddress: withdrawals[x].To,
+			CryptoToAddress: withdrawals[x].ReceivingAddress,
 			CryptoTxID:      withdrawals[x].TransactionID,
 			CryptoChain:     withdrawals[x].Chain,
 			TransferType:    "withdrawal",
