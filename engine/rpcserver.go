@@ -4771,7 +4771,7 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 		return nil, err
 	}
 	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
 
 	pairs, err := exch.GetEnabledPairs(a)

@@ -3112,8 +3112,8 @@ func TestGetLatestFundingRate(t *testing.T) {
 
 	request.Asset = asset.Spot.String()
 	_, err = s.GetLatestFundingRate(context.Background(), request)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received: '%v' but expected: '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	request.Asset = asset.Futures.String()
