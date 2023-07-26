@@ -555,6 +555,7 @@ var excludedMethodNames = map[string]struct{}{
 	"GetLeverage":                      {},
 	"SetMarginType":                    {},
 	"ChangePositionMargin":             {},
+	"GetLatestFundingRate":             {},
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI

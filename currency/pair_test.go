@@ -68,7 +68,7 @@ func TestPairUnmarshalJSON(t *testing.T) {
 	}
 
 	if !unmarshalHere.Equal(configPair) {
-		t.Errorf("Pairs UnmarshalJSON() error expected %s but received %s",
+		t.Errorf("Pair UnmarshalJSON() error expected %s but received %s",
 			configPair, unmarshalHere)
 	}
 

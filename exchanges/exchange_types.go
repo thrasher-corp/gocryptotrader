@@ -183,6 +183,8 @@ type FuturesCapabilities struct {
 	Collateral                   bool
 	CollateralMode               bool
 	Leverage                     bool
+	MaximumFundingRateHistory    time.Duration
+	FundingRateFrequency         time.Duration
 }
 
 // MarginCapabilities stores the exchange's margin capabilities

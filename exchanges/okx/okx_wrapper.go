@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -132,6 +133,11 @@ func (ok *Okx) SetDefaults() {
 				CollateralMode: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates:              true,
+				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
+				FundingRateFrequency:      kline.EightHour.Duration(),
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -185,16 +191,14 @@ func (ok *Okx) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (ok *Okx) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		ok.SetEnabled(false)
 		return nil
 	}
-	err = ok.SetupDefaults(exch)
-	if err != nil {
+	if err := ok.SetupDefaults(exch); err != nil {
 		return err
 	}
 
@@ -203,13 +207,14 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Register:              make(chan *wsRequestInfo),
 		Unregister:            make(chan string),
 		Message:               make(chan *wsIncomingData),
+		shutdown:              make(chan bool),
 	}
 
 	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	err = ok.Websocket.Setup(&stream.WebsocketSetup{
+	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:         exch,
 		DefaultURL:             okxAPIWebsocketPublicURL,
 		RunningURL:             wsRunningEndpoint,
@@ -222,20 +227,21 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
-	})
-
-	if err != nil {
+	}); err != nil {
 		return err
 	}
-	err = ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+
+	go ok.WsResponseMultiplexer.Run()
+
+	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
+
 	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -286,6 +292,18 @@ func (ok *Okx) Run(ctx context.Context) {
 				err)
 		}
 	}
+}
+
+// Shutdown calls Base.Shutdown and then shuts down the response multiplexer
+func (ok *Okx) Shutdown() error {
+	if err := ok.Base.Shutdown(); err != nil {
+		return err
+	}
+
+	// Must happen after the Websocket shutdown in Base.Shutdown, so there are no new blocking writes to the multiplexer
+	ok.WsResponseMultiplexer.Shutdown()
+
+	return nil
 }
 
 // GetServerTime returns the current exchange server time.
@@ -1559,6 +1577,167 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	return ok.GetInstruments(ctx, &InstrumentsFetchParams{
 		InstrumentType: instType,
 	})
+}
+
+// GetLatestFundingRate returns the latest funding rate for a given asset and currency
+func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	format, err := ok.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := r.Pair.Format(format)
+	pairRate := fundingrate.LatestRateResponse{
+		Exchange: ok.Name,
+		Asset:    r.Asset,
+		Pair:     fPair,
+	}
+	fr, err := ok.GetSingleFundingRate(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	pairRate.LatestRate = fundingrate.Rate{
+		Time: fr.FundingTime.Time(),
+		Rate: fr.FundingRate.Decimal(),
+	}
+	if r.IncludePredictedRate {
+		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: fr.NextFundingTime.Time(),
+			Rate: fr.NextFundingRate.Decimal(),
+		}
+	}
+	return &pairRate, nil
+}
+
+// GetFundingRates returns funding rates for a given asset and currency for a time period
+func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
+	}
+	requestLimit := 100
+	sd := r.StartDate
+	maxLookback := time.Now().Add(-ok.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
+	if r.StartDate.Before(maxLookback) {
+		if r.RespectHistoryLimits {
+			r.StartDate = maxLookback
+		} else {
+			return nil, fmt.Errorf("%w earliest date is %v", fundingrate.ErrFundingRateOutsideLimits, maxLookback)
+		}
+		if r.EndDate.Before(maxLookback) {
+			return nil, order.ErrGetFundingDataRequired
+		}
+		r.StartDate = maxLookback
+	}
+	format, err := ok.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := r.Pair.Format(format)
+	pairRate := fundingrate.Rates{
+		Exchange:  ok.Name,
+		Asset:     r.Asset,
+		Pair:      fPair,
+		StartDate: r.StartDate,
+		EndDate:   r.EndDate,
+	}
+	// map of time indexes, allowing for easy lookup of slice index from unix time data
+	mti := make(map[int64]int)
+	for {
+		if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
+			break
+		}
+		var frh []FundingRateResponse
+		frh, err = ok.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
+		if err != nil {
+			return nil, err
+		}
+		if len(frh) == 0 {
+			break
+		}
+		for i := range frh {
+			if r.IncludePayments {
+				mti[frh[i].FundingTime.Time().Unix()] = i
+			}
+			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
+				Time: frh[i].FundingTime.Time(),
+				Rate: frh[i].RealisedRate.Decimal(),
+			})
+		}
+		if len(frh) < requestLimit {
+			break
+		}
+		sd = frh[len(frh)-1].FundingTime.Time()
+	}
+	var fr *FundingRateResponse
+	fr, err = ok.GetSingleFundingRate(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	if fr == nil {
+		return nil, fmt.Errorf("%w GetSingleFundingRate", common.ErrNilPointer)
+	}
+	pairRate.LatestRate = fundingrate.Rate{
+		Time: fr.FundingTime.Time(),
+		Rate: fr.FundingRate.Decimal(),
+	}
+	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+	if r.IncludePredictedRate {
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: fr.NextFundingTime.Time(),
+			Rate: fr.NextFundingRate.Decimal(),
+		}
+	}
+	if r.IncludePayments {
+		pairRate.PaymentCurrency = r.Pair.Base
+		if !r.PaymentCurrency.IsEmpty() {
+			pairRate.PaymentCurrency = r.PaymentCurrency
+		}
+		sd = r.StartDate
+		billDetailsFunc := ok.GetBillsDetail3Months
+		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
+			billDetailsFunc = ok.GetBillsDetailLast7Days
+		}
+		for {
+			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
+				break
+			}
+			var billDetails []BillsDetailResponse
+			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
+				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
+				Currency:       pairRate.PaymentCurrency.String(),
+				BillType:       137,
+				BeginTime:      sd,
+				EndTime:        r.EndDate,
+				Limit:          int64(requestLimit),
+			})
+			if err != nil {
+				return nil, err
+			}
+			for i := range billDetails {
+				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(ok.Features.Supports.FuturesCapabilities.FundingRateFrequency).Unix()]; okay {
+					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
+					continue
+				}
+			}
+			if len(billDetails) < requestLimit {
+				break
+			}
+			sd = billDetails[len(billDetails)-1].Timestamp.Time()
+		}
+
+		for i := range pairRate.FundingRates {
+			pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[i].Payment)
+		}
+	}
+	return &pairRate, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (ok *Okx) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+	return a == asset.PerpetualSwap, nil
 }
 
 // SetMarginType sets the default margin type for when opening a new position

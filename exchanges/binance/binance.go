@@ -38,6 +38,9 @@ const (
 	cfuturesAPIURL = "https://dapi.binance.com"
 	ufuturesAPIURL = "https://fapi.binance.com"
 
+	testnetSpotURL = "https://testnet.binance.vision/api"
+	testnetFutures = "https://testnet.binancefuture.com"
+
 	// Public endpoints
 	exchangeInfo      = "/api/v3/exchangeInfo"
 	orderBookDepth    = "/api/v3/depth"
@@ -51,6 +54,9 @@ const (
 	userAccountStream = "/api/v3/userDataStream"
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
 	historicalTrades  = "/api/v3/historicalTrades"
+
+	// Margin endpoints
+	marginInterestHistory = "/sapi/v1/margin/interestHistory"
 
 	// Authenticated endpoints
 	newOrderTest      = "/api/v3/order/test"
@@ -79,8 +85,8 @@ const (
 	defaultRecvWindow = 5 * time.Second
 )
 
-// GetInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetInterestHistory(ctx context.Context) (MarginInfoData, error) {
+// GetUndocumentedInterestHistory gets interest history for currency/currencies provided
+func (b *Binance) GetUndocumentedInterestHistory(ctx context.Context) (MarginInfoData, error) {
 	var resp MarginInfoData
 	if err := b.SendHTTPRequest(ctx, exchange.EdgeCase1, undocumentedInterestHistory, spotDefaultRate, &resp); err != nil {
 		return resp, err
@@ -213,6 +219,41 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	path := historicalTrades + "?" + params.Encode()
 	return resp,
 		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+}
+
+// GetUserMarginInterestHistory returns margin interest history for the user
+func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (*UserMarginInterestHistoryResponse, error) {
+	params := url.Values{}
+
+	if !assetCurrency.IsEmpty() {
+		params.Set("asset", assetCurrency.String())
+	}
+	if !isolatedSymbol.IsEmpty() {
+		fPair, err := b.FormatSymbol(isolatedSymbol, asset.Margin)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("isolatedSymbol", fPair)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if currentPage > 0 {
+		params.Set("current", strconv.FormatInt(currentPage, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if archived {
+		params.Set("archived", "true")
+	}
+
+	path := marginInterestHistory + "?" + params.Encode()
+	var resp UserMarginInterestHistoryResponse
+	return &resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.

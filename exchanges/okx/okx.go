@@ -3417,8 +3417,8 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestEPL, http.MethodGet, common.EncodeURLValues(publicOpenInterestValues, params), nil, &resp, false)
 }
 
-// GetFundingRate  Retrieve funding rate.
-func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*FundingRateResponse, error) {
+// GetSingleFundingRate returns the latest funding rate
+func (ok *Okx) GetSingleFundingRate(ctx context.Context, instrumentID string) (*FundingRateResponse, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4229,7 +4229,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		if _, okay := ctx.Value(testNetKey("testnet")).(bool); okay {
+		if _, okay := ctx.Value(testNetVal).(bool); okay {
 			headers["x-simulated-trading"] = "1"
 		}
 		if authenticated {

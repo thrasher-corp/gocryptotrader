@@ -227,5 +227,9 @@ func (f *StringToFloat64) Float64() float64 {
 	return float64(*f)
 }
 
-// Decimal returns a decimal of the value
-func (f *StringToFloat64) Decimal() decimal.Decimal { return decimal.NewFromFloat(float64(*f)) }
+// Decimal returns the decimal value of the FloatString
+// Warning: this does not handle big numbers as the underlying
+// is still a float
+func (f *StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(*f))
+}

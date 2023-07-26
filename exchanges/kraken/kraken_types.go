@@ -18,7 +18,7 @@ const (
 	krakenDepth            = "Depth"
 	krakenTrades           = "Trades"
 	krakenSpread           = "Spread"
-	krakenBalance          = "Balance"
+	krakenBalance          = "BalanceEx"
 	krakenTradeBalance     = "TradeBalance"
 	krakenOpenOrders       = "OpenOrders"
 	krakenClosedOrders     = "ClosedOrders"
@@ -122,7 +122,8 @@ type AssetPairs struct {
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
 	MarginCall        int         `json:"margin_call"`
 	MarginStop        int         `json:"margin_stop"`
-	Ordermin          string      `json:"ordermin"`
+	OrderMinimum      float64     `json:"ordermin,string"`
+	TickSize          float64     `json:"tick_size,string"`
 	Status            string      `json:"status"`
 }
 
@@ -202,6 +203,12 @@ type Spread struct {
 	Time time.Time
 	Bid  float64
 	Ask  float64
+}
+
+// Balance represents account asset balances
+type Balance struct {
+	Total float64 `json:"balance,string"`
+	Hold  float64 `json:"hold_trade,string"`
 }
 
 // TradeBalanceOptions type

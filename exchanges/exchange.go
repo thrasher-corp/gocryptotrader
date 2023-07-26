@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1642,17 +1643,22 @@ func (b *Base) GetFuturesPositionSummary(context.Context, *order.PositionSummary
 }
 
 // GetFundingPaymentDetails returns funding payment details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
+func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFuturesPositionOrders returns futures positions for supplied currencies
-func (b *Base) GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error) {
+// GetFuturesPositions returns futures positions for all currencies
+func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetLatestFundingRate returns the latest funding rate based on request data
+func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error) {
+func (b *Base) GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

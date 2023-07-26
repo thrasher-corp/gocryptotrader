@@ -19,6 +19,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -249,10 +250,10 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 }
 
-func TestGetFundingRate(t *testing.T) {
+func TestGetSingleFundingRate(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetFundingRate(contextGenerate(), "BTC-USD-SWAP"); err != nil {
-		t.Error("okx GetFundingRate() error", err)
+	if _, err := ok.GetSingleFundingRate(context.Background(), "BTC-USD-SWAP"); err != nil {
+		t.Error("okx GetSingleFundingRate() error", err)
 	}
 }
 
@@ -3240,6 +3241,80 @@ func TestInstrument(t *testing.T) {
 	}
 	if i.Underlying != "BTC-USDC" {
 		t.Error("expected BTC-USDC underlying")
+	}
+}
+
+func TestGetLatestFundingRate(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetLatestFundingRate(contextGenerate(), &fundingrate.LatestRateRequest{
+		Asset:                asset.PerpetualSwap,
+		Pair:                 cp,
+		IncludePredictedRate: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingRates(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	r := &fundingrate.RatesRequest{
+		Asset:                asset.PerpetualSwap,
+		Pair:                 cp,
+		PaymentCurrency:      currency.USDT,
+		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:              time.Now(),
+		IncludePredictedRate: true,
+	}
+	if sharedtestvalues.AreAPICredentialsSet(ok) {
+		r.IncludePayments = true
+	}
+	_, err = ok.GetFundingRates(contextGenerate(), r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
+	_, err = ok.GetFundingRates(contextGenerate(), r)
+	if !errors.Is(err, fundingrate.ErrFundingRateOutsideLimits) {
+		t.Error(err)
+	}
+
+	r.RespectHistoryLimits = true
+	_, err = ok.GetFundingRates(contextGenerate(), r)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	is, err := ok.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+	if is {
+		t.Error("expected false")
+	}
+
+	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	is, err = ok.IsPerpetualFutureCurrency(asset.PerpetualSwap, cp)
+	if err != nil {
+		t.Error(err)
+	}
+	if !is {
+		t.Error("expected true")
 	}
 }
 

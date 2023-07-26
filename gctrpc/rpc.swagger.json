@@ -2000,14 +2000,22 @@
             "type": "string"
           },
           {
-            "name": "pairs",
+            "name": "pair.delimiter",
             "in": "query",
             "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
           },
           {
             "name": "startDate",
@@ -2022,6 +2030,12 @@
             "type": "string"
           },
           {
+            "name": "paymentCurrency",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "includePredicted",
             "in": "query",
             "required": false,
@@ -2029,6 +2043,12 @@
           },
           {
             "name": "includePayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "respectHistoryLimits",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2402,6 +2422,66 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getlatestfundingrate": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetLatestFundingRate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetLatestFundingRateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "includePredicted",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
         "tags": [
           "GoCryptoTraderService"
         ]
@@ -5365,6 +5445,9 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
+        "paymentCurrency": {
+          "type": "string"
+        },
         "startDate": {
           "type": "string"
         },
@@ -5385,6 +5468,12 @@
           "$ref": "#/definitions/gctrpcFundingRate"
         },
         "paymentSum": {
+          "type": "string"
+        },
+        "paymentMessage": {
+          "type": "string"
+        },
+        "timeOfNextRate": {
           "type": "string"
         }
       }
@@ -5952,12 +6041,8 @@
     "gctrpcGetFundingRatesResponse": {
       "type": "object",
       "properties": {
-        "fundingPayments": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/gctrpcFundingData"
-          }
+        "rates": {
+          "$ref": "#/definitions/gctrpcFundingData"
         }
       }
     },
@@ -6051,27 +6136,11 @@
         }
       }
     },
-    "gctrpcGetLeverageResponse": {
+    "gctrpcGetLatestFundingRateResponse": {
       "type": "object",
       "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "asset": {
-          "type": "string"
-        },
-        "pair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
-        },
-        "underlyingPair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
-        },
-        "marginType": {
-          "type": "string"
-        },
-        "leverage": {
-          "type": "number",
-          "format": "double"
+        "rate": {
+          "$ref": "#/definitions/gctrpcFundingData"
         }
       }
     },
