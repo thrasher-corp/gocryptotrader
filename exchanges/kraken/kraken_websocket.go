@@ -859,7 +859,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 	askSnapshot, askSnapshotExists := data["as"].([]interface{})
 	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
 	if !askSnapshotExists && !bidSnapshotExists {
-		return errNoWebsocketOrderbookData
+		return fmt.Errorf("%w for %v %v", errNoWebsocketOrderbookData, channelData.Pair, asset.Spot)
 	}
 
 	return k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
