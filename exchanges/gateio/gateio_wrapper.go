@@ -178,12 +178,6 @@ func (g *Gateio) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-
-	g.SubmissionConfig = order.SubmissionConfig{
-		OrderBaseAmountsRequired:      true,
-		FeeAppliedToPurchasedCurrency: true,
-		RequiresParameterLimits:       true,
-	}
 }
 
 // Setup sets user configuration

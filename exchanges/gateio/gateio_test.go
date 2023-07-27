@@ -3338,7 +3338,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("received %v, expected %v", err, common.ErrNotYetImplemented)
 	}
 
-	g.Verbose = true
 	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
