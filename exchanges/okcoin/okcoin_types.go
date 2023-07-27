@@ -2,12 +2,9 @@ package okcoin
 
 import (
 	"strconv"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // TickerData stores ticker data
@@ -136,7 +133,7 @@ type WebsocketStatus struct {
 		End                   okcoinTime `json:"end"`
 		Begin                 okcoinTime `json:"begin"`
 		Href                  string     `json:"href"`
-		ServiceType           string     `json:"serviceType"`
+		ServiceType           int64      `json:"serviceType,string"`
 		System                string     `json:"system"`
 		RescheduleDescription string     `json:"scheDesc"`
 		Time                  okcoinTime `json:"ts"`
@@ -224,10 +221,10 @@ type WebsocketOrder struct {
 		OrderType                  string                  `json:"ordType"`
 		ProfitAndLoss              convert.StringToFloat64 `json:"pnl"`
 		PositionSide               string                  `json:"posSide"`
-		Price                      string                  `json:"px"`
+		Price                      convert.StringToFloat64 `json:"px"`
 		Rebate                     string                  `json:"rebate"`
 		RebateCurrency             string                  `json:"rebateCcy"`
-		ReduceOnly                 string                  `json:"reduceOnly"`
+		ReduceOnly                 bool                    `json:"reduceOnly,string"`
 		ClientRequestID            string                  `json:"reqId"`
 		Side                       string                  `json:"side"`
 		StopLossOrderPrice         convert.StringToFloat64 `json:"slOrdPx"`
@@ -412,47 +409,6 @@ type WebsocketCandlesResponse struct {
 		InstrumentID string `json:"instId"`
 	} `json:"arg"`
 	Data [][]string `json:"data"`
-}
-
-// GetCandlesData represents a candlestick instances list.
-func (o *Okcoin) GetCandlesData(arg *WebsocketCandlesResponse) ([]stream.KlineData, error) {
-	candlesticks := make([]stream.KlineData, len(arg.Data))
-	cp, err := currency.NewPairFromString(arg.Arg.InstrumentID)
-	if err != nil {
-		return nil, err
-	}
-	for x := range arg.Data {
-		var timestamp int64
-		timestamp, err = strconv.ParseInt(arg.Data[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].AssetType = asset.Spot
-		candlesticks[x].Pair = cp
-		candlesticks[x].Timestamp = time.UnixMilli(timestamp)
-		candlesticks[x].Exchange = o.Name
-		candlesticks[x].OpenPrice, err = strconv.ParseFloat(arg.Data[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].HighPrice, err = strconv.ParseFloat(arg.Data[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].LowPrice, err = strconv.ParseFloat(arg.Data[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].ClosePrice, err = strconv.ParseFloat(arg.Data[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].Volume, err = strconv.ParseFloat(arg.Data[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return candlesticks, nil
 }
 
 // WebsocketOrderBooksData is the full websocket response containing orderbook data

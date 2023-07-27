@@ -15,8 +15,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -56,8 +57,6 @@ const (
 
 var defaultSubscriptions = []string{
 	wsTickers,
-	wsCandle1D,
-	wsTrades,
 	wsOrderbooks,
 	wsStatus,
 }
@@ -210,6 +209,16 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			for x := range resp.Data {
+				systemStatus := fmt.Sprintf("%s %s on system %s %s service type\nFrom %s\nTo %s\n", systemStateString(resp.Data[x].State), resp.Data[x].Title, resp.Data[x].System, systemStatusServiceTypeString(resp.Data[x].ServiceType), resp.Data[x].Begin.Time().String(), resp.Data[x].End.Time().String())
+				if resp.Data[x].Href != "" {
+					systemStatus = fmt.Sprintf("%s Href: %s\n", systemStatus, resp.Data[x].Href)
+				}
+				if resp.Data[x].RescheduleDescription != "" {
+					systemStatus = fmt.Sprintf("%s Rescheduled Description: %s", systemStatus, resp.Data[x].RescheduleDescription)
+				}
+				log.Warnf(log.ExchangeSys, systemStatus)
+			}
 			o.Websocket.DataHandler <- resp
 			return nil
 		case wsAccount:
@@ -271,7 +280,44 @@ func (o *Okcoin) wsProcessAlgoOrder(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	o.Websocket.DataHandler <- resp
+	orderDetails := make([]order.Detail, len(resp.Data))
+	for a := range resp.Data {
+		cp, err := currency.NewPairFromString(resp.Data[a].InstrumentID)
+		if err != nil {
+			return err
+		}
+		side, err := order.StringToOrderSide(resp.Data[a].Side)
+		if err != nil {
+			return err
+		}
+		var oType order.Type
+		oType, err = order.StringToOrderType(resp.Data[a].OrderType)
+		if err != nil {
+			return err
+		}
+		var status order.Status
+		status, err = order.StringToOrderStatus(resp.Data[a].State)
+		if err != nil {
+			return err
+		}
+		orderDetails[a] = order.Detail{
+			LastUpdated:   resp.Data[a].CreateTime.Time(),
+			Exchange:      o.Name,
+			AssetType:     asset.Spot,
+			Pair:          cp,
+			Side:          side,
+			OrderID:       resp.Data[a].OrderID,
+			ClientOrderID: resp.Data[a].ClientOrderID,
+			Price:         resp.Data[a].Price.Float64(),
+			Amount:        resp.Data[a].Size.Float64(),
+			Type:          oType,
+			Status:        status,
+			Date:          resp.Data[a].CreateTime.Time(),
+			Leverage:      resp.Data[a].Leverage,
+			TriggerPrice:  resp.Data[a].TriggerPrice.Float64(),
+		}
+	}
+	o.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
@@ -286,24 +332,43 @@ func (o *Okcoin) wsProcessOrders(respRaw []byte) error {
 		return err
 	}
 
-	algoOrder := make([]fill.Data, len(resp.Data))
+	algoOrder := make([]order.Detail, len(resp.Data))
 	for x := range resp.Data {
+		var side order.Side
 		side, err := order.StringToOrderSide(resp.Data[x].Side)
 		if err != nil {
 			return err
 		}
-		algoOrder[x] = fill.Data{
-			ID:            resp.Data[x].OrderID,
-			Timestamp:     resp.Data[x].CreateTime.Time(),
-			Exchange:      o.Name,
-			AssetType:     asset.Spot,
-			CurrencyPair:  cp,
-			Side:          side,
-			OrderID:       resp.Data[x].OrderID,
-			ClientOrderID: resp.Data[x].ClientOrdID,
-			TradeID:       resp.Data[x].TradeID,
-			Price:         resp.Data[x].FillPrice.Float64(),
-			Amount:        resp.Data[x].Size.Float64(),
+		var oType order.Type
+		oType, err = order.StringToOrderType(resp.Data[x].OrderType)
+		if err != nil {
+			return err
+		}
+		var status order.Status
+		status, err = order.StringToOrderStatus(resp.Data[x].State)
+		if err != nil {
+			return err
+		}
+		algoOrder[x] = order.Detail{
+			Exchange:             o.Name,
+			AssetType:            asset.Spot,
+			Pair:                 cp,
+			Side:                 side,
+			OrderID:              resp.Data[x].OrderID,
+			ClientOrderID:        resp.Data[x].ClientOrdID,
+			Amount:               resp.Data[x].Size.Float64(),
+			Type:                 oType,
+			Status:               status,
+			Date:                 resp.Data[x].CreateTime.Time(),
+			LastUpdated:          resp.Data[x].UpdateTime.Time(),
+			ExecutedAmount:       resp.Data[x].FillSize.Float64(),
+			ReduceOnly:           resp.Data[x].ReduceOnly,
+			Leverage:             resp.Data[x].Leverage.Float64(),
+			Price:                resp.Data[x].Price.Float64(),
+			AverageExecutedPrice: resp.Data[x].AveragePrice.Float64(),
+			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].FillSize.Float64(),
+			Cost:                 resp.Data[x].AveragePrice.Float64() * resp.Data[x].FillSize.Float64(),
+			Fee:                  resp.Data[x].Fee.Float64(),
 		}
 	}
 	o.Websocket.DataHandler <- algoOrder
@@ -316,7 +381,17 @@ func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	o.Websocket.DataHandler <- &resp
+	accountChanges := []account.Change{}
+	for a := range resp.Data {
+		for b := range resp.Data[a].Details {
+			accountChanges = append(accountChanges, account.Change{
+				Exchange: o.Name,
+				Asset:    asset.Spot,
+				Currency: currency.NewCode(resp.Data[a].Details[b].Currency),
+				Amount:   resp.Data[a].Details[b].AvailableBalance.Float64()})
+		}
+	}
+	o.Websocket.DataHandler <- accountChanges
 	return nil
 }
 
@@ -688,7 +763,7 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 				})
 			}
 		default:
-			return nil, errors.New("unsupported websocket channel")
+			return nil, fmt.Errorf("unsupported websocket channel %v", asset.Spot)
 		}
 	}
 	return subscriptions, nil
@@ -822,4 +897,80 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		o.Websocket.AddSuccessfulSubscriptions(channels...)
 	}
 	return nil
+}
+
+// GetCandlesData represents a candlestick instances list.
+func (o *Okcoin) GetCandlesData(arg *WebsocketCandlesResponse) ([]stream.KlineData, error) {
+	candlesticks := make([]stream.KlineData, len(arg.Data))
+	cp, err := currency.NewPairFromString(arg.Arg.InstrumentID)
+	if err != nil {
+		return nil, err
+	}
+	for x := range arg.Data {
+		if len(arg.Data[x]) < 6 {
+			return nil, fmt.Errorf("%w expected a kline data of length 6 but found %d", kline.ErrInsufficientCandleData, len(arg.Data[x]))
+		}
+		var timestamp int64
+		timestamp, err = strconv.ParseInt(arg.Data[x][0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].AssetType = asset.Spot
+		candlesticks[x].Pair = cp
+		candlesticks[x].Timestamp = time.UnixMilli(timestamp)
+		candlesticks[x].Exchange = o.Name
+		candlesticks[x].OpenPrice, err = strconv.ParseFloat(arg.Data[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].HighPrice, err = strconv.ParseFloat(arg.Data[x][2], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].LowPrice, err = strconv.ParseFloat(arg.Data[x][3], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].ClosePrice, err = strconv.ParseFloat(arg.Data[x][4], 64)
+		if err != nil {
+			return nil, err
+		}
+		candlesticks[x].Volume, err = strconv.ParseFloat(arg.Data[x][5], 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return candlesticks, nil
+}
+
+func systemStatusServiceTypeString(serviceType int64) string {
+	switch serviceType {
+	case 0:
+		return "Websocket"
+	case 1:
+		return "Classic account"
+	case 5:
+		return "Unified account"
+	case 99:
+		return "Unknown"
+	default:
+		return ""
+	}
+}
+
+func systemStateString(state string) string {
+	switch state {
+	case "scheduled":
+		return "Scheduled"
+	case "ongoing":
+		return "Ongoing"
+	case "pre_open":
+		return "Pre-Open"
+	case "completed":
+		return "Completed"
+	case "canceled":
+		return "Canceled"
+	default:
+		return ""
+	}
 }
