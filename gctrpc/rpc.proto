@@ -1038,12 +1038,15 @@ message FundingData {
   string exchange = 1;
   string asset = 2;
   CurrencyPair pair = 3;
-  string start_date = 4;
-  string end_date = 5;
-  repeated FundingRate rates = 6;
-  FundingRate latest_rate = 7;
-  FundingRate upcoming_rate = 8;
-  string payment_sum = 9;
+  string payment_currency = 4;
+  string start_date = 5;
+  string end_date = 6;
+  repeated FundingRate rates = 7;
+  FundingRate latest_rate = 8;
+  FundingRate upcoming_rate = 9;
+  string payment_sum = 10;
+  string payment_message = 11;
+  string time_of_next_rate = 12;
 }
 
 message FuturesPositionStats {
@@ -1190,15 +1193,28 @@ message CollateralUsedBreakdown {
 message GetFundingRatesRequest {
   string exchange = 1;
   string asset = 2;
-  repeated string pairs = 3;
+  CurrencyPair pair = 3;
   string start_date = 4;
   string end_date = 5;
-  bool include_predicted = 6;
-  bool include_payments = 7;
+  string payment_currency = 6;
+  bool include_predicted = 7;
+  bool include_payments = 8;
+  bool respect_history_limits = 9;
 }
 
 message GetFundingRatesResponse {
-  repeated FundingData funding_payments = 1;
+  FundingData rates = 1;
+}
+
+message GetLatestFundingRateRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  bool include_predicted = 4;
+}
+
+message GetLatestFundingRateResponse {
+  FundingData rate = 1;
 }
 
 message ShutdownRequest {}
@@ -1851,6 +1867,9 @@ service GoCryptoTraderService {
   }
   rpc GetFundingRates(GetFundingRatesRequest) returns (GetFundingRatesResponse) {
     option (google.api.http) = {get: "/v1/getfundingrates"};
+  }
+  rpc GetLatestFundingRate(GetLatestFundingRateRequest) returns (GetLatestFundingRateResponse) {
+    option (google.api.http) = {get: "/v1/getlatestfundingrate"};
   }
   rpc GetOrderbookMovement(GetOrderbookMovementRequest) returns (GetOrderbookMovementResponse) {
     option (google.api.http) = {get: "/v1/getorderbookmovement"};
