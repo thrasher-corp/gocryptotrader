@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -1989,11 +1990,11 @@ type WsEventResponse struct {
 
 // WsResponse represents generalized websocket push data from the server.
 type WsResponse struct {
-	ID      int64       `json:"id"`
-	Time    int64       `json:"time"`
-	Channel string      `json:"channel"`
-	Event   string      `json:"event"`
-	Result  interface{} `json:"result"`
+	ID      int64           `json:"id"`
+	Time    int64           `json:"time"`
+	Channel string          `json:"channel"`
+	Event   string          `json:"event"`
+	Result  json.RawMessage `json:"result"`
 }
 
 // WsTicker websocket ticker information.

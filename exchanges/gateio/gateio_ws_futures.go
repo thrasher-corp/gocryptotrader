@@ -216,33 +216,30 @@ func (g *Gateio) wsFunnelFuturesConnectionData(ws stream.Connection) {
 }
 
 func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error {
-	var result WsResponse
-	var eventResponse WsEventResponse
-	err := json.Unmarshal(respRaw, &eventResponse)
-	if err == nil &&
-		(eventResponse.Result != nil || eventResponse.Error != nil) &&
-		(eventResponse.Event == "subscribe" || eventResponse.Event == "unsubscribe") {
-		if !g.Websocket.Match.IncomingWithData(eventResponse.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", eventResponse.ID)
-		}
-		return nil
-	}
-	err = json.Unmarshal(respRaw, &result)
+	var push WsResponse
+	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
-	switch result.Channel {
-	// Futures push datas.
+
+	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
+			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
+		}
+		return nil
+	}
+
+	switch push.Channel {
 	case futuresTickersChannel:
 		return g.processFuturesTickers(respRaw, assetType)
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw, assetType)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(result.Event, respRaw, assetType)
+		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, assetType, push.Time)
 	case futuresOrderbookTickerChannel:
-		return g.processFuturesOrderbookTicker(respRaw)
+		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(respRaw, assetType)
+		return g.processFuturesAndOptionsOrderbookUpdate(push.Result, assetType)
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, assetType)
 	case futuresOrdersChannel:
@@ -514,37 +511,33 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 	return nil
 }
 
-func (g *Gateio) processFuturesOrderbookTicker(data []byte) error {
-	var response WsResponse
-	orderbookTicker := &WsFuturesOrderbookTicker{}
-	response.Result = orderbookTicker
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processFuturesOrderbookTicker(incoming []byte) error {
+	var data WsFuturesOrderbookTicker
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- response
+	g.Websocket.DataHandler <- data
 	return nil
 }
 
-func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte, assetType asset.Item) error {
-	var response WsResponse
-	update := &WsFuturesAndOptionsOrderbookUpdate{}
-	response.Result = update
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetType asset.Item) error {
+	var data WsFuturesAndOptionsOrderbookUpdate
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(update.ContractName)
+	pair, err := currency.NewPairFromString(data.ContractName)
 	if err != nil {
 		return err
 	}
-	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[update.ContractName]) ||
-		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName]) {
+	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName]) ||
+		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName]) {
 		orderbooks, err := g.FetchOrderbook(context.Background(), pair, assetType)
 		if err != nil {
 			return err
 		}
-		if orderbooks.LastUpdateID < update.FirstUpdatedID || orderbooks.LastUpdateID > update.LastUpdatedID {
+		if orderbooks.LastUpdateID < data.FirstUpdatedID || orderbooks.LastUpdateID > data.LastUpdatedID {
 			return nil
 		}
 		err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
@@ -552,29 +545,25 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte, assetType 
 			return err
 		}
 		if assetType == asset.Options {
-			fetchedOptionsCurrencyPairSnapshotOrderbook[update.ContractName] = true
+			fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName] = true
 		} else {
-			fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName] = true
+			fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName] = true
 		}
 	}
 	updates := orderbook.Update{
-		UpdateTime: time.UnixMilli(update.TimestampInMs),
+		UpdateTime: time.UnixMilli(data.TimestampInMs),
 		Pair:       pair,
 		Asset:      assetType,
 	}
-	updates.Bids = make([]orderbook.Item, len(update.Bids))
-	updates.Asks = make([]orderbook.Item, len(update.Asks))
+	updates.Asks = make([]orderbook.Item, len(data.Asks))
 	for x := range updates.Asks {
-		updates.Asks[x] = orderbook.Item{
-			Amount: update.Asks[x].Size,
-			Price:  update.Asks[x].Price,
-		}
+		updates.Asks[x].Amount = data.Asks[x].Size
+		updates.Asks[x].Price = data.Asks[x].Price
 	}
+	updates.Bids = make([]orderbook.Item, len(data.Bids))
 	for x := range updates.Bids {
-		updates.Bids[x] = orderbook.Item{
-			Amount: update.Bids[x].Size,
-			Price:  update.Bids[x].Price,
-		}
+		updates.Bids[x].Amount = data.Bids[x].Size
+		updates.Bids[x].Price = data.Bids[x].Price
 	}
 	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
 		return errors.New("malformed orderbook data")
@@ -582,16 +571,14 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte, assetType 
 	return g.Websocket.Orderbook.Update(&updates)
 }
 
-func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, pushTime int64) error {
 	if event == "all" {
-		var response WsResponse
-		snapshot := &WsFuturesOrderbookSnapshot{}
-		response.Result = snapshot
-		err := json.Unmarshal(data, &response)
+		var data WsFuturesOrderbookSnapshot
+		err := json.Unmarshal(incoming, &data)
 		if err != nil {
 			return err
 		}
-		pair, err := currency.NewPairFromString(snapshot.Contract)
+		pair, err := currency.NewPairFromString(data.Contract)
 		if err != nil {
 			return err
 		}
@@ -599,54 +586,45 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte, asse
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            pair,
-			LastUpdated:     snapshot.TimestampInMs.Time(),
+			LastUpdated:     data.TimestampInMs.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
-		base.Bids = make([]orderbook.Item, len(snapshot.Bids))
-		base.Asks = make([]orderbook.Item, len(snapshot.Asks))
+		base.Asks = make([]orderbook.Item, len(data.Asks))
 		for x := range base.Asks {
-			base.Asks[x] = orderbook.Item{
-				Amount: snapshot.Asks[x].Size,
-				Price:  snapshot.Asks[x].Price,
-			}
+			base.Asks[x].Amount = data.Asks[x].Size
+			base.Asks[x].Price = data.Asks[x].Price
 		}
+		base.Bids = make([]orderbook.Item, len(data.Bids))
 		for x := range base.Bids {
-			base.Bids[x] = orderbook.Item{
-				Amount: snapshot.Bids[x].Size,
-				Price:  snapshot.Bids[x].Price,
-			}
+			base.Bids[x].Amount = data.Bids[x].Size
+			base.Bids[x].Price = data.Bids[x].Price
 		}
 		return g.Websocket.Orderbook.LoadSnapshot(&base)
 	}
-	resp := struct {
-		Time    int64                           `json:"time"`
-		Channel string                          `json:"channel"`
-		Event   string                          `json:"event"`
-		Result  []WsFuturesOrderbookUpdateEvent `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
+	var data []WsFuturesOrderbookUpdateEvent
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
 	dataMap := map[string][2][]orderbook.Item{}
-	for x := range resp.Result {
-		ab, ok := dataMap[resp.Result[x].CurrencyPair]
+	for x := range data {
+		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
 			ab = [2][]orderbook.Item{}
 		}
-		if resp.Result[x].Amount > 0 {
+		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Item{
-				Price:  resp.Result[x].Price,
-				Amount: resp.Result[x].Amount,
+				Price:  data[x].Price,
+				Amount: data[x].Amount,
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Item{
-				Price:  resp.Result[x].Price,
-				Amount: -resp.Result[x].Amount,
+				Price:  data[x].Price,
+				Amount: -data[x].Amount,
 			})
 		}
 		if !ok {
-			dataMap[resp.Result[x].CurrencyPair] = ab
+			dataMap[data[x].CurrencyPair] = ab
 		}
 	}
 	if len(dataMap) == 0 {
@@ -663,7 +641,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte, asse
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     time.Unix(resp.Time, 0),
+			LastUpdated:     time.Unix(pushTime, 0),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
