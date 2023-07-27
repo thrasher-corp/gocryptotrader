@@ -85,34 +85,6 @@ func (by *Bybit) WsUSDTConnect() error {
 	return nil
 }
 
-// wsUSDTReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsUSDTReadData(ctx context.Context, cancelFunc context.CancelFunc, wsConn stream.Connection, assetWebsocket *stream.Websocket) {
-	assetWebsocket.Wg.Add(1)
-	defer func() {
-		assetWebsocket.Wg.Done()
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			// received termination signal
-			return
-		case <-assetWebsocket.ShutdownC:
-			return
-		default:
-			resp := wsConn.ReadMessage()
-			if resp.Raw == nil {
-				cancelFunc()
-				return
-			}
-
-			err := by.wsUSDTHandleData(resp.Raw)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-			}
-		}
-	}
-}
-
 // WsUSDTAuth sends an authentication message to receive auth data
 func (by *Bybit) WsUSDTAuth(ctx context.Context, cancelFunc context.CancelFunc) error {
 	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
@@ -296,6 +268,34 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 	return errs
 }
 
+// wsUSDTReadData gets and passes on websocket messages for processing
+func (by *Bybit) wsUSDTReadData(ctx context.Context, cancelFunc context.CancelFunc, wsConn stream.Connection, assetWebsocket *stream.Websocket) {
+	assetWebsocket.Wg.Add(1)
+	defer func() {
+		assetWebsocket.Wg.Done()
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			// received termination signal
+			return
+		case <-assetWebsocket.ShutdownC:
+			return
+		default:
+			resp := wsConn.ReadMessage()
+			if resp.Raw == nil {
+				cancelFunc()
+				return
+			}
+
+			err := by.wsUSDTHandleData(resp.Raw)
+			if err != nil {
+				by.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
 // wsUSDTHandleResp handles response messages from ws requests
 func (by *Bybit) wsUSDTHandleResp(wsFuturesResp *WsFuturesResp) error {
 	switch wsFuturesResp.Request.Topic {
@@ -310,7 +310,7 @@ func (by *Bybit) wsUSDTHandleResp(wsFuturesResp *WsFuturesResp) error {
 				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication request expired: %v", by.Name, asset.USDTMarginedFutures, wsFuturesResp.RetMsg)
 				return nil
 			default:
-				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoing", by.Name, asset.USDTMarginedFutures, wsFuturesResp.RetMsg)
+				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoint", by.Name, asset.USDTMarginedFutures, wsFuturesResp.RetMsg)
 				assetWebsocket.SetCanUseAuthenticatedEndpoints(false)
 				return nil
 			}
@@ -469,7 +469,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			}
 		}
 
-	case wsTrades:
+	case wsTrade:
 		if !by.IsSaveTradeDataEnabled() {
 			return nil
 		}

@@ -81,34 +81,6 @@ func (by *Bybit) WsFuturesConnect() error {
 	return nil
 }
 
-// wsFuturesReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsFuturesReadData(ctx context.Context, cancelFunc context.CancelFunc, wsConn stream.Connection, assetWebsocket *stream.Websocket) {
-	assetWebsocket.Wg.Add(1)
-	defer func() {
-		assetWebsocket.Wg.Done()
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			// received termination signal
-			return
-		case <-assetWebsocket.ShutdownC:
-			return
-		default:
-			resp := wsConn.ReadMessage()
-			if resp.Raw == nil {
-				cancelFunc()
-				return
-			}
-
-			err := by.wsFuturesHandleData(resp.Raw)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-			}
-		}
-	}
-}
-
 // WsFuturesAuth sends an authentication message to receive auth data
 func (by *Bybit) WsFuturesAuth(ctx context.Context, cancelFunc context.CancelFunc) error {
 	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
@@ -276,6 +248,34 @@ func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscr
 	return errs
 }
 
+// wsFuturesReadData gets and passes on websocket messages for processing
+func (by *Bybit) wsFuturesReadData(ctx context.Context, cancelFunc context.CancelFunc, wsConn stream.Connection, assetWebsocket *stream.Websocket) {
+	assetWebsocket.Wg.Add(1)
+	defer func() {
+		assetWebsocket.Wg.Done()
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			// received termination signal
+			return
+		case <-assetWebsocket.ShutdownC:
+			return
+		default:
+			resp := wsConn.ReadMessage()
+			if resp.Raw == nil {
+				cancelFunc()
+				return
+			}
+
+			err := by.wsFuturesHandleData(resp.Raw)
+			if err != nil {
+				by.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
 // wsFuturesHandleResp handles response messages from ws requests
 func (by *Bybit) wsFuturesHandleResp(wsFuturesResp *WsFuturesResp) error {
 	switch wsFuturesResp.Request.Topic {
@@ -439,7 +439,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 			}
 		}
 
-	case wsTrades:
+	case wsTrade:
 		if !by.IsSaveTradeDataEnabled() {
 			return nil
 		}

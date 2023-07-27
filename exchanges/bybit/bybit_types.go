@@ -296,10 +296,12 @@ type WsReq struct {
 
 // WsResp stores futures ws response
 type WsResp struct {
-	Success bool   `json:"success"`
-	RetMsg  string `json:"ret_msg"`
-	ConnID  string `json:"conn_id"`
-	Request WsReq  `json:"request"`
+	Topic      string      `json:"topic"`
+	Event      string      `json:"event"`
+	Symbol     string      `json:"symbol"`
+	Parameters interface{} `json:"params"`
+	Code       int         `json:"code,string"`
+	Message    string      `json:"msg"`
 }
 
 // WsFuturesReq stores futures ws request

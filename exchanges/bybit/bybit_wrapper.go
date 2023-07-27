@@ -205,10 +205,10 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			DefaultURL:                   bybitWSBaseURL + wsSpotPublicTopicV2,
 			RunningURL:                   wsRunningEndpoint,
 			RunningURLAuth:               bybitWSBaseURL + wsSpotPrivate,
-			Connector:                    by.WsConnect,
-			Subscriber:                   by.Subscribe,
-			Unsubscriber:                 by.Unsubscribe,
-			GenerateSubscriptions:        by.GenerateDefaultSubscriptions,
+			Connector:                    by.WsSpotConnect,
+			Subscriber:                   by.SubscribeSpot,
+			Unsubscriber:                 by.UnsubscribeSpot,
+			GenerateSubscriptions:        by.GenerateSpotDefaultSubscriptions,
 			AssetType:                    asset.Spot,
 			CanUseAuthenticatedEndpoints: true,
 		})
@@ -310,11 +310,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		}
 	}
 	return nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
-	return by.WsAuth(ctx)
 }
 
 // Start starts the Bybit go routine

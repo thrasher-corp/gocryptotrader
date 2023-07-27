@@ -113,34 +113,6 @@ func (by *Bybit) WsCoinConnect() error {
 	return nil
 }
 
-// wsCoinReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsCoinReadData(ctx context.Context, cancelFunc context.CancelFunc, wsConn stream.Connection, assetWebsocket *stream.Websocket) {
-	assetWebsocket.Wg.Add(1)
-	defer func() {
-		assetWebsocket.Wg.Done()
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			// received termination signal
-			return
-		case <-assetWebsocket.ShutdownC:
-			return
-		default:
-			resp := wsConn.ReadMessage()
-			if resp.Raw == nil {
-				cancelFunc()
-				return
-			}
-
-			err := by.wsCoinHandleData(resp.Raw)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-			}
-		}
-	}
-}
-
 // WsCoinAuth sends an authentication message to receive auth data
 func (by *Bybit) WsCoinAuth(ctx context.Context, cancelFunc context.CancelFunc) error {
 	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
@@ -307,6 +279,34 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 	return errs
 }
 
+// wsCoinReadData gets and passes on websocket messages for processing
+func (by *Bybit) wsCoinReadData(ctx context.Context, cancelFunc context.CancelFunc, wsConn stream.Connection, assetWebsocket *stream.Websocket) {
+	assetWebsocket.Wg.Add(1)
+	defer func() {
+		assetWebsocket.Wg.Done()
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			// received termination signal
+			return
+		case <-assetWebsocket.ShutdownC:
+			return
+		default:
+			resp := wsConn.ReadMessage()
+			if resp.Raw == nil {
+				cancelFunc()
+				return
+			}
+
+			err := by.wsCoinHandleData(resp.Raw)
+			if err != nil {
+				by.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
 // wsCoinHandleResp handles response messages from ws requests
 func (by *Bybit) wsCoinHandleResp(wsFuturesResp *WsFuturesResp) error {
 	switch wsFuturesResp.Request.Topic {
@@ -471,7 +471,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 			}
 		}
 
-	case wsTrades:
+	case wsTrade:
 		if !by.IsSaveTradeDataEnabled() {
 			return nil
 		}
