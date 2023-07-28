@@ -123,7 +123,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		return nil
 	}
 
-	switch push.Channel {
+	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
 		return g.processTicker(push.Result, push.Time)
 	case spotTradesChannel:
@@ -136,7 +136,6 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		return g.processOrderbookUpdate(push.Result)
 	case spotOrderbookChannel:
 		return g.processOrderbookSnapshot(push.Result)
-		// TODO: Convert below to not unmarshal all the data again.
 	case spotOrdersChannel:
 		return g.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -301,12 +300,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 		return err
 	}
 
-	avail, err := g.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	pair, err := avail.DeriveFrom(strings.Replace(data.CurrencyPair, "_", "", 1))
+	pair, err := currency.NewPairFromString(data.CurrencyPair)
 	if err != nil {
 		return err
 	}
@@ -319,7 +313,6 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 		Bids:        []orderbook.Item{{Price: data.BestBidPrice, Amount: data.BestBidAmount}},
 		Asks:        []orderbook.Item{{Price: data.BestAskPrice, Amount: data.BestAskAmount}},
 	})
-
 }
 
 func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
@@ -673,32 +666,26 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			spotBalancesChannel}...)
 	}
 	var subscriptions []stream.ChannelSubscription
-	var crossMarginPairs, spotPairs currency.Pairs
-	marginPairs, err := g.GetEnabledPairs(asset.Margin)
-	if err != nil {
-		return nil, err
-	}
-	crossMarginPairs, err = g.GetEnabledPairs(asset.CrossMargin)
-	if err != nil {
-		return nil, err
-	}
-	spotPairs, err = g.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	for i := range channelsToSubscribe {
 		var pairs []currency.Pair
 		var assetType asset.Item
 		switch channelsToSubscribe[i] {
 		case marginBalancesChannel:
-			pairs = marginPairs
 			assetType = asset.Margin
+			pairs, err = g.GetEnabledPairs(asset.Margin)
 		case crossMarginBalanceChannel:
-			pairs = crossMarginPairs
 			assetType = asset.CrossMargin
+			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
 		default:
-			pairs = spotPairs
 			assetType = asset.Spot
+			pairs, err = g.GetEnabledPairs(asset.Spot)
+		}
+		if err != nil {
+			if errors.Is(err, asset.ErrNotEnabled) {
+				continue // Skip if asset is not enabled.
+			}
+			return nil, err
 		}
 
 		for j := range pairs {
@@ -863,9 +850,9 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 		}
 
 		if channelsToSubscribe[i].Channel == "spot.book_ticker" {
-			// So to get all assets subscribed it needs to be batched and only
-			// spot.book_ticker can be batched, if not it will take about half
-			// an hour for initital sync.
+			// So to get all orderbook assets subscribed in a timely manner, it
+			// needs to be batched and only spot.book_ticker can be batched, if
+			// not it will take about half an hour for initital sync.
 			if batch != nil {
 				*batch = append(*batch, params...)
 			} else {
