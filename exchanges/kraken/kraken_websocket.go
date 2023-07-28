@@ -571,7 +571,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					if strings.Contains(val.Description.Order, "sell") {
 						oSide = order.Sell
 					}
-					oType, err := order.StringToOrderType(val.Description.Type)
+					oType, err := order.StringToOrderType(val.Description.OrderType)
 					if err != nil {
 						k.Websocket.DataHandler <- order.ClassificationError{
 							Exchange: k.Name,
