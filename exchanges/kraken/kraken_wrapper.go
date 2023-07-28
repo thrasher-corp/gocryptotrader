@@ -824,11 +824,10 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			timeInForce = RequestParamsTimeIOC
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
-				Pair:        s.Pair.String(),
+				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
 				Price:       s.Price,
 				Volume:      s.Amount,
 				TimeInForce: timeInForce,
