@@ -21,6 +21,9 @@ const mockfile = "../../testdata/http_mock/binance/binance.json"
 var mockTests = true
 
 func TestMain(m *testing.M) {
+	if useTestNet {
+		log.Fatal("cannot use testnet with mock tests")
+	}
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {

@@ -67,7 +67,6 @@ func (b *Bittrex) ProcessUpdateOB(pair currency.Pair, message *OrderbookUpdateMe
 		Asset:    asset.Spot,
 		Pair:     pair,
 		UpdateID: message.Sequence,
-		MaxDepth: orderbookDepth,
 		Bids:     updateBids,
 		Asks:     updateAsks,
 	})
@@ -115,11 +114,11 @@ func (b *Bittrex) SeedLocalOBCache(ctx context.Context, p currency.Pair) error {
 	if err != nil {
 		return err
 	}
-	return b.SeedLocalCacheWithOrderBook(p, sequence, ob)
+	return b.SeedLocalCacheWithOrderBook(p, sequence, ob, orderbookDepth)
 }
 
 // SeedLocalCacheWithOrderBook seeds the local orderbook cache
-func (b *Bittrex) SeedLocalCacheWithOrderBook(p currency.Pair, sequence int64, orderbookNew *OrderbookData) error {
+func (b *Bittrex) SeedLocalCacheWithOrderBook(p currency.Pair, sequence int64, orderbookNew *OrderbookData, maxDepth int) error {
 	newOrderBook := orderbook.Base{
 		Pair:            p,
 		Asset:           asset.Spot,
@@ -128,6 +127,7 @@ func (b *Bittrex) SeedLocalCacheWithOrderBook(p currency.Pair, sequence int64, o
 		VerifyOrderbook: b.CanVerifyOrderbook,
 		Bids:            make(orderbook.Items, len(orderbookNew.Bid)),
 		Asks:            make(orderbook.Items, len(orderbookNew.Ask)),
+		MaxDepth:        maxDepth,
 	}
 
 	for i := range orderbookNew.Bid {
