@@ -3359,17 +3359,17 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		}
 
 		if mm.MinimumBaseAmount <= 0 {
-			t.Fatalf("MinimumBaseAmount expected 0 but receieved %v for %v", mm.MinimumBaseAmount, avail[i])
+			t.Fatalf("MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
 		}
 
 		// 1INCH_TRY no minimum quote or base values are returned.
 
 		if mm.QuoteStepIncrementSize <= 0 {
-			t.Fatalf("QuoteStepIncrementSize expected 0 but receieved %v for %v", mm.QuoteStepIncrementSize, avail[i])
+			t.Fatalf("QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
 		}
 
 		if mm.AmountStepIncrementSize <= 0 {
-			t.Fatalf("AmountStepIncrementSize expected 0 but receieved %v for %v", mm.AmountStepIncrementSize, avail[i])
+			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
 		}
 	}
 }
