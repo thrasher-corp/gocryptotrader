@@ -743,26 +743,9 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	}
 
 	for x := range assets {
-		var avail currency.Pairs
-		avail, err = ok.GetAvailablePairs(assets[x])
+		pair, err := currency.NewPairFromString(resp.Argument.InstrumentID)
 		if err != nil {
 			return err
-		}
-
-		var pair currency.Pair
-		pair, err = avail.DeriveFrom(strings.Replace(resp.Argument.InstrumentID, "-", "", 1))
-		if err != nil {
-			return err
-		}
-
-		var enabled currency.Pairs
-		enabled, err = ok.GetEnabledPairs(assets[x])
-		if err != nil {
-			return err
-		}
-
-		if !enabled.Contains(pair, true) {
-			continue
 		}
 
 		if len(resp.Data) != 1 {
@@ -802,8 +785,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 			LastUpdated:     time.UnixMilli(resp.Data[0].TimestampMilli),
 			Pair:            pair,
 			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
-		})
+			VerifyOrderbook: ok.CanVerifyOrderbook})
 		if err != nil {
 			return err
 		}
