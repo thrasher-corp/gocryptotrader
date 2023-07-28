@@ -850,9 +850,9 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 		}
 
 		if channelsToSubscribe[i].Channel == "spot.book_ticker" {
-			// So to get all orderbook assets subscribed in a timely manner, it
-			// needs to be batched and only spot.book_ticker can be batched, if
-			// not it will take about half an hour for initital sync.
+			// To get all orderbook assets subscribed it needs to be batched and
+			// only spot.book_ticker can be batched, if not it will take about
+			// half an hour for initital sync.
 			if batch != nil {
 				*batch = append(*batch, params...)
 			} else {
