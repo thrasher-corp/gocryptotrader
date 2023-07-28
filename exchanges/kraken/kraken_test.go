@@ -2224,14 +2224,14 @@ var websocketGSTEUROrderbookUpdates = []string{
 func TestWsOrderbookMax10Depth(t *testing.T) {
 	t.Parallel()
 	for x := range websocketXDGUSDOrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
+		err := k.wsHandleData(context.Background(), []byte(websocketXDGUSDOrderbookUpdates[x]))
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
+		err := k.wsHandleData(context.Background(), []byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
 		// in the orderbook.Item struct.
@@ -2243,7 +2243,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
+		err := k.wsHandleData(context.Background(), []byte(websocketGSTEUROrderbookUpdates[x]))
 		if err != nil {
 			t.Fatal(err)
 		}
