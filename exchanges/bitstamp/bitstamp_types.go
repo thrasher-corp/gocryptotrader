@@ -55,7 +55,7 @@ type TradingPair struct {
 	URLSymbol       string `json:"url_symbol"`
 	BaseDecimals    int    `json:"base_decimals"`
 	CounterDecimals int    `json:"counter_decimals"`
-	MinimumOrder    string `json:"minimum_order"`
+	MinimumOrder    float64
 	Trading         string `json:"trading"`
 	Description     string `json:"description"`
 }
