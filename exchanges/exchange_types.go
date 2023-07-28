@@ -171,6 +171,21 @@ type FeaturesSupported struct {
 	WebsocketMaxSubscriptionsPerConnectionSupported int
 	WithdrawPermissions                             uint32
 	Kline                                           kline.ExchangeCapabilitiesSupported
+	MaximumOrderHistory                             time.Duration
+	FuturesCapabilities                             FuturesCapabilities
+	OfflineFuturesCapabilities                      FuturesCapabilities
+}
+
+// FuturesCapabilities stores the exchange's futures capabilities
+type FuturesCapabilities struct {
+	FundingRates                 bool
+	MaximumFundingRateHistory    time.Duration
+	FundingRateFrequency         time.Duration
+	Positions                    bool
+	OrderManagerPositionTracking bool
+	Collateral                   bool
+	CollateralMode               bool
+	Leverage                     bool
 }
 
 // Endpoints stores running url endpoints for exchanges

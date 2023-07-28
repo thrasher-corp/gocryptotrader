@@ -97,6 +97,7 @@ func TestRetrieve(t *testing.T) {
 		VerifyOrderbook:  true,
 		restSnapshot:     true,
 		idAligned:        true,
+		maxDepth:         10,
 	}
 
 	// If we add anymore options to the options struct later this will complain
@@ -121,6 +122,10 @@ func TestRetrieve(t *testing.T) {
 
 	if len(ob.Bids) != 1 {
 		t.Errorf("expected len %v, but received %v", 1, len(ob.Bids))
+	}
+
+	if ob.MaxDepth != 10 {
+		t.Errorf("expected max depth %v, but received %v", 10, ob.MaxDepth)
 	}
 }
 
