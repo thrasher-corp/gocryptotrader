@@ -915,7 +915,10 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, o.AssetType)
 	}
+
 	return nil
 }
 
@@ -1263,6 +1266,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Side:            side,
 				Type:            orderType,
 				Pair:            p,
+				AssetType:       asset.Spot,
 			})
 		}
 	case asset.Futures:
@@ -1302,14 +1306,15 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					return orders, err
 				}
 				orders = append(orders, order.Detail{
-					OrderID:  activeOrders.OpenOrders[a].OrderID,
-					Price:    activeOrders.OpenOrders[a].LimitPrice,
-					Amount:   activeOrders.OpenOrders[a].FilledSize,
-					Side:     oSide,
-					Type:     oType,
-					Date:     timeVar,
-					Pair:     fPair,
-					Exchange: k.Name,
+					OrderID:   activeOrders.OpenOrders[a].OrderID,
+					Price:     activeOrders.OpenOrders[a].LimitPrice,
+					Amount:    activeOrders.OpenOrders[a].FilledSize,
+					Side:      oSide,
+					Type:      oType,
+					Date:      timeVar,
+					Pair:      fPair,
+					Exchange:  k.Name,
+					AssetType: asset.Futures,
 				})
 			}
 		}
