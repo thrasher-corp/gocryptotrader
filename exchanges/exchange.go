@@ -440,7 +440,15 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 // GetAvailablePairs is a method that returns the available currency pairs
 // of the exchange by asset type
 func (b *Base) GetAvailablePairs(assetType asset.Item) (currency.Pairs, error) {
-	return b.CurrencyPairs.GetPairs(assetType, false)
+	format, err := b.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	pairs, err := b.CurrencyPairs.GetPairs(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	return pairs.Format(format), nil
 }
 
 // SupportsPair returns true or not whether a currency pair exists in the
