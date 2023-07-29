@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -88,13 +87,11 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 // GetTradingFee returns a trading fee based on a currency
 func (b *Bitstamp) GetTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var resp TradingFees
-	spew.Dump(bitstampAPITradingFees)
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPITradingFees+"/"+feeBuilder.Pair.String(), true, nil, &resp)
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPITradingFees+"/"+strings.ToLower(feeBuilder.Pair.String()), true, nil, &resp)
 	if err != nil {
 		return 0, err
 	}
-	spew.Dump(resp.Fee)
-	return resp.Fee, nil
+	return resp.Fee * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
@@ -128,7 +125,7 @@ func getInternationalBankDepositFee(amount float64) float64 {
 // CalculateTradingFee returns fee on a currency pair
 func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
 	var fee float64
-	if v, ok := balances[base.String()]; ok {
+	/*if , ok := balances[base.String()]; ok {
 		switch quote {
 		case currency.BTC:
 			fee = v.BTCFee
@@ -137,7 +134,7 @@ func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice,
 		case currency.EUR:
 			fee = v.EURFee
 		}
-	}
+	}*/
 	return fee * purchasePrice * amount
 }
 
@@ -257,24 +254,10 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 			Reserved:      reserved,
 			WithdrawalFee: withdrawalFee,
 		}
-		switch strings.ToUpper(curr) {
-		case currency.USD.String():
-			eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-			currBalance.EURFee = eurFee
-		case currency.EUR.String():
-			usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-			currBalance.USDFee = usdFee
-		default:
-			btcFee, _ := strconv.ParseFloat(balance[curr+"btc_fee"], 64)
-			currBalance.BTCFee = btcFee
-			eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-			currBalance.EURFee = eurFee
-			usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-			currBalance.USDFee = usdFee
-		}
 		balances[strings.ToUpper(curr)] = currBalance
 	}
 	return balances, nil
+
 }
 
 // GetUserTransactions returns an array of transactions

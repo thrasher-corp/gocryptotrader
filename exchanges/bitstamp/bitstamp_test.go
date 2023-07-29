@@ -99,8 +99,21 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
+	fee, err := b.GetFee(context.Background(), feeBuilder)
+	if err != nil {
 		t.Error(err)
+	} else if fee == 0 {
+		fee = 0.02
+	}
+
+	// CryptocurrencyTradeFee IsTaker
+	feeBuilder = setFeeBuilder()
+	feeBuilder.IsMaker = false
+	fee, err = b.GetFee(context.Background(), feeBuilder)
+	if err != nil {
+		t.Error(err)
+	} else if fee == 0 {
+		fee = 0.03
 	}
 
 	// CryptocurrencyTradeFee Negative purchase price
@@ -143,7 +156,6 @@ func TestGetFee(t *testing.T) {
 
 func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	feeBuilder := setFeeBuilder()
 	if _, err := b.GetTradingFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
