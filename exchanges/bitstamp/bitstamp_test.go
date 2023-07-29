@@ -141,13 +141,22 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
+func TestGetTradingFee(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	feeBuilder := setFeeBuilder()
+	if _, err := b.GetTradingFee(context.Background(), feeBuilder); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestCalculateTradingFee(t *testing.T) {
 	t.Parallel()
 
 	newBalance := make(Balances)
 	newBalance["BTC"] = Balance{
-		USDFee: 1,
-		EURFee: 0,
+		/*USDFee: 1,
+		EURFee: 0,*/
 	}
 
 	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 0, 0, newBalance); resp != 0 {

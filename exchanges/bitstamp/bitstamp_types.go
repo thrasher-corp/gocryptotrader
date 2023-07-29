@@ -75,15 +75,21 @@ type EURUSDConversionRate struct {
 	Sell float64 `json:"sell,string"`
 }
 
+// TradingFees holds trading fee information
+type TradingFees struct {
+	Currency string  `json:"currency_pair"`
+	Fee      float64 `json:"fee,string"`
+}
+
 // Balance stores the balance info
 type Balance struct {
 	Available     float64
 	Balance       float64
 	Reserved      float64
 	WithdrawalFee float64
-	BTCFee        float64 // for cryptocurrency pairs
+	/*BTCFee        float64 // for cryptocurrency pairs
 	USDFee        float64
-	EURFee        float64
+	EURFee        float64*/
 }
 
 // Balances holds full balance information with the supplied APIKEYS

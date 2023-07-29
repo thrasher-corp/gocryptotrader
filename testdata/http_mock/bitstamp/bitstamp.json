@@ -148,6 +148,27 @@
     }
    ]
   },
+  "/api/v2/fees/trading/btcusd": {
+    "POST": [
+        {
+            "data": {
+                "fees": [
+                    {
+                        "maker": "0",
+                        "taker": "0"
+                    }
+                ]
+            },
+            "queryString": "",
+            "bodyParams": "key=\u0026nonce=1560481519007838128\u0026signature=C7558B2B2E75E9057994271CCC0200835887CDC63EC4103220489C52F749BFFA",
+            "headers": {
+                "Content-Type": [
+                    "application/x-www-form-urlencoded"
+                ]
+            }
+        }
+    ]
+},
   "/api/v2/buy/market/btcusd/": {
    "POST": [
     {

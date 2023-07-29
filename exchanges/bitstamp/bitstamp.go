@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -29,6 +30,7 @@ const (
 	bitstampAPIOrderbook          = "order_book"
 	bitstampAPITransactions       = "transactions"
 	bitstampAPIEURUSD             = "eur_usd"
+	bitstampAPITradingFees        = "fees/trading"
 	bitstampAPIBalance            = "balance"
 	bitstampAPIUserTransactions   = "user_transactions"
 	bitstampAPIOHLC               = "ohlc"
@@ -67,15 +69,7 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		balance, err := b.GetBalance(ctx)
-		if err != nil {
-			return 0, err
-		}
-		fee = b.CalculateTradingFee(feeBuilder.Pair.Base,
-			feeBuilder.Pair.Quote,
-			feeBuilder.PurchasePrice,
-			feeBuilder.Amount,
-			balance)
+		fee, _ = b.GetTradingFee(ctx, feeBuilder)
 	case exchange.CryptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
@@ -89,6 +83,18 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 		fee = 0
 	}
 	return fee, nil
+}
+
+// GetTradingFee returns a trading fee based on a currency
+func (b *Bitstamp) GetTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var resp TradingFees
+	spew.Dump(bitstampAPITradingFees)
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPITradingFees+"/"+feeBuilder.Pair.String(), true, nil, &resp)
+	if err != nil {
+		return 0, err
+	}
+	spew.Dump(resp.Fee)
+	return resp.Fee, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
