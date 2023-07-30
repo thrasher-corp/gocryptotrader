@@ -64,11 +64,6 @@ func (by *Bybit) SetDefaults() {
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v %v", asset.Spot, err)
 	}
-	// marginPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	// err = by.StoreAssetPairFormat(asset.Margin, marginPairStore)
-	// if err != nil {
-	// 	log.Errorf(log.ExchangeSys, "%v %v", asset.Margin, err)
-	// }
 	linearPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
 	err = by.StoreAssetPairFormat(asset.Linear, linearPairStore)
 	if err != nil {
@@ -96,11 +91,6 @@ func (by *Bybit) SetDefaults() {
 	}
 
 	err = by.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	err = by.DisableAssetWebsocketSupport(asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -186,7 +176,7 @@ func (by *Bybit) SetDefaults() {
 		exchange.RestUSDTMargined: bybitAPIURL,
 		exchange.RestFutures:      bybitAPIURL,
 		exchange.RestUSDCMargined: bybitAPIURL,
-		exchange.WebsocketSpot:    bybitWSBaseURL + wsSpotPublicTopicV2,
+		exchange.WebsocketSpot:    spotPublic,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -224,7 +214,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			ExchangeConfig:         exch,
 			DefaultURL:             bybitWSBaseURL + wsSpotPublicTopicV2,
 			RunningURL:             wsRunningEndpoint,
-			RunningURLAuth:         bybitWSBaseURL + wsSpotPrivate,
+			RunningURLAuth:         websocketPrivate,
 			Connector:              by.WsConnect,
 			Subscriber:             by.Subscribe,
 			Unsubscriber:           by.Unsubscribe,
@@ -251,7 +241,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  bybitWSBaseURL + wsSpotPrivate,
+		URL:                  websocketPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Authenticated:        true,
@@ -968,13 +958,17 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		if len(resp.List) != 1 {
 			return nil, order.ErrOrderNotFound
 		}
+		orderType, err := order.StringToOrderType(resp.List[0].OrderType)
+		if err != nil {
+			return nil, err
+		}
 		return &order.Detail{
 			Amount:         resp.List[0].OrderQuantity.Float64(),
 			Exchange:       by.Name,
 			OrderID:        resp.List[0].OrderID,
 			ClientOrderID:  resp.List[0].OrderLinkID,
 			Side:           getSide(resp.List[0].Side),
-			Type:           getTradeType(resp.List[0].OrderType),
+			Type:           orderType,
 			Pair:           pair,
 			Cost:           resp.List[0].CumulativeExecQuantity.Float64() * resp.List[0].AveragePrice.Float64(),
 			AssetType:      assetType,
@@ -1094,6 +1088,10 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		for x := range openOrders.List {
 			for i := range req.Pairs {
 				if req.Pairs[i].String() == openOrders.List[x].Symbol {
+					orderType, err := order.StringToOrderType(openOrders.List[x].OrderType)
+					if err != nil {
+						return nil, err
+					}
 					orders = append(orders, order.Detail{
 						Amount:               openOrders.List[x].OrderQuantity.Float64(),
 						Date:                 openOrders.List[x].CreatedTime.Time(),
@@ -1101,7 +1099,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 						OrderID:              openOrders.List[x].OrderID,
 						ClientOrderID:        openOrders.List[x].OrderLinkID,
 						Side:                 getSide(openOrders.List[x].Side),
-						Type:                 getTradeType(openOrders.List[x].OrderType),
+						Type:                 orderType,
 						Price:                openOrders.List[x].Price.Float64(),
 						Status:               getOrderStatus(openOrders.List[x].OrderStatus),
 						Pair:                 req.Pairs[i],
@@ -1152,6 +1150,10 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			if err != nil {
 				return nil, err
 			}
+			orderType, err := order.StringToOrderType(resp.List[i].OrderType)
+			if err != nil {
+				return nil, err
+			}
 			detail := order.Detail{
 				Amount:               resp.List[i].OrderQuantity.Float64(),
 				ExecutedAmount:       resp.List[i].CumulativeExecQuantity.Float64(),
@@ -1161,7 +1163,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				Exchange:             by.Name,
 				OrderID:              resp.List[i].OrderID,
 				Side:                 side,
-				Type:                 getTradeType(resp.List[i].OrderType),
+				Type:                 orderType,
 				Price:                resp.List[i].Price.Float64(),
 				Pair:                 pair,
 				Status:               getOrderStatus(resp.List[i].OrderStatus),
@@ -1194,6 +1196,10 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			if err != nil {
 				return nil, err
 			}
+			orderType, err := order.StringToOrderType(resp.List[i].OrderType)
+			if err != nil {
+				return nil, err
+			}
 			detail := order.Detail{
 				Amount:               resp.List[i].OrderQuantity.Float64(),
 				ExecutedAmount:       resp.List[i].CumulativeExecQuantity.Float64(),
@@ -1204,7 +1210,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				Exchange:             by.Name,
 				OrderID:              resp.List[i].OrderID,
 				Side:                 side,
-				Type:                 getTradeType(resp.List[i].OrderType),
+				Type:                 orderType,
 				Price:                resp.List[i].Price.Float64(),
 				Pair:                 pair,
 				Status:               getOrderStatus(resp.List[i].OrderStatus),

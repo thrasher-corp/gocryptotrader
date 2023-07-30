@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Bybit is the overarching type across this package
@@ -114,6 +115,8 @@ var (
 	errTimeWindowRequired                 = errors.New("time window is required")
 	errFrozenPeriodRequired               = errors.New("frozen period required")
 	errQuantityLimitRequired              = errors.New("quantity limit required")
+	errInvalidPushData                    = errors.New("invalid push data")
+	errWebsocketNotEnabled                = errors.New(stream.WebsocketNotEnabled)
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
@@ -729,6 +732,9 @@ func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, ord
 	if orderFilter != "" {
 		params.Set("orderFilter", orderFilter)
 	}
+	if orderStatus != "" {
+		params.Set("orderFilter", orderFilter)
+	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -822,7 +828,7 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 		}
 	}
 	var resp cancelBatchResponse
-	return resp.List, by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, "/v5/order/cancel-batch", nil, arg, &resp, privateSpotRate)
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-batch", nil, arg, &resp, privateSpotRate)
 }
 
 // GetBorrowQuota retrives the qty and amount of borrowable coins in spot account.
@@ -855,7 +861,7 @@ func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) 
 		return errDisconnectTimeWindowNotSet
 	}
 	var resp interface{}
-	return by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, "/v5/order/disconnected-cancel-all", nil, arg, &resp, privateSpotRate)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/disconnected-cancel-all", nil, arg, &resp, privateSpotRate)
 }
 
 // -------------------------------------------------  Position Endpoints ---------------------------------------------------
@@ -913,7 +919,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, arg *SetLeverageParams) error 
 		return fmt.Errorf("%w, buy leverage not equal sell leverage", errInvalidLeverage)
 	}
 	var resp interface{}
-	return by.SendAuthHTTPRequestV5(context.Background(), exchange.RestSpot, http.MethodPost, positionSetLeverage, nil, arg, &resp, privateSpotRate)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, positionSetLeverage, nil, arg, &resp, privateSpotRate)
 }
 
 // SwitchTradeMode sets the trade mode value either to 'cross' or 'isolated'.
@@ -1593,10 +1599,7 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 
 // GetInternalTransferRecords retrieves the internal transfer records between different account types under the same UID.
 func (by *Bybit) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
-	params, err := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
-	if err != nil {
-		return nil, err
-	}
+	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp TransferResponse
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, privateSpotRate)
 }
@@ -1656,7 +1659,7 @@ func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParam
 	return resp.TransferID, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/universal-transfer", nil, arg, &resp, privateSpotRate)
 }
 
-func fillTransferQueryParams(transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (url.Values, error) {
+func fillTransferQueryParams(transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) url.Values {
 	params := url.Values{}
 	if transferID != "" {
 		params.Set("transferId", transferID)
@@ -1679,7 +1682,7 @@ func fillTransferQueryParams(transferID, coin, status, cursor string, startTime,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return params, nil
+	return params
 }
 
 // GetUniversalTransferRecords query universal transfer records
@@ -1687,10 +1690,7 @@ func fillTransferQueryParams(transferID, coin, status, cursor string, startTime,
 // Main acct api key needs "SubMemberTransfer" permission
 // Sub acct api key needs "SubMemberTransferList" permission
 func (by *Bybit) GetUniversalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
-	params, err := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
-	if err != nil {
-		return nil, err
-	}
+	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp TransferResponse
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, privateSpotRate)
 }
@@ -1728,7 +1728,7 @@ func (by *Bybit) SetDepositAccount(ctx context.Context, accountType string) (*St
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/deposit/deposit-to-account", nil, &arg, &resp, privateSpotRate)
 }
 
-func fillDepositRecordsParams(coin, cursor string, startTime, endTime time.Time, limit int64) (url.Values, error) {
+func fillDepositRecordsParams(coin, cursor string, startTime, endTime time.Time, limit int64) url.Values {
 	params := url.Values{}
 	if coin != "" {
 		params.Set("coin", coin)
@@ -1745,15 +1745,12 @@ func fillDepositRecordsParams(coin, cursor string, startTime, endTime time.Time,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return params, nil
+	return params
 }
 
 // GetDepositRecords query deposit records.
 func (by *Bybit) GetDepositRecords(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
-	params, err := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
-	if err != nil {
-		return nil, err
-	}
+	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	var resp DepositRecords
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-record", params, nil, &resp, privateSpotRate)
 }
@@ -1763,10 +1760,7 @@ func (by *Bybit) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cu
 	if subMemberID == "" {
 		return nil, errMembersIDsNotSet
 	}
-	params, err := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
-	if err != nil {
-		return nil, err
-	}
+	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	params.Set("subMemberId", subMemberID)
 	var resp DepositRecords
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-sub-member-record", params, nil, &resp, privateSpotRate)
@@ -1774,10 +1768,7 @@ func (by *Bybit) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cu
 
 // GetInternalDepositRecordsOffChain retrieves deposit records within the Bybit platform. These transactions are not on the blockchain.
 func (by *Bybit) GetInternalDepositRecordsOffChain(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*InternalDepositRecords, error) {
-	params, err := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
-	if err != nil {
-		return nil, err
-	}
+	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	var resp InternalDepositRecords
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-internal-record", params, nil, &resp, privateSpotRate)
 }
@@ -2611,7 +2602,7 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 	}
 	if response.RetExtInfo != nil {
 		embeddedErrors := errorMessages{}
-		err := json.Unmarshal(response.RetExtInfo, &embeddedErrors)
+		err = json.Unmarshal(response.RetExtInfo, &embeddedErrors)
 		if err == nil {
 			var errMessage string
 			var failed rune
@@ -2667,19 +2658,6 @@ func getSide(side string) order.Side {
 		return order.Sell
 	default:
 		return order.UnknownSide
-	}
-}
-
-func getTradeType(tradeType string) order.Type {
-	switch tradeType {
-	case BybitRequestParamsOrderLimit:
-		return order.Limit
-	case BybitRequestParamsOrderMarket:
-		return order.Market
-	case BybitRequestParamsOrderLimitMaker:
-		return order.Limit
-	default:
-		return order.UnknownType
 	}
 }
 

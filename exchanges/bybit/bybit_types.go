@@ -181,15 +181,6 @@ type PairData struct {
 	ShowStatus        bool                    `json:"showStatus"`
 }
 
-// Orderbook stores the orderbook data
-type Orderbook struct {
-	UpdateID       int64
-	Bids           []orderbook.Item
-	Asks           []orderbook.Item
-	Symbol         string
-	GenerationTime time.Time
-}
-
 // TradeItem stores a single trade
 type TradeItem struct {
 	CurrencyPair string
@@ -228,17 +219,6 @@ type LastTradePrice struct {
 // 	AskQuantity convert.StringToFloat64 `json:"askQty"`
 // 	Time        bybitTimeMilliSec       `json:"time"`
 // }
-
-var (
-	// BybitRequestParamsOrderLimit Limit order
-	BybitRequestParamsOrderLimit = "LIMIT"
-
-	// BybitRequestParamsOrderMarket Market order
-	BybitRequestParamsOrderMarket = "MARKET"
-
-	// BybitRequestParamsOrderLimitMaker Limit Maker
-	BybitRequestParamsOrderLimitMaker = "LIMIT_MAKER"
-)
 
 var (
 	// BybitRequestParamsTimeGTC Good Till Canceled
@@ -366,6 +346,7 @@ type ChainInfo struct {
 
 // Authenticate stores authentication variables required
 type Authenticate struct {
+	RequestID string        `json:"req_id"`
 	Args      []interface{} `json:"args"`
 	Operation string        `json:"op"`
 }
@@ -383,12 +364,12 @@ type WsFuturesReq struct {
 	Args  []string `json:"args"`
 }
 
-// WsParams store ws parameters
-type WsParams struct {
-	Symbol     string `json:"symbol"`
-	IsBinary   bool   `json:"binary,string"`
-	SymbolName string `json:"symbolName,omitempty"`
-	KlineType  string `json:"klineType,omitempty"` // only present in kline ws stream
+// SubscriptionArgument represents a subscription arguments.
+type SubscriptionArgument struct {
+	auth      bool     `json:"-"`
+	RequestID int64    `json:"req_id,string"`
+	Operation string   `json:"op"`
+	Arguments []string `json:"args"`
 }
 
 // WsSpotTickerData stores ws ticker data
@@ -399,13 +380,6 @@ type WsSpotTickerData struct {
 	BidSize convert.StringToFloat64 `json:"bidQty"`
 	AskSize convert.StringToFloat64 `json:"askQty"`
 	Time    bybitTimeMilliSec       `json:"time"`
-}
-
-// WsSpotTicker stores ws ticker data
-type WsSpotTicker struct {
-	Topic      string           `json:"topic"`
-	Parameters WsParams         `json:"params"`
-	Ticker     WsSpotTickerData `json:"data"`
 }
 
 // KlineStreamData stores ws kline stream data
@@ -419,13 +393,6 @@ type KlineStreamData struct {
 	Volume     convert.StringToFloat64 `json:"v"`
 }
 
-// KlineStream holds the kline stream data
-type KlineStream struct {
-	Topic      string          `json:"topic"`
-	Parameters WsParams        `json:"params"`
-	Kline      KlineStreamData `json:"data"`
-}
-
 // WsOrderbookData stores ws orderbook data
 type WsOrderbookData struct {
 	Symbol  string            `json:"s"`
@@ -435,13 +402,6 @@ type WsOrderbookData struct {
 	Asks    [][2]string       `json:"a"`
 }
 
-// WsOrderbook stores ws orderbook data
-type WsOrderbook struct {
-	Topic      string          `json:"topic"`
-	Parameters WsParams        `json:"params"`
-	OBData     WsOrderbookData `json:"data"`
-}
-
 // WsTradeData stores ws trade data
 type WsTradeData struct {
 	Time  bybitTimeMilliSec       `json:"t"`
@@ -449,13 +409,6 @@ type WsTradeData struct {
 	Price convert.StringToFloat64 `json:"p"`
 	Size  convert.StringToFloat64 `json:"q"`
 	Side  bool                    `json:"m"`
-}
-
-// WsTrade stores ws trades data
-type WsTrade struct {
-	Topic      string      `json:"topic"`
-	Parameters WsParams    `json:"params"`
-	TradeData  WsTradeData `json:"data"`
 }
 
 // wsAccount defines websocket account info data
@@ -1332,6 +1285,7 @@ type CancelAllOrdersParam struct {
 	SettleCoin  string        `json:"settleCoin,omitempty"`
 }
 
+// PlaceBatchOrderParam represents a parameter for placing batch orders
 type PlaceBatchOrderParam struct {
 	Category string                `json:"category"`
 	Request  []BatchOrderItemParam `json:"request"`
@@ -1948,7 +1902,7 @@ type StatusResponse struct {
 	Status int64 `json:"status"` // 1: SUCCESS 0: FAIL
 }
 
-// DepositRecords
+// DepositRecords represents deposit records
 type DepositRecords struct {
 	Rows []struct {
 		Coin          string `json:"coin"`
@@ -2174,7 +2128,7 @@ type LeverageTokenInfo struct {
 	Value            convert.StringToFloat64 `json:"value"`
 }
 
-// LeveragTokenMarket represents leverage token market details.
+// LeveragedTokenMarket represents leverage token market details.
 type LeveragedTokenMarket struct {
 	Basket      convert.StringToFloat64 `json:"basket"`
 	Circulation convert.StringToFloat64 `json:"circulation"`
@@ -2473,4 +2427,334 @@ type BrokerEarningItem struct {
 type ServerTime struct {
 	TimeSecond convert.ExchangeTime `json:"timeSecond"`
 	TimeNano   convert.ExchangeTime `json:"timeNano"`
+}
+
+// Orderbook stores the orderbook data
+type Orderbook struct {
+	UpdateID       int64
+	Bids           []orderbook.Item
+	Asks           []orderbook.Item
+	Symbol         string
+	GenerationTime time.Time
+}
+
+// WsOrderbookDetail represents an orderbook detail information.
+type WsOrderbookDetail struct {
+	Symbol     string               `json:"s"`
+	Bids       [][]string           `json:"b"`
+	Asks       [][]string           `json:"a"`
+	UpdateTime convert.ExchangeTime `json:"u"`
+	Sequence   int64                `json:"seq"`
+}
+
+// SubscriptionResponse represents a subscription response.
+type SubscriptionResponse struct {
+	Success   bool   `json:"success"`
+	RetMsg    string `json:"ret_msg"`
+	ConnID    string `json:"conn_id"`
+	RequestID string `json:"req_id"`
+	Operation string `json:"op"`
+}
+
+// WebsocketResponse represents push data response struct.
+type WebsocketResponse struct {
+	Topic         string               `json:"topic"`
+	Type          string               `json:"type"`
+	Timestamp     convert.ExchangeTime `json:"ts"`
+	Data          json.RawMessage      `json:"data"`
+	CrossSequence int64                `json:"cs"`
+}
+
+// WebsocketPublicTrades represents
+type WebsocketPublicTrades []struct {
+	OrderFillTimestamp   convert.ExchangeTime    `json:"T"`
+	Symbol               string                  `json:"s"`
+	Side                 string                  `json:"S"`
+	Size                 convert.StringToFloat64 `json:"v"`
+	Price                convert.StringToFloat64 `json:"p"`
+	PriceChangeDirection string                  `json:"L"`
+	TradeID              string                  `json:"i"`
+	BlockTrade           bool                    `json:"BT"`
+}
+
+// WsLinearTicker represents a linear ticker information.
+type WsLinearTicker struct {
+	Symbol            string                  `json:"symbol"`
+	TickDirection     string                  `json:"tickDirection"`
+	Price24HPcnt      convert.StringToFloat64 `json:"price24hPcnt"`
+	LastPrice         convert.StringToFloat64 `json:"lastPrice"`
+	PrevPrice24H      convert.StringToFloat64 `json:"prevPrice24h"`
+	HighPrice24H      convert.StringToFloat64 `json:"highPrice24h"`
+	LowPrice24H       convert.StringToFloat64 `json:"lowPrice24h"`
+	PrevPrice1H       convert.StringToFloat64 `json:"prevPrice1h"`
+	MarkPrice         convert.StringToFloat64 `json:"markPrice"`
+	IndexPrice        convert.StringToFloat64 `json:"indexPrice"`
+	OpenInterest      convert.StringToFloat64 `json:"openInterest"`
+	OpenInterestValue convert.StringToFloat64 `json:"openInterestValue"`
+	Turnover24H       convert.StringToFloat64 `json:"turnover24h"`
+	Volume24H         convert.StringToFloat64 `json:"volume24h"`
+	NextFundingTime   convert.ExchangeTime    `json:"nextFundingTime"`
+	FundingRate       convert.StringToFloat64 `json:"fundingRate"`
+	Bid1Price         convert.StringToFloat64 `json:"bid1Price"`
+	Bid1Size          convert.StringToFloat64 `json:"bid1Size"`
+	Ask1Price         convert.StringToFloat64 `json:"ask1Price"`
+	Ask1Size          convert.StringToFloat64 `json:"ask1Size"`
+}
+
+// WsOptionTicker represents options public ticker data.
+type WsOptionTicker struct {
+	Symbol                 string                  `json:"symbol"`
+	BidPrice               convert.StringToFloat64 `json:"bidPrice"`
+	BidSize                convert.StringToFloat64 `json:"bidSize"`
+	BidIv                  convert.StringToFloat64 `json:"bidIv"`
+	AskPrice               convert.StringToFloat64 `json:"askPrice"`
+	AskSize                convert.StringToFloat64 `json:"askSize"`
+	AskIv                  convert.StringToFloat64 `json:"askIv"`
+	LastPrice              convert.StringToFloat64 `json:"lastPrice"`
+	HighPrice24H           convert.StringToFloat64 `json:"highPrice24h"`
+	LowPrice24H            convert.StringToFloat64 `json:"lowPrice24h"`
+	MarkPrice              convert.StringToFloat64 `json:"markPrice"`
+	IndexPrice             convert.StringToFloat64 `json:"indexPrice"`
+	MarkPriceIv            convert.StringToFloat64 `json:"markPriceIv"`
+	UnderlyingPrice        convert.StringToFloat64 `json:"underlyingPrice"`
+	OpenInterest           convert.StringToFloat64 `json:"openInterest"`
+	Turnover24H            convert.StringToFloat64 `json:"turnover24h"`
+	Volume24H              convert.StringToFloat64 `json:"volume24h"`
+	TotalVolume            convert.StringToFloat64 `json:"totalVolume"`
+	TotalTurnover          convert.StringToFloat64 `json:"totalTurnover"`
+	Delta                  convert.StringToFloat64 `json:"delta"`
+	Gamma                  convert.StringToFloat64 `json:"gamma"`
+	Vega                   convert.StringToFloat64 `json:"vega"`
+	Theta                  convert.StringToFloat64 `json:"theta"`
+	PredictedDeliveryPrice convert.StringToFloat64 `json:"predictedDeliveryPrice"`
+	Change24H              convert.StringToFloat64 `json:"change24h"`
+}
+
+// WsSpotTicker represents a spot public ticker information.
+type WsSpotTicker struct {
+	Symbol        string                  `json:"symbol"`
+	LastPrice     convert.StringToFloat64 `json:"lastPrice"`
+	HighPrice24H  convert.StringToFloat64 `json:"highPrice24h"`
+	LowPrice24H   convert.StringToFloat64 `json:"lowPrice24h"`
+	PrevPrice24H  convert.StringToFloat64 `json:"prevPrice24h"`
+	Volume24H     convert.StringToFloat64 `json:"volume24h"`
+	Turnover24H   convert.StringToFloat64 `json:"turnover24h"`
+	Price24HPcnt  convert.StringToFloat64 `json:"price24hPcnt"`
+	UsdIndexPrice convert.StringToFloat64 `json:"usdIndexPrice"`
+}
+
+// WsKlines represents a list of Kline data.
+type WsKlines []struct {
+	Start     convert.ExchangeTime    `json:"start"`
+	End       convert.ExchangeTime    `json:"end"`
+	Interval  string                  `json:"interval"`
+	Open      convert.StringToFloat64 `json:"open"`
+	Close     convert.StringToFloat64 `json:"close"`
+	High      convert.StringToFloat64 `json:"high"`
+	Low       convert.StringToFloat64 `json:"low"`
+	Volume    convert.StringToFloat64 `json:"volume"`
+	Turnover  string                  `json:"turnover"`
+	Confirm   bool                    `json:"confirm"`
+	Timestamp convert.ExchangeTime    `json:"timestamp"`
+}
+
+// WebsocketLiquidiation represents liquidation stream push data.
+type WebsocketLiquidiation struct {
+	Symbol      string                  `json:"symbol"`
+	Side        string                  `json:"side"`
+	Price       convert.StringToFloat64 `json:"price"`
+	Size        convert.StringToFloat64 `json:"size"`
+	UpdatedTime convert.ExchangeTime    `json:"updatedTime"`
+}
+
+// LTKlines represents a leverage token kline.
+type LTKlines []struct {
+	Start     convert.ExchangeTime    `json:"start"`
+	End       convert.ExchangeTime    `json:"end"`
+	Interval  string                  `json:"interval"`
+	Open      convert.StringToFloat64 `json:"open"`
+	Close     convert.StringToFloat64 `json:"close"`
+	High      convert.StringToFloat64 `json:"high"`
+	Low       convert.StringToFloat64 `json:"low"`
+	Confirm   bool                    `json:"confirm"`
+	Timestamp convert.ExchangeTime    `json:"timestamp"`
+}
+
+// LTTicker represents a leverage token ticker.
+type LTTicker struct {
+	Symbol             string                  `json:"symbol"`
+	LastPrice          convert.StringToFloat64 `json:"lastPrice"`
+	HighPrice24H       convert.StringToFloat64 `json:"highPrice24h"`
+	LowPrice24H        convert.StringToFloat64 `json:"lowPrice24h"`
+	PrevPrice24H       convert.StringToFloat64 `json:"prevPrice24h"`
+	Price24HPercentage convert.StringToFloat64 `json:"price24hPcnt"`
+}
+
+// LTNav represents leveraged token nav stream.
+type LTNav struct {
+	Symbol         string                  `json:"symbol"`
+	Time           convert.ExchangeTime    `json:"time"`
+	Nav            convert.StringToFloat64 `json:"nav"`
+	BasketPosition convert.StringToFloat64 `json:"basketPosition"`
+	Leverage       convert.StringToFloat64 `json:"leverage"`
+	BasketLoan     convert.StringToFloat64 `json:"basketLoan"`
+	Circulation    convert.StringToFloat64 `json:"circulation"`
+	Basket         convert.StringToFloat64 `json:"basket"`
+}
+
+// WsPositions represents a position information.
+type WsPositions []struct {
+	PositionIdx      int                     `json:"positionIdx"`
+	TradeMode        int                     `json:"tradeMode"`
+	RiskID           int                     `json:"riskId"`
+	RiskLimitValue   convert.StringToFloat64 `json:"riskLimitValue"`
+	Symbol           string                  `json:"symbol"`
+	Side             string                  `json:"side"`
+	Size             convert.StringToFloat64 `json:"size"`
+	EntryPrice       convert.StringToFloat64 `json:"entryPrice"`
+	Leverage         convert.StringToFloat64 `json:"leverage"`
+	PositionValue    convert.StringToFloat64 `json:"positionValue"`
+	PositionBalance  convert.StringToFloat64 `json:"positionBalance"`
+	MarkPrice        convert.StringToFloat64 `json:"markPrice"`
+	PositionIM       convert.StringToFloat64 `json:"positionIM"`
+	PositionMM       convert.StringToFloat64 `json:"positionMM"`
+	TakeProfit       convert.StringToFloat64 `json:"takeProfit"`
+	StopLoss         convert.StringToFloat64 `json:"stopLoss"`
+	TrailingStop     convert.StringToFloat64 `json:"trailingStop"`
+	UnrealisedPnl    convert.StringToFloat64 `json:"unrealisedPnl"`
+	CumRealisedPnl   convert.StringToFloat64 `json:"cumRealisedPnl"`
+	CreatedTime      convert.ExchangeTime    `json:"createdTime"`
+	UpdatedTime      convert.ExchangeTime    `json:"updatedTime"`
+	TpslMode         string                  `json:"tpslMode"`
+	LiqPrice         convert.StringToFloat64 `json:"liqPrice"`
+	BustPrice        convert.StringToFloat64 `json:"bustPrice"`
+	Category         string                  `json:"category"`
+	PositionStatus   string                  `json:"positionStatus"`
+	AdlRankIndicator int                     `json:"adlRankIndicator"`
+}
+
+// WsExecutions represents execution stream to see your executions in real-time.
+type WsExecutions []struct {
+	Category        string                  `json:"category"`
+	Symbol          string                  `json:"symbol"`
+	ExecFee         convert.StringToFloat64 `json:"execFee"`
+	ExecID          string                  `json:"execId"`
+	ExecPrice       convert.StringToFloat64 `json:"execPrice"`
+	ExecQty         convert.StringToFloat64 `json:"execQty"`
+	ExecType        string                  `json:"execType"`
+	ExecValue       convert.StringToFloat64 `json:"execValue"`
+	IsMaker         bool                    `json:"isMaker"`
+	FeeRate         string                  `json:"feeRate"`
+	TradeIv         string                  `json:"tradeIv"`
+	MarkIv          string                  `json:"markIv"`
+	BlockTradeID    string                  `json:"blockTradeId"`
+	MarkPrice       convert.StringToFloat64 `json:"markPrice"`
+	IndexPrice      convert.StringToFloat64 `json:"indexPrice"`
+	UnderlyingPrice convert.StringToFloat64 `json:"underlyingPrice"`
+	LeavesQty       convert.StringToFloat64 `json:"leavesQty"`
+	OrderID         string                  `json:"orderId"`
+	OrderLinkID     string                  `json:"orderLinkId"`
+	OrderPrice      convert.StringToFloat64 `json:"orderPrice"`
+	OrderQty        convert.StringToFloat64 `json:"orderQty"`
+	OrderType       string                  `json:"orderType"`
+	StopOrderType   string                  `json:"stopOrderType"`
+	Side            string                  `json:"side"`
+	ExecTime        convert.ExchangeTime    `json:"execTime"`
+	IsLeverage      convert.StringToFloat64 `json:"isLeverage"`
+	ClosedSize      convert.StringToFloat64 `json:"closedSize"`
+}
+
+// WsOrders represents private order
+type WsOrders []struct {
+	Symbol             string                  `json:"symbol"`
+	OrderID            string                  `json:"orderId"`
+	Side               string                  `json:"side"`
+	OrderType          string                  `json:"orderType"`
+	CancelType         string                  `json:"cancelType"`
+	Price              convert.StringToFloat64 `json:"price"`
+	Qty                convert.StringToFloat64 `json:"qty"`
+	OrderIv            string                  `json:"orderIv"`
+	TimeInForce        string                  `json:"timeInForce"`
+	OrderStatus        string                  `json:"orderStatus"`
+	OrderLinkID        string                  `json:"orderLinkId"`
+	LastPriceOnCreated string                  `json:"lastPriceOnCreated"`
+	ReduceOnly         bool                    `json:"reduceOnly"`
+	LeavesQty          convert.StringToFloat64 `json:"leavesQty"`
+	LeavesValue        convert.StringToFloat64 `json:"leavesValue"`
+	CumExecQty         convert.StringToFloat64 `json:"cumExecQty"`
+	CumExecValue       convert.StringToFloat64 `json:"cumExecValue"`
+	AvgPrice           convert.StringToFloat64 `json:"avgPrice"`
+	BlockTradeID       string                  `json:"blockTradeId"`
+	PositionIdx        int                     `json:"positionIdx"`
+	CumExecFee         convert.StringToFloat64 `json:"cumExecFee"`
+	CreatedTime        convert.ExchangeTime    `json:"createdTime"`
+	UpdatedTime        convert.ExchangeTime    `json:"updatedTime"`
+	RejectReason       string                  `json:"rejectReason"`
+	StopOrderType      string                  `json:"stopOrderType"`
+	TpslMode           string                  `json:"tpslMode"`
+	TriggerPrice       convert.StringToFloat64 `json:"triggerPrice"`
+	TakeProfit         convert.StringToFloat64 `json:"takeProfit"`
+	StopLoss           convert.StringToFloat64 `json:"stopLoss"`
+	TpTriggerBy        convert.StringToFloat64 `json:"tpTriggerBy"`
+	SlTriggerBy        convert.StringToFloat64 `json:"slTriggerBy"`
+	TpLimitPrice       convert.StringToFloat64 `json:"tpLimitPrice"`
+	SlLimitPrice       convert.StringToFloat64 `json:"slLimitPrice"`
+	TriggerDirection   int                     `json:"triggerDirection"`
+	TriggerBy          string                  `json:"triggerBy"`
+	CloseOnTrigger     bool                    `json:"closeOnTrigger"`
+	Category           string                  `json:"category"`
+	PlaceType          string                  `json:"placeType"`
+	SmpType            string                  `json:"smpType"` // SMP execution type
+	SmpGroup           int                     `json:"smpGroup"`
+	SmpOrderID         string                  `json:"smpOrderId"`
+}
+
+// WebsocketWallet represents a wallet stream to see changes to your wallet in real-time.
+type WebsocketWallet struct {
+	ID           string               `json:"id"`
+	Topic        string               `json:"topic"`
+	CreationTime convert.ExchangeTime `json:"creationTime"`
+	Data         []struct {
+		AccountIMRate          convert.StringToFloat64 `json:"accountIMRate"`
+		AccountMMRate          convert.StringToFloat64 `json:"accountMMRate"`
+		TotalEquity            convert.StringToFloat64 `json:"totalEquity"`
+		TotalWalletBalance     convert.StringToFloat64 `json:"totalWalletBalance"`
+		TotalMarginBalance     convert.StringToFloat64 `json:"totalMarginBalance"`
+		TotalAvailableBalance  convert.StringToFloat64 `json:"totalAvailableBalance"`
+		TotalPerpUPL           convert.StringToFloat64 `json:"totalPerpUPL"`
+		TotalInitialMargin     convert.StringToFloat64 `json:"totalInitialMargin"`
+		TotalMaintenanceMargin convert.StringToFloat64 `json:"totalMaintenanceMargin"`
+		Coin                   []struct {
+			Coin                string                  `json:"coin"`
+			Equity              convert.StringToFloat64 `json:"equity"`
+			UsdValue            convert.StringToFloat64 `json:"usdValue"`
+			WalletBalance       convert.StringToFloat64 `json:"walletBalance"`
+			AvailableToWithdraw convert.StringToFloat64 `json:"availableToWithdraw"`
+			AvailableToBorrow   convert.StringToFloat64 `json:"availableToBorrow"`
+			BorrowAmount        convert.StringToFloat64 `json:"borrowAmount"`
+			AccruedInterest     convert.StringToFloat64 `json:"accruedInterest"`
+			TotalOrderIM        convert.StringToFloat64 `json:"totalOrderIM"`
+			TotalPositionIM     convert.StringToFloat64 `json:"totalPositionIM"`
+			TotalPositionMM     convert.StringToFloat64 `json:"totalPositionMM"`
+			UnrealisedPnl       convert.StringToFloat64 `json:"unrealisedPnl"`
+			CumRealisedPnl      convert.StringToFloat64 `json:"cumRealisedPnl"`
+			Bonus               convert.StringToFloat64 `json:"bonus"`
+		} `json:"coin"`
+		AccountType string `json:"accountType"`
+		AccountLTV  string `json:"accountLTV"`
+	} `json:"data"`
+}
+
+// GreeksResponse represents changes to your greeks data
+type GreeksResponse struct {
+	ID           string               `json:"id"`
+	Topic        string               `json:"topic"`
+	CreationTime convert.ExchangeTime `json:"creationTime"`
+	Data         []struct {
+		BaseCoin   string                  `json:"baseCoin"`
+		TotalDelta convert.StringToFloat64 `json:"totalDelta"`
+		TotalGamma convert.StringToFloat64 `json:"totalGamma"`
+		TotalVega  convert.StringToFloat64 `json:"totalVega"`
+		TotalTheta convert.StringToFloat64 `json:"totalTheta"`
+	} `json:"data"`
 }
