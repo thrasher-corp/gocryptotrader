@@ -95,7 +95,14 @@ func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBu
 	if err != nil {
 		return 0, err
 	}
-	return resp.Fee * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
+	if len(resp.Fees) != 1 {
+		return 0, errors.New("did not receive exactly one fee from api")
+	}
+	fee := resp.Fees[0].Taker
+	if feeBuilder.IsMaker {
+		fee = resp.Fees[0].Maker
+	}
+	return fee / 100 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
@@ -124,22 +131,6 @@ func getInternationalBankDepositFee(amount float64) float64 {
 		return 300
 	}
 	return fee
-}
-
-// CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
-	var fee float64
-	/*if , ok := balances[base.String()]; ok {
-		switch quote {
-		case currency.BTC:
-			fee = v.BTCFee
-		case currency.USD:
-			fee = v.USDFee
-		case currency.EUR:
-			fee = v.EURFee
-		}
-	}*/
-	return fee * purchasePrice * amount
 }
 
 // GetTicker returns ticker information

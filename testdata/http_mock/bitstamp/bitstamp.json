@@ -148,19 +148,19 @@
     }
    ]
   },
-  "/api/v2/fees/trading/btcusd": {
+  "/api/v2/fees/trading/btcltc/": {
     "POST": [
         {
             "data": {
                 "fees": [
                     {
-                        "maker": "0",
-                        "taker": "0"
+                        "maker": "0.3",
+                        "taker": "0.2"
                     }
                 ]
             },
             "queryString": "",
-            "bodyParams": "key=\u0026nonce=1560481519007838128\u0026signature=C7558B2B2E75E9057994271CCC0200835887CDC63EC4103220489C52F749BFFA",
+            "bodyParams": "key=\u0026nonce=1690610275327495000\u0026signature=B619E1AEF317B95D3BB28025F36EEF94CABCDE425CE3E13E8A1861C0A9777F2A",
             "headers": {
                 "Content-Type": [
                     "application/x-www-form-urlencoded"

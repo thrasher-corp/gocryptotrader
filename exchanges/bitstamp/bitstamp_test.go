@@ -33,10 +33,10 @@ var b = &Bitstamp{}
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
-		Amount:        1,
+		Amount:        5,
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
-		PurchasePrice: 1,
+		PurchasePrice: 1800,
 	}
 }
 
@@ -102,8 +102,7 @@ func TestGetFee(t *testing.T) {
 	fee, err := b.GetFee(context.Background(), feeBuilder)
 	if err != nil {
 		t.Error(err)
-	}
-	if expected := 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+	} else if expected := 0.003 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
 		t.Errorf("Bitstamp GetFee wrong Maker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
@@ -114,7 +113,7 @@ func TestGetFee(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if expected := 0.003 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+	if expected := 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
 		t.Errorf("Bitstamp GetFee wrong Taker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
@@ -153,39 +152,6 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FiatCurrency = currency.HKD
 	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
-	}
-}
-
-func TestGetTradingFee(t *testing.T) {
-	t.Parallel()
-	feeBuilder := setFeeBuilder()
-	if _, err := b.getTradingFee(context.Background(), feeBuilder); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCalculateTradingFee(t *testing.T) {
-	t.Parallel()
-
-	newBalance := make(Balances)
-	newBalance["BTC"] = Balance{
-		/*USDFee: 1,
-		EURFee: 0,*/
-	}
-
-	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 0, 0, newBalance); resp != 0 {
-		t.Error("GetFee() error")
-	}
-	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 2, 2, newBalance); resp != float64(4) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(4), resp)
-	}
-	if resp := b.CalculateTradingFee(currency.BTC, currency.EUR, 2, 2, newBalance); resp != float64(0) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
-	}
-
-	dummy1, dummy2 := currency.NewCode(""), currency.NewCode("")
-	if resp := b.CalculateTradingFee(dummy1, dummy2, 0, 0, newBalance); resp != 0 {
-		t.Error("GetFee() error")
 	}
 }
 
