@@ -103,7 +103,7 @@ func TestGetFee(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if expected := 0.02 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+	if expected := 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
 		t.Errorf("Bitstamp GetFee wrong Maker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
@@ -114,7 +114,7 @@ func TestGetFee(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if expected := 0.03 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+	if expected := 0.003 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
 		t.Errorf("Bitstamp GetFee wrong Taker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
@@ -159,7 +159,7 @@ func TestGetFee(t *testing.T) {
 func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
-	if _, err := b.GetTradingFee(context.Background(), feeBuilder); err != nil {
+	if _, err := b.getTradingFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 }

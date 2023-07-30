@@ -68,7 +68,11 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee, _ = b.GetTradingFee(ctx, feeBuilder)
+		tradingFee, err := b.getTradingFee(ctx, feeBuilder)
+		if err != nil {
+			return 0, fmt.Errorf("error getting trading fee: %w", err)
+		}
+		fee = tradingFee
 	case exchange.CryptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
@@ -85,7 +89,7 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 }
 
 // GetTradingFee returns a trading fee based on a currency
-func (b *Bitstamp) GetTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var resp TradingFees
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPITradingFees+"/"+strings.ToLower(feeBuilder.Pair.String()), true, nil, &resp)
 	if err != nil {
