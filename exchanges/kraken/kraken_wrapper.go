@@ -1071,6 +1071,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			Fee:             orderInfo.Fee,
 			Trades:          trades,
 			Cost:            orderInfo.Cost,
+			AssetType:       asset.Spot,
 		}
 	case asset.Futures:
 		orderInfo, err := k.FuturesGetFills(ctx, time.Time{})
@@ -1098,14 +1099,15 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 				return nil, err
 			}
 			orderDetail = order.Detail{
-				OrderID:  orderID,
-				Price:    orderInfo.Fills[y].Price,
-				Amount:   orderInfo.Fills[y].Size,
-				Side:     oSide,
-				Type:     fillOrderType,
-				Date:     timeVar,
-				Pair:     pair,
-				Exchange: k.Name,
+				OrderID:   orderID,
+				Price:     orderInfo.Fills[y].Price,
+				Amount:    orderInfo.Fills[y].Size,
+				Side:      oSide,
+				Type:      fillOrderType,
+				Date:      timeVar,
+				Pair:      pair,
+				Exchange:  k.Name,
+				AssetType: asset.Futures,
 			}
 		}
 	default:
