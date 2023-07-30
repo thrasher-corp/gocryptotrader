@@ -102,8 +102,9 @@ func TestGetFee(t *testing.T) {
 	fee, err := b.GetFee(context.Background(), feeBuilder)
 	if err != nil {
 		t.Error(err)
-	} else if fee == 0 {
-		fee = 0.02
+	}
+	if expected := 0.02 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+		t.Errorf("Bitstamp GetFee wrong Maker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
 	// CryptocurrencyTradeFee IsTaker
@@ -112,8 +113,9 @@ func TestGetFee(t *testing.T) {
 	fee, err = b.GetFee(context.Background(), feeBuilder)
 	if err != nil {
 		t.Error(err)
-	} else if fee == 0 {
-		fee = 0.03
+	}
+	if expected := 0.03 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+		t.Errorf("Bitstamp GetFee wrong Taker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
 	// CryptocurrencyTradeFee Negative purchase price
