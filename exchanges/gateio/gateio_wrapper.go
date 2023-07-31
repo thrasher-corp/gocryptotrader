@@ -1995,3 +1995,58 @@ func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bo
 	}
 	return availables.Contains(instrument, true), nil
 }
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !g.SupportsAsset(a) {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	avail, err := g.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		var pairsData []CurrencyPairDetail
+		pairsData, err := g.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		for x := range pairsData {
+			if pairsData[x].TradeStatus == "untradable" {
+				continue
+			}
+			var pair currency.Pair
+			pair, err = avail.DeriveFrom(strings.ReplaceAll(pairsData[x].ID, "_", ""))
+			if err != nil {
+				return err
+			}
+
+			// Minimum base amounts are not always provided this will default to
+			// precision for base deployment. This can't be done for quote.
+			minBaseAmount := pairsData[x].MinBaseAmount.Float64()
+			if minBaseAmount == 0 {
+				minBaseAmount = math.Pow10(-int(pairsData[x].AmountPrecision))
+			}
+
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                   a,
+				Pair:                    pair,
+				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[x].Precision)),
+				AmountStepIncrementSize: math.Pow10(-int(pairsData[x].AmountPrecision)),
+				MinimumBaseAmount:       minBaseAmount,
+				MinimumQuoteAmount:      pairsData[x].MinQuoteAmount.Float64(),
+			})
+		}
+	default:
+		// TODO: Add in other assets
+		return fmt.Errorf("%s %w", a, common.ErrNotYetImplemented)
+	}
+
+	return g.LoadLimits(limits)
+}
