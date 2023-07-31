@@ -275,14 +275,12 @@ func TestGetBalance(t *testing.T) {
 				Balance:       1337.42,
 				Reserved:      1295.00,
 				WithdrawalFee: 5.0,
-				USDFee:        0,
 			},
 			"BTC": {
 				Available:     9.1,
 				Balance:       11.2,
 				Reserved:      2.1,
 				WithdrawalFee: 0.00050000,
-				USDFee:        0.25,
 			},
 		} {
 			if got, ok := bal[k]; !ok {
@@ -299,9 +297,6 @@ func TestGetBalance(t *testing.T) {
 				}
 				if got.WithdrawalFee != e.WithdrawalFee {
 					t.Errorf("Incorrect WithdrawalFee for %s; Expected: %v Got: %v", k, e.WithdrawalFee, got.WithdrawalFee)
-				}
-				if got.USDFee != e.USDFee {
-					t.Errorf("Incorrect USDFee for %s; Expected: %v Got: %v", k, e.USDFee, got.USDFee)
 				}
 			}
 		}
