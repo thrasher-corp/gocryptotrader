@@ -376,7 +376,7 @@ func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(respRaw, asset.Options)
+		return g.processFuturesAndOptionsOrderbookUpdate(push.Result, asset.Options)
 	case optionsOrdersChannel:
 		return g.processOptionsOrderPushData(respRaw)
 	case optionsUserTradesChannel:
