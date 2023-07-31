@@ -80,6 +80,7 @@ type TradingFees struct {
 	Fees []TradingFee
 }
 
+// TragindFee holds maker and taker fee information
 type TradingFee struct {
 	Maker float64 `json:"maker,string"`
 	Taker float64 `json:"taker,string"`

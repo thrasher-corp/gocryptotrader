@@ -252,7 +252,6 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 		balances[strings.ToUpper(curr)] = currBalance
 	}
 	return balances, nil
-
 }
 
 // GetUserTransactions returns an array of transactions

@@ -112,8 +112,7 @@ func TestGetFee(t *testing.T) {
 	fee, err = b.GetFee(context.Background(), feeBuilder)
 	if err != nil {
 		t.Error(err)
-	}
-	if expected := 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+	} else if expected := 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
 		t.Errorf("Bitstamp GetFee wrong Taker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
