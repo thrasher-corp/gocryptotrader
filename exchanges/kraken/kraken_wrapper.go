@@ -1269,6 +1269,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Type:            orderType,
 				Pair:            p,
 				AssetType:       asset.Spot,
+				Status:          order.Open,
 			})
 		}
 	case asset.Futures:
@@ -1317,6 +1318,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Pair:      fPair,
 					Exchange:  k.Name,
 					AssetType: asset.Futures,
+					Status:    order.Open,
 				})
 			}
 		}
