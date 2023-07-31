@@ -310,6 +310,9 @@ func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	}
 	pairs := make([]currency.Pair, len(prods))
 	for x := range prods {
+		if prods[x].State != "live" {
+			continue
+		}
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(prods[x].InstrumentID)
 		if err != nil {

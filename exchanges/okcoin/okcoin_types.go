@@ -311,7 +311,7 @@ type WebsocketAdvancedAlgoOrder struct {
 		OrderType            string                  `json:"ordType"`
 		PushTime             okcoinTime              `json:"pTime"`
 		PosSide              string                  `json:"posSide"`
-		PriceLimit           string                  `json:"pxLimit"`
+		PriceLimit           convert.StringToFloat64 `json:"pxLimit"`
 		PriceSpread          okcoinNumber            `json:"pxSpread"`
 		PriceVar             okcoinNumber            `json:"pxVar"`
 		Side                 string                  `json:"side"`

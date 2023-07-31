@@ -270,7 +270,47 @@ func (o *Okcoin) wsProcessAdvancedAlgoOrder(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	o.Websocket.DataHandler <- resp
+	algoOrders := make([]order.Detail, len(resp.Data))
+	for d := range resp.Data {
+		oType, err := order.StringToOrderType(resp.Data[d].OrderType)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(resp.Data[d].Side)
+		if err != nil {
+			return err
+		}
+		// this code block introduces two order states
+		// 1. 'effective' - equivalent to filled, and
+		// 2. 'order_failed' == equivalent to failed
+		oStatus, err := order.StringToOrderStatus(resp.Data[d].State)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(resp.Data[d].InstrumentID)
+		if err != nil {
+			return err
+		}
+		algoOrders[d] = order.Detail{
+			Leverage:        resp.Data[d].Lever.Float64(),
+			Price:           resp.Data[d].OrderPrice.Float64(),
+			Amount:          resp.Data[d].Size.Float64(),
+			LimitPriceUpper: resp.Data[d].PriceLimit.Float64(),
+			TriggerPrice:    resp.Data[d].TriggerPrice.Float64(),
+			RemainingAmount: resp.Data[d].ActualSz.Float64(),
+			Exchange:        o.Name,
+			OrderID:         resp.Data[d].AlgoID,
+			ClientOrderID:   resp.Data[d].ClOrdID,
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       asset.Spot,
+			Date:            resp.Data[d].CreationTime.Time(),
+			LastUpdated:     resp.Data[d].PushTime.Time().UTC(),
+			Pair:            cp,
+		}
+		o.Websocket.DataHandler <- algoOrders
+	}
 	return nil
 }
 
@@ -763,7 +803,7 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 				})
 			}
 		default:
-			return nil, fmt.Errorf("unsupported websocket channel %v", asset.Spot)
+			return nil, fmt.Errorf("unsupported websocket channel %v", channels[s])
 		}
 	}
 	return subscriptions, nil
@@ -796,8 +836,8 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 			"channel": subs[i].Channel,
 		}
 		if subs[i].Params != nil {
-			if currency, okay := subs[i].Params["ccy"]; okay {
-				argument["ccy"], okay = (currency).(string)
+			if ccy, okay := subs[i].Params["ccy"]; okay {
+				argument["ccy"], okay = (ccy).(string)
 				if !okay {
 					continue
 				}

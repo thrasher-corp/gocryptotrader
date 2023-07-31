@@ -321,6 +321,8 @@ const (
 	Liquidation
 	Trigger
 	OptimalLimitIOC
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
 )
 
 // Side enforces a standard for order sides across the code base

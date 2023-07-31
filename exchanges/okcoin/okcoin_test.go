@@ -1377,6 +1377,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
+		Pairs:     currency.Pairs{spotTradablePair},
 	}
 	_, err := o.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if err != nil {
