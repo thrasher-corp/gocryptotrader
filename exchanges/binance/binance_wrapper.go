@@ -970,13 +970,13 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	switch s.AssetType {
 	case asset.Spot, asset.Margin:
 		var sideType string
-		switch s.Side {
-		case order.Buy:
+		switch {
+		case s.Side.IsLong():
 			sideType = order.Buy.String()
-		case order.Sell:
+		case s.Side.IsShort():
 			sideType = order.Sell.String()
 		default:
-			return nil, fmt.Errorf("%w %v", order.ErrSideIsInvalid, s.Side)
+			return nil, fmt.Errorf("%w %s", order.ErrSideIsInvalid, s.Side)
 		}
 		timeInForce := BinanceRequestParamsTimeGTC
 		var requestParamsOrderType RequestParamsOrderType
