@@ -2758,3 +2758,9 @@ type GreeksResponse struct {
 		TotalTheta convert.StringToFloat64 `json:"totalTheta"`
 	} `json:"data"`
 }
+
+// PingMessage represents a ping message.
+type PingMessage struct {
+	Operation string `json:"op"`
+	RequestID string `json:"req_id"`
+}

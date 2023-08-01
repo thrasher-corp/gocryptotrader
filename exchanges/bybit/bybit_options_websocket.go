@@ -1,7 +1,9 @@
 package bybit
 
 import (
+	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -19,9 +21,14 @@ func (by *Bybit) WsOptionsConnect() error {
 	if err != nil {
 		return err
 	}
+	pingMessage := PingMessage{Operation: "ping", RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10)}
+	pingData, err := json.Marshal(pingMessage)
+	if err != nil {
+		return err
+	}
 	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
-		Message:     []byte(`{"op": "ping"}`),
+		Message:     pingData,
 		Delay:       bybitWebsocketTimer,
 	})
 
@@ -49,4 +56,30 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 		}
 	}
 	return subscriptions, nil
+}
+
+// OptionSubscribe sends a subscription message to options public channels.
+func (by *Bybit) OptionSubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+	return by.handleOptionsPayloadSubscription("subscribe", channelSubscriptions)
+}
+
+// OptionUnsubscribe sends an unsubscription messages through options public channels.
+func (by *Bybit) OptionUnsubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+	return by.handleOptionsPayloadSubscription("unsubscribe", channelSubscriptions)
+}
+
+func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
+	payloads, err := by.handleSubscriptions(asset.Options, operation, channelSubscriptions)
+	if err != nil {
+		return err
+	}
+	for a := range payloads {
+		// The options connection does not send the subscription request id back with the subscription notification payload
+		// therefore the code doesn't wait for the response to check whether the subscription is succesful or not.
+		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

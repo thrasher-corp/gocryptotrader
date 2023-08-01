@@ -58,3 +58,29 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]stream.ChannelSubscript
 	}
 	return subscriptions, nil
 }
+
+// LinearSubscribe sends a subscription message to linear public channels.
+func (by *Bybit) LinearSubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+	return by.handleLinearPayloadSubscription("subscribe", channelSubscriptions)
+}
+
+// LinearUnsubscribe sends an unsubscription messages through linear public channels.
+func (by *Bybit) LinearUnsubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+	return by.handleLinearPayloadSubscription("unsubscribe", channelSubscriptions)
+}
+
+func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
+	payloads, err := by.handleSubscriptions(asset.Linear, operation, channelSubscriptions)
+	if err != nil {
+		return err
+	}
+	for a := range payloads {
+		// The options connection does not send the subscription request id back with the subscription notification payload
+		// therefore the code doesn't wait for the response to check whether the subscription is succesful or not.
+		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

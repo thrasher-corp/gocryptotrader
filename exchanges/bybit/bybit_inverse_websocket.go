@@ -50,3 +50,29 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]stream.ChannelSubscrip
 	}
 	return subscriptions, nil
 }
+
+// InverseSubscribe sends a subscription message to linear public channels.
+func (by *Bybit) InverseSubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+	return by.handleInversePayloadSubscription("subscribe", channelSubscriptions)
+}
+
+// InverseUnsubscribe sends an unsubscription messages through linear public channels.
+func (by *Bybit) InverseUnsubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+	return by.handleInversePayloadSubscription("unsubscribe", channelSubscriptions)
+}
+
+func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
+	payloads, err := by.handleSubscriptions(asset.Inverse, operation, channelSubscriptions)
+	if err != nil {
+		return err
+	}
+	for a := range payloads {
+		// The options connection does not send the subscription request id back with the subscription notification payload
+		// therefore the code doesn't wait for the response to check whether the subscription is succesful or not.
+		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

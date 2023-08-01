@@ -159,33 +159,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	payloads, err := by.handleSubscriptions(asset.Spot, "subscribe", channelsToSubscribe)
-	if err != nil {
-		return err
-	}
-	for a := range payloads {
-		var response []byte
-		if payloads[a].auth {
-			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
-			if err != nil {
-				return err
-			}
-		} else {
-			response, err = by.Websocket.Conn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
-			if err != nil {
-				return err
-			}
-		}
-		var resp SubscriptionResponse
-		err = json.Unmarshal(response, &resp)
-		if err != nil {
-			return err
-		}
-		if !resp.Success {
-			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
-		}
-	}
-	return nil
+	return by.handleSpotSubscription("subscribe", channelsToSubscribe)
 }
 
 func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe []stream.ChannelSubscription) ([]SubscriptionArgument, error) {
@@ -234,8 +208,7 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 			authArg.Arguments = append(authArg.Arguments, channelsToSubscribe[i].Channel)
 			selectedChannels |= chanMap[channelsToSubscribe[i].Channel]
 		}
-		if assetType == asset.Spot && len(arg.Arguments) >= 10 ||
-			assetType == asset.Options && len(arg.Arguments) >= 2000 {
+		if len(arg.Arguments) >= 10 {
 			args = append(args, arg)
 			arg = SubscriptionArgument{
 				Operation: operation,
@@ -255,7 +228,11 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	payloads, err := by.handleSubscriptions(asset.Spot, "unsubscribe", channelsToUnsubscribe)
+	return by.handleSpotSubscription("unsubscribe", channelsToUnsubscribe)
+}
+
+func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []stream.ChannelSubscription) error {
+	payloads, err := by.handleSubscriptions(asset.Spot, operation, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -755,7 +732,8 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 		if err != nil {
 			return err
 		}
-		size, err := strconv.ParseFloat(result.Asks[i][1], 64)
+		var size float64
+		size, err = strconv.ParseFloat(result.Asks[i][1], 64)
 		if err != nil {
 			return err
 		}
@@ -768,7 +746,8 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 		if err != nil {
 			return err
 		}
-		size, err := strconv.ParseFloat(result.Bids[i][1], 64)
+		var size float64
+		size, err = strconv.ParseFloat(result.Bids[i][1], 64)
 		if err != nil {
 			return err
 		}

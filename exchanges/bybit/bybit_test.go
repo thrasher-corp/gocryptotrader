@@ -23,8 +23,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "s4PX4VwwVXPh5LiF83"
-	apiSecret               = "3Ap7GeFGW7EExS8AOgtmwpeB5bRTU34BFjjD"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -137,6 +137,7 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetMarkPriceKline(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetMarkPriceKline(context.Background(), "linear", "BTCUSDT", kline.FiveMin, time.Now().Add(-time.Hour*1), time.Now(), 5)
 	if err != nil {
 		t.Fatal(err)
@@ -2628,6 +2629,7 @@ func TestWsOptionsConnect(t *testing.T) {
 	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 23)
 }
 
 var pushDataMap = map[string]string{
