@@ -51,35 +51,37 @@ const (
 	wsOrder     = "order"
 	wsStopOrder = "stop_order"
 	wsWallet    = "wallet"
+
+	bybitWebsocketCoinMarginedFuturesPublicV2 = "wss://stream.bybit.com/realtime"
 )
 
 var pingRequest = WsFuturesReq{Topic: stream.Ping}
 
-const (
-	bybitWebsocketCoinMarginedFuturesPublicV2 = "wss://stream.bybit.com/realtime"
-)
+var defaultCoinMarginedFuturesSubscriptionChannels = []string{
+	wsInstrument,
+	wsOrder200,
+	wsTrade,
+	wsKlineV2,
+	wsLiquidation,
+}
 
-var (
-	defaultCoinMarginedFuturesSubscriptionChannels = []string{
-		wsInstrument,
-		wsOrder200,
-		wsTrade,
-		wsKlineV2,
-		wsLiquidation,
-	}
-)
+var defaultCoinMarginedFuturesAuthSubscriptionChannels = []string{
+	wsWallet,
+	wsOrder,
+	wsStopOrder,
+}
 
-// WsCoinConnect connects to a CMF websocket feed
+// WsCoinConnect connects to CoinMarginedFutures CMF websocket feed
 func (by *Bybit) WsCoinConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) || by.CurrencyPairs.IsAssetEnabled(asset.CoinMarginedFutures) != nil {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
 	}
 	var dialer websocket.Dialer
-	err = cfuturesWebsocket.Conn.Dial(&dialer, http.Header{})
+	err = assetWebsocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -88,57 +90,32 @@ func (by *Bybit) WsCoinConnect() error {
 	if err != nil {
 		return err
 	}
-	cfuturesWebsocket.Conn.SetupPingHandler(stream.PingHandler{
+	assetWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		Message:     pingMsg,
 		MessageType: websocket.PingMessage,
 		Delay:       bybitWebsocketTimer,
 	})
 	if by.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
+		log.Debugf(log.ExchangeSys, "%s Connected to %v Websocket.\n", by.Name, asset.CoinMarginedFutures)
 	}
 
-	go by.wsCoinReadData(cfuturesWebsocket.Conn)
+	ctx, cancelFunc := context.WithCancel(context.TODO())
+	go by.wsCoinReadData(ctx, cancelFunc, assetWebsocket.Conn, assetWebsocket)
 	by.Websocket.SetCanUseAuthenticatedEndpoints(true, asset.CoinMarginedFutures)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		err = by.WsCoinAuth(context.TODO())
+		err = by.WsCoinAuth(ctx, cancelFunc)
 		if err != nil {
 			by.Websocket.DataHandler <- err
-			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			by.Websocket.SetCanUseAuthenticatedEndpoints(false, asset.CoinMarginedFutures)
+			return nil
 		}
 	}
 	return nil
 }
 
-// wsCoinReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsCoinReadData(ws stream.Connection) {
-	coinMarginedFuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.CoinMarginedFutures)
-		return
-	}
-	coinMarginedFuturesWebsocket.Wg.Add(1)
-	defer coinMarginedFuturesWebsocket.Wg.Done()
-	for {
-		select {
-		case <-coinMarginedFuturesWebsocket.ShutdownC:
-			return
-		default:
-			resp := ws.ReadMessage()
-			if resp.Raw == nil {
-				return
-			}
-
-			err := by.wsCoinHandleData(resp.Raw)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-			}
-		}
-	}
-}
-
 // WsCoinAuth sends an authentication message to receive auth data
-func (by *Bybit) WsCoinAuth(ctx context.Context) error {
-	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+func (by *Bybit) WsCoinAuth(ctx context.Context, cancelFunc context.CancelFunc) error {
+	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
 	}
@@ -146,13 +123,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
-	err = cfuturesWebsocket.AuthConn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	go by.wsCoinReadData(cfuturesWebsocket.AuthConn)
-	intNonce := (time.Now().Unix() + 1) * 1000
+	intNonce := (time.Now().Unix() + 2) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -167,28 +138,22 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	return cfuturesWebsocket.AuthConn.SendJSONMessage(req)
+	return assetWebsocket.Conn.SendJSONMessage(req)
 }
 
 // GenerateCoinMarginedFuturesDefaultSubscriptions returns channel subscriptions for futures instruments
 func (by *Bybit) GenerateCoinMarginedFuturesDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	channels := defaultCoinMarginedFuturesSubscriptionChannels
-	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels,
-			wsWallet,
-			wsOrder,
-			wsStopOrder)
-	}
 	subscriptions := []stream.ChannelSubscription{}
-	coinMarginedFuturesPairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
+	pairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
-	coinMarginedFuturesPairFormat, err := by.GetPairFormat(asset.CoinMarginedFutures, true)
+	pairFormat, err := by.GetPairFormat(asset.CoinMarginedFutures, true)
 	if err != nil {
 		return nil, err
 	}
-	coinMarginedFuturesPairs = coinMarginedFuturesPairs.Format(coinMarginedFuturesPairFormat)
+	pairs = pairs.Format(pairFormat)
 	for x := range channels {
 		switch channels[x] {
 		case wsInsurance, wsLiquidation, wsPosition,
@@ -198,30 +163,30 @@ func (by *Bybit) GenerateCoinMarginedFuturesDefaultSubscriptions() ([]stream.Cha
 				Channel: channels[x],
 			})
 		case wsOrder25, wsTrade:
-			for p := range coinMarginedFuturesPairs {
+			for p := range pairs {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Asset:    asset.CoinMarginedFutures,
 					Channel:  channels[x],
-					Currency: coinMarginedFuturesPairs[p],
+					Currency: pairs[p],
 				})
 			}
 		case wsKlineV2:
-			for p := range coinMarginedFuturesPairs {
+			for p := range pairs {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Asset:    asset.CoinMarginedFutures,
 					Channel:  channels[x],
-					Currency: coinMarginedFuturesPairs[p],
+					Currency: pairs[p],
 					Params: map[string]interface{}{
 						"interval": "1",
 					},
 				})
 			}
 		case wsInstrument, wsOrder200:
-			for p := range coinMarginedFuturesPairs {
+			for p := range pairs {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Asset:    asset.CoinMarginedFutures,
 					Channel:  channels[x],
-					Currency: coinMarginedFuturesPairs[p],
+					Currency: pairs[p],
 					Params: map[string]interface{}{
 						"frequency_interval": "100ms",
 					},
@@ -232,9 +197,29 @@ func (by *Bybit) GenerateCoinMarginedFuturesDefaultSubscriptions() ([]stream.Cha
 	return subscriptions, nil
 }
 
+// GenerateWsCoinDefaultAuthSubscriptions returns channel subscriptions for futures instruments
+func (by *Bybit) GenerateWsCoinDefaultAuthSubscriptions() ([]stream.ChannelSubscription, error) {
+	if !by.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, nil
+	}
+	channels := defaultCoinMarginedFuturesAuthSubscriptionChannels
+	subscriptions := []stream.ChannelSubscription{}
+	for x := range channels {
+		switch channels[x] {
+		case wsInsurance, wsLiquidation, wsPosition,
+			wsExecution, wsOrder, wsStopOrder, wsWallet:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Asset:   asset.CoinMarginedFutures,
+				Channel: channels[x],
+			})
+		}
+	}
+	return subscriptions, nil
+}
+
 // SubscribeCoin sends a websocket message to receive data from the channel
 func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription) error {
-	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
 	}
@@ -245,7 +230,7 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 
 		argStr := formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params)
 		switch channelsToSubscribe[i].Channel {
-		case wsOrder25, wsCoinKline, wsInstrument, wsOrder200, wsTrade:
+		case wsOrder25, wsKlineV2, wsInstrument, wsOrder200, wsTrade:
 			var formattedPair currency.Pair
 			formattedPair, err = by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, channelsToSubscribe[i].Asset)
 			if err != nil {
@@ -256,27 +241,19 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 		}
 		sub.Args = append(sub.Args, argStr)
 
-		err = cfuturesWebsocket.Conn.SendJSONMessage(sub)
+		err = assetWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		cfuturesWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		assetWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
 }
 
-func formatArgs(channel string, params map[string]interface{}) string {
-	argStr := channel
-	for x := range params {
-		argStr += dot + fmt.Sprintf("%v", params[x])
-	}
-	return argStr
-}
-
-// UnsubscribeCoin sends a websocket message to stop receiving data from the channel
+// UnsubscribeCoin sends asset.CoinMarginedFutures websocket message to stop receiving data from the channel
 func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
 	}
@@ -291,27 +268,71 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 			continue
 		}
 		unSub.Args = append(unSub.Args, channelsToUnsubscribe[i].Channel+dot+formattedPair.String())
-		err = cfuturesWebsocket.Conn.SendJSONMessage(unSub)
+
+		err = assetWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		cfuturesWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		assetWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
 
+// wsCoinReadData gets and passes on websocket messages for processing
+func (by *Bybit) wsCoinReadData(ctx context.Context, cancelFunc context.CancelFunc, wsConn stream.Connection, assetWebsocket *stream.Websocket) {
+	assetWebsocket.Wg.Add(1)
+	defer func() {
+		assetWebsocket.Wg.Done()
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			// received termination signal
+			return
+		case <-assetWebsocket.ShutdownC:
+			return
+		default:
+			resp := wsConn.ReadMessage()
+			if resp.Raw == nil {
+				cancelFunc()
+				return
+			}
+
+			err := by.wsCoinHandleData(resp.Raw)
+			if err != nil {
+				by.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+
+// wsCoinHandleResp handles response messages from ws requests
 func (by *Bybit) wsCoinHandleResp(wsFuturesResp *WsFuturesResp) error {
 	switch wsFuturesResp.Request.Topic {
 	case wsAuth:
 		if !wsFuturesResp.Success {
-			cfuturesWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+			assetWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 			if err != nil {
 				return fmt.Errorf("%w asset type: %v", err, asset.CoinMarginedFutures)
 			}
-			log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
-			cfuturesWebsocket.SetCanUseAuthenticatedEndpoints(false)
+			switch wsFuturesResp.RetMsg {
+			case "error:request expired":
+				// Consider handling the error by sending the authentication message again
+				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication request expired: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
+			default:
+				log.Errorf(log.ExchangeSys, "%s Asset Type %v Authentication failed with message: %v - disabling authenticated endpoint", by.Name, asset.CoinMarginedFutures, wsFuturesResp.RetMsg)
+			}
+			assetWebsocket.SetCanUseAuthenticatedEndpoints(false)
 			return nil
+		}
+		authSubs, err := by.GenerateWsCoinDefaultAuthSubscriptions()
+		if err != nil {
+			return err
+		}
+		err = by.SubscribeCoin(authSubs)
+		if err != nil {
+			return err
 		}
 		if by.Verbose {
 			log.Debugf(log.ExchangeSys, "%s Asset Type %v Authentication succeeded", by.Name, asset.CoinMarginedFutures)
@@ -322,16 +343,17 @@ func (by *Bybit) wsCoinHandleResp(wsFuturesResp *WsFuturesResp) error {
 			log.Errorf(log.ExchangeSys, "%s Asset Type %v Subscription failed: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.Request.Args)
 		}
 	case wsUnsubscribe:
-	default:
 		if !wsFuturesResp.Success {
 			log.Errorf(log.ExchangeSys, "%s Asset Type %v Unsubscription failed: %v", by.Name, asset.CoinMarginedFutures, wsFuturesResp.Request.Args)
 		}
+	default:
+		log.Errorf(log.ExchangeSys, "%s Asset Type %v Unhandled response", by.Name, asset.CoinMarginedFutures)
 	}
 	return nil
 }
 
+// wsCoinHandleData will read websocket raw data and pass to appropriate handler
 func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
-	println(string(respRaw))
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -368,12 +390,21 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 				var p currency.Pair
-				p, err = by.extractCurrencyPair(response.OBData[0].Symbol, asset.CoinMarginedFutures)
+				p, err = by.extractCurrencyPair(response.Data[0].Symbol, asset.CoinMarginedFutures)
 				if err != nil {
 					return err
 				}
 
-				err = by.processOrderbook(response.OBData,
+				var format currency.PairFormat
+				format, err = by.GetPairFormat(asset.Futures, false)
+				if err != nil {
+					return err
+				}
+				p = p.Format(format)
+				if err != nil {
+					return err
+				}
+				err = by.processOrderbook(response.Data,
 					wsOperationSnapshot,
 					p,
 					asset.CoinMarginedFutures)
@@ -440,7 +471,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 			}
 		}
 
-	case wsTrades:
+	case wsTrade:
 		if !by.IsSaveTradeDataEnabled() {
 			return nil
 		}
@@ -474,7 +505,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				CurrencyPair: p,
 				AssetType:    asset.CoinMarginedFutures,
 				Side:         oSide,
-				Price:        response.TradeData[i].Price,
+				Price:        response.TradeData[i].Price.Float64(),
 				Amount:       response.TradeData[i].Size,
 				Timestamp:    response.TradeData[i].Time,
 			}
@@ -509,14 +540,6 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 			}
 		}
 
-	case wsInsurance:
-		var response WsInsurance
-		err = json.Unmarshal(respRaw, &response)
-		if err != nil {
-			return err
-		}
-		by.Websocket.DataHandler <- response.Data
-
 	case wsInstrument:
 		if wsType, ok := multiStreamData["type"].(string); ok {
 			switch wsType {
@@ -540,7 +563,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					Low:          response.Ticker.LowPrice24h.Float64(),
 					Bid:          response.Ticker.BidPrice.Float64(),
 					Ask:          response.Ticker.AskPrice.Float64(),
-					Volume:       response.Ticker.Volume24h,
+					Volume:       response.Ticker.GetVolume24h(),
 					Close:        response.Ticker.PrevPrice24h.Float64(),
 					LastUpdated:  response.Ticker.UpdateAt,
 					AssetType:    asset.CoinMarginedFutures,
@@ -556,46 +579,32 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				if len(response.Data.Update) > 0 {
 					for x := range response.Data.Update {
+						if response.Data.Update[x] == (WsFuturesTickerData{}) {
+							continue
+						}
 						var p currency.Pair
 						p, err = by.extractCurrencyPair(response.Data.Update[x].Symbol, asset.CoinMarginedFutures)
 						if err != nil {
 							return err
 						}
-						var tickerPrice *ticker.Price
-						tickerPrice, err = ticker.GetTicker(by.Name, p, asset.CoinMarginedFutures)
+						var tickerData *ticker.Price
+						tickerData, err = by.FetchTicker(context.Background(), p, asset.CoinMarginedFutures)
 						if err != nil {
 							return err
 						}
-
-						if response.Data.Update[x].LastPrice.Float64() != 0 {
-							tickerPrice.Last = response.Data.Update[x].LastPrice.Float64()
+						by.Websocket.DataHandler <- &ticker.Price{
+							ExchangeName: by.Name,
+							Last:         compareAndSet(tickerData.Last, response.Data.Update[x].LastPrice.Float64()),
+							High:         compareAndSet(tickerData.High, response.Data.Update[x].HighPrice24h.Float64()),
+							Low:          compareAndSet(tickerData.Low, response.Data.Update[x].LowPrice24h.Float64()),
+							Bid:          compareAndSet(tickerData.Bid, response.Data.Update[x].BidPrice.Float64()),
+							Ask:          compareAndSet(tickerData.Ask, response.Data.Update[x].AskPrice.Float64()),
+							Volume:       compareAndSet(tickerData.Volume, response.Data.Update[x].GetVolume24h()),
+							Close:        compareAndSet(tickerData.Close, response.Data.Update[x].PrevPrice24h.Float64()),
+							LastUpdated:  response.Data.Update[x].UpdateAt,
+							AssetType:    asset.CoinMarginedFutures,
+							Pair:         p,
 						}
-						if response.Data.Update[x].HighPrice24h.Float64() != 0 {
-							tickerPrice.High = response.Data.Update[x].HighPrice24h.Float64()
-						}
-						if response.Data.Update[x].LowPrice24h.Float64() != 0 {
-							tickerPrice.Low = response.Data.Update[x].LowPrice24h.Float64()
-						}
-						if response.Data.Update[x].BidPrice.Float64() != 0 {
-							tickerPrice.Bid = response.Data.Update[x].BidPrice.Float64()
-						}
-						if response.Data.Update[x].AskPrice.Float64() != 0 {
-							tickerPrice.Ask = response.Data.Update[x].AskPrice.Float64()
-						}
-						if response.Data.Update[x].Volume24h != 0 {
-							tickerPrice.Volume = response.Data.Update[x].Volume24h
-						}
-						if response.Data.Update[x].TurnOver24h != 0 {
-							tickerPrice.QuoteVolume = response.Data.Update[x].TurnOver24h
-						}
-						if response.Data.Update[x].PrevPrice24h.Float64() != 0 {
-							tickerPrice.Close = response.Data.Update[x].PrevPrice24h.Float64()
-						}
-						if response.Data.Update[x].LastPrice.Float64() != 0 {
-							tickerPrice.LastUpdated = response.Data.Update[x].UpdateAt
-						}
-
-						by.Websocket.DataHandler <- tickerPrice
 					}
 				}
 			default:
@@ -605,6 +614,14 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 	case wsLiquidation:
 		var response WsFuturesLiquidation
+		err = json.Unmarshal(respRaw, &response)
+		if err != nil {
+			return err
+		}
+		by.Websocket.DataHandler <- response.Data
+
+	case wsInsurance:
+		var response WsInsurance
 		err = json.Unmarshal(respRaw, &response)
 		if err != nil {
 			return err
@@ -724,7 +741,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				Side:      oSide,
 				Status:    oStatus,
 				AssetType: asset.CoinMarginedFutures,
-				Date:      response.Data[x].Time,
+				Date:      response.Data[x].GetTime(asset.CoinMarginedFutures),
 				Pair:      p,
 				Trades: []order.TradeHistory{
 					{
@@ -732,7 +749,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 						Amount:    response.Data[x].OrderQty,
 						Exchange:  by.Name,
 						Side:      oSide,
-						Timestamp: response.Data[x].Time,
+						Timestamp: response.Data[x].GetTime(asset.CoinMarginedFutures),
 					},
 				},
 			}
@@ -787,7 +804,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				Side:      oSide,
 				Status:    oStatus,
 				AssetType: asset.CoinMarginedFutures,
-				Date:      response.Data[x].Time,
+				Date:      response.Data[x].GetTime(asset.CoinMarginedFutures),
 				Pair:      p,
 				Trades: []order.TradeHistory{
 					{
@@ -795,7 +812,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 						Amount:    response.Data[x].OrderQty,
 						Exchange:  by.Name,
 						Side:      oSide,
-						Timestamp: response.Data[x].Time,
+						Timestamp: response.Data[x].GetTime(asset.CoinMarginedFutures),
 					},
 				},
 			}
@@ -815,7 +832,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 	return nil
 }
 
-// processOrderbook processes orderbook updates
+// processCoinOrderbook processes orderbook updates
 func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, p currency.Pair, a asset.Item) error {
 	if len(data) < 1 {
 		return errors.New("no orderbook data")
@@ -887,7 +904,7 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 	return nil
 }
 
-// GetActionFromString matches a string action to an internal action.
+// GetActionFromString matches asset.CoinMarginedFutures string action to an internal action.
 func (by *Bybit) GetActionFromString(s string) (orderbook.Action, error) {
 	switch s {
 	case wsOrderbookActionUpdate:
@@ -898,4 +915,19 @@ func (by *Bybit) GetActionFromString(s string) (orderbook.Action, error) {
 		return orderbook.Insert, nil
 	}
 	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
+}
+
+func formatArgs(channel string, params map[string]interface{}) string {
+	argStr := channel
+	for x := range params {
+		argStr += dot + fmt.Sprintf("%v", params[x])
+	}
+	return argStr
+}
+
+func compareAndSet(prevVal, newVal float64) float64 {
+	if newVal != 0 {
+		return newVal
+	}
+	return prevVal
 }

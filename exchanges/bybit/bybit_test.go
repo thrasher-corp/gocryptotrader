@@ -344,7 +344,7 @@ func TestWsSubscription(t *testing.T) {
 			"binary": false
 		}
 	}`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +360,7 @@ func TestWsUnsubscribe(t *testing.T) {
 			"binary": false
 		}
 	}`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +385,7 @@ func TestWsTrade(t *testing.T) {
 			"m": true
 		}
 	}`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,7 +434,7 @@ func TestWsOrderbook(t *testing.T) {
 			]
 		}
 	}`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +458,7 @@ func TestWsTicker(t *testing.T) {
 			"time": 1582001830346
 		}
 	}`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -485,7 +485,7 @@ func TestWsKline(t *testing.T) {
 		  	"v": "15.917433"
 		}
 	}`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,7 +505,7 @@ func TestWSAccountInfo(t *testing.T) {
 			"l":"0"
 		}]
 	}]`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -540,7 +540,7 @@ func TestWSOrderExecution(t *testing.T) {
 		"C": false,
 		"v": "0"
 	}]`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,7 +564,7 @@ func TestWSTickerInfo(t *testing.T) {
 		"m":true,
 		"S":"BUY"
 	}]`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsSpotHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
