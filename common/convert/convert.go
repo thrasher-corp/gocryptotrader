@@ -231,3 +231,10 @@ func (f *StringToFloat64) Float64() float64 {
 func (f *StringToFloat64) MarshalJSON() ([]byte, error) {
 	return append(append([]byte{'"'}, []byte(strconv.FormatFloat(float64(*f), 'f', -1, 64))...), '"'), nil
 }
+
+// Decimal returns the decimal value of the FloatString
+// Warning: this does not handle big numbers as the underlying
+// is still a float
+func (f *StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(*f))
+}

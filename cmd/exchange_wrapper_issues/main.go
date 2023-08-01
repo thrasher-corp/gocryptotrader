@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -512,13 +513,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{""}),
 			})
 
-			fundingRateRequest := &order.FundingRatesRequest{
+			fundingRateRequest := &fundingrate.RatesRequest{
 				Asset:     assetTypes[i],
-				Pairs:     currency.Pairs{p},
+				Pair:      p,
 				StartDate: time.Now().Add(-time.Hour),
 				EndDate:   time.Now(),
 			}
-			var fundingRateResponse []order.FundingRates
+			var fundingRateResponse *fundingrate.Rates
 			fundingRateResponse, err = e.GetFundingRates(context.TODO(), fundingRateRequest)
 			msg = ""
 			if err != nil {

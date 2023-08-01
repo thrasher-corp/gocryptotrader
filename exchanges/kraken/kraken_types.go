@@ -562,6 +562,7 @@ type WebsocketChannelData struct {
 	Subscription string
 	Pair         currency.Pair
 	ChannelID    *int64
+	MaxDepth     int
 }
 
 // WsTokenResponse holds the WS auth token
