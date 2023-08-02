@@ -577,7 +577,7 @@ func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		s.Side == order.Buy,
+		s.Side.IsLong(),
 		s.Type == order.Market)
 	if err != nil {
 		return nil, err
