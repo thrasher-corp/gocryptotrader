@@ -57,7 +57,7 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresKey = true
 	by.API.CredentialsValidator.RequiresSecret = true
 
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.ColonDelimiter}
 	requestFormat := &currency.PairFormat{Uppercase: true}
 	spotPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
 	err := by.StoreAssetPairFormat(asset.Spot, spotPairStore)
@@ -212,13 +212,13 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	err = by.Websocket.Setup(
 		&stream.WebsocketSetup{
 			ExchangeConfig:         exch,
-			DefaultURL:             bybitWSBaseURL + wsSpotPublicTopicV2,
+			DefaultURL:             spotPublic,
 			RunningURL:             wsRunningEndpoint,
 			RunningURLAuth:         websocketPrivate,
-			Connector:              by.WsLinearConnect,
-			Subscriber:             by.LinearSubscribe,
-			Unsubscriber:           by.LinearUnsubscribe,
-			GenerateSubscriptions:  by.GenerateLinearDefaultSubscriptions,
+			Connector:              by.WsConnect,
+			Subscriber:             by.Subscribe,
+			Unsubscriber:           by.Unsubscribe,
+			GenerateSubscriptions:  by.GenerateDefaultSubscriptions,
 			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 			Features:               &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
@@ -311,11 +311,10 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		baseCoins := []string{"BTC"}
 		pairs := []currency.Pair{}
 		for b := range baseCoins {
-			allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", baseCoins[0], "", 0)
+			allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", baseCoins[b], "", 0)
 			if err != nil {
 				return nil, err
 			}
-			println(baseCoins[b], len(allPairs.List))
 			for x := range allPairs.List {
 				pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
 				if err != nil {
@@ -345,13 +344,11 @@ func getCategoryName(a asset.Item) string {
 // them in the exchanges config
 func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assetTypes := by.GetAssetTypes(true)
-	println("\n\n\n", assetTypes.JoinToString(","), "\n\n\n")
 	for i := range assetTypes {
 		pairs, err := by.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}
-		println(pairs.Join())
 		err = by.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
 		if err != nil {
 			return err
@@ -366,10 +363,6 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 	if err != nil {
 		return err
 	}
-	println("\n\n")
-	println(avail.Join())
-	println("\n\n")
-
 	enabled, err := by.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
@@ -604,8 +597,6 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var resp []trade.Data
-
 	formattedPair, err := by.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -626,12 +617,13 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
+	resp := make([]trade.Data, len(tradeData.List))
 	for i := range tradeData.List {
 		side, err := order.StringToOrderSide(tradeData.List[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     by.Name,
 			CurrencyPair: formattedPair,
 			AssetType:    assetType,
@@ -640,7 +632,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Timestamp:    tradeData.List[i].TradeTime.Time(),
 			TID:          tradeData.List[i].ExecutionID,
 			Side:         side,
-		})
+		}
 	}
 
 	if by.IsSaveTradeDataEnabled() {
@@ -700,6 +692,17 @@ func (by *Bybit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 	return resp, nil
 }
 
+func orderTypeToString(oType order.Type) string {
+	switch oType {
+	case order.Limit:
+		return "Limit"
+	case order.Market:
+		return "Market"
+	default:
+		return oType.String()
+	}
+}
+
 // SubmitOrder submits a new order
 func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate()
@@ -711,7 +714,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	if err != nil {
 		return nil, err
 	}
-
 	var sideType string
 	switch s.Side {
 	case order.Buy:
@@ -721,78 +723,67 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	default:
 		return nil, errInvalidSide
 	}
-	var orderID string
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot, asset.Options, asset.Linear, asset.Inverse:
-		by.PlaceOrder(ctx, &PlaceOrderParams{
+		var response *OrderResponse
+		arg := &PlaceOrderParams{
 			Category:        getCategoryName(s.AssetType),
 			Symbol:          formattedPair,
 			Side:            sideType,
-			OrderType:       s.Type.String(),
+			OrderType:       orderTypeToString(s.Type),
 			OrderQuantity:   s.Amount,
 			Price:           s.Price,
 			OrderLinkID:     s.ClientOrderID,
 			WhetherToBorrow: s.AssetType == asset.Margin,
 			ReduceOnly:      s.ReduceOnly,
-			// OrderFilter: required if not empty
-			// TriggerDirection: s.TriggerPrice.Float64()  1 for increasing 2 for decreasing 0 for none
-			TriggerPrice:     s.TriggerPrice,
-			TriggerPriceType: s.TriggerPriceType.String(),
-			// OrderImpliedVolatility
-			// PositionIdx:,
-			TakeProfitPrice:     s.RiskManagementModes.TakeProfit.Price,
-			TakeProfitTriggerBy: s.RiskManagementModes.TakeProfit.TriggerPriceType.String(),
-			StopLossTriggerBy:   s.RiskManagementModes.StopLoss.TriggerPriceType.String(),
-			StopLossPrice:       s.RiskManagementModes.StopLoss.Price,
-			// SMPExecutionType
-			// MarketMakerProtection
-			// TpslMode
-			TpOrderType:  s.RiskManagementModes.TakeProfit.OrderType.String(),
-			SlOrderType:  s.RiskManagementModes.StopLoss.OrderType.String(),
-			TpLimitPrice: s.RiskManagementModes.TakeProfit.LimitPrice,
-			SlLimitPrice: s.RiskManagementModes.StopLoss.LimitPrice,
-		})
-		// timeInForce := BybitRequestParamsTimeGTC
-		// var requestParamsOrderType string
-		// switch s.Type {
-		// case order.Market:
-		// 	timeInForce = ""
-		// 	requestParamsOrderType = BybitRequestParamsOrderMarket
-		// case order.Limit:
-		// 	requestParamsOrderType = BybitRequestParamsOrderLimit
-		// default:
-		// 	return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
-		// }
-
-		// var orderRequest = PlaceOrderRequest{
-		// 	Symbol:      formattedPair.String(),
-		// 	Side:        sideType,
-		// 	Price:       s.Price,
-		// 	Quantity:    s.Amount,
-		// 	TradeType:   requestParamsOrderType,
-		// 	TimeInForce: timeInForce,
-		// 	OrderLinkID: s.ClientOrderID,
-		// }
-		var response *OrderResponse
-		// response, err = by.CreatePostOrder(ctx, &orderRequest)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		orderID = response.OrderID
-		// if response.ExecutedQty == response.Quantity {
-		// 	status = order.Filled
-		// }
+			OrderFilter: func() string {
+				if s.RiskManagementModes.TakeProfit.Price != 0 || s.RiskManagementModes.TakeProfit.LimitPrice != 0 ||
+					s.RiskManagementModes.StopLoss.Price != 0 || s.RiskManagementModes.StopLoss.LimitPrice != 0 {
+					return ""
+				} else if s.TriggerPrice != 0 {
+					return "tpslOrder"
+				}
+				return "Order"
+			}(),
+			TriggerPrice: s.TriggerPrice,
+		}
+		if arg.TriggerPrice != 0 {
+			arg.TriggerPriceType = s.TriggerPriceType.String()
+		}
+		if s.RiskManagementModes.TakeProfit.Price != 0 {
+			arg.TakeProfitPrice = s.RiskManagementModes.TakeProfit.Price
+			arg.TakeProfitTriggerBy = s.RiskManagementModes.TakeProfit.TriggerPriceType.String()
+			arg.TpOrderType = getOrderTypeString(s.RiskManagementModes.TakeProfit.OrderType)
+			arg.TpLimitPrice = s.RiskManagementModes.TakeProfit.LimitPrice
+		}
+		if s.RiskManagementModes.StopLoss.Price != 0 {
+			arg.StopLossPrice = s.RiskManagementModes.StopLoss.Price
+			arg.StopLossTriggerBy = s.RiskManagementModes.StopLoss.TriggerPriceType.String()
+			arg.SlOrderType = getOrderTypeString(s.RiskManagementModes.StopLoss.OrderType)
+			arg.SlLimitPrice = s.RiskManagementModes.StopLoss.LimitPrice
+		}
+		response, err = by.PlaceOrder(ctx, arg)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := s.DeriveSubmitResponse(response.OrderID)
+		if err != nil {
+			return nil, err
+		}
+		resp.Status = status
+		return resp, nil
 	default:
 		return nil, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
 	}
-
-	resp, err := s.DeriveSubmitResponse(orderID)
-	if err != nil {
-		return nil, err
+}
+func getOrderTypeString(oType order.Type) string {
+	switch oType {
+	case order.UnknownType:
+		return ""
+	default:
+		return oType.String()
 	}
-	resp.Status = status
-	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -801,29 +792,33 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-
 	var (
 		result *OrderResponse
 		err    error
 	)
+	action.Pair, err = by.FormatExchangeCurrency(action.Pair, action.AssetType)
+	if err != nil {
+		return nil, err
+	}
 	switch action.AssetType {
 	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
-		result, err = by.AmendOrder(ctx, &AmendOrderParams{
+		arg := &AmendOrderParams{
 			Category:             getCategoryName(action.AssetType),
 			Symbol:               action.Pair,
 			OrderID:              action.OrderID,
 			OrderLinkID:          action.ClientOrderID,
-			TriggerPrice:         action.TriggerPrice,
 			OrderQuantity:        action.Amount,
 			Price:                action.Price,
-			TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
-			StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
-			TakeProfitTriggerBy:  action.RiskManagementModes.TakeProfit.OrderType.String(),
-			StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
+			TriggerPrice:         action.TriggerPrice,
 			TriggerPriceType:     action.TriggerPriceType.String(),
+			TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
+			TakeProfitTriggerBy:  getOrderTypeString(action.RiskManagementModes.TakeProfit.OrderType),
 			TakeProfitLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
+			StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
+			StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
 			StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
-		})
+		}
+		result, err = by.AmendOrder(ctx, arg)
 		if err != nil {
 			return nil, err
 		}
@@ -1231,10 +1226,10 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (by *Bybit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (by *Bybit) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float64, error) {
 	// TODO: Upgrade from v1 spot API
 	// TODO: give FeeBuilder asset property to distinguish between endpoints
-	// results, err := by.GetFeeRate(ctx, feeBuilder)
+	// results, err := by.GetFeeRate(ctx, feeBuilder.Pair)
 	return 0, common.ErrFunctionNotSupported
 }
 
@@ -1326,21 +1321,12 @@ func (by *Bybit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 	return info.TimeNano.Time(), err
 }
 
-func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
-	pairs, err := by.CurrencyPairs.GetPairs(item, true)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	return pairs.DeriveFrom(symbol)
-}
-
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	avail, err := by.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
-	var limits []order.MinMaxLevel
 	var instrumentsInfo *InstrumentsInfo
 	switch a {
 	case asset.Spot, asset.Linear, asset.Inverse:
@@ -1356,7 +1342,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	limits = make([]order.MinMaxLevel, 0, len(instrumentsInfo.List))
+	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.List))
 	for x := range instrumentsInfo.List {
 		var pair currency.Pair
 		pair, err = avail.DeriveFrom(instrumentsInfo.List[x].Symbol)

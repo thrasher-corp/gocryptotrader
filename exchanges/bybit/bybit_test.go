@@ -300,6 +300,62 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
+	var orderSubmission = &order.Submit{
+		Exchange:      b.GetName(),
+		Pair:          spotTradablePair,
+		Side:          order.Buy,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        1,
+		ClientOrderID: "1234",
+		AssetType:     asset.Spot,
+	}
+	_, err := b.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:      b.GetName(),
+		AssetType:     asset.Options,
+		Pair:          optionsTradablePair,
+		Side:          order.Sell,
+		Type:          order.Market,
+		Price:         1,
+		Amount:        1,
+		Leverage:      1234,
+		ClientOrderID: "1234",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.ModifyOrder(context.Background(), &order.Modify{
+		OrderID:      "1234",
+		Type:         order.Limit,
+		Side:         order.Buy,
+		AssetType:    asset.Options,
+		Pair:         spotTradablePair,
+		PostOnly:     true,
+		Price:        1234,
+		Amount:       0.15,
+		TriggerPrice: 1145,
+		RiskManagementModes: order.RiskManagementModes{
+			StopLoss: order.RiskManagement{
+				Price: 0,
+			},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	end := time.Now()

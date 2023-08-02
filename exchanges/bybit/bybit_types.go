@@ -3,7 +3,6 @@ package bybit
 import (
 	"encoding/json"
 	"errors"
-	"strconv"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -13,311 +12,24 @@ import (
 )
 
 var (
-	errTypeAssert                 = errors.New("type assertion failed")
-	errStrParsing                 = errors.New("parsing string failed")
 	errInvalidSide                = errors.New("invalid side")
-	errInvalidInterval            = errors.New("invalid interval")
-	errInvalidPeriod              = errors.New("invalid period")
-	errInvalidStartTime           = errors.New("startTime can't be zero or missing")
-	errInvalidQuantity            = errors.New("quantity can't be zero or missing")
-	errInvalidBasePrice           = errors.New("basePrice can't be empty or missing")
-	errInvalidStopPrice           = errors.New("stopPrice can't be empty or missing")
-	errInvalidTimeInForce         = errors.New("timeInForce can't be empty or missing")
-	errInvalidTakeProfitStopLoss  = errors.New("takeProfitStopLoss can't be empty or missing")
-	errInvalidMargin              = errors.New("margin can't be empty")
 	errInvalidLeverage            = errors.New("leverage can't be zero or less then it")
-	errInvalidRiskID              = errors.New("riskID can't be zero or lesser")
 	errInvalidPositionMode        = errors.New("position mode is invalid")
-	errInvalidOrderType           = errors.New("orderType can't be empty or missing")
 	errInvalidMode                = errors.New("mode can't be empty or missing")
-	errInvalidBuyLeverage         = errors.New("buyLeverage can't be zero or less then it")
-	errInvalidSellLeverage        = errors.New("sellLeverage can't be zero or less then it")
-	errInvalidOrderRequest        = errors.New("order request param can't be nil")
 	errInvalidOrderFilter         = errors.New("invalid order filter")
 	errInvalidCategory            = errors.New("invalid category")
 	errEitherSymbolOrCoinRequired = errors.New("either symbol or coin required")
-	errInvalidCoin                = errors.New("coin can't be empty")
-
-	errStopOrderOrOrderLinkIDMissing = errors.New("at least one should be present among stopOrderID and orderLinkID")
-	errOrderOrOrderLinkIDMissing     = errors.New("at least one should be present among orderID and orderLinkID")
-
-	errOrderLinkIDMissing = errors.New("order link id missing")
-
+	errOrderLinkIDMissing         = errors.New("order link id missing")
 	errSymbolMissing              = errors.New("symbol missing")
 	errInvalidAutoAddMarginValue  = errors.New("invalid add auto margin value")
-	errUnsupportedOrderType       = errors.New("unsupported order type")
-	errEmptyOrderIDs              = errors.New("orderIDs can't be empty")
-	errMissingPrice               = errors.New("price should be present for Limit and LimitMaker orders")
-	errExpectedOneOrder           = errors.New("expected one order")
 	errDisconnectTimeWindowNotSet = errors.New("disconnect time window not set")
 )
 
 var validCategory = []string{"spot", "linear", "inverse", "option"}
 
-// bybitTimeSec provides an internal conversion helper
-type bybitTimeSec time.Time
-
-// UnmarshalJSON is custom json unmarshaller for bybitTimeSec
-func (b *bybitTimeSec) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	*b = bybitTimeSec(time.Unix(timestamp, 0))
-	return nil
-}
-
-// Time returns a time.Time object
-func (b bybitTimeSec) Time() time.Time {
-	return time.Time(b)
-}
-
-// bybitTimeSecStr provides an internal conversion helper
-type bybitTimeSecStr time.Time
-
-// UnmarshalJSON is custom json unmarshaller for bybitTimeSec
-func (b *bybitTimeSecStr) UnmarshalJSON(data []byte) error {
-	var timestamp string
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-
-	t, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return err
-	}
-	*b = bybitTimeSecStr(time.Unix(t, 0))
-	return nil
-}
-
-// Time returns a time.Time object
-func (b bybitTimeSecStr) Time() time.Time {
-	return time.Time(b)
-}
-
-// bybitTimeMilliSec provides an internal conversion helper
-type bybitTimeMilliSec time.Time
-
-// UnmarshalJSON is custom type json unmarshaller for bybitTimeMilliSec
-func (b *bybitTimeMilliSec) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	*b = bybitTimeMilliSec(time.UnixMilli(timestamp))
-	return nil
-}
-
-// Time returns a time.Time object
-func (b bybitTimeMilliSec) Time() time.Time {
-	return time.Time(b)
-}
-
-// bybitTimeMilliSecStr provides an internal conversion helper
-type bybitTimeMilliSecStr time.Time
-
-// UnmarshalJSON is custom type json unmarshaller for bybitTimeMilliSec
-func (b *bybitTimeMilliSecStr) UnmarshalJSON(data []byte) error {
-	var timestamp string
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-
-	t, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return err
-	}
-	*b = bybitTimeMilliSecStr(time.UnixMilli(t))
-	return nil
-}
-
-// Time returns a time.Time object
-func (b bybitTimeMilliSecStr) Time() time.Time {
-	return time.Time(b)
-}
-
-// bybitTimeNanoSec provides an internal conversion helper
-type bybitTimeNanoSec time.Time
-
-// UnmarshalJSON is custom type json unmarshaller for bybitTimeNanoSec
-func (b *bybitTimeNanoSec) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	err := json.Unmarshal(data, &timestamp)
-	if err != nil {
-		return err
-	}
-	*b = bybitTimeNanoSec(time.Unix(0, timestamp))
-	return nil
-}
-
-// Time returns a time.Time object
-func (b bybitTimeNanoSec) Time() time.Time {
-	return time.Time(b)
-}
-
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
 	GetError(isAuthRequest bool) error
-}
-
-// PairData stores pair data
-type PairData struct {
-	Name              string                  `json:"name"`
-	Alias             string                  `json:"alias"`
-	BaseCurrency      string                  `json:"baseCurrency"`
-	QuoteCurrency     string                  `json:"quoteCurrency"`
-	BasePrecision     convert.StringToFloat64 `json:"basePrecision"`
-	QuotePrecision    convert.StringToFloat64 `json:"quotePrecision"`
-	MinTradeQuantity  convert.StringToFloat64 `json:"minTradeQuantity"`
-	MinTradeAmount    convert.StringToFloat64 `json:"minTradeAmount"`
-	MinPricePrecision convert.StringToFloat64 `json:"minPricePrecision"`
-	MaxTradeQuantity  convert.StringToFloat64 `json:"maxTradeQuantity"`
-	MaxTradeAmount    convert.StringToFloat64 `json:"maxTradeAmount"`
-	Category          int64                   `json:"category"`
-	ShowStatus        bool                    `json:"showStatus"`
-}
-
-// TradeItem stores a single trade
-type TradeItem struct {
-	CurrencyPair string
-	Price        float64
-	Side         string
-	Volume       float64
-	Time         time.Time
-}
-
-// PriceChangeStats contains statistics for the last 24 hours trade
-type PriceChangeStats struct {
-	Time         bybitTimeMilliSec       `json:"time"`
-	Symbol       string                  `json:"symbol"`
-	BestBidPrice convert.StringToFloat64 `json:"bestBidPrice"`
-	BestAskPrice convert.StringToFloat64 `json:"bestAskPrice"`
-	LastPrice    convert.StringToFloat64 `json:"lastPrice"`
-	OpenPrice    convert.StringToFloat64 `json:"openPrice"`
-	HighPrice    convert.StringToFloat64 `json:"highPrice"`
-	LowPrice     convert.StringToFloat64 `json:"lowPrice"`
-	Volume       convert.StringToFloat64 `json:"volume"`
-	QuoteVolume  convert.StringToFloat64 `json:"quoteVolume"`
-}
-
-// LastTradePrice contains price for last trade
-type LastTradePrice struct {
-	Symbol string                  `json:"symbol"`
-	Price  convert.StringToFloat64 `json:"price"`
-}
-
-// // TickerData stores ticker data
-// type TickerData struct {
-// 	Symbol      string                  `json:"symbol"`
-// 	BidPrice    convert.StringToFloat64 `json:"bidPrice"`
-// 	BidQuantity convert.StringToFloat64 `json:"bidQty"`
-// 	AskPrice    convert.StringToFloat64 `json:"askPrice"`
-// 	AskQuantity convert.StringToFloat64 `json:"askQty"`
-// 	Time        bybitTimeMilliSec       `json:"time"`
-// }
-
-var (
-	// BybitRequestParamsTimeGTC Good Till Canceled
-	BybitRequestParamsTimeGTC = "GTC"
-
-	// BybitRequestParamsTimeFOK Fill or Kill
-	BybitRequestParamsTimeFOK = "FOK"
-
-	// BybitRequestParamsTimeIOC Immediate or Cancel
-	BybitRequestParamsTimeIOC = "IOC"
-)
-
-// PlaceOrderRequest store new order request type
-type PlaceOrderRequest struct {
-	Symbol      string
-	Quantity    float64
-	Side        string
-	TradeType   string
-	TimeInForce string
-	Price       float64
-	OrderLinkID string
-}
-
-// QueryOrderResponse holds query order data
-type QueryOrderResponse struct {
-	AccountID           string                  `json:"accountId"`
-	ExchangeID          string                  `json:"exchangeId"`
-	Symbol              string                  `json:"symbol"`
-	SymbolName          string                  `json:"symbolName"`
-	OrderLinkID         string                  `json:"orderLinkId"`
-	OrderID             string                  `json:"orderId"`
-	Price               convert.StringToFloat64 `json:"price"`
-	Quantity            convert.StringToFloat64 `json:"origQty"`
-	ExecutedQty         convert.StringToFloat64 `json:"executedQty"`
-	CummulativeQuoteQty convert.StringToFloat64 `json:"cummulativeQuoteQty"`
-	AveragePrice        convert.StringToFloat64 `json:"avgPrice"`
-	Status              string                  `json:"status"`
-	TimeInForce         string                  `json:"timeInForce"`
-	TradeType           string                  `json:"type"`
-	Side                string                  `json:"side"`
-	StopPrice           convert.StringToFloat64 `json:"stopPrice"`
-	IcebergQty          convert.StringToFloat64 `json:"icebergQty"`
-	Time                bybitTimeMilliSecStr    `json:"time"`
-	UpdateTime          bybitTimeMilliSecStr    `json:"updateTime"`
-	IsWorking           bool                    `json:"isWorking"`
-}
-
-// CancelOrderResponse is the return structured response from the exchange
-type CancelOrderResponse struct {
-	OrderID     string                  `json:"orderId"`
-	OrderLinkID string                  `json:"orderLinkId"`
-	Symbol      string                  `json:"symbol"`
-	Status      string                  `json:"status"`
-	AccountID   string                  `json:"accountId"`
-	Time        bybitTimeMilliSecStr    `json:"transactTime"`
-	Price       convert.StringToFloat64 `json:"price"`
-	Quantity    convert.StringToFloat64 `json:"origQty"`
-	ExecutedQty convert.StringToFloat64 `json:"executedQty"`
-	TimeInForce string                  `json:"timeInForce"`
-	TradeType   string                  `json:"type"`
-	Side        string                  `json:"side"`
-}
-
-// HistoricalTrade holds recent trade data
-type HistoricalTrade struct {
-	Symbol          string                  `json:"symbol"`
-	ID              string                  `json:"id"`
-	OrderID         string                  `json:"orderId"`
-	TicketID        string                  `json:"ticketId"`
-	Price           convert.StringToFloat64 `json:"price"`
-	Quantity        convert.StringToFloat64 `json:"qty"`
-	Commission      convert.StringToFloat64 `json:"commission"`
-	CommissionAsset convert.StringToFloat64 `json:"commissionAsset"`
-	Time            bybitTimeMilliSecStr    `json:"time"`
-	IsBuyer         bool                    `json:"isBuyer"`
-	IsMaker         bool                    `json:"isMaker"`
-	SymbolName      string                  `json:"symbolName"`
-	MatchOrderID    string                  `json:"matchOrderId"`
-	Fee             FeeData                 `json:"fee"`
-	FeeTokenID      string                  `json:"feeTokenId"`
-	FeeAmount       convert.StringToFloat64 `json:"feeAmount"`
-	MakerRebate     convert.StringToFloat64 `json:"makerRebate"`
-}
-
-// FeeData store fees data
-type FeeData struct {
-	FeeTokenID   int64                   `json:"feeTokenId"`
-	FeeTokenName string                  `json:"feeTokenName"`
-	Fee          convert.StringToFloat64 `json:"fee"`
-}
-
-// Balance holds wallet balance
-type Balance struct {
-	Coin     string                  `json:"coin"`
-	CoinID   string                  `json:"coinId"`
-	CoinName string                  `json:"coinName"`
-	Total    convert.StringToFloat64 `json:"total"`
-	Free     convert.StringToFloat64 `json:"free"`
-	Locked   convert.StringToFloat64 `json:"locked"`
 }
 
 type orderbookResponse struct {
@@ -328,40 +40,11 @@ type orderbookResponse struct {
 	UpdateID  int64                `json:"u"`
 }
 
-// DepositWalletInfo stores wallet deposit info
-type DepositWalletInfo struct {
-	Coin   string      `json:"coin"`
-	Chains []ChainInfo `json:"chains"`
-}
-
-// ChainInfo stores a coins chain info
-type ChainInfo struct {
-	ChainType      string `json:"chain_type"`
-	DepositAddress string `json:"address_deposit"`
-	DepositTag     string `json:"tag_deposit"`
-	Chain          string `json:"chain"`
-}
-
-// Websocket Structures
-
 // Authenticate stores authentication variables required
 type Authenticate struct {
 	RequestID string        `json:"req_id"`
 	Args      []interface{} `json:"args"`
 	Operation string        `json:"op"`
-}
-
-// WsReq has the data used for ws request
-type WsReq struct {
-	Topic      string      `json:"topic"`
-	Event      string      `json:"event"`
-	Parameters interface{} `json:"params"`
-}
-
-// WsFuturesReq stores futures ws request
-type WsFuturesReq struct {
-	Topic string   `json:"op"`
-	Args  []string `json:"args"`
 }
 
 // SubscriptionArgument represents a subscription arguments.
@@ -370,183 +53,6 @@ type SubscriptionArgument struct {
 	RequestID int64    `json:"req_id,string"`
 	Operation string   `json:"op"`
 	Arguments []string `json:"args"`
-}
-
-// WsSpotTickerData stores ws ticker data
-type WsSpotTickerData struct {
-	Symbol  string                  `json:"symbol"`
-	Bid     convert.StringToFloat64 `json:"bidPrice"`
-	Ask     convert.StringToFloat64 `json:"askPrice"`
-	BidSize convert.StringToFloat64 `json:"bidQty"`
-	AskSize convert.StringToFloat64 `json:"askQty"`
-	Time    bybitTimeMilliSec       `json:"time"`
-}
-
-// KlineStreamData stores ws kline stream data
-type KlineStreamData struct {
-	StartTime  bybitTimeMilliSec       `json:"t"`
-	Symbol     string                  `json:"s"`
-	ClosePrice convert.StringToFloat64 `json:"c"`
-	HighPrice  convert.StringToFloat64 `json:"h"`
-	LowPrice   convert.StringToFloat64 `json:"l"`
-	OpenPrice  convert.StringToFloat64 `json:"o"`
-	Volume     convert.StringToFloat64 `json:"v"`
-}
-
-// WsOrderbookData stores ws orderbook data
-type WsOrderbookData struct {
-	Symbol  string            `json:"s"`
-	Time    bybitTimeMilliSec `json:"t"`
-	Version string            `json:"v"`
-	Bids    [][2]string       `json:"b"`
-	Asks    [][2]string       `json:"a"`
-}
-
-// WsTradeData stores ws trade data
-type WsTradeData struct {
-	Time  bybitTimeMilliSec       `json:"t"`
-	ID    string                  `json:"v"`
-	Price convert.StringToFloat64 `json:"p"`
-	Size  convert.StringToFloat64 `json:"q"`
-	Side  bool                    `json:"m"`
-}
-
-// wsAccount defines websocket account info data
-type wsAccount struct {
-	EventType   string       `json:"e"`
-	EventTime   string       `json:"E"`
-	CanTrade    bool         `json:"T"`
-	CanWithdraw bool         `json:"W"`
-	CanDeposit  bool         `json:"D"`
-	Balance     []Currencies `json:"B"`
-}
-
-// Currencies stores currencies data
-type Currencies struct {
-	Asset     string                  `json:"a"`
-	Available convert.StringToFloat64 `json:"f"`
-	Locked    convert.StringToFloat64 `json:"l"`
-}
-
-// wsOrderUpdate defines websocket account order update data
-type wsOrderUpdate struct {
-	EventType                         string                  `json:"e"`
-	EventTime                         string                  `json:"E"`
-	Symbol                            string                  `json:"s"`
-	ClientOrderID                     string                  `json:"c"`
-	Side                              string                  `json:"S"`
-	OrderType                         string                  `json:"o"`
-	TimeInForce                       string                  `json:"f"`
-	Quantity                          convert.StringToFloat64 `json:"q"`
-	Price                             convert.StringToFloat64 `json:"p"`
-	OrderStatus                       string                  `json:"X"`
-	OrderID                           string                  `json:"i"`
-	OpponentOrderID                   string                  `json:"M"`
-	LastExecutedQuantity              convert.StringToFloat64 `json:"l"`
-	CumulativeFilledQuantity          convert.StringToFloat64 `json:"z"`
-	LastExecutedPrice                 convert.StringToFloat64 `json:"L"`
-	Commission                        convert.StringToFloat64 `json:"n"`
-	CommissionAsset                   string                  `json:"N"`
-	IsNormal                          bool                    `json:"u"`
-	IsOnOrderBook                     bool                    `json:"w"`
-	IsLimitMaker                      bool                    `json:"m"`
-	OrderCreationTime                 bybitTimeMilliSecStr    `json:"O"`
-	CumulativeQuoteTransactedQuantity convert.StringToFloat64 `json:"Z"`
-	AccountID                         string                  `json:"A"`
-	IsClose                           bool                    `json:"C"`
-	Leverage                          convert.StringToFloat64 `json:"v"`
-}
-
-// wsOrderFilled defines websocket account order filled data
-type wsOrderFilled struct {
-	EventType         string                  `json:"e"`
-	EventTime         string                  `json:"E"`
-	Symbol            string                  `json:"s"`
-	Quantity          convert.StringToFloat64 `json:"q"`
-	Timestamp         bybitTimeMilliSecStr    `json:"t"`
-	Price             convert.StringToFloat64 `json:"p"`
-	TradeID           string                  `json:"T"`
-	OrderID           string                  `json:"o"`
-	UserGenOrderID    string                  `json:"c"`
-	OpponentOrderID   string                  `json:"O"`
-	AccountID         string                  `json:"a"`
-	OpponentAccountID string                  `json:"A"`
-	IsMaker           bool                    `json:"m"`
-	Side              string                  `json:"S"`
-}
-
-// WsFuturesOrderbookData stores ws futures orderbook data
-type WsFuturesOrderbookData struct {
-	Price  convert.StringToFloat64 `json:"price"`
-	Symbol string                  `json:"symbol"`
-	ID     int64                   `json:"id"`
-	Side   string                  `json:"side"`
-	Size   float64                 `json:"size"`
-}
-
-// WsFuturesOrderbook stores ws futures orderbook
-type WsFuturesOrderbook struct {
-	Topic  string                   `json:"topic"`
-	Type   string                   `json:"string"`
-	OBData []WsFuturesOrderbookData `json:"data"`
-}
-
-// WsUSDTOrderbook stores ws usdt orderbook
-type WsUSDTOrderbook struct {
-	Topic string `json:"topic"`
-	Type  string `json:"string"`
-	Data  struct {
-		OBData []WsFuturesOrderbookData `json:"order_book"`
-	} `json:"data"`
-}
-
-// WsCoinDeltaOrderbook stores ws coinmargined orderbook
-type WsCoinDeltaOrderbook struct {
-	Topic  string `json:"topic"`
-	Type   string `json:"string"`
-	OBData struct {
-		Delete []WsFuturesOrderbookData `json:"delete"`
-		Update []WsFuturesOrderbookData `json:"update"`
-		Insert []WsFuturesOrderbookData `json:"insert"`
-	} `json:"data"`
-}
-
-// WsFuturesTradeData stores ws future trade data
-type WsFuturesTradeData struct {
-	Time               time.Time         `json:"timestamp"`
-	TimeInMilliseconds bybitTimeMilliSec `json:"trade_time_ms"`
-	Symbol             string            `json:"symbol"`
-	Side               string            `json:"side"`
-	Size               float64           `json:"size"`
-	Price              float64           `json:"price"`
-	Direction          string            `json:"tick_direction"`
-	ID                 string            `json:"trade_id"`
-}
-
-// WsFuturesTrade stores ws future trade
-type WsFuturesTrade struct {
-	Topic     string               `json:"topic"`
-	TradeData []WsFuturesTradeData `json:"data"`
-}
-
-// WsFuturesKlineData stores ws future kline data
-type WsFuturesKlineData struct {
-	StartTime bybitTimeSec      `json:"start"`
-	EndTime   bybitTimeSec      `json:"end"`
-	Close     float64           `json:"close"`
-	Open      float64           `json:"open"`
-	High      float64           `json:"high"`
-	Low       float64           `json:"low"`
-	Volume    float64           `json:"volume"`
-	TurnOver  float64           `json:"turnover"`
-	Confirm   bool              `json:"confirm"`
-	Timestamp bybitTimeMilliSec `json:"timestamp"`
-}
-
-// WsFuturesKline stores ws future kline
-type WsFuturesKline struct {
-	Topic     string               `json:"topic"`
-	KlineData []WsFuturesKlineData `json:"data"`
 }
 
 // WsInsuranceData stores ws insurance data
@@ -620,9 +126,9 @@ type WsFuturesTickerData struct {
 	QuoteSymbol           string                  `json:"quote_symbol"`
 	Mode                  string                  `json:"mode"`
 	IsUpBorrowable        int64                   `json:"is_up_borrowable"`
-	ImportTime            bybitTimeNanoSec        `json:"import_time_e9"`
-	StartTradingTime      bybitTimeNanoSec        `json:"start_trading_time_e9"`
-	TimeToSettle          bybitTimeNanoSec        `json:"settle_time_e9"`
+	ImportTime            convert.ExchangeTime    `json:"import_time_e9"`
+	StartTradingTime      convert.ExchangeTime    `json:"start_trading_time_e9"`
+	TimeToSettle          convert.ExchangeTime    `json:"settle_time_e9"`
 	SettleFeeRate         int64                   `json:"settle_fee_rate_e8"`
 	ContractStatus        string                  `json:"contract_status"`
 	SystemSubsidy         int64                   `json:"system_subsidy_e8"`
@@ -675,7 +181,7 @@ type WsLiquidationData struct {
 	Side      string                  `json:"side"`
 	Price     convert.StringToFloat64 `json:"price"`
 	Qty       float64                 `json:"qty"`
-	Timestamp bybitTimeMilliSec       `json:"time"`
+	Timestamp convert.ExchangeTime    `json:"time"`
 }
 
 // WsFuturesLiquidation stores ws future liquidation
@@ -1150,7 +656,7 @@ type PlaceOrderParams struct {
 	Symbol                 currency.Pair `json:"symbol"`     // Required
 	Side                   string        `json:"side"`       // Required
 	OrderType              string        `json:"orderType"`  // Required // Market, Limit
-	OrderQuantity          float64       `json:"qty,string"` // Required // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
+	OrderQuantity          float64       `json:"qty,string"` // Required // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
 	Price                  float64       `json:"price,string,omitempty"`
 	TimeInForce            string        `json:"timeInForce,omitempty"`      // IOC and GTC
 	OrderLinkID            string        `json:"orderLinkId,omitempty"`      // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
@@ -1195,7 +701,7 @@ type AmendOrderParams struct {
 	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
 	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
-	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
+	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
 	Price                  float64       `json:"price,string,omitempty"`
 
 	TakeProfitPrice float64 `json:"takeProfit,omitempty,string"`
@@ -1344,7 +850,7 @@ type BatchAmendOrderParamItem struct {
 	OrderID                string        `json:"orderId,omitempty"`
 	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
-	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote curreny amount
+	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
 	Price                  float64       `json:"price,string,omitempty"`
 }
 
@@ -1435,7 +941,7 @@ type SwitchTradeModeParams struct {
 	TradeMode    int64   `json:"tradeMode"` // 0: cross margin. 1: isolated margin
 }
 
-// TPSLModeParams paramaters for settle Take Profit(TP) or Stop Loss(SL) mode.
+// TPSLModeParams parameters for settle Take Profit(TP) or Stop Loss(SL) mode.
 type TPSLModeParams struct {
 	Category string `json:"category"`
 	Symbol   string `json:"symbol"`
@@ -2027,7 +1533,7 @@ type SubUserItem struct {
 	Remark     string `json:"remark"`
 }
 
-// SubUIDAPIKeyParam represents a sub-user ID API key creation paramter.
+// SubUIDAPIKeyParam represents a sub-user ID API key creation parameter.
 type SubUIDAPIKeyParam struct {
 	Subuid int64  `json:"subuid"`
 	Note   string `json:"note"`
@@ -2077,7 +1583,7 @@ type WalletType struct {
 	} `json:"accounts"`
 }
 
-// SubUIDAPIKeyUpdateParam represents a sub-user ID API key update paramter.
+// SubUIDAPIKeyUpdateParam represents a sub-user ID API key update parameter.
 type SubUIDAPIKeyUpdateParam struct {
 	ReadOnly int64 `json:"readOnly"`
 	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:

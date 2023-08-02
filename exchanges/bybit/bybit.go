@@ -281,6 +281,9 @@ func (by *Bybit) GetInstruments(ctx context.Context, category, symbol, status, b
 	if baseCoin != "" {
 		params.Set("baseCoin", baseCoin)
 	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -546,6 +549,9 @@ func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoi
 	if baseCoin != "" {
 		params.Set("baseCoin", baseCoin)
 	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -637,7 +643,7 @@ func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderR
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, amendOrder, nil, arg, &resp, amendOrderEPL)
 }
 
-// CancelOrder cancels an open unfilled or partially filled order.
+// CancelTradeOrder cancels an open unfilled or partially filled order.
 func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
@@ -1265,9 +1271,8 @@ func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string)
 	params := url.Values{}
 	if accountType == "" {
 		return nil, errMissingAccountType
-	} else {
-		params.Set("accountType", accountType)
 	}
+	params.Set("accountType", accountType)
 	if coin != "" {
 		params.Set("coin", coin)
 	}
@@ -1419,7 +1424,7 @@ func (by *Bybit) ResetMMP(ctx context.Context, baseCoin string) error {
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, arg, &resp, defaultEPL)
 }
 
-// GetMMPState retrive Market Maker Protection (MMP) states for different coins.
+// GetMMPState retrieve Market Maker Protection (MMP) states for different coins.
 func (by *Bybit) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, error) {
 	if baseCoin == "" {
 		return nil, errBaseNotSet
@@ -1497,7 +1502,7 @@ func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol,
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/settlement-record", params, nil, &resp, defaultEPL)
 }
 
-// GetSpotAccountInfo retrieves asset information
+// GetAssetInfo retrieves asset information
 func (by *Bybit) GetAssetInfo(ctx context.Context, accountType, coin string) (AccountInfos, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
@@ -1838,6 +1843,9 @@ func (by *Bybit) GetWithdrawalRecords(ctx context.Context, coin currency.Code, w
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -2137,7 +2145,7 @@ func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*S
 // SetSpotMarginTradeLeverage set the user's maximum leverage in spot cross margin
 func (by *Bybit) SetSpotMarginTradeLeverage(ctx context.Context, leverage float64) error {
 	if leverage <= 2 {
-		return fmt.Errorf("%w, Leverage. [2, 10].", errInvalidLeverage)
+		return fmt.Errorf("%w, leverage. value range from [2  to 10]", errInvalidLeverage)
 	}
 	var resp interface{}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/set-leverage", nil, &map[string]string{"leverage": strconv.FormatFloat(leverage, 'f', -1, 64)}, &resp, defaultEPL)
@@ -2231,6 +2239,9 @@ func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime ti
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if status != 0 {
+		params.Set("status", strconv.FormatInt(status, 10))
 	}
 	resp := &struct {
 		List []BorrowOrderDetail `json:"list"`

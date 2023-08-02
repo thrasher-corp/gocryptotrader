@@ -14,95 +14,74 @@ const (
 	spotInterval    = time.Second * 5
 	spotRequestRate = 120
 
-	createOrderRate      = 10 // 1s
-	createSpotOrderRate  = 20 // 1s
-	amendOrderRate       = 10 // 1s
-	cancelOrderRate      = 10 // 1s
-	cancelSpotRate       = 20 // 1s
-	calcelAllRate        = 1  // 1s
-	cancelAllSpotRate    = 20 // 1s
-	createBatchOrderRate = 10 // 1s
-	amendBatchOrderRate  = 10 // 1s
-	cancelBatchOrderRate = 10 // 1s
+	createOrderRate      = 10
+	createSpotOrderRate  = 20
+	amendOrderRate       = 10
+	cancelOrderRate      = 10
+	cancelSpotRate       = 20
+	calcelAllRate        = 1
+	cancelAllSpotRate    = 20
+	createBatchOrderRate = 10
+	amendBatchOrderRate  = 10
+	cancelBatchOrderRate = 10
 
-	getOrderRate        = 10 // 1s
-	getOrderHistoryRate = 10 // 1s
+	getOrderRate        = 10
+	getOrderHistoryRate = 10
 
-	getPositionListRate      = 10 // 1s
-	getExecutionListRate     = 10 // 1s
-	getPositionClosedPNLRate = 10 // 1s
+	getPositionListRate      = 10
+	getExecutionListRate     = 10
+	getPositionClosedPNLRate = 10
 
-	postPOsitionSetLeverageRate = 10 // 1s
-	setPositionTPLSModeRate     = 10 // 1s
-	setPositionRiskLimitRate    = 10 // 1s
-	stopTradingPositionRate     = 10 // 1s
+	postPOsitionSetLeverageRate = 10
+	setPositionTPLSModeRate     = 10
+	setPositionRiskLimitRate    = 10
+	stopTradingPositionRate     = 10
 
-	getAccountWalletBalaceRate = 10 // 1s
-	getAccountFeeRate          = 10 // 1s
+	getAccountWalletBalaceRate = 10
+	getAccountFeeRate          = 10
 
-	getAssetTransferQueryInfoRate             = 60 // 1 min
-	getAssetTransferQueryTransferCoinListRate = 60 // 1 min
-	getAssetTransferCOinListRate              = 60 // 1min
-	getAssetinterTransferListRate             = 60 // 1min
-	getSubMemberListRate                      = 60 // 1min
+	getAssetTransferQueryInfoRate             = 60 //
+	getAssetTransferQueryTransferCoinListRate = 60 //
+	getAssetTransferCOinListRate              = 60
+	getAssetinterTransferListRate             = 60
+	getSubMemberListRate                      = 60
 	getAssetUniversalTransferListRate         = 2
 	getAssetAccountCoinBalanceRate            = 2
-	getAssetDepositRecordsRate                = 300 // 1min
-	getAssetDepositSubMemberRecordsRate       = 300 // 1min
-	getAssetDepositSubMemberAddressRate       = 300 // 1min
+	getAssetDepositRecordsRate                = 300
+	getAssetDepositSubMemberRecordsRate       = 300
+	getAssetDepositSubMemberAddressRate       = 300
 
-	getWithdrawRecordsRate     = 300 // 1min
-	getAssetCoinInfoRate       = 300 // 1min
-	getExchangeOrderRecordRate = 300 // 1min
+	getWithdrawRecordsRate     = 300
+	getAssetCoinInfoRate       = 300
+	getExchangeOrderRecordRate = 300
 
-	interTransferRate         = 20 // 1min
-	saveTransferSubMemberRate = 20 // 1min
+	interTransferRate         = 20
+	saveTransferSubMemberRate = 20
 	universalTransferRate     = 5
-	createWithdrawalRate      = 10 // 1min
-	cancelWithdrawalRate      = 60 // 1min
+	createWithdrawalRate      = 10
+	cancelWithdrawalRate      = 60
 
-	userCreateSubMemberRate = 5  // 1s
-	userCreateSubAPIKeyRate = 5  // 1s
-	userFrozenSubMemberRate = 5  // 1s
-	userUpdateAPIRate       = 5  // 1s
-	userUpdateSubAPIRate    = 5  // 1s
-	userDeleteAPIRate       = 5  // 1s
-	userDeleteSubAPIRate    = 5  // 1s
-	userQuerySubMembersRate = 10 // 1s
-	userQueryAPIRate        = 10 // 1s
+	userCreateSubMemberRate = 5
+	userCreateSubAPIKeyRate = 5
+	userFrozenSubMemberRate = 5
+	userUpdateAPIRate       = 5
+	userUpdateSubAPIRate    = 5
+	userDeleteAPIRate       = 5
+	userDeleteSubAPIRate    = 5
+	userQuerySubMembersRate = 10
+	userQueryAPIRate        = 10
 
-	getSpotLeverageTokenOrderRecordsRate = 50 // 1s
-	spotLeverageTokenPurchaseRate        = 20 // 1s
-	spotLeverTokenRedeemRate             = 20 // 1s
+	getSpotLeverageTokenOrderRecordsRate = 50
+	spotLeverageTokenPurchaseRate        = 20
+	spotLeverTokenRedeemRate             = 20
 
-	getSpotCrossMarginTradeLoanInfoRate     = 50 // 1s
-	getSpotCrossMarginTradeAccountRate      = 50 // 1s
-	getSpotCrossMarginTradeOrdersRate       = 50 // 1s
-	getSpotCrossMarginTradeRepayHistoryRate = 50 // 1s
-	spotCrossMarginTradeLoanRate            = 20 // 1s
-	spotCrossMarginTradeRepayRate           = 20 // 1s
-	spotCrossMarginTradeSwitchRate          = 20 // 1s
-
-	// intervals 1s, 1min, 5sec
-
-	spotPrivateInterval       = time.Second
-	spotPrivateRequestRate    = 20
-	spotPrivateFeeRequestRate = 10
-	futuresInterval           = time.Minute
-	futuresDefaultRateCount   = 100
-	futuresOrderRate          = 100
-	futuresOrderListRate      = 600
-	futuresExecutionRate      = 120
-	futuresPositionRateCount  = 75
-	futuresPositionListRate   = 120
-	futuresFundingRate        = 120
-	futuresWalletRate         = 120
-	futuresAccountRate        = 600
-
-	usdcPerpetualPublicRate    = 50
-	usdcPerpetualCancelAllRate = 1
-	usdcPerpetualPrivateRate   = 5
-	usdcPerpetualInterval      = time.Second
+	getSpotCrossMarginTradeLoanInfoRate     = 50
+	getSpotCrossMarginTradeAccountRate      = 50
+	getSpotCrossMarginTradeOrdersRate       = 50
+	getSpotCrossMarginTradeRepayHistoryRate = 50
+	spotCrossMarginTradeLoanRate            = 20
+	spotCrossMarginTradeRepayRate           = 20
+	spotCrossMarginTradeSwitchRate          = 20
 )
 
 const (

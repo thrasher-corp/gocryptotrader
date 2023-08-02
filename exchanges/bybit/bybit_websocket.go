@@ -3,7 +3,6 @@ package bybit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -25,15 +24,7 @@ import (
 )
 
 const (
-	bybitWSBaseURL      = "wss://stream.bybit.com/"
-	wsSpotPublicTopicV2 = "v5/public/spot"
-	wsSpotPrivate       = "spot/ws"
 	bybitWebsocketTimer = 20 * time.Second
-
-	wsOrderbook = "depth"
-	wsTicker    = "bookTicker"
-	wsTrades    = "trade"
-	wsKlines    = "kline"
 
 	// Public v5 channels
 	chanOrderbook           = "orderbook"
@@ -53,29 +44,13 @@ const (
 	chanGreeks    = "greeks"
 	chanDCP       = "dcp"
 
-	wsAccountInfo    = "outboundAccountInfo"
-	wsOrderExecution = "executionReport"
-	wsTickerInfo     = "ticketInfo"
-
-	sub    = "sub"    // event for subscribe
-	cancel = "cancel" // event for unsubscribe
-
 	spotPublic    = "wss://stream.bybit.com/v5/public/spot"
 	linearPublic  = "wss://stream.bybit.com/v5/public/linear"  // USDT, USDC perpetual & USDC Futures
 	inversePublic = "wss://stream.bybit.com/v5/public/inverse" // Inverse contract
 	optionPublic  = "wss://stream.bybit.com/v5/public/option"  // USDC Option
 
-	// Testnet:
-	spotTestnet = "wss://stream-testnet.bybit.com/v5/public/spot"
-	linearTest  = "wss://stream-testnet.bybit.com/v5/public/linear"  // USDT and USDC perpetual
-	inverseTest = "wss://stream-testnet.bybit.com/v5/public/inverse" // Inverse contract
-	optionsTest = "wss://stream-testnet.bybit.com/v5/public/option"  // USDC Option
-
 	// Main-net private
 	websocketPrivate = "wss://stream.bybit.com/v5/private"
-
-	// Test-net private
-	websocketPrivateTest = "wss://stream-testnet.bybit.com/v5/private"
 )
 
 // WsConnect connects to a websocket feed
@@ -290,23 +265,6 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	return subscriptions, nil
 }
 
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "NEW":
-		return order.New, nil
-	case "CANCELED":
-		return order.Cancelled, nil
-	case "REJECTED":
-		return order.Rejected, nil
-	case "TRADE":
-		return order.PartiallyFilled, nil
-	case "EXPIRED":
-		return order.Expired, nil
-	default:
-		return order.UnknownStatus, errors.New(status + " not recognised as order status")
-	}
-}
-
 // wsReadData receives and passes on websocket messages for processing
 func (by *Bybit) wsReadData(assetType asset.Item, ws stream.Connection) {
 	defer by.Websocket.Wg.Done()
@@ -358,15 +316,15 @@ func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
 	case chanKline:
 		return by.wsProcessKline(assetType, &result, topicSplit)
 	case chanLiquidation:
-		return by.wsProcessLiquidation(assetType, &result)
+		return by.wsProcessLiquidation(&result)
 	case chanLeverageTokenKline:
 		return by.wsProcessLeverageTokenKline(assetType, &result, topicSplit)
 	case chanLeverageTokenTicker:
 		return by.wsProcessLeverageTokenTicker(assetType, &result)
 	case chanLeverageTokenNav:
-		return by.wsLeverageTokenNav(assetType, &result)
+		return by.wsLeverageTokenNav(&result)
 	case chanPositions:
-		return by.wsProcessPosition(asset.Spot, &result)
+		return by.wsProcessPosition(&result)
 	case chanExecution:
 		return by.wsProcessExecution(asset.Spot, &result)
 	case chanOrder:
@@ -488,7 +446,7 @@ func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketRespons
 	return nil
 }
 
-func (by *Bybit) wsProcessPosition(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Bybit) wsProcessPosition(resp *WebsocketResponse) error {
 	var result WsPositions
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -498,7 +456,7 @@ func (by *Bybit) wsProcessPosition(assetType asset.Item, resp *WebsocketResponse
 	return nil
 }
 
-func (by *Bybit) wsLeverageTokenNav(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Bybit) wsLeverageTokenNav(resp *WebsocketResponse) error {
 	var result LTNav
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -564,7 +522,7 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 	return nil
 }
 
-func (by *Bybit) wsProcessLiquidation(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Bybit) wsProcessLiquidation(resp *WebsocketResponse) error {
 	var result WebsocketLiquidiation
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
