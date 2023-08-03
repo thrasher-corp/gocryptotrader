@@ -1017,15 +1017,11 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 	var orderTypeFormat string
-	switch s.Side {
-	case order.Buy:
+	switch {
+	case s.Side.IsLong():
 		orderTypeFormat = order.Buy.Lower()
-	case order.Sell:
+	case s.Side.IsShort():
 		orderTypeFormat = order.Sell.Lower()
-	case order.Bid:
-		orderTypeFormat = order.Bid.Lower()
-	case order.Ask:
-		orderTypeFormat = order.Ask.Lower()
 	default:
 		return nil, errInvalidOrderSide
 	}

@@ -580,11 +580,11 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		return nil, err
 	}
 
-	if s.Side == order.Sell {
-		s.Side = order.Ask
+	if s.Side.IsLong() {
+		s.Side = order.Buy
 	}
-	if s.Side == order.Buy {
-		s.Side = order.Bid
+	if s.Side.IsShort() {
+		s.Side = order.Sell
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
