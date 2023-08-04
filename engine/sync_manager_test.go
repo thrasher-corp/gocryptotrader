@@ -261,7 +261,7 @@ func TestWaitForInitialSync(t *testing.T) {
 	}
 }
 
-func TestSyncManagerUpdate(t *testing.T) {
+func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	t.Parallel()
 	var m *syncManager
 	err := m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
