@@ -421,7 +421,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
 	bases.Asks = make([]orderbook.Item, len(data.Asks))
-	for x := range bases.Asks {
+	for x := range data.Asks {
 		bases.Asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
 			return err
