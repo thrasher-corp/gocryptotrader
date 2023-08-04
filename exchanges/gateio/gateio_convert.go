@@ -3,6 +3,7 @@ package gateio
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 )
@@ -19,11 +20,11 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 	var standard int64
 	switch val := value.(type) {
 	case float64:
-		standard = int64(val)
-	case int64:
-		standard = val
-	case int32:
-		standard = int64(val)
+		if math.Mod(val, 1) != 0 {
+			standard = int64(val * 1e3) // Account for 1684981731.098
+		} else {
+			standard = int64(val)
+		}
 	case string:
 		if val == "" {
 			return nil
@@ -31,6 +32,10 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 		parsedValue, err := strconv.ParseFloat(val, 64)
 		if err != nil {
 			return err
+		}
+		if math.Mod(parsedValue, 1) != 0 {
+			*a = gateioTime(time.UnixMicro(int64(parsedValue * 1e3))) // Account for "1691122380942.173000" microseconds
+			return nil
 		}
 		standard = int64(parsedValue)
 	default:
@@ -76,19 +81,3 @@ func (a *gateioNumericalValue) UnmarshalJSON(data []byte) error {
 
 // Float64 returns float64 value from gateioNumericalValue instance.
 func (a gateioNumericalValue) Float64() float64 { return float64(a) }
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *WsUserPersonalTrade) UnmarshalJSON(data []byte) error {
-	type Alias WsUserPersonalTrade
-	chil := &struct {
-		*Alias
-		CreateTimeMicroS float64 `json:"create_time_ms,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTimeMicroS = time.UnixMicro(int64(chil.CreateTimeMicroS * 1000))
-	return nil
-}

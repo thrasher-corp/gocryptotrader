@@ -716,7 +716,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		VerifyOrderbook: g.CanVerifyOrderbook,
 		Pair:            p.Upper(),
 		LastUpdateID:    orderbookNew.ID,
-		LastUpdated:     orderbookNew.Update,
+		LastUpdated:     orderbookNew.Update.Time(),
 	}
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {

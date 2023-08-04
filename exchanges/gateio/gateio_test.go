@@ -3206,9 +3206,9 @@ func TestSettlement(t *testing.T) {
 func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	t.Parallel()
 	var timeWhenTesting int64 = 1684981731098
-	timeWhenTestingString := "1684981731098"
+	timeWhenTestingString := `"1684981731098"` // Normal string
 	integerJSON := `{"number": 1684981731098}`
-	float64JSON := `{"number": 1684981731098.234}`
+	float64JSON := `{"number": 1684981731.098}`
 
 	time := time.UnixMilli(timeWhenTesting)
 	var in gateioTime
@@ -3245,18 +3245,19 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 func TestParseGateioTimeUnmarshal(t *testing.T) {
 	t.Parallel()
 	var timeWhenTesting int64 = 1684981731
-	timeWhenTestingString := "1684981731"
+	timeWhenTestingString := `"1684981731"`
 	integerJSON := `{"number": 1684981731}`
 	float64JSON := `{"number": 1684981731.234}`
+	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
 
-	time := time.Unix(timeWhenTesting, 0)
+	whenTime := time.Unix(timeWhenTesting, 0)
 	var in gateioTime
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !in.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", in.Time(), time)
+	if !in.Time().Equal(whenTime) {
+		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
 	}
 	inInteger := struct {
 		Number gateioTime `json:"number"`
@@ -3265,8 +3266,8 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !inInteger.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), time)
+	if !inInteger.Number.Time().Equal(whenTime) {
+		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), whenTime)
 	}
 
 	inFloat64 := struct {
@@ -3276,8 +3277,18 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !inFloat64.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), time)
+	msTime := time.UnixMilli(1684981731234)
+	if !inFloat64.Number.Time().Equal(time.UnixMilli(1684981731234)) {
+		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
+	}
+
+	var microSeconds gateioTime
+	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !microSeconds.Time().Equal(time.UnixMicro(1691122380942173)) {
+		t.Fatalf("found %v, but expected %v", microSeconds.Time(), time.UnixMicro(1691122380942173))
 	}
 }
 

@@ -536,8 +536,8 @@ type OrderbookData struct {
 func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 	ob := &Orderbook{
 		ID:      a.ID,
-		Current: a.Current.Time(),
-		Update:  a.Update.Time(),
+		Current: a.Current,
+		Update:  a.Update,
 	}
 	ob.Asks = make([]OrderbookItem, len(a.Asks))
 	ob.Bids = make([]OrderbookItem, len(a.Bids))
@@ -581,8 +581,8 @@ type OrderbookItem struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	ID      int64           `json:"id"`
-	Current time.Time       `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  time.Time       `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Current gateioTime      `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  gateioTime      `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
 	Bids    []OrderbookItem `json:"bids"`
 	Asks    []OrderbookItem `json:"asks"`
 }
@@ -905,15 +905,15 @@ type SwapCurrencies struct {
 
 // MyOptionSettlement represents option private settlement
 type MyOptionSettlement struct {
-	Size         float64   `json:"size"`
-	SettleProfit float64   `json:"settle_profit,string"`
-	Contract     string    `json:"contract"`
-	StrikePrice  float64   `json:"strike_price,string"`
-	Time         time.Time `json:"time"`
-	SettlePrice  float64   `json:"settle_price,string"`
-	Underlying   string    `json:"underlying"`
-	RealisedPnl  string    `json:"realised_pnl"`
-	Fee          float64   `json:"fee,string"`
+	Size         float64    `json:"size"`
+	SettleProfit float64    `json:"settle_profit,string"`
+	Contract     string     `json:"contract"`
+	StrikePrice  float64    `json:"strike_price,string"`
+	Time         gateioTime `json:"time"`
+	SettlePrice  float64    `json:"settle_price,string"`
+	Underlying   string     `json:"underlying"`
+	RealisedPnl  string     `json:"realised_pnl"`
+	Fee          float64    `json:"fee,string"`
 }
 
 // OptionsTicker represents  tickers of options contracts
@@ -1089,16 +1089,16 @@ type MultiChainAddressItem struct {
 
 // DepositRecord represents deposit record item
 type DepositRecord struct {
-	ID            string    `json:"id"`
-	Timestamp     time.Time `json:"timestamp"`
-	Currency      string    `json:"currency"`
-	Address       string    `json:"address"`
-	TransactionID string    `json:"txid"`
-	Amount        float64   `json:"amount,string"`
-	Memo          string    `json:"memo"`
-	Status        string    `json:"status"`
-	Chain         string    `json:"chain"`
-	Fee           float64   `json:"fee,string"`
+	ID            string     `json:"id"`
+	Timestamp     gateioTime `json:"timestamp"`
+	Currency      string     `json:"currency"`
+	Address       string     `json:"address"`
+	TransactionID string     `json:"txid"`
+	Amount        float64    `json:"amount,string"`
+	Memo          string     `json:"memo"`
+	Status        string     `json:"status"`
+	Chain         string     `json:"chain"`
+	Fee           float64    `json:"fee,string"`
 }
 
 // TransferCurrencyParam represents currency transfer.
@@ -2098,20 +2098,20 @@ type WsSpotOrder struct {
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
 type WsUserPersonalTrade struct {
-	ID               int64         `json:"id"`
-	UserID           int64         `json:"user_id"`
-	OrderID          string        `json:"order_id"`
-	CurrencyPair     currency.Pair `json:"currency_pair"`
-	CreateTime       int64         `json:"create_time"`
-	CreateTimeMicroS time.Time     `json:"create_time_ms"`
-	Side             string        `json:"side"`
-	Amount           float64       `json:"amount,string"`
-	Role             string        `json:"role"`
-	Price            float64       `json:"price,string"`
-	Fee              float64       `json:"fee,string"`
-	PointFee         float64       `json:"point_fee,string"`
-	GtFee            string        `json:"gt_fee"`
-	Text             string        `json:"text"`
+	ID           int64         `json:"id"`
+	UserID       int64         `json:"user_id"`
+	OrderID      string        `json:"order_id"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	CreateTime   int64         `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
+	Side         string        `json:"side"`
+	Amount       float64       `json:"amount,string"`
+	Role         string        `json:"role"`
+	Price        float64       `json:"price,string"`
+	Fee          float64       `json:"fee,string"`
+	PointFee     float64       `json:"point_fee,string"`
+	GtFee        string        `json:"gt_fee"`
+	Text         string        `json:"text"`
 }
 
 // WsSpotBalance represents a spot balance.
