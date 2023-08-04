@@ -208,7 +208,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 		return err
 	}
 	spotTradeData := trade.Data{
-		Timestamp:    time.UnixMicro(int64(data.CreateTimeMs * 1e3)), // the timestamp data is coming as a floating number.
+		Timestamp:    data.CreateTimeMs.Time(),
 		CurrencyPair: data.CurrencyPair,
 		AssetType:    asset.Spot,
 		Exchange:     g.Name,

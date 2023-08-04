@@ -2013,8 +2013,8 @@ type WsTicker struct {
 // WsTrade represents a websocket push data response for a trade
 type WsTrade struct {
 	ID           int64         `json:"id"`
-	CreateTime   int64         `json:"create_time"`
-	CreateTimeMs float64       `json:"create_time_ms,string"`
+	CreateTime   gateioTime    `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
 	Side         string        `json:"side"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Amount       float64       `json:"amount,string"`
