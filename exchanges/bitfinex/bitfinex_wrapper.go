@@ -657,11 +657,10 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			orderType = "EXCHANGE " + orderType
 		}
 		req := &WsNewOrderRequest{
-			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
-			Type:     orderType,
-			Symbol:   symbolStr,
-			Amount:   o.Amount,
-			Price:    o.Price,
+			Type:   orderType,
+			Symbol: symbolStr,
+			Amount: o.Amount,
+			Price:  o.Price,
 		}
 		if o.Side.IsShort() && o.Amount > 0 {
 			// All v2 apis use negatives for Short side
