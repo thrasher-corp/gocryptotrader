@@ -561,7 +561,7 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 		updates.Asks[x].Price = data.Asks[x].Price
 	}
 	updates.Bids = make([]orderbook.Item, len(data.Bids))
-	for x := range updates.Bids {
+	for x := range data.Bids {
 		updates.Bids[x].Amount = data.Bids[x].Size
 		updates.Bids[x].Price = data.Bids[x].Price
 	}
