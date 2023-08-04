@@ -551,7 +551,7 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 			return nil, err
 		}
 		ob.Asks[x] = OrderbookItem{
-			Price:  price,
+			Price:  gateioNumericalValue(price),
 			Amount: amount,
 		}
 	}
@@ -565,7 +565,7 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 			return nil, err
 		}
 		ob.Bids[x] = OrderbookItem{
-			Price:  price,
+			Price:  gateioNumericalValue(price),
 			Amount: amount,
 		}
 	}
@@ -574,8 +574,8 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
-	Price  float64 `json:"p"`
-	Amount float64 `json:"s"`
+	Price  gateioNumericalValue `json:"p"`
+	Amount float64              `json:"s"`
 }
 
 // Orderbook stores the orderbook data

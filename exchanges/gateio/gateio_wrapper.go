@@ -722,14 +722,14 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price,
+			Price:  orderbookNew.Bids[x].Price.Float64(),
 		}
 	}
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price,
+			Price:  orderbookNew.Asks[x].Price.Float64(),
 		}
 	}
 	err = book.Process()

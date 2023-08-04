@@ -77,45 +77,6 @@ func (a *gateioNumericalValue) UnmarshalJSON(data []byte) error {
 // Float64 returns float64 value from gateioNumericalValue instance.
 func (a gateioNumericalValue) Float64() float64 { return float64(a) }
 
-// UnmarshalJSON to deserialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
-func (a *Orderbook) UnmarshalJSON(data []byte) error {
-	type Alias Orderbook
-	type askorbid struct {
-		Price gateioNumericalValue `json:"p"`
-		Size  float64              `json:"s"`
-	}
-	chil := &struct {
-		*Alias
-		Current float64    `json:"current"`
-		Update  float64    `json:"update"`
-		Asks    []askorbid `json:"asks"`
-		Bids    []askorbid `json:"bids"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	err := json.Unmarshal(data, &chil)
-	if err != nil {
-		return err
-	}
-	a.Current = time.UnixMilli(int64(chil.Current * 1000))
-	a.Update = time.UnixMilli(int64(chil.Update * 1000))
-	a.Asks = make([]OrderbookItem, len(chil.Asks))
-	a.Bids = make([]OrderbookItem, len(chil.Bids))
-	for x := range chil.Asks {
-		a.Asks[x] = OrderbookItem{
-			Amount: chil.Asks[x].Size,
-			Price:  chil.Asks[x].Price.Float64(),
-		}
-	}
-	for x := range chil.Bids {
-		a.Bids[x] = OrderbookItem{
-			Amount: chil.Bids[x].Size,
-			Price:  chil.Bids[x].Price.Float64(),
-		}
-	}
-	return nil
-}
-
 // UnmarshalJSON deserialises the JSON info, including the timestamp
 func (a *WsUserPersonalTrade) UnmarshalJSON(data []byte) error {
 	type Alias WsUserPersonalTrade
