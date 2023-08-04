@@ -20,7 +20,7 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 	var standard int64
 	switch val := value.(type) {
 	case float64:
-		if math.Mod(val, 1) != 0 {
+		if math.Trunc(val) != val {
 			standard = int64(val * 1e3) // Account for 1684981731.098
 		} else {
 			standard = int64(val)
@@ -33,7 +33,7 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		if math.Mod(parsedValue, 1) != 0 {
+		if math.Trunc(parsedValue) != parsedValue {
 			*a = gateioTime(time.UnixMicro(int64(parsedValue * 1e3))) // Account for "1691122380942.173000" microseconds
 			return nil
 		}

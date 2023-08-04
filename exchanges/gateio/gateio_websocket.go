@@ -669,7 +669,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			case spotCandlesticksChannel:
 				params["interval"] = kline.FiveMin
 			case spotOrderbookUpdateChannel:
-				params["interval"] = kline.ThousandMilliseconds
+				params["interval"] = kline.HundredMilliseconds
 			}
 			if spotTradesChannel == channelsToSubscribe[i] {
 				if !g.IsSaveTradeDataEnabled() {
