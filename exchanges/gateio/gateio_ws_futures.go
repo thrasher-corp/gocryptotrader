@@ -595,7 +595,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			base.Asks[x].Price = data.Asks[x].Price
 		}
 		base.Bids = make([]orderbook.Item, len(data.Bids))
-		for x := range base.Bids {
+		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
 			base.Bids[x].Price = data.Bids[x].Price
 		}
