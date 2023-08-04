@@ -60,14 +60,14 @@ type WebsocketOrderbookResponse struct {
 
 // WebsocketOrderBook holds orderbook data
 type WebsocketOrderBook struct {
-	Checksum  int64            `json:"checksum"`
-	Asks      [][]okcoinNumber `json:"asks"` // [ Price, Quantity, depreciated, number of orders at the price ]
-	Bids      [][]okcoinNumber `json:"bids"` // [ Price, Quantity, depreciated, number of orders at the price ]
-	Timestamp okcoinTime       `json:"ts"`
+	Checksum  int64             `json:"checksum"`
+	Asks      [][2]okcoinNumber `json:"asks"` // [ Price, Quantity, depreciated, number of orders at the price ]
+	Bids      [][2]okcoinNumber `json:"bids"` // [ Price, Quantity, depreciated, number of orders at the price ]
+	Timestamp okcoinTime        `json:"ts"`
 }
 
 func (a *WebsocketOrderBook) prepareOrderbook() {
-	asks := [][]okcoinNumber{}
+	asks := [][2]okcoinNumber{}
 	for x := range a.Asks {
 		if len(asks) > 0 && asks[len(asks)-1][0].Float64() == a.Asks[x][0].Float64() {
 			if a.Asks[x][1].Float64() != 0 {
@@ -81,7 +81,7 @@ func (a *WebsocketOrderBook) prepareOrderbook() {
 		asks = append(asks, a.Asks[x])
 	}
 	a.Asks = asks
-	bids := [][]okcoinNumber{}
+	bids := [][2]okcoinNumber{}
 	for x := range a.Bids {
 		if len(bids) > 0 && bids[len(bids)-1][0].Float64() == a.Bids[x][0].Float64() {
 			if a.Bids[x][1].Float64() != 0 {

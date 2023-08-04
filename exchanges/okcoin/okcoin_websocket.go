@@ -309,8 +309,8 @@ func (o *Okcoin) wsProcessAdvancedAlgoOrder(respRaw []byte) error {
 			LastUpdated:     resp.Data[d].PushTime.Time().UTC(),
 			Pair:            cp,
 		}
-		o.Websocket.DataHandler <- algoOrders
 	}
+	o.Websocket.DataHandler <- algoOrders
 	return nil
 }
 
@@ -659,7 +659,7 @@ func (o *Okcoin) wsProcessCandles(respRaw []byte) error {
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *Okcoin) AppendWsOrderbookItems(entries [][]okcoinNumber) ([]orderbook.Item, error) {
+func (o *Okcoin) AppendWsOrderbookItems(entries [][2]okcoinNumber) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
 		amount := entries[j][1].Float64()
@@ -837,13 +837,13 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		}
 		if subs[i].Params != nil {
 			if ccy, okay := subs[i].Params["ccy"]; okay {
-				argument["ccy"], okay = (ccy).(string)
+				argument["ccy"], okay = ccy.(string)
 				if !okay {
 					continue
 				}
 			}
 			if interval, okay := subs[i].Params["interval"]; okay {
-				intervalString, okay := (interval).(string)
+				intervalString, okay := interval.(string)
 				if !okay {
 					continue
 				}

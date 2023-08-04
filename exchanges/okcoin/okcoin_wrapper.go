@@ -308,7 +308,7 @@ func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]currency.Pair, len(prods))
+	pairs := make([]currency.Pair, 0, len(prods))
 	for x := range prods {
 		if prods[x].State != "live" {
 			continue
@@ -318,7 +318,7 @@ func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		pairs[x] = pair
+		pairs = append(pairs, pair)
 	}
 
 	return pairs, nil
