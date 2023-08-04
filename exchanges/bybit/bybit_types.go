@@ -422,7 +422,7 @@ type ListOfTickers struct {
 
 // ----------------------------------------------------------------------------
 
-// InstrumentsInfo representa a category, page indicator, and list of instrument informations.
+// InstrumentsInfo representa a category, page indicator, and list of instrument information.
 type InstrumentsInfo struct {
 	Category       string           `json:"category"`
 	List           []InstrumentInfo `json:"list"`

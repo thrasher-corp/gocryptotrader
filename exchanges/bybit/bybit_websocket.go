@@ -239,7 +239,7 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
+	var channels = []string{chanPublicTicker, chanOrderbook, chanPublicTrade}
 	if by.IsWebsocketAuthenticationSupported() {
 		channels = append(channels, []string{
 			chanPositions,
@@ -579,7 +579,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		if err != nil {
 			return err
 		}
-		by.Websocket.DataHandler <- ticker.Price{
+		by.Websocket.DataHandler <- &ticker.Price{
 			Last:         result.LastPrice.Float64(),
 			High:         result.HighPrice24H.Float64(),
 			Low:          result.LowPrice24H.Float64(),

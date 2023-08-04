@@ -1264,7 +1264,7 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 	return nil
 }
 
-// String implememts the stringer interface
+// String implements the stringer interface
 func (t PriceType) String() string {
 	switch t {
 	case LastPrice:

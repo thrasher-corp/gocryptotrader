@@ -191,7 +191,7 @@ func stringToInterval(s string) (kline.Interval, error) {
 // GetBybitServerTime retrieves bybit server time
 func (by *Bybit) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
 	var resp ServerTime
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, "/v5/market/time", defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, "market/time", defaultEPL, &resp)
 }
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
@@ -269,7 +269,7 @@ func processKlineResponse(in [][]string) ([]KlineItem, error) {
 	return klines, nil
 }
 
-// GetInstruments retrives the list of instrument details given the category and symbol.
+// GetInstruments retrieves the list of instrument details given the category and symbol.
 func (by *Bybit) GetInstruments(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
@@ -347,7 +347,7 @@ func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string
 	return processKlineResponse(resp.List)
 }
 
-// GetOrderBook retrives for orderbook depth data.
+// GetOrderBook retrieves for orderbook depth data.
 func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limit int64) (*Orderbook, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
@@ -399,7 +399,7 @@ func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin stri
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketTicker, params), defaultEPL, &resp)
 }
 
-// GetFundingRateHistory retrives historical funding rates. Each symbol has a different funding interval.
+// GetFundingRateHistory retrieves historical funding rates. Each symbol has a different funding interval.
 // For example, if the interval is 8 hours and the current time is UTC 12, then it returns the last funding rate, which settled at UTC 8.
 func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol string, startTime, endTime time.Time, limit int64) (*FundingRateHistory, error) {
 	if category == "" {
@@ -426,7 +426,7 @@ func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol str
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketFundingRateHistory, params), defaultEPL, &resp)
 }
 
-// GetPublicTradingHistory retrives recent public trading data.
+// GetPublicTradingHistory retrieves recent public trading data.
 // Option type. 'Call' or 'Put'. For option only
 func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, baseCoin, optionType string, limit int64) (*TradingHistory, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
@@ -449,7 +449,7 @@ func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, 
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketRecentTrade, params), defaultEPL, &resp)
 }
 
-// GetOpenInterest retrives open interest of each symbol.
+// GetOpenInterest retrieves open interest of each symbol.
 func (by *Bybit) GetOpenInterest(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
@@ -481,7 +481,7 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, category, symbol, interval
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketOpenInterest, params), defaultEPL, &resp)
 }
 
-// GetHistoricalValatility retrives option historical volatility.
+// GetHistoricalValatility retrieves option historical volatility.
 // The data is hourly.
 // If both 'startTime' and 'endTime' are not specified, it will return the most recent 1 hours worth of data.
 // 'startTime' and 'endTime' are a pair of params. Either both are passed or they are not passed at all.
@@ -511,7 +511,7 @@ func (by *Bybit) GetHistoricalValatility(ctx context.Context, category, baseCoin
 	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketHistoricalVolatility, params), defaultEPL, &resp)
 }
 
-// GetInsurance retrives insurance pool data (BTC/USDT/USDC etc). The data is updated every 24 hours.
+// GetInsurance retrieves insurance pool data (BTC/USDT/USDC etc). The data is updated every 24 hours.
 func (by *Bybit) GetInsurance(ctx context.Context, coin string) (*InsuranceHistory, error) {
 	params := url.Values{}
 	if coin != "" {
@@ -521,7 +521,7 @@ func (by *Bybit) GetInsurance(ctx context.Context, coin string) (*InsuranceHisto
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketInsurance, params), defaultEPL, &resp)
 }
 
-// GetRiskLimit retrives risk limit history
+// GetRiskLimit retrieves risk limit history
 func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*RiskLimitHistory, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
@@ -537,7 +537,7 @@ func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*Ri
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketRiskLimit, params), defaultEPL, &resp)
 }
 
-// GetDeliveryPrice retrives delivery price.
+// GetDeliveryPrice retrieves delivery price.
 func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoin, cursor string, limit int64) (*DeliveryPrice, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
@@ -546,11 +546,11 @@ func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoi
 	}
 	params := url.Values{}
 	params.Set("category", category)
-	if baseCoin != "" {
-		params.Set("baseCoin", baseCoin)
-	}
 	if symbol != "" {
 		params.Set("symbol", symbol)
+	}
+	if baseCoin != "" {
+		params.Set("baseCoin", baseCoin)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -562,7 +562,7 @@ func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoi
 	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketDeliveryPrice, params), defaultEPL, &resp)
 }
 
-// ----------------- Trade Endpints ----------------
+// ----------------- Trade Endpoints ----------------
 
 func isValidCategory(category string) error {
 	switch category {
@@ -669,7 +669,7 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, cancelOrder, nil, arg, &resp, cancelOrderEPL)
 }
 
-// GetOpenOrders retrives unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
+// GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
 func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
@@ -716,7 +716,7 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, cancelAllOrders, nil, arg, &resp, calcelAllEPL)
 }
 
-// GetTradeOrderHistory retrives order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
+// GetTradeOrderHistory retrieves order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
 // If you want to get real-time order information, you could query this endpoint or rely on the websocket stream (recommended).
 func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
 	baseCoin, settleCoin, orderFilter, orderStatus, cursor string,
@@ -839,7 +839,7 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-batch", nil, arg, &resp, cancelBatchOrderEPL)
 }
 
-// GetBorrowQuota retrives the qty and amount of borrowable coins in spot account.
+// GetBorrowQuota retrieves the qty and amount of borrowable coins in spot account.
 func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side string) (*BorrowQuota, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
@@ -847,9 +847,10 @@ func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side stri
 		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
 	}
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol == "" {
+		return nil, errSymbolMissing
 	}
+	params.Set("symbol", symbol)
 	params.Set("category", category)
 	if side == "" {
 		return nil, order.ErrSideIsInvalid
@@ -874,7 +875,7 @@ func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) 
 
 // -------------------------------------------------  Position Endpoints ---------------------------------------------------
 
-// GetPositionInfo retrives real-time position data, such as position size, cumulative realizedPNL.
+// GetPositionInfo retrieves real-time position data, such as position size, cumulative realizedPNL.
 func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin, settleCoin, cursor string, limit int64) (*PositionInfoList, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
@@ -1095,7 +1096,7 @@ func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddRemoveMarginPara
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, addOrRemoveMargin, nil, arg, &resp, defaultEPL)
 }
 
-// GetExecution retrives users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
+// GetExecution retrieves users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
 func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
@@ -1129,7 +1130,7 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, positionExecutionList, params, nil, &resp, getExecutionListEPL)
 }
 
-// GetClosedPnL retrives user's closed profit and loss records. The results are sorted by createdTime in descending order.
+// GetClosedPnL retrieves user's closed profit and loss records. The results are sorted by createdTime in descending order.
 func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
@@ -1215,7 +1216,7 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeExecutionList, params, nil, &resp, defaultEPL)
 }
 
-// GetPreUpgradeClosedPnL retrives user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
+// GetPreUpgradeClosedPnL retrieves user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
 func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true, MendatorySymbol: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
@@ -1225,7 +1226,7 @@ func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, c
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradePositionClosedPNL, params, nil, &resp, defaultEPL)
 }
 
-// GetPreUpgradeTransactionLog retrives transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified account.
+// GetPreUpgradeTransactionLog retrieves transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified account.
 func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
@@ -1238,7 +1239,7 @@ func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, base
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAccountTransactionLog, params, nil, &resp, defaultEPL)
 }
 
-// GetPreUpgradeOptionDeliveryRecord retrives delivery records of Option before you upgraded the account to a Unified account, sorted by deliveryTime in descending order
+// GetPreUpgradeOptionDeliveryRecord retrieves delivery records of Option before you upgraded the account to a Unified account, sorted by deliveryTime in descending order
 func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*PreUpdateOptionDeliveryRecord, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, Option: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
@@ -1251,7 +1252,7 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAssetDeliveryRecord, params, nil, &resp, defaultEPL)
 }
 
-// GetPreUpgradeUSDCSessionSettlement retrives session settlement records of USDC perpetual before you upgrade the account to Unified account.
+// GetPreUpgradeUSDCSessionSettlement retrieves session settlement records of USDC perpetual before you upgrade the account to Unified account.
 func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
@@ -1286,7 +1287,7 @@ func (by *Bybit) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUp
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, accountUpgradeToUTA, nil, nil, &resp, defaultEPL)
 }
 
-// GetBorrowHistory retrives interest records, sorted in reverse order of creation time.
+// GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.
 func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
 	params := url.Values{}
 	if currency != "" {
@@ -1311,7 +1312,7 @@ func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, 
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/borrow-history", params, nil, &resp, defaultEPL)
 }
 
-// GetCollateralInfo retrives the collateral information of the current unified margin account,
+// GetCollateralInfo retrieves the collateral information of the current unified margin account,
 // including loan interest rate, loanable amount, collateral conversion rate,
 // whether it can be mortgaged as margin, etc.
 func (by *Bybit) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
@@ -1323,7 +1324,7 @@ func (by *Bybit) GetCollateralInfo(ctx context.Context, currency string) (*Colla
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, defaultEPL)
 }
 
-// GetCoinGreeks retrives current account Greeks information
+// GetCoinGreeks retrieves current account Greeks information
 func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreeks, error) {
 	params := url.Values{}
 	if baseCoin != "" {
@@ -1333,7 +1334,7 @@ func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreek
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin-greeks", params, nil, &resp, defaultEPL)
 }
 
-// GetFeeRate retrives the trading fee rate.
+// GetFeeRate retrieves the trading fee rate.
 func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) ([]Fee, error) {
 	params := url.Values{}
 	if !common.StringDataContains(validCategory, category) {
@@ -1625,7 +1626,7 @@ func (by *Bybit) EnableUniversalTransferForSubUID(ctx context.Context, subMember
 		return errMembersIDsNotSet
 	}
 	arg := map[string][]string{
-		"subMemberIds": subMemberIDS,
+		"subMemberIDs": subMemberIDS,
 	}
 	var resp interface{}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/save-transfer-sub-member", nil, &arg, &resp, saveTransferSubMemberEPL)
@@ -1722,6 +1723,8 @@ func (by *Bybit) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cur
 }
 
 // SetDepositAccount sets auto transfer account after deposit. The same function as the setting for Deposit on web GUI
+// account types: CONTRACT Derivatives Account
+// 'SPOT' Spot Account 'INVESTMENT' ByFi Account (The service has been offline) 'OPTION' USDC Account 'UNIFIED' UMA or UTA 'FUND' Funding Account
 func (by *Bybit) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
@@ -2433,7 +2436,7 @@ func (by *Bybit) GetC2CLendingAccountInfo(ctx context.Context, coin currency.Cod
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/account", params, nil, &resp, defaultEPL)
 }
 
-//  ---------------------------------------------------------------- Broker endoint ----------------------------------------------------------------
+//  ---------------------------------------------------------------- Broker endpoint ----------------------------------------------------------------
 
 // GetBrokerEarning exchange broker master account to query
 // The data can support up to past 6 months until T-1

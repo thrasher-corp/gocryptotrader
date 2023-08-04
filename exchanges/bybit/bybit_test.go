@@ -168,29 +168,21 @@ func TestGetIndexPriceKline(t *testing.T) {
 	}
 }
 
-// func TestGetAllSpotPairs(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := b.GetAllSpotPairs(context.Background())
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
-
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderBook(context.Background(), "spot", "BTCUSDT", 100)
+	_, err := b.GetOrderBook(context.Background(), "spot", spotTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetOrderBook(context.Background(), "linear", "BTCUSDT", 100)
+	_, err = b.GetOrderBook(context.Background(), "linear", linearTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetOrderBook(context.Background(), "inverse", "BTCUSDT", 100)
+	_, err = b.GetOrderBook(context.Background(), "inverse", inverseTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetOrderBook(context.Background(), "option", "BTC-7JUL23-27000-C", 100)
+	_, err = b.GetOrderBook(context.Background(), "option", optionsTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,40 +215,19 @@ func TestGetRiskLimit(t *testing.T) {
 // test cases for Wrapper
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.UpdateTicker(context.Background(), pair, asset.Spot)
+	_, err := b.UpdateTicker(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateTicker(context.Background(), pair, asset.Linear)
+	_, err = b.UpdateTicker(context.Background(), linearTradablePair, asset.Linear)
 	if err != nil {
 		t.Error(err)
 	}
-	pair1, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateTicker(context.Background(), pair1, asset.Inverse)
+	_, err = b.UpdateTicker(context.Background(), inverseTradablePair, asset.Inverse)
 	if err != nil {
 		t.Error(err)
 	}
-
-	// Futures update dynamically, so fetch the available tradable futures for this test
-	availPairs, err := b.FetchTradablePairs(context.Background(), asset.Options)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Needs to be set before calling extractCurrencyPair
-	if err = b.SetPairs(availPairs, asset.Futures, true); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateTicker(context.Background(), availPairs[0], asset.Options)
+	_, err = b.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
@@ -264,37 +235,21 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTCUSDT")
+	_, err := b.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Spot)
+	_, err = b.UpdateOrderbook(context.Background(), linearTradablePair, asset.Linear)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.CoinMarginedFutures)
+	_, err = b.UpdateOrderbook(context.Background(), inverseTradablePair, asset.Inverse)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.USDTMarginedFutures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Futures)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair1, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateOrderbook(context.Background(), pair1, asset.USDCMarginedFutures)
+	_, err = b.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
@@ -302,7 +257,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	var orderSubmission = &order.Submit{
 		Exchange:      b.GetName(),
 		Pair:          spotTradablePair,
@@ -335,6 +290,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{
 		OrderID:      "1234",
 		Type:         order.Limit,
@@ -736,21 +692,9 @@ func TestGetInsurance(t *testing.T) {
 
 func TestGetDeliveryPrice(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetDeliveryPrice(context.Background(), "spot", "BTCUSDT", "", "", 200)
+	_, err := b.GetDeliveryPrice(context.Background(), "spot", spotTradablePair.String(), "", "", 200)
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, but found %v", errInvalidCategory, err)
-	}
-	_, err = b.GetDeliveryPrice(context.Background(), "linear", "BTCUSDT", "", "", 200)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetDeliveryPrice(context.Background(), "inverse", "BTCUSDT", "", "", 200)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetDeliveryPrice(context.Background(), "option", "BTC-7JUL23-27000-C", "", "", 200)
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -1707,7 +1651,7 @@ func TestGetAllCoinBalance(t *testing.T) {
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
 	}
-	_, err = b.GetAllCoinBalance(context.Background(), "SPOT", "", "", 0)
+	_, err = b.GetAllCoinBalance(context.Background(), "FUND", "", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1920,7 +1864,7 @@ func TestGetAllowedDepositCoinInfo(t *testing.T) {
 func TestSetDepositAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.SetDepositAccount(context.Background(), "SPOT")
+	_, err := b.SetDepositAccount(context.Background(), "FUND")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1938,7 +1882,7 @@ func TestGetDepositRecords(t *testing.T) {
 func TestGetSubDepositRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetSubDepositRecords(context.Background(), "12345", "", "nextPageCursor", time.Time{}, time.Time{}, 0)
+	_, err := b.GetSubDepositRecords(context.Background(), "12345", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2500,22 +2444,38 @@ func instantiateTradablePairs() error {
 	if err != nil {
 		return err
 	}
-	spotTradablePair = tradables[0]
+	format, err := b.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+	spotTradablePair = tradables[0].Format(format)
 	tradables, err = b.GetEnabledPairs(asset.Linear)
 	if err != nil {
 		return err
 	}
-	linearTradablePair = tradables[0]
+	format, err = b.GetPairFormat(asset.Linear, true)
+	if err != nil {
+		return err
+	}
+	linearTradablePair = tradables[0].Format(format)
 	tradables, err = b.GetEnabledPairs(asset.Inverse)
 	if err != nil {
 		return err
 	}
-	inverseTradablePair = tradables[0]
+	format, err = b.GetPairFormat(asset.Inverse, true)
+	if err != nil {
+		return err
+	}
+	inverseTradablePair = tradables[0].Format(format)
 	tradables, err = b.GetEnabledPairs(asset.Options)
 	if err != nil {
 		return err
 	}
-	optionsTradablePair = tradables[0]
+	format, err = b.GetPairFormat(asset.Options, true)
+	if err != nil {
+		return err
+	}
+	optionsTradablePair = tradables[0].Format(format)
 	return nil
 }
 

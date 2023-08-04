@@ -230,11 +230,10 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		ResponseMaxLimit:     bybitWebsocketTimer,
 	})
 	if err != nil {
 		return err
@@ -359,10 +358,6 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	avail, err := by.GetAvailablePairs(assetType)
-	if err != nil {
-		return err
-	}
 	enabled, err := by.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
@@ -379,7 +374,8 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			return err
 		}
 		for x := range ticks.List {
-			pair, err := avail.DeriveFrom(ticks.List[x].Symbol)
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(ticks.List[x].Symbol)
 			if err != nil {
 				return err
 			}
