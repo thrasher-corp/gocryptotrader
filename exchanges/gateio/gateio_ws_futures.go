@@ -423,10 +423,6 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 	}
 	tickerPriceDatas := make([]ticker.Price, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		tickerPriceDatas[x] = ticker.Price{
 			ExchangeName: g.Name,
 			Volume:       resp.Result[x].Volume24HBase,
@@ -435,7 +431,7 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 			Low:          resp.Result[x].Low24H,
 			Last:         resp.Result[x].Last,
 			AssetType:    assetType,
-			Pair:         currencyPair,
+			Pair:         resp.Result[x].Contract,
 			LastUpdated:  time.Unix(resp.Time, 0),
 		}
 	}
@@ -456,13 +452,9 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	}
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    assetType,
 			Exchange:     g.Name,
 			Price:        resp.Result[x].Price,
@@ -527,13 +519,9 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(data.ContractName)
-	if err != nil {
-		return err
-	}
-	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName]) ||
-		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName]) {
-		orderbooks, err := g.FetchOrderbook(context.Background(), pair, assetType)
+	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()]) ||
+		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()]) {
+		orderbooks, err := g.FetchOrderbook(context.Background(), data.ContractName, assetType)
 		if err != nil {
 			return err
 		}
@@ -545,14 +533,14 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 			return err
 		}
 		if assetType == asset.Options {
-			fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName] = true
+			fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
 		} else {
-			fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName] = true
+			fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
 		}
 	}
 	updates := orderbook.Update{
 		UpdateTime: time.UnixMilli(data.TimestampInMs),
-		Pair:       pair,
+		Pair:       data.ContractName,
 		Asset:      assetType,
 	}
 	updates.Asks = make([]orderbook.Item, len(data.Asks))
@@ -578,14 +566,10 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 		if err != nil {
 			return err
 		}
-		pair, err := currency.NewPairFromString(data.Contract)
-		if err != nil {
-			return err
-		}
 		base := orderbook.Base{
 			Asset:           assetType,
 			Exchange:        g.Name,
-			Pair:            pair,
+			Pair:            data.Contract,
 			LastUpdated:     data.TimestampInMs.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
@@ -664,10 +648,6 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		status, err := order.StringToOrderStatus(func() string {
 			if resp.Result[x].Status == "finished" {
 				return "cancelled"
@@ -682,7 +662,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
-			Pair:           currencyPair,
+			Pair:           resp.Result[x].Contract,
 			LastUpdated:    resp.Result[x].FinishTimeMs.Time(),
 			Date:           resp.Result[x].CreateTimeMs.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
@@ -709,14 +689,10 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			Exchange:     g.Name,
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price,

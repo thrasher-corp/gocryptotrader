@@ -446,13 +446,9 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 	}
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
 			Exchange:     g.Name,
 			Price:        resp.Result[x].Price,
@@ -638,10 +634,6 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		status, err := order.StringToOrderStatus(func() string {
 			if resp.Result[x].Status == "finished" {
 				return "cancelled"
@@ -656,7 +648,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
-			Pair:           currencyPair,
+			Pair:           resp.Result[x].Contract,
 			Date:           resp.Result[x].CreationTimeMs.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
@@ -681,14 +673,10 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			Exchange:     g.Name,
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price,

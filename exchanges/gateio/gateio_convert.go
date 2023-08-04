@@ -45,7 +45,7 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 }
 
 // Time represents a time instance.
-func (a *gateioTime) Time() time.Time { return time.Time(*a) }
+func (a gateioTime) Time() time.Time { return time.Time(a) }
 
 type gateioNumericalValue float64
 
@@ -75,7 +75,7 @@ func (a *gateioNumericalValue) UnmarshalJSON(data []byte) error {
 }
 
 // Float64 returns float64 value from gateioNumericalValue instance.
-func (a *gateioNumericalValue) Float64() float64 { return float64(*a) }
+func (a gateioNumericalValue) Float64() float64 { return float64(a) }
 
 // UnmarshalJSON to deserialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
 func (a *Orderbook) UnmarshalJSON(data []byte) error {
