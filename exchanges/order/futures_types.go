@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 )
 
 var (
@@ -194,7 +195,7 @@ type PositionTracker struct {
 	shortPositions     []Detail
 	longPositions      []Detail
 	pnlHistory         []PNLResult
-	fundingRateDetails *FundingRates
+	fundingRateDetails *fundingrate.Rates
 }
 
 // PositionTrackerSetup contains all required fields to
@@ -302,7 +303,7 @@ type Position struct {
 	CloseDate          time.Time
 	Orders             []Detail
 	PNLHistory         []PNLResult
-	FundingRates       FundingRates
+	FundingRates       fundingrate.Rates
 }
 
 // PositionSummaryRequest is used to request a summary of an open position
@@ -341,36 +342,6 @@ type PositionSummary struct {
 	MarginFraction               decimal.Decimal
 	FreeCollateral               decimal.Decimal
 	TotalCollateral              decimal.Decimal
-}
-
-// FundingRatesRequest is used to request funding rate details for a position
-type FundingRatesRequest struct {
-	Asset                asset.Item
-	Pairs                currency.Pairs
-	StartDate            time.Time
-	EndDate              time.Time
-	IncludePayments      bool
-	IncludePredictedRate bool
-}
-
-// FundingRates is used to return funding rate details for a position
-type FundingRates struct {
-	Exchange              string
-	Asset                 asset.Item
-	Pair                  currency.Pair
-	StartDate             time.Time
-	EndDate               time.Time
-	LatestRate            FundingRate
-	PredictedUpcomingRate FundingRate
-	FundingRates          []FundingRate
-	PaymentSum            decimal.Decimal
-}
-
-// FundingRate holds details for an individual funding rate
-type FundingRate struct {
-	Time    time.Time
-	Rate    decimal.Decimal
-	Payment decimal.Decimal
 }
 
 // PositionDetails are used to track open positions

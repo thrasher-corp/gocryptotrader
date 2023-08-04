@@ -355,6 +355,20 @@ func TestStringToFloat64(t *testing.T) {
 	}
 }
 
+func TestStringToFloat64Decimal(t *testing.T) {
+	t.Parallel()
+	resp := struct {
+		Data StringToFloat64 `json:"data"`
+	}{}
+	err := json.Unmarshal([]byte(`{"data":"0.00000001"}`), &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Data.Decimal().Equal(decimal.NewFromFloat(0.00000001)) {
+		t.Errorf("received '%v' expected '%v'", resp.Data.Decimal(), 0.00000001)
+	}
+}
+
 // 2677173	       428.9 ns/op	     240 B/op	       5 allocs/op
 func BenchmarkStringToFloat64(b *testing.B) {
 	resp := struct {

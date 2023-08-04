@@ -95,6 +95,10 @@ type Base struct {
 	RestSnapshot bool
 	// Checks if the orderbook needs ID alignment as well as price alignment
 	IDAlignment bool
+	// Determines if there is a max depth of orderbooks and after an append we
+	// should remove any items that are outside of this scope. Bittrex and
+	// Kraken utilise this field.
+	MaxDepth int
 }
 
 type byOBPrice []Item
@@ -114,6 +118,7 @@ type options struct {
 	VerifyOrderbook  bool
 	restSnapshot     bool
 	idAligned        bool
+	maxDepth         int
 }
 
 // Action defines a set of differing states required to implement an incoming
@@ -143,10 +148,6 @@ type Update struct {
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32
-	// Determines if there is a max depth of orderbooks and after an append we
-	// should remove any items that are outside of this scope. Kraken is the
-	// only exchange utilising this field.
-	MaxDepth int
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or

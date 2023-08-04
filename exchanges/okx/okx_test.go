@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -32,6 +33,7 @@ const (
 	apiSecret               = ""
 	passphrase              = ""
 	canManipulateRealOrders = false
+	useTestNet              = false
 )
 
 var ok = &Okx{}
@@ -54,16 +56,34 @@ func TestMain(m *testing.M) {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
 	}
-	ok.Websocket = sharedtestvalues.NewTestWebsocket()
+	if !useTestNet {
+		ok.Websocket = sharedtestvalues.NewTestWebsocket()
+	}
 	err = ok.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	request.MaxRequestJobs = 200
-	ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	setupWS()
+	if !useTestNet {
+		ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+		setupWS()
+	}
+	err = ok.UpdateTradablePairs(contextGenerate(), true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
+}
+
+// contextGenerate sends an optional value to allow test requests
+// named this way, so it shows up in auto-complete and reminds you to use it
+func contextGenerate() context.Context {
+	ctx := context.Background()
+	if useTestNet {
+		ctx = context.WithValue(ctx, testNetKey("testnet"), useTestNet)
+	}
+	return ctx
 }
 
 func TestStart(t *testing.T) {
@@ -228,10 +248,10 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 }
 
-func TestGetFundingRate(t *testing.T) {
+func TestGetSingleFundingRate(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetFundingRate(context.Background(), "BTC-USD-SWAP"); err != nil {
-		t.Error("okx GetFundingRate() error", err)
+	if _, err := ok.GetSingleFundingRate(context.Background(), "BTC-USD-SWAP"); err != nil {
+		t.Error("okx GetSingleFundingRate() error", err)
 	}
 }
 
@@ -3200,6 +3220,80 @@ func TestInstrument(t *testing.T) {
 	}
 	if i.Underlying != "BTC-USDC" {
 		t.Error("expected BTC-USDC underlying")
+	}
+}
+
+func TestGetLatestFundingRate(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetLatestFundingRate(contextGenerate(), &fundingrate.LatestRateRequest{
+		Asset:                asset.PerpetualSwap,
+		Pair:                 cp,
+		IncludePredictedRate: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingRates(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	r := &fundingrate.RatesRequest{
+		Asset:                asset.PerpetualSwap,
+		Pair:                 cp,
+		PaymentCurrency:      currency.USDT,
+		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:              time.Now(),
+		IncludePredictedRate: true,
+	}
+	if sharedtestvalues.AreAPICredentialsSet(ok) {
+		r.IncludePayments = true
+	}
+	_, err = ok.GetFundingRates(contextGenerate(), r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
+	_, err = ok.GetFundingRates(contextGenerate(), r)
+	if !errors.Is(err, fundingrate.ErrFundingRateOutsideLimits) {
+		t.Error(err)
+	}
+
+	r.RespectHistoryLimits = true
+	_, err = ok.GetFundingRates(contextGenerate(), r)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	is, err := ok.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+	if is {
+		t.Error("expected false")
+	}
+
+	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	is, err = ok.IsPerpetualFutureCurrency(asset.PerpetualSwap, cp)
+	if err != nil {
+		t.Error(err)
+	}
+	if !is {
+		t.Error("expected true")
 	}
 }
 
