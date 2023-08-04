@@ -351,7 +351,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 		Pair:       pair,
 	}
 	updates.Asks = make([]orderbook.Item, len(data.Asks))
-	for x := range updates.Asks {
+	for x := range data.Asks {
 		updates.Asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
 			return err
