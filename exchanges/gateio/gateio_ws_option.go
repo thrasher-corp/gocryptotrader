@@ -405,12 +405,8 @@ func (g *Gateio) processOptionsContractTickers(incoming []byte) error {
 	if err != nil {
 		return err
 	}
-	currencyPair, err := currency.NewPairFromString(data.Name)
-	if err != nil {
-		return err
-	}
 	g.Websocket.DataHandler <- &ticker.Price{
-		Pair:         currencyPair,
+		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
 		Bid:          data.Bid1Price,
 		Ask:          data.Ask1Price,
@@ -562,14 +558,10 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 		if err != nil {
 			return err
 		}
-		pair, err := currency.NewPairFromString(data.Contract)
-		if err != nil {
-			return err
-		}
 		base := orderbook.Base{
 			Asset:           asset.Options,
 			Exchange:        g.Name,
-			Pair:            pair,
+			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}

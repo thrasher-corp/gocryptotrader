@@ -166,10 +166,6 @@ func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
 	if err != nil {
 		return err
 	}
-	currencyPair, err := currency.NewPairFromString(data.CurrencyPair)
-	if err != nil {
-		return err
-	}
 	tickerPrice := ticker.Price{
 		ExchangeName: g.Name,
 		Volume:       data.BaseVolume,
@@ -180,10 +176,10 @@ func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
 		Bid:          data.HighestBid,
 		Ask:          data.LowestAsk,
 		AssetType:    asset.Spot,
-		Pair:         currencyPair,
+		Pair:         data.CurrencyPair,
 		LastUpdated:  time.Unix(pushTime, 0),
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	if assetPairEnabled[asset.Spot] {
 		g.Websocket.DataHandler <- &tickerPrice
 	}
@@ -206,17 +202,14 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	if err != nil {
 		return err
 	}
-	currencyPair, err := currency.NewPairFromString(data.CurrencyPair)
-	if err != nil {
-		return err
-	}
+
 	side, err := order.StringToOrderSide(data.Side)
 	if err != nil {
 		return err
 	}
 	spotTradeData := trade.Data{
 		Timestamp:    time.UnixMicro(int64(data.CreateTimeMs * 1e3)), // the timestamp data is coming as a floating number.
-		CurrencyPair: currencyPair,
+		CurrencyPair: data.CurrencyPair,
 		AssetType:    asset.Spot,
 		Exchange:     g.Name,
 		Price:        data.Price,
@@ -224,7 +217,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 		Side:         side,
 		TID:          strconv.FormatInt(data.ID, 10),
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	if assetPairEnabled[asset.Spot] {
 		err = trade.AddTradesToBuffer(g.Name, spotTradeData)
 		if err != nil {
@@ -300,14 +293,9 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 		return err
 	}
 
-	pair, err := currency.NewPairFromString(data.CurrencyPair)
-	if err != nil {
-		return err
-	}
-
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Exchange:    g.Name,
-		Pair:        pair,
+		Pair:        data.CurrencyPair,
 		Asset:       asset.Spot,
 		LastUpdated: time.UnixMilli(data.UpdateTimeMS),
 		Bids:        []orderbook.Item{{Price: data.BestBidPrice, Amount: data.BestBidAmount}},
@@ -321,14 +309,10 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(data.CurrencyPair)
-	if err != nil {
-		return err
-	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(pair)
-	if !fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair] {
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
+	if !fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] {
 		var orderbooks *orderbook.Base
-		orderbooks, err = g.FetchOrderbook(context.Background(), pair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
+		orderbooks, err = g.FetchOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
 		if err != nil {
 			return err
 		}
@@ -344,11 +328,11 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 				return err
 			}
 		}
-		fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair] = true
+		fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] = true
 	}
 	updates := orderbook.Update{
 		UpdateTime: data.UpdateTimeMs.Time(),
-		Pair:       pair,
+		Pair:       data.CurrencyPair,
 	}
 	updates.Asks = make([]orderbook.Item, len(data.Asks))
 	for x := range data.Asks {
@@ -407,14 +391,10 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(data.CurrencyPair)
-	if err != nil {
-		return err
-	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(pair)
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	bases := orderbook.Base{
 		Exchange:        g.Name,
-		Pair:            pair,
+		Pair:            data.CurrencyPair,
 		Asset:           asset.Spot,
 		LastUpdated:     data.UpdateTimeMs.Time(),
 		LastUpdateID:    data.LastUpdateID,
@@ -480,10 +460,6 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 	}
 	details := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		pair, err := currency.NewPairFromString(resp.Result[x].CurrencyPair)
-		if err != nil {
-			return err
-		}
 		side, err := order.StringToOrderSide(resp.Result[x].Side)
 		if err != nil {
 			return err
@@ -502,7 +478,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			OrderID:        resp.Result[x].ID,
 			Side:           side,
 			Type:           orderType,
-			Pair:           pair,
+			Pair:           resp.Result[x].CurrencyPair,
 			Cost:           resp.Result[x].Fee,
 			AssetType:      a,
 			Price:          resp.Result[x].Price,
@@ -528,10 +504,6 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range fills {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].CurrencyPair)
-		if err != nil {
-			return err
-		}
 		side, err := order.StringToOrderSide(resp.Result[x].Side)
 		if err != nil {
 			return err
@@ -539,7 +511,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTimeMicroS,
 			Exchange:     g.Name,
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].CurrencyPair,
 			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      strconv.FormatInt(resp.Result[x].ID, 10),

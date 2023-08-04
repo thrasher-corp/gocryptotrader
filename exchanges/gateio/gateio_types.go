@@ -918,7 +918,7 @@ type MyOptionSettlement struct {
 
 // OptionsTicker represents  tickers of options contracts
 type OptionsTicker struct {
-	Name                  string               `json:"name"`
+	Name                  currency.Pair        `json:"name"`
 	LastPrice             gateioNumericalValue `json:"last_price"`
 	MarkPrice             gateioNumericalValue `json:"mark_price"`
 	PositionSize          float64              `json:"position_size"`
@@ -1999,26 +1999,26 @@ type WsResponse struct {
 
 // WsTicker websocket ticker information.
 type WsTicker struct {
-	CurrencyPair     string  `json:"currency_pair"`
-	Last             float64 `json:"last,string"`
-	LowestAsk        float64 `json:"lowest_ask,string"`
-	HighestBid       float64 `json:"highest_bid,string"`
-	ChangePercentage float64 `json:"change_percentage,string"`
-	BaseVolume       float64 `json:"base_volume,string"`
-	QuoteVolume      float64 `json:"quote_volume,string"`
-	High24H          float64 `json:"high_24h,string"`
-	Low24H           float64 `json:"low_24h,string"`
+	CurrencyPair     currency.Pair `json:"currency_pair"`
+	Last             float64       `json:"last,string"`
+	LowestAsk        float64       `json:"lowest_ask,string"`
+	HighestBid       float64       `json:"highest_bid,string"`
+	ChangePercentage float64       `json:"change_percentage,string"`
+	BaseVolume       float64       `json:"base_volume,string"`
+	QuoteVolume      float64       `json:"quote_volume,string"`
+	High24H          float64       `json:"high_24h,string"`
+	Low24H           float64       `json:"low_24h,string"`
 }
 
 // WsTrade represents a websocket push data response for a trade
 type WsTrade struct {
-	ID           int64   `json:"id"`
-	CreateTime   int64   `json:"create_time"`
-	CreateTimeMs float64 `json:"create_time_ms,string"`
-	Side         string  `json:"side"`
-	CurrencyPair string  `json:"currency_pair"`
-	Amount       float64 `json:"amount,string"`
-	Price        float64 `json:"price,string"`
+	ID           int64         `json:"id"`
+	CreateTime   int64         `json:"create_time"`
+	CreateTimeMs float64       `json:"create_time_ms,string"`
+	Side         string        `json:"side"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Amount       float64       `json:"amount,string"`
+	Price        float64       `json:"price,string"`
 }
 
 // WsCandlesticks represents the candlestick data for spot, margin and cross margin trades pushed through the websocket channel.
@@ -2034,34 +2034,34 @@ type WsCandlesticks struct {
 
 // WsOrderbookTickerData represents the websocket orderbook best bid or best ask push data
 type WsOrderbookTickerData struct {
-	UpdateTimeMS  int64   `json:"t"`
-	UpdateOrderID int64   `json:"u"`
-	CurrencyPair  string  `json:"s"`
-	BestBidPrice  float64 `json:"b,string"`
-	BestBidAmount float64 `json:"B,string"`
-	BestAskPrice  float64 `json:"a,string"`
-	BestAskAmount float64 `json:"A,string"`
+	UpdateTimeMS  int64         `json:"t"`
+	UpdateOrderID int64         `json:"u"`
+	CurrencyPair  currency.Pair `json:"s"`
+	BestBidPrice  float64       `json:"b,string"`
+	BestBidAmount float64       `json:"B,string"`
+	BestAskPrice  float64       `json:"a,string"`
+	BestAskAmount float64       `json:"A,string"`
 }
 
 // WsOrderbookUpdate represents websocket orderbook update push data
 type WsOrderbookUpdate struct {
-	UpdateTimeMs            gateioTime  `json:"t"`
-	IgnoreField             string      `json:"e"`
-	UpdateTime              gateioTime  `json:"E"`
-	CurrencyPair            string      `json:"s"`
-	FirstOrderbookUpdatedID int64       `json:"U"` // First update order book id in this event since last update
-	LastOrderbookUpdatedID  int64       `json:"u"`
-	Bids                    [][2]string `json:"b"`
-	Asks                    [][2]string `json:"a"`
+	UpdateTimeMs            gateioTime    `json:"t"`
+	IgnoreField             string        `json:"e"`
+	UpdateTime              gateioTime    `json:"E"`
+	CurrencyPair            currency.Pair `json:"s"`
+	FirstOrderbookUpdatedID int64         `json:"U"` // First update order book id in this event since last update
+	LastOrderbookUpdatedID  int64         `json:"u"`
+	Bids                    [][2]string   `json:"b"`
+	Asks                    [][2]string   `json:"a"`
 }
 
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
 type WsOrderbookSnapshot struct {
-	UpdateTimeMs gateioTime  `json:"t"`
-	LastUpdateID int64       `json:"lastUpdateId"`
-	CurrencyPair string      `json:"s"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	UpdateTimeMs gateioTime    `json:"t"`
+	LastUpdateID int64         `json:"lastUpdateId"`
+	CurrencyPair currency.Pair `json:"s"`
+	Bids         [][2]string   `json:"bids"`
+	Asks         [][2]string   `json:"asks"`
 }
 
 // WsSpotOrder represents an order push data through the websocket channel.
@@ -2072,7 +2072,7 @@ type WsSpotOrder struct {
 	Succeeded          bool                 `json:"succeeded,omitempty"`
 	Label              string               `json:"label,omitempty"`
 	Message            string               `json:"message,omitempty"`
-	CurrencyPair       string               `json:"currency_pair,omitempty"`
+	CurrencyPair       currency.Pair        `json:"currency_pair,omitempty"`
 	Type               string               `json:"type,omitempty"`
 	Account            string               `json:"account,omitempty"`
 	Side               string               `json:"side,omitempty"`
@@ -2098,20 +2098,20 @@ type WsSpotOrder struct {
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
 type WsUserPersonalTrade struct {
-	ID               int64     `json:"id"`
-	UserID           int64     `json:"user_id"`
-	OrderID          string    `json:"order_id"`
-	CurrencyPair     string    `json:"currency_pair"`
-	CreateTime       int64     `json:"create_time"`
-	CreateTimeMicroS time.Time `json:"create_time_ms"`
-	Side             string    `json:"side"`
-	Amount           float64   `json:"amount,string"`
-	Role             string    `json:"role"`
-	Price            float64   `json:"price,string"`
-	Fee              float64   `json:"fee,string"`
-	PointFee         float64   `json:"point_fee,string"`
-	GtFee            string    `json:"gt_fee"`
-	Text             string    `json:"text"`
+	ID               int64         `json:"id"`
+	UserID           int64         `json:"user_id"`
+	OrderID          string        `json:"order_id"`
+	CurrencyPair     currency.Pair `json:"currency_pair"`
+	CreateTime       int64         `json:"create_time"`
+	CreateTimeMicroS time.Time     `json:"create_time_ms"`
+	Side             string        `json:"side"`
+	Amount           float64       `json:"amount,string"`
+	Role             string        `json:"role"`
+	Price            float64       `json:"price,string"`
+	Fee              float64       `json:"fee,string"`
+	PointFee         float64       `json:"point_fee,string"`
+	GtFee            string        `json:"gt_fee"`
+	Text             string        `json:"text"`
 }
 
 // WsSpotBalance represents a spot balance.
@@ -2530,9 +2530,9 @@ type WsOptionsOrderbookTicker struct {
 
 // WsOptionsOrderbookSnapshot represents the options orderbook snapshot push data.
 type WsOptionsOrderbookSnapshot struct {
-	Timestamp gateioTime `json:"t"`
-	Contract  string     `json:"contract"`
-	ID        int64      `json:"id"`
+	Timestamp gateioTime    `json:"t"`
+	Contract  currency.Pair `json:"contract"`
+	ID        int64         `json:"id"`
 	Asks      []struct {
 		Price float64 `json:"p,string"`
 		Size  float64 `json:"s"`

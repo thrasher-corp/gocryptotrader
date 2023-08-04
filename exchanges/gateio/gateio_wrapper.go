@@ -331,20 +331,16 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			return nil, err
 		}
 		for x := range tickers {
-			if tickers[x].Name != fPair.String() {
+			if !tickers[x].Name.Equal(fPair) {
 				continue
 			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(strings.ReplaceAll(tickers[x].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
-			if err != nil {
-				return nil, err
-			}
-			cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
+			cleanQuote := strings.ReplaceAll(tickers[x].Name.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter)
+			tickers[x].Name.Quote = currency.NewCode(cleanQuote)
 			if err != nil {
 				return nil, err
 			}
 			tickerData = &ticker.Price{
-				Pair:         cp,
+				Pair:         tickers[x].Name,
 				Last:         tickers[x].LastPrice.Float64(),
 				Bid:          tickers[x].Bid1Price,
 				Ask:          tickers[x].Ask1Price,
@@ -644,17 +640,13 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			for x := range tickers {
-				currencyPair, err := currency.NewPairFromString(tickers[x].Name)
-				if err != nil {
-					return err
-				}
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tickers[x].LastPrice.Float64(),
 					Ask:          tickers[x].Ask1Price,
 					AskSize:      tickers[x].Ask1Size,
 					Bid:          tickers[x].Bid1Price,
 					BidSize:      tickers[x].Bid1Size,
-					Pair:         currencyPair,
+					Pair:         tickers[x].Name,
 					ExchangeName: g.Name,
 					AssetType:    a,
 				})
