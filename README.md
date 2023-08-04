@@ -143,13 +143,14 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 675 |
-| [shazbert](https://github.com/shazbert) | 273 |
-| [gloriousCode](https://github.com/gloriousCode) | 208 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 157 |
+| [thrasher-](https://github.com/thrasher-) | 681 |
+| [shazbert](https://github.com/shazbert) | 298 |
+| [gloriousCode](https://github.com/gloriousCode) | 216 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 198 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
+| [gbjk](https://github.com/gbjk) | 24 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
@@ -159,20 +160,19 @@ Binaries will be published once the codebase reaches a stable condition.
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [geseq](https://github.com/geseq) | 8 |
+| [TaltaM](https://github.com/TaltaM) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
+| [samuael](https://github.com/samuael) | 5 |
+| [Beadko](https://github.com/Beadko) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [yangrq1018](https://github.com/yangrq1018) | 3 |
-| [TaltaM](https://github.com/TaltaM) | 3 |
-| [samuael](https://github.com/samuael) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
-| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
-| [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
