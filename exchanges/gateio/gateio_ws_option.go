@@ -574,7 +574,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Item, len(data.Asks))
-		for x := range base.Asks {
+		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
 			base.Asks[x].Price = data.Asks[x].Price
 		}
