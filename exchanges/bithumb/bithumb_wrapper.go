@@ -669,7 +669,7 @@ func (b *Bithumb) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdr
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	if math.Mod(withdrawRequest.Amount, 1) != 0 {
+	if math.Trunc(withdrawRequest.Amount) != withdrawRequest.Amount {
 		return nil, errors.New("currency KRW does not support decimal places")
 	}
 	if !withdrawRequest.Currency.Equal(currency.KRW) {

@@ -661,8 +661,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	err := o.Validate()
-	if err != nil {
+	if err := o.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -674,13 +673,25 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
-			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
-			Type:     o.Type.String(),
-			Symbol:   fPair.String(),
-			Amount:   o.Amount,
-			Price:    o.Price,
-		})
+		symbolStr, err := b.fixCasing(fPair, o.AssetType) //nolint:govet // intentional shadow of err
+		if err != nil {
+			return nil, err
+		}
+		orderType := strings.ToUpper(o.Type.String())
+		if o.AssetType == asset.Spot {
+			orderType = "EXCHANGE " + orderType
+		}
+		req := &WsNewOrderRequest{
+			Type:   orderType,
+			Symbol: symbolStr,
+			Amount: o.Amount,
+			Price:  o.Price,
+		}
+		if o.Side.IsShort() && o.Amount > 0 {
+			// All v2 apis use negatives for Short side
+			req.Amount *= -1
+		}
+		orderID, err = b.WsNewOrder(req)
 		if err != nil {
 			return nil, err
 		}
@@ -733,7 +744,7 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Price:   action.Price,
 			Amount:  action.Amount,
 		}
-		if action.Side == order.Sell && action.Amount > 0 {
+		if action.Side.IsShort() && action.Amount > 0 {
 			wsRequest.Amount *= -1
 		}
 		err = b.WsModifyOrder(&wsRequest)
