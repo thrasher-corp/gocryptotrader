@@ -264,52 +264,52 @@ func TestWaitForInitialSync(t *testing.T) {
 func TestSyncManagerUpdate(t *testing.T) {
 	t.Parallel()
 	var m *syncManager
-	err := m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	err := m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
 	}
 
 	m = &syncManager{}
-	err = m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
 
 	m.started = 1
 	// not started initial sync
-	err = m.Update("", currency.EMPTYPAIR, 1, 47, nil)
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	m.initSyncStarted = 1
 	// orderbook not enabled
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	m.config.SynchronizeOrderbook = true
 	// ticker not enabled
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, nil)
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	m.config.SynchronizeTicker = true
 	// trades not enabled
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, nil)
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, nil)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	m.config.SynchronizeTrades = true
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, 1336, nil)
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, 1336, nil)
 	if !errors.Is(err, errUnknownSyncItem) {
 		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncItem)
 	}
 
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
 	if !errors.Is(err, errCouldNotSyncNewData) {
 		t.Fatalf("received %v, but expected: %v", err, errCouldNotSyncNewData)
 	}
@@ -320,19 +320,19 @@ func TestSyncManagerUpdate(t *testing.T) {
 	}, syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, errors.New("test"))
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, errors.New("test"))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	// ticker match
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, errors.New("test"))
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, errors.New("test"))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
 
 	// trades match
-	err = m.Update("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, errors.New("test"))
+	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, errors.New("test"))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, but expected: %v", err, nil)
 	}
