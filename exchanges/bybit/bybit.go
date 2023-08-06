@@ -39,56 +39,6 @@ const (
 	sideSell = "Sell"
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
-
-	// --------- New ----------------------------------------------------------------
-	instrumentsInfo            = "market/instruments-info"
-	klineInfos                 = "market/kline"
-	markPriceKline             = "market/mark-price-kline"
-	indexPriceKline            = "market/index-price-kline"
-	marketOrderbook            = "market/orderbook"
-	marketTicker               = "market/tickers"
-	marketFundingRateHistory   = "market/funding/history"
-	marketRecentTrade          = "market/recent-trade"
-	marketOpenInterest         = "market/open-interest"
-	marketHistoricalVolatility = "market/historical-volatility"
-	marketInsurance            = "market/insurance"
-	marketRiskLimit            = "market/risk-limit"
-	marketDeliveryPrice        = "market/delivery-price"
-
-	// Trade
-	placeOrder            = "/v5/order/create"
-	amendOrder            = "/v5/order/amend"
-	cancelOrder           = "/v5/order/cancel"
-	openOrders            = "/v5/order/realtime"
-	cancelAllOrders       = "/v5/order/cancel-all"
-	tradeOrderhistory     = "/v5/order/history"
-	placeBatchTradeOrders = "/v5/order/create-batch"
-	amendBatchOrder       = "/v5/order/amend-batch"
-	cancelBatchOrder      = "/v5/order/cancel-batch"
-	tradeBorrowCheck      = "/v5/order/spot-borrow-check"
-
-	// Position endpoints
-	getPositionList          = "/v5/position/list"
-	positionSetLeverage      = "/v5/position/set-leverage"
-	switchTradeMode          = "/v5/position/switch-isolated"
-	setTPSLMode              = "/v5/position/set-tpsl-mode"
-	switchPositionMode       = "/v5/position/switch-mode"
-	setPositionRiskLimit     = "/v5/position/set-risk-limit"
-	stopTradingPosition      = "/v5/position/trading-stop"
-	positionSetAutoAddMargin = "/v5/position/set-auto-add-margin"
-	addOrRemoveMargin        = "/v5/position/add-margin"
-	positionExecutionList    = "/v5/execution/list"
-	positionClosedPNL        = "/v5/position/closed-pnl"
-
-	// Pre-Upgrade endpoints
-	preUpgradeOrderHistory          = "/v5/pre-upgrade/order/history"
-	preUpgradeExecutionList         = "/v5/pre-upgrade/execution/list"
-	preUpgradePositionClosedPNL     = "/v5/pre-upgrade/position/closed-pnl"
-	preUpgradeAccountTransactionLog = "/v5/pre-upgrade/account/transaction-log"
-	preUpgradeAssetDeliveryRecord   = "/v5/pre-upgrade/asset/delivery-record"
-	preUpgradeAssetSettlementRecord = "/v5/pre-upgrade/asset/settlement-record"
-	accountWalletBalanceRequired    = "/v5/account/wallet-balance"
-	accountUpgradeToUTA             = "/v5/account/upgrade-to-uta"
 )
 
 var (
@@ -224,7 +174,7 @@ func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interva
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp KlineResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(klineInfos, params), defaultEPL, &resp)
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/kline", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +238,7 @@ func (by *Bybit) GetInstruments(ctx context.Context, category, symbol, status, b
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp InstrumentsInfo
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(instrumentsInfo, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/instruments-info", params), defaultEPL, &resp)
 }
 
 // GetMarkPriceKline query for historical mark price klines. Charts are returned in groups based on the requested interval.
@@ -312,7 +262,7 @@ func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp MarkPriceKlineResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(markPriceKline, params), defaultEPL, &resp)
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/mark-price-kline", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +290,7 @@ func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp KlineResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(indexPriceKline, params), defaultEPL, &resp)
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/index-price-kline", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +307,7 @@ func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limi
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp orderbookResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketOrderbook, params), defaultEPL, &resp)
+	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/orderbook", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +346,7 @@ func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin stri
 		params.Set("expData", expiryDate.Format("02Jan06"))
 	}
 	var resp TickerData
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketTicker, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/tickers", params), defaultEPL, &resp)
 }
 
 // GetFundingRateHistory retrieves historical funding rates. Each symbol has a different funding interval.
@@ -423,7 +373,7 @@ func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol str
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp FundingRateHistory
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketFundingRateHistory, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/funding/history", params), defaultEPL, &resp)
 }
 
 // GetPublicTradingHistory retrieves recent public trading data.
@@ -446,7 +396,7 @@ func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp TradingHistory
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketRecentTrade, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/recent-trade", params), defaultEPL, &resp)
 }
 
 // GetOpenInterest retrieves open interest of each symbol.
@@ -478,7 +428,7 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, category, symbol, interval
 		params.Set("cursor", cursor)
 	}
 	var resp OpenInterest
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketOpenInterest, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/open-interest", params), defaultEPL, &resp)
 }
 
 // GetHistoricalValatility retrieves option historical volatility.
@@ -508,7 +458,7 @@ func (by *Bybit) GetHistoricalValatility(ctx context.Context, category, baseCoin
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []HistoricVolatility
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketHistoricalVolatility, params), defaultEPL, &resp)
+	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/historical-volatility", params), defaultEPL, &resp)
 }
 
 // GetInsurance retrieves insurance pool data (BTC/USDT/USDC etc). The data is updated every 24 hours.
@@ -518,7 +468,7 @@ func (by *Bybit) GetInsurance(ctx context.Context, coin string) (*InsuranceHisto
 		params.Set("coin", coin)
 	}
 	var resp InsuranceHistory
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketInsurance, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/insurance", params), defaultEPL, &resp)
 }
 
 // GetRiskLimit retrieves risk limit history
@@ -534,7 +484,7 @@ func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*Ri
 		params.Set("symbol", symbol)
 	}
 	var resp RiskLimitHistory
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketRiskLimit, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/risk-limit", params), defaultEPL, &resp)
 }
 
 // GetDeliveryPrice retrieves delivery price.
@@ -559,7 +509,7 @@ func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoi
 		params.Set("cursor", cursor)
 	}
 	var resp DeliveryPrice
-	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(marketDeliveryPrice, params), defaultEPL, &resp)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/delivery-price", params), defaultEPL, &resp)
 }
 
 // ----------------- Trade Endpoints ----------------
@@ -621,7 +571,7 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 		return nil, errInvalidTriggerPriceType
 	}
 	var resp OrderResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, placeOrder, nil, arg, &resp, createOrderEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, createOrderEPL)
 }
 
 // AmendOrder amends an open unfilled or partially filled orders.
@@ -640,7 +590,7 @@ func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderR
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp OrderResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, amendOrder, nil, arg, &resp, amendOrderEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend", nil, arg, &resp, amendOrderEPL)
 }
 
 // CancelTradeOrder cancels an open unfilled or partially filled order.
@@ -666,7 +616,7 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 		}
 	}
 	var resp *OrderResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, cancelOrder, nil, arg, &resp, cancelOrderEPL)
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, cancelOrderEPL)
 }
 
 // GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
@@ -700,7 +650,7 @@ func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, 
 		params.Set("cursor", cursor)
 	}
 	var resp TradeOrders
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, openOrders, params, nil, &resp, getOrderEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/realtime", params, nil, &resp, getOrderEPL)
 }
 
 // CancelAllTradeOrders cancel all open orders
@@ -713,7 +663,7 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 		return nil, err
 	}
 	var resp CancelAllResponse
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, cancelAllOrders, nil, arg, &resp, calcelAllEPL)
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, calcelAllEPL)
 }
 
 // GetTradeOrderHistory retrieves order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
@@ -756,7 +706,7 @@ func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, ord
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp TradeOrders
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, tradeOrderhistory, params, nil, &resp, getOrderHistoryEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/history", params, nil, &resp, getOrderHistoryEPL)
 }
 
 // PlaceBatchOrder place batch or trade order.
@@ -789,7 +739,7 @@ func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam)
 		}
 	}
 	var resp BatchOrdersList
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, placeBatchTradeOrders, nil, arg, &resp, createBatchOrderEPL)
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create-batch", nil, arg, &resp, createBatchOrderEPL)
 }
 
 // BatchAmendOrder represents a batch amend order.
@@ -813,7 +763,7 @@ func (by *Bybit) BatchAmendOrder(ctx context.Context, arg *BatchAmendOrderParams
 		}
 	}
 	var resp BatchOrderResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, amendBatchOrder, nil, arg, &resp, amendBatchOrderEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend-batch", nil, arg, &resp, amendBatchOrderEPL)
 }
 
 // CancelBatchOrder cancel more than one open order in a single request.
@@ -857,7 +807,7 @@ func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side stri
 	}
 	params.Set("side", side)
 	var resp BorrowQuota
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, tradeBorrowCheck, params, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/spot-borrow-check", params, nil, &resp, defaultEPL)
 }
 
 // SetDisconnectCancelAll You can use this endpoint to get your current DCP configuration.
@@ -903,7 +853,7 @@ func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp PositionInfoList
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, getPositionList, params, nil, &resp, getPositionListEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/position/list", params, nil, &resp, getPositionListEPL)
 }
 
 // SetLeverage sets a leverage from 0 to max leverage of corresponding risk limit
@@ -928,7 +878,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, arg *SetLeverageParams) error 
 		return fmt.Errorf("%w, buy leverage not equal sell leverage", errInvalidLeverage)
 	}
 	var resp interface{}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, positionSetLeverage, nil, arg, &resp, postPOsitionSetLeverageEPL)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-leverage", nil, arg, &resp, postPOsitionSetLeverageEPL)
 }
 
 // SwitchTradeMode sets the trade mode value either to 'cross' or 'isolated'.
@@ -955,7 +905,7 @@ func (by *Bybit) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams
 		return errInvalidTradeModeValue
 	}
 	var resp interface{}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, switchTradeMode, nil, arg, &resp, defaultEPL)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/switch-isolated", nil, arg, &resp, defaultEPL)
 }
 
 // SetTakeProfitStopLossMode set partial TP/SL mode, you can set the TP/SL size smaller than position size.
@@ -977,7 +927,7 @@ func (by *Bybit) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModePar
 		return nil, errTakeProfitOrStopLossModeMissing
 	}
 	var resp *TPSLModeResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, setTPSLMode, nil, arg, &resp, setPositionTPLSModeEPL)
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-tpsl-mode", nil, arg, &resp, setPositionTPLSModeEPL)
 }
 
 // SwitchPositionMode switch the position mode for USDT perpetual and Inverse futures.
@@ -999,7 +949,7 @@ func (by *Bybit) SwitchPositionMode(ctx context.Context, arg *SwitchPositionMode
 		return errEitherSymbolOrCoinRequired
 	}
 	var resp interface{}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, switchPositionMode, nil, arg, &resp, defaultEPL)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/switch-mode", nil, arg, &resp, defaultEPL)
 }
 
 // SetRiskLimit risk limit will limit the maximum position value you can hold under different margin requirements.
@@ -1024,7 +974,7 @@ func (by *Bybit) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*Ris
 		return nil, errSymbolMissing
 	}
 	var resp RiskLimitResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, setPositionRiskLimit, nil, arg, &resp, setPositionRiskLimitEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-risk-limit", nil, arg, &resp, setPositionRiskLimitEPL)
 }
 
 // SetTradingStop set the take profit, stop loss or trailing stop for the position.
@@ -1043,7 +993,7 @@ func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) err
 		return errSymbolMissing
 	}
 	var resp interface{}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, stopTradingPosition, nil, arg, &resp, stopTradingPositionEPL)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/trading-stop", nil, arg, &resp, stopTradingPositionEPL)
 }
 
 // SetAutoAddMargin sets auto add margin
@@ -1068,7 +1018,7 @@ func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AddRemoveMarginParam
 		return errInvalidPositionMode
 	}
 	var resp interface{}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, positionSetAutoAddMargin, nil, arg, &resp, defaultEPL)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-auto-add-margin", nil, arg, &resp, defaultEPL)
 }
 
 // AddOrReduceMargin manually add or reduce margin for isolated margin position
@@ -1093,7 +1043,7 @@ func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddRemoveMarginPara
 		return nil, errInvalidPositionMode
 	}
 	var resp AddOrReduceMargin
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, addOrRemoveMargin, nil, arg, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/add-margin", nil, arg, &resp, defaultEPL)
 }
 
 // GetExecution retrieves users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
@@ -1127,7 +1077,7 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp ExecutionResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, positionExecutionList, params, nil, &resp, getExecutionListEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/execution/list", params, nil, &resp, getExecutionListEPL)
 }
 
 // GetClosedPnL retrieves user's closed profit and loss records. The results are sorted by createdTime in descending order.
@@ -1137,7 +1087,7 @@ func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor stri
 		return nil, err
 	}
 	var resp ClosedProfitAndLossResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, positionClosedPNL, params, nil, &resp, getPositionClosedPNLEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/position/closed-pnl", params, nil, &resp, getPositionClosedPNLEPL)
 }
 
 // ---------------------------------------------------------------- Pre-Upgrade ----------------------------------------------------------------
@@ -1200,7 +1150,7 @@ func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol
 		return nil, err
 	}
 	var resp TradeOrders
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeOrderHistory, params, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/order/history", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeTradeHistory retrieves users' execution records which occurred before you upgraded the account to a Unified account, sorted by execTime in descending order
@@ -1213,7 +1163,7 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 		params.Set("executionType", executionType)
 	}
 	var resp ExecutionResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeExecutionList, params, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/execution/list", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeClosedPnL retrieves user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
@@ -1223,7 +1173,7 @@ func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, c
 		return nil, err
 	}
 	var resp ClosedProfitAndLossResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradePositionClosedPNL, params, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/position/closed-pnl", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeTransactionLog retrieves transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified account.
@@ -1236,7 +1186,7 @@ func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, base
 		params.Set("type", transactionType)
 	}
 	var resp TransactionLog
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAccountTransactionLog, params, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/account/transaction-log", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeOptionDeliveryRecord retrieves delivery records of Option before you upgraded the account to a Unified account, sorted by deliveryTime in descending order
@@ -1249,7 +1199,7 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 		params.Set("expData", expiryDate.Format("02Jan06"))
 	}
 	var resp PreUpdateOptionDeliveryRecord
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAssetDeliveryRecord, params, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/delivery-record", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeUSDCSessionSettlement retrieves session settlement records of USDC perpetual before you upgrade the account to Unified account.
@@ -1259,7 +1209,7 @@ func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, categor
 		return nil, err
 	}
 	var resp SettlementSession
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, preUpgradeAssetSettlementRecord, params, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/settlement-record", params, nil, &resp, defaultEPL)
 }
 
 // ---------------------------------------------------------------- Account Endpoints ----------------------------------------------------------------
@@ -1278,13 +1228,13 @@ func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string)
 		params.Set("coin", coin)
 	}
 	var resp WalletBalance
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, accountWalletBalanceRequired, params, nil, &resp, getAccountWalletBalaceEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/wallet-balance", params, nil, &resp, getAccountWalletBalaceEPL)
 }
 
 // UpgradeToUnifiedAccount upgrades the account to unified account.
 func (by *Bybit) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUpgradeResponse, error) {
 	var resp UnifiedAccountUpgradeResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, accountUpgradeToUTA, nil, nil, &resp, defaultEPL)
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/upgrade-to-uta", nil, nil, &resp, defaultEPL)
 }
 
 // GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.

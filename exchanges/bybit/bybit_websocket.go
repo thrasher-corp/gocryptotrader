@@ -101,7 +101,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	intNonce := (time.Now().Unix() + 1) * 1000
+	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -252,14 +252,26 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	if err != nil {
 		return nil, err
 	}
-	for z := range pairs {
-		for x := range channels {
+	for x := range channels {
+		switch channels[x] {
+		case chanPositions,
+			chanExecution,
+			chanOrder,
+			chanWallet:
 			subscriptions = append(subscriptions,
 				stream.ChannelSubscription{
-					Channel:  channels[x],
-					Currency: pairs[z],
-					Asset:    asset.Spot,
+					Channel: channels[x],
+					Asset:   asset.Spot,
 				})
+		default:
+			for z := range pairs {
+				subscriptions = append(subscriptions,
+					stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: pairs[z],
+						Asset:    asset.Spot,
+					})
+			}
 		}
 	}
 	return subscriptions, nil
@@ -292,13 +304,14 @@ func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
 		return err
 	}
 	if result.Topic == "" {
-		var subscriptionResult SubscriptionResponse
-		err := json.Unmarshal(respRaw, &subscriptionResult)
-		if err != nil {
-			return err
-		}
-		if !by.Websocket.Match.IncomingWithData(subscriptionResult.RequestID, respRaw) {
-			return fmt.Errorf("could not match subscription with id %s data %s", subscriptionResult.RequestID, respRaw)
+		switch result.Operation {
+		case "subscribe", "unsubscribe", "auth":
+			if result.RequestID != "" {
+				if !by.Websocket.Match.IncomingWithData(result.RequestID, respRaw) {
+					return fmt.Errorf("could not match subscription with id %s data %s", result.RequestID, respRaw)
+				}
+			}
+		case "ping", "pong":
 		}
 		return nil
 	}

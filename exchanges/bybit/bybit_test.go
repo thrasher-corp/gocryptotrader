@@ -2611,7 +2611,6 @@ func TestCancelBatchOrders(t *testing.T) {
 		OrderID:   "2",
 		Pair:      optionsTradablePair,
 		AssetType: asset.Options}}
-	b.Verbose = true
 	_, err = b.CancelBatchOrders(context.Background(), orderCancellationParams)
 	if err != nil {
 		t.Error(err)

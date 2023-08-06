@@ -1969,6 +1969,12 @@ type WebsocketResponse struct {
 	Timestamp     convert.ExchangeTime `json:"ts"`
 	Data          json.RawMessage      `json:"data"`
 	CrossSequence int64                `json:"cs"`
+
+	// for ping messages
+	Operation string `json:"op"`
+
+	// for subscription response checks.
+	RequestID string `json:"req_id"`
 }
 
 // WebsocketPublicTrades represents
