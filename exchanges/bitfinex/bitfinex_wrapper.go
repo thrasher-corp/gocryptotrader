@@ -59,7 +59,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = true
 	b.Verbose = true
-	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+	b.WebsocketSubdChannels = make(map[int]*stream.ChannelSubscription)
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 

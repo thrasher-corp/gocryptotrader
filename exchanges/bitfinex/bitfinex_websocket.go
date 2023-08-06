@@ -129,8 +129,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 	var result interface{}
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	switch d := result.(type) {
@@ -147,10 +146,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				return errors.New("unable to type assert channel")
 			}
 			if symbol, ok := d["symbol"].(string); ok {
-				b.WsAddSubscriptionChannel(int(chanID),
-					channel,
-					symbol,
-				)
+				if err := b.WsAddSubscriptionChannel(int(chanID), channel, symbol); err != nil {
+					return err
+				}
 			} else if key, ok := d["key"].(string); ok {
 				// Capture trading subscriptions
 				if contents := strings.Split(key, ":"); len(contents) > 3 {
@@ -160,11 +158,16 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						key = contents[2] + ":" + contents[3]
 					}
 				}
-				b.WsAddSubscriptionChannel(int(chanID),
-					channel,
-					key,
-				)
+				if err := b.WsAddSubscriptionChannel(int(chanID), channel, key); err != nil {
+					return err
+				}
 			}
+		case "unsubscribed":
+			chanID, ok := d["chanId"].(float64)
+			if !ok {
+				return errors.New("unable to type assert chanId")
+			}
+			delete(b.WebsocketSubdChannels, int(chanID))
 		case "auth":
 			status, ok := d["status"].(string)
 			if !ok {
@@ -172,7 +175,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			if status == "OK" {
 				b.Websocket.DataHandler <- d
-				b.WsAddSubscriptionChannel(0, "account", "")
+				if err := b.WsAddSubscriptionChannel(0, "account", ""); err != nil {
+					return err
+				}
 			} else if status == "fail" {
 				if code, ok := d["code"].(string); ok {
 					return fmt.Errorf("websocket unable to AUTH. Error code: %s",
@@ -218,48 +223,13 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		chanInfo, ok := b.WebsocketSubdChannels[chanID]
+		c, ok := b.WebsocketSubdChannels[chanID]
 		if !ok && chanID != 0 {
 			return fmt.Errorf("unable to locate chanID: %d",
 				chanID)
 		}
 
-		var chanAsset = asset.Spot
-		var pair currency.Pair
-		pairInfo := strings.Split(chanInfo.Pair, ":")
-		switch {
-		case len(pairInfo) >= 3:
-			newPair := pairInfo[2]
-			if newPair[0] == 'f' {
-				chanAsset = asset.MarginFunding
-			}
-
-			pair, err = currency.NewPairFromString(newPair[1:])
-			if err != nil {
-				return err
-			}
-		case len(pairInfo) == 1 && chanInfo.Pair != "":
-			newPair := pairInfo[0]
-			if newPair[0] == 'f' {
-				chanAsset = asset.MarginFunding
-			}
-
-			pair, err = currency.NewPairFromString(newPair[1:])
-			if err != nil {
-				return err
-			}
-		case chanInfo.Pair != "":
-			if strings.Contains(chanInfo.Pair, ":") {
-				chanAsset = asset.Margin
-			}
-
-			pair, err = currency.NewPairFromString(chanInfo.Pair[1:])
-			if err != nil {
-				return err
-			}
-		}
-
-		switch chanInfo.Channel {
+		switch c.Channel {
 		case wsBook:
 			var newOrderbook []WebsocketBook
 			obSnapBundle, ok := d[1].([]interface{})
@@ -313,7 +283,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							Amount: rateAmount})
 					}
 				}
-				if err = b.WsInsertSnapshot(pair, chanAsset, newOrderbook, fundingRate); err != nil {
+				if err := b.WsInsertSnapshot(c.Currency, c.Asset, newOrderbook, fundingRate); err != nil {
 					return fmt.Errorf("inserting snapshot error: %s",
 						err)
 				}
@@ -345,7 +315,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Amount: amountRate})
 				}
 
-				if err = b.WsUpdateOrderbook(pair, chanAsset, newOrderbook, chanID, int64(sequenceNo), fundingRate); err != nil {
+				if err := b.WsUpdateOrderbook(c.Currency, c.Asset, newOrderbook, chanID, int64(sequenceNo), fundingRate); err != nil {
 					return fmt.Errorf("updating orderbook error: %s",
 						err)
 				}
@@ -369,6 +339,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						if len(element) < 6 {
 							return errors.New("invalid candleBundle length")
 						}
+						var err error
 						var klineData stream.KlineData
 						if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(element[0]); err != nil {
 							return fmt.Errorf("unable to convert candle timestamp: %w", err)
@@ -389,14 +360,15 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							return errors.New("unable to type assert candle volume")
 						}
 						klineData.Exchange = b.Name
-						klineData.AssetType = chanAsset
-						klineData.Pair = pair
+						klineData.AssetType = c.Asset
+						klineData.Pair = c.Currency
 						b.Websocket.DataHandler <- klineData
 					}
 				case float64:
 					if len(candleBundle) < 6 {
 						return errors.New("invalid candleBundle length")
 					}
+					var err error
 					var klineData stream.KlineData
 					if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(candleData); err != nil {
 						return fmt.Errorf("unable to convert candle timestamp: %w", err)
@@ -417,8 +389,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						return errors.New("unable to type assert candle volume")
 					}
 					klineData.Exchange = b.Name
-					klineData.AssetType = chanAsset
-					klineData.Pair = pair
+					klineData.AssetType = c.Asset
+					klineData.Pair = c.Currency
 					b.Websocket.DataHandler <- klineData
 				}
 			}
@@ -430,8 +402,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 
 			t := &ticker.Price{
-				AssetType:    chanAsset,
-				Pair:         pair,
+				AssetType:    c.Asset,
+				Pair:         c.Currency,
 				ExchangeName: b.Name,
 			}
 
@@ -498,7 +470,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if !b.IsSaveTradeDataEnabled() {
 				return nil
 			}
-			if chanAsset == asset.MarginFunding {
+			if c.Asset == asset.MarginFunding {
 				return nil
 			}
 			var tradeHolder []WebsocketTrade
@@ -615,12 +587,12 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				trades[i] = trade.Data{
 					TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
-					CurrencyPair: pair,
+					CurrencyPair: c.Currency,
 					Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp),
 					Price:        price,
 					Amount:       newAmount,
 					Exchange:     b.Name,
-					AssetType:    chanAsset,
+					AssetType:    c.Asset,
 					Side:         side,
 				}
 			}
@@ -1555,7 +1527,10 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		req["channel"] = channelsToSubscribe[i].Channel
 
 		for k, v := range channelsToSubscribe[i].Params {
-			req[k] = v
+			// Resubscribing channels might already have this set
+			if k != "chanId" {
+				req[k] = v
+			}
 		}
 
 		err := b.Websocket.Conn.SendJSONMessage(req)
@@ -1572,12 +1547,20 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
-		req := make(map[string]interface{})
-		req["event"] = "unsubscribe"
-		req["channel"] = channelsToUnsubscribe[i].Channel
+		idAny, ok := channelsToUnsubscribe[i].Params["chanId"]
+		if !ok {
+			errs = common.AppendError(errs, fmt.Errorf("cannot unsubscribe from a channel without an id"))
+			continue
+		}
+		chanID, ok := idAny.(int)
+		if !ok {
+			errs = common.AppendError(errs, fmt.Errorf("chanId is not an int"))
+			continue
+		}
 
-		for k, v := range channelsToUnsubscribe[i].Params {
-			req[k] = v
+		req := map[string]interface{}{
+			"event":  "unsubscribe",
+			"chanId": chanID,
 		}
 
 		err := b.Websocket.Conn.SendJSONMessage(req)
@@ -1585,6 +1568,7 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 			errs = common.AppendError(errs, err)
 			continue
 		}
+		// We do this before the unsubscribed event comes back so we can subscribe again when called from ResubcribeToChannel
 		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
@@ -1622,11 +1606,43 @@ func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 	return nil
 }
 
-// WsAddSubscriptionChannel adds a new subscription channel to the
-// WebsocketSubdChannels map in bitfinex.go (Bitfinex struct)
-func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
-	chanInfo := WebsocketChanInfo{Pair: pair, Channel: channel}
-	b.WebsocketSubdChannels[chanID] = chanInfo
+// WsAddSubscriptionChannel adds a confirmed channel subscription mapping from id to original params
+func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, symbol string) error {
+	assetType, pair, err := assetPairFromSymbol(symbol)
+	if err != nil {
+		return err
+	}
+
+	var c *stream.ChannelSubscription
+	s := b.Websocket.GetSubscriptions()
+	for i := range s {
+		if strings.EqualFold(s[i].Channel, channel) && s[i].Currency.Equal(pair) {
+			c = &s[i]
+			break
+		}
+	}
+
+	if c == nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Could not find an existing channel subscription: %s Pair: %s ChannelID: %d\n",
+			b.Name,
+			channel,
+			pair,
+			chanID)
+		c = &stream.ChannelSubscription{
+			Channel:  channel,
+			Currency: pair,
+			Asset:    assetType,
+		}
+	}
+
+	if c.Params == nil {
+		c.Params = map[string]interface{}{}
+	}
+
+	c.Params["chanId"] = chanID
+
+	b.WebsocketSubdChannels[chanID] = c
 
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
@@ -1636,6 +1652,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 			pair,
 			chanID)
 	}
+	return nil
 }
 
 // WsNewOrder authenticated new order request
@@ -1948,4 +1965,35 @@ subSort:
 		}
 		break
 	}
+}
+
+func assetPairFromSymbol(symbol string) (asset.Item, currency.Pair, error) {
+	assetType := asset.Spot
+
+	if symbol == "" {
+		return assetType, currency.EMPTYPAIR, nil
+	}
+
+	pairInfo := strings.Split(symbol, ":")
+	switch len(pairInfo) {
+	case 1:
+		newPair := pairInfo[0]
+		if newPair[0] == 'f' {
+			assetType = asset.MarginFunding
+		}
+		symbol = newPair[1:]
+	case 2:
+		assetType = asset.Margin
+		symbol = symbol[1:]
+	default:
+		newPair := pairInfo[2]
+		if newPair[0] == 'f' {
+			assetType = asset.MarginFunding
+		}
+		symbol = newPair[1:]
+	}
+
+	pair, err := currency.NewPairFromString(symbol)
+
+	return assetType, pair, err
 }
