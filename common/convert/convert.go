@@ -281,3 +281,10 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 func (k *ExchangeTime) Time() time.Time {
 	return time.Time(*k)
 }
+
+// Decimal returns the decimal value of the FloatString
+// Warning: this does not handle big numbers as the underlying
+// is still a float
+func (f *StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(*f))
+}

@@ -99,6 +99,44 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 }
 
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	type limitTest struct {
+		pair currency.Pair
+		step float64
+		min  float64
+	}
+
+	tests := map[asset.Item][]limitTest{
+		asset.Spot: {
+			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.01},
+			{currency.NewPair(currency.XBT, currency.USDT), 0.1, 0.0001},
+		},
+	}
+
+	for assetItem, limitTests := range tests {
+		if err := k.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
+			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
+		}
+
+		for _, limitTest := range limitTests {
+			limits, err := k.GetOrderExecutionLimits(assetItem, limitTest.pair)
+			if err != nil {
+				t.Errorf("Kraken GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
+				continue
+			}
+			if got := limits.PriceStepIncrementSize; got != limitTest.step {
+				t.Errorf("Kraken UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
+			}
+
+			if got := limits.MinimumBaseAmount; got != limitTest.min {
+				t.Errorf("Kraken UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
+			}
+		}
+	}
+}
+
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := k.FetchTradablePairs(context.Background(), asset.Futures)
@@ -923,6 +961,14 @@ func TestSubmitOrder(t *testing.T) {
 // TestCancelExchangeOrder wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
+
+	if err := k.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.Options,
+		OrderID:   "1337",
+	}); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected: %v, received: %v", asset.ErrNotSupported, err)
+	}
+
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
 
 	var orderCancellation = &order.Cancel{
@@ -2149,5 +2195,65 @@ func TestGetFuturesTrades(t *testing.T) {
 	_, err = k.GetFuturesTrades(context.Background(), cp, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+var websocketXDGUSDOrderbookUpdates = []string{
+	`{"channelID":2304,"channelName":"book-10","event":"subscriptionStatus","pair":"XDG/USD","reqid":163845014,"status":"subscribed","subscription":{"depth":10,"name":"book"}}`,
+	`[2304,{"as":[["0.074602700","278.39626342","1690246067.832139"],["0.074611000","555.65134028","1690246086.243668"],["0.074613300","524.87121572","1690245901.574881"],["0.074624600","77.57180740","1690246060.668500"],["0.074632500","620.64648404","1690246010.904883"],["0.074698400","409.57419037","1690246041.269821"],["0.074700000","61067.71115772","1690246089.485595"],["0.074723200","4394.01869240","1690246087.557913"],["0.074725200","4229.57885125","1690246082.911452"],["0.074738400","212.25501214","1690246089.421559"]],"bs":[["0.074597400","53591.43163675","1690246089.451762"],["0.074596700","33594.18269213","1690246089.514152"],["0.074596600","53598.60351469","1690246089.340781"],["0.074594800","5358.57247081","1690246089.347962"],["0.074594200","30168.21074680","1690246089.345112"],["0.074590900","7089.69894583","1690246088.212880"],["0.074586700","46925.20182082","1690246089.074618"],["0.074577200","5500.00000000","1690246087.568856"],["0.074569600","8132.49888631","1690246086.841219"],["0.074562900","8413.11098009","1690246087.024863"]]},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074700000","0.00000000","1690246089.516119"],["0.074738500","125000.00000000","1690246063.352141","r"]],"c":"2219685759"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074678800","33476.70673703","1690246089.570183"]],"c":"1897176819"},"book-10","XDG/USD"]`,
+	`[2304,{"b":[["0.074562900","0.00000000","1690246089.570206"],["0.074559600","4000.00000000","1690246086.478591","r"]],"c":"2498018751"},"book-10","XDG/USD"]`,
+	`[2304,{"b":[["0.074577300","125000.00000000","1690246089.577140"]],"c":"155006629"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074678800","0.00000000","1690246089.584498"],["0.074738500","125000.00000000","1690246063.352141","r"]],"c":"3703147735"},"book-10","XDG/USD"]`,
+	`[2304,{"b":[["0.074597500","10000.00000000","1690246089.602477"]],"c":"2989534775"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074738500","0.00000000","1690246089.608769"],["0.074750800","51369.02100000","1690246089.495500","r"]],"c":"1842075082"},"book-10","XDG/USD"]`,
+	`[2304,{"b":[["0.074583500","8413.11098009","1690246089.612144"]],"c":"710274752"},"book-10","XDG/USD"]`,
+	`[2304,{"b":[["0.074578500","9966.55841398","1690246089.634739"]],"c":"1646135532"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074738400","0.00000000","1690246089.638648"],["0.074751500","80499.09450000","1690246086.679402","r"]],"c":"2509689626"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074750700","290.96851266","1690246089.638754"]],"c":"3981738175"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074720000","61067.71115772","1690246089.662102"]],"c":"1591820326"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074602700","0.00000000","1690246089.670911"],["0.074750800","51369.02100000","1690246089.495500","r"]],"c":"3838272404"},"book-10","XDG/USD"]`,
+	`[2304,{"a":[["0.074611000","0.00000000","1690246089.680343"],["0.074758500","159144.39750000","1690246035.158327","r"]],"c":"4241552383"},"book-10","XDG/USD"]	`,
+}
+
+var websocketLUNAEUROrderbookUpdates = []string{
+	`{"channelID":9536,"channelName":"book-10","event":"subscriptionStatus","pair":"LUNA/EUR","reqid":106845459,"status":"subscribed","subscription":{"depth":10,"name":"book"}}`,
+	`[9536,{"as":[["0.000074650000","147354.32016076","1690249755.076929"],["0.000074710000","5084881.40000000","1690250711.359411"],["0.000074760000","9700502.70476704","1690250743.279490"],["0.000074990000","2933380.23886300","1690249596.627969"],["0.000075000000","433333.33333333","1690245575.626780"],["0.000075020000","152914.84493416","1690243661.232520"],["0.000075070000","146529.90542161","1690249048.358424"],["0.000075250000","737072.85720004","1690211553.549248"],["0.000075400000","670061.64567140","1690250769.261196"],["0.000075460000","980226.63603417","1690250769.627523"]],"bs":[["0.000074590000","71029.87806720","1690250763.012724"],["0.000074580000","15935576.86404000","1690250763.012710"],["0.000074520000","33758611.79634000","1690250718.290955"],["0.000074350000","3156650.58590277","1690250766.499648"],["0.000074340000","301727260.79999999","1690250766.490238"],["0.000074320000","64611496.53837000","1690250742.680258"],["0.000074310000","104228596.60000000","1690250744.679121"],["0.000074300000","40366046.10582000","1690250762.685914"],["0.000074200000","3690216.57320475","1690250645.311465"],["0.000074060000","1337170.52532521","1690250742.012527"]]},"book-10","LUNA/EUR"]`,
+	`[9536,{"b":[["0.000074060000","0.00000000","1690250770.616604"],["0.000074050000","16742421.17790510","1690250710.867730","r"]],"c":"418307145"},"book-10","LUNA/EUR"]`,
+}
+
+var websocketGSTEUROrderbookUpdates = []string{
+	`{"channelID":8912,"channelName":"book-10","event":"subscriptionStatus","pair":"GST/EUR","reqid":157734759,"status":"subscribed","subscription":{"depth":10,"name":"book"}}`,
+	`[8912,{"as":[["0.01300","850.00000000","1690230914.230506"],["0.01400","323483.99590510","1690256356.615823"],["0.01500","100287.34442717","1690219133.193345"],["0.01600","67995.78441017","1690118389.451216"],["0.01700","41776.38397740","1689676303.381189"],["0.01800","11785.76177777","1688631951.812452"],["0.01900","23700.00000000","1686935422.319042"],["0.02000","3941.17000000","1689415829.176481"],["0.02100","16598.69173066","1689420942.541943"],["0.02200","17572.51572836","1689851425.907427"]],"bs":[["0.01200","14220.66466572","1690256540.842831"],["0.01100","160223.61546438","1690256401.072463"],["0.01000","63083.48958963","1690256604.037673"],["0.00900","6750.00000000","1690252470.633938"],["0.00800","213059.49706376","1690256360.386301"],["0.00700","1000.00000000","1689869458.464975"],["0.00600","4000.00000000","1690221333.528698"],["0.00100","245000.00000000","1690051368.753455"]]},"book-10","GST/EUR"]`,
+	`[8912,{"b":[["0.01000","60583.48958963","1690256620.206768"],["0.01000","63083.48958963","1690256620.206783"]],"c":"69619317"},"book-10","GST/EUR"]`,
+}
+
+func TestWsOrderbookMax10Depth(t *testing.T) {
+	t.Parallel()
+	for x := range websocketXDGUSDOrderbookUpdates {
+		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for x := range websocketLUNAEUROrderbookUpdates {
+		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
+		// TODO: Known issue with LUNA pairs and big number float precision
+		// storage and checksum calc. Might need to store raw strings as fields
+		// in the orderbook.Item struct.
+		// Required checksum: 7465000014735432016076747100005084881400000007476000097005027047670474990000293338023886300750000004333333333333375020000152914844934167507000014652990542161752500007370728572000475400000670061645671407546000098022663603417745900007102987806720745800001593557686404000745200003375861179634000743500003156650585902777434000030172726079999999743200006461149653837000743100001042285966000000074300000403660461058200074200000369021657320475740500001674242117790510
+		if err != nil && x != len(websocketLUNAEUROrderbookUpdates)-1 {
+			t.Fatal(err)
+		}
+	}
+
+	// This has less than 10 bids and still needs a checksum calc.
+	for x := range websocketGSTEUROrderbookUpdates {
+		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
