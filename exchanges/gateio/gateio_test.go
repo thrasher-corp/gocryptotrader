@@ -2640,6 +2640,7 @@ const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrade
 
 func TestWsUserTradesPushDataJSON(t *testing.T) {
 	t.Parallel()
+	g.Websocket.Fills.Setup(true, g.Websocket.DataHandler)
 	if err := g.wsHandleData([]byte(wsUserTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket users trade push data error: %v", g.Name, err)
 	}
@@ -2723,6 +2724,7 @@ const wsFuturesUsertradesPushDataJSON = `{"time": 1543205083,	"channel": "future
 
 func TestFuturesUserTrades(t *testing.T) {
 	t.Parallel()
+	g.Websocket.Fills.Setup(true, g.Websocket.DataHandler)
 	if err := g.wsHandleFuturesData([]byte(wsFuturesUsertradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures user trades push data error: %v", g.Name, err)
 	}
