@@ -146,7 +146,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [thrasher-](https://github.com/thrasher-) | 681 |
 | [shazbert](https://github.com/shazbert) | 298 |
 | [gloriousCode](https://github.com/gloriousCode) | 216 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 198 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 200 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
@@ -161,11 +161,11 @@ Binaries will be published once the codebase reaches a stable condition.
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [geseq](https://github.com/geseq) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
+| [Beadko](https://github.com/Beadko) | 5 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [samuael](https://github.com/samuael) | 5 |
-| [Beadko](https://github.com/Beadko) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [yangrq1018](https://github.com/yangrq1018) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
