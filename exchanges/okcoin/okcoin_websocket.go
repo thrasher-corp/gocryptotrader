@@ -210,7 +210,7 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 				return err
 			}
 			for x := range resp.Data {
-				systemStatus := fmt.Sprintf("%s %s on system %s %s service type\nFrom %s\nTo %s\n", systemStateString(resp.Data[x].State), resp.Data[x].Title, resp.Data[x].System, systemStatusServiceTypeString(resp.Data[x].ServiceType), resp.Data[x].Begin.Time().String(), resp.Data[x].End.Time().String())
+				systemStatus := fmt.Sprintf("%s %s on system %s %s service type From %s To %s", systemStateString(resp.Data[x].State), resp.Data[x].Title, resp.Data[x].System, systemStatusServiceTypeString(resp.Data[x].ServiceType), resp.Data[x].Begin.Time().String(), resp.Data[x].End.Time().String())
 				if resp.Data[x].Href != "" {
 					systemStatus = fmt.Sprintf("%s Href: %s\n", systemStatus, resp.Data[x].Href)
 				}

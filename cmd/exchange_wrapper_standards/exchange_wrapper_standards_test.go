@@ -515,10 +515,10 @@ var blockedCIExchanges = []string{
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"alphapoint",
-	"bitflyer",             // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"bittrex",              // the api is about to expire in March, and we haven't updated it yet
-	"itbit",                // itbit has no way of retrieving pair data
-	"okcoin international", // TODO add support for v5 and remove this entry
+	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
+	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
+	"itbit",    // itbit has no way of retrieving pair data
+	"okcoin",   // TODO add support for v5 and remove this entry
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange

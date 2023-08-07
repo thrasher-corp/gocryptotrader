@@ -354,8 +354,8 @@ func TestSettingsPrint(t *testing.T) {
 }
 
 var unsupportedDefaultConfigExchanges = []string{
-	"okcoin international", // due to unsupported API
-	"itbit",                // due to unsupported API
+	"okcoin", // due to unsupported API
+	"itbit",  // due to unsupported API
 }
 
 func TestGetDefaultConfigurations(t *testing.T) {
