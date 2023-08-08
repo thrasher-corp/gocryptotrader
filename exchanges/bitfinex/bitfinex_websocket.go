@@ -1348,8 +1348,9 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 		}
 	}
 	if data[13] != nil {
-		if ordStatus, ok := data[13].(string); ok {
-			oStatus, err := order.StringToOrderStatus(ordStatus)
+		if combinedStatus, ok := data[13].(string); ok {
+			statusParts := strings.Split(combinedStatus, " @ ")
+			oStatus, err := order.StringToOrderStatus(statusParts[0])
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,

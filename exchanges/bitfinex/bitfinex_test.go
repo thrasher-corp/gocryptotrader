@@ -1388,6 +1388,28 @@ func TestWSFundingTrade(t *testing.T) {
 	}
 }
 
+func TestWSHandleOrder(t *testing.T) {
+	drainWS()
+	b.WsAddSubscriptionChannel(0, "account", "")
+	pressXToJSON := `[0,"ou",[314159,1234,314159,"tBTCUSD",1575282446000,1575282446000,0.008,0.008,"MARKET","MARKET",0,"",0,"EXECUTED @ 29298.0(-0.008)",29298.0,29298.0,29298.0,0,0,0,0,"API>BFX",""]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+	select {
+	case resp := <-b.Websocket.DataHandler:
+		switch rType := resp.(type) {
+		case *order.Detail:
+			if rType.Status != order.Filled {
+				t.Errorf("wrong order status; expected: %s got: %s", order.Filled, rType.Status)
+			}
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", rType, rType)
+		}
+	default:
+		t.Error("wsHandleOrder should emit something to DataHandler")
+	}
+}
+
 func TestGetHistoricCandles(t *testing.T) {
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
@@ -1848,5 +1870,15 @@ func TestCancelMultipleOrdersV2(t *testing.T) {
 	_, err := b.CancelMultipleOrdersV2(context.Background(), 1337, 0, 0, time.Time{}, false)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func drainWS() {
+	for draining := true; draining; {
+		select {
+		case <-b.Websocket.DataHandler:
+		default:
+			draining = false
+		}
 	}
 }
