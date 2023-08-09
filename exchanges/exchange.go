@@ -1659,3 +1659,9 @@ func (b *Base) Shutdown() error {
 	}
 	return b.Requester.Shutdown()
 }
+
+// MatchSymbolWithAvailablePair returns a currency pair based on the supplied
+// symbol and asset type.
+func (b *Base) MatchSymbolWithAvailablePair(symbol string, a asset.Item) (currency.Pair, error) {
+	return b.CurrencyPairs.Match(symbol, a)
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -61,6 +62,24 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 	return c.copy()
 }
 
+func (p *PairsManager) Match(symbol string, a asset.Item) (Pair, error) {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	if p.matcher == nil {
+		return EMPTYPAIR, errPairStoreIsNil
+	}
+	assets, ok := p.matcher[a]
+	if !ok {
+		return EMPTYPAIR, fmt.Errorf("%w: %v", errAssetNotFound, a)
+	}
+
+	pair, ok := assets[strings.ToLower(symbol)]
+	if !ok {
+		return EMPTYPAIR, ErrPairNotFound
+	}
+	return *pair, nil
+}
+
 // Store stores a new currency pair config based on its asset type
 func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 	if !a.IsValid() {
@@ -70,11 +89,19 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 	if err != nil {
 		return err
 	}
+	matcher := make(map[string]*Pair)
+	for x := range cpy.Available {
+		matcher[cpy.Available[x].Base.Lower().String()+cpy.Available[x].Quote.Lower().String()] = &cpy.Available[x]
+	}
 	p.m.Lock()
 	if p.Pairs == nil {
 		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 	p.Pairs[a] = cpy
+	if p.matcher == nil {
+		p.matcher = make(map[asset.Item]map[string]*Pair)
+	}
+	p.matcher[a] = matcher
 	p.m.Unlock()
 	return nil
 }
@@ -83,6 +110,7 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 func (p *PairsManager) Delete(a asset.Item) {
 	p.m.Lock()
 	delete(p.Pairs, a)
+	delete(p.matcher, a)
 	p.m.Unlock()
 }
 
@@ -184,6 +212,16 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 		pairStore.Enabled = cpy
 	} else {
 		pairStore.Available = cpy
+
+		matcher := make(map[string]*Pair)
+		for x := range pairStore.Available {
+			matcher[pairStore.Available[x].Base.Lower().String()+pairStore.Available[x].Quote.Lower().String()] = &pairStore.Available[x]
+		}
+
+		if p.matcher == nil {
+			p.matcher = make(map[asset.Item]map[string]*Pair)
+		}
+		p.matcher[a] = matcher
 	}
 
 	return nil
