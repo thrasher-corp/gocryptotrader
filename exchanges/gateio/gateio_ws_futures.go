@@ -683,7 +683,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 }
 
 func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
-	if g.IsFillsFeedEnabled() {
+	if !g.IsFillsFeedEnabled() {
 		return nil
 	}
 
