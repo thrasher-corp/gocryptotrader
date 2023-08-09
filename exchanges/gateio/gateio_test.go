@@ -50,6 +50,8 @@ func TestMain(m *testing.M) {
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
+	gConf.Features.Enabled.FillsFeed = true
+	gConf.Features.Enabled.TradeFeed = true
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -2588,8 +2590,6 @@ const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"ev
 
 func TestWsTradePushData(t *testing.T) {
 	t.Parallel()
-	g.SetTradeFeedStatus(true)
-	g.Websocket.Trade.Setup(g.Name, true, g.Websocket.DataHandler)
 	if err := g.wsHandleData([]byte(wsTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket trade push data error: %v", g.Name, err)
 	}
@@ -2642,7 +2642,6 @@ const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrade
 
 func TestWsUserTradesPushDataJSON(t *testing.T) {
 	t.Parallel()
-	g.Websocket.Fills.Setup(true, g.Websocket.DataHandler)
 	if err := g.wsHandleData([]byte(wsUserTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket users trade push data error: %v", g.Name, err)
 	}
@@ -2697,8 +2696,6 @@ const wsFuturesTradesPushDataJSON = `{"channel": "futures.trades","event": "upda
 
 func TestFuturesTrades(t *testing.T) {
 	t.Parallel()
-	g.SetTradeFeedStatus(true)
-	g.Websocket.Trade.Setup(g.Name, true, g.Websocket.DataHandler)
 	if err := g.wsHandleFuturesData([]byte(wsFuturesTradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket push data error: %v", g.Name, err)
 	}
@@ -2728,7 +2725,6 @@ const wsFuturesUsertradesPushDataJSON = `{"time": 1543205083,	"channel": "future
 
 func TestFuturesUserTrades(t *testing.T) {
 	t.Parallel()
-	g.Websocket.Fills.Setup(true, g.Websocket.DataHandler)
 	if err := g.wsHandleFuturesData([]byte(wsFuturesUsertradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures user trades push data error: %v", g.Name, err)
 	}
@@ -2821,8 +2817,6 @@ const optionsContractTradesPushDataJSON = `{"time": 1630576356,	"channel": "opti
 
 func TestOptionsContractTradesPushData(t *testing.T) {
 	t.Parallel()
-	g.SetTradeFeedStatus(true)
-	g.Websocket.Trade.Setup(g.Name, true, g.Websocket.DataHandler)
 	if err := g.wsHandleOptionsData([]byte(optionsContractTradesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket contract trades push data error: %v", g.Name, err)
 	}
@@ -2925,7 +2919,6 @@ const optionsUsersTradesPushDataJSON = `{	"time": 1639144214,	"channel": "option
 
 func TestOptionUserTradesPushData(t *testing.T) {
 	t.Parallel()
-	g.Websocket.Fills.Setup(true, g.Websocket.DataHandler)
 	if err := g.wsHandleOptionsData([]byte(optionsUsersTradesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options orders push data error: %v", g.Name, err)
 	}

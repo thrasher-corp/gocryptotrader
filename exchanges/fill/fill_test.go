@@ -23,13 +23,12 @@ func TestSetup(t *testing.T) {
 
 // TestUpdateDisabledFeed tests the Update function when fillsFeedEnabled is false
 func TestUpdateDisabledFeed(t *testing.T) {
-	channel := make(chan interface{})
+	channel := make(chan interface{}, 1)
 	fill := Fills{dataHandler: channel, fillsFeedEnabled: false}
 
 	// Send a test data to the Update function
 	testData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
-	err := fill.Update(testData)
-	if !errors.Is(err, ErrFeedDisabled) {
+	if err := fill.Update(testData); !errors.Is(err, ErrFeedDisabled) {
 		t.Errorf("Expected ErrFeedDisabled, got %v", err)
 	}
 
@@ -45,11 +44,8 @@ func TestUpdateDisabledFeed(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	channel := make(chan interface{}, 1)
 	fill := &Fills{dataHandler: channel, fillsFeedEnabled: true}
-
 	receivedData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
-	err := fill.Update(receivedData)
-
-	if err != nil {
+	if err := fill.Update(receivedData); err != nil {
 		t.Errorf("Update returned error %v", err)
 	}
 
@@ -70,12 +66,9 @@ func TestUpdate(t *testing.T) {
 
 // TestUpdateNoData tests the Update function with no Data objects
 func TestUpdateNoData(t *testing.T) {
-	channel := make(chan interface{})
+	channel := make(chan interface{}, 1)
 	fill := &Fills{dataHandler: channel, fillsFeedEnabled: true}
-
-	err := fill.Update()
-
-	if err != nil {
+	if err := fill.Update(); err != nil {
 		t.Errorf("Update returned error %v", err)
 	}
 
@@ -93,9 +86,7 @@ func TestUpdateMultipleData(t *testing.T) {
 	fill := &Fills{dataHandler: channel, fillsFeedEnabled: true}
 	receivedData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
 	receivedData2 := Data{Timestamp: time.Now(), Price: 18.2, Amount: 9.0}
-	err := fill.Update(receivedData, receivedData2)
-
-	if err != nil {
+	if err := fill.Update(receivedData, receivedData2); err != nil {
 		t.Errorf("Update returned error %v", err)
 	}
 
