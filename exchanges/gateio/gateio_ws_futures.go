@@ -440,6 +440,11 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 }
 
 func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
+	saveTradeData := g.IsSaveTradeDataEnabled()
+	if !saveTradeData && !g.IsTradeFeedEnabled() {
+		return nil
+	}
+
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -450,6 +455,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	if err != nil {
 		return err
 	}
+
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
 		trades[x] = trade.Data{
@@ -462,7 +468,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
-	return trade.AddTradesToBuffer(g.Name, trades...)
+	return g.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
 func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) error {
@@ -677,6 +683,10 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 }
 
 func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
+	if g.IsFillsFeedEnabled() {
+		return nil
+	}
+
 	resp := struct {
 		Time    int64                `json:"time"`
 		Channel string               `json:"channel"`

@@ -484,6 +484,10 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 }
 
 func (g *Gateio) processUserPersonalTrades(data []byte) error {
+	if !g.IsFillsFeedEnabled() {
+		return nil
+	}
+
 	resp := struct {
 		Time    int64                 `json:"time"`
 		Channel string                `json:"channel"`

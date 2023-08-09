@@ -2584,10 +2584,12 @@ func TestWsTickerPushData(t *testing.T) {
 	}
 }
 
-const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "GT_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
+const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "BTC_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
 
 func TestWsTradePushData(t *testing.T) {
 	t.Parallel()
+	g.SetTradeFeedStatus(true)
+	g.Websocket.Trade.Setup(g.Name, true, g.Websocket.DataHandler)
 	if err := g.wsHandleData([]byte(wsTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket trade push data error: %v", g.Name, err)
 	}
@@ -2695,6 +2697,8 @@ const wsFuturesTradesPushDataJSON = `{"channel": "futures.trades","event": "upda
 
 func TestFuturesTrades(t *testing.T) {
 	t.Parallel()
+	g.SetTradeFeedStatus(true)
+	g.Websocket.Trade.Setup(g.Name, true, g.Websocket.DataHandler)
 	if err := g.wsHandleFuturesData([]byte(wsFuturesTradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket push data error: %v", g.Name, err)
 	}
