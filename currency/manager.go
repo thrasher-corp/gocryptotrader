@@ -27,9 +27,11 @@ var (
 	// exchange for that asset type.
 	ErrPairNotContainedInAvailablePairs = errors.New("pair not contained in available pairs")
 
-	errPairStoreIsNil  = errors.New("pair store is nil")
-	errPairFormatIsNil = errors.New("pair format is nil")
-	errAssetNotFound   = errors.New("asset type not found")
+	errPairStoreIsNil    = errors.New("pair store is nil")
+	errPairFormatIsNil   = errors.New("pair format is nil")
+	errAssetNotFound     = errors.New("asset type not found")
+	errPairMatcherIsNil  = errors.New("pair matcher is nil")
+	errSymbolStringEmpty = errors.New("symbol string is empty")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -48,10 +50,6 @@ func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 
 // Get gets the currency pair config based on the asset type
 func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
-	if !a.IsValid() {
-		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
-	}
-
 	p.m.RLock()
 	defer p.m.RUnlock()
 	c, ok := p.Pairs[a]
@@ -62,17 +60,20 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 	return c.copy()
 }
 
+// Match returns a currency pair based on the supplied symbol and asset type
 func (p *PairsManager) Match(symbol string, a asset.Item) (Pair, error) {
+	if symbol == "" {
+		return EMPTYPAIR, errSymbolStringEmpty
+	}
 	p.m.RLock()
 	defer p.m.RUnlock()
 	if p.matcher == nil {
-		return EMPTYPAIR, errPairStoreIsNil
+		return EMPTYPAIR, errPairMatcherIsNil
 	}
 	assets, ok := p.matcher[a]
 	if !ok {
-		return EMPTYPAIR, fmt.Errorf("%w: %v", errAssetNotFound, a)
+		return EMPTYPAIR, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
-
 	pair, ok := assets[strings.ToLower(symbol)]
 	if !ok {
 		return EMPTYPAIR, ErrPairNotFound

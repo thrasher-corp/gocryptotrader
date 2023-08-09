@@ -2988,3 +2988,37 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
 	}
 }
+
+func TestMatchSymbolWithAvailablePairs(t *testing.T) {
+	b := Base{Name: "test"}
+	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
+	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		Available:    []currency.Pair{whatIWant}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.MatchSymbolWithAvailablePairs("sillBillies", asset.Futures, false)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	whatIGot, err := b.MatchSymbolWithAvailablePairs("btcusdT", asset.Spot, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !whatIGot.Equal(whatIWant) {
+		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
+	}
+
+	whatIGot, err = b.MatchSymbolWithAvailablePairs("btc-usdT", asset.Spot, true)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !whatIGot.Equal(whatIWant) {
+		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
+	}
+}

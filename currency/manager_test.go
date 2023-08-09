@@ -90,6 +90,48 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestPairsManagerMatch(t *testing.T) {
+	t.Parallel()
+
+	p := &PairsManager{}
+
+	_, err := p.Match("", 1337)
+	if !errors.Is(err, errSymbolStringEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolStringEmpty)
+	}
+
+	_, err = p.Match("sillyBilly", 1337)
+	if !errors.Is(err, errPairMatcherIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPairMatcherIsNil)
+	}
+
+	p = initTest(t)
+
+	_, err = p.Match("sillyBilly", 1337)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	_, err = p.Match("sillyBilly", asset.Spot)
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
+	}
+
+	whatIgot, err := p.Match("bTCuSD", asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	whatIwant, err := NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !whatIgot.Equal(whatIwant) {
+		t.Fatal("expected btc-usd")
+	}
+}
+
 func TestStore(t *testing.T) {
 	t.Parallel()
 	availPairs, err := NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"})
