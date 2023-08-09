@@ -2821,6 +2821,8 @@ const optionsContractTradesPushDataJSON = `{"time": 1630576356,	"channel": "opti
 
 func TestOptionsContractTradesPushData(t *testing.T) {
 	t.Parallel()
+	g.SetTradeFeedStatus(true)
+	g.Websocket.Trade.Setup(g.Name, true, g.Websocket.DataHandler)
 	if err := g.wsHandleOptionsData([]byte(optionsContractTradesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket contract trades push data error: %v", g.Name, err)
 	}
@@ -2923,6 +2925,7 @@ const optionsUsersTradesPushDataJSON = `{	"time": 1639144214,	"channel": "option
 
 func TestOptionUserTradesPushData(t *testing.T) {
 	t.Parallel()
+	g.Websocket.Fills.Setup(true, g.Websocket.DataHandler)
 	if err := g.wsHandleOptionsData([]byte(optionsUsersTradesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options orders push data error: %v", g.Name, err)
 	}
