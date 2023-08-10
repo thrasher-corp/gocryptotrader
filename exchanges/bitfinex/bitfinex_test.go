@@ -1205,6 +1205,13 @@ func TestWsCancelOffer(t *testing.T) {
 }
 
 func TestWsSubscribedResponse(t *testing.T) {
+	b.Websocket.AddSuccessfulSubscriptions(
+		stream.ChannelSubscription{
+			Channel:  "ticker",
+			Currency: btcusdPair,
+			Params:   map[string]interface{}{},
+			Asset:    asset.Spot,
+		})
 	pressXToJSON := `{"event":"subscribed","channel":"ticker","chanId":224555,"symbol":"tBTCUSD","pair":"BTCUSD"}`
 	err := b.wsHandleData([]byte(pressXToJSON))
 	if err != nil {
