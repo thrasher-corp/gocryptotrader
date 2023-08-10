@@ -226,134 +226,165 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				chanID)
 		}
 
-		switch c.Channel {
-		case wsBook:
-			var newOrderbook []WebsocketBook
-			obSnapBundle, ok := d[1].([]interface{})
-			if !ok {
-				return errors.New("orderbook interface cast failed")
-			}
-			if len(obSnapBundle) == 0 {
-				return errors.New("no data within orderbook snapshot")
-			}
+		// This handling is refactored in #1317 and this hack is very temporary
+		if ok {
+			switch c.Channel {
+			case wsBook:
+				var newOrderbook []WebsocketBook
+				obSnapBundle, ok := d[1].([]interface{})
+				if !ok {
+					return errors.New("orderbook interface cast failed")
+				}
+				if len(obSnapBundle) == 0 {
+					return errors.New("no data within orderbook snapshot")
+				}
 
-			sequenceNo, ok := d[2].(float64)
-			if !ok {
-				return errors.New("type assertion failure")
-			}
+				sequenceNo, ok := d[2].(float64)
+				if !ok {
+					return errors.New("type assertion failure")
+				}
 
-			var fundingRate bool
-			switch id := obSnapBundle[0].(type) {
-			case []interface{}:
-				for i := range obSnapBundle {
-					data, ok := obSnapBundle[i].([]interface{})
-					if !ok {
-						return errors.New("type assertion failed for orderbok item data")
+				var fundingRate bool
+				switch id := obSnapBundle[0].(type) {
+				case []interface{}:
+					for i := range obSnapBundle {
+						data, ok := obSnapBundle[i].([]interface{})
+						if !ok {
+							return errors.New("type assertion failed for orderbok item data")
+						}
+						id, okAssert := data[0].(float64)
+						if !okAssert {
+							return errors.New("type assertion failed for orderbook id data")
+						}
+						pricePeriod, okAssert := data[1].(float64)
+						if !okAssert {
+							return errors.New("type assertion failed for orderbook price data")
+						}
+						rateAmount, okAssert := data[2].(float64)
+						if !okAssert {
+							return errors.New("type assertion failed for orderbook rate data")
+						}
+						if len(data) == 4 {
+							fundingRate = true
+							amount, okFunding := data[3].(float64)
+							if !okFunding {
+								return errors.New("type assertion failed for orderbook funding data")
+							}
+							newOrderbook = append(newOrderbook, WebsocketBook{
+								ID:     int64(id),
+								Period: int64(pricePeriod),
+								Price:  rateAmount,
+								Amount: amount})
+						} else {
+							newOrderbook = append(newOrderbook, WebsocketBook{
+								ID:     int64(id),
+								Price:  pricePeriod,
+								Amount: rateAmount})
+						}
 					}
-					id, okAssert := data[0].(float64)
-					if !okAssert {
-						return errors.New("type assertion failed for orderbook id data")
+					if err := b.WsInsertSnapshot(c.Currency, c.Asset, newOrderbook, fundingRate); err != nil {
+						return fmt.Errorf("inserting snapshot error: %s",
+							err)
 					}
-					pricePeriod, okAssert := data[1].(float64)
-					if !okAssert {
-						return errors.New("type assertion failed for orderbook price data")
+				case float64:
+					pricePeriod, okSnap := obSnapBundle[1].(float64)
+					if !okSnap {
+						return errors.New("type assertion failed for orderbook price snapshot data")
 					}
-					rateAmount, okAssert := data[2].(float64)
-					if !okAssert {
-						return errors.New("type assertion failed for orderbook rate data")
+					amountRate, okSnap := obSnapBundle[2].(float64)
+					if !okSnap {
+						return errors.New("type assertion failed for orderbook amount snapshot data")
 					}
-					if len(data) == 4 {
+					if len(obSnapBundle) == 4 {
 						fundingRate = true
-						amount, okFunding := data[3].(float64)
-						if !okFunding {
-							return errors.New("type assertion failed for orderbook funding data")
+						var amount float64
+						amount, okSnap = obSnapBundle[3].(float64)
+						if !okSnap {
+							return errors.New("type assertion failed for orderbook amount snapshot data")
 						}
 						newOrderbook = append(newOrderbook, WebsocketBook{
 							ID:     int64(id),
 							Period: int64(pricePeriod),
-							Price:  rateAmount,
+							Price:  amountRate,
 							Amount: amount})
 					} else {
 						newOrderbook = append(newOrderbook, WebsocketBook{
 							ID:     int64(id),
 							Price:  pricePeriod,
-							Amount: rateAmount})
+							Amount: amountRate})
+					}
+
+					if err := b.WsUpdateOrderbook(c.Currency, c.Asset, newOrderbook, chanID, int64(sequenceNo), fundingRate); err != nil {
+						return fmt.Errorf("updating orderbook error: %s",
+							err)
 					}
 				}
-				if err := b.WsInsertSnapshot(c.Currency, c.Asset, newOrderbook, fundingRate); err != nil {
-					return fmt.Errorf("inserting snapshot error: %s",
-						err)
-				}
-			case float64:
-				pricePeriod, okSnap := obSnapBundle[1].(float64)
-				if !okSnap {
-					return errors.New("type assertion failed for orderbook price snapshot data")
-				}
-				amountRate, okSnap := obSnapBundle[2].(float64)
-				if !okSnap {
-					return errors.New("type assertion failed for orderbook amount snapshot data")
-				}
-				if len(obSnapBundle) == 4 {
-					fundingRate = true
-					var amount float64
-					amount, okSnap = obSnapBundle[3].(float64)
-					if !okSnap {
-						return errors.New("type assertion failed for orderbook amount snapshot data")
+
+				return nil
+			case wsCandles:
+				if candleBundle, ok := d[1].([]interface{}); ok {
+					if len(candleBundle) == 0 {
+						return nil
 					}
-					newOrderbook = append(newOrderbook, WebsocketBook{
-						ID:     int64(id),
-						Period: int64(pricePeriod),
-						Price:  amountRate,
-						Amount: amount})
-				} else {
-					newOrderbook = append(newOrderbook, WebsocketBook{
-						ID:     int64(id),
-						Price:  pricePeriod,
-						Amount: amountRate})
-				}
 
-				if err := b.WsUpdateOrderbook(c.Currency, c.Asset, newOrderbook, chanID, int64(sequenceNo), fundingRate); err != nil {
-					return fmt.Errorf("updating orderbook error: %s",
-						err)
-				}
-			}
-
-			return nil
-		case wsCandles:
-			if candleBundle, ok := d[1].([]interface{}); ok {
-				if len(candleBundle) == 0 {
-					return nil
-				}
-
-				switch candleData := candleBundle[0].(type) {
-				case []interface{}:
-					for i := range candleBundle {
-						var element []interface{}
-						element, ok = candleBundle[i].([]interface{})
-						if !ok {
-							return errors.New("candle type assertion for element data")
+					switch candleData := candleBundle[0].(type) {
+					case []interface{}:
+						for i := range candleBundle {
+							var element []interface{}
+							element, ok = candleBundle[i].([]interface{})
+							if !ok {
+								return errors.New("candle type assertion for element data")
+							}
+							if len(element) < 6 {
+								return errors.New("invalid candleBundle length")
+							}
+							var err error
+							var klineData stream.KlineData
+							if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(element[0]); err != nil {
+								return fmt.Errorf("unable to convert candle timestamp: %w", err)
+							}
+							if klineData.OpenPrice, ok = element[1].(float64); !ok {
+								return errors.New("unable to type assert candle open price")
+							}
+							if klineData.ClosePrice, ok = element[2].(float64); !ok {
+								return errors.New("unable to type assert candle close price")
+							}
+							if klineData.HighPrice, ok = element[3].(float64); !ok {
+								return errors.New("unable to type assert candle high price")
+							}
+							if klineData.LowPrice, ok = element[4].(float64); !ok {
+								return errors.New("unable to type assert candle low price")
+							}
+							if klineData.Volume, ok = element[5].(float64); !ok {
+								return errors.New("unable to type assert candle volume")
+							}
+							klineData.Exchange = b.Name
+							klineData.AssetType = c.Asset
+							klineData.Pair = c.Currency
+							b.Websocket.DataHandler <- klineData
 						}
-						if len(element) < 6 {
+					case float64:
+						if len(candleBundle) < 6 {
 							return errors.New("invalid candleBundle length")
 						}
 						var err error
 						var klineData stream.KlineData
-						if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(element[0]); err != nil {
+						if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(candleData); err != nil {
 							return fmt.Errorf("unable to convert candle timestamp: %w", err)
 						}
-						if klineData.OpenPrice, ok = element[1].(float64); !ok {
+						if klineData.OpenPrice, ok = candleBundle[1].(float64); !ok {
 							return errors.New("unable to type assert candle open price")
 						}
-						if klineData.ClosePrice, ok = element[2].(float64); !ok {
+						if klineData.ClosePrice, ok = candleBundle[2].(float64); !ok {
 							return errors.New("unable to type assert candle close price")
 						}
-						if klineData.HighPrice, ok = element[3].(float64); !ok {
+						if klineData.HighPrice, ok = candleBundle[3].(float64); !ok {
 							return errors.New("unable to type assert candle high price")
 						}
-						if klineData.LowPrice, ok = element[4].(float64); !ok {
+						if klineData.LowPrice, ok = candleBundle[4].(float64); !ok {
 							return errors.New("unable to type assert candle low price")
 						}
-						if klineData.Volume, ok = element[5].(float64); !ok {
+						if klineData.Volume, ok = candleBundle[5].(float64); !ok {
 							return errors.New("unable to type assert candle volume")
 						}
 						klineData.Exchange = b.Name
@@ -361,136 +392,158 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						klineData.Pair = c.Currency
 						b.Websocket.DataHandler <- klineData
 					}
-				case float64:
-					if len(candleBundle) < 6 {
-						return errors.New("invalid candleBundle length")
-					}
-					var err error
-					var klineData stream.KlineData
-					if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(candleData); err != nil {
-						return fmt.Errorf("unable to convert candle timestamp: %w", err)
-					}
-					if klineData.OpenPrice, ok = candleBundle[1].(float64); !ok {
-						return errors.New("unable to type assert candle open price")
-					}
-					if klineData.ClosePrice, ok = candleBundle[2].(float64); !ok {
-						return errors.New("unable to type assert candle close price")
-					}
-					if klineData.HighPrice, ok = candleBundle[3].(float64); !ok {
-						return errors.New("unable to type assert candle high price")
-					}
-					if klineData.LowPrice, ok = candleBundle[4].(float64); !ok {
-						return errors.New("unable to type assert candle low price")
-					}
-					if klineData.Volume, ok = candleBundle[5].(float64); !ok {
-						return errors.New("unable to type assert candle volume")
-					}
-					klineData.Exchange = b.Name
-					klineData.AssetType = c.Asset
-					klineData.Pair = c.Currency
-					b.Websocket.DataHandler <- klineData
 				}
-			}
-			return nil
-		case wsTicker:
-			tickerData, ok := d[1].([]interface{})
-			if !ok {
-				return errors.New("type assertion for tickerData")
-			}
-
-			t := &ticker.Price{
-				AssetType:    c.Asset,
-				Pair:         c.Currency,
-				ExchangeName: b.Name,
-			}
-
-			if len(tickerData) == 10 {
-				if t.Bid, ok = tickerData[0].(float64); !ok {
-					return errors.New("unable to type assert ticker bid")
-				}
-				if t.Ask, ok = tickerData[2].(float64); !ok {
-					return errors.New("unable to type assert ticker ask")
-				}
-				if t.Last, ok = tickerData[6].(float64); !ok {
-					return errors.New("unable to type assert ticker last")
-				}
-				if t.Volume, ok = tickerData[7].(float64); !ok {
-					return errors.New("unable to type assert ticker volume")
-				}
-				if t.High, ok = tickerData[8].(float64); !ok {
-					return errors.New("unable to type assert  ticker high")
-				}
-				if t.Low, ok = tickerData[9].(float64); !ok {
-					return errors.New("unable to type assert ticker low")
-				}
-			} else {
-				if t.FlashReturnRate, ok = tickerData[0].(float64); !ok {
-					return errors.New("unable to type assert ticker flash return rate")
-				}
-				if t.Bid, ok = tickerData[1].(float64); !ok {
-					return errors.New("unable to type assert ticker bid")
-				}
-				if t.BidPeriod, ok = tickerData[2].(float64); !ok {
-					return errors.New("unable to type assert ticker bid period")
-				}
-				if t.BidSize, ok = tickerData[3].(float64); !ok {
-					return errors.New("unable to type assert ticker bid size")
-				}
-				if t.Ask, ok = tickerData[4].(float64); !ok {
-					return errors.New("unable to type assert ticker ask")
-				}
-				if t.AskPeriod, ok = tickerData[5].(float64); !ok {
-					return errors.New("unable to type assert ticker ask period")
-				}
-				if t.AskSize, ok = tickerData[6].(float64); !ok {
-					return errors.New("unable to type assert ticker ask size")
-				}
-				if t.Last, ok = tickerData[9].(float64); !ok {
-					return errors.New("unable to type assert ticker last")
-				}
-				if t.Volume, ok = tickerData[10].(float64); !ok {
-					return errors.New("unable to type assert ticker volume")
-				}
-				if t.High, ok = tickerData[11].(float64); !ok {
-					return errors.New("unable to type assert ticker high")
-				}
-				if t.Low, ok = tickerData[12].(float64); !ok {
-					return errors.New("unable to type assert ticker low")
-				}
-				if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
-					return errors.New("unable to type assert ticker flash return rate")
-				}
-			}
-			b.Websocket.DataHandler <- t
-			return nil
-		case wsTrades:
-			if !b.IsSaveTradeDataEnabled() {
 				return nil
-			}
-			if c.Asset == asset.MarginFunding {
-				return nil
-			}
-			var tradeHolder []WebsocketTrade
-			switch len(d) {
-			case 2:
-				snapshot, ok := d[1].([]interface{})
+			case wsTicker:
+				tickerData, ok := d[1].([]interface{})
 				if !ok {
-					return errors.New("unable to type assert trade snapshot data")
+					return errors.New("type assertion for tickerData")
 				}
-				for i := range snapshot {
-					elem, ok := snapshot[i].([]interface{})
-					if !ok {
-						return errors.New("unable to type assert trade snapshot element data")
+
+				t := &ticker.Price{
+					AssetType:    c.Asset,
+					Pair:         c.Currency,
+					ExchangeName: b.Name,
+				}
+
+				if len(tickerData) == 10 {
+					if t.Bid, ok = tickerData[0].(float64); !ok {
+						return errors.New("unable to type assert ticker bid")
 					}
-					tradeID, ok := elem[0].(float64)
+					if t.Ask, ok = tickerData[2].(float64); !ok {
+						return errors.New("unable to type assert ticker ask")
+					}
+					if t.Last, ok = tickerData[6].(float64); !ok {
+						return errors.New("unable to type assert ticker last")
+					}
+					if t.Volume, ok = tickerData[7].(float64); !ok {
+						return errors.New("unable to type assert ticker volume")
+					}
+					if t.High, ok = tickerData[8].(float64); !ok {
+						return errors.New("unable to type assert  ticker high")
+					}
+					if t.Low, ok = tickerData[9].(float64); !ok {
+						return errors.New("unable to type assert ticker low")
+					}
+				} else {
+					if t.FlashReturnRate, ok = tickerData[0].(float64); !ok {
+						return errors.New("unable to type assert ticker flash return rate")
+					}
+					if t.Bid, ok = tickerData[1].(float64); !ok {
+						return errors.New("unable to type assert ticker bid")
+					}
+					if t.BidPeriod, ok = tickerData[2].(float64); !ok {
+						return errors.New("unable to type assert ticker bid period")
+					}
+					if t.BidSize, ok = tickerData[3].(float64); !ok {
+						return errors.New("unable to type assert ticker bid size")
+					}
+					if t.Ask, ok = tickerData[4].(float64); !ok {
+						return errors.New("unable to type assert ticker ask")
+					}
+					if t.AskPeriod, ok = tickerData[5].(float64); !ok {
+						return errors.New("unable to type assert ticker ask period")
+					}
+					if t.AskSize, ok = tickerData[6].(float64); !ok {
+						return errors.New("unable to type assert ticker ask size")
+					}
+					if t.Last, ok = tickerData[9].(float64); !ok {
+						return errors.New("unable to type assert ticker last")
+					}
+					if t.Volume, ok = tickerData[10].(float64); !ok {
+						return errors.New("unable to type assert ticker volume")
+					}
+					if t.High, ok = tickerData[11].(float64); !ok {
+						return errors.New("unable to type assert ticker high")
+					}
+					if t.Low, ok = tickerData[12].(float64); !ok {
+						return errors.New("unable to type assert ticker low")
+					}
+					if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
+						return errors.New("unable to type assert ticker flash return rate")
+					}
+				}
+				b.Websocket.DataHandler <- t
+				return nil
+			case wsTrades:
+				if !b.IsSaveTradeDataEnabled() {
+					return nil
+				}
+				if c.Asset == asset.MarginFunding {
+					return nil
+				}
+				var tradeHolder []WebsocketTrade
+				switch len(d) {
+				case 2:
+					snapshot, ok := d[1].([]interface{})
+					if !ok {
+						return errors.New("unable to type assert trade snapshot data")
+					}
+					for i := range snapshot {
+						elem, ok := snapshot[i].([]interface{})
+						if !ok {
+							return errors.New("unable to type assert trade snapshot element data")
+						}
+						tradeID, ok := elem[0].(float64)
+						if !ok {
+							return errors.New("unable to type assert trade ID")
+						}
+						timestamp, ok := elem[1].(float64)
+						if !ok {
+							return errors.New("unable to type assert trade timestamp")
+						}
+						amount, ok := elem[2].(float64)
+						if !ok {
+							return errors.New("unable to type assert trade amount")
+						}
+						wsTrade := WebsocketTrade{
+							ID:        int64(tradeID),
+							Timestamp: int64(timestamp),
+							Amount:    amount,
+						}
+						if len(elem) == 5 {
+							rate, ok := elem[3].(float64)
+							if !ok {
+								return errors.New("unable to type assert trade rate")
+							}
+							wsTrade.Rate = rate
+							period, ok := elem[4].(float64)
+							if !ok {
+								return errors.New("unable to type assert trade period")
+							}
+							wsTrade.Period = int64(period)
+						} else {
+							price, ok := elem[3].(float64)
+							if !ok {
+								return errors.New("unable to type assert trade price")
+							}
+							wsTrade.Rate = price
+						}
+						tradeHolder = append(tradeHolder, wsTrade)
+					}
+				case 3:
+					event, ok := d[1].(string)
+					if !ok {
+						return errors.New("unable to type assert data event")
+					}
+					if event != wsFundingTradeUpdate &&
+						event != wsTradeExecutionUpdate {
+						return nil
+					}
+					data, ok := d[2].([]interface{})
+					if !ok {
+						return errors.New("trade data type assertion error")
+					}
+
+					tradeID, ok := data[0].(float64)
 					if !ok {
 						return errors.New("unable to type assert trade ID")
 					}
-					timestamp, ok := elem[1].(float64)
+					timestamp, ok := data[1].(float64)
 					if !ok {
 						return errors.New("unable to type assert trade timestamp")
 					}
-					amount, ok := elem[2].(float64)
+					amount, ok := data[2].(float64)
 					if !ok {
 						return errors.New("unable to type assert trade amount")
 					}
@@ -499,102 +552,52 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Timestamp: int64(timestamp),
 						Amount:    amount,
 					}
-					if len(elem) == 5 {
-						rate, ok := elem[3].(float64)
+					if len(data) == 5 {
+						rate, ok := data[3].(float64)
 						if !ok {
 							return errors.New("unable to type assert trade rate")
 						}
-						wsTrade.Rate = rate
-						period, ok := elem[4].(float64)
+						period, ok := data[4].(float64)
 						if !ok {
 							return errors.New("unable to type assert trade period")
 						}
+						wsTrade.Rate = rate
 						wsTrade.Period = int64(period)
 					} else {
-						price, ok := elem[3].(float64)
+						price, ok := data[3].(float64)
 						if !ok {
 							return errors.New("unable to type assert trade price")
 						}
-						wsTrade.Rate = price
+						wsTrade.Price = price
 					}
 					tradeHolder = append(tradeHolder, wsTrade)
 				}
-			case 3:
-				event, ok := d[1].(string)
-				if !ok {
-					return errors.New("unable to type assert data event")
-				}
-				if event != wsFundingTradeUpdate &&
-					event != wsTradeExecutionUpdate {
-					return nil
-				}
-				data, ok := d[2].([]interface{})
-				if !ok {
-					return errors.New("trade data type assertion error")
+				trades := make([]trade.Data, len(tradeHolder))
+				for i := range tradeHolder {
+					side := order.Buy
+					newAmount := tradeHolder[i].Amount
+					if newAmount < 0 {
+						side = order.Sell
+						newAmount *= -1
+					}
+					price := tradeHolder[i].Price
+					if price == 0 && tradeHolder[i].Rate > 0 {
+						price = tradeHolder[i].Rate
+					}
+					trades[i] = trade.Data{
+						TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
+						CurrencyPair: c.Currency,
+						Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp),
+						Price:        price,
+						Amount:       newAmount,
+						Exchange:     b.Name,
+						AssetType:    c.Asset,
+						Side:         side,
+					}
 				}
 
-				tradeID, ok := data[0].(float64)
-				if !ok {
-					return errors.New("unable to type assert trade ID")
-				}
-				timestamp, ok := data[1].(float64)
-				if !ok {
-					return errors.New("unable to type assert trade timestamp")
-				}
-				amount, ok := data[2].(float64)
-				if !ok {
-					return errors.New("unable to type assert trade amount")
-				}
-				wsTrade := WebsocketTrade{
-					ID:        int64(tradeID),
-					Timestamp: int64(timestamp),
-					Amount:    amount,
-				}
-				if len(data) == 5 {
-					rate, ok := data[3].(float64)
-					if !ok {
-						return errors.New("unable to type assert trade rate")
-					}
-					period, ok := data[4].(float64)
-					if !ok {
-						return errors.New("unable to type assert trade period")
-					}
-					wsTrade.Rate = rate
-					wsTrade.Period = int64(period)
-				} else {
-					price, ok := data[3].(float64)
-					if !ok {
-						return errors.New("unable to type assert trade price")
-					}
-					wsTrade.Price = price
-				}
-				tradeHolder = append(tradeHolder, wsTrade)
+				return b.AddTradesToBuffer(trades...)
 			}
-			trades := make([]trade.Data, len(tradeHolder))
-			for i := range tradeHolder {
-				side := order.Buy
-				newAmount := tradeHolder[i].Amount
-				if newAmount < 0 {
-					side = order.Sell
-					newAmount *= -1
-				}
-				price := tradeHolder[i].Price
-				if price == 0 && tradeHolder[i].Rate > 0 {
-					price = tradeHolder[i].Rate
-				}
-				trades[i] = trade.Data{
-					TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
-					CurrencyPair: c.Currency,
-					Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp),
-					Price:        price,
-					Amount:       newAmount,
-					Exchange:     b.Name,
-					AssetType:    c.Asset,
-					Side:         side,
-				}
-			}
-
-			return b.AddTradesToBuffer(trades...)
 		}
 
 		if authResp, ok := d[1].(string); ok {
