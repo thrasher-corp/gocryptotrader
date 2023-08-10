@@ -167,7 +167,9 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 
 	w.Trade.Setup(w.exchangeName, s.TradeFeed, w.DataHandler)
 	w.Fills.Setup(s.FillsFeed, w.DataHandler)
-	return nil
+
+	w.Processor, err = NewProcessor(DefaultChannelBufferSize, w.DataHandler)
+	return err
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection

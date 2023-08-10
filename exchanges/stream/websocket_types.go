@@ -93,6 +93,8 @@ type Websocket struct {
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter
+
+	Processor *Processor
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection

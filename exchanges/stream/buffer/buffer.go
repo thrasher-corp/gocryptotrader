@@ -91,8 +91,8 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	if err := w.validate(u); err != nil {
 		return err
 	}
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
+	w.mtx.RLock()
+	defer w.mtx.RUnlock()
 	book, ok := w.ob[Key{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
 	if !ok {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
@@ -101,6 +101,9 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 			u.Pair,
 			u.Asset)
 	}
+
+	book.mtx.Lock()
+	defer book.mtx.Unlock()
 
 	// out of order update ID can be skipped
 	if w.updateIDProgression && u.UpdateID <= book.updateID {
@@ -312,26 +315,42 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		return err
 	}
 
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
+	w.mtx.RLock()
 	holder, ok := w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
 	if !ok {
-		// Associate orderbook pointer with local exchange depth map
-		var depth *orderbook.Depth
-		depth, err = orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
-		if err != nil {
-			return err
-		}
-		depth.AssignOptions(book)
-		buffer := make([]orderbook.Update, w.obBufferLimit)
+		waitForMainLock := make(chan struct{})
+		go func() { w.mtx.Lock(); close(waitForMainLock) }()
+		w.mtx.RUnlock() // Release read
+		<-waitForMainLock
+		// Re-check if orderbook has been created.
+		holder, ok = w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
+		if !ok {
+			// Associate orderbook pointer with local exchange depth map
+			var depth *orderbook.Depth
+			depth, err = orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
+			if err != nil {
+				w.mtx.Unlock()
+				return err
+			}
+			depth.AssignOptions(book)
+			buffer := make([]orderbook.Update, w.obBufferLimit)
 
-		var ticker *time.Ticker
-		if w.publishPeriod != 0 {
-			ticker = time.NewTicker(w.publishPeriod)
+			var ticker *time.Ticker
+			if w.publishPeriod != 0 {
+				ticker = time.NewTicker(w.publishPeriod)
+			}
+			holder = &orderbookHolder{ob: depth, buffer: &buffer, ticker: ticker}
+			w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
+			w.mtx.Unlock()
+		} else {
+			w.mtx.Unlock()
 		}
-		holder = &orderbookHolder{ob: depth, buffer: &buffer, ticker: ticker}
-		w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
+	} else {
+		w.mtx.RUnlock()
 	}
+
+	holder.mtx.Lock()
+	defer holder.mtx.Unlock()
 
 	holder.updateID = book.LastUpdateID
 	holder.ob.LoadSnapshot(book.Bids,
@@ -365,12 +384,14 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 // GetOrderbook returns an orderbook copy as orderbook.Base
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
-	w.mtx.Lock()
-	defer w.mtx.Unlock()
+	w.mtx.RLock()
+	defer w.mtx.RUnlock()
 	book, ok := w.ob[Key{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, errDepthNotFound)
 	}
+	book.mtx.Lock()
+	defer book.mtx.Unlock()
 	return book.ob.Retrieve()
 }
 
@@ -394,7 +415,9 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 			a,
 			errDepthNotFound)
 	}
+	book.mtx.Lock()
 	// error not needed in this return
 	_ = book.ob.Invalidate(errOrderbookFlushed)
+	book.mtx.Unlock()
 	return nil
 }

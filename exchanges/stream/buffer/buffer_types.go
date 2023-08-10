@@ -48,11 +48,7 @@ type Orderbook struct {
 
 	publishPeriod time.Duration
 
-	// TODO: sync.RWMutex. For the moment we process the orderbook in a single
-	// thread. In future when there are workers directly involved this can be
-	// can be improved with RW mechanics which will allow updates to occur at
-	// the same time on different books.
-	mtx sync.Mutex
+	mtx sync.RWMutex
 }
 
 // orderbookHolder defines a store of pending updates and a pointer to the
@@ -66,6 +62,10 @@ type orderbookHolder struct {
 	// currency.
 	ticker   *time.Ticker
 	updateID int64
+
+	// Protect indv holder. TODO: Expose orderbook.Depth mutex to use that
+	// instead. This is temporary.
+	mtx sync.Mutex
 }
 
 // Key defines a unique orderbook key for a specific pair and asset
