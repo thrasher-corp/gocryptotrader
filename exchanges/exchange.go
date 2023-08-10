@@ -1661,7 +1661,7 @@ func (b *Base) Shutdown() error {
 	return b.Requester.Shutdown()
 }
 
-// MatchSymbolWithAvailablePair returns a currency pair based on the supplied
+// MatchSymbolWithAvailablePairs returns a currency pair based on the supplied
 // symbol and asset type. If the string is expected to have a delimiter this
 // will attempt to screen it out.
 func (b *Base) MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDelimiter bool) (currency.Pair, error) {
