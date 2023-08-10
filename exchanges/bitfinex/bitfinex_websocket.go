@@ -595,13 +595,13 @@ func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, d []interfa
 				Amount: amountRate})
 		}
 
-		chanId, ok := c.Params["chanId"].(int)
+		chanID, ok := c.Params["chanId"].(int)
 		if !ok {
 			// This should absolutely never happen and is not currently possible. Leave check to protect against regression
 			return fmt.Errorf("%s chanId not an int. Type: %T Value: %v", b.Name, c.Params["chanId"], c.Params["chanId"])
 		}
 
-		if err := b.WsUpdateOrderbook(c.Currency, c.Asset, newOrderbook, chanId, int64(sequenceNo), fundingRate); err != nil {
+		if err := b.WsUpdateOrderbook(c.Currency, c.Asset, newOrderbook, chanID, int64(sequenceNo), fundingRate); err != nil {
 			return fmt.Errorf("updating orderbook error: %s",
 				err)
 		}
