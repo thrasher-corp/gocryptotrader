@@ -52,7 +52,6 @@ func NewTestWebsocket() *stream.Websocket {
 	return &stream.Websocket{
 		Init:              true,
 		DataHandler:       make(chan interface{}, WebsocketChannelOverrideCapacity),
-		ToRoutine:         make(chan interface{}, 1000),
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),
 		Subscribe:         make(chan []stream.ChannelSubscription, 10),

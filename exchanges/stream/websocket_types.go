@@ -33,7 +33,6 @@ type Websocket struct {
 	verbose                      bool
 	connectionMonitorRunning     bool
 	trafficMonitorRunning        bool
-	dataMonitorRunning           bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -62,7 +61,6 @@ type Websocket struct {
 	GenerateSubs func() ([]ChannelSubscription, error)
 
 	DataHandler chan interface{}
-	ToRoutine   chan interface{}
 
 	Match *Match
 

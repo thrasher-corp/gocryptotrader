@@ -304,7 +304,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	timer := time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- errors.New("errorText")
 	select {
-	case err := <-ws.ToRoutine:
+	case err := <-ws.DataHandler:
 		errText, ok := err.(error)
 		if !ok {
 			t.Error("unable to type assert error")
@@ -321,7 +321,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 outer:
 	for {
 		select {
-		case <-ws.ToRoutine:
+		case <-ws.DataHandler:
 			t.Fatal("Error is a disconnection error")
 		case <-timer.C:
 			break outer
