@@ -223,9 +223,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		if chanID != 0 {
 			if c, ok := b.WebsocketSubdChannels[chanID]; ok {
 				return b.handleWSChannelUpdate(c, d)
-			} else {
-				return fmt.Errorf("unable to locate chanID: %d", chanID)
 			}
+			return fmt.Errorf("unable to locate chanID: %d", chanID)
 		}
 
 		if eventType, ok := d[1].(string); ok {
