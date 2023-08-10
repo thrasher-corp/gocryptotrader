@@ -475,12 +475,6 @@ type Fee struct {
 	MakerFees float64
 }
 
-// WebsocketChanInfo holds websocket channel information
-type WebsocketChanInfo struct {
-	Channel string
-	Pair    string
-}
-
 // WebsocketBook holds booking information
 type WebsocketBook struct {
 	ID     int64
