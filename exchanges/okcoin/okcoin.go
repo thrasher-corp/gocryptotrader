@@ -294,66 +294,39 @@ func (o *Okcoin) GetExchangeRate(ctx context.Context) ([]ExchangeRate, error) {
 }
 
 func intervalToString(interval kline.Interval, utcOpeningPrice bool) (string, error) {
-	switch interval {
-	case kline.OneMin:
-		return "1m", nil
-	case kline.ThreeMin:
-		return "3m", nil
-	case kline.FiveMin:
-		return "5m", nil
-	case kline.FifteenMin:
-		return "15m", nil
-	case kline.ThirtyMin:
-		return "30m", nil
-	case kline.OneHour:
-		return "1H", nil
-	case kline.TwoHour:
-		return "2H", nil
-	case kline.FourHour:
-		return "4H", nil
-	case kline.SixHour:
-		if utcOpeningPrice {
-			return "6Hutc", nil
-		}
-		return "6H", nil
-	case kline.TwelveHour:
-		if utcOpeningPrice {
-			return "12Hutc", nil
-		}
-		return "12H", nil
-	case kline.OneDay:
-		if utcOpeningPrice {
-			return "1Dutc", nil
-		}
-		return "1D", nil
-	case kline.TwoDay:
-		if utcOpeningPrice {
-			return "2Dutc", nil
-		}
-		return "2D", nil
-	case kline.ThreeDay:
-		if utcOpeningPrice {
-			return "3Dutc", nil
-		}
-		return "3D", nil
-	case kline.OneWeek:
-		if utcOpeningPrice {
-			return "1Wutc", nil
-		}
-		return "1W", nil
-	case kline.OneMonth:
-		if utcOpeningPrice {
-			return "1Mutc", nil
-		}
-		return "1M", nil
-	case kline.ThreeMonth:
-		if utcOpeningPrice {
-			return "3Mutc", nil
-		}
-		return "3M", nil
-	default:
+	intervalMap := map[kline.Interval]string{
+		kline.OneMin:     "1m",
+		kline.ThreeMin:   "3m",
+		kline.FiveMin:    "5m",
+		kline.FifteenMin: "15m",
+		kline.ThirtyMin:  "30m",
+		kline.OneHour:    "1H",
+		kline.TwoHour:    "2H",
+		kline.FourHour:   "4H",
+		kline.SixHour:    "6H",
+		kline.TwelveHour: "12H",
+		kline.OneDay:     "1D",
+		kline.TwoDay:     "2D",
+		kline.ThreeDay:   "3D",
+		kline.OneWeek:    "1W",
+		kline.OneMonth:   "1M",
+		kline.ThreeMonth: "3M",
+	}
+	str, ok := intervalMap[interval]
+	if !ok {
 		return "", kline.ErrUnsupportedInterval
 	}
+	if utcOpeningPrice && (interval == kline.SixHour ||
+		interval == kline.TwelveHour ||
+		interval == kline.OneDay ||
+		interval == kline.TwoDay ||
+		interval == kline.ThreeDay ||
+		interval == kline.OneWeek ||
+		interval == kline.OneMonth ||
+		interval == kline.ThreeMonth) {
+		str += "utc"
+	}
+	return str, nil
 }
 
 // ------------ Funding endpoints --------------------------------
