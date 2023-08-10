@@ -658,11 +658,19 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 								b.Websocket.DataHandler <- offer
 							}
 						}
-					case strings.Contains(channelName, wsOrderNewRequest),
-						strings.Contains(channelName, wsOrderUpdateRequest),
-						strings.Contains(channelName, wsOrderCancelRequest):
+					case strings.Contains(channelName, wsOrderNewRequest):
 						if data[2] != nil {
-							if id, ok := data[2].(float64); ok && id > 0 {
+							if cid, ok := data[2].(float64); ok && cid > 0 {
+								if b.Websocket.Match.IncomingWithData(int64(cid), respRaw) {
+									return nil
+								}
+								b.wsHandleOrder(data)
+							}
+						}
+					case strings.Contains(channelName, wsOrderUpdateRequest),
+						strings.Contains(channelName, wsOrderCancelRequest):
+						if data[0] != nil {
+							if id, ok := data[0].(float64); ok && id > 0 {
 								if b.Websocket.Match.IncomingWithData(int64(id), respRaw) {
 									return nil
 								}
