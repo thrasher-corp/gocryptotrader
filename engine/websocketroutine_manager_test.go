@@ -298,16 +298,16 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	}
 
 	mock := stream.New()
-	mock.ToRoutine = make(chan interface{})
+	mock.DataHandler = make(chan interface{})
 	m.state = readyState
 	err = m.websocketDataReceiver(mock)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	mock.ToRoutine <- nil
-	mock.ToRoutine <- 1336
-	mock.ToRoutine <- "intercepted"
+	mock.DataHandler <- nil
+	mock.DataHandler <- 1336
+	mock.DataHandler <- "intercepted"
 
 	if r := <-dataChan; r != "intercepted" {
 		t.Fatal("unexpected value received")

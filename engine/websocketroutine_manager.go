@@ -183,7 +183,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 			select {
 			case <-m.shutdown:
 				return
-			case data := <-ws.ToRoutine:
+			case data := <-ws.DataHandler:
 				if data == nil {
 					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
 				}
