@@ -45,8 +45,8 @@ func (o *bybitTime) UnmarshalJSON(data []byte) error {
 		*o = bybitTime(time.Time{})
 	case timestamp >= 1e18: // Nanoseconds
 		*o = bybitTime(time.Unix(timestamp/1e9, timestamp%1e9))
-	case timestamp >= 1e10: // Milliseconds
-		*o = bybitTime(time.Unix(timestamp/1e3, 0))
+	case timestamp > 1e10: // Milliseconds
+		*o = bybitTime(time.UnixMilli(timestamp))
 	default: // Seconds
 		*o = bybitTime(time.Unix(timestamp, 0))
 	}
@@ -63,11 +63,6 @@ type bybitNumber float64
 // Float64 returns an float64 value from kucoinNumeric instance
 func (a *bybitNumber) Float64() float64 {
 	return float64(*a)
-}
-
-// Int64 returns an int64 value from kucoinNumeric instance
-func (a *bybitNumber) Int64() int64 {
-	return int64(*a)
 }
 
 // UnmarshalJSON deserializes float and string data having an float value to float64
@@ -132,6 +127,7 @@ func (o *wsFuturesOBData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// GetTime returns creation or update timestamp information given asset type.
 func (o *WsOrderData) GetTime(a asset.Item) time.Time {
 	switch a {
 	case asset.USDTMarginedFutures:
@@ -141,6 +137,7 @@ func (o *WsOrderData) GetTime(a asset.Item) time.Time {
 	}
 }
 
+// GetTime returns creation or update timestamp information given asset type.
 func (o *WsStopOrderData) GetTime(a asset.Item) time.Time {
 	switch a {
 	case asset.USDTMarginedFutures:
@@ -150,6 +147,7 @@ func (o *WsStopOrderData) GetTime(a asset.Item) time.Time {
 	}
 }
 
+// GetVolume24h returns volume value from either Volume24h or Volume24hE8 field.
 func (t *WsFuturesTickerData) GetVolume24h() float64 {
 	if t.Volume24h.Float64() != 0 {
 		return t.Volume24h.Float64()

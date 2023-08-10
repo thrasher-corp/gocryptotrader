@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -31,7 +30,11 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b = &Bybit{}
+var (
+	b                                                                                                                                        = &Bybit{}
+	updateTPLock                                                                                                                             sync.Mutex
+	spotTradablePair, futuresTradablePair, coinMarginedFuturesTradablePair, usdtMarginedFuturesTradablePair, usdcMarginedFuturesTradablePair currency.Pair
+)
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -60,10 +63,8 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	err = b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		log.Fatal(err)
-	}
+	b.Websocket.Wg.Add(1)
+	go updateTradablePairAndInitiateDefaultCurrencyPairs()
 
 	// Turn on all pairs for testing
 	supportedAssets := b.GetAssetTypes(false)
@@ -336,15 +337,8 @@ func TestWithdrawFund(t *testing.T) {
 
 func TestWsSubscription(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-		"symbol": "BTCUSDT",
-		"event": "sub",
-		"topic": "trade",
-		"params": {
-			"binary": false
-		}
-	}`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`{ "symbol": "BTCUSDT", "event": "sub", "topic": "trade", "params": { "binary": false } }`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,15 +346,8 @@ func TestWsSubscription(t *testing.T) {
 
 func TestWsUnsubscribe(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-		"symbol":"BTCUSDT",
-		"event": "cancel",
-		"topic":"trade",
-		"params": {
-			"binary": false
-		}
-	}`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`{ "symbol":"BTCUSDT", "event": "cancel", "topic":"trade", "params": { "binary": false } }`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,22 +357,8 @@ func TestWsTrade(t *testing.T) {
 	t.Parallel()
 	b.SetSaveTradeDataStatus(true)
 
-	pressXToJSON := []byte(`{
-		"topic": "trade",
-		"params": {
-			"symbol": "BTCUSDT",
-			"binary": "false",
-			"symbolName": "BTCUSDT"
-		},
-		"data": {
-			"v": "564265886622695424",
-			"t": 1582001735462,
-			"p": "9787.5",
-			"q": "0.195009",
-			"m": true
-		}
-	}`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`{ "topic": "trade", "params": { "symbol": "BTCUSDT", "binary": "false", "symbolName": "BTCUSDT" }, "data": { "v": "564265886622695424", "t": 1582001735462, "p": "9787.5", "q": "0.195009", "m": true } }`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,48 +366,8 @@ func TestWsTrade(t *testing.T) {
 
 func TestWsOrderbook(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-		"topic": "depth",
-		"params": {
-		  "symbol": "BTCUSDT",
-		  "binary": "false",
-		  "symbolName": "BTCUSDT"
-		},
-		"data": {
-			"s": "BTCUSDT",
-			"t": 1582001376853,
-			"v": "13850022_2",
-			"b": [
-				[
-					"9780.79",
-					"0.01"
-				],
-				[
-					"9780.5",
-					"0.1"
-				],
-				[
-					"9780.4",
-					"0.517813"
-				]
-			],
-			"a": [
-				[
-					"9781.21",
-					"0.042842"
-				],
-				[
-					"9782",
-					"0.3"
-				],
-				[
-					"9782.1",
-					"0.226"
-				]
-			]
-		}
-	}`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`{ "topic": "depth", "params": { "symbol": "BTCUSDT", "binary": "false", "symbolName": "BTCUSDT" }, "data": { "s": "BTCUSDT", "t": 1582001376853, "v": "13850022_2", "b": [ [ "9780.79", "0.01" ], [ "9780.5", "0.1" ], [ "9780.4", "0.517813" ] ], "a": [ [ "9781.21", "0.042842" ], [ "9782", "0.3" ], [ "9782.1", "0.226" ] ] } }`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,23 +375,8 @@ func TestWsOrderbook(t *testing.T) {
 
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-		"topic": "bookTicker",
-		"params": {
-			"symbol": "BTCUSDT",
-			"binary": "false",
-			"symbolName": "BTCUSDT"
-		},
-		"data": {
-			"symbol": "BTCUSDT",
-			"bidPrice": "9797.79",
-			"bidQty": "0.177976",
-			"askPrice": "9799",
-			"askQty": "0.65",
-			"time": 1582001830346
-		}
-	}`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`{ "topic": "bookTicker", "params": { "symbol": "BTCUSDT", "binary": "false", "symbolName": "BTCUSDT" }, "data": { "symbol": "BTCUSDT", "bidPrice": "9797.79", "bidQty": "0.177976", "askPrice": "9799", "askQty": "0.65", "time": 1582001830346 } }`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,26 +384,8 @@ func TestWsTicker(t *testing.T) {
 
 func TestWsKline(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-		"topic": "kline",
-		"params": {
-		 	"symbol": "BTCUSDT",
-		  	"binary": "false",
-		  	"klineType": "1m",
-		  	"symbolName": "BTCUSDT"
-		},
-		"data": {
-		  	"t": 1582001880000,
-		  	"s": "BTCUSDT",
-		  	"sn": "BTCUSDT",
-		  	"c": "9799.4",
-		  	"h": "9801.4",
-		  	"l": "9798.91",
-		  	"o": "9799.4",
-		  	"v": "15.917433"
-		}
-	}`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`{ "topic": "kline", "params": { "symbol": "BTCUSDT", "binary": "false", "klineType": "1m", "symbolName": "BTCUSDT" }, "data": { "t": 1582001880000, "s": "BTCUSDT", "sn": "BTCUSDT", "c": "9799.4", "h": "9801.4", "l": "9798.91", "o": "9799.4", "v": "15.917433" } }`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,19 +393,8 @@ func TestWsKline(t *testing.T) {
 
 func TestWSAccountInfo(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`[{
-		"e":"outboundAccountInfo",
-		"E":"1629969654753",
-		"T":true,
-		"W":true,
-		"D":true,
-		"B":[{
-			"a":"BTC",
-			"f":"10000000097.1982823144",
-			"l":"0"
-		}]
-	}]`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`[{ "e":"outboundAccountInfo", "E":"1629969654753", "T":true, "W":true, "D":true, "B":[{ "a":"BTC", "f":"10000000097.1982823144", "l":"0" }] }]`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,34 +402,8 @@ func TestWSAccountInfo(t *testing.T) {
 
 func TestWSOrderExecution(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`[{
-		"e": "executionReport",
-		"E": "1499405658658",
-		"s": "BTCUSDT",
-		"c": "1000087761",
-		"S": "BUY",
-		"o": "LIMIT",
-		"f": "GTC",
-		"q": "1.00000000",
-		"p": "0.10264410",
-		"X": "NEW",
-		"i": "4293153",
-		"M": "0",
-		"l": "0.00000000",
-		"z": "0.00000000",
-		"L": "0.00000000",
-		"n": "0",
-		"N": "BTC",
-		"u": true,
-		"w": true,
-		"m": false,
-		"O": "1499405658657",
-		"Z": "473.199",
-		"A": "0",
-		"C": false,
-		"v": "0"
-	}]`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`[{ "e": "executionReport", "E": "1499405658658", "s": "BTCUSDT", "c": "1000087761", "S": "BUY", "o": "LIMIT", "f": "GTC", "q": "1.00000000", "p": "0.10264410", "X": "NEW", "i": "4293153", "M": "0", "l": "0.00000000", "z": "0.00000000", "L": "0.00000000", "n": "0", "N": "BTC", "u": true, "w": true, "m": false, "O": "1499405658657", "Z": "473.199", "A": "0", "C": false, "v": "0" }]`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -548,23 +411,8 @@ func TestWSOrderExecution(t *testing.T) {
 
 func TestWSTickerInfo(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`[{
-		"e":"ticketInfo",
-		"E":"1621912542359",
-		"s":"BTCUSDT",
-		"q":"0.001639",
-		"t":"1621912542314",
-		"p":"61000.0",
-		"T":"899062000267837441",
-		"o":"899048013515737344",
-		"c":"1621910874883",
-		"O":"899062000118679808",
-		"a":"10043",
-		"A":"10024",
-		"m":true,
-		"S":"BUY"
-	}]`)
-	err := b.wsSpotHandleData(pressXToJSON)
+	pressXToJSON := []byte(`[{ "e":"ticketInfo", "E":"1621912542359", "s":"BTCUSDT", "q":"0.001639", "t":"1621912542314", "p":"61000.0", "T":"899062000267837441", "o":"899048013515737344", "c":"1621910874883", "O":"899062000118679808", "a":"10043", "A":"10024", "m":true, "S":"BUY" }]`)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2013,37 +1861,7 @@ func TestSetRiskLimit(t *testing.T) {
 
 // Miscellaneous
 
-func TestTimeSecUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	tInSec := time.Now().Unix()
-
-	var ts bybitTime
-	err := ts.UnmarshalJSON([]byte(strconv.FormatInt(tInSec, 10)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !time.Unix(tInSec, 0).Equal(ts.Time()) {
-		t.Errorf("TestTimeSecUnmarshalJSON failed")
-	}
-}
-
-func TestTimeMilliSecUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	tInMilliSec := time.Now().UnixMilli()
-
-	var tms bybitTime
-	err := tms.UnmarshalJSON([]byte(strconv.FormatInt(tInMilliSec, 10)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !time.UnixMilli(tInMilliSec).Equal(tms.Time()) {
-		t.Errorf("TestTimeMilliSecUnmarshalJSON failed")
-	}
-}
-
-func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
+func TestTimeUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	bybitTimeInst := &struct {
 		Timestamp bybitTime `json:"ts"`
@@ -2053,10 +1871,9 @@ func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(data1), bybitTimeInst)
 	if err != nil {
 		t.Fatal(err)
-	} else if !bybitTimeInst.Timestamp.Time().Equal(resultTime) {
+	} else if bybitTimeInst.Timestamp.Time().UnixMilli() != resultTime.UnixMilli() {
 		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime)
 	}
-
 	data2 := `{ "ts" : "1685523612"}`
 	resultTime = time.Unix(1685523612, 0)
 	err = json.Unmarshal([]byte(data2), bybitTimeInst)
@@ -2073,7 +1890,7 @@ func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
 	} else if !bybitTimeInst.Timestamp.Time().Equal(resultTime) {
 		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime)
 	}
-	data4 := `{ "ts" : "1685523612781790000"}`
+	data4 := `{"ts":"1685523612781790000"}`
 	resultTime = time.Unix((int64(1685523612781790000) / 1e9), int64(1685523612781790000)%1e9)
 	err = json.Unmarshal([]byte(data4), bybitTimeInst)
 	if err != nil {
@@ -2086,7 +1903,7 @@ func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
 	err = json.Unmarshal([]byte(data5), bybitTimeInst)
 	if err != nil {
 		t.Fatal(err)
-	} else if !bybitTimeInst.Timestamp.Time().Equal(resultTime) {
+	} else if bybitTimeInst.Timestamp.Time().UnixMilli() != resultTime.UnixMilli() {
 		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime.String())
 	}
 	data6 := `{ "ts" : "abcdef"}`
@@ -2300,22 +2117,14 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	enabled, err := b.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(context.Background(), enabled[0], asset.Futures, kline.OneHour, start, end)
+	updateTPLock.Lock()
+	updateTPLock.Unlock()
+	_, err = b.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
 	if err != nil {
 		t.Error(err)
 	}
 
-	pair3, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(context.Background(), pair3, asset.USDCMarginedFutures, kline.OneDay, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), usdcMarginedFuturesTradablePair, asset.USDCMarginedFutures, kline.OneDay, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2327,46 +2136,14 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	startTime := time.Now().Add(-time.Hour * 24 * 3)
+	startTime := time.Now().Add(-time.Hour * 4)
 	end := time.Now().Add(-time.Hour * 1)
-
 	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, end)
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.USDTMarginedFutures, kline.OneMin, startTime, end)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair1, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, kline.OneHour, startTime, end)
-	if err != nil {
-		t.Error(err)
-	}
-
-	enabled, err := b.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), enabled[0], asset.Futures, kline.OneDay, startTime, end)
-	if err != nil {
-		t.Error(err)
-	}
-
-	pair3, err := currency.NewPairFromString("BTCPERP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair3, asset.USDCMarginedFutures, kline.FiveMin, startTime, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3470,23 +3247,22 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	supportedAssets := b.GetAssetTypes(false)
-	ctx := context.Background()
+	updateTPLock.Lock()
+	updateTPLock.Unlock()
+	supportedAssets := b.GetAssetTypes(true)
 	for x := range supportedAssets {
-		err := b.UpdateTickers(ctx, supportedAssets[x])
+		err := b.UpdateTickers(context.Background(), supportedAssets[x])
 		if err != nil {
 			t.Fatalf("%v %v\n", supportedAssets[x], err)
 		}
-
-		avail, err := b.GetAvailablePairs(supportedAssets[x])
+		enabled, err := b.GetEnabledPairs(supportedAssets[x])
 		if err != nil {
 			t.Fatalf("%v %v\n", supportedAssets[x], err)
 		}
-
-		for y := range avail {
-			_, err = ticker.GetTicker(b.GetName(), avail[y], supportedAssets[x])
+		for y := range enabled {
+			_, err = ticker.GetTicker(b.GetName(), enabled[y], supportedAssets[x])
 			if err != nil {
-				t.Fatalf("%v %v %v\n", avail[y], supportedAssets[x], err)
+				t.Fatalf("%v %v %v\n", enabled[y], supportedAssets[x], err)
 			}
 		}
 	}
@@ -3528,29 +3304,27 @@ func TestGetTickersV5(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
+	updateTPLock.Lock()
+	updateTPLock.Unlock()
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
 	}
-
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
-		t.Error("Okx UpdateOrderExecutionLimits() error", err)
+		t.Error("Bybit UpdateOrderExecutionLimits() error", err)
 	}
-
-	avail, err := b.GetAvailablePairs(asset.Spot)
+	avail, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		t.Fatal("Okx GetAvailablePairs() error", err)
+		t.Fatal("Bybit GetAvailablePairs() error", err)
 	}
-
 	for x := range avail {
 		limits, err := b.GetOrderExecutionLimits(asset.Spot, avail[x])
 		if err != nil {
-			t.Fatal("Okx GetOrderExecutionLimits() error", err)
+			t.Fatal("Bybit GetOrderExecutionLimits() error", err)
 		}
 		if limits == (order.MinMaxLevel{}) {
-			t.Fatal("Okx GetOrderExecutionLimits() error cannot be nil")
+			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
 		}
 	}
 }
@@ -3615,4 +3389,40 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func updateTradablePairAndInitiateDefaultCurrencyPairs() {
+	defer b.Websocket.Wg.Done()
+	defer updateTPLock.Unlock()
+	updateTPLock.Lock()
+	err := b.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var tradables currency.Pairs
+	tradables, err = b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Fatal(err)
+	}
+	spotTradablePair = tradables[0]
+	tradables, err = b.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	futuresTradablePair = tradables[0]
+	tradables, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	coinMarginedFuturesTradablePair = tradables[0]
+	tradables, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	usdtMarginedFuturesTradablePair = tradables[0]
+	tradables, err = b.GetEnabledPairs(asset.USDCMarginedFutures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	usdcMarginedFuturesTradablePair = tradables[0]
 }
