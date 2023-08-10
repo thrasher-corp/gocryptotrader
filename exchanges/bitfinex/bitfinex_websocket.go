@@ -190,15 +190,15 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		}
 
 		chanID := int(chanF)
-		var datum string
-		if datum, ok = d[1].(string); ok {
+		var eventType string
+		if eventType, ok = d[1].(string); ok {
 			// Capturing heart beat
-			if datum == "hb" {
+			if eventType == "hb" {
 				return nil
 			}
 
 			// Capturing checksum and storing value
-			if datum == "cs" {
+			if eventType == "cs" {
 				var tokenF float64
 				tokenF, ok = d[2].(float64)
 				if !ok {
@@ -801,11 +801,13 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						return errors.New("unable to type assert trade maker")
 					}
 					tData.Maker = maker == 1
-					if tData.Fee, ok = tradeData[9].(float64); !ok {
-						return errors.New("unable to type assert trade fee")
-					}
-					if tData.FeeCurrency, ok = tradeData[10].(string); !ok {
-						return errors.New("unable to type assert trade fee currency")
+					if eventType == "tu" {
+						if tData.Fee, ok = tradeData[9].(float64); !ok {
+							return errors.New("unable to type assert trade fee")
+						}
+						if tData.FeeCurrency, ok = tradeData[10].(string); !ok {
+							return errors.New("unable to type assert trade fee currency")
+						}
 					}
 					b.Websocket.DataHandler <- tData
 				}
