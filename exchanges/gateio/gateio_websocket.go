@@ -51,7 +51,6 @@ const (
 var defaultSubscriptions = []string{
 	spotTickerChannel,
 	spotCandlesticksChannel,
-	spotTradesChannel,
 	spotOrderbookTickerChannel,
 }
 
@@ -633,6 +632,11 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			marginBalancesChannel,
 			spotBalancesChannel}...)
 	}
+
+	if g.IsSaveTradeDataEnabled() || g.IsTradeFeedEnabled() {
+		channelsToSubscribe = append(channelsToSubscribe, spotTradesChannel)
+	}
+
 	var subscriptions []stream.ChannelSubscription
 	var err error
 	for i := range channelsToSubscribe {
@@ -667,11 +671,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			case spotOrderbookUpdateChannel:
 				params["interval"] = kline.HundredMilliseconds
 			}
-			if spotTradesChannel == channelsToSubscribe[i] {
-				if !g.IsSaveTradeDataEnabled() {
-					continue
-				}
-			}
+
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Spot)
 			if err != nil {
 				return nil, err
