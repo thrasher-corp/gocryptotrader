@@ -210,6 +210,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:  g.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		Features:               &g.Features.Supports.WebsocketCapabilities,
+		FillsFeed:              g.Features.Enabled.FillsFeed,
+		TradeFeed:              g.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
