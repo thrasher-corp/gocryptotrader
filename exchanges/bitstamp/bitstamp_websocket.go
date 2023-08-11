@@ -309,6 +309,7 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			VerifyOrderbook: b.CanVerifyOrderbook,
 			Bids:            make(orderbook.Items, len(orderbookSeed.Bids)),
 			Asks:            make(orderbook.Items, len(orderbookSeed.Asks)),
+			LastUpdated:     time.Now(),
 		}
 
 		for i := range orderbookSeed.Asks {
