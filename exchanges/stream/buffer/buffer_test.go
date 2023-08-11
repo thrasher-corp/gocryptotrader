@@ -60,7 +60,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 	if errors.Is(err, errDataHandlerReaderSlow) { // expected return error
 		err = nil
 	}
-	return holder, asks, bids, nil
+	return holder, asks, bids, err
 }
 
 func bidAskGenerator() []orderbook.Item {
