@@ -520,14 +520,14 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 
 	var orderID string
-	if s.Side == order.Buy {
+	if s.Side.IsLong() {
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(ctx, fPair, s.Amount)
 		if err != nil {
 			return nil, err
 		}
 		orderID = result.OrderID
-	} else if s.Side == order.Sell {
+	} else if s.Side.IsShort() {
 		var result MarketSell
 		result, err = b.MarketSellOrder(ctx, fPair, s.Amount)
 		if err != nil {
