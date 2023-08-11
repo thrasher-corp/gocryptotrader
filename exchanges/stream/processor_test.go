@@ -17,12 +17,12 @@ func TestNewProcessor(t *testing.T) {
 		t.Fatalf("received: %v, expected: %v", err, errMaxChanBufferSizeInvalid)
 	}
 
-	_, err = NewProcessor(DefaultChannelBufferSize, nil)
+	_, err = NewProcessor(defaultChannelBufferSize, nil)
 	if !errors.Is(err, errDataHandlerMustNotBeNil) {
 		t.Fatalf("received: %v, expected: %v", err, errDataHandlerMustNotBeNil)
 	}
 
-	got, err := NewProcessor(DefaultChannelBufferSize, make(chan interface{}))
+	got, err := NewProcessor(defaultChannelBufferSize, make(chan interface{}))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, expected: %v", err, nil)
 	}
@@ -31,8 +31,8 @@ func TestNewProcessor(t *testing.T) {
 		t.Fatal("expected processor")
 	}
 
-	if got.chanBufferSize != DefaultChannelBufferSize {
-		t.Fatalf("received: %v, expected: %v", got.chanBufferSize, DefaultChannelBufferSize)
+	if got.chanBufferSize != defaultChannelBufferSize {
+		t.Fatalf("received: %v, expected: %v", got.chanBufferSize, defaultChannelBufferSize)
 	}
 
 	if got.dataHandler == nil {
@@ -50,7 +50,7 @@ func TestProcessorProcess(t *testing.T) {
 	t.Parallel()
 
 	happyDataHandler := make(chan interface{}) // unbuffered to block error
-	proc, err := NewProcessor(DefaultChannelBufferSize, happyDataHandler)
+	proc, err := NewProcessor(defaultChannelBufferSize, happyDataHandler)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, expected: %v", err, nil)
 	}
@@ -75,7 +75,7 @@ func TestProcessorProcess(t *testing.T) {
 
 	var wg sync.WaitGroup
 	// This will back fill up the process channel
-	for x := 0; x < DefaultChannelBufferSize; x++ {
+	for x := 0; x < defaultChannelBufferSize; x++ {
 		wg.Add(1)
 		err = proc.Process(Key{Asset: asset.Spot}, func() error {
 			wg.Done()

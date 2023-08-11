@@ -168,7 +168,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Trade.Setup(w.exchangeName, s.TradeFeed, w.DataHandler)
 	w.Fills.Setup(s.FillsFeed, w.DataHandler)
 
-	w.Processor, err = NewProcessor(DefaultChannelBufferSize, w.DataHandler)
+	w.Processor, err = NewProcessor(defaultChannelBufferSize, w.DataHandler)
 	return err
 }
 

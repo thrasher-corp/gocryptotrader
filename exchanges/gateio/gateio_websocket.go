@@ -294,7 +294,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 	}
 
 	return g.Websocket.Processor.Process(
-		stream.Key{Asset: asset.Spot, Base: data.CurrencyPair.Base.Item, Quote: data.CurrencyPair.Quote.Item},
+		stream.Key{Type: stream.Book, Asset: asset.Spot, Base: data.CurrencyPair.Base.Item, Quote: data.CurrencyPair.Quote.Item},
 		func() error {
 			return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:    g.Name,

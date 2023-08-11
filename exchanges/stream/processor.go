@@ -9,7 +9,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-const DefaultChannelBufferSize = 10
+const (
+	Book                     UpdateType = iota
+	defaultChannelBufferSize            = 10
+)
 
 var (
 	errMaxChanBufferSizeInvalid = errors.New("max channel buffer must be greater than 0")
@@ -31,10 +34,14 @@ type Processor struct {
 
 // Key is a unique key for an individual type of work.
 type Key struct {
+	Type  UpdateType
 	Asset asset.Item
 	Base  *currency.Item
 	Quote *currency.Item
 }
+
+// UpdateType is a unique key for an individual type of work.
+type UpdateType uint8
 
 // NewProcessor returns a new stream processor. This handles incoming data
 // from a stream and processes it in a concurrent manner. It will spawn a
