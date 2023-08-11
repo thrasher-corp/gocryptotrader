@@ -1541,7 +1541,10 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			movement, err := depth.bids.getMovementByBase(tt.BaseAmount, tt.ReferencePrice, false)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
@@ -1662,7 +1665,10 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			base, err := depth.bids.hitBidsByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'",
@@ -1771,7 +1777,10 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			base, err := depth.bids.hitBidsByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
@@ -1854,7 +1863,10 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			movement, err := depth.asks.getMovementByQuotation(tt.QuoteAmount, tt.ReferencePrice, false)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
@@ -1984,7 +1996,10 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
+			if err != nil {
+				t.Fatalf("failed to load snapshot: %s", err)
+			}
 			quote, err := depth.asks.liftAsksByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
@@ -2073,7 +2088,10 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
+			if err != nil {
+				t.Fatalf("failed to load snapshot: %s", err)
+			}
 			quote, err := depth.asks.liftAsksByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
@@ -2095,7 +2113,10 @@ func TestGetHeadPrice(t *testing.T) {
 	if _, err := depth.asks.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err := depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatalf("failed to load snapshot: %s", err)
+	}
 
 	val, err := depth.bids.getHeadPriceNoLock()
 	if !errors.Is(err, nil) {

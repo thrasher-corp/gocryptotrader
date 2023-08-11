@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -87,8 +88,17 @@ func (d *Depth) Retrieve() (*Base, error) {
 	}, nil
 }
 
+var errLastUpdatedNotSet = errors.New("last updated not set")
+
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) {
+func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) error {
+	if lastUpdated.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
@@ -98,6 +108,7 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 	d.validationError = nil
 	d.Alert()
 	d.m.Unlock()
+	return nil
 }
 
 // invalidate flushes all values back to zero so as to not allow strategy
@@ -107,12 +118,11 @@ func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdated = time.Time{}
 	d.bids.load(nil, d.stack)
 	d.asks.load(nil, d.stack)
-	d.validationError = fmt.Errorf("%s %s %s %w Reason: [%v]",
+	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]",
 		d.exchange,
 		d.pair,
 		d.asset,
-		ErrOrderbookInvalid,
-		withReason)
+		common.AppendError(ErrOrderbookInvalid, withReason))
 	d.Alert()
 	return d.validationError
 }
@@ -135,7 +145,14 @@ func (d *Depth) IsValid() bool {
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
-func (d *Depth) UpdateBidAskByPrice(update *Update) {
+func (d *Depth) UpdateBidAskByPrice(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	tn := getNow()
 	d.m.Lock()
 	if len(update.Bids) != 0 {
@@ -146,10 +163,18 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) {
 	}
 	d.updateAndAlert(update)
 	d.m.Unlock()
+	return nil
 }
 
 // UpdateBidAskByID amends details by ID
 func (d *Depth) UpdateBidAskByID(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
@@ -170,6 +195,13 @@ func (d *Depth) UpdateBidAskByID(update *Update) error {
 
 // DeleteBidAskByID deletes a price level by ID
 func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
@@ -190,6 +222,13 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 
 // InsertBidAskByID inserts new updates
 func (d *Depth) InsertBidAskByID(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
@@ -210,6 +249,13 @@ func (d *Depth) InsertBidAskByID(update *Update) error {
 
 // UpdateInsertByID updates or inserts by ID at current price level.
 func (d *Depth) UpdateInsertByID(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
