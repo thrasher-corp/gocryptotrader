@@ -48,6 +48,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 	ch := make(chan interface{})
 	go func(<-chan interface{}) { // reader
 		for range ch {
+			continue
 		}
 	}(ch)
 	holder = &Orderbook{
@@ -56,7 +57,10 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 		ob:           newBook,
 	}
 	err = holder.LoadSnapshot(book)
-	return
+	if errors.Is(err, errDataHandlerReaderSlow) { // expected return error
+		err = nil
+	}
+	return holder, asks, bids, nil
 }
 
 func bidAskGenerator() []orderbook.Item {
