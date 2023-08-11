@@ -496,7 +496,7 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		return nil, err
 	}
 
-	if s.Side != order.Buy && s.Side != order.Sell {
+	if !s.Side.IsLong() && !s.Side.IsShort() {
 		return nil,
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.Side)
