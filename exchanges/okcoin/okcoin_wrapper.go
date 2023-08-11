@@ -867,7 +867,8 @@ func (o *Okcoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ st
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *Okcoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if err := withdrawRequest.Validate(); err != nil {
+	err := withdrawRequest.Validate()
+	if err != nil {
 		return nil, err
 	}
 	param := &WithdrawalRequest{
@@ -881,6 +882,15 @@ func (o *Okcoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 		param.WithdrawalMethod = "3"
 	} else {
 		param.WithdrawalMethod = "4"
+	}
+	if param.TransactionFee == 0 {
+		param.TransactionFee, err = o.GetFee(ctx, &exchange.FeeBuilder{
+			FeeType: exchange.CryptocurrencyWithdrawalFee,
+			Amount:  param.Amount,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	withdrawal, err := o.Withdrawal(ctx, param)
 	if err != nil {
@@ -1181,7 +1191,7 @@ func (o *Okcoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		var candles []CandlestickData
-		candles, err = o.GetCandlestickHistory(ctx, req.RequestFormatted.String(), req.RangeHolder.Ranges[x].End.Time, req.RangeHolder.Ranges[x].Start.Time, interval, 0)
+		candles, err = o.GetCandlestickHistory(ctx, req.RequestFormatted.String(), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, interval, 0)
 		if err != nil {
 			return nil, err
 		}

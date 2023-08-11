@@ -518,7 +518,7 @@ func (o *Okcoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]With
 	if arg.ToAddress == "" {
 		return nil, fmt.Errorf("%w, 'toAddr' address", errAddressMustNotBeEmptyString)
 	}
-	if arg.TransactionFee <= 0 {
+	if arg.TransactionFee < 0 {
 		return nil, fmt.Errorf("%w, transaction fee: %f", errInvalidTransactionFeeValue, arg.TransactionFee)
 	}
 	var resp []WithdrawalResponse
@@ -1742,7 +1742,11 @@ func (o *Okcoin) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (f
 			fee = rate[0].TakerFeeRate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice
 		}
 	case exchange.CryptocurrencyWithdrawalFee:
-		// TODO: manually add withdrawal fees
+		var okay bool
+		fee, okay = withdrawalFeeMaps[feeBuilder.Pair.Quote]
+		if !okay {
+			fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		}
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}

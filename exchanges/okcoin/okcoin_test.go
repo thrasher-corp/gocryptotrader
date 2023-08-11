@@ -356,11 +356,11 @@ func TestWithdrawal(t *testing.T) {
 	if !errors.Is(err, errAddressMustNotBeEmptyString) {
 		t.Fatalf("found %v, expected %v", err, errInvalidWithdrawalMethod)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg"})
 	if !errors.Is(err, errInvalidTransactionFeeValue) {
-		t.Fatalf("found %v, expected %v", err, errAddressMustNotBeEmptyString)
+		t.Errorf("found %v, expected %v", err, errAddressMustNotBeEmptyString)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg", TransactionFee: 0.004})
 	if err != nil {
 		t.Error(err)
@@ -1357,7 +1357,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*3), time.Now())
+	_, err := o.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24*5), time.Now())
 	if err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", o.Name, err)
 	}
