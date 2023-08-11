@@ -31,6 +31,7 @@ var (
 	errUpdateInsertFailure          = errors.New("orderbook update/insert update failure")
 	errRESTTimerLapse               = errors.New("rest sync timer lapse with active websocket connection")
 	errOrderbookFlushed             = errors.New("orderbook flushed")
+	errDataHandlerReaderSlow        = errors.New("data handler reader slow")
 )
 
 // Setup sets private variables
@@ -209,8 +210,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	// display purposes. Same as being verbose.
 	select {
 	// Needs to be in select case as this can cause a knock on affect with
-	// websocket update and processing times. This will also impede the
-	// websocket reader.
+	// websocket update and processing times.
 	case w.dataHandler <- book.ob:
 	default:
 	}
@@ -374,6 +374,17 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	}
 
 	holder.ob.Publish()
+	if !holder.InitialUpdate {
+		holder.InitialUpdate = true
+		select {
+		case w.dataHandler <- holder.ob:
+			return nil
+		default:
+			w.dataHandler <- holder.ob
+			return fmt.Errorf("%w %s %s %s", errDataHandlerReaderSlow, w.exchangeName, book.Pair, book.Asset)
+		}
+	}
+
 	select {
 	// Needs to be in select case as this directly impacts websocket reading.
 	case w.dataHandler <- holder.ob:
