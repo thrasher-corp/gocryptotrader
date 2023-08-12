@@ -206,7 +206,7 @@ func (o *Okcoin) GetCandlesticks(ctx context.Context, instrumentID string, inter
 }
 
 // GetCandlestickHistory retrieve history candlestick charts from recent years.
-func (o *Okcoin) GetCandlestickHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickData, error) {
+func (o *Okcoin) GetCandlestickHistory(ctx context.Context, instrumentID string, start, end time.Time, bar kline.Interval, limit int64) ([]CandlestickData, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -215,17 +215,17 @@ func (o *Okcoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 	var err error
 	if bar != kline.Interval(0) {
 		var intervalString string
-		intervalString, err = intervalToString(bar, false)
+		intervalString, err = intervalToString(bar, true)
 		if err != nil {
 			return nil, err
 		}
 		params.Set("bar", intervalString)
 	}
-	if !before.IsZero() {
-		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	if !start.IsZero() {
+		params.Set("before", strconv.FormatInt(start.UnixMilli(), 10))
 	}
-	if !after.IsZero() {
-		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	if !end.IsZero() {
+		params.Set("after", strconv.FormatInt(end.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

@@ -147,7 +147,7 @@ func TestGetCandlestick(t *testing.T) {
 
 func TestGetCandlestickHistory(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetCandlestickHistory(context.Background(), "BTC-USD", time.Now().Add(-time.Minute*30), time.Now(), kline.FiveMin, 0)
+	_, err := o.GetCandlestickHistory(context.Background(), spotTradablePair.String(), time.Now().Add(-time.Minute*30), time.Now(), kline.FiveMin, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1357,7 +1357,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24*5), time.Now())
+	_, err := o.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, time.Now().Add(-time.Hour*24*10), time.Now())
 	if err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", o.Name, err)
 	}
