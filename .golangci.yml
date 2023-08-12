@@ -30,7 +30,7 @@ linters:
 #   - cyclop
 #   - deadcode // abandoned by its owner, replaced by unused
     - decorder
-    - depguard
+#   - depguard
     - dogsled
 #   - dupl
     - dupword
@@ -68,6 +68,7 @@ linters:
     - gomodguard
     - goprintffuncname
     - gosec
+#   - gosmopolitan
     - grouper
 #   - ifshort // deprecated by its owner
 #   - importas
@@ -79,9 +80,10 @@ linters:
 #   - maintidx
     - makezero
 #   - maligned // deprecated by its owner, replaced by govet 'fieldalignment'
+    - mirror
     - misspell
 #   - musttag
-    - nakedret
+#   - nakedret
 #   - nestif
     - nilerr
 #   - nilnil
@@ -117,16 +119,13 @@ linters:
     - whitespace
 #   - wrapcheck
 #   - wsl
+#   - zerologlint
 
 linters-settings:
   govet:
     check-shadowing: true
   goconst:
     min-occurrences: 6
-  depguard:
-    list-type: blacklist
-#  lll:
-#    line-length: 80 # NOTE: we'll enforce this at a later point
   gocritic:
     enabled-tags:
       - performance
