@@ -86,7 +86,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	}
 
 	switch wsResponse.Event {
-	case "bts:subscribe":
+	case "bts:subscribe", "bts:subscription_succeeded":
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket subscription acknowledgement", b.Name)
 		}

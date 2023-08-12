@@ -639,7 +639,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		s.Amount,
 		false,
 		s.Type == order.Market,
-		s.Side == order.Buy)
+		s.Side.IsLong())
 	if err != nil {
 		return nil, err
 	}
