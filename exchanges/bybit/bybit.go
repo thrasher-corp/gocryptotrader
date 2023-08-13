@@ -150,33 +150,36 @@ func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interva
 func processKlineResponse(in [][]string) ([]KlineItem, error) {
 	klines := make([]KlineItem, len(in))
 	for x := range in {
+		if len(in[x]) < 5 {
+			return nil, errors.New("invalid kline data")
+		}
 		startTimestamp, err := strconv.ParseInt(in[x][0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		klineData := KlineItem{StartTime: time.UnixMilli(startTimestamp)}
-		klineData.Open, err = strconv.ParseFloat(in[x][1], 64)
+		klines[x] = KlineItem{StartTime: time.UnixMilli(startTimestamp)}
+		klines[x].Open, err = strconv.ParseFloat(in[x][1], 64)
 		if err != nil {
 			return nil, err
 		}
-		klineData.High, err = strconv.ParseFloat(in[x][2], 64)
+		klines[x].High, err = strconv.ParseFloat(in[x][2], 64)
 		if err != nil {
 			return nil, err
 		}
-		klineData.Low, err = strconv.ParseFloat(in[x][3], 64)
+		klines[x].Low, err = strconv.ParseFloat(in[x][3], 64)
 		if err != nil {
 			return nil, err
 		}
-		klineData.Close, err = strconv.ParseFloat(in[x][4], 64)
+		klines[x].Close, err = strconv.ParseFloat(in[x][4], 64)
 		if err != nil {
 			return nil, err
 		}
-		if len(in) == 7 {
-			klineData.TradeVolume, err = strconv.ParseFloat(in[x][5], 64)
+		if len(in[x]) == 7 {
+			klines[x].TradeVolume, err = strconv.ParseFloat(in[x][5], 64)
 			if err != nil {
 				return nil, err
 			}
-			klineData.Turnover, err = strconv.ParseFloat(in[x][6], 64)
+			klines[x].Turnover, err = strconv.ParseFloat(in[x][6], 64)
 			if err != nil {
 				return nil, err
 			}

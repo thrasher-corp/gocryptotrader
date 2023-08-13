@@ -141,13 +141,13 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
-		RequestID: by.Websocket.Conn.GenerateMessageID(false),
+		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
 		Arguments: []string{},
 	}
 	authArg := SubscriptionArgument{
 		auth:      true,
 		Operation: operation,
-		RequestID: by.Websocket.Conn.GenerateMessageID(false),
+		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
 		Arguments: []string{},
 	}
 
@@ -187,7 +187,7 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 			args = append(args, arg)
 			arg = SubscriptionArgument{
 				Operation: operation,
-				RequestID: by.Websocket.Conn.GenerateMessageID(false),
+				RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
 				Arguments: []string{},
 			}
 		}
@@ -489,7 +489,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 	if err != nil {
 		return err
 	}
-	by.Websocket.DataHandler <- ticker.Price{
+	by.Websocket.DataHandler <- &ticker.Price{
 		Last:         result.LastPrice.Float64(),
 		High:         result.HighPrice24H.Float64(),
 		Low:          result.LowPrice24H.Float64(),
@@ -592,18 +592,28 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		if err != nil {
 			return err
 		}
-		by.Websocket.DataHandler <- &ticker.Price{
-			Last:         result.LastPrice.Float64(),
-			High:         result.HighPrice24H.Float64(),
-			Low:          result.LowPrice24H.Float64(),
-			Volume:       result.Volume24H.Float64(),
-			Pair:         cp,
-			ExchangeName: by.Name,
-			AssetType:    assetType,
-			LastUpdated:  resp.Timestamp.Time(),
+		if resp.Type == "snapshot" {
+			by.Websocket.DataHandler <- &ticker.Price{
+				Last:         result.LastPrice.Float64(),
+				High:         result.HighPrice24H.Float64(),
+				Low:          result.LowPrice24H.Float64(),
+				Volume:       result.Volume24H.Float64(),
+				Pair:         cp,
+				ExchangeName: by.Name,
+				AssetType:    assetType,
+				LastUpdated:  resp.Timestamp.Time(),
+			}
+		} else {
+			var tickerData *ticker.Price
+			tickerData, err = by.updateSpotTickerInformation(&result, cp)
+			if err != nil {
+				return err
+			}
+			tickerData.LastUpdated = resp.Timestamp.Time()
+			return nil
 		}
 		return nil
-	case asset.Linear:
+	case asset.Linear, asset.Inverse:
 		var result WsLinearTicker
 		err := json.Unmarshal(resp.Data, &result)
 		if err != nil {
@@ -613,18 +623,28 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		if err != nil {
 			return err
 		}
-		by.Websocket.DataHandler <- ticker.Price{
-			Last:         result.LastPrice.Float64(),
-			High:         result.HighPrice24H.Float64(),
-			Low:          result.LastPrice.Float64(),
-			Bid:          result.Bid1Price.Float64(),
-			BidSize:      result.Bid1Size.Float64(),
-			Ask:          result.Ask1Size.Float64(),
-			AskSize:      result.Ask1Size.Float64(),
-			Volume:       result.Volume24H.Float64(),
-			Pair:         cp,
-			ExchangeName: by.Name,
-			AssetType:    assetType,
+		if resp.Type == "snapshot" {
+			by.Websocket.DataHandler <- &ticker.Price{
+				Last:         result.LastPrice.Float64(),
+				High:         result.HighPrice24H.Float64(),
+				Low:          result.LowPrice24H.Float64(),
+				Bid:          result.Bid1Price.Float64(),
+				BidSize:      result.Bid1Size.Float64(),
+				Ask:          result.Ask1Price.Float64(),
+				AskSize:      result.Ask1Size.Float64(),
+				Volume:       result.Volume24H.Float64(),
+				Pair:         cp,
+				ExchangeName: by.Name,
+				AssetType:    assetType,
+			}
+		} else {
+			var tickerData *ticker.Price
+			tickerData, err = by.updateTickerInformation(&result, cp)
+			if err != nil {
+				return err
+			}
+			tickerData.LastUpdated = resp.Timestamp.Time()
+			by.Websocket.DataHandler <- tickerData
 		}
 		return nil
 	case asset.Options:
@@ -637,23 +657,122 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		if err != nil {
 			return err
 		}
-		by.Websocket.DataHandler <- ticker.Price{
-			Last:         result.LastPrice.Float64(),
-			High:         result.HighPrice24H.Float64(),
-			Low:          result.LastPrice.Float64(),
-			Bid:          result.BidPrice.Float64(),
-			BidSize:      result.BidSize.Float64(),
-			Ask:          result.AskSize.Float64(),
-			AskSize:      result.AskSize.Float64(),
-			Volume:       result.Volume24H.Float64(),
-			Pair:         cp,
-			ExchangeName: by.Name,
-			AssetType:    assetType,
+		if resp.Type == "snapshot" {
+			by.Websocket.DataHandler <- &ticker.Price{
+				Last:         result.LastPrice.Float64(),
+				High:         result.HighPrice24H.Float64(),
+				Low:          result.LastPrice.Float64(),
+				Bid:          result.BidPrice.Float64(),
+				BidSize:      result.BidSize.Float64(),
+				Ask:          result.AskPrice.Float64(),
+				AskSize:      result.AskSize.Float64(),
+				Volume:       result.Volume24H.Float64(),
+				Pair:         cp,
+				ExchangeName: by.Name,
+				AssetType:    assetType,
+			}
+		} else {
+			tickerData, err := by.updateOptionsTickerInformation(&result, cp)
+			if err != nil {
+				return err
+			}
+			tickerData.LastUpdated = resp.Timestamp.Time()
+			by.Websocket.DataHandler <- tickerData
 		}
 		return nil
 	default:
 		return fmt.Errorf("ticker data unsupported for asset type %v", assetType)
 	}
+}
+
+func (by *Bybit) updateSpotTickerInformation(result *WsSpotTicker, cp currency.Pair) (*ticker.Price, error) {
+	var tickerData *ticker.Price
+	var err error
+	tickerData, err = ticker.GetTicker(by.Name, cp, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	if result.LastPrice.Float64() != 0 {
+		tickerData.Last = result.LastPrice.Float64()
+	}
+	if result.HighPrice24H.Float64() != 0 {
+		tickerData.High = result.HighPrice24H.Float64()
+	}
+	if result.LowPrice24H.Float64() != 0 {
+		tickerData.Low = result.LowPrice24H.Float64()
+	}
+	if result.Volume24H.Float64() != 0 {
+		tickerData.Volume = result.Volume24H.Float64()
+	}
+	return tickerData, nil
+}
+
+func (by *Bybit) updateTickerInformation(result *WsLinearTicker, cp currency.Pair) (*ticker.Price, error) {
+	var tickerData *ticker.Price
+	var err error
+	tickerData, err = ticker.GetTicker(by.Name, cp, asset.Linear)
+	if err != nil {
+		return nil, err
+	}
+	if result.LastPrice.Float64() != 0 {
+		tickerData.Last = result.LastPrice.Float64()
+	}
+	if result.HighPrice24H.Float64() != 0 {
+		tickerData.High = result.HighPrice24H.Float64()
+	}
+	if result.Volume24H.Float64() != 0 {
+		tickerData.Volume = result.Volume24H.Float64()
+	}
+	if result.LowPrice24H.Float64() != 0 {
+		tickerData.Low = result.LowPrice24H.Float64()
+	}
+	if result.Bid1Price.Float64() != 0 {
+		tickerData.Bid = result.Bid1Price.Float64()
+	}
+	if result.Bid1Size.Float64() != 0 {
+		tickerData.BidSize = result.Bid1Size.Float64()
+	}
+	if result.Ask1Price.Float64() != 0 {
+		tickerData.Ask = result.Ask1Price.Float64()
+	}
+	if result.Ask1Size.Float64() != 0 {
+		tickerData.AskSize = result.Ask1Size.Float64()
+	}
+	return tickerData, nil
+}
+
+func (by *Bybit) updateOptionsTickerInformation(result *WsOptionTicker, cp currency.Pair) (*ticker.Price, error) {
+	var tickerData *ticker.Price
+	var err error
+	tickerData, err = ticker.GetTicker(by.Name, cp, asset.Options)
+	if err != nil {
+		return nil, err
+	}
+	if result.LastPrice.Float64() != 0 {
+		tickerData.Last = result.LastPrice.Float64()
+	}
+	if result.HighPrice24H.Float64() != 0 {
+		tickerData.High = result.HighPrice24H.Float64()
+	}
+	if result.Volume24H.Float64() != 0 {
+		tickerData.Volume = result.Volume24H.Float64()
+	}
+	if result.LowPrice24H.Float64() != 0 {
+		tickerData.Low = result.LowPrice24H.Float64()
+	}
+	if result.BidPrice.Float64() != 0 {
+		tickerData.Bid = result.BidPrice.Float64()
+	}
+	if result.BidSize.Float64() != 0 {
+		tickerData.BidSize = result.BidSize.Float64()
+	}
+	if result.AskPrice.Float64() != 0 {
+		tickerData.Ask = result.AskPrice.Float64()
+	}
+	if result.AskSize.Float64() != 0 {
+		tickerData.AskSize = result.AskSize.Float64()
+	}
+	return tickerData, nil
 }
 
 func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketResponse) error {

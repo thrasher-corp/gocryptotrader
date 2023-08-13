@@ -2588,6 +2588,7 @@ func TestWsConnect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 23)
 }
 func TestWsLinearConnect(t *testing.T) {
 	t.Parallel()

@@ -30,7 +30,7 @@ type Authenticate struct {
 // SubscriptionArgument represents a subscription arguments.
 type SubscriptionArgument struct {
 	auth      bool     `json:"-"`
-	RequestID int64    `json:"req_id,string"`
+	RequestID string   `json:"req_id"`
 	Operation string   `json:"op"`
 	Arguments []string `json:"args"`
 }
