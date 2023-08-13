@@ -69,73 +69,39 @@ var (
 	errQuantityLimitRequired              = errors.New("quantity limit required")
 	errInvalidPushData                    = errors.New("invalid push data")
 	errWebsocketNotEnabled                = errors.New(stream.WebsocketNotEnabled)
+	errInvalidSide                        = errors.New("invalid side")
+	errInvalidLeverage                    = errors.New("leverage can't be zero or less then it")
+	errInvalidPositionMode                = errors.New("position mode is invalid")
+	errInvalidMode                        = errors.New("mode can't be empty or missing")
+	errInvalidOrderFilter                 = errors.New("invalid order filter")
+	errInvalidCategory                    = errors.New("invalid category")
+	errEitherSymbolOrCoinRequired         = errors.New("either symbol or coin required")
+	errOrderLinkIDMissing                 = errors.New("order link id missing")
+	errSymbolMissing                      = errors.New("symbol missing")
+	errInvalidAutoAddMarginValue          = errors.New("invalid add auto margin value")
+	errDisconnectTimeWindowNotSet         = errors.New("disconnect time window not set")
+)
+
+var (
+	intervalMap         = map[kline.Interval]string{kline.OneMin: "1", kline.ThreeMin: "3", kline.FiveMin: "5", kline.FifteenMin: "15", kline.ThirtyMin: "30", kline.OneHour: "60", kline.TwoHour: "120", kline.FourHour: "240", kline.SixHour: "360", kline.SevenHour: "720", kline.OneDay: "D", kline.OneMonth: "M", kline.OneWeek: "W"}
+	stringToIntervalMap = map[string]kline.Interval{"1": kline.OneMin, "3": kline.ThreeMin, "5": kline.FiveMin, "15": kline.FifteenMin, "30": kline.ThirtyMin, "60": kline.OneHour, "120": kline.TwoHour, "240": kline.FourHour, "360": kline.SixHour, "720": kline.SevenHour, "D": kline.OneDay, "M": kline.OneMonth, "W": kline.OneWeek}
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
-	switch interval {
-	case kline.OneMin:
-		return "1", nil
-	case kline.ThreeMin:
-		return "3", nil
-	case kline.FiveMin:
-		return "5", nil
-	case kline.FifteenMin:
-		return "15", nil
-	case kline.ThirtyMin:
-		return "30", nil
-	case kline.OneHour:
-		return "60", nil
-	case kline.TwoHour:
-		return "120", nil
-	case kline.FourHour:
-		return "240", nil
-	case kline.SixHour:
-		return "360", nil
-	case kline.SevenHour:
-		return "720", nil
-	case kline.OneDay:
-		return "D", nil
-	case kline.OneMonth:
-		return "M", nil
-	case kline.OneWeek:
-		return "W", nil
-	default:
-		return "", kline.ErrUnsupportedInterval
+	inter, okay := intervalMap[interval]
+	if okay {
+		return inter, nil
 	}
+	return "", kline.ErrUnsupportedInterval
 }
 
 // stringToInterval returns a kline.Interval instance from string.
 func stringToInterval(s string) (kline.Interval, error) {
-	switch s {
-	case "1":
-		return kline.OneMin, nil
-	case "3":
-		return kline.ThreeMin, nil
-	case "5":
-		return kline.FiveMin, nil
-	case "15":
-		return kline.FifteenMin, nil
-	case "30":
-		return kline.ThirtyMin, nil
-	case "60":
-		return kline.OneHour, nil
-	case "120":
-		return kline.TwoHour, nil
-	case "240":
-		return kline.FourHour, nil
-	case "360":
-		return kline.SixHour, nil
-	case "720":
-		return kline.SevenHour, nil
-	case "D":
-		return kline.OneDay, nil
-	case "M":
-		return kline.OneMonth, nil
-	case "W":
-		return kline.OneWeek, nil
-	default:
-		return 0, kline.ErrInvalidInterval
+	interval, okay := stringToIntervalMap[s]
+	if okay {
+		return interval, nil
 	}
+	return 0, kline.ErrInvalidInterval
 }
 
 // GetBybitServerTime retrieves bybit server time
