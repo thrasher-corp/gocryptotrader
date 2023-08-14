@@ -130,7 +130,7 @@ func (o *Okcoin) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneMonth},
 					kline.IntervalCapacity{Interval: kline.ThreeMonth},
 				),
-				GlobalResultLimit: 1440,
+				GlobalResultLimit: 100,
 			},
 		},
 	}
@@ -1190,20 +1190,26 @@ func (o *Okcoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	}
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		var candles []CandlestickData
-		candles, err = o.GetCandlestickHistory(ctx, req.RequestFormatted.String(), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, interval, 0)
-		if err != nil {
-			return nil, err
-		}
-		for z := range candles {
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[z].Timestamp.Time().UTC(),
-				Open:   candles[z].OpenPrice,
-				High:   candles[z].HighestPrice,
-				Low:    candles[z].LowestPrice,
-				Close:  candles[z].ClosePrice,
-				Volume: candles[z].TradingVolume,
-			})
+		for a := range req.RangeHolder.Ranges[x].Intervals {
+			var candles []CandlestickData
+			candles, err = o.GetCandlestickHistory(ctx,
+				req.RequestFormatted.String(),
+				req.RangeHolder.Ranges[x].Intervals[a].Start.Time,
+				req.RangeHolder.Ranges[x].Intervals[a].End.Time,
+				interval, 0)
+			if err != nil {
+				return nil, err
+			}
+			for z := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[z].Timestamp.Time(),
+					Open:   candles[z].OpenPrice,
+					High:   candles[z].HighestPrice,
+					Low:    candles[z].LowestPrice,
+					Close:  candles[z].ClosePrice,
+					Volume: candles[z].TradingVolume,
+				})
+			}
 		}
 	}
 	return req.ProcessResponse(timeSeries)

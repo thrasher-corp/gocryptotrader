@@ -1357,7 +1357,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, time.Now().Add(-time.Hour*24*10), time.Now())
+	_, err := o.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.ThreeMonth, time.Now().Add(-time.Hour*24*3700), time.Now().Add(-time.Hour*24*3000))
 	if err != nil {
 		t.Errorf("%s GetHistoricCandlesExtended() error: %v", o.Name, err)
 	}

@@ -222,10 +222,10 @@ func (o *Okcoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 		params.Set("bar", intervalString)
 	}
 	if !start.IsZero() {
-		params.Set("before", strconv.FormatInt(start.UnixMilli(), 10))
+		params.Set("start", strconv.FormatInt(start.UnixNano(), 10))
 	}
 	if !end.IsZero() {
-		params.Set("after", strconv.FormatInt(end.UnixMilli(), 10))
+		params.Set("end", strconv.FormatInt(end.UnixNano(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
