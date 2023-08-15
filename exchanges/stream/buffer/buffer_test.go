@@ -94,7 +94,10 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 			Asset:      asset.Spot,
 		}
 		holder := ob.ob[cp.Base][cp.Quote][asset.Spot]
-		holder.updateByPrice(update)
+		err = holder.updateByPrice(update)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -114,7 +117,10 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 			Asset:      asset.Spot,
 		}
 		holder := ob.ob[cp.Base][cp.Quote][asset.Spot]
-		holder.updateByPrice(update)
+		err = holder.updateByPrice(update)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -241,7 +247,7 @@ func TestUpdates(t *testing.T) {
 	}
 
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	book.updateByPrice(&orderbook.Update{
+	err = book.updateByPrice(&orderbook.Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -252,7 +258,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	book.updateByPrice(&orderbook.Update{
+	err = book.updateByPrice(&orderbook.Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -883,7 +889,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 
 	asks := bidAskGenerator()
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	book.updateByPrice(&orderbook.Update{
+	err = book.updateByPrice(&orderbook.Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,
