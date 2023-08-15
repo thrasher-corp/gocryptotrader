@@ -711,10 +711,10 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 	var sideType string
-	switch s.Side {
-	case order.Buy:
+	switch {
+	case s.Side.IsLong():
 		sideType = sideBuy
-	case order.Sell:
+	case s.Side.IsShort():
 		sideType = sideSell
 	default:
 		return nil, errInvalidSide
