@@ -253,7 +253,6 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"a"},
 					Usage:   "the asset type of the currency pair, must be a futures type",
 				},
-
 				&cli.StringFlag{
 					Name:    "collateralmode",
 					Aliases: []string{"collateral", "cm", "c"},
@@ -290,7 +289,7 @@ var futuresCommands = &cli.Command{
 				},
 				&cli.Float64Flag{
 					Name:    "leverage",
-					Aliases: []string{"l", "riskon", "uponly", "yolo", "steadylads"},
+					Aliases: []string{"l"},
 					Usage:   "the level of leverage you want, increase it to lose your capital faster",
 				},
 			},
@@ -328,7 +327,7 @@ var futuresCommands = &cli.Command{
 			Name:      "changepositionmargin",
 			Aliases:   []string{"cpm"},
 			Usage:     "sets isolated margin levels for an existing position",
-			ArgsUsage: "<exchange> <asset> <pair> <start>",
+			ArgsUsage: "<exchange> <asset> <pair> <margintype> <originalallocatedmargin> <newallocatedmargin> <marginside>",
 			Action:    changePositionMargin,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -372,7 +371,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getfuturespositionsummary",
 			Aliases:   []string{"summary", "fps"},
 			Usage:     "return a summary of your futures position",
-			ArgsUsage: "<exchange> <asset> <pair> <start>",
+			ArgsUsage: "<exchange> <asset> <pair> <underlyingpair>",
 			Action:    getFuturesPositionSummary,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -401,7 +400,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getfuturepositionorders",
 			Aliases:   []string{"orders", "fpo"},
 			Usage:     "return a slice of orders that make up your position",
-			ArgsUsage: "<exchange> <asset> <pair> <start>",
+			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <respectorderhistorylimits> <underlyingpair> <syncwithordermanager>",
 			Action:    getFuturePositionOrders,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -454,7 +453,7 @@ var futuresCommands = &cli.Command{
 			Name:      "setmargintype",
 			Aliases:   []string{"smt"},
 			Usage:     "sets the margin type for a exchange asset pair",
-			ArgsUsage: "<exchange> <asset> <pair> <margintype> <leverage>",
+			ArgsUsage: "<exchange> <asset> <pair> <margintype>",
 			Action:    setMarginType,
 			Flags: []cli.Flag{
 				&cli.StringFlag{

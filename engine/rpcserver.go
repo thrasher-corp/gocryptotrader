@@ -3656,7 +3656,7 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 		}
 		err := b.CurrencyPairs.IsAssetEnabled(a)
 		if err != nil {
-			return fmt.Errorf("%v %w", a, errAssetTypeDisabled)
+			return fmt.Errorf("%v %w", a, err)
 		}
 	}
 	if p.IsEmpty() {
@@ -4548,6 +4548,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 	}
 	response := &gctrpc.GetFuturesPositionsOrdersResponse{}
 	positions := make([]*gctrpc.FuturePosition, len(positionDetails))
+	var anyOrders bool
 	for i := range positionDetails {
 		details := &gctrpc.FuturePosition{
 			Exchange: exch.GetName(),
@@ -4560,6 +4561,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 			Orders: make([]*gctrpc.OrderDetails, len(positionDetails[i].Orders)),
 		}
 		for j := range positionDetails[i].Orders {
+			anyOrders = true
 			details.Orders[j] = &gctrpc.OrderDetails{
 				Exchange:      exch.GetName(),
 				Id:            positionDetails[i].Orders[j].OrderID,
@@ -4580,6 +4582,9 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 			}
 		}
 		positions[i] = details
+	}
+	if !anyOrders {
+		return &gctrpc.GetFuturesPositionsOrdersResponse{}, nil
 	}
 	response.Positions = positions
 	if r.SyncWithOrderManager {
@@ -5603,7 +5608,7 @@ func (s *RPCServer) GetCollateralMode(ctx context.Context, r *gctrpc.GetCollater
 	}
 	err = b.CurrencyPairs.IsAssetEnabled(item)
 	if err != nil {
-		return nil, fmt.Errorf("%v %w", item, errAssetTypeDisabled)
+		return nil, fmt.Errorf("%v %w", item, err)
 	}
 	collateralMode, err := exch.GetCollateralMode(ctx, item)
 	if err != nil {

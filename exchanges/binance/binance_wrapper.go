@@ -2471,6 +2471,11 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			pnl = accountPosition.UnrealisedProfit
 		}
 
+		var maintenanceMarginFraction decimal.Decimal
+		if collateralTotal != 0 {
+			maintenanceMarginFraction = decimal.NewFromFloat(maintenanceMargin).Div(decimal.NewFromFloat(collateralTotal)).Mul(decimal.NewFromInt32(100))
+		}
+
 		// binance so fun, some prices exclusively here
 		positionsInfo, err := b.UPositionsInfoV2(ctx, fPair)
 		if err != nil {
@@ -2503,7 +2508,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			CurrentSize:                  decimal.NewFromFloat(positionSize),
 			AverageOpenPrice:             decimal.NewFromFloat(openPrice),
 			PositionPNL:                  decimal.NewFromFloat(pnl),
-			MaintenanceMarginFraction:    decimal.NewFromFloat(maintenanceMargin).Div(decimal.NewFromFloat(collateralTotal)).Mul(decimal.NewFromInt32(100)),
+			MaintenanceMarginFraction:    maintenanceMarginFraction,
 			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
 			TotalCollateral:              decimal.NewFromFloat(collateralTotal),
 			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
@@ -2617,9 +2622,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 	if len(req.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	req.StartDate = req.StartDate.Truncate(time.Hour)
-	req.EndDate = req.EndDate.Truncate(time.Hour)
-	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory {
+	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory+time.Hour {
 		if req.RespectOrderHistoryLimits {
 			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
 		} else {
