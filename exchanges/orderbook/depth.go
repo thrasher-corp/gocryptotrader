@@ -19,6 +19,8 @@ var (
 	ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
 	// ErrInvalidAction defines and error when an action is invalid
 	ErrInvalidAction = errors.New("invalid action")
+
+	errLastUpdatedNotSet = errors.New("last updated not set")
 )
 
 // Outbound restricts outbound usage of depth. NOTE: Type assert to
@@ -87,8 +89,6 @@ func (d *Depth) Retrieve() (*Base, error) {
 		MaxDepth:         d.maxDepth,
 	}, nil
 }
-
-var errLastUpdatedNotSet = errors.New("last updated not set")
 
 // LoadSnapshot flushes the bids and asks with a snapshot
 func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) error {

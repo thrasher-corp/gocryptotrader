@@ -299,7 +299,10 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 		UpdateID:   1,
 		UpdateTime: time.Now(),
 	}
-	d.UpdateBidAskByPrice(updates)
+	err = d.UpdateBidAskByPrice(updates)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ob, err := d.Retrieve()
 	if !errors.Is(err, nil) {
@@ -316,7 +319,10 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 		UpdateID:   2,
 		UpdateTime: time.Now(),
 	}
-	d.UpdateBidAskByPrice(updates)
+	err = d.UpdateBidAskByPrice(updates)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	askLen, err := d.GetAskLength()
 	if !errors.Is(err, nil) {

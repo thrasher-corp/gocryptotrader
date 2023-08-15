@@ -41,6 +41,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 		Asset:            asset.Spot,
 		Pair:             cp,
 		PriceDuplication: true,
+		LastUpdated:      time.Now(),
 	}
 
 	newBook := make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -375,11 +376,12 @@ func TestSortIDs(t *testing.T) {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = holder.Update(&orderbook.Update{
-			Bids:     bids,
-			Asks:     asks,
-			Pair:     cp,
-			UpdateID: int64(i),
-			Asset:    asset.Spot,
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateID:   int64(i),
+			Asset:      asset.Spot,
+			UpdateTime: time.Now(),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -420,10 +422,11 @@ func TestOutOfOrderIDs(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		err = holder.Update(&orderbook.Update{
-			Asks:     asks,
-			Pair:     cp,
-			UpdateID: outOFOrderIDs[i],
-			Asset:    asset.Spot,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateID:   outOFOrderIDs[i],
+			Asset:      asset.Spot,
+			UpdateTime: time.Now(),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -454,10 +457,11 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	// this update invalidates the book
 	err = holder.Update(&orderbook.Update{
-		Asks:     []orderbook.Item{{Price: 999999}},
-		Pair:     cp,
-		UpdateID: -1,
-		Asset:    asset.Spot,
+		Asks:       []orderbook.Item{{Price: 999999}},
+		Pair:       cp,
+		UpdateID:   -1,
+		Asset:      asset.Spot,
+		UpdateTime: time.Now(),
 	})
 	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, orderbook.ErrOrderbookInvalid)
@@ -474,10 +478,11 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		err = holder.Update(&orderbook.Update{
-			Asks:     asks,
-			Pair:     cp,
-			UpdateID: int64(i) + 1,
-			Asset:    asset.Spot,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateID:   int64(i) + 1,
+			Asset:      asset.Spot,
+			UpdateTime: time.Now(),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -566,6 +571,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	snapShot1.Pair = cp
 	snapShot1.Exchange = "test"
 	obl.exchangeName = "test"
+	snapShot1.LastUpdated = time.Now()
 	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Fatal(err)
@@ -590,6 +596,7 @@ func TestLoadSnapshot(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
+	snapShot1.LastUpdated = time.Now()
 	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Error(err)
@@ -651,6 +658,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
+	snapShot1.LastUpdated = time.Now()
 	err := holder.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Fatal(err)
@@ -694,6 +702,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	snapShot2.LastUpdated = time.Now()
 	err = holder.LoadSnapshot(&snapShot2)
 	if err != nil {
 		t.Fatal(err)
@@ -737,6 +746,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	snapShot3.LastUpdated = time.Now()
 	err = holder.LoadSnapshot(&snapShot3)
 	if err != nil {
 		t.Fatal(err)
@@ -916,7 +926,10 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Time{}, true)
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ob, err := book.Retrieve()
 	if !errors.Is(err, nil) {
@@ -948,7 +961,10 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Time{}, true)
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// append to slice
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.UpdateInsert,
@@ -966,6 +982,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 				Amount: 1,
 			},
 		},
+		UpdateTime: time.Now(),
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1000,6 +1017,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 				Amount: 100,
 			},
 		},
+		UpdateTime: time.Now(),
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1035,6 +1053,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 				Amount: 99,
 			},
 		},
+		UpdateTime: time.Now(),
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1053,7 +1072,10 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Time{}, true) //nolint:gocritic
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true) //nolint:gocritic
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Delete - not found
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Delete,
@@ -1069,13 +1091,17 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDeleteFailure)
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Time{}, true) //nolint:gocritic
+	err = book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...), 0, time.Now(), true) //nolint:gocritic
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Delete - found
 	err = holder.updateByIDAndAction(&orderbook.Update{
 		Action: orderbook.Delete,
 		Asks: []orderbook.Item{
 			asks[0],
 		},
+		UpdateTime: time.Now(),
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1101,7 +1127,10 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	book.LoadSnapshot(bids, bids, 0, time.Time{}, true)
+	err = book.LoadSnapshot(bids, bids, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ob, err = book.Retrieve()
 	if !errors.Is(err, nil) {
@@ -1119,6 +1148,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Asks: []orderbook.Item{
 			update,
 		},
+		UpdateTime: time.Now(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1154,6 +1184,7 @@ func TestFlushOrderbook(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
+	snapShot1.LastUpdated = time.Now()
 
 	err = w.FlushOrderbook(cp, asset.Spot)
 	if err == nil {
