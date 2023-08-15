@@ -3,6 +3,7 @@ package buffer
 import (
 	"errors"
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1181,5 +1182,68 @@ func TestFlushOrderbook(t *testing.T) {
 	_, err = w.GetOrderbook(cp, asset.Spot)
 	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrOrderbookInvalid)
+	}
+}
+
+var multiMapHolder = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+
+// 62019669	        19.40 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkMultiMapHolder(b *testing.B) {
+	var c1 currency.Code
+	var c2 currency.Code
+	var a asset.Item
+	for x := 0; x < 3000; x++ {
+		c1 = currency.NewCode(strconv.FormatInt(int64(x), 10))
+		c2 = currency.NewCode(strconv.FormatInt(int64(x), 10))
+
+		m1, ok := multiMapHolder[c1]
+		if !ok {
+			m1 = make(map[currency.Code]map[asset.Item]*orderbookHolder)
+			multiMapHolder[c1] = m1
+		}
+
+		m2, ok := m1[c2]
+		if !ok {
+			m2 = make(map[asset.Item]*orderbookHolder)
+			m1[c2] = m2
+		}
+
+		a = asset.Item(x)
+		m2[a] = &orderbookHolder{}
+	}
+
+	b.ResetTimer()
+
+	var ok bool
+	for x := 0; x < b.N; x++ {
+		_, ok = multiMapHolder[c1][c2][a]
+		if !ok {
+			b.Fatal("cound't find item")
+		}
+	}
+}
+
+var keyMapHolder = make(map[Key]*orderbookHolder)
+
+// 91994203	        13.28 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkCurrentKeyMapHolder(b *testing.B) {
+	var c1 currency.Code
+	var c2 currency.Code
+	var a asset.Item
+	for x := 0; x < 3000; x++ {
+		c1 = currency.NewCode(strconv.FormatInt(int64(x), 10))
+		c2 = currency.NewCode(strconv.FormatInt(int64(x), 10))
+		a = asset.Item(x)
+		keyMapHolder[Key{Base: c1.Item, Quote: c2.Item, Asset: a}] = &orderbookHolder{}
+	}
+
+	b.ResetTimer()
+
+	var ok bool
+	for x := 0; x < b.N; x++ {
+		_, ok = keyMapHolder[Key{Base: c1.Item, Quote: c2.Item, Asset: a}]
+		if !ok {
+			b.Fatal("cound't find item")
+		}
 	}
 }
