@@ -872,7 +872,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, err
 	}
 	var err error
-	if math.Mod(action.Amount, 1) != 0 {
+	if math.Trunc(action.Amount) != action.Amount {
 		return nil, errors.New("okx contract amount can not be decimal")
 	}
 	pairFormat, err := ok.GetPairFormat(action.AssetType, true)

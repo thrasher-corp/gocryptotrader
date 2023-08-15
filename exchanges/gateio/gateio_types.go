@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -535,8 +536,8 @@ type OrderbookData struct {
 func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 	ob := &Orderbook{
 		ID:      a.ID,
-		Current: a.Current.Time(),
-		Update:  a.Update.Time(),
+		Current: a.Current,
+		Update:  a.Update,
 	}
 	ob.Asks = make([]OrderbookItem, len(a.Asks))
 	ob.Bids = make([]OrderbookItem, len(a.Bids))
@@ -550,7 +551,7 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 			return nil, err
 		}
 		ob.Asks[x] = OrderbookItem{
-			Price:  price,
+			Price:  gateioNumericalValue(price),
 			Amount: amount,
 		}
 	}
@@ -564,7 +565,7 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 			return nil, err
 		}
 		ob.Bids[x] = OrderbookItem{
-			Price:  price,
+			Price:  gateioNumericalValue(price),
 			Amount: amount,
 		}
 	}
@@ -573,15 +574,15 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
-	Price  float64 `json:"p"`
-	Amount float64 `json:"s"`
+	Price  gateioNumericalValue `json:"p"`
+	Amount float64              `json:"s"`
 }
 
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	ID      int64           `json:"id"`
-	Current time.Time       `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  time.Time       `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Current gateioTime      `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  gateioTime      `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
 	Bids    []OrderbookItem `json:"bids"`
 	Asks    []OrderbookItem `json:"asks"`
 }
@@ -904,20 +905,20 @@ type SwapCurrencies struct {
 
 // MyOptionSettlement represents option private settlement
 type MyOptionSettlement struct {
-	Size         float64   `json:"size"`
-	SettleProfit float64   `json:"settle_profit,string"`
-	Contract     string    `json:"contract"`
-	StrikePrice  float64   `json:"strike_price,string"`
-	Time         time.Time `json:"time"`
-	SettlePrice  float64   `json:"settle_price,string"`
-	Underlying   string    `json:"underlying"`
-	RealisedPnl  string    `json:"realised_pnl"`
-	Fee          float64   `json:"fee,string"`
+	Size         float64    `json:"size"`
+	SettleProfit float64    `json:"settle_profit,string"`
+	Contract     string     `json:"contract"`
+	StrikePrice  float64    `json:"strike_price,string"`
+	Time         gateioTime `json:"time"`
+	SettlePrice  float64    `json:"settle_price,string"`
+	Underlying   string     `json:"underlying"`
+	RealisedPnl  string     `json:"realised_pnl"`
+	Fee          float64    `json:"fee,string"`
 }
 
 // OptionsTicker represents  tickers of options contracts
 type OptionsTicker struct {
-	Name                  string               `json:"name"`
+	Name                  currency.Pair        `json:"name"`
 	LastPrice             gateioNumericalValue `json:"last_price"`
 	MarkPrice             gateioNumericalValue `json:"mark_price"`
 	PositionSize          float64              `json:"position_size"`
@@ -1088,16 +1089,16 @@ type MultiChainAddressItem struct {
 
 // DepositRecord represents deposit record item
 type DepositRecord struct {
-	ID            string    `json:"id"`
-	Timestamp     time.Time `json:"timestamp"`
-	Currency      string    `json:"currency"`
-	Address       string    `json:"address"`
-	TransactionID string    `json:"txid"`
-	Amount        float64   `json:"amount,string"`
-	Memo          string    `json:"memo"`
-	Status        string    `json:"status"`
-	Chain         string    `json:"chain"`
-	Fee           float64   `json:"fee,string"`
+	ID            string     `json:"id"`
+	Timestamp     gateioTime `json:"timestamp"`
+	Currency      string     `json:"currency"`
+	Address       string     `json:"address"`
+	TransactionID string     `json:"txid"`
+	Amount        float64    `json:"amount,string"`
+	Memo          string     `json:"memo"`
+	Status        string     `json:"status"`
+	Chain         string     `json:"chain"`
+	Fee           float64    `json:"fee,string"`
 }
 
 // TransferCurrencyParam represents currency transfer.
@@ -1989,35 +1990,35 @@ type WsEventResponse struct {
 
 // WsResponse represents generalized websocket push data from the server.
 type WsResponse struct {
-	ID      int64       `json:"id"`
-	Time    int64       `json:"time"`
-	Channel string      `json:"channel"`
-	Event   string      `json:"event"`
-	Result  interface{} `json:"result"`
+	ID      int64           `json:"id"`
+	Time    int64           `json:"time"`
+	Channel string          `json:"channel"`
+	Event   string          `json:"event"`
+	Result  json.RawMessage `json:"result"`
 }
 
 // WsTicker websocket ticker information.
 type WsTicker struct {
-	CurrencyPair     string  `json:"currency_pair"`
-	Last             float64 `json:"last,string"`
-	LowestAsk        float64 `json:"lowest_ask,string"`
-	HighestBid       float64 `json:"highest_bid,string"`
-	ChangePercentage float64 `json:"change_percentage,string"`
-	BaseVolume       float64 `json:"base_volume,string"`
-	QuoteVolume      float64 `json:"quote_volume,string"`
-	High24H          float64 `json:"high_24h,string"`
-	Low24H           float64 `json:"low_24h,string"`
+	CurrencyPair     currency.Pair `json:"currency_pair"`
+	Last             float64       `json:"last,string"`
+	LowestAsk        float64       `json:"lowest_ask,string"`
+	HighestBid       float64       `json:"highest_bid,string"`
+	ChangePercentage float64       `json:"change_percentage,string"`
+	BaseVolume       float64       `json:"base_volume,string"`
+	QuoteVolume      float64       `json:"quote_volume,string"`
+	High24H          float64       `json:"high_24h,string"`
+	Low24H           float64       `json:"low_24h,string"`
 }
 
 // WsTrade represents a websocket push data response for a trade
 type WsTrade struct {
-	ID           int64   `json:"id"`
-	CreateTime   int64   `json:"create_time"`
-	CreateTimeMs float64 `json:"create_time_ms,string"`
-	Side         string  `json:"side"`
-	CurrencyPair string  `json:"currency_pair"`
-	Amount       float64 `json:"amount,string"`
-	Price        float64 `json:"price,string"`
+	ID           int64         `json:"id"`
+	CreateTime   gateioTime    `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
+	Side         string        `json:"side"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Amount       float64       `json:"amount,string"`
+	Price        float64       `json:"price,string"`
 }
 
 // WsCandlesticks represents the candlestick data for spot, margin and cross margin trades pushed through the websocket channel.
@@ -2033,34 +2034,34 @@ type WsCandlesticks struct {
 
 // WsOrderbookTickerData represents the websocket orderbook best bid or best ask push data
 type WsOrderbookTickerData struct {
-	UpdateTimeMS  int64   `json:"t"`
-	UpdateOrderID int64   `json:"u"`
-	CurrencyPair  string  `json:"s"`
-	BestBidPrice  float64 `json:"b,string"`
-	BestBidAmount float64 `json:"B,string"`
-	BestAskPrice  float64 `json:"a,string"`
-	BestAskAmount float64 `json:"A,string"`
+	UpdateTimeMS  int64         `json:"t"`
+	UpdateOrderID int64         `json:"u"`
+	CurrencyPair  currency.Pair `json:"s"`
+	BestBidPrice  float64       `json:"b,string"`
+	BestBidAmount float64       `json:"B,string"`
+	BestAskPrice  float64       `json:"a,string"`
+	BestAskAmount float64       `json:"A,string"`
 }
 
 // WsOrderbookUpdate represents websocket orderbook update push data
 type WsOrderbookUpdate struct {
-	UpdateTimeMs            gateioTime  `json:"t"`
-	IgnoreField             string      `json:"e"`
-	UpdateTime              gateioTime  `json:"E"`
-	CurrencyPair            string      `json:"s"`
-	FirstOrderbookUpdatedID int64       `json:"U"` // First update order book id in this event since last update
-	LastOrderbookUpdatedID  int64       `json:"u"`
-	Bids                    [][2]string `json:"b"`
-	Asks                    [][2]string `json:"a"`
+	UpdateTimeMs            gateioTime    `json:"t"`
+	IgnoreField             string        `json:"e"`
+	UpdateTime              gateioTime    `json:"E"`
+	CurrencyPair            currency.Pair `json:"s"`
+	FirstOrderbookUpdatedID int64         `json:"U"` // First update order book id in this event since last update
+	LastOrderbookUpdatedID  int64         `json:"u"`
+	Bids                    [][2]string   `json:"b"`
+	Asks                    [][2]string   `json:"a"`
 }
 
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
 type WsOrderbookSnapshot struct {
-	UpdateTimeMs gateioTime  `json:"t"`
-	LastUpdateID int64       `json:"lastUpdateId"`
-	CurrencyPair string      `json:"s"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	UpdateTimeMs gateioTime    `json:"t"`
+	LastUpdateID int64         `json:"lastUpdateId"`
+	CurrencyPair currency.Pair `json:"s"`
+	Bids         [][2]string   `json:"bids"`
+	Asks         [][2]string   `json:"asks"`
 }
 
 // WsSpotOrder represents an order push data through the websocket channel.
@@ -2071,7 +2072,7 @@ type WsSpotOrder struct {
 	Succeeded          bool                 `json:"succeeded,omitempty"`
 	Label              string               `json:"label,omitempty"`
 	Message            string               `json:"message,omitempty"`
-	CurrencyPair       string               `json:"currency_pair,omitempty"`
+	CurrencyPair       currency.Pair        `json:"currency_pair,omitempty"`
 	Type               string               `json:"type,omitempty"`
 	Account            string               `json:"account,omitempty"`
 	Side               string               `json:"side,omitempty"`
@@ -2097,20 +2098,20 @@ type WsSpotOrder struct {
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
 type WsUserPersonalTrade struct {
-	ID               int64     `json:"id"`
-	UserID           int64     `json:"user_id"`
-	OrderID          string    `json:"order_id"`
-	CurrencyPair     string    `json:"currency_pair"`
-	CreateTime       int64     `json:"create_time"`
-	CreateTimeMicroS time.Time `json:"create_time_ms"`
-	Side             string    `json:"side"`
-	Amount           float64   `json:"amount,string"`
-	Role             string    `json:"role"`
-	Price            float64   `json:"price,string"`
-	Fee              float64   `json:"fee,string"`
-	PointFee         float64   `json:"point_fee,string"`
-	GtFee            string    `json:"gt_fee"`
-	Text             string    `json:"text"`
+	ID           int64         `json:"id"`
+	UserID       int64         `json:"user_id"`
+	OrderID      string        `json:"order_id"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	CreateTime   int64         `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
+	Side         string        `json:"side"`
+	Amount       float64       `json:"amount,string"`
+	Role         string        `json:"role"`
+	Price        float64       `json:"price,string"`
+	Fee          float64       `json:"fee,string"`
+	PointFee     float64       `json:"point_fee,string"`
+	GtFee        string        `json:"gt_fee"`
+	Text         string        `json:"text"`
 }
 
 // WsSpotBalance represents a spot balance.
@@ -2174,33 +2175,33 @@ type WsCrossMarginLoan struct {
 
 // WsFutureTicker represents a futures push data.
 type WsFutureTicker struct {
-	Contract              string  `json:"contract"`
-	Last                  float64 `json:"last,string"`
-	ChangePercentage      string  `json:"change_percentage"`
-	FundingRate           string  `json:"funding_rate"`
-	FundingRateIndicative string  `json:"funding_rate_indicative"`
-	MarkPrice             float64 `json:"mark_price,string"`
-	IndexPrice            float64 `json:"index_price,string"`
-	TotalSize             float64 `json:"total_size,string"`
-	Volume24H             float64 `json:"volume_24h,string"`
-	Volume24HBtc          float64 `json:"volume_24h_btc,string"`
-	Volume24HUsd          float64 `json:"volume_24h_usd,string"`
-	QuantoBaseRate        string  `json:"quanto_base_rate"`
-	Volume24HQuote        float64 `json:"volume_24h_quote,string"`
-	Volume24HSettle       string  `json:"volume_24h_settle"`
-	Volume24HBase         float64 `json:"volume_24h_base,string"`
-	Low24H                float64 `json:"low_24h,string"`
-	High24H               float64 `json:"high_24h,string"`
+	Contract              currency.Pair `json:"contract"`
+	Last                  float64       `json:"last,string"`
+	ChangePercentage      string        `json:"change_percentage"`
+	FundingRate           string        `json:"funding_rate"`
+	FundingRateIndicative string        `json:"funding_rate_indicative"`
+	MarkPrice             float64       `json:"mark_price,string"`
+	IndexPrice            float64       `json:"index_price,string"`
+	TotalSize             float64       `json:"total_size,string"`
+	Volume24H             float64       `json:"volume_24h,string"`
+	Volume24HBtc          float64       `json:"volume_24h_btc,string"`
+	Volume24HUsd          float64       `json:"volume_24h_usd,string"`
+	QuantoBaseRate        string        `json:"quanto_base_rate"`
+	Volume24HQuote        float64       `json:"volume_24h_quote,string"`
+	Volume24HSettle       string        `json:"volume_24h_settle"`
+	Volume24HBase         float64       `json:"volume_24h_base,string"`
+	Low24H                float64       `json:"low_24h,string"`
+	High24H               float64       `json:"high_24h,string"`
 }
 
 // WsFuturesTrades represents  a list of trades push data
 type WsFuturesTrades struct {
-	Size         float64    `json:"size"`
-	ID           int64      `json:"id"`
-	CreateTime   gateioTime `json:"create_time"`
-	CreateTimeMs gateioTime `json:"create_time_ms"`
-	Price        float64    `json:"price,string"`
-	Contract     string     `json:"contract"`
+	Size         float64       `json:"size"`
+	ID           int64         `json:"id"`
+	CreateTime   gateioTime    `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
+	Price        float64       `json:"price,string"`
+	Contract     currency.Pair `json:"contract"`
 }
 
 // WsFuturesOrderbookTicker represents the orderbook ticker push data
@@ -2216,10 +2217,10 @@ type WsFuturesOrderbookTicker struct {
 
 // WsFuturesAndOptionsOrderbookUpdate represents futures and options account orderbook update push data
 type WsFuturesAndOptionsOrderbookUpdate struct {
-	TimestampInMs  int64  `json:"t"`
-	ContractName   string `json:"s"`
-	FirstUpdatedID int64  `json:"U"`
-	LastUpdatedID  int64  `json:"u"`
+	TimestampInMs  int64         `json:"t"`
+	ContractName   currency.Pair `json:"s"`
+	FirstUpdatedID int64         `json:"U"`
+	LastUpdatedID  int64         `json:"u"`
 	Bids           []struct {
 		Price float64 `json:"p,string"`
 		Size  float64 `json:"s"`
@@ -2232,9 +2233,9 @@ type WsFuturesAndOptionsOrderbookUpdate struct {
 
 // WsFuturesOrderbookSnapshot represents a futures orderbook snapshot push data
 type WsFuturesOrderbookSnapshot struct {
-	TimestampInMs gateioTime `json:"t"`
-	Contract      string     `json:"contract"`
-	OrderbookID   int64      `json:"id"`
+	TimestampInMs gateioTime    `json:"t"`
+	Contract      currency.Pair `json:"contract"`
+	OrderbookID   int64         `json:"id"`
 	Asks          []struct {
 		Price float64 `json:"p,string"`
 		Size  float64 `json:"s"`
@@ -2255,44 +2256,44 @@ type WsFuturesOrderbookUpdateEvent struct {
 
 // WsFuturesOrder represents futures order
 type WsFuturesOrder struct {
-	Contract     string     `json:"contract"`
-	CreateTime   gateioTime `json:"create_time"`
-	CreateTimeMs gateioTime `json:"create_time_ms"`
-	FillPrice    float64    `json:"fill_price"`
-	FinishAs     string     `json:"finish_as"`
-	FinishTime   int64      `json:"finish_time"`
-	FinishTimeMs gateioTime `json:"finish_time_ms"`
-	Iceberg      int64      `json:"iceberg"`
-	ID           int64      `json:"id"`
-	IsClose      bool       `json:"is_close"`
-	IsLiq        bool       `json:"is_liq"`
-	IsReduceOnly bool       `json:"is_reduce_only"`
-	Left         float64    `json:"left"`
-	Mkfr         float64    `json:"mkfr"`
-	Price        float64    `json:"price"`
-	Refr         int64      `json:"refr"`
-	Refu         int64      `json:"refu"`
-	Size         float64    `json:"size"`
-	Status       string     `json:"status"`
-	Text         string     `json:"text"`
-	TimeInForce  string     `json:"tif"`
-	Tkfr         float64    `json:"tkfr"`
-	User         string     `json:"user"`
+	Contract     currency.Pair `json:"contract"`
+	CreateTime   gateioTime    `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
+	FillPrice    float64       `json:"fill_price"`
+	FinishAs     string        `json:"finish_as"`
+	FinishTime   int64         `json:"finish_time"`
+	FinishTimeMs gateioTime    `json:"finish_time_ms"`
+	Iceberg      int64         `json:"iceberg"`
+	ID           int64         `json:"id"`
+	IsClose      bool          `json:"is_close"`
+	IsLiq        bool          `json:"is_liq"`
+	IsReduceOnly bool          `json:"is_reduce_only"`
+	Left         float64       `json:"left"`
+	Mkfr         float64       `json:"mkfr"`
+	Price        float64       `json:"price"`
+	Refr         int64         `json:"refr"`
+	Refu         int64         `json:"refu"`
+	Size         float64       `json:"size"`
+	Status       string        `json:"status"`
+	Text         string        `json:"text"`
+	TimeInForce  string        `json:"tif"`
+	Tkfr         float64       `json:"tkfr"`
+	User         string        `json:"user"`
 }
 
 // WsFuturesUserTrade represents a futures account user trade push data
 type WsFuturesUserTrade struct {
-	ID           string     `json:"id"`
-	CreateTime   gateioTime `json:"create_time"`
-	CreateTimeMs gateioTime `json:"create_time_ms"`
-	Contract     string     `json:"contract"`
-	OrderID      string     `json:"order_id"`
-	Size         float64    `json:"size"`
-	Price        float64    `json:"price,string"`
-	Role         string     `json:"role"`
-	Text         string     `json:"text"`
-	Fee          float64    `json:"fee"`
-	PointFee     int64      `json:"point_fee"`
+	ID           string        `json:"id"`
+	CreateTime   gateioTime    `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
+	Contract     currency.Pair `json:"contract"`
+	OrderID      string        `json:"order_id"`
+	Size         float64       `json:"size"`
+	Price        float64       `json:"price,string"`
+	Role         string        `json:"role"`
+	Text         string        `json:"text"`
+	Fee          float64       `json:"fee"`
+	PointFee     int64         `json:"point_fee"`
 }
 
 // WsFuturesLiquidationNotification represents a liquidation notification push data
@@ -2431,11 +2432,11 @@ type WsOptionUnderlyingTicker struct {
 
 // WsOptionsTrades represents options trades for websocket push data.
 type WsOptionsTrades struct {
-	ID         int64      `json:"id"`
-	CreateTime gateioTime `json:"create_time"`
-	Contract   string     `json:"contract"`
-	Size       float64    `json:"size"`
-	Price      float64    `json:"price"`
+	ID         int64         `json:"id"`
+	CreateTime gateioTime    `json:"create_time"`
+	Contract   currency.Pair `json:"contract"`
+	Size       float64       `json:"size"`
+	Price      float64       `json:"price"`
 
 	// Added in options websocket push data
 	CreateTimeMs gateioTime `json:"create_time_ms"`
@@ -2529,9 +2530,9 @@ type WsOptionsOrderbookTicker struct {
 
 // WsOptionsOrderbookSnapshot represents the options orderbook snapshot push data.
 type WsOptionsOrderbookSnapshot struct {
-	Timestamp gateioTime `json:"t"`
-	Contract  string     `json:"contract"`
-	ID        int64      `json:"id"`
+	Timestamp gateioTime    `json:"t"`
+	Contract  currency.Pair `json:"contract"`
+	ID        int64         `json:"id"`
 	Asks      []struct {
 		Price float64 `json:"p,string"`
 		Size  float64 `json:"s"`
@@ -2544,42 +2545,42 @@ type WsOptionsOrderbookSnapshot struct {
 
 // WsOptionsOrder represents options order push data.
 type WsOptionsOrder struct {
-	ID             int64      `json:"id"`
-	Contract       string     `json:"contract"`
-	CreateTime     int64      `json:"create_time"`
-	FillPrice      float64    `json:"fill_price"`
-	FinishAs       string     `json:"finish_as"`
-	Iceberg        float64    `json:"iceberg"`
-	IsClose        bool       `json:"is_close"`
-	IsLiq          bool       `json:"is_liq"`
-	IsReduceOnly   bool       `json:"is_reduce_only"`
-	Left           float64    `json:"left"`
-	Mkfr           float64    `json:"mkfr"`
-	Price          float64    `json:"price"`
-	Refr           float64    `json:"refr"`
-	Refu           float64    `json:"refu"`
-	Size           float64    `json:"size"`
-	Status         string     `json:"status"`
-	Text           string     `json:"text"`
-	Tif            string     `json:"tif"`
-	Tkfr           float64    `json:"tkfr"`
-	Underlying     string     `json:"underlying"`
-	User           string     `json:"user"`
-	CreationTime   gateioTime `json:"time"`
-	CreationTimeMs gateioTime `json:"time_ms"`
+	ID             int64         `json:"id"`
+	Contract       currency.Pair `json:"contract"`
+	CreateTime     int64         `json:"create_time"`
+	FillPrice      float64       `json:"fill_price"`
+	FinishAs       string        `json:"finish_as"`
+	Iceberg        float64       `json:"iceberg"`
+	IsClose        bool          `json:"is_close"`
+	IsLiq          bool          `json:"is_liq"`
+	IsReduceOnly   bool          `json:"is_reduce_only"`
+	Left           float64       `json:"left"`
+	Mkfr           float64       `json:"mkfr"`
+	Price          float64       `json:"price"`
+	Refr           float64       `json:"refr"`
+	Refu           float64       `json:"refu"`
+	Size           float64       `json:"size"`
+	Status         string        `json:"status"`
+	Text           string        `json:"text"`
+	Tif            string        `json:"tif"`
+	Tkfr           float64       `json:"tkfr"`
+	Underlying     string        `json:"underlying"`
+	User           string        `json:"user"`
+	CreationTime   gateioTime    `json:"time"`
+	CreationTimeMs gateioTime    `json:"time_ms"`
 }
 
 // WsOptionsUserTrade represents user's personal trades of option account.
 type WsOptionsUserTrade struct {
-	ID           string     `json:"id"`
-	Underlying   string     `json:"underlying"`
-	OrderID      string     `json:"order"`
-	Contract     string     `json:"contract"`
-	CreateTime   gateioTime `json:"create_time"`
-	CreateTimeMs gateioTime `json:"create_time_ms"`
-	Price        float64    `json:"price,string"`
-	Role         string     `json:"role"`
-	Size         float64    `json:"size"`
+	ID           string        `json:"id"`
+	Underlying   string        `json:"underlying"`
+	OrderID      string        `json:"order"`
+	Contract     currency.Pair `json:"contract"`
+	CreateTime   gateioTime    `json:"create_time"`
+	CreateTimeMs gateioTime    `json:"create_time_ms"`
+	Price        float64       `json:"price,string"`
+	Role         string        `json:"role"`
+	Size         float64       `json:"size"`
 }
 
 // WsOptionsLiquidates represents the liquidates push data of option account.

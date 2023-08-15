@@ -242,9 +242,8 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 	}
 	if m.AmountStepIncrementSize != 0 {
 		dAmount := decimal.NewFromFloat(amount)
-		dMinAmount := decimal.NewFromFloat(m.MaximumBaseAmount)
 		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
-		if !dAmount.Sub(dMinAmount).Mod(dStep).IsZero() {
+		if !dAmount.Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrAmountExceedsStep,
 				m.AmountStepIncrementSize,
