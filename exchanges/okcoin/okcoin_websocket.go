@@ -272,24 +272,36 @@ func (o *Okcoin) wsProcessAdvancedAlgoOrder(respRaw []byte) error {
 	}
 	algoOrders := make([]order.Detail, len(resp.Data))
 	for d := range resp.Data {
-		oType, err := order.StringToOrderType(resp.Data[d].OrderType)
+		cp, err := currency.NewPairFromString(resp.Data[d].InstrumentID)
 		if err != nil {
 			return err
 		}
+		oType, err := order.StringToOrderType(resp.Data[d].OrderType)
+		if err != nil {
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[d].AlgoID,
+				Err:      err,
+			}
+		}
 		oSide, err := order.StringToOrderSide(resp.Data[d].Side)
 		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[d].AlgoID,
+				Err:      err,
+			}
 		}
 		// this code block introduces two order states
 		// 1. 'effective' - equivalent to filled, and
 		// 2. 'order_failed' == equivalent to failed
 		oStatus, err := order.StringToOrderStatus(resp.Data[d].State)
 		if err != nil {
-			return err
-		}
-		cp, err := currency.NewPairFromString(resp.Data[d].InstrumentID)
-		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[d].AlgoID,
+				Err:      err,
+			}
 		}
 		algoOrders[d] = order.Detail{
 			Leverage:        resp.Data[d].Lever.Float64(),
@@ -328,17 +340,29 @@ func (o *Okcoin) wsProcessAlgoOrder(respRaw []byte) error {
 		}
 		side, err := order.StringToOrderSide(resp.Data[a].Side)
 		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[a].OrderID,
+				Err:      err,
+			}
 		}
 		var oType order.Type
 		oType, err = order.StringToOrderType(resp.Data[a].OrderType)
 		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[a].OrderID,
+				Err:      err,
+			}
 		}
 		var status order.Status
 		status, err = order.StringToOrderStatus(resp.Data[a].State)
 		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[a].OrderID,
+				Err:      err,
+			}
 		}
 		orderDetails[a] = order.Detail{
 			LastUpdated:   resp.Data[a].CreateTime.Time(),
@@ -377,17 +401,29 @@ func (o *Okcoin) wsProcessOrders(respRaw []byte) error {
 		var side order.Side
 		side, err := order.StringToOrderSide(resp.Data[x].Side)
 		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[x].OrderID,
+				Err:      err,
+			}
 		}
 		var oType order.Type
 		oType, err = order.StringToOrderType(resp.Data[x].OrderType)
 		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[x].OrderID,
+				Err:      err,
+			}
 		}
 		var status order.Status
 		status, err = order.StringToOrderStatus(resp.Data[x].State)
 		if err != nil {
-			return err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[x].OrderID,
+				Err:      err,
+			}
 		}
 		algoOrder[x] = order.Detail{
 			Exchange:             o.Name,
