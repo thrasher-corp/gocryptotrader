@@ -212,9 +212,10 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	// Needs to be in select case as this can cause a knock on affect with
 	// websocket update and processing times.
 	case w.dataHandler <- book.ob:
+		return nil
 	default:
+		return fmt.Errorf("%w %s %s %s, dropped update", errDataHandlerReaderSlow, w.exchangeName, u.Pair, u.Asset)
 	}
-	return nil
 }
 
 // processBufferUpdate stores update into buffer, when buffer at capacity as
@@ -315,15 +316,17 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		return err
 	}
 
+	key := Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}
+
 	w.mtx.RLock()
-	holder, ok := w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
+	holder, ok := w.ob[key]
 	if !ok {
 		waitForMainLock := make(chan struct{})
 		go func() { w.mtx.Lock(); close(waitForMainLock) }()
 		w.mtx.RUnlock() // Release read
 		<-waitForMainLock
 		// Re-check if orderbook has been created.
-		holder, ok = w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
+		holder, ok = w.ob[key]
 		if !ok {
 			// Associate orderbook pointer with local exchange depth map
 			var depth *orderbook.Depth
@@ -333,14 +336,18 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 				return err
 			}
 			depth.AssignOptions(book)
-			buffer := make([]orderbook.Update, w.obBufferLimit)
+			var buffer []orderbook.Update
+			if w.bufferEnabled {
+				buffer = make([]orderbook.Update, w.obBufferLimit)
+			}
 
 			var ticker *time.Ticker
 			if w.publishPeriod != 0 {
 				ticker = time.NewTicker(w.publishPeriod)
 			}
+
 			holder = &orderbookHolder{ob: depth, buffer: &buffer, ticker: ticker}
-			w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
+			w.ob[key] = holder
 			w.mtx.Unlock()
 		} else {
 			w.mtx.Unlock()
@@ -374,8 +381,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	}
 
 	holder.ob.Publish()
-	if !holder.InitialUpdate {
-		holder.InitialUpdate = true
+	if !holder.InitialUpdateCompleted {
+		holder.InitialUpdateCompleted = true
 		select {
 		case w.dataHandler <- holder.ob:
 			return nil
@@ -388,9 +395,10 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	select {
 	// Needs to be in select case as this directly impacts websocket reading.
 	case w.dataHandler <- holder.ob:
+		return nil
 	default:
+		return fmt.Errorf("%w %s %s %s, dropped update", errDataHandlerReaderSlow, w.exchangeName, book.Pair, book.Asset)
 	}
-	return nil
 }
 
 // GetOrderbook returns an orderbook copy as orderbook.Base
@@ -401,8 +409,6 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, errDepthNotFound)
 	}
-	book.mtx.Lock()
-	defer book.mtx.Unlock()
 	return book.ob.Retrieve()
 }
 
@@ -426,9 +432,7 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 			a,
 			errDepthNotFound)
 	}
-	book.mtx.Lock()
 	// error not needed in this return
 	_ = book.ob.Invalidate(errOrderbookFlushed)
-	book.mtx.Unlock()
 	return nil
 }

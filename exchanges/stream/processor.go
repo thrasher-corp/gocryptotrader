@@ -93,8 +93,8 @@ func (w *Processor) Process(key Key, fn func() error) error {
 			w.routes[key] = ch
 			close(wait)
 			w.mtx.Unlock()
-			for pending := range ch {
-				err := pending()
+			for processWebsocketTask := range ch {
+				err := processWebsocketTask()
 				if err != nil {
 					w.dataHandler <- err
 				}
