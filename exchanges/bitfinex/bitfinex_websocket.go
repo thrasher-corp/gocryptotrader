@@ -1056,7 +1056,10 @@ func (b *Bitfinex) handleWSPositionUpdate(d []interface{}) error {
 
 func (b *Bitfinex) handleWSTradeUpdate(d []interface{}, eventType string) error {
 	tradeData, ok := d[2].([]interface{})
-	if !ok || len(tradeData) <= 4 {
+	if !ok {
+		return common.GetTypeAssertError("[]interface{}", d[2], "tradeUpdate")
+	}
+	if len(tradeData) <= 4 {
 		return nil
 	}
 	var tData WebsocketTradeData
