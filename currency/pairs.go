@@ -446,9 +446,12 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 
 // GetFormatting returns the formatting of a set of pairs
 func (p Pairs) GetFormatting() (PairFormat, error) {
-	fmt := p[0].GetFormatting()
-	if p.HasFormatDifference(fmt) {
+	if len(p) == 0 {
+		return PairFormat{}, errPairsEmpty
+	}
+	pFmt := p[0].GetFormatting()
+	if p.HasFormatDifference(pFmt) {
 		return PairFormat{}, errPairFormattingInconsistent
 	}
-	return fmt, nil
+	return pFmt, nil
 }
