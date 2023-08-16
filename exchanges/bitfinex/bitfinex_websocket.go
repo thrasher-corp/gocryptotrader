@@ -958,17 +958,17 @@ func (b *Bitfinex) handleWSNotification(d []interface{}, respRaw []byte) error {
 
 func (b *Bitfinex) handleWSPositionSnapshot(d []interface{}) error {
 	snapBundle, ok := d[2].([]interface{})
-	if !ok || len(snapBundle) == 0 {
-		return nil
+	if !ok {
+		return common.GetTypeAssertError("[]interface{}", d[2], "positionSnapshotBundle")
 	}
-	if _, ok := snapBundle[0].([]interface{}); !ok {
+	if len(snapBundle) == 0 {
 		return nil
 	}
 	snapshot := make([]WebsocketPosition, len(snapBundle))
 	for i := range snapBundle {
 		positionData, ok := snapBundle[i].([]interface{})
 		if !ok {
-			return errors.New("unable to type assert wsPositionSnapshot positionData")
+			return common.GetTypeAssertError("[]interface{}", snapBundle[i], "positionSnapshot")
 		}
 		var position WebsocketPosition
 		if position.Pair, ok = positionData[0].(string); !ok {
@@ -1011,7 +1011,10 @@ func (b *Bitfinex) handleWSPositionSnapshot(d []interface{}) error {
 
 func (b *Bitfinex) handleWSPositionUpdate(d []interface{}) error {
 	positionData, ok := d[2].([]interface{})
-	if !ok || len(positionData) == 0 {
+	if !ok {
+		return common.GetTypeAssertError("[]interface{}", d[2], "positionUpdate")
+	}
+	if len(positionData) == 0 {
 		return nil
 	}
 	var position WebsocketPosition
