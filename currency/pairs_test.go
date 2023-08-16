@@ -811,7 +811,7 @@ func TestPairs_GetFormatting(t *testing.T) {
 	}
 
 	p = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}
-	pFmt, err = p.GetFormatting()
+	_, err = p.GetFormatting()
 	if !errors.Is(err, errPairFormattingInconsistent) {
 		t.Error(err)
 	}
