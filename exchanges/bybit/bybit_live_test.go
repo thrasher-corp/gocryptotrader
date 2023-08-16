@@ -27,7 +27,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bybit Setup() init error", err)
 	}
-	b.HTTPRecording = true
 
 	bybitConfig.API.AuthenticatedSupport = true
 	bybitConfig.API.Credentials.Key = apiKey
