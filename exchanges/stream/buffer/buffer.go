@@ -31,7 +31,6 @@ var (
 	errUpdateInsertFailure          = errors.New("orderbook update/insert update failure")
 	errRESTTimerLapse               = errors.New("rest sync timer lapse with active websocket connection")
 	errOrderbookFlushed             = errors.New("orderbook flushed")
-	errDataHandlerReaderSlow        = errors.New("data handler reader slow")
 )
 
 // Setup sets private variables

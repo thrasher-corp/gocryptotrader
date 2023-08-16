@@ -58,9 +58,6 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 		ob:           newBook,
 	}
 	err = holder.LoadSnapshot(book)
-	if errors.Is(err, errDataHandlerReaderSlow) { // expected return error
-		err = nil
-	}
 	return holder, asks, bids, err
 }
 
