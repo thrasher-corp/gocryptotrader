@@ -66,10 +66,6 @@ type orderbookHolder struct {
 	// currency.
 	ticker   *time.Ticker
 	updateID int64
-
-	// InitialUpdate determines initial sync state, the very first update from
-	// any pair is critical for initial sync.
-	InitialUpdate bool
 }
 
 // Key defines a unique orderbook key for a specific pair and asset

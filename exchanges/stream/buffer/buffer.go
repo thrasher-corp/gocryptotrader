@@ -205,12 +205,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	// A nil ticker means that a zero publish period has been set and the entire
 	// websocket updates will be sent to the engine websocket manager for
 	// display purposes. Same as being verbose.
-	select {
-	// Needs to be in select case as this can cause a knock on affect with
-	// websocket update and processing times.
-	case w.dataHandler <- book.ob:
-	default:
-	}
+	w.dataHandler <- book.ob
 	return nil
 }
 
@@ -355,22 +350,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	}
 
 	holder.ob.Publish()
-	if !holder.InitialUpdate {
-		holder.InitialUpdate = true
-		select {
-		case w.dataHandler <- holder.ob:
-			return nil
-		default:
-			w.dataHandler <- holder.ob
-			return fmt.Errorf("%w %s %s %s", errDataHandlerReaderSlow, w.exchangeName, book.Pair, book.Asset)
-		}
-	}
-
-	select {
-	// Needs to be in select case as this directly impacts websocket reading.
-	case w.dataHandler <- holder.ob:
-	default:
-	}
+	w.dataHandler <- holder.ob
 	return nil
 }
 
