@@ -818,7 +818,7 @@ func (b *Bitfinex) handleWSTradesUpdate(c *stream.ChannelSubscription, d []inter
 			return errors.New("unable to type assert data event")
 		}
 		if event != wsFundingTradeUpdate && event != wsTradeExecutionUpdate {
-			return fmt.Errorf("Unhandled WS trade update event: %s", event)
+			return fmt.Errorf("unhandled WS trade update event: %s", event)
 		}
 		data, ok := d[2].([]interface{})
 		if !ok {
