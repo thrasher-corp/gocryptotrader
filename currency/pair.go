@@ -151,9 +151,12 @@ func MatchPairsWithNoDelimiter(currencyPair string, pairs Pairs, pairFmt PairFor
 }
 
 // GetFormatting returns the formatting style of a pair
-func (p Pair) GetFormatting() PairFormat {
-	return PairFormat{
-		Uppercase: p.Base.UpperCase && p.Quote.UpperCase,
-		Delimiter: p.Delimiter,
+func (p Pair) GetFormatting() (PairFormat, error) {
+	if p.Base.UpperCase != p.Quote.UpperCase {
+		return PairFormat{}, fmt.Errorf("%w casing mismatch", errPairFormattingInconsistent)
 	}
+	return PairFormat{
+		Uppercase: p.Base.UpperCase,
+		Delimiter: p.Delimiter,
+	}, nil
 }

@@ -809,4 +809,10 @@ func TestPairs_GetFormatting(t *testing.T) {
 	if !errors.Is(err, errPairFormattingInconsistent) {
 		t.Error(err)
 	}
+
+	p = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}
+	pFmt, err = p.GetFormatting()
+	if !errors.Is(err, errPairFormattingInconsistent) {
+		t.Error(err)
+	}
 }
