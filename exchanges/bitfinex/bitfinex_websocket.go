@@ -1684,7 +1684,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, symbol string) 
 	var c *stream.ChannelSubscription
 	s := b.Websocket.GetSubscriptions()
 	for i := range s {
-		if strings.EqualFold(s[i].Channel, channel) && s[i].Currency.Equal(pair) {
+		if strings.EqualFold(s[i].Channel, channel) && s[i].Currency.Equal(pair) && s[i].Asset == assetType {
 			c = &s[i]
 			break
 		}
