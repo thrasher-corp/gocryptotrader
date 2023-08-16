@@ -12,7 +12,6 @@ import (
 
 var (
 	errSymbolEmpty                = errors.New("symbol is empty")
-	errPairsEmpty                 = errors.New("pairs are empty")
 	errNoDelimiter                = errors.New("no delimiter was supplied")
 	errPairFormattingInconsistent = errors.New("pairs formatting is inconsistent")
 
@@ -137,7 +136,7 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 // original pairs list.
 func (p Pairs) ContainsAll(check Pairs, exact bool) error {
 	if len(check) == 0 {
-		return errPairsEmpty
+		return ErrCurrencyPairsEmpty
 	}
 
 	comparative := make(Pairs, len(p))
@@ -307,7 +306,7 @@ func (p Pairs) GetRandomPair() (Pair, error) {
 // delimiter is supplied.
 func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
 	if len(p) == 0 {
-		return EMPTYPAIR, errPairsEmpty
+		return EMPTYPAIR, ErrCurrencyPairsEmpty
 	}
 	if symbol == "" {
 		return EMPTYPAIR, errSymbolEmpty
@@ -447,7 +446,7 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 // GetFormatting returns the formatting of a set of pairs
 func (p Pairs) GetFormatting() (PairFormat, error) {
 	if len(p) == 0 {
-		return PairFormat{}, errPairsEmpty
+		return PairFormat{}, ErrCurrencyPairsEmpty
 	}
 	pFmt := p[0].GetFormatting()
 	if p.HasFormatDifference(pFmt) {

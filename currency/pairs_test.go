@@ -344,8 +344,8 @@ func TestContainsAll(t *testing.T) {
 	}
 
 	err := pairs.ContainsAll(nil, true)
-	if !errors.Is(err, errPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
+	if !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
 	}
 
 	err = pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true)
@@ -394,8 +394,8 @@ func TestContainsAll(t *testing.T) {
 func TestDeriveFrom(t *testing.T) {
 	t.Parallel()
 	_, err := Pairs{}.DeriveFrom("")
-	if !errors.Is(err, errPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
+	if !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
 	}
 	var testCases = Pairs{
 		NewPair(BTC, USDT),
