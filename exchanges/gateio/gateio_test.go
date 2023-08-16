@@ -50,6 +50,8 @@ func TestMain(m *testing.M) {
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
+	gConf.Features.Enabled.FillsFeed = true
+	gConf.Features.Enabled.TradeFeed = true
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -2584,7 +2586,7 @@ func TestWsTickerPushData(t *testing.T) {
 	}
 }
 
-const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "GT_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
+const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "BTC_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
 
 func TestWsTradePushData(t *testing.T) {
 	t.Parallel()
