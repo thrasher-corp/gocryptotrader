@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	exchangeName = "Bybit"
+	exchangeName = "binanceus"
 )
 
 func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManager) {
