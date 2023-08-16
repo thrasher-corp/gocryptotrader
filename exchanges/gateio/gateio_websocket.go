@@ -51,7 +51,6 @@ const (
 var defaultSubscriptions = []string{
 	spotTickerChannel,
 	spotCandlesticksChannel,
-	spotTradesChannel,
 	spotOrderbookTickerChannel,
 }
 
@@ -197,6 +196,11 @@ func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
 }
 
 func (g *Gateio) processTrades(incoming []byte) error {
+	saveTradeData := g.IsSaveTradeDataEnabled()
+	if !saveTradeData && !g.IsTradeFeedEnabled() {
+		return nil
+	}
+
 	var data WsTrade
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -207,7 +211,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	if err != nil {
 		return err
 	}
-	spotTradeData := trade.Data{
+	tData := trade.Data{
 		Timestamp:    data.CreateTimeMs.Time(),
 		CurrencyPair: data.CurrencyPair,
 		AssetType:    asset.Spot,
@@ -217,29 +221,16 @@ func (g *Gateio) processTrades(incoming []byte) error {
 		Side:         side,
 		TID:          strconv.FormatInt(data.ID, 10),
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
-	if assetPairEnabled[asset.Spot] {
-		err = trade.AddTradesToBuffer(g.Name, spotTradeData)
-		if err != nil {
-			return err
+
+	for _, assetType := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin} {
+		if g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)[assetType] {
+			tData.AssetType = assetType
+			if err := g.Websocket.Trade.Update(saveTradeData, tData); err != nil {
+				return err
+			}
 		}
 	}
-	if assetPairEnabled[asset.Margin] {
-		marginTradeData := spotTradeData
-		marginTradeData.AssetType = asset.Margin
-		err = trade.AddTradesToBuffer(g.Name, marginTradeData)
-		if err != nil {
-			return err
-		}
-	}
-	if assetPairEnabled[asset.CrossMargin] {
-		crossMarginTradeData := spotTradeData
-		crossMarginTradeData.AssetType = asset.CrossMargin
-		err = trade.AddTradesToBuffer(g.Name, crossMarginTradeData)
-		if err != nil {
-			return err
-		}
-	}
+
 	return nil
 }
 
@@ -496,6 +487,10 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 }
 
 func (g *Gateio) processUserPersonalTrades(data []byte) error {
+	if !g.IsFillsFeedEnabled() {
+		return nil
+	}
+
 	resp := struct {
 		Time    int64                 `json:"time"`
 		Channel string                `json:"channel"`
@@ -641,6 +636,11 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			marginBalancesChannel,
 			spotBalancesChannel}...)
 	}
+
+	if g.IsSaveTradeDataEnabled() || g.IsTradeFeedEnabled() {
+		channelsToSubscribe = append(channelsToSubscribe, spotTradesChannel)
+	}
+
 	var subscriptions []stream.ChannelSubscription
 	var err error
 	for i := range channelsToSubscribe {
@@ -675,11 +675,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			case spotOrderbookUpdateChannel:
 				params["interval"] = kline.HundredMilliseconds
 			}
-			if spotTradesChannel == channelsToSubscribe[i] {
-				if !g.IsSaveTradeDataEnabled() {
-					continue
-				}
-			}
+
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Spot)
 			if err != nil {
 				return nil, err

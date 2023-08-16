@@ -707,7 +707,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			orderType,
 			o.Amount,
 			o.Price,
-			o.Side == order.Buy,
+			o.Side.IsLong(),
 			false)
 		if err != nil {
 			return nil, err
