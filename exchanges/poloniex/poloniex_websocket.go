@@ -445,7 +445,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 			return fmt.Errorf("%w ask volume data not string",
 				errTypeAssertionFailure)
 		}
-		a, err := strconv.ParseFloat(v, 64)
+		var a float64
+		a, err = strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
 		}
@@ -464,7 +465,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 			return fmt.Errorf("%w bid volume data not string",
 				errTypeAssertionFailure)
 		}
-		a, err := strconv.ParseFloat(v, 64)
+		var a float64
+		a, err = strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
 		}
