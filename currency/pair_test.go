@@ -1067,3 +1067,18 @@ func TestIsAssociated(t *testing.T) {
 		})
 	}
 }
+
+func TestPair_GetFormatting(t *testing.T) {
+	t.Parallel()
+	p := NewPair(BTC, USDT)
+	pFmt := p.GetFormatting()
+	if !pFmt.Uppercase || pFmt.Delimiter != "" {
+		t.Error("incorrect formatting")
+	}
+
+	p = NewPairWithDelimiter("eth", "usdt", "/")
+	pFmt = p.GetFormatting()
+	if pFmt.Uppercase || pFmt.Delimiter != "/" {
+		t.Error("incorrect formatting")
+	}
+}

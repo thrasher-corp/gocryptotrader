@@ -149,3 +149,11 @@ func MatchPairsWithNoDelimiter(currencyPair string, pairs Pairs, pairFmt PairFor
 	}
 	return EMPTYPAIR, fmt.Errorf("currency %v not found in supplied pairs", currencyPair)
 }
+
+// GetFormatting returns the formatting style of a pair
+func (p Pair) GetFormatting() PairFormat {
+	return PairFormat{
+		Uppercase: p.Base.UpperCase && p.Quote.UpperCase,
+		Delimiter: p.Delimiter,
+	}
+}

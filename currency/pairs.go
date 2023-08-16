@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	errSymbolEmpty = errors.New("symbol is empty")
-	errPairsEmpty  = errors.New("pairs are empty")
-	errNoDelimiter = errors.New("no delimiter was supplied")
+	errSymbolEmpty                = errors.New("symbol is empty")
+	errPairsEmpty                 = errors.New("pairs are empty")
+	errNoDelimiter                = errors.New("no delimiter was supplied")
+	errPairFormattingInconsistent = errors.New("pairs formatting is inconsistent")
 
 	// ErrPairDuplication defines an error when there is multiple of the same
 	// currency pairs found.
@@ -441,4 +442,13 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 		target++
 	}
 	return formatted, nil
+}
+
+// GetFormatting returns the formatting of a set of pairs
+func (p Pairs) GetFormatting() (PairFormat, error) {
+	fmt := p[0].GetFormatting()
+	if p.HasFormatDifference(fmt) {
+		return PairFormat{}, errPairFormattingInconsistent
+	}
+	return fmt, nil
 }

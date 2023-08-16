@@ -560,8 +560,12 @@ var warningErrors = []error{
 // likelihood of returning data from API endpoints
 func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 	t.Helper()
-	goodEth := currency.NewPair(currency.ETH, currency.USDT)
-	if p.Contains(goodEth, false) {
+	pFmt, err := p.GetFormatting()
+	if err != nil {
+		return currency.Pair{}, err
+	}
+	goodEth := currency.NewPair(currency.ETH, currency.USDT).Format(pFmt)
+	if p.Contains(goodEth, true) {
 		return goodEth, nil
 	}
 	for i := range p {
@@ -569,8 +573,8 @@ func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 			return p[i], nil
 		}
 	}
-	goodBtc := currency.NewPair(currency.BTC, currency.USDT)
-	if p.Contains(goodBtc, false) {
+	goodBtc := currency.NewPair(currency.BTC, currency.USDT).Format(pFmt)
+	if p.Contains(goodBtc, true) {
 		return goodBtc, nil
 	}
 	for i := range p {

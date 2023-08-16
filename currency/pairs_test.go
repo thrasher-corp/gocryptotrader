@@ -783,3 +783,30 @@ func TestValidateAndConform(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
 	}
 }
+
+func TestPairs_GetFormatting(t *testing.T) {
+	t.Parallel()
+	p := Pairs{NewPair(BTC, USDT)}
+	pFmt, err := p.GetFormatting()
+	if err != nil {
+		t.Error(err)
+	}
+	if !pFmt.Uppercase || pFmt.Delimiter != "" {
+		t.Error("incorrect formatting")
+	}
+
+	p = Pairs{NewPairWithDelimiter("eth", "usdt", "/")}
+	pFmt, err = p.GetFormatting()
+	if err != nil {
+		t.Error(err)
+	}
+	if pFmt.Uppercase || pFmt.Delimiter != "/" {
+		t.Error("incorrect formatting")
+	}
+
+	p = Pairs{NewPair(BTC, USDT), NewPairWithDelimiter("eth", "usdt", "/")}
+	pFmt, err = p.GetFormatting()
+	if !errors.Is(err, errPairFormattingInconsistent) {
+		t.Error(err)
+	}
+}
