@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	// Book is a key type for websocket orderbook data processing
 	Book                     UpdateType = iota
 	defaultChannelBufferSize            = 10
 )

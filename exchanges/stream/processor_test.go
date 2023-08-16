@@ -9,6 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+var errExpectedTestErrorWhenProcessing = errors.New("test")
+
 func TestNewProcessor(t *testing.T) {
 	t.Parallel()
 
@@ -43,8 +45,6 @@ func TestNewProcessor(t *testing.T) {
 		t.Fatal("expected routes")
 	}
 }
-
-var errExpectedTestErrorWhenProcessing = errors.New("test")
 
 func TestProcessorProcess(t *testing.T) {
 	t.Parallel()
@@ -106,8 +106,8 @@ func TestProcessorProcess(t *testing.T) {
 
 	// This will read the first error and then unblock processing
 	resp := <-happyDataHandler
-	if resp.(error) != errExpectedTestErrorWhenProcessing {
-		t.Fatalf("received: %v, expected: %v", resp.(error), errExpectedTestErrorWhenProcessing)
+	if respErr, ok := resp.(error); ok && respErr != errExpectedTestErrorWhenProcessing {
+		t.Fatalf("received: %v, expected: %v", respErr, errExpectedTestErrorWhenProcessing)
 	}
 
 	wg.Wait()
