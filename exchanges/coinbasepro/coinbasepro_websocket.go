@@ -290,30 +290,30 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	}
 
 	for i := range snapshot.Bids {
-		price, err := strconv.ParseFloat(snapshot.Bids[i][0], 64)
+		var price float64
+		price, err = strconv.ParseFloat(snapshot.Bids[i][0], 64)
 		if err != nil {
 			return err
 		}
-
-		amount, err := strconv.ParseFloat(snapshot.Bids[i][1], 64)
+		var amount float64
+		amount, err = strconv.ParseFloat(snapshot.Bids[i][1], 64)
 		if err != nil {
 			return err
 		}
-
 		base.Bids[i] = orderbook.Item{Price: price, Amount: amount}
 	}
 
 	for i := range snapshot.Asks {
-		price, err := strconv.ParseFloat(snapshot.Asks[i][0], 64)
+		var price float64
+		price, err = strconv.ParseFloat(snapshot.Asks[i][0], 64)
 		if err != nil {
 			return err
 		}
-
-		amount, err := strconv.ParseFloat(snapshot.Asks[i][1], 64)
+		var amount float64
+		amount, err = strconv.ParseFloat(snapshot.Asks[i][1], 64)
 		if err != nil {
 			return err
 		}
-
 		base.Asks[i] = orderbook.Item{Price: price, Amount: amount}
 	}
 
