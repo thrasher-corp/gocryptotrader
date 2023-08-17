@@ -129,16 +129,11 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		return nil, fmt.Errorf("exchange manager: %s %w", name, ErrExchangeAlreadyLoaded)
 	}
 
-	exch := NewSupportedExchangeByName(nameLower)
-	if exch != nil {
-		return exch, nil
-	}
-
 	if m.Builder != nil {
 		return m.Builder.NewExchangeByName(nameLower)
 	}
 
-	return nil, fmt.Errorf("exchange manager: %s, %w", nameLower, ErrExchangeNotFound)
+	return NewSupportedExchangeByName(nameLower)
 }
 
 // Shutdown shuts down all exchanges and unloads them

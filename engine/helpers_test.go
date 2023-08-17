@@ -1352,13 +1352,19 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 	t.Parallel()
 
 	for x := range exchange.Exchanges {
-		if NewSupportedExchangeByName(exchange.Exchanges[x]) == nil {
+		exch, err := NewSupportedExchangeByName(exchange.Exchanges[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exch == nil {
 			t.Fatalf("received nil exchange")
 		}
 	}
 
-	if NewSupportedExchangeByName("") != nil {
-		t.Fatalf("received non nil exchange")
+	_, err := NewSupportedExchangeByName("")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
 	}
 }
 
@@ -1377,23 +1383,5 @@ func TestGetDefaultExchangeByName(t *testing.T) {
 
 	if exch.GetName() != "Binance" {
 		t.Fatalf("received: '%v' but expected: '%v'", exch.GetName(), "Binance")
-	}
-}
-
-func TestInitialiseExchange(t *testing.T) {
-	t.Parallel()
-
-	_, err := InitialiseExchange(context.Background(), nil)
-	if !errors.Is(err, errExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
-	}
-
-	exch, err := InitialiseExchange(context.Background(), NewSupportedExchangeByName("okx"))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if exch == nil {
-		t.Fatalf("received: '%v' but expected: '%v'", exch, "not nil")
 	}
 }

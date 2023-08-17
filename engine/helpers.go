@@ -989,117 +989,82 @@ func genCert(targetDir string) error {
 }
 
 // NewSupportedExchangeByName helps create a new exchange to be loaded that is
-// supported by GCT. This will return nil if not found.
-func NewSupportedExchangeByName(name string) exchange.IBotExchange {
+// supported by GCT. This function will return an error if the exchange is not
+// supported.
+func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 	switch strings.ToLower(name) {
 	case "binanceus":
-		return new(binanceus.Binanceus)
+		return new(binanceus.Binanceus), nil
 	case "binance":
-		return new(binance.Binance)
+		return new(binance.Binance), nil
 	case "bitfinex":
-		return new(bitfinex.Bitfinex)
+		return new(bitfinex.Bitfinex), nil
 	case "bitflyer":
-		return new(bitflyer.Bitflyer)
+		return new(bitflyer.Bitflyer), nil
 	case "bithumb":
-		return new(bithumb.Bithumb)
+		return new(bithumb.Bithumb), nil
 	case "bitmex":
-		return new(bitmex.Bitmex)
+		return new(bitmex.Bitmex), nil
 	case "bitstamp":
-		return new(bitstamp.Bitstamp)
+		return new(bitstamp.Bitstamp), nil
 	case "bittrex":
-		return new(bittrex.Bittrex)
+		return new(bittrex.Bittrex), nil
 	case "btc markets":
-		return new(btcmarkets.BTCMarkets)
+		return new(btcmarkets.BTCMarkets), nil
 	case "btse":
-		return new(btse.BTSE)
+		return new(btse.BTSE), nil
 	case "bybit":
-		return new(bybit.Bybit)
+		return new(bybit.Bybit), nil
 	case "coinut":
-		return new(coinut.COINUT)
+		return new(coinut.COINUT), nil
 	case "exmo":
-		return new(exmo.EXMO)
+		return new(exmo.EXMO), nil
 	case "coinbasepro":
-		return new(coinbasepro.CoinbasePro)
+		return new(coinbasepro.CoinbasePro), nil
 	case "gateio":
-		return new(gateio.Gateio)
+		return new(gateio.Gateio), nil
 	case "gemini":
-		return new(gemini.Gemini)
+		return new(gemini.Gemini), nil
 	case "hitbtc":
-		return new(hitbtc.HitBTC)
+		return new(hitbtc.HitBTC), nil
 	case "huobi":
-		return new(huobi.HUOBI)
+		return new(huobi.HUOBI), nil
 	case "itbit":
-		return new(itbit.ItBit)
+		return new(itbit.ItBit), nil
 	case "kraken":
-		return new(kraken.Kraken)
+		return new(kraken.Kraken), nil
 	case "lbank":
-		return new(lbank.Lbank)
+		return new(lbank.Lbank), nil
 	case "okcoin international":
-		return new(okcoin.OKCoin)
+		return new(okcoin.OKCoin), nil
 	case "okx":
-		return new(okx.Okx)
+		return new(okx.Okx), nil
 	case "poloniex":
-		return new(poloniex.Poloniex)
+		return new(poloniex.Poloniex), nil
 	case "yobit":
-		return new(yobit.Yobit)
+		return new(yobit.Yobit), nil
 	case "zb":
-		return new(zb.ZB)
+		return new(zb.ZB), nil
 	default:
-		return nil
+		return nil, fmt.Errorf("'%s', %w", name, ErrExchangeNotFound)
 	}
 }
 
 // GetDefaultExchangeByName returns a defaulted exchange by its name if it exists.
-// This will allocate a new exchange and setup the default config for it.
+// This will allocate a new exchange and setup the default config for it. This
+// will automatically fetch available pairs.
 func GetDefaultExchangeByName(ctx context.Context, name string) (exchange.IBotExchange, error) {
-	exch := NewSupportedExchangeByName(name)
-	if exch == nil {
-		return nil, fmt.Errorf("'%s' %w", name, ErrExchangeNotFound)
-	}
-
-	return InitialiseExchange(ctx, exch)
-}
-
-// InitialiseExchange prepares the exchange for use and returns it ready to be
-// used. This will allow authenticated endpoints and enable all pairs and assets.
-// This function can be used for custom exchange implementations that are not
-// natively supported.
-func InitialiseExchange(ctx context.Context, exch exchange.IBotExchange) (exchange.IBotExchange, error) {
-	if exch == nil {
-		return nil, errExchangeIsNil
+	exch, err := NewSupportedExchangeByName(name)
+	if err != nil {
+		return nil, err
 	}
 	defaultConfig, err := exch.GetDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	err = exch.Setup(defaultConfig)
 	if err != nil {
 		return nil, err
-	}
-
-	b := exch.GetBase()
-	// Enable authenticated support for immediate use of authenticated endpoints.
-	b.API.AuthenticatedSupport = true
-	b.API.AuthenticatedWebsocketSupport = true
-
-	// Enable all available pairs and assets
-	supportedAssets := exch.GetAssetTypes(false)
-	for x := range supportedAssets {
-		err = b.CurrencyPairs.SetAssetEnabled(supportedAssets[x], true)
-		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
-			return nil, err
-		}
-
-		avail, err := exch.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			return nil, err
-		}
-
-		err = b.CurrencyPairs.StorePairs(asset.Spot, avail, true)
-		if err != nil {
-			return nil, err
-		}
 	}
 	return exch, nil
 }
