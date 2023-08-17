@@ -86,11 +86,11 @@ func (f fExchange) ChangePositionMargin(_ context.Context, req *margin.PositionC
 	}, nil
 }
 
-func (f fExchange) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64) error {
+func (f fExchange) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64, _ order.Side) error {
 	return nil
 }
 
-func (f fExchange) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) (float64, error) {
+func (f fExchange) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	return 1337, nil
 }
 
@@ -3802,6 +3802,18 @@ func TestSetLeverage(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+
+	req.OrderSide = "lol"
+	_, err = s.SetLeverage(context.Background(), req)
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Error(err)
+	}
+
+	req.OrderSide = order.Long.String()
+	_, err = s.SetLeverage(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
 }
 
 func TestGetLeverage(t *testing.T) {
@@ -3869,6 +3881,18 @@ func TestGetLeverage(t *testing.T) {
 	}
 	if lev.Leverage != 1337 {
 		t.Errorf("received '%v' expected '%v'", lev, 1337)
+	}
+
+	req.OrderSide = "lol"
+	_, err = s.GetLeverage(context.Background(), req)
+	if !errors.Is(err, order.erru) {
+		t.Error(err)
+	}
+
+	req.OrderSide = order.Long.String()
+	_, err = s.GetLeverage(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Error(err)
 	}
 }
 

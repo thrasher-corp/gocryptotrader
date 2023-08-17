@@ -284,6 +284,7 @@ var (
 	errMissingValidGreeksType                        = errors.New("missing valid greeks type")
 	errMissingIsolatedMarginTradingSetting           = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
 	errInvalidOrderSide                              = errors.New("invalid order side")
+	errOrderSideRequired                             = errors.New("order side required")
 	errInvalidCounterParties                         = errors.New("missing counter parties")
 	errInvalidLegs                                   = errors.New("no legs are provided")
 	errMissingRFQIDANDClientSuppliedRFQID            = errors.New("missing rfq id or client supplied rfq id")
@@ -4229,7 +4230,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		if _, okay := ctx.Value(testNetVal).(bool); okay {
+		if _, okay := ctx.Value(testNetVal).(bool); okay || true {
 			headers["x-simulated-trading"] = "1"
 		}
 		if authenticated {

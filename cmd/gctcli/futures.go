@@ -264,7 +264,7 @@ var futuresCommands = &cli.Command{
 			Name:      "setleverage",
 			Aliases:   []string{"sl"},
 			Usage:     "sets the initial leverage level for an exchange currency pair",
-			ArgsUsage: "<exchange> <asset> <pair> <margintype> <leverage>",
+			ArgsUsage: "<exchange> <asset> <pair> <margintype> <leverage> <orderside>",
 			Action:    setLeverage,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -292,13 +292,18 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"l"},
 					Usage:   "the level of leverage you want, increase it to lose your capital faster",
 				},
+				&cli.StringFlag{
+					Name:    "orderside",
+					Aliases: []string{"side", "os", "o"},
+					Usage:   "optional - some exchanges distinguish between order side",
+				},
 			},
 		},
 		{
 			Name:      "getleverage",
 			Aliases:   []string{"gl"},
 			Usage:     "gets the initial leverage level for an exchange currency pair",
-			ArgsUsage: "<exchange> <asset> <pair> <margintype>",
+			ArgsUsage: "<exchange> <asset> <pair> <margintype> <orderside>",
 			Action:    getLeverage,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -320,6 +325,11 @@ var futuresCommands = &cli.Command{
 					Name:    "margintype",
 					Aliases: []string{"margin", "mt", "m"},
 					Usage:   "the margin type, such as 'isolated', 'multi' or 'cross'",
+				},
+				&cli.StringFlag{
+					Name:    "orderside",
+					Aliases: []string{"side", "os", "o"},
+					Usage:   "optional - some exchanges distinguish between order side",
 				},
 			},
 		},
@@ -1042,9 +1052,9 @@ func setLeverage(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair, marginType string
-		leverage                                          float64
-		err                                               error
+		exchangeName, assetType, currencyPair, marginType, orderSide string
+		leverage                                                     float64
+		err                                                          error
 	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -1094,6 +1104,18 @@ func setLeverage(c *cli.Context) error {
 		}
 	}
 
+	if c.IsSet("orderside") {
+		orderSide = c.String("orderside")
+	} else {
+		orderSide = c.Args().Get(5)
+	}
+	if orderSide != "" {
+		_, err = order.StringToOrderSide(orderSide)
+		if err != nil {
+			return err
+		}
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -1126,8 +1148,8 @@ func getLeverage(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair, marginType string
-		err                                               error
+		exchangeName, assetType, currencyPair, marginType, orderSide string
+		err                                                          error
 	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -1168,6 +1190,18 @@ func getLeverage(c *cli.Context) error {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
 	}
 
+	if c.IsSet("orderside") {
+		orderSide = c.String("orderside")
+	} else {
+		orderSide = c.Args().Get(4)
+	}
+	if orderSide != "" {
+		_, err = order.StringToOrderSide(orderSide)
+		if err != nil {
+			return err
+		}
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -1185,6 +1219,7 @@ func getLeverage(c *cli.Context) error {
 				Quote:     pair.Quote.String(),
 			},
 			MarginType: marginType,
+			OrderSide:  orderSide,
 		})
 	if err != nil {
 		return err

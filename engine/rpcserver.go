@@ -5746,7 +5746,16 @@ func (s *RPCServer) GetLeverage(ctx context.Context, r *gctrpc.GetLeverageReques
 	if err != nil {
 		return nil, err
 	}
-	leverage, err := exch.GetLeverage(ctx, ai, cp, mt)
+
+	var orderSide order.Side
+	if r.OrderSide != "" {
+		orderSide, err = order.StringToOrderSide(r.OrderSide)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	leverage, err := exch.GetLeverage(ctx, ai, cp, mt, orderSide)
 	if err != nil {
 		return nil, err
 	}
@@ -5757,6 +5766,7 @@ func (s *RPCServer) GetLeverage(ctx context.Context, r *gctrpc.GetLeverageReques
 		Pair:       r.Pair,
 		MarginType: r.MarginType,
 		Leverage:   leverage,
+		OrderSide:  r.OrderSide,
 	}, nil
 }
 
@@ -5797,7 +5807,15 @@ func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageReques
 		return nil, err
 	}
 
-	err = exch.SetLeverage(ctx, ai, cp, mt, r.Leverage)
+	var orderSide order.Side
+	if r.OrderSide != "" {
+		orderSide, err = order.StringToOrderSide(r.OrderSide)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = exch.SetLeverage(ctx, ai, cp, mt, r.Leverage, orderSide)
 	if err != nil {
 		return nil, err
 	}
@@ -5807,6 +5825,7 @@ func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageReques
 		Asset:      r.Asset,
 		Pair:       r.Pair,
 		MarginType: r.MarginType,
+		OrderSide:  r.OrderSide,
 		Success:    true,
 	}, nil
 }

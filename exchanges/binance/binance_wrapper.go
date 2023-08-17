@@ -2783,7 +2783,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64) error {
+func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, _ order.Side) error {
 	switch item {
 	case asset.USDTMarginedFutures:
 		_, err := b.UChangeInitialLeverageRequest(ctx, pair, amount)
@@ -2797,7 +2797,7 @@ func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair currenc
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type) (float64, error) {
+func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	if pair.IsEmpty() {
 		return -1, currency.ErrCurrencyPairEmpty
 	}

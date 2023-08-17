@@ -158,8 +158,8 @@ type FuturesManagement interface {
 	GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error)
 	SetCollateralMode(ctx context.Context, item asset.Item, mode collateral.Mode) error
 	GetCollateralMode(ctx context.Context, item asset.Item) (collateral.Mode, error)
-	SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64) error
-	GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type) (float64, error)
+	SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, orderSide order.Side) error
+	GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error)
 }
 
 // MarginManagement manages margin positions and rates

@@ -1212,6 +1212,7 @@ message GetLeverageRequest {
   CurrencyPair pair = 3;
   CurrencyPair underlying_pair = 4;
   string margin_type = 5;
+  string order_side = 6;
 }
 
 message GetLeverageResponse {
@@ -1221,6 +1222,7 @@ message GetLeverageResponse {
   CurrencyPair underlying_pair = 4;
   string margin_type = 5;
   double leverage = 6;
+  string order_side = 7;
 }
 
 message SetLeverageRequest {
@@ -1230,6 +1232,7 @@ message SetLeverageRequest {
   CurrencyPair underlying_pair = 4;
   string margin_type = 5;
   double leverage = 6;
+  string order_side = 7;
 }
 
 message SetLeverageResponse {
@@ -1238,7 +1241,8 @@ message SetLeverageResponse {
   CurrencyPair pair = 3;
   CurrencyPair underlying_pair = 4;
   string margin_type = 5;
-  bool success = 6;
+  string order_side = 6;
+  bool success = 7;
 }
 
 message GetCollateralRequest {

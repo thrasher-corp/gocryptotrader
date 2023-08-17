@@ -2558,6 +2558,12 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "orderSide",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -6165,6 +6171,9 @@
         "leverage": {
           "type": "number",
           "format": "double"
+        },
+        "orderSide": {
+          "type": "string"
         }
       }
     },
@@ -7010,6 +7019,9 @@
         "leverage": {
           "type": "number",
           "format": "double"
+        },
+        "orderSide": {
+          "type": "string"
         }
       }
     },
@@ -7029,6 +7041,9 @@
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
         "marginType": {
+          "type": "string"
+        },
+        "orderSide": {
           "type": "string"
         },
         "success": {

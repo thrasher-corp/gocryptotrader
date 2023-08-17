@@ -2009,18 +2009,35 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64) error {
+func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, orderSide order.Side) error {
+	posSide := "net"
 	switch item {
-	case asset.Futures, asset.Margin, asset.Options, asset.PerpetualSwap:
+	case asset.Futures, asset.PerpetualSwap:
+		if marginType == margin.Isolated {
+			switch orderSide {
+			case order.UnknownSide:
+				return errOrderSideRequired
+			case order.Long:
+				posSide = "long"
+			case order.Short:
+				posSide = "short"
+			default:
+				return fmt.Errorf("%w %v requires long/short", errInvalidOrderSide, orderSide)
+			}
+		}
+		fallthrough
+	case asset.Margin, asset.Options:
 		instrumentID, err := ok.FormatSymbol(pair, item)
 		if err != nil {
 			return err
 		}
+
 		marginMode := ok.marginTypeToString(marginType)
 		_, err = ok.SetLeverageRate(ctx, SetLeverageInput{
 			Leverage:     amount,
 			MarginMode:   marginMode,
 			InstrumentID: instrumentID,
+			PositionSide: posSide,
 		})
 		return err
 	default:
@@ -2029,9 +2046,22 @@ func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.P
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type) (float64, error) {
+func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error) {
+	var inspectLeverage bool
 	switch item {
-	case asset.Futures, asset.Margin, asset.Options, asset.PerpetualSwap:
+	case asset.Futures, asset.PerpetualSwap:
+		if marginType == margin.Isolated {
+			switch orderSide {
+			case order.UnknownSide:
+				return 0, errOrderSideRequired
+			case order.Long, order.Short:
+				inspectLeverage = true
+			default:
+				return 0, fmt.Errorf("%w %v requires long/short", errInvalidOrderSide, orderSide)
+			}
+		}
+		fallthrough
+	case asset.Margin, asset.Options:
 		instrumentID, err := ok.FormatSymbol(pair, item)
 		if err != nil {
 			return -1, err
@@ -2044,6 +2074,14 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 		if len(lev) == 0 {
 			return -1, fmt.Errorf("%w %v %v %s", order.ErrPositionNotFound, item, pair, marginType)
 		}
+		if inspectLeverage {
+			for i := range lev {
+				if lev[i].PositionSide == orderSide.Lower() {
+					return lev[i].Leverage.Float64(), nil
+				}
+			}
+		}
+
 		// leverage is the same across positions
 		return lev[0].Leverage.Float64(), nil
 	default:
