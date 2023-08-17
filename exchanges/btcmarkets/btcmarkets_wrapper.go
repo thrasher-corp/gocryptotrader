@@ -293,7 +293,7 @@ func (b *BTCMarkets) Run(ctx context.Context) {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if a != asset.Spot {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	markets, err := b.GetMarkets(ctx)
 	if err != nil {
@@ -318,7 +318,11 @@ func (b *BTCMarkets) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 	if err != nil {
 		return err
 	}
-	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -387,12 +391,7 @@ func (b *BTCMarkets) FetchTicker(ctx context.Context, p currency.Pair, assetType
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *BTCMarkets) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(ctx, p, assetType)
 	}
@@ -401,6 +400,13 @@ func (b *BTCMarkets) FetchOrderbook(ctx context.Context, p currency.Pair, assetT
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	book := &orderbook.Base{
 		Exchange:         b.Name,
 		Pair:             p,
@@ -409,14 +415,13 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		VerifyOrderbook:  b.CanVerifyOrderbook,
 	}
 
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
-
 	// Retrieve level one book which is the top 50 ask and bids, this is not
 	// cached.
-	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 1)
+	tempResp, err := b.GetOrderbook(ctx, fPair.String(), 1)
 	if err != nil {
 		return book, err
 	}
@@ -489,15 +494,35 @@ func (b *BTCMarkets) FetchAccountInfo(ctx context.Context, assetType asset.Item)
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTCMarkets) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (b *BTCMarkets) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTCMarkets) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := b.ListWithdrawals(ctx, -1, -1, -1)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals))
+	for i := range withdrawals {
+		if c.IsEmpty() || c.Equal(withdrawals[i].AssetName) {
+			resp = append(resp, exchange.WithdrawalHistory{
+				Status:          withdrawals[i].Status,
+				TransferID:      withdrawals[i].ID,
+				Description:     withdrawals[i].Description,
+				Timestamp:       withdrawals[i].CreationTime,
+				Currency:        withdrawals[i].AssetName.String(),
+				Amount:          withdrawals[i].Amount,
+				Fee:             withdrawals[i].Fee,
+				TransferType:    withdrawals[i].RequestType,
+				CryptoToAddress: withdrawals[i].PaymentDetails.Address,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -555,14 +580,14 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		return nil, err
 	}
 
-	if s.Side == order.Sell {
-		s.Side = order.Ask
-	}
-	if s.Side == order.Buy {
+	if s.Side.IsLong() {
 		s.Side = order.Bid
 	}
+	if s.Side.IsShort() {
+		s.Side = order.Ask
+	}
 
-	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fPair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -582,7 +607,7 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		s.Amount,
 		s.TriggerPrice,
 		s.QuoteAmount,
-		fpair.String(),
+		fPair.String(),
 		fOrderType,
 		fOrderSide,
 		b.getTimeInForce(s),
@@ -666,8 +691,36 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *BTCMarkets) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+	ids := make([]string, len(o))
+	for i := range o {
+		switch {
+		case o[i].ClientOrderID != "":
+			return nil, order.ErrClientOrderIDNotSupported
+		case o[i].OrderID != "":
+			ids[i] = o[i].OrderID
+		default:
+			return nil, order.ErrOrderIDNotSet
+		}
+	}
+	batchResp, err := b.CancelBatch(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	resp := &order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	for i := range batchResp.CancelOrders {
+		resp.Status[batchResp.CancelOrders[i].OrderID] = "success"
+	}
+	for i := range batchResp.UnprocessedRequests {
+		resp.Status[batchResp.UnprocessedRequests[i].RequestID] = batchResp.UnprocessedRequests[i].Code + " - " + batchResp.UnprocessedRequests[i].Message
+	}
+
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -701,16 +754,16 @@ func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (orde
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	var resp order.Detail
 	o, err := b.FetchOrder(ctx, orderID)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	p, err := currency.NewPairFromString(o.MarketID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	resp.Exchange = b.Name
@@ -756,7 +809,7 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currenc
 	default:
 		resp.Status = order.UnknownStatus
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -838,7 +891,7 @@ func (b *BTCMarkets) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeB
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -853,11 +906,11 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 
 	var resp []order.Detail
 	for x := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		tempData, err := b.GetOrders(ctx, fpair.String(), -1, -1, -1, true)
+		tempData, err := b.GetOrders(ctx, fPair.String(), -1, -1, -1, true)
 		if err != nil {
 			return resp, err
 		}
@@ -911,7 +964,7 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -929,12 +982,12 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 		}
 	}
 	for y := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[y], asset.Spot)
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[y], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		orders, err := b.GetOrders(ctx, fpair.String(), -1, -1, -1, false)
+		orders, err := b.GetOrders(ctx, fPair.String(), -1, -1, -1, false)
 		if err != nil {
 			return resp, err
 		}

@@ -51,12 +51,12 @@ type OrderbookData struct {
 
 // UPublicTradesData stores trade data
 type UPublicTradesData struct {
-	ID           int64   `json:"id"`
-	Price        float64 `json:"price,string"`
-	Qty          float64 `json:"qty,string"`
-	QuoteQty     float64 `json:"quoteQty,string"`
-	Time         int64   `json:"time"`
-	IsBuyerMaker bool    `json:"isBuyerMaker"`
+	ID           int64       `json:"id"`
+	Price        float64     `json:"price,string"`
+	Qty          float64     `json:"qty,string"`
+	QuoteQty     float64     `json:"quoteQty,string"`
+	Time         binanceTime `json:"time"`
+	IsBuyerMaker bool        `json:"isBuyerMaker"`
 }
 
 // UCompressedTradeData stores compressed trade data
@@ -72,12 +72,13 @@ type UCompressedTradeData struct {
 
 // UMarkPrice stores mark price data
 type UMarkPrice struct {
-	Symbol          string  `json:"symbol"`
-	MarkPrice       float64 `json:"markPrice,string"`
-	IndexPrice      float64 `json:"indexPrice,string"`
-	LastFundingRate float64 `json:"lastFundingRate,string"`
-	NextFundingTime int64   `json:"nextFundingTime"`
-	Time            int64   `json:"time"`
+	Symbol               string  `json:"symbol"`
+	MarkPrice            float64 `json:"markPrice,string"`
+	IndexPrice           float64 `json:"indexPrice,string"`
+	LastFundingRate      float64 `json:"lastFundingRate,string"`
+	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
+	NextFundingTime      int64   `json:"nextFundingTime"`
+	Time                 int64   `json:"time"`
 }
 
 // FundingRateHistory stores funding rate history

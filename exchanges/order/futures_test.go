@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 )
 
 const testExchange = "test"
@@ -538,8 +539,8 @@ func TestGetStats(t *testing.T) {
 	}
 
 	p.exchange = testExchange
-	p.fundingRateDetails = &FundingRates{
-		FundingRates: []FundingRate{
+	p.fundingRateDetails = &fundingrate.Rates{
+		FundingRates: []fundingrate.Rate{
 			{},
 		},
 	}
@@ -940,13 +941,13 @@ func TestSetCollateralCurrency(t *testing.T) {
 	t.Parallel()
 	var expectedError = errExchangeNameEmpty
 	pc := SetupPositionController()
-	err := pc.SetCollateralCurrency("", asset.Spot, currency.Pair{}, currency.Code{})
+	err := pc.SetCollateralCurrency("", asset.Spot, currency.EMPTYPAIR, currency.Code{})
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
 
 	expectedError = ErrNotFuturesAsset
-	err = pc.SetCollateralCurrency("hi", asset.Spot, currency.Pair{}, currency.Code{})
+	err = pc.SetCollateralCurrency("hi", asset.Spot, currency.EMPTYPAIR, currency.Code{})
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
@@ -1012,7 +1013,7 @@ func TestSetCollateralCurrency(t *testing.T) {
 	}
 
 	var nilPC *PositionController
-	err = nilPC.SetCollateralCurrency("hi", asset.Spot, currency.Pair{}, currency.Code{})
+	err = nilPC.SetCollateralCurrency("hi", asset.Spot, currency.EMPTYPAIR, currency.Code{})
 	expectedError = common.ErrNilPointer
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
@@ -1264,7 +1265,7 @@ func TestPCTrackFundingDetails(t *testing.T) {
 	}
 
 	p := currency.NewPair(currency.BTC, currency.PERP)
-	rates := &FundingRates{
+	rates := &fundingrate.Rates{
 		Asset: asset.Futures,
 		Pair:  p,
 	}
@@ -1296,7 +1297,7 @@ func TestPCTrackFundingDetails(t *testing.T) {
 
 	rates.StartDate = tn.Add(-time.Hour)
 	rates.EndDate = tn
-	rates.FundingRates = []FundingRate{
+	rates.FundingRates = []fundingrate.Rate{
 		{
 			Time:    tn,
 			Rate:    decimal.NewFromInt(1337),
@@ -1323,7 +1324,7 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.PERP)
-	rates := &FundingRates{
+	rates := &fundingrate.Rates{
 		Asset: asset.Futures,
 		Pair:  cp,
 	}
@@ -1333,7 +1334,7 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 	}
 
 	mpt.exchange = testExchange
-	rates = &FundingRates{
+	rates = &fundingrate.Rates{
 		Exchange: testExchange,
 		Asset:    asset.Futures,
 		Pair:     cp,
@@ -1367,7 +1368,7 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 
 	rates.StartDate = tn.Add(-time.Hour)
 	rates.EndDate = tn
-	rates.FundingRates = []FundingRate{
+	rates.FundingRates = []fundingrate.Rate{
 		{
 			Time:    tn,
 			Rate:    decimal.NewFromInt(1337),
@@ -1392,7 +1393,7 @@ func TestPTTrackFundingDetails(t *testing.T) {
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.PERP)
-	rates := &FundingRates{
+	rates := &fundingrate.Rates{
 		Exchange: testExchange,
 		Asset:    asset.Futures,
 		Pair:     cp,
@@ -1431,7 +1432,7 @@ func TestPTTrackFundingDetails(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 
-	rates.FundingRates = []FundingRate{
+	rates.FundingRates = []fundingrate.Rate{
 		{
 			Time:    rates.StartDate,
 			Rate:    decimal.NewFromInt(1337),

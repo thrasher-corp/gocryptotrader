@@ -1,6 +1,11 @@
 package bitstamp
 
-import "errors"
+import (
+	"errors"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Transaction types
 const (
@@ -50,7 +55,7 @@ type TradingPair struct {
 	URLSymbol       string `json:"url_symbol"`
 	BaseDecimals    int    `json:"base_decimals"`
 	CounterDecimals int    `json:"counter_decimals"`
-	MinimumOrder    string `json:"minimum_order"`
+	MinimumOrder    float64
 	Trading         string `json:"trading"`
 	Description     string `json:"description"`
 }
@@ -113,7 +118,7 @@ type OrderStatus struct {
 	Price        float64 `json:"price,string"`
 	Amount       float64 `json:"amount,string"`
 	Type         int     `json:"type"`
-	ID           int64   `json:"id,string"`
+	ID           string  `json:"id"`
 	DateTime     string  `json:"datetime"`
 	Status       string
 	Transactions []struct {
@@ -141,14 +146,14 @@ type DepositAddress struct {
 
 // WithdrawalRequests holds request information on withdrawals
 type WithdrawalRequests struct {
-	OrderID       int64   `json:"id"`
-	Date          string  `json:"datetime"`
-	Type          int     `json:"type"`
-	Amount        float64 `json:"amount,string"`
-	Status        int     `json:"status"`
-	Data          interface{}
-	Address       string `json:"address"`        // Bitcoin withdrawals only
-	TransactionID string `json:"transaction_id"` // Bitcoin withdrawals only
+	OrderID       int64         `json:"id"`
+	Date          time.Time     `json:"datetime"`
+	Type          int64         `json:"type"`
+	Amount        float64       `json:"amount,string"`
+	Status        int64         `json:"status"`
+	Currency      currency.Code `json:"currency"`
+	Address       string        `json:"address"`
+	TransactionID string        `json:"transaction_id"`
 }
 
 // CryptoWithdrawalResponse response from a crypto withdrawal request
@@ -224,7 +229,7 @@ type websocketOrderBook struct {
 	Asks           [][2]string `json:"asks"`
 	Bids           [][2]string `json:"bids"`
 	Timestamp      int64       `json:"timestamp,string"`
-	Microtimestamp string      `json:"microtimestamp"`
+	Microtimestamp int64       `json:"microtimestamp,string"`
 }
 
 // OHLCResponse holds returned candle data

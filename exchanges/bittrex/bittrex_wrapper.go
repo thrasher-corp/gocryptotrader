@@ -197,6 +197,11 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 	})
 }
 
+// GetServerTime returns the current exchange server time.
+func (b *Bittrex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
+}
+
 // Start starts the Bittrex go routine
 func (b *Bittrex) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
@@ -256,7 +261,7 @@ func (b *Bittrex) Run(ctx context.Context) {
 func (b *Bittrex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	// Bittrex only supports spot trading
 	if !b.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	markets, err := b.GetMarkets(ctx)
 	if err != nil {
@@ -285,7 +290,11 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	if err != nil {
 		return err
 	}
-	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -362,6 +371,12 @@ func (b *Bittrex) FetchOrderbook(ctx context.Context, c currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -375,8 +390,7 @@ func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	}
 
 	// Valid order book depths are 1, 25 and 500
-	orderbookData, sequence, err := b.GetOrderbook(ctx,
-		formattedPair.String(), orderbookDepth)
+	orderbookData, sequence, err := b.GetOrderbook(ctx, formattedPair.String(), orderbookDepth)
 	if err != nil {
 		return book, err
 	}
@@ -450,9 +464,9 @@ func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return resp, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
+func (b *Bittrex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	closedDepositData, err := b.GetClosedDeposits(ctx)
 	if err != nil {
 		return nil, err
@@ -478,9 +492,9 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	withdrawalData = append(withdrawalData, closedWithdrawalData...)
 	withdrawalData = append(withdrawalData, openWithdrawalData...)
 
-	resp := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
+	resp := make([]exchange.FundingHistory, 0, len(depositData)+len(withdrawalData))
 	for x := range depositData {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    b.Name,
 			Status:          depositData[x].Status,
 			Description:     depositData[x].CryptoAddressTag,
@@ -493,7 +507,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 		})
 	}
 	for x := range withdrawalData {
-		resp = append(resp, exchange.FundHistory{
+		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    b.Name,
 			Status:          withdrawalData[x].Status,
 			Description:     withdrawalData[x].CryptoAddressTag,
@@ -512,7 +526,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (b *Bittrex) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -567,11 +581,11 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		return nil, err
 	}
 
-	if s.Side == order.Ask {
+	if s.Side.IsShort() {
 		s.Side = order.Sell
 	}
 
-	if s.Side == order.Bid {
+	if s.Side.IsLong() {
 		s.Side = order.Buy
 	}
 
@@ -610,8 +624,8 @@ func (b *Bittrex) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bittrex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (b *Bittrex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair, or cancels all orders for all
@@ -644,17 +658,17 @@ func (b *Bittrex) CancelAllOrders(ctx context.Context, orderCancellation *order.
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	orderData, err := b.GetOrder(ctx, orderID)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 
 	return b.ConstructOrderDetail(&orderData)
 }
 
 // ConstructOrderDetail constructs an order detail item from the underlying data
-func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, error) {
+func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (*order.Detail, error) {
 	immediateOrCancel := false
 	if orderData.TimeInForce == string(ImmediateOrCancel) {
 		immediateOrCancel = true
@@ -662,7 +676,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
-		return order.Detail{}, err
+		return nil, err
 	}
 	orderPair, err := currency.NewPairDelimiter(orderData.MarketSymbol,
 		format.Delimiter)
@@ -699,7 +713,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		}
 	}
 
-	resp := order.Detail{
+	return &order.Detail{
 		ImmediateOrCancel: immediateOrCancel,
 		Amount:            orderData.Quantity,
 		ExecutedAmount:    orderData.FillQuantity,
@@ -711,8 +725,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		Type:              orderType,
 		Pair:              orderPair,
 		Status:            orderStatus,
-	}
-	return resp, nil
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -762,7 +775,7 @@ func (b *Bittrex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -834,7 +847,7 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1045,5 +1058,6 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bittrex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	// TODO implement with API upgrade˜
+	return nil, common.ErrFunctionNotSupported
 }

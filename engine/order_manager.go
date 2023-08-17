@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -192,8 +194,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	if cancel.AssetType.String() != "" && !exch.GetAssetTypes(false).Contains(cancel.AssetType) {
-		err = errors.New("order asset type not supported by exchange")
-		return err
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, cancel.AssetType)
 	}
 
 	log.Debugf(log.OrderMgr, "Cancelling order ID %v [%+v]",
@@ -329,7 +330,7 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 		return order.Detail{}, err
 	}
 
-	upsertResponse, err := m.orderStore.upsert(&result)
+	upsertResponse, err := m.orderStore.upsert(result)
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -468,7 +469,7 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 		newOrder.Price,
 		newOrder.Amount,
 		newOrder.Type)
-	if err != nil {
+	if err != nil && errors.Is(err, currencystate.ErrCurrencyStateNotFound) {
 		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
 			newOrder.Exchange,
 			err)
@@ -663,7 +664,7 @@ func (m *OrderManager) processOrders() {
 			orders := m.orderStore.getActiveOrders(filter)
 			order.FilterOrdersByPairs(&orders, pairs)
 			var result []order.Detail
-			result, err = exchanges[x].GetActiveOrders(context.TODO(), &order.GetOrdersRequest{
+			result, err = exchanges[x].GetActiveOrders(context.TODO(), &order.MultiOrderRequest{
 				Side:      order.AnySide,
 				Type:      order.AnyType,
 				Pairs:     pairs,
@@ -785,9 +786,9 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if !isPerp {
 		return nil
 	}
-	frp, err := exch.GetFundingRates(context.TODO(), &order.FundingRatesRequest{
+	frp, err := exch.GetFundingRates(context.TODO(), &fundingrate.RatesRequest{
 		Asset:                position.Asset,
-		Pairs:                currency.Pairs{position.Pair},
+		Pair:                 position.Pair,
 		StartDate:            position.Orders[0].Date,
 		EndDate:              time.Now(),
 		IncludePayments:      true,
@@ -796,14 +797,8 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if err != nil {
 		return err
 	}
-	for i := range frp {
-		err = m.orderStore.futuresPositionController.TrackFundingDetails(&frp[i])
-		if err != nil {
-			return err
-		}
-	}
 
-	return nil
+	return m.orderStore.futuresPositionController.TrackFundingDetails(frp)
 }
 
 func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, wg *sync.WaitGroup) {
@@ -832,7 +827,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 		return err
 	}
 	fetchedOrder.LastUpdated = time.Now()
-	_, err = m.UpsertOrder(&fetchedOrder)
+	_, err = m.UpsertOrder(fetchedOrder)
 	return err
 }
 

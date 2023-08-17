@@ -285,7 +285,7 @@ func (by *Bybit) Run(ctx context.Context) {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !by.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, by.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
 	var pair currency.Pair
@@ -411,7 +411,7 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 			return err
 		}
 	}
-	return nil
+	return by.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -465,7 +465,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.Pair{})
+		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -656,6 +656,12 @@ func (by *Bybit) FetchOrderbook(ctx context.Context, currency currency.Pair, ass
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := by.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	var orderbookNew *Orderbook
 	var err error
 
@@ -796,10 +802,10 @@ func (by *Bybit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (by *Bybit) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (by *Bybit) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -941,10 +947,10 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	}
 
 	var sideType string
-	switch s.Side {
-	case order.Buy:
+	switch {
+	case s.Side.IsLong():
 		sideType = sideBuy
-	case order.Sell:
+	case s.Side.IsShort():
 		sideType = sideSell
 	default:
 		return nil, errInvalidSide
@@ -963,7 +969,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		case order.Limit:
 			requestParamsOrderType = BybitRequestParamsOrderLimit
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 
 		var orderRequest = PlaceOrderRequest{
@@ -989,12 +995,11 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		var oType string
 		switch s.Type {
 		case order.Market:
-			timeInForce = ""
 			oType = "Market"
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o FuturesOrderDataResp
 		o, err = by.CreateCoinFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
@@ -1009,12 +1014,11 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		var oType string
 		switch s.Type {
 		case order.Market:
-			timeInForce = ""
 			oType = "Market"
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o FuturesOrderDataResp
 		o, err = by.CreateUSDTFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
@@ -1029,12 +1033,11 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		var oType string
 		switch s.Type {
 		case order.Market:
-			timeInForce = ""
 			oType = "Market"
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o FuturesOrderDataResp
 		o, err = by.CreateFuturesOrder(ctx, 0, formattedPair, sideType, oType, timeInForce,
@@ -1054,7 +1057,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		case order.Limit:
 			oType = "Limit"
 		default:
-			return nil, errUnsupportedOrderType
+			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 		var o USDCCreateOrderResp
 		o, err = by.PlaceUSDCOrder(ctx, formattedPair, oType, "Order", sideType, timeInForce,
@@ -1136,8 +1139,32 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (by *Bybit) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (by *Bybit) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+	ids := make([]string, 0, len(o))
+	for i := range o {
+		switch {
+		case o[i].ClientOrderID != "":
+			return nil, order.ErrClientOrderIDNotSupported
+		case o[i].OrderID != "":
+			ids = append(ids, o[i].OrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
+		}
+	}
+	cancelledOrders, err := by.BatchCancelOrderByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	resp := &order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	for i := range ids {
+		resp.Status[ids[i]] = strconv.FormatBool(cancelledOrders)
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -1225,15 +1252,22 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 }
 
 // GetOrderInfo returns order information based on order ID
-func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := by.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
 	switch assetType {
 	case asset.Spot:
 		resp, err := by.QueryOrder(ctx, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp.Quantity.Float64(),
 			Exchange:       by.Name,
 			OrderID:        resp.OrderID,
@@ -1253,14 +1287,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.CoinMarginedFutures:
 		resp, err := by.GetActiveRealtimeCoinOrders(ctx, pair, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,
 			OrderID:        resp[0].OrderID,
@@ -1280,14 +1314,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.USDTMarginedFutures:
 		resp, err := by.GetActiveUSDTRealtimeOrders(ctx, pair, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,
 			OrderID:        resp[0].OrderID,
@@ -1307,14 +1341,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.Futures:
 		resp, err := by.GetActiveRealtimeOrders(ctx, pair, orderID, "")
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,
 			OrderID:        resp[0].OrderID,
@@ -1334,14 +1368,14 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.USDCMarginedFutures:
 		resp, err := by.GetActiveUSDCOrder(ctx, pair, "PERPETUAL", orderID, "", "", "", "", 0)
 		if err != nil {
-			return order.Detail{}, err
+			return nil, err
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
+			return nil, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
-		return order.Detail{
+		return &order.Detail{
 			Amount:         resp[0].Qty.Float64(),
 			Exchange:       by.Name,
 			OrderID:        resp[0].ID,
@@ -1358,7 +1392,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}, nil
 
 	default:
-		return order.Detail{}, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 }
 
@@ -1378,7 +1412,7 @@ func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 			}, nil
 		}
 	}
-	return nil, fmt.Errorf("deposit address not found for currency: %s chain: %s", cryptocurrency, chain)
+	return nil, fmt.Errorf("%w for currency: %s chain: %s", deposit.ErrAddressNotFound, cryptocurrency, chain)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
@@ -1430,7 +1464,7 @@ func (by *Bybit) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1442,7 +1476,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	if len(req.Pairs) == 0 {
 		// sending an empty currency pair retrieves data for all currencies
-		req.Pairs = append(req.Pairs, currency.Pair{})
+		req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
 	}
 
 	var orders []order.Detail
@@ -1587,7 +1621,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1595,13 +1629,13 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
-		resp, err := by.GetPastOrders(ctx, "", req.OrderID, 0, req.StartTime, req.EndTime)
+		resp, err := by.GetPastOrders(ctx, "", req.FromOrderID, 0, req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
 		}
 
 		for i := range resp {
-			// here, we are not using getSide because in sample response side's are in upper
+			// here, we are not using getSide because in sample response's sides are in upper
 			var side order.Side
 			side, err = order.StringToOrderSide(resp[i].Side)
 			if err != nil {
@@ -1713,7 +1747,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			}
 		}
 	case asset.USDCMarginedFutures:
-		resp, err := by.GetUSDCOrderHistory(ctx, currency.EMPTYPAIR, "PERPETUAL", req.OrderID, "", "", "", "", 0)
+		resp, err := by.GetUSDCOrderHistory(ctx, currency.EMPTYPAIR, "PERPETUAL", "", "", "", "", "", 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1759,7 +1793,9 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (by *Bybit) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	// TODO: Upgrade from v1 spot API
+	// TODO: give FeeBuilder asset property to distinguish between endpoints
+	return 0, common.ErrFunctionNotSupported
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
@@ -2064,7 +2100,7 @@ func (by *Bybit) GetServerTime(ctx context.Context, a asset.Item) (time.Time, er
 func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
 	pairs, err := by.CurrencyPairs.GetPairs(item, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	return pairs.DeriveFrom(symbol)
 }

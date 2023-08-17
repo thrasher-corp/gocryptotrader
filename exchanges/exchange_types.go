@@ -111,8 +111,8 @@ type FeeBuilder struct {
 	Amount        float64
 }
 
-// FundHistory holds exchange funding history data
-type FundHistory struct {
+// FundingHistory holds exchange funding history data
+type FundingHistory struct {
 	ExchangeName      string
 	Status            string
 	TransferID        string
@@ -164,12 +164,27 @@ type FeaturesEnabled struct {
 
 // FeaturesSupported stores the exchanges supported features
 type FeaturesSupported struct {
-	REST                  bool
-	RESTCapabilities      protocol.Features
-	Websocket             bool
-	WebsocketCapabilities protocol.Features
-	WithdrawPermissions   uint32
-	Kline                 kline.ExchangeCapabilitiesSupported
+	REST                       bool
+	RESTCapabilities           protocol.Features
+	Websocket                  bool
+	WebsocketCapabilities      protocol.Features
+	WithdrawPermissions        uint32
+	Kline                      kline.ExchangeCapabilitiesSupported
+	MaximumOrderHistory        time.Duration
+	FuturesCapabilities        FuturesCapabilities
+	OfflineFuturesCapabilities FuturesCapabilities
+}
+
+// FuturesCapabilities stores the exchange's futures capabilities
+type FuturesCapabilities struct {
+	FundingRates                 bool
+	MaximumFundingRateHistory    time.Duration
+	FundingRateFrequency         time.Duration
+	Positions                    bool
+	OrderManagerPositionTracking bool
+	Collateral                   bool
+	CollateralMode               bool
+	Leverage                     bool
 }
 
 // Endpoints stores running url endpoints for exchanges
@@ -243,6 +258,7 @@ const (
 	RestUSDTMargined
 	RestCoinMargined
 	RestFutures
+	RestFuturesSupplementary
 	RestUSDCMargined
 	RestSwap
 	RestSandbox
@@ -259,6 +275,7 @@ const (
 	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
 	restUSDCMarginedFuturesURL    = "RestUSDCMarginedFuturesURL"
 	restFuturesURL                = "RestFuturesURL"
+	restFuturesSupplementaryURL   = "RestFuturesSupplementaryURL"
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
 	websocketSpotURL              = "WebsocketSpotURL"
@@ -269,11 +286,13 @@ const (
 	edgeCase3URL                  = "EdgeCase3URL"
 )
 
-var keyURLs = []URL{RestSpot,
+var keyURLs = []URL{
+	RestSpot,
 	RestSpotSupplementary,
 	RestUSDTMargined,
 	RestCoinMargined,
 	RestFutures,
+	RestFuturesSupplementary,
 	RestUSDCMargined,
 	RestSwap,
 	RestSandbox,

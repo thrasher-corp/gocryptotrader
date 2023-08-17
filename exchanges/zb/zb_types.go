@@ -36,12 +36,12 @@ type AccountsBaseResponse struct {
 // Order is the order details for retrieving all orders
 type Order struct {
 	Currency    string  `json:"currency"`
-	ID          int64   `json:"id,string"`
+	ID          string  `json:"id"`
 	Price       float64 `json:"price"`
-	Status      int     `json:"status"`
+	Status      int64   `json:"status"`
 	TotalAmount float64 `json:"total_amount"`
 	TradeAmount float64 `json:"trade_amount"`
-	TradeDate   int     `json:"trade_date"`
+	TradeDate   int64   `json:"trade_date"`
 	TradeMoney  float64 `json:"trade_money"`
 	Type        int64   `json:"type"`
 	Fees        float64 `json:"fees,omitempty"`
@@ -107,8 +107,6 @@ type SpotNewOrderResponse struct {
 	Message string `json:"message"` // 提示信息
 	ID      string `json:"id"`      // 委托挂单号
 }
-
-// //-------------Kline
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
@@ -258,4 +256,52 @@ type TradeHistory []struct {
 	Tid       int64   `json:"tid"`
 	TradeType string  `json:"trade_type"`
 	Type      string  `json:"type"`
+}
+
+// WalletRecordsRequest hold request params
+type WalletRecordsRequest struct {
+	Currency  currency.Code `json:"method"`
+	PageIndex int64         `json:"pageIndex"`
+	PageSize  int64         `json:"pageSize"`
+}
+
+// DepositRecordsResponse holds response data
+type DepositRecordsResponse struct {
+	List      []DepositRecord `json:"list"`
+	PageIndex int64           `json:"pageIndex"`
+	PageSize  int64           `json:"pageSize"`
+	Total     int64           `json:"total"`
+}
+
+// DepositRecord holds details of a deposit
+type DepositRecord struct {
+	Address          string  `json:"address"`
+	Amount           float64 `json:"amount,string"`
+	ConfirmTimes     int64   `json:"confirmTimes"`
+	Currency         string  `json:"currency"`
+	Description      string  `json:"description"`
+	Hash             string  `json:"hash"`
+	ID               int64   `json:"id"`
+	InternalTransfer int64   `json:"itransfer"`
+	Status           int64   `json:"status"`
+	SubmitTime       int64   `json:"submit_time,string"`
+}
+
+// WithdrawalRecordsResponse holds response data
+type WithdrawalRecordsResponse struct {
+	List      []WithdrawalRecord `json:"list"`
+	PageIndex int64              `json:"pageIndex"`
+	PageSize  int64              `json:"pageSize"`
+	Total     int64              `json:"total"`
+}
+
+// WithdrawalRecord holds details of a withdrawal
+type WithdrawalRecord struct {
+	Amount     float64 `json:"amount"`
+	Fees       float64 `json:"fees"`
+	ID         int64   `json:"id"`
+	ManageTime int64   `json:"manageTime"`
+	Status     int64   `json:"status"`
+	SubmitTime int64   `json:"submitTime"`
+	ToAddress  string  `json:"toAddress"`
 }

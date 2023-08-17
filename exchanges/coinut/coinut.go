@@ -263,6 +263,10 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 		params = map[string]interface{}{}
 	}
 
+	requestType := request.AuthType(request.UnauthenticatedRequest)
+	if authenticated {
+		requestType = request.AuthenticatedRequest
+	}
 	var rawMsg json.RawMessage
 	err = c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		params["nonce"] = getNonce()
@@ -299,13 +303,12 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &rawMsg,
-			AuthRequest:   authenticated,
 			NonceEnabled:  true,
 			Verbose:       c.Verbose,
 			HTTPDebugging: c.HTTPDebugging,
 			HTTPRecording: c.HTTPRecording,
 		}, nil
-	})
+	}, requestType)
 	if err != nil {
 		return err
 	}
@@ -317,9 +320,10 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 	}
 
 	if genResp.Status[0] != coinutStatusOK {
-		return fmt.Errorf("%s SendHTTPRequest error: %s",
-			c.Name,
-			genResp.Status[0])
+		if authenticated {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, genResp.Status[0])
+		}
+		return fmt.Errorf("%s SendHTTPRequest error: %s", c.Name, genResp.Status[0])
 	}
 
 	return json.Unmarshal(rawMsg, result)

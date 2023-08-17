@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -239,7 +240,7 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 			var ok bool
 			val, ok = datum.(float64)
 			if !ok {
-				return fullBalance, errors.New("unable to type assert datum")
+				return fullBalance, common.GetTypeAssertError("float64", datum)
 			}
 		}
 
@@ -328,15 +329,18 @@ func (b *Bithumb) GetLastTransaction(ctx context.Context) (LastTransactionTicker
 // count: Value : 1 ~1000 (default : 100)
 // after: YYYY-MM-DD hh:mm:ss's UNIX Timestamp
 // (2014-11-28 16:40:01 = 1417160401000)
-func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType, count, after, currency string) (Orders, error) {
+func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType string, count int64, after time.Time, orderCurrency, paymentCurrency currency.Code) (Orders, error) {
 	response := Orders{}
 	params := url.Values{}
 
-	if currency == "" {
-		return response, errSymbolIsEmpty
+	if orderCurrency.IsEmpty() {
+		return response, currency.ErrCurrencyCodeEmpty
+	}
+	if !paymentCurrency.IsEmpty() {
+		params.Set("payment_currency", paymentCurrency.Upper().String())
 	}
 
-	params.Set("order_currency", strings.ToUpper(currency))
+	params.Set("order_currency", orderCurrency.Upper().String())
 
 	if len(orderID) > 0 {
 		params.Set("order_id", orderID)
@@ -346,12 +350,12 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType, count
 		params.Set("type", transactionType)
 	}
 
-	if len(count) > 0 {
-		params.Set("count", count)
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
 	}
 
-	if len(after) > 0 {
-		params.Set("after", after)
+	if !after.IsZero() {
+		params.Set("after", after.Format(time.DateTime))
 	}
 
 	return response,
@@ -359,11 +363,26 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType, count
 }
 
 // GetUserTransactions returns customer transactions
-func (b *Bithumb) GetUserTransactions(ctx context.Context) (UserTransactions, error) {
-	response := UserTransactions{}
+func (b *Bithumb) GetUserTransactions(ctx context.Context, offset, count, searchType int64, orderCurrency, paymentCurrency currency.Code) (UserTransactions, error) {
+	params := url.Values{}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if searchType > 0 {
+		params.Set("searchGb", strconv.FormatInt(searchType, 10))
+	}
+	if !orderCurrency.IsEmpty() {
+		params.Set("order_currency", orderCurrency.String())
+	}
+	if !paymentCurrency.IsEmpty() {
+		params.Set("payment_currency", paymentCurrency.String())
+	}
+	var response UserTransactions
 
-	return response,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUserTrans, nil, &response)
+	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUserTrans, params, &response)
 }
 
 // PlaceTrade executes a trade order
@@ -426,7 +445,7 @@ func (b *Bithumb) CancelTrade(ctx context.Context, transactionType, orderID, cur
 //
 // address: Currency withdrawing address
 // destination: Currency withdrawal Destination Tag (when withdraw XRP) OR
-// Currency withdrawal Payment Id (when withdraw XMR)
+// Currency withdrawal Payment ID (when withdraw XMR)
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM
 // (default value: BTC)
 // units: Quantity to withdraw currency
@@ -521,7 +540,7 @@ func (b *Bithumb) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
@@ -570,12 +589,11 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 			Headers:       headers,
 			Body:          bytes.NewBufferString(payload),
 			Result:        &intermediary,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

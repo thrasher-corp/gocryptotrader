@@ -210,6 +210,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:  g.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		Features:               &g.Features.Supports.WebsocketCapabilities,
+		FillsFeed:              g.Features.Enabled.FillsFeed,
+		TradeFeed:              g.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
@@ -331,20 +333,16 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			return nil, err
 		}
 		for x := range tickers {
-			if tickers[x].Name != fPair.String() {
+			if !tickers[x].Name.Equal(fPair) {
 				continue
 			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(strings.ReplaceAll(tickers[x].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
-			if err != nil {
-				return nil, err
-			}
-			cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
+			cleanQuote := strings.ReplaceAll(tickers[x].Name.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter)
+			tickers[x].Name.Quote = currency.NewCode(cleanQuote)
 			if err != nil {
 				return nil, err
 			}
 			tickerData = &ticker.Price{
-				Pair:         cp,
+				Pair:         tickers[x].Name,
 				Last:         tickers[x].LastPrice.Float64(),
 				Bid:          tickers[x].Bid1Price,
 				Ask:          tickers[x].Ask1Price,
@@ -555,7 +553,7 @@ func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 			return err
 		}
 	}
-	return nil
+	return g.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -644,17 +642,13 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			for x := range tickers {
-				currencyPair, err := currency.NewPairFromString(tickers[x].Name)
-				if err != nil {
-					return err
-				}
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tickers[x].LastPrice.Float64(),
 					Ask:          tickers[x].Ask1Price,
 					AskSize:      tickers[x].Ask1Size,
 					Bid:          tickers[x].Bid1Price,
 					BidSize:      tickers[x].Bid1Size,
-					Pair:         currencyPair,
+					Pair:         tickers[x].Name,
 					ExchangeName: g.Name,
 					AssetType:    a,
 				})
@@ -724,20 +718,20 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		VerifyOrderbook: g.CanVerifyOrderbook,
 		Pair:            p.Upper(),
 		LastUpdateID:    orderbookNew.ID,
-		LastUpdated:     orderbookNew.Update,
+		LastUpdated:     orderbookNew.Update.Time(),
 	}
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price,
+			Price:  orderbookNew.Bids[x].Price.Float64(),
 		}
 	}
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price,
+			Price:  orderbookNew.Asks[x].Price.Float64(),
 		}
 	}
 	err = book.Process()
@@ -867,9 +861,9 @@ func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gateio) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (g *Gateio) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1017,15 +1011,11 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 	var orderTypeFormat string
-	switch s.Side {
-	case order.Buy:
+	switch {
+	case s.Side.IsLong():
 		orderTypeFormat = order.Buy.Lower()
-	case order.Sell:
+	case s.Side.IsShort():
 		orderTypeFormat = order.Sell.Lower()
-	case order.Bid:
-		orderTypeFormat = order.Bid.Lower()
-	case order.Ask:
-		orderTypeFormat = order.Ask.Lower()
 	default:
 		return nil, errInvalidOrderSide
 	}
@@ -1216,11 +1206,11 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
+func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	var response order.CancelBatchResponse
 	response.Status = map[string]string{}
 	if len(o) == 0 {
-		return response, errors.New("no cancel order passed")
+		return nil, errors.New("no cancel order passed")
 	}
 	var err error
 	var cancelSpotOrdersParam []CancelOrderByIDParam
@@ -1228,11 +1218,11 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 	for x := range o {
 		o[x].Pair, err = g.FormatExchangeCurrency(o[x].Pair, a)
 		if err != nil {
-			return response, err
+			return nil, err
 		}
 		o[x].Pair = o[x].Pair.Upper()
 		if a != o[x].AssetType {
-			return response, errors.New("cannot cancel orders of different asset types")
+			return nil, errors.New("cannot cancel orders of different asset types")
 		}
 		if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
 			cancelSpotOrdersParam = append(cancelSpotOrdersParam, CancelOrderByIDParam{
@@ -1243,7 +1233,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		}
 		err = o[x].Validate(o[x].StandardCancel())
 		if err != nil {
-			return response, err
+			return nil, err
 		}
 	}
 	switch a {
@@ -1259,7 +1249,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 			var cancel []CancelOrderByIDResponse
 			cancel, err = g.CancelBatchOrdersWithIDList(ctx, input)
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[cancel[x].OrderID] = func() string {
@@ -1274,7 +1264,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		for a := range o {
 			cancel, err := g.CancelMultipleFuturesOpenOrders(ctx, o[a].Pair, o[a].Side.Lower(), o[a].Pair.Quote.String())
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
@@ -1284,11 +1274,11 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		for a := range o {
 			settle, err := g.getSettlementFromCurrency(o[a].Pair, false)
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			cancel, err := g.CancelMultipleDeliveryOrders(ctx, o[a].Pair, o[a].Side.Lower(), settle)
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[strconv.FormatInt(cancel[x].ID, 10)] = cancel[x].Status
@@ -1298,16 +1288,16 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order
 		for a := range o {
 			cancel, err := g.CancelMultipleOptionOpenOrders(ctx, o[a].Pair, o[a].Pair.String(), o[a].Side.Lower())
 			if err != nil {
-				return response, err
+				return nil, err
 			}
 			for x := range cancel {
 				response.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
 			}
 		}
 	default:
-		return response, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
-	return response, nil
+	return &response, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -1388,35 +1378,38 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
+func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
+	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return nil, err
+	}
+
 	pair, err := g.FormatExchangeCurrency(pair, a)
 	if err != nil {
-		return orderDetail, err
+		return nil, err
 	}
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var spotOrder *SpotOrder
 		spotOrder, err = g.GetSpotOrder(ctx, orderID, pair, a)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		var side order.Side
 		side, err = order.StringToOrderSide(spotOrder.Side)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		var orderType order.Type
 		orderType, err = order.StringToOrderType(spotOrder.Type)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		var orderStatus order.Status
 		orderStatus, err = order.StringToOrderStatus(spotOrder.Status)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
-		return order.Detail{
+		return &order.Detail{
 			Amount:         spotOrder.Amount,
 			Exchange:       g.Name,
 			OrderID:        spotOrder.OrderID,
@@ -1439,7 +1432,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			settle, err = g.getSettlementFromCurrency(pair, false)
 		}
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		var fOrder *Order
 		var err error
@@ -1449,17 +1442,17 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			fOrder, err = g.GetSingleDeliveryOrder(ctx, settle, orderID)
 		}
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		orderStatus, err := order.StringToOrderStatus(fOrder.Status)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		pair, err = currency.NewPairFromString(fOrder.Contract)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
-		return order.Detail{
+		return &order.Detail{
 			Amount:         fOrder.Size,
 			ExecutedAmount: fOrder.Size - fOrder.RemainingAmount,
 			Exchange:       g.Name,
@@ -1474,17 +1467,17 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	case asset.Options:
 		optionOrder, err := g.GetSingleOptionOrder(ctx, orderID)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		orderStatus, err := order.StringToOrderStatus(optionOrder.Status)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
 		pair, err = currency.NewPairFromString(optionOrder.Contract)
 		if err != nil {
-			return orderDetail, err
+			return nil, err
 		}
-		return order.Detail{
+		return &order.Detail{
 			Amount:         optionOrder.Size,
 			ExecutedAmount: optionOrder.Size - optionOrder.Left,
 			Exchange:       g.Name,
@@ -1497,7 +1490,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			AssetType:      a,
 		}, nil
 	default:
-		return orderDetail, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 }
 
@@ -1575,7 +1568,7 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -1724,7 +1717,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1739,7 +1732,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		for x := range req.Pairs {
 			fPair := req.Pairs[x].Format(format)
 			var spotOrders []SpotPersonalTradeHistory
-			spotOrders, err = g.GateIOGetPersonalTradingHistory(ctx, fPair, req.OrderID, 0, 0, req.AssetType == asset.CrossMargin, req.StartTime, req.EndTime)
+			spotOrders, err = g.GateIOGetPersonalTradingHistory(ctx, fPair, req.FromOrderID, 0, 0, req.AssetType == asset.CrossMargin, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
@@ -1783,9 +1776,9 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			}
 			var futuresOrder []TradingHistoryItem
 			if req.AssetType == asset.Futures {
-				futuresOrder, err = g.GetMyPersonalTradingHistory(ctx, settle, "", req.OrderID, fPair, 0, 0, 0)
+				futuresOrder, err = g.GetMyPersonalTradingHistory(ctx, settle, "", req.FromOrderID, fPair, 0, 0, 0)
 			} else {
-				futuresOrder, err = g.GetDeliveryPersonalTradingHistory(ctx, settle, req.OrderID, fPair, 0, 0, 0, "")
+				futuresOrder, err = g.GetDeliveryPersonalTradingHistory(ctx, settle, req.FromOrderID, fPair, 0, 0, 0, "")
 			}
 			if err != nil {
 				return nil, err
@@ -1890,9 +1883,6 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				Volume: candles[x].Volume,
 			}
 		}
-	case asset.Options:
-		// TODO: add support for options when endpoint is returning data
-		return nil, common.ErrNotYetImplemented
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
@@ -1956,9 +1946,6 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 					Volume: candles[x].Volume,
 				})
 			}
-		case asset.Options:
-			// TODO: add support for options when endpoint is returning data
-			return nil, common.ErrNotYetImplemented
 		default:
 			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 		}
@@ -1997,4 +1984,59 @@ func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bo
 		return false, err
 	}
 	return availables.Contains(instrument, true), nil
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !g.SupportsAsset(a) {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	avail, err := g.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		var pairsData []CurrencyPairDetail
+		pairsData, err := g.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		for x := range pairsData {
+			if pairsData[x].TradeStatus == "untradable" {
+				continue
+			}
+			var pair currency.Pair
+			pair, err = avail.DeriveFrom(strings.ReplaceAll(pairsData[x].ID, "_", ""))
+			if err != nil {
+				return err
+			}
+
+			// Minimum base amounts are not always provided this will default to
+			// precision for base deployment. This can't be done for quote.
+			minBaseAmount := pairsData[x].MinBaseAmount.Float64()
+			if minBaseAmount == 0 {
+				minBaseAmount = math.Pow10(-int(pairsData[x].AmountPrecision))
+			}
+
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                   a,
+				Pair:                    pair,
+				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[x].Precision)),
+				AmountStepIncrementSize: math.Pow10(-int(pairsData[x].AmountPrecision)),
+				MinimumBaseAmount:       minBaseAmount,
+				MinimumQuoteAmount:      pairsData[x].MinQuoteAmount.Float64(),
+			})
+		}
+	default:
+		// TODO: Add in other assets
+		return fmt.Errorf("%s %w", a, common.ErrNotYetImplemented)
+	}
+
+	return g.LoadLimits(limits)
 }

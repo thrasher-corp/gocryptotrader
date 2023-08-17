@@ -60,12 +60,12 @@ func (f omfExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Ite
 
 // GetOrderInfo overrides testExchange's get order function
 // to do the bare minimum required with no API calls or credentials required
-func (f omfExchange) GetOrderInfo(_ context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (f omfExchange) GetOrderInfo(_ context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	switch orderID {
 	case "":
-		return order.Detail{}, errors.New("")
+		return nil, errors.New("")
 	case "Order1-unknown-to-active":
-		return order.Detail{
+		return &order.Detail{
 			Exchange:    testExchange,
 			Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
 			AssetType:   asset.Spot,
@@ -76,7 +76,7 @@ func (f omfExchange) GetOrderInfo(_ context.Context, orderID string, pair curren
 			OrderID:     "Order1-unknown-to-active",
 		}, nil
 	case "Order2-active-to-inactive":
-		return order.Detail{
+		return &order.Detail{
 			Exchange:    testExchange,
 			Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
 			AssetType:   asset.Spot,
@@ -88,7 +88,7 @@ func (f omfExchange) GetOrderInfo(_ context.Context, orderID string, pair curren
 		}, nil
 	}
 
-	return order.Detail{
+	return &order.Detail{
 		Exchange:  testExchange,
 		OrderID:   orderID,
 		Pair:      pair,
@@ -98,7 +98,7 @@ func (f omfExchange) GetOrderInfo(_ context.Context, orderID string, pair curren
 }
 
 // GetActiveOrders overrides the function used by processOrders to return 1 active order
-func (f omfExchange) GetActiveOrders(_ context.Context, _ *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (f omfExchange) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return []order.Detail{{
 		Exchange:    testExchange,
 		Pair:        currency.Pair{Base: currency.BTC, Quote: currency.USD},
@@ -1654,7 +1654,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 	position.Orders[0].AssetType = asset.Futures
 	position.Asset = asset.Futures
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received '%v', expected '%v'", err, common.ErrNotYetImplemented)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }

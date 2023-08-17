@@ -221,17 +221,6 @@ type Lends struct {
 	Timestamp  int64   `json:"timestamp"`
 }
 
-// SymbolDetails holds currency pair information
-type SymbolDetails struct {
-	Pair             string  `json:"pair"`
-	PricePrecision   int     `json:"price_precision"`
-	InitialMargin    float64 `json:"initial_margin,string"`
-	MinimumMargin    float64 `json:"minimum_margin,string"`
-	MaximumOrderSize float64 `json:"maximum_order_size,string"`
-	MinimumOrderSize float64 `json:"minimum_order_size,string"`
-	Expiration       string  `json:"expiration"`
-}
-
 // AccountInfoFull adds the error message to Account info
 type AccountInfoFull struct {
 	Info    []AccountInfo
@@ -418,7 +407,7 @@ type BalanceHistory struct {
 // MovementHistory holds deposit and withdrawal history data
 type MovementHistory struct {
 	ID               int64   `json:"id"`
-	TxID             int64   `json:"txid"`
+	TxID             string  `json:"txid"`
 	Currency         string  `json:"currency"`
 	Method           string  `json:"method"`
 	Type             string  `json:"withdrawal"`
@@ -426,8 +415,8 @@ type MovementHistory struct {
 	Description      string  `json:"description"`
 	Address          string  `json:"address"`
 	Status           string  `json:"status"`
-	Timestamp        string  `json:"timestamp"`
-	TimestampCreated string  `json:"timestamp_created"`
+	Timestamp        float64 `json:"timestamp"`
+	TimestampCreated float64 `json:"timestamp_created"`
 	Fee              float64 `json:"fee"`
 }
 
@@ -836,4 +825,24 @@ type WsCancelOfferRequest struct {
 // WsCancelAllOrdersRequest cancel all orders request
 type WsCancelAllOrdersRequest struct {
 	All int64 `json:"all"`
+}
+
+// CancelMultiOrderResponse holds v2 cancelled order data
+type CancelMultiOrderResponse struct {
+	OrderID           string
+	ClientOrderID     string
+	GroupOrderID      string
+	Symbol            string
+	CreatedTime       time.Time
+	UpdatedTime       time.Time
+	Amount            float64
+	OriginalAmount    float64
+	OrderType         string
+	OriginalOrderType string
+	OrderFlags        string
+	OrderStatus       string
+	Price             float64
+	AveragePrice      float64
+	TrailingPrice     float64
+	AuxLimitPrice     float64
 }

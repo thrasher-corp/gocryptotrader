@@ -164,7 +164,7 @@ func TestSetDefaultEndpoints(t *testing.T) {
 	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		URL(15): "http://test2.com.au/",
+		URL(1337): "http://test2.com.au/",
 	})
 	if err == nil {
 		t.Error("expecting an error due to invalid url key")
@@ -2166,47 +2166,50 @@ func TestAddTradesToBuffer(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	if RestSpot.String() != "RestSpotURL" {
-		t.Errorf("invalid string conversion")
+	if RestSpot.String() != restSpotURL {
+		t.Errorf("received '%v' expected '%v'", RestSpot, restSpotURL)
 	}
-	if RestSpotSupplementary.String() != "RestSpotSupplementaryURL" {
-		t.Errorf("invalid string conversion")
+	if RestSpotSupplementary.String() != restSpotSupplementaryURL {
+		t.Errorf("received '%v' expected '%v'", RestSpotSupplementary, restSpotSupplementaryURL)
 	}
 	if RestUSDTMargined.String() != "RestUSDTMarginedFuturesURL" {
-		t.Errorf("invalid string conversion")
+		t.Errorf("received '%v' expected '%v'", RestUSDTMargined, "RestUSDTMarginedFuturesURL")
 	}
-	if RestCoinMargined.String() != "RestCoinMarginedFuturesURL" {
-		t.Errorf("invalid string conversion")
+	if RestCoinMargined.String() != restCoinMarginedFuturesURL {
+		t.Errorf("received '%v' expected '%v'", RestCoinMargined, restCoinMarginedFuturesURL)
 	}
-	if RestFutures.String() != "RestFuturesURL" {
-		t.Errorf("invalid string conversion")
+	if RestFutures.String() != restFuturesURL {
+		t.Errorf("received '%v' expected '%v'", RestFutures, restFuturesURL)
 	}
-	if RestUSDCMargined.String() != "RestUSDCMarginedFuturesURL" {
-		t.Errorf("invalid string conversion")
+	if RestFuturesSupplementary.String() != restFuturesSupplementaryURL {
+		t.Errorf("received '%v' expected '%v'", RestFutures, restFuturesSupplementaryURL)
 	}
-	if RestSandbox.String() != "RestSandboxURL" {
-		t.Errorf("invalid string conversion")
+	if RestUSDCMargined.String() != restUSDCMarginedFuturesURL {
+		t.Errorf("received '%v' expected '%v'", RestUSDCMargined, restUSDCMarginedFuturesURL)
 	}
-	if RestSwap.String() != "RestSwapURL" {
-		t.Errorf("invalid string conversion")
+	if RestSandbox.String() != restSandboxURL {
+		t.Errorf("received '%v' expected '%v'", RestSandbox, restSandboxURL)
 	}
-	if WebsocketSpot.String() != "WebsocketSpotURL" {
-		t.Errorf("invalid string conversion")
+	if RestSwap.String() != restSwapURL {
+		t.Errorf("received '%v' expected '%v'", RestSwap, restSwapURL)
 	}
-	if WebsocketSpotSupplementary.String() != "WebsocketSpotSupplementaryURL" {
-		t.Errorf("invalid string conversion")
+	if WebsocketSpot.String() != websocketSpotURL {
+		t.Errorf("received '%v' expected '%v'", WebsocketSpot, websocketSpotURL)
 	}
-	if ChainAnalysis.String() != "ChainAnalysisURL" {
-		t.Errorf("invalid string conversion")
+	if WebsocketSpotSupplementary.String() != websocketSpotSupplementaryURL {
+		t.Errorf("received '%v' expected '%v'", WebsocketSpotSupplementary, websocketSpotSupplementaryURL)
 	}
-	if EdgeCase1.String() != "EdgeCase1URL" {
-		t.Errorf("invalid string conversion")
+	if ChainAnalysis.String() != chainAnalysisURL {
+		t.Errorf("received '%v' expected '%v'", ChainAnalysis, chainAnalysisURL)
 	}
-	if EdgeCase2.String() != "EdgeCase2URL" {
-		t.Errorf("invalid string conversion")
+	if EdgeCase1.String() != edgeCase1URL {
+		t.Errorf("received '%v' expected '%v'", EdgeCase1, edgeCase1URL)
 	}
-	if EdgeCase3.String() != "EdgeCase3URL" {
-		t.Errorf("invalid string conversion")
+	if EdgeCase2.String() != edgeCase2URL {
+		t.Errorf("received '%v' expected '%v'", EdgeCase2, edgeCase2URL)
+	}
+	if EdgeCase3.String() != edgeCase3URL {
+		t.Errorf("received '%v' expected '%v'", EdgeCase3, edgeCase3URL)
 	}
 }
 
@@ -2491,15 +2494,7 @@ func TestSetFillsFeedStatus(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
-	t.Parallel()
-	var b Base
-	if _, err := b.GetServerTime(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
-}
-
-func TestGetFundingRateHistory(t *testing.T) {
+func TestGetMarginRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
 	if _, err := b.GetMarginRatesHistory(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
@@ -2527,6 +2522,14 @@ func TestGetFundingPaymentDetails(t *testing.T) {
 	t.Parallel()
 	var b Base
 	if _, err := b.GetFundingPaymentDetails(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFundingRate(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetLatestFundingRate(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2685,6 +2688,7 @@ func TestHasAssetTypeAccountSegregation(t *testing.T) {
 func TestGetKlineRequest(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}
+
 	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
@@ -2696,6 +2700,12 @@ func TestGetKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
+	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{}, false)
+	if !errors.Is(err, kline.ErrInvalidInterval) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
+	}
+
+	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneDay, Capacity: 1439})
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
 		Enabled:      []currency.Pair{pair},
@@ -2745,8 +2755,22 @@ func TestGetKlineRequest(t *testing.T) {
 	}
 
 	_, err = b.GetKlineRequest(pair, asset.Futures, kline.OneHour, start, end, false)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	if !errors.Is(err, asset.ErrNotEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
+	}
+
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		Enabled:       []currency.Pair{pair},
+		Available:     []currency.Pair{pair},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	_, err = b.GetKlineRequest(pair, asset.Futures, kline.OneHour, start, end, false)
+	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
 	}
 
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneHour})
@@ -2856,10 +2880,9 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 	b.Features.Enabled.Kline.GlobalResultLimit = 100
 	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
-
 	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, kline.ErrValidatingParams) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrValidatingParams)
+	if !errors.Is(err, asset.ErrNotEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
 	}
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
@@ -2928,5 +2951,40 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 
 	if len(r.RangeHolder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
 		t.Fatalf("received: '%v' but expected: '%v'", len(r.RangeHolder.Ranges), 15)
+	}
+}
+
+func TestEnsureOnePairEnabled(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	err := b.EnsureOnePairEnabled()
+	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairsEmpty)
+	}
+	b.CurrencyPairs = currency.PairsManager{
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Futures: {},
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(true),
+				Available: []currency.Pair{
+					currency.NewPair(currency.BTC, currency.USDT),
+				},
+			},
+		},
+	}
+	err = b.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
+	}
+
+	err = b.EnsureOnePairEnabled()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
 	}
 }

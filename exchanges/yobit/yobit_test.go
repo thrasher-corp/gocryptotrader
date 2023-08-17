@@ -125,10 +125,10 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetOrderInfo(context.Background(),
-		"6196974", currency.EMPTYPAIR, asset.Spot)
-	if err == nil {
-		t.Error("GetOrderInfo() Expected error")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, y)
+	_, err := y.GetOrderInfo(context.Background(), "1337", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -335,7 +335,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 		AssetType: asset.Spot,
@@ -352,7 +352,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},

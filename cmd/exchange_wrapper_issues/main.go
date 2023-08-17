@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -512,13 +513,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{""}),
 			})
 
-			fundingRateRequest := &order.FundingRatesRequest{
+			fundingRateRequest := &fundingrate.RatesRequest{
 				Asset:     assetTypes[i],
-				Pairs:     currency.Pairs{p},
+				Pair:      p,
 				StartDate: time.Now().Add(-time.Hour),
 				EndDate:   time.Now(),
 			}
-			var fundingRateResponse []order.FundingRates
+			var fundingRateResponse *fundingrate.Rates
 			fundingRateResponse, err = e.GetFundingRates(context.TODO(), fundingRateRequest)
 			msg = ""
 			if err != nil {
@@ -561,15 +562,15 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{fetchAccountInfoResponse}),
 		})
 
-		var getFundingHistoryResponse []exchange.FundHistory
-		getFundingHistoryResponse, err = e.GetFundingHistory(context.TODO())
+		var getFundingHistoryResponse []exchange.FundingHistory
+		getFundingHistoryResponse, err = e.GetAccountFundingHistory(context.TODO())
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetFundingHistory",
+			Function: "GetAccountFundingHistory",
 			Error:    msg,
 			Response: jsonifyInterface([]interface{}{getFundingHistoryResponse}),
 		})
@@ -667,7 +668,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			AssetType: assetTypes[i],
 		})
 
-		var CancelBatchOrdersResponse order.CancelBatchResponse
+		var CancelBatchOrdersResponse *order.CancelBatchResponse
 		CancelBatchOrdersResponse, err = e.CancelBatchOrders(context.TODO(), request)
 		msg = ""
 		if err != nil {
@@ -695,7 +696,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{cancellAllOrdersResponse}),
 		})
 
-		var r15 order.Detail
+		var r15 *order.Detail
 		r15, err = e.GetOrderInfo(context.TODO(), config.OrderSubmission.OrderID, p, assetTypes[i])
 		msg = ""
 		if err != nil {
@@ -709,7 +710,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r15}),
 		})
 
-		historyRequest := order.GetOrdersRequest{
+		historyRequest := order.MultiOrderRequest{
 			Type:      testOrderType,
 			Side:      testOrderSide,
 			Pairs:     []currency.Pair{p},
@@ -731,7 +732,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{getOrderHistoryResponse}),
 		})
 
-		orderRequest := order.GetOrdersRequest{
+		orderRequest := order.MultiOrderRequest{
 			Type:      testOrderType,
 			Side:      testOrderSide,
 			Pairs:     []currency.Pair{p},

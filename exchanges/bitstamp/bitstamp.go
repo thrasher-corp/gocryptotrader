@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -226,38 +225,42 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 	if err != nil {
 		return nil, err
 	}
-	balances := make(map[string]Balance)
+	currs := []string{}
 	for k := range balance {
-		curr := k[0:3]
-		_, ok := balances[strings.ToUpper(curr)]
-		if !ok {
-			avail, _ := strconv.ParseFloat(balance[curr+"_available"], 64)
-			bal, _ := strconv.ParseFloat(balance[curr+"_balance"], 64)
-			reserved, _ := strconv.ParseFloat(balance[curr+"_reserved"], 64)
-			withdrawalFee, _ := strconv.ParseFloat(balance[curr+"_withdrawal_fee"], 64)
-			currBalance := Balance{
-				Available:     avail,
-				Balance:       bal,
-				Reserved:      reserved,
-				WithdrawalFee: withdrawalFee,
-			}
-			switch strings.ToUpper(curr) {
-			case currency.USD.String():
-				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-				currBalance.EURFee = eurFee
-			case currency.EUR.String():
-				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-				currBalance.USDFee = usdFee
-			default:
-				btcFee, _ := strconv.ParseFloat(balance[curr+"btc_fee"], 64)
-				currBalance.BTCFee = btcFee
-				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-				currBalance.EURFee = eurFee
-				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-				currBalance.USDFee = usdFee
-			}
-			balances[strings.ToUpper(curr)] = currBalance
+		if strings.HasSuffix(k, "_balance") {
+			curr, _, _ := strings.Cut(k, "_")
+			currs = append(currs, curr)
 		}
+	}
+
+	balances := make(map[string]Balance)
+	for _, curr := range currs {
+		avail, _ := strconv.ParseFloat(balance[curr+"_available"], 64)
+		bal, _ := strconv.ParseFloat(balance[curr+"_balance"], 64)
+		reserved, _ := strconv.ParseFloat(balance[curr+"_reserved"], 64)
+		withdrawalFee, _ := strconv.ParseFloat(balance[curr+"_withdrawal_fee"], 64)
+		currBalance := Balance{
+			Available:     avail,
+			Balance:       bal,
+			Reserved:      reserved,
+			WithdrawalFee: withdrawalFee,
+		}
+		switch strings.ToUpper(curr) {
+		case currency.USD.String():
+			eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
+			currBalance.EURFee = eurFee
+		case currency.EUR.String():
+			usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
+			currBalance.USDFee = usdFee
+		default:
+			btcFee, _ := strconv.ParseFloat(balance[curr+"btc_fee"], 64)
+			currBalance.BTCFee = btcFee
+			eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
+			currBalance.EURFee = eurFee
+			usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
+			currBalance.USDFee = usdFee
+		}
+		balances[strings.ToUpper(curr)] = currBalance
 	}
 	return balances, nil
 }
@@ -561,7 +564,7 @@ func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -615,13 +618,12 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Headers:       headers,
 			Body:          readerValues,
 			Result:        &interim,
-			AuthRequest:   true,
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording,
 		}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -634,7 +636,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" || errCap.Status == errStr {
 			if errCap.Error != "" { // v1 errors
-				return errors.New(errCap.Error)
+				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
 			switch data := errCap.Reason.(type) { // v2 errors
 			case map[string]interface{}:
@@ -662,6 +664,5 @@ func filterOrderbookZeroBidPrice(ob *orderbook.Base) {
 		return
 	}
 
-	log.Warnf(log.ExchangeSys, "%s %s %s orderbook has zero bid price, filtering.", ob.Exchange, ob.Pair, ob.Asset)
 	ob.Bids = ob.Bids[0 : len(ob.Bids)-1]
 }

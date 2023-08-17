@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -266,16 +267,19 @@ func (b *Bitstamp) Run(ctx context.Context) {
 		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
+	if b.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
+		if err := b.UpdateTradablePairs(ctx, forceUpdate); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				b.Name,
+				err)
+		}
 	}
 
-	err := b.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
+	for _, a := range b.GetAssetTypes(true) {
+		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
+			log.Errorln(log.ExchangeSys, err.Error())
+		}
 	}
 }
 
@@ -285,13 +289,12 @@ func (b *Bitstamp) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 	if err != nil {
 		return nil, err
 	}
-
+	var pair currency.Pair
 	pairs := make([]currency.Pair, 0, len(symbols))
 	for x := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
 		}
-		var pair currency.Pair
 		pair, err = currency.NewPairFromString(symbols[x].Name)
 		if err != nil {
 			return nil, err
@@ -308,7 +311,43 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 	if err != nil {
 		return err
 	}
-	return b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return b.EnsureOnePairEnabled()
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	symbols, err := b.GetTradingPairs(ctx)
+	if err != nil {
+		return err
+	}
+	limits := make([]order.MinMaxLevel, 0, len(symbols))
+	for x, info := range symbols {
+		if symbols[x].Trading != "Enabled" {
+			continue
+		}
+		pair, err := currency.NewPairFromString(symbols[x].Name)
+		if err != nil {
+			return err
+		}
+		limits = append(limits, order.MinMaxLevel{
+			Asset:                   a,
+			Pair:                    pair,
+			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
+			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
+			MinimumQuoteAmount:      info.MinimumOrder,
+		})
+	}
+	if err := b.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
+	}
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -389,6 +428,12 @@ func (b *Bitstamp) FetchOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -479,15 +524,33 @@ func (b *Bitstamp) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitstamp) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (b *Bitstamp) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitstamp) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := b.GetWithdrawalRequests(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals))
+	for i := range withdrawals {
+		if c.IsEmpty() || c.Equal(withdrawals[i].Currency) {
+			resp = append(resp, exchange.WithdrawalHistory{
+				Status:          strconv.FormatInt(withdrawals[i].Status, 10),
+				Timestamp:       withdrawals[i].Date,
+				Currency:        withdrawals[i].Currency.String(),
+				Amount:          withdrawals[i].Amount,
+				TransferType:    strconv.FormatInt(withdrawals[i].Type, 10),
+				CryptoToAddress: withdrawals[i].Address,
+				CryptoTxID:      withdrawals[i].TransactionID,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -549,7 +612,7 @@ func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		s.Side == order.Buy,
+		s.Side.IsLong(),
 		s.Type == order.Market)
 	if err != nil {
 		return nil, err
@@ -578,8 +641,8 @@ func (b *Bitstamp) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitstamp) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (b *Bitstamp) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -596,9 +659,37 @@ func (b *Bitstamp) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitstamp) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+	iOID, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	o, err := b.GetOrderStatus(ctx, iOID)
+	if err != nil {
+		return nil, err
+	}
+
+	th := make([]order.TradeHistory, len(o.Transactions))
+	for i := range o.Transactions {
+		th[i] = order.TradeHistory{
+			TID:    strconv.FormatInt(o.Transactions[i].TradeID, 10),
+			Price:  o.Transactions[i].Price,
+			Fee:    o.Transactions[i].Fee,
+			Amount: o.Transactions[i].BTC,
+		}
+	}
+	orderDate, err := time.Parse(time.DateTime, o.DateTime)
+	if err != nil {
+		return nil, err
+	}
+
+	return &order.Detail{
+		Amount:  o.Amount,
+		Price:   o.Price,
+		OrderID: o.ID,
+		Date:    orderDate,
+		Trades:  th,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -700,7 +791,7 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -765,7 +856,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -926,4 +1017,9 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 	}
 	return req.ProcessResponse(timeSeries)
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Bitstamp) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }

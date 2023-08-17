@@ -339,46 +339,44 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 }
 
 func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
-	var result WsResponse
-	var eventResponse WsEventResponse
-	err := json.Unmarshal(respRaw, &eventResponse)
-	if err == nil &&
-		(eventResponse.Result != nil || eventResponse.Error != nil) &&
-		(eventResponse.Event == "subscribe" || eventResponse.Event == "unsubscribe") {
-		if !g.Websocket.Match.IncomingWithData(eventResponse.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", eventResponse.ID)
-		}
-		return nil
-	}
-	err = json.Unmarshal(respRaw, &result)
+	var push WsResponse
+	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
-	switch result.Channel {
+
+	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
+			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
+		}
+		return nil
+	}
+
+	switch push.Channel {
 	case optionsContractTickersChannel:
-		return g.processOptionsContractTickers(respRaw)
+		return g.processOptionsContractTickers(push.Result)
 	case optionsUnderlyingTickersChannel:
-		return g.processOptionsUnderlyingTicker(respRaw)
+		return g.processOptionsUnderlyingTicker(push.Result)
 	case optionsTradesChannel,
 		optionsUnderlyingTradesChannel:
 		return g.processOptionsTradesPushData(respRaw)
 	case optionsUnderlyingPriceChannel:
-		return g.processOptionsUnderlyingPricePushData(respRaw)
+		return g.processOptionsUnderlyingPricePushData(push.Result)
 	case optionsMarkPriceChannel:
-		return g.processOptionsMarkPrice(respRaw)
+		return g.processOptionsMarkPrice(push.Result)
 	case optionsSettlementChannel:
-		return g.processOptionsSettlementPushData(respRaw)
+		return g.processOptionsSettlementPushData(push.Result)
 	case optionsContractsChannel:
-		return g.processOptionsContractPushData(respRaw)
+		return g.processOptionsContractPushData(push.Result)
 	case optionsContractCandlesticksChannel,
 		optionsUnderlyingCandlesticksChannel:
 		return g.processOptionsCandlestickPushData(respRaw)
 	case optionsOrderbookChannel:
-		return g.processOptionsOrderbookSnapshotPushData(result.Event, respRaw)
+		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(respRaw, asset.Options)
+		return g.processFuturesAndOptionsOrderbookUpdate(push.Result, asset.Options)
 	case optionsOrdersChannel:
 		return g.processOptionsOrderPushData(respRaw)
 	case optionsUserTradesChannel:
@@ -401,39 +399,32 @@ func (g *Gateio) wsHandleOptionsData(respRaw []byte) error {
 	}
 }
 
-func (g *Gateio) processOptionsContractTickers(data []byte) error {
-	var response WsResponse
-	tickerData := OptionsTicker{}
-	response.Result = &tickerData
-	err := json.Unmarshal(data, &response)
-	if err != nil {
-		return err
-	}
-	currencyPair, err := currency.NewPairFromString(tickerData.Name)
+func (g *Gateio) processOptionsContractTickers(incoming []byte) error {
+	var data OptionsTicker
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
 	g.Websocket.DataHandler <- &ticker.Price{
-		Pair:         currencyPair,
-		Last:         tickerData.LastPrice.Float64(),
-		Bid:          tickerData.Bid1Price,
-		Ask:          tickerData.Ask1Price,
-		AskSize:      tickerData.Ask1Size,
-		BidSize:      tickerData.Bid1Size,
+		Pair:         data.Name,
+		Last:         data.LastPrice.Float64(),
+		Bid:          data.Bid1Price,
+		Ask:          data.Ask1Price,
+		AskSize:      data.Ask1Size,
+		BidSize:      data.Bid1Size,
 		ExchangeName: g.Name,
 		AssetType:    asset.Options,
 	}
 	return nil
 }
 
-func (g *Gateio) processOptionsUnderlyingTicker(data []byte) error {
-	var response WsResponse
-	response.Result = &WsOptionUnderlyingTicker{}
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOptionsUnderlyingTicker(incoming []byte) error {
+	var data WsOptionUnderlyingTicker
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &response
+	g.Websocket.DataHandler <- &data
 	return nil
 }
 
@@ -455,13 +446,9 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 	}
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
 			Exchange:     g.Name,
 			Price:        resp.Result[x].Price,
@@ -472,51 +459,43 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 	return g.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-func (g *Gateio) processOptionsUnderlyingPricePushData(data []byte) error {
-	var response WsResponse
-	priceD := WsOptionsUnderlyingPrice{}
-	response.Result = &priceD
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOptionsUnderlyingPricePushData(incoming []byte) error {
+	var data WsOptionsUnderlyingPrice
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &response
+	g.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsMarkPrice(data []byte) error {
-	var response WsResponse
-	markPrice := WsOptionsMarkPrice{}
-	response.Result = &markPrice
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOptionsMarkPrice(incoming []byte) error {
+	var data WsOptionsMarkPrice
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &response
+	g.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsSettlementPushData(data []byte) error {
-	var response WsResponse
-	settlementData := WsOptionsSettlement{}
-	response.Result = &settlementData
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOptionsSettlementPushData(incoming []byte) error {
+	var data WsOptionsSettlement
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &response
+	g.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsContractPushData(data []byte) error {
-	var response WsResponse
-	contractData := WsOptionsContract{}
-	response.Result = &contractData
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOptionsContractPushData(incoming []byte) error {
+	var data WsOptionsContract
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &response
+	g.Websocket.DataHandler <- &data
 	return nil
 }
 
@@ -558,83 +537,64 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTickerPushData(data []byte) error {
-	var response WsResponse
-	orderbookTicker := WsOptionsOrderbookTicker{}
-	response.Result = &orderbookTicker
-	err := json.Unmarshal(data, &orderbookTicker)
+func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
+	var data WsOptionsOrderbookTicker
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &response
+	g.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []byte) error {
+func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, pushTime int64) error {
 	if event == "all" {
-		var response WsResponse
-		snapshot := WsOptionsOrderbookSnapshot{}
-		response.Result = &snapshot
-		err := json.Unmarshal(data, &response)
-		if err != nil {
-			return err
-		}
-		pair, err := currency.NewPairFromString(snapshot.Contract)
+		var data WsOptionsOrderbookSnapshot
+		err := json.Unmarshal(incoming, &data)
 		if err != nil {
 			return err
 		}
 		base := orderbook.Base{
 			Asset:           asset.Options,
 			Exchange:        g.Name,
-			Pair:            pair,
-			LastUpdated:     snapshot.Timestamp.Time(),
+			Pair:            data.Contract,
+			LastUpdated:     data.Timestamp.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
-		base.Asks = make([]orderbook.Item, len(snapshot.Asks))
-		base.Bids = make([]orderbook.Item, len(snapshot.Bids))
-		for x := range base.Asks {
-			base.Asks[x] = orderbook.Item{
-				Amount: snapshot.Asks[x].Size,
-				Price:  snapshot.Asks[x].Price,
-			}
+		base.Asks = make([]orderbook.Item, len(data.Asks))
+		for x := range data.Asks {
+			base.Asks[x].Amount = data.Asks[x].Size
+			base.Asks[x].Price = data.Asks[x].Price
 		}
-		for x := range base.Bids {
-			base.Bids[x] = orderbook.Item{
-				Amount: snapshot.Bids[x].Size,
-				Price:  snapshot.Bids[x].Price,
-			}
+		base.Bids = make([]orderbook.Item, len(data.Bids))
+		for x := range data.Bids {
+			base.Bids[x].Amount = data.Bids[x].Size
+			base.Bids[x].Price = data.Bids[x].Price
 		}
 		return g.Websocket.Orderbook.LoadSnapshot(&base)
 	}
-	resp := struct {
-		Time    int64                           `json:"time"`
-		Channel string                          `json:"channel"`
-		Event   string                          `json:"event"`
-		Result  []WsFuturesOrderbookUpdateEvent `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
+	var data []WsFuturesOrderbookUpdateEvent
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
 	dataMap := map[string][2][]orderbook.Item{}
-	for x := range resp.Result {
-		ab, ok := dataMap[resp.Result[x].CurrencyPair]
+	for x := range data {
+		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
 			ab = [2][]orderbook.Item{}
 		}
-		if resp.Result[x].Amount > 0 {
+		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Item{
-				Price:  resp.Result[x].Price,
-				Amount: resp.Result[x].Amount,
+				Price: data[x].Price, Amount: data[x].Amount,
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Item{
-				Price:  resp.Result[x].Price,
-				Amount: -resp.Result[x].Amount,
+				Price: data[x].Price, Amount: -data[x].Amount,
 			})
 		}
 		if !ok {
-			dataMap[resp.Result[x].CurrencyPair] = ab
+			dataMap[data[x].CurrencyPair] = ab
 		}
 	}
 	if len(dataMap) == 0 {
@@ -651,7 +611,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, data []by
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     time.Unix(resp.Time, 0),
+			LastUpdated:     time.Unix(pushTime, 0),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
@@ -674,10 +634,6 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		status, err := order.StringToOrderStatus(func() string {
 			if resp.Result[x].Status == "finished" {
 				return "cancelled"
@@ -692,7 +648,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
-			Pair:           currencyPair,
+			Pair:           resp.Result[x].Contract,
 			Date:           resp.Result[x].CreationTimeMs.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
@@ -705,6 +661,9 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 }
 
 func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
+	if !g.IsFillsFeedEnabled() {
+		return nil
+	}
 	resp := struct {
 		Time    int64                `json:"time"`
 		Channel string               `json:"channel"`
@@ -717,14 +676,10 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			Exchange:     g.Name,
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price,

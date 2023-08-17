@@ -337,7 +337,6 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 // them in the exchanges config
 func (b *Bitmex) UpdateTradablePairs(ctx context.Context, _ bool) error {
 	assets := b.GetAssetTypes(false)
-
 	for x := range assets {
 		pairs, err := b.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
@@ -349,29 +348,65 @@ func (b *Bitmex) UpdateTradablePairs(ctx context.Context, _ bool) error {
 			return err
 		}
 	}
-	return nil
+	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !b.SupportsAsset(a) {
+		return fmt.Errorf("%w for [%v]", asset.ErrNotSupported, a)
+	}
+
 	tick, err := b.GetActiveAndIndexInstruments(ctx)
 	if err != nil {
 		return err
 	}
 
-	pairs, err := b.GetEnabledPairs(a)
+	enabled, err := b.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
 
+instruments:
 	for j := range tick {
 		var pair currency.Pair
-		pair, err = currency.NewPairFromString(tick[j].Symbol)
-		if err != nil {
-			return err
+		switch a {
+		case asset.Futures:
+			if tick[j].Typ != futuresID {
+				continue instruments
+			}
+			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+		case asset.Index:
+			switch tick[j].Typ {
+			case bitMEXBasketIndexID,
+				bitMEXPriceIndexID,
+				bitMEXLendingPremiumIndexID,
+				bitMEXVolatilityIndexID:
+			default:
+				continue instruments
+			}
+			// NOTE: Filtering is done below to remove the underscore in a
+			// limited amount of index asset strings while the rest do not
+			// contain an underscore. Calling DeriveFrom will then error and
+			// the instruments will be missed.
+			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
+			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+		case asset.PerpetualContract:
+			if tick[j].Typ != perpetualContractID {
+				continue instruments
+			}
+			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+		case asset.Spot:
+			if tick[j].Typ != spotID {
+				continue instruments
+			}
+			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
+			pair, err = enabled.DeriveFrom(tick[j].Symbol)
 		}
-
-		if !pairs.Contains(pair, true) {
+		if err != nil {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 			continue
 		}
 
@@ -438,6 +473,12 @@ func (b *Bitmex) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -449,14 +490,14 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, common.ErrFunctionNotSupported
 	}
 
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
 	orderbookNew, err := b.GetOrderbook(ctx,
 		OrderBookGetL2Params{
-			Symbol: fpair.String(),
+			Symbol: fPair.String(),
 			Depth:  500})
 	if err != nil {
 		return book, err
@@ -549,15 +590,57 @@ func (b *Bitmex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitmex) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitmex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+	history, err := b.GetWalletHistory(ctx, "all")
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundingHistory, len(history))
+	for i := range history {
+		resp[i] = exchange.FundingHistory{
+			ExchangeName:    b.Name,
+			Status:          history[i].TransactStatus,
+			Timestamp:       history[i].Timestamp,
+			Currency:        history[i].Currency,
+			Amount:          history[i].Amount,
+			Fee:             history[i].Fee,
+			TransferType:    history[i].TransactType,
+			CryptoToAddress: history[i].Address,
+			CryptoTxID:      history[i].TransactID,
+			CryptoChain:     history[i].Network,
+		}
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitmex) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitmex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	history, err := b.GetWalletHistory(ctx, c.String())
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(history))
+	for i := range history {
+		resp[i] = exchange.WithdrawalHistory{
+			Status:          history[i].TransactStatus,
+			Timestamp:       history[i].Timestamp,
+			Currency:        history[i].Currency,
+			Amount:          history[i].Amount,
+			Fee:             history[i].Fee,
+			TransferType:    history[i].TransactType,
+			CryptoToAddress: history[i].Address,
+			CryptoTxID:      history[i].TransactID,
+			CryptoChain:     history[i].Network,
+		}
+	}
+	return resp, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Bitmex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -568,7 +651,7 @@ func (b *Bitmex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Bitmex) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if assetType == asset.Index {
-		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
@@ -645,7 +728,7 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 
-	if math.Mod(s.Amount, 1) != 0 {
+	if math.Trunc(s.Amount) != s.Amount {
 		return nil,
 			errors.New("order contract amount can not have decimals")
 	}
@@ -680,7 +763,7 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		return nil, err
 	}
 
-	if math.Mod(action.Amount, 1) != 0 {
+	if math.Trunc(action.Amount) != action.Amount {
 		return nil, errors.New("contract amount can not have decimals")
 	}
 
@@ -715,8 +798,38 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitmex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (b *Bitmex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+	var orderIDs, clientIDs []string
+	for i := range o {
+		switch {
+		case o[i].ClientOrderID != "":
+			clientIDs = append(clientIDs, o[i].ClientID)
+		case o[i].OrderID != "":
+			orderIDs = append(orderIDs, o[i].OrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
+		}
+	}
+	joinedOrderIDs := strings.Join(orderIDs, ",")
+	joinedClientIDs := strings.Join(clientIDs, ",")
+	params := &OrderCancelParams{
+		OrderID:       joinedOrderIDs,
+		ClientOrderID: joinedClientIDs,
+	}
+	resp := &order.CancelBatchResponse{
+		Status: make(map[string]string),
+	}
+	cancelResponse, err := b.CancelOrders(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	for i := range cancelResponse {
+		resp.Status[cancelResponse[i].OrderID] = cancelResponse[i].OrdStatus
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -740,9 +853,50 @@ func (b *Bitmex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitmex) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+func (b *Bitmex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+
+	resp, err := b.GetOrders(ctx, &OrdersRequest{
+		Filter: `{"orderID":"` + orderID + `"}`,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i := range resp {
+		if resp[i].OrderID != orderID {
+			continue
+		}
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
+		if err != nil {
+			return nil, err
+		}
+		var oType order.Type
+		oType, err = b.getOrderType(resp[i].OrdType)
+		if err != nil {
+			return nil, err
+		}
+		return &order.Detail{
+			Date:            resp[i].Timestamp,
+			Price:           resp[i].Price,
+			Amount:          resp[i].OrderQty,
+			ExecutedAmount:  resp[i].CumQty,
+			RemainingAmount: resp[i].LeavesQty,
+			Exchange:        b.Name,
+			OrderID:         resp[i].OrderID,
+			Side:            orderSideMap[resp[i].Side],
+			Status:          orderStatus,
+			Type:            oType,
+			Pair:            pair,
+			AssetType:       assetType,
+		}, nil
+	}
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -809,7 +963,7 @@ func (b *Bitmex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -864,7 +1018,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

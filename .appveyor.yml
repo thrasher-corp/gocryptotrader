@@ -1,6 +1,6 @@
 build: off
 
-image: Visual Studio 2019
+image: Visual Studio 2022 # See https://www.appveyor.com/docs/build-environment/#build-worker-images
 
 clone_folder: c:\gopath\src\github.com\thrasher-corp\gocryptotrader
 
@@ -28,7 +28,7 @@ environment:
   PSQL_SSLMODE: disable
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
-  
+
 stack: go 1.17.8 # this is not actually used on Windows images
 
 services:
@@ -36,7 +36,6 @@ services:
 
 init:
   - set PATH=%POSTGRES_PATH%\bin;%PATH%
-  - set PATH=C:\go119\bin;%PATH%
 
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
@@ -55,7 +54,7 @@ before_test:
 
 test_script:
   # test back-end
-  - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.2
+  - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.0
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {

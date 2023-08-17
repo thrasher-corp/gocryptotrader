@@ -298,7 +298,11 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	if err != nil {
 		return err
 	}
-	return c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	return c.EnsureOnePairEnabled()
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -417,17 +421,23 @@ func (c *COINUT) UpdateTickers(_ context.Context, _ asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !c.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(p, a)
+	fPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
-	instID := c.instrumentMap.LookupID(fpair.String())
+	instID := c.instrumentMap.LookupID(fPair.String())
 	if instID == 0 {
 		return nil, errors.New("unable to lookup instrument ID")
 	}
@@ -475,6 +485,12 @@ func (c *COINUT) FetchOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        c.Name,
 		Pair:            p,
@@ -486,12 +502,12 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	fPair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
 	}
 
-	instID := c.instrumentMap.LookupID(fpair.String())
+	instID := c.instrumentMap.LookupID(fPair.String())
 	if instID == 0 {
 		return book, errLookupInstrumentID
 	}
@@ -523,15 +539,15 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(c.Name, p, assetType)
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *COINUT) GetFundingHistory(_ context.Context) ([]exchange.FundHistory, error) {
+func (c *COINUT) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *COINUT) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+func (c *COINUT) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -636,7 +652,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 			currencyID,
 			o.Amount,
 			o.Price,
-			o.Side == order.Buy,
+			o.Side.IsLong(),
 			uint32(clientIDInt))
 		if err != nil {
 			return nil, err
@@ -696,12 +712,12 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	fpair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
+	fPair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
 	if err != nil {
 		return err
 	}
 
-	currencyID := c.instrumentMap.LookupID(fpair.String())
+	currencyID := c.instrumentMap.LookupID(fPair.String())
 
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *CancelOrdersResponse
@@ -729,8 +745,43 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *COINUT) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+func (c *COINUT) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+	req := make([]CancelOrders, 0, len(o))
+	for i := range o {
+		switch {
+		case o[i].ClientOrderID != "":
+			return nil, order.ErrClientOrderIDNotSupported
+		case o[i].OrderID != "":
+			currencyID := c.instrumentMap.LookupID(o[i].Pair.String())
+			oid, err := strconv.ParseInt(o[i].OrderID, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			req = append(req, CancelOrders{
+				InstrumentID: currencyID,
+				OrderID:      oid,
+			})
+		default:
+			return nil, order.ErrOrderIDNotSet
+		}
+	}
+	results, err := c.CancelOrders(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
+	for i := range results.Results {
+		resp.Status[strconv.FormatInt(results.Results[i].OrderID, 10)] = results.Results[i].Status
+	}
+	return resp, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (c *COINUT) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -752,12 +803,12 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 		}
 		var ordersToCancel []WsCancelOrderParameters
 		for i := range openOrders.Orders {
-			var fpair currency.Pair
-			fpair, err = c.FormatExchangeCurrency(details.Pair, asset.Spot)
+			var fPair currency.Pair
+			fPair, err = c.FormatExchangeCurrency(details.Pair, asset.Spot)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			if openOrders.Orders[i].InstrumentID == c.instrumentMap.LookupID(fpair.String()) {
+			if openOrders.Orders[i].InstrumentID == c.instrumentMap.LookupID(fPair.String()) {
 				ordersToCancel = append(ordersToCancel, WsCancelOrderParameters{
 					Currency: details.Pair,
 					OrderID:  openOrders.Orders[i].OrderID,
@@ -777,11 +828,11 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 		var allTheOrders []OrderResponse
 		ids := c.instrumentMap.GetInstrumentIDs()
 		for x := range ids {
-			fpair, err := c.FormatExchangeCurrency(details.Pair, asset.Spot)
+			fPair, err := c.FormatExchangeCurrency(details.Pair, asset.Spot)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			if ids[x] == c.instrumentMap.LookupID(fpair.String()) {
+			if ids[x] == c.instrumentMap.LookupID(fPair.String()) {
 				openOrders, err := c.GetOpenOrders(ctx, ids[x])
 				if err != nil {
 					return cancelAllOrdersResponse, err
@@ -817,8 +868,8 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	return order.Detail{}, common.ErrNotYetImplemented
+func (c *COINUT) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -857,7 +908,7 @@ func (c *COINUT) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -987,7 +1038,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (order.FilteredOrders, error) {
+func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err

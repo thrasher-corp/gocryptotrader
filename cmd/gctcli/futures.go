@@ -122,14 +122,14 @@ var futuresCommands = &cli.Command{
 					Name:        "start",
 					Aliases:     []string{"sd"},
 					Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
-					Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Aliases:     []string{"ed"},
 					Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 				&cli.IntFlag{
@@ -215,7 +215,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getfundingrates",
 			Aliases:   []string{"funding", "f"},
 			Usage:     "returns funding rate data between two dates",
-			ArgsUsage: "<exchange> <asset> <pairs> <start> <end> <includepredicted> <includepayments>",
+			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <paymentcurrency> <includepredicted> <includepayments> <respecthistorylimits>",
 			Action:    getFundingRates,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -228,34 +228,73 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"a"},
 					Usage:   "the asset type of the currency pair, must be a futures type",
 				},
-				&cli.StringSliceFlag{
-					Name:    "pairs",
+				&cli.StringFlag{
+					Name:    "pair",
 					Aliases: []string{"p"},
-					Usage:   "comma delimited list of pairs you wish to get funding rate data for",
+					Usage:   "currency pair",
 				},
 				&cli.StringFlag{
 					Name:        "start",
 					Aliases:     []string{"sd"},
-					Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
-					Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+					Usage:       "<start> rounded down to the nearest hour",
+					Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
 					Name:        "end",
 					Aliases:     []string{"ed"},
-					Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
-					Value:       time.Now().Format(common.SimpleTimeFormat),
+					Usage:       "<end> rounded down to the nearest hour",
+					Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
 					Destination: &endTime,
+				},
+				&cli.StringFlag{
+					Name:    "paymentcurrency",
+					Aliases: []string{"pc"},
+					Usage:   "optional - if you are paid in a currency that isn't easily inferred from the Pair, eg BTCUSD-PERP use this field",
 				},
 				&cli.BoolFlag{
 					Name:    "includepredicted",
 					Aliases: []string{"ip", "predicted"},
-					Usage:   "include the predicted next funding rate",
+					Usage:   "optional - include the predicted next funding rate",
 				},
 				&cli.BoolFlag{
 					Name:    "includepayments",
 					Aliases: []string{"pay"},
-					Usage:   "include funding rate payments",
+					Usage:   "optional - include funding rate payments, must be authenticated",
+				},
+				&cli.BoolFlag{
+					Name:    "respecthistorylimits",
+					Aliases: []string{"respect", "r"},
+					Usage:   "optional - if true, will change the starting date to the maximum allowable limit if start date exceeds it",
+				},
+			},
+		},
+		{
+			Name:      "getlatestfundingrate",
+			Aliases:   []string{"latestrate", "lr", "r8"},
+			Usage:     "returns the latest funding rate data",
+			ArgsUsage: "<exchange> <asset> <pair> <includepredicted>",
+			Action:    getLatestFundingRate,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "currency pair",
+				},
+				&cli.BoolFlag{
+					Name:    "includepredicted",
+					Aliases: []string{"ip", "predicted"},
+					Usage:   "optional - include the predicted next funding rate",
 				},
 			},
 		},
@@ -583,11 +622,11 @@ func getFuturesPositions(c *cli.Context) error {
 		return err
 	}
 
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -710,12 +749,11 @@ func getFundingRates(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType           string
-		currencyPairs                     []string
-		includePredicted, includePayments bool
-		p                                 currency.Pair
-		s, e                              time.Time
-		err                               error
+		exchangeName, assetType, currencyPair, paymentCurrency             string
+		includePredicted, includePayments, respectFundingRateHistoryLimits bool
+		p                                                                  currency.Pair
+		s, e                                                               time.Time
+		err                                                                error
 	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -733,20 +771,17 @@ func getFundingRates(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if c.IsSet("pairs") {
-		currencyPairs = c.StringSlice("pairs")
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
 	} else {
-		currencyPairs = strings.Split(c.Args().Get(2), ",")
+		currencyPair = c.Args().Get(2)
 	}
-	for i := range currencyPairs {
-		if !validPair(currencyPairs[i]) {
-			return errInvalidPair
-		}
-		p, err = currency.NewPairDelimiter(currencyPairs[i], pairDelimiter)
-		if err != nil {
-			return err
-		}
-		currencyPairs[i] = p.String()
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
 	}
 	if !c.IsSet("start") {
 		if c.Args().Get(3) != "" {
@@ -758,27 +793,43 @@ func getFundingRates(c *cli.Context) error {
 			endTime = c.Args().Get(4)
 		}
 	}
+
+	if c.IsSet("paymentcurrency") {
+		paymentCurrency = c.String("paymentcurrency")
+	} else {
+		paymentCurrency = c.Args().Get(5)
+	}
+
 	if c.IsSet("includepredicted") {
 		includePredicted = c.Bool("includepredicted")
-	} else if c.Args().Get(5) != "" {
-		includePredicted, err = strconv.ParseBool(c.Args().Get(5))
+	} else if c.Args().Get(6) != "" {
+		includePredicted, err = strconv.ParseBool(c.Args().Get(6))
 		if err != nil {
 			return err
 		}
 	}
 	if c.IsSet("includepayments") {
 		includePayments = c.Bool("includepayments")
-	} else if c.Args().Get(6) != "" {
-		includePayments, err = strconv.ParseBool(c.Args().Get(6))
+	} else if c.Args().Get(7) != "" {
+		includePayments, err = strconv.ParseBool(c.Args().Get(7))
 		if err != nil {
 			return err
 		}
 	}
-	s, err = time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	if c.IsSet("respecthistorylimits") {
+		respectFundingRateHistoryLimits = c.Bool("respecthistorylimits")
+	} else if c.Args().Get(8) != "" {
+		respectFundingRateHistoryLimits, err = strconv.ParseBool(c.Args().Get(8))
+		if err != nil {
+			return err
+		}
+	}
+
+	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -796,13 +847,93 @@ func getFundingRates(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetFundingRates(c.Context,
 		&gctrpc.GetFundingRatesRequest{
-			Exchange:         exchangeName,
-			Asset:            assetType,
-			Pairs:            currencyPairs,
-			StartDate:        s.Format(common.SimpleTimeFormatWithTimezone),
-			EndDate:          e.Format(common.SimpleTimeFormatWithTimezone),
+			Exchange: exchangeName,
+			Asset:    assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			StartDate:            s.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:              e.Format(common.SimpleTimeFormatWithTimezone),
+			IncludePredicted:     includePredicted,
+			IncludePayments:      includePayments,
+			RespectHistoryLimits: respectFundingRateHistoryLimits,
+			PaymentCurrency:      paymentCurrency,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+func getLatestFundingRate(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+	var (
+		exchangeName, assetType, currencyPair string
+		includePredicted                      bool
+		p                                     currency.Pair
+		err                                   error
+	)
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	err = isFuturesAsset(assetType)
+	if err != nil {
+		return err
+	}
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if c.IsSet("includepredicted") {
+		includePredicted = c.Bool("includepredicted")
+	} else if c.Args().Get(3) != "" {
+		includePredicted, err = strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetLatestFundingRate(c.Context,
+		&gctrpc.GetLatestFundingRateRequest{
+			Exchange: exchangeName,
+			Asset:    assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
 			IncludePredicted: includePredicted,
-			IncludePayments:  includePayments,
 		})
 	if err != nil {
 		return err

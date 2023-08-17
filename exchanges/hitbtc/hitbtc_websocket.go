@@ -480,7 +480,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	}
 	for i := range channels {
 		for j := range enabledCurrencies {
-			fpair, err := h.FormatExchangeCurrency(enabledCurrencies[j], asset.Spot)
+			fPair, err := h.FormatExchangeCurrency(enabledCurrencies[j], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
@@ -488,7 +488,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			enabledCurrencies[j].Delimiter = ""
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
-				Currency: fpair,
+				Currency: fPair,
 				Asset:    asset.Spot,
 			})
 		}
@@ -608,7 +608,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 	}
 
 	id := h.Websocket.Conn.GenerateMessageID(false)
-	fpair, err := h.FormatExchangeCurrency(pair, asset.Spot)
+	fPair, err := h.FormatExchangeCurrency(pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -617,7 +617,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		Method: "newOrder",
 		Params: WsSubmitOrderRequestData{
 			ClientOrderID: id,
-			Symbol:        fpair.String(),
+			Symbol:        fPair.String(),
 			Side:          strings.ToLower(side),
 			Price:         price,
 			Quantity:      quantity,
@@ -772,7 +772,7 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 
 // wsGetSymbols sends a websocket message to get trading balance
 func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
-	fpair, err := h.FormatExchangeCurrency(c, asset.Spot)
+	fPair, err := h.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -780,7 +780,7 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 	request := WsGetSymbolsRequest{
 		Method: "getSymbol",
 		Params: WsGetSymbolsRequestParameters{
-			Symbol: fpair.String(),
+			Symbol: fPair.String(),
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
@@ -801,7 +801,7 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 
 // wsGetSymbols sends a websocket message to get trading balance
 func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
-	fpair, err := h.FormatExchangeCurrency(c, asset.Spot)
+	fPair, err := h.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +809,7 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 	request := WsGetTradesRequest{
 		Method: "getTrades",
 		Params: WsGetTradesRequestParameters{
-			Symbol: fpair.String(),
+			Symbol: fPair.String(),
 			Limit:  limit,
 			Sort:   sort,
 			By:     by,

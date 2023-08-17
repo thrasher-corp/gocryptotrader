@@ -144,7 +144,7 @@ func (b *Bittrex) WsSignalRHandshake(ctx context.Context, result interface{}) er
 	}
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // WsAuth sends an authentication message to receive auth data

@@ -165,7 +165,6 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
-
 	if e.m == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
@@ -243,9 +242,8 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 	}
 	if m.AmountStepIncrementSize != 0 {
 		dAmount := decimal.NewFromFloat(amount)
-		dMinAmount := decimal.NewFromFloat(m.MaximumBaseAmount)
 		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
-		if !dAmount.Sub(dMinAmount).Mod(dStep).IsZero() {
+		if !dAmount.Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrAmountExceedsStep,
 				m.AmountStepIncrementSize,

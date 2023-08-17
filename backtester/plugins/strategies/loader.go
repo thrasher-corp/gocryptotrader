@@ -24,7 +24,7 @@ func LoadCustomStrategies(strategyPluginPath string) error {
 	}
 	customStrategies, ok := v.(func() []strategies.Handler)
 	if !ok {
-		return gctcommon.GetAssertError("[]strategies.Handler", customStrategies)
+		return gctcommon.GetTypeAssertError("[]strategies.Handler", customStrategies)
 	}
 	return addStrategies(customStrategies())
 }
