@@ -536,7 +536,7 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	case order.Limit:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	case order.Market:
-		if s.Side == order.Sell {
+		if s.Side.IsShort() {
 			orderType = "market_sell"
 		} else {
 			orderType = "market_buy"

@@ -727,7 +727,7 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 
-	if math.Mod(s.Amount, 1) != 0 {
+	if math.Trunc(s.Amount) != s.Amount {
 		return nil,
 			errors.New("order contract amount can not have decimals")
 	}
@@ -762,7 +762,7 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		return nil, err
 	}
 
-	if math.Mod(action.Amount, 1) != 0 {
+	if math.Trunc(action.Amount) != action.Amount {
 		return nil, errors.New("contract amount can not have decimals")
 	}
 

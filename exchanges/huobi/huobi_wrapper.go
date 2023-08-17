@@ -984,14 +984,14 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			AccountID: int(accountID),
 		}
 		switch {
-		case s.Side == order.Buy && s.Type == order.Market:
+		case s.Side.IsLong() && s.Type == order.Market:
 			formattedType = SpotNewOrderRequestTypeBuyMarket
-		case s.Side == order.Sell && s.Type == order.Market:
+		case s.Side.IsShort() && s.Type == order.Market:
 			formattedType = SpotNewOrderRequestTypeSellMarket
-		case s.Side == order.Buy && s.Type == order.Limit:
+		case s.Side.IsLong() && s.Type == order.Limit:
 			formattedType = SpotNewOrderRequestTypeBuyLimit
 			params.Price = s.Price
-		case s.Side == order.Sell && s.Type == order.Limit:
+		case s.Side.IsShort() && s.Type == order.Limit:
 			formattedType = SpotNewOrderRequestTypeSellLimit
 			params.Price = s.Price
 		}
@@ -1007,10 +1007,10 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		}
 	case asset.CoinMarginedFutures:
 		var oDirection string
-		switch s.Side {
-		case order.Buy:
+		switch {
+		case s.Side.IsLong():
 			oDirection = "BUY"
-		case order.Sell:
+		case s.Side.IsShort():
 			oDirection = "SELL"
 		}
 		var oType string
@@ -1039,10 +1039,10 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		orderID = orderResp.Data.OrderIDString
 	case asset.Futures:
 		var oDirection string
-		switch s.Side {
-		case order.Buy:
+		switch {
+		case s.Side.IsLong():
 			oDirection = "BUY"
-		case order.Sell:
+		case s.Side.IsShort():
 			oDirection = "SELL"
 		}
 		var oType string

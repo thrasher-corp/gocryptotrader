@@ -51,8 +51,7 @@ const (
 var defaultSubscriptions = []string{
 	spotTickerChannel,
 	spotCandlesticksChannel,
-	spotTradesChannel,
-	spotOrderbookChannel,
+	spotOrderbookTickerChannel,
 }
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
@@ -66,14 +65,11 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
-	err = g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = g.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
-	pingMessage, err := json.Marshal(WsInput{
-		Channel: spotPingChannel,
-	})
+	pingMessage, err := json.Marshal(WsInput{Channel: spotPingChannel})
 	if err != nil {
 		return err
 	}
@@ -113,34 +109,32 @@ func (g *Gateio) wsReadConnData() {
 }
 
 func (g *Gateio) wsHandleData(respRaw []byte) error {
-	var result WsResponse
-	var eventResponse WsEventResponse
-	err := json.Unmarshal(respRaw, &eventResponse)
-	if err == nil &&
-		(eventResponse.Result != nil || eventResponse.Error != nil) &&
-		(eventResponse.Event == "subscribe" || eventResponse.Event == "unsubscribe") {
-		if !g.Websocket.Match.IncomingWithData(eventResponse.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", eventResponse.ID)
-		}
-		return nil
-	}
-	err = json.Unmarshal(respRaw, &result)
+	var push WsResponse
+	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
-	switch result.Channel {
+
+	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
+			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
+		}
+		return nil
+	}
+
+	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(respRaw)
+		return g.processTicker(push.Result, push.Time)
 	case spotTradesChannel:
-		return g.processTrades(respRaw)
+		return g.processTrades(push.Result)
 	case spotCandlesticksChannel:
-		return g.processCandlestick(respRaw)
+		return g.processCandlestick(push.Result)
 	case spotOrderbookTickerChannel:
-		return g.processOrderbookTicker(respRaw)
+		return g.processOrderbookTicker(push.Result)
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(respRaw)
+		return g.processOrderbookUpdate(push.Result)
 	case spotOrderbookChannel:
-		return g.processOrderbookSnapshot(respRaw)
+		return g.processOrderbookSnapshot(push.Result)
 	case spotOrdersChannel:
 		return g.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -165,32 +159,26 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (g *Gateio) processTicker(data []byte) error {
-	var response WsResponse
-	tickerData := &WsTicker{}
-	response.Result = tickerData
-	err := json.Unmarshal(data, &response)
-	if err != nil {
-		return err
-	}
-	currencyPair, err := currency.NewPairFromString(tickerData.CurrencyPair)
+func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
+	var data WsTicker
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
 	tickerPrice := ticker.Price{
 		ExchangeName: g.Name,
-		Volume:       tickerData.BaseVolume,
-		QuoteVolume:  tickerData.QuoteVolume,
-		High:         tickerData.High24H,
-		Low:          tickerData.Low24H,
-		Last:         tickerData.Last,
-		Bid:          tickerData.HighestBid,
-		Ask:          tickerData.LowestAsk,
+		Volume:       data.BaseVolume,
+		QuoteVolume:  data.QuoteVolume,
+		High:         data.High24H,
+		Low:          data.Low24H,
+		Last:         data.Last,
+		Bid:          data.HighestBid,
+		Ask:          data.LowestAsk,
 		AssetType:    asset.Spot,
-		Pair:         currencyPair,
-		LastUpdated:  time.Unix(response.Time, 0),
+		Pair:         data.CurrencyPair,
+		LastUpdated:  time.Unix(pushTime, 0),
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	if assetPairEnabled[asset.Spot] {
 		g.Websocket.DataHandler <- &tickerPrice
 	}
@@ -207,67 +195,52 @@ func (g *Gateio) processTicker(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processTrades(data []byte) error {
-	var response WsResponse
-	tradeData := &WsTrade{}
-	response.Result = tradeData
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processTrades(incoming []byte) error {
+	saveTradeData := g.IsSaveTradeDataEnabled()
+	if !saveTradeData && !g.IsTradeFeedEnabled() {
+		return nil
+	}
+
+	var data WsTrade
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	currencyPair, err := currency.NewPairFromString(tradeData.CurrencyPair)
+
+	side, err := order.StringToOrderSide(data.Side)
 	if err != nil {
 		return err
 	}
-	side, err := order.StringToOrderSide(tradeData.Side)
-	if err != nil {
-		return err
-	}
-	spotTradeData := trade.Data{
-		Timestamp:    time.UnixMicro(int64(tradeData.CreateTimeMs * 1e3)), // the timestamp data is coming as a floating number.
-		CurrencyPair: currencyPair,
+	tData := trade.Data{
+		Timestamp:    data.CreateTimeMs.Time(),
+		CurrencyPair: data.CurrencyPair,
 		AssetType:    asset.Spot,
 		Exchange:     g.Name,
-		Price:        tradeData.Price,
-		Amount:       tradeData.Amount,
+		Price:        data.Price,
+		Amount:       data.Amount,
 		Side:         side,
-		TID:          strconv.FormatInt(tradeData.ID, 10),
+		TID:          strconv.FormatInt(data.ID, 10),
 	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
-	if assetPairEnabled[asset.Spot] {
-		err = trade.AddTradesToBuffer(g.Name, spotTradeData)
-		if err != nil {
-			return err
+
+	for _, assetType := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin} {
+		if g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)[assetType] {
+			tData.AssetType = assetType
+			if err := g.Websocket.Trade.Update(saveTradeData, tData); err != nil {
+				return err
+			}
 		}
 	}
-	if assetPairEnabled[asset.Margin] {
-		marginTradeData := spotTradeData
-		marginTradeData.AssetType = asset.Margin
-		err = trade.AddTradesToBuffer(g.Name, marginTradeData)
-		if err != nil {
-			return err
-		}
-	}
-	if assetPairEnabled[asset.CrossMargin] {
-		crossMarginTradeData := spotTradeData
-		crossMarginTradeData.AssetType = asset.CrossMargin
-		err = trade.AddTradesToBuffer(g.Name, crossMarginTradeData)
-		if err != nil {
-			return err
-		}
-	}
+
 	return nil
 }
 
-func (g *Gateio) processCandlestick(data []byte) error {
-	var response WsResponse
-	candleData := &WsCandlesticks{}
-	response.Result = candleData
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processCandlestick(incoming []byte) error {
+	var data WsCandlesticks
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	icp := strings.Split(candleData.NameOfSubscription, currency.UnderscoreDelimiter)
+	icp := strings.Split(data.NameOfSubscription, currency.UnderscoreDelimiter)
 	if len(icp) < 3 {
 		return errors.New("malformed candlestick websocket push data")
 	}
@@ -279,13 +252,13 @@ func (g *Gateio) processCandlestick(data []byte) error {
 		Pair:       currencyPair,
 		AssetType:  asset.Spot,
 		Exchange:   g.Name,
-		StartTime:  time.Unix(candleData.Timestamp, 0),
+		StartTime:  time.Unix(data.Timestamp, 0),
 		Interval:   icp[0],
-		OpenPrice:  candleData.OpenPrice,
-		ClosePrice: candleData.ClosePrice,
-		HighPrice:  candleData.HighestPrice,
-		LowPrice:   candleData.LowestPrice,
-		Volume:     candleData.TotalVolume,
+		OpenPrice:  data.OpenPrice,
+		ClosePrice: data.ClosePrice,
+		HighPrice:  data.HighestPrice,
+		LowPrice:   data.LowestPrice,
+		Volume:     data.TotalVolume,
 	}
 	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
 	if assetPairEnabled[asset.Spot] {
@@ -304,34 +277,33 @@ func (g *Gateio) processCandlestick(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTicker(data []byte) error {
-	var response WsResponse
-	tickerData := &WsOrderbookTickerData{}
-	response.Result = tickerData
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOrderbookTicker(incoming []byte) error {
+	var data WsOrderbookTickerData
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- tickerData
-	return nil
+
+	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		Exchange:    g.Name,
+		Pair:        data.CurrencyPair,
+		Asset:       asset.Spot,
+		LastUpdated: time.UnixMilli(data.UpdateTimeMS),
+		Bids:        []orderbook.Item{{Price: data.BestBidPrice, Amount: data.BestBidAmount}},
+		Asks:        []orderbook.Item{{Price: data.BestAskPrice, Amount: data.BestAskAmount}},
+	})
 }
 
-func (g *Gateio) processOrderbookUpdate(data []byte) error {
-	var response WsResponse
-	update := new(WsOrderbookUpdate)
-	response.Result = update
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
+	var data WsOrderbookUpdate
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(update.CurrencyPair)
-	if err != nil {
-		return err
-	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(pair)
-	if !fetchedCurrencyPairSnapshotOrderbook[update.CurrencyPair] {
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
+	if !fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] {
 		var orderbooks *orderbook.Base
-		orderbooks, err = g.FetchOrderbook(context.Background(), pair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
+		orderbooks, err = g.FetchOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
 		if err != nil {
 			return err
 		}
@@ -347,42 +319,32 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 				return err
 			}
 		}
-		fetchedCurrencyPairSnapshotOrderbook[update.CurrencyPair] = true
+		fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] = true
 	}
 	updates := orderbook.Update{
-		UpdateTime: update.UpdateTimeMs.Time(),
-		Pair:       pair,
+		UpdateTime: data.UpdateTimeMs.Time(),
+		Pair:       data.CurrencyPair,
 	}
-	updates.Bids = make([]orderbook.Item, len(update.Bids))
-	updates.Asks = make([]orderbook.Item, len(update.Asks))
-	var price float64
-	var amount float64
-	for x := range updates.Asks {
-		price, err = strconv.ParseFloat(update.Asks[x][0], 64)
+	updates.Asks = make([]orderbook.Item, len(data.Asks))
+	for x := range data.Asks {
+		updates.Asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err = strconv.ParseFloat(update.Asks[x][1], 64)
+		updates.Asks[x].Amount, err = strconv.ParseFloat(data.Asks[x][1], 64)
 		if err != nil {
 			return err
-		}
-		updates.Asks[x] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
 		}
 	}
-	for x := range updates.Bids {
-		price, err = strconv.ParseFloat(update.Bids[x][0], 64)
+	updates.Bids = make([]orderbook.Item, len(data.Bids))
+	for x := range data.Bids {
+		updates.Bids[x].Price, err = strconv.ParseFloat(data.Bids[x][0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err = strconv.ParseFloat(update.Bids[x][1], 64)
+		updates.Bids[x].Amount, err = strconv.ParseFloat(data.Bids[x][1], 64)
 		if err != nil {
 			return err
-		}
-		updates.Bids[x] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
 		}
 	}
 	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
@@ -414,57 +376,41 @@ func (g *Gateio) processOrderbookUpdate(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookSnapshot(data []byte) error {
-	var response WsResponse
-	snapshot := &WsOrderbookSnapshot{}
-	response.Result = snapshot
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
+	var data WsOrderbookSnapshot
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(snapshot.CurrencyPair)
-	if err != nil {
-		return err
-	}
-	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(pair)
+	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	bases := orderbook.Base{
 		Exchange:        g.Name,
-		Pair:            pair,
+		Pair:            data.CurrencyPair,
 		Asset:           asset.Spot,
-		LastUpdated:     snapshot.UpdateTimeMs.Time(),
-		LastUpdateID:    snapshot.LastUpdateID,
+		LastUpdated:     data.UpdateTimeMs.Time(),
+		LastUpdateID:    data.LastUpdateID,
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
-	bases.Bids = make([]orderbook.Item, len(snapshot.Bids))
-	bases.Asks = make([]orderbook.Item, len(snapshot.Asks))
-	var price float64
-	var amount float64
-	for x := range bases.Asks {
-		price, err = strconv.ParseFloat(snapshot.Asks[x][0], 64)
+	bases.Asks = make([]orderbook.Item, len(data.Asks))
+	for x := range data.Asks {
+		bases.Asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err = strconv.ParseFloat(snapshot.Asks[x][1], 64)
+		bases.Asks[x].Amount, err = strconv.ParseFloat(data.Asks[x][1], 64)
 		if err != nil {
 			return err
-		}
-		bases.Asks[x] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
 		}
 	}
-	for x := range bases.Bids {
-		price, err = strconv.ParseFloat(snapshot.Bids[x][0], 64)
+	bases.Bids = make([]orderbook.Item, len(data.Bids))
+	for x := range data.Bids {
+		bases.Bids[x].Price, err = strconv.ParseFloat(data.Bids[x][0], 64)
 		if err != nil {
 			return err
 		}
-		amount, err = strconv.ParseFloat(snapshot.Bids[x][1], 64)
+		bases.Bids[x].Amount, err = strconv.ParseFloat(data.Bids[x][1], 64)
 		if err != nil {
 			return err
-		}
-		bases.Bids[x] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
 		}
 	}
 	if assetPairEnabled[asset.Spot] {
@@ -505,10 +451,6 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 	}
 	details := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		pair, err := currency.NewPairFromString(resp.Result[x].CurrencyPair)
-		if err != nil {
-			return err
-		}
 		side, err := order.StringToOrderSide(resp.Result[x].Side)
 		if err != nil {
 			return err
@@ -527,7 +469,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			OrderID:        resp.Result[x].ID,
 			Side:           side,
 			Type:           orderType,
-			Pair:           pair,
+			Pair:           resp.Result[x].CurrencyPair,
 			Cost:           resp.Result[x].Fee,
 			AssetType:      a,
 			Price:          resp.Result[x].Price,
@@ -541,6 +483,10 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 }
 
 func (g *Gateio) processUserPersonalTrades(data []byte) error {
+	if !g.IsFillsFeedEnabled() {
+		return nil
+	}
+
 	resp := struct {
 		Time    int64                 `json:"time"`
 		Channel string                `json:"channel"`
@@ -553,18 +499,14 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range fills {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].CurrencyPair)
-		if err != nil {
-			return err
-		}
 		side, err := order.StringToOrderSide(resp.Result[x].Side)
 		if err != nil {
 			return err
 		}
 		fills[x] = fill.Data{
-			Timestamp:    resp.Result[x].CreateTimeMicroS,
+			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			Exchange:     g.Name,
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].CurrencyPair,
 			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      strconv.FormatInt(resp.Result[x].ID, 10),
@@ -690,30 +632,34 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			marginBalancesChannel,
 			spotBalancesChannel}...)
 	}
+
+	if g.IsSaveTradeDataEnabled() || g.IsTradeFeedEnabled() {
+		channelsToSubscribe = append(channelsToSubscribe, spotTradesChannel)
+	}
+
 	var subscriptions []stream.ChannelSubscription
-	var pairs []currency.Pair
-	var crossMarginPairs, spotPairs currency.Pairs
-	marginPairs, err := g.GetEnabledPairs(asset.Margin)
-	if err != nil {
-		return nil, err
-	}
-	crossMarginPairs, err = g.GetEnabledPairs(asset.CrossMargin)
-	if err != nil {
-		return nil, err
-	}
-	spotPairs, err = g.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	for i := range channelsToSubscribe {
+		var pairs []currency.Pair
+		var assetType asset.Item
 		switch channelsToSubscribe[i] {
 		case marginBalancesChannel:
-			pairs = marginPairs
+			assetType = asset.Margin
+			pairs, err = g.GetEnabledPairs(asset.Margin)
 		case crossMarginBalanceChannel:
-			pairs = crossMarginPairs
+			assetType = asset.CrossMargin
+			pairs, err = g.GetEnabledPairs(asset.CrossMargin)
 		default:
-			pairs = spotPairs
+			assetType = asset.Spot
+			pairs, err = g.GetEnabledPairs(asset.Spot)
 		}
+		if err != nil {
+			if errors.Is(err, asset.ErrNotEnabled) {
+				continue // Skip if asset is not enabled.
+			}
+			return nil, err
+		}
+
 		for j := range pairs {
 			params := make(map[string]interface{})
 			switch channelsToSubscribe[i] {
@@ -723,13 +669,9 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			case spotCandlesticksChannel:
 				params["interval"] = kline.FiveMin
 			case spotOrderbookUpdateChannel:
-				params["interval"] = kline.ThousandMilliseconds
+				params["interval"] = kline.HundredMilliseconds
 			}
-			if spotTradesChannel == channelsToSubscribe[i] {
-				if !g.IsSaveTradeDataEnabled() {
-					continue
-				}
-			}
+
 			fpair, err := g.FormatExchangeCurrency(pairs[j], asset.Spot)
 			if err != nil {
 				return nil, err
@@ -738,6 +680,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channelsToSubscribe[i],
 				Currency: fpair.Upper(),
+				Asset:    assetType,
 				Params:   params,
 			})
 		}
@@ -788,8 +731,9 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			return nil, err
 		}
 	}
+	var batch *[]string
 	var intervalString string
-	payloads := make([]WsInput, len(channelsToSubscribe))
+	payloads := make([]WsInput, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		var auth *WsAuthInput
 		timestamp := time.Now()
@@ -863,7 +807,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			}
 			params = append(params, intervalString)
 		}
-		payloads[i] = WsInput{
+
+		payload := WsInput{
 			ID:      g.Websocket.Conn.GenerateMessageID(false),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
@@ -871,6 +816,21 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 			Auth:    auth,
 			Time:    timestamp.Unix(),
 		}
+
+		if channelsToSubscribe[i].Channel == "spot.book_ticker" {
+			// To get all orderbook assets subscribed it needs to be batched and
+			// only spot.book_ticker can be batched, if not it will take about
+			// half an hour for initital sync.
+			if batch != nil {
+				*batch = append(*batch, params...)
+			} else {
+				// Sets up pointer to the field for the outbound payload.
+				payloads = append(payloads, payload)
+				batch = &payloads[len(payloads)-1].Payload
+			}
+			continue
+		}
+		payloads = append(payloads, payload)
 	}
 	return payloads, nil
 }

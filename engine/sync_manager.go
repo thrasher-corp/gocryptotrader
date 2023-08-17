@@ -330,9 +330,9 @@ func (m *syncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 	return c
 }
 
-// Update notifies the syncManager to change the last updated time for a exchange asset pair
+// WebsocketUpdate notifies the syncManager to change the last updated time for a exchange asset pair
 // And set IsUsingWebsocket to true. It should be used externally only from websocket updaters
-func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item, syncType syncItemType, err error) error {
+func (m *syncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a asset.Item, syncType syncItemType, err error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
