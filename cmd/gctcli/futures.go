@@ -1134,6 +1134,7 @@ func setLeverage(c *cli.Context) error {
 			},
 			MarginType: marginType,
 			Leverage:   leverage,
+			OrderSide:  orderSide,
 		})
 	if err != nil {
 		return err

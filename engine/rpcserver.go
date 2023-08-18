@@ -65,7 +65,6 @@ var (
 	errExchangeNameUnset       = errors.New("exchange name unset")
 	errCurrencyPairUnset       = errors.New("currency pair unset")
 	errInvalidTimes            = errors.New("invalid start and end times")
-	errAssetTypeDisabled       = errors.New("asset type is disabled")
 	errAssetTypeUnset          = errors.New("asset type unset")
 	errDispatchSystem          = errors.New("dispatch system offline")
 	errCurrencyNotEnabled      = errors.New("currency not enabled")
@@ -3656,7 +3655,7 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 		}
 		err := b.CurrencyPairs.IsAssetEnabled(a)
 		if err != nil {
-			return fmt.Errorf("%v %w", a, err)
+			return err
 		}
 	}
 	if p.IsEmpty() {
@@ -5608,7 +5607,7 @@ func (s *RPCServer) GetCollateralMode(ctx context.Context, r *gctrpc.GetCollater
 	}
 	err = b.CurrencyPairs.IsAssetEnabled(item)
 	if err != nil {
-		return nil, fmt.Errorf("%v %w", item, err)
+		return nil, err
 	}
 	collateralMode, err := exch.GetCollateralMode(ctx, item)
 	if err != nil {

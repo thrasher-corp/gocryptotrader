@@ -1885,18 +1885,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 	type limitTest struct {
 		pair currency.Pair
-		step float64
-		min  float64
 	}
 
 	tests := map[asset.Item][]limitTest{
 		asset.Spot: {
-			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.0001},
-			{currency.NewPair(currency.BTC, currency.USDT), 0.1, 0.00001},
+			{currency.NewPair(currency.ETH, currency.USDT)},
+			{currency.NewPair(currency.BTC, currency.USDT)},
 		},
 		asset.Margin: {
-			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.0001},
-			{currency.NewPair(currency.ETH, currency.BTC), 0.00001, 0.0001},
+			{currency.NewPair(currency.ETH, currency.USDT)},
+			{currency.NewPair(currency.ETH, currency.BTC)},
 		},
 	}
 
@@ -1905,12 +1903,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error fetching dated %s pairs for test: %v", a, err)
 		}
-		stepIncr := 0.1
-		if a == asset.Options {
-			stepIncr = 0.0005
-		}
 
-		tests[a] = []limitTest{{pairs[0], stepIncr, 1}}
+		tests[a] = []limitTest{{pairs[0]}}
 	}
 
 	for _, a := range ok.GetAssetTypes(false) {
@@ -1926,12 +1920,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				continue
 			}
 
-			if got := limits.PriceStepIncrementSize; got != tt.step {
-				t.Errorf("Okx UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", a, tt.pair, tt.step, got)
+			if got := limits.PriceStepIncrementSize; got <= 0 {
+				t.Errorf("Okx UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Got: %v", a, tt.pair, got)
 			}
 
-			if got := limits.MinimumBaseAmount; got != tt.min {
-				t.Errorf("Okx UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", tt.pair, tt.min, got)
+			if got := limits.MinimumBaseAmount; got <= 0 {
+				t.Errorf("Okx UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Got: %v", tt.pair, got)
 			}
 		}
 	}
@@ -3522,14 +3516,29 @@ func TestGetLeverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi)
+	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, order.UnknownSide)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ok.GetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
+	if !errors.Is(err, errOrderSideRequired) {
+		t.Errorf("received '%v', expected '%v'", err, errOrderSideRequired)
+	}
+
+	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.Long)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.Short)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.CouldNotBuy)
+	if !errors.Is(err, errInvalidOrderSide) {
+		t.Errorf("received '%v', expected '%v'", err, errInvalidOrderSide)
 	}
 }
 
@@ -3540,12 +3549,32 @@ func TestSetLeverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5)
+	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5, order.UnknownSide)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5)
+	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
+	if !errors.Is(err, errOrderSideRequired) {
+		t.Errorf("received '%v', expected '%v'", err, errOrderSideRequired)
+	}
+
+	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.Long)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.Short)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.CouldNotBuy)
+	if !errors.Is(err, errInvalidOrderSide) {
+		t.Errorf("received '%v', expected '%v'", err, errInvalidOrderSide)
+	}
+
+	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}

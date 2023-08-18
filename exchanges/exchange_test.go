@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -2995,7 +2996,7 @@ func TestChangePositionMargin(t *testing.T) {
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1)
+	err := b.SetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -3004,7 +3005,7 @@ func TestSetLeverage(t *testing.T) {
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
+	_, err := b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}

@@ -361,7 +361,7 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 // to do the bare minimum required with no API calls or credentials required
 func (f fExchange) UpdateAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
 	if a == asset.Futures {
-		return account.Holdings{}, errAssetTypeDisabled
+		return account.Holdings{}, asset.ErrNotSupported
 	}
 	return account.Holdings{
 		Exchange: f.GetName(),
@@ -1278,8 +1278,8 @@ func TestUpdateAccountInfo(t *testing.T) {
 	}
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
-	if !errors.Is(err, errAssetTypeDisabled) {
-		t.Errorf("received '%v', expected '%v'", err, errAssetTypeDisabled)
+	if !errors.Is(err, currency.ErrAssetNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, currency.ErrAssetNotFound)
 	}
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
@@ -1512,8 +1512,8 @@ func TestCheckVars(t *testing.T) {
 	e.SetEnabled(true)
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errAssetTypeDisabled) {
-		t.Errorf("expected %v, got %v", errAssetTypeDisabled, err)
+	if !errors.Is(err, currency.ErrPairManagerNotInitialised) {
+		t.Errorf("expected %v, got %v", currency.ErrPairManagerNotInitialised, err)
 	}
 
 	fmt1 := currency.PairStore{
@@ -3885,7 +3885,7 @@ func TestGetLeverage(t *testing.T) {
 
 	req.OrderSide = "lol"
 	_, err = s.GetLeverage(context.Background(), req)
-	if !errors.Is(err, order.erru) {
+	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Error(err)
 	}
 

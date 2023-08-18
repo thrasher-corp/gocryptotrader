@@ -2737,7 +2737,6 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
 	tests := map[asset.Item]currency.Pair{
 		asset.Spot:   currency.NewPair(currency.BTC, currency.USDT),
 		asset.Margin: currency.NewPair(currency.ETH, currency.BTC),
@@ -3077,7 +3076,6 @@ func TestGetPositionSummary(t *testing.T) {
 
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
 		Asset:                     asset.USDTMarginedFutures,
@@ -3131,7 +3129,7 @@ func TestSetMarginType(t *testing.T) {
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetLeverage(context.Background(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), 0)
+	_, err := b.GetLeverage(context.Background(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), 0, order.UnknownSide)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3140,11 +3138,11 @@ func TestGetLeverage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetLeverage(context.Background(), asset.CoinMarginedFutures, p, 0)
+	_, err = b.GetLeverage(context.Background(), asset.CoinMarginedFutures, p, 0, order.UnknownSide)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSDT(), 0)
+	_, err = b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSDT(), 0, order.UnknownSide)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
@@ -3153,7 +3151,7 @@ func TestGetLeverage(t *testing.T) {
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	err := b.SetLeverage(context.Background(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Multi, 5)
+	err := b.SetLeverage(context.Background(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Multi, 5, order.UnknownSide)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3162,11 +3160,11 @@ func TestSetLeverage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.SetLeverage(context.Background(), asset.CoinMarginedFutures, p, margin.Multi, 5)
+	err = b.SetLeverage(context.Background(), asset.CoinMarginedFutures, p, margin.Multi, 5, order.UnknownSide)
 	if err != nil {
 		t.Error(err)
 	}
-	err = b.SetLeverage(context.Background(), asset.Spot, p, margin.Multi, 5)
+	err = b.SetLeverage(context.Background(), asset.Spot, p, margin.Multi, 5, order.UnknownSide)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}

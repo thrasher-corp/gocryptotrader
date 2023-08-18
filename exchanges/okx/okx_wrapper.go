@@ -2014,12 +2014,12 @@ func (ok *Okx) SetLeverage(ctx context.Context, item asset.Item, pair currency.P
 	switch item {
 	case asset.Futures, asset.PerpetualSwap:
 		if marginType == margin.Isolated {
-			switch orderSide {
-			case order.UnknownSide:
+			switch {
+			case orderSide == order.UnknownSide:
 				return errOrderSideRequired
-			case order.Long:
+			case orderSide.IsLong():
 				posSide = "long"
-			case order.Short:
+			case orderSide.IsShort():
 				posSide = "short"
 			default:
 				return fmt.Errorf("%w %v requires long/short", errInvalidOrderSide, orderSide)
@@ -2051,10 +2051,10 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 	switch item {
 	case asset.Futures, asset.PerpetualSwap:
 		if marginType == margin.Isolated {
-			switch orderSide {
-			case order.UnknownSide:
+			switch {
+			case orderSide == order.UnknownSide:
 				return 0, errOrderSideRequired
-			case order.Long, order.Short:
+			case orderSide.IsLong(), orderSide.IsShort():
 				inspectLeverage = true
 			default:
 				return 0, fmt.Errorf("%w %v requires long/short", errInvalidOrderSide, orderSide)
