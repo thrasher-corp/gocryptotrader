@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -952,11 +953,11 @@ func TestCancelAllTradeOrders(t *testing.T) {
 func TestGetTradeOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetTradeOrderHistory(context.Background(), "", "", "", "", "", "", "", "", "", time.Now().Add(-time.Hour*24*20), time.Now(), 100)
+	_, err := b.GetTradeOrderHistory(context.Background(), "", "", "", "", "", "", "", "", "", time.Now().Add(-time.Hour*24*6), time.Now(), 100)
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
 	}
-	_, err = b.GetTradeOrderHistory(context.Background(), "spot", spotTradablePair.String(), "", "", "BTC", "", "StopOrder", "", "", time.Now().Add(-time.Hour*24*20), time.Now(), 100)
+	_, err = b.GetTradeOrderHistory(context.Background(), "spot", spotTradablePair.String(), "", "", "BTC", "", "StopOrder", "", "", time.Now().Add(-time.Hour*24*6), time.Now(), 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1572,8 +1573,7 @@ func TestResetMMP(t *testing.T) {
 
 func TestGetMMPState(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	b.Verbose = true
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetMMPState(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
@@ -2638,5 +2638,36 @@ func TestPushData(t *testing.T) {
 		if err != nil {
 			t.Errorf("%s: %v", x, err)
 		}
+	}
+}
+
+func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	t.Parallel()
+	var feeBuilder = &exchange.FeeBuilder{
+		Amount:              1,
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		Pair:                spotTradablePair,
+		PurchasePrice:       1,
+		FiatCurrency:        currency.USD,
+		BankTransactionType: exchange.WireTransfer,
+	}
+	_, err := b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.Pair = optionsTradablePair
+	_, err = b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.Pair = linearTradablePair
+	_, err = b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feeBuilder.Pair = inverseTradablePair
+	_, err = b.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

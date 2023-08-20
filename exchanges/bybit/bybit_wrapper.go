@@ -1222,11 +1222,61 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (by *Bybit) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float64, error) {
-	// TODO: Upgrade from v1 spot API
-	// TODO: give FeeBuilder asset property to distinguish between endpoints
-	// results, err := by.GetFeeRate(ctx, feeBuilder.Pair)
-	return 0, common.ErrFunctionNotSupported
+func (by *Bybit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder.Pair.IsEmpty() {
+		return 0, currency.ErrCurrencyPairEmpty
+	}
+	if (!by.AreCredentialsValid(ctx) || by.SkipAuthCheck) &&
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	switch feeBuilder.FeeType {
+	case exchange.OfflineTradeFee:
+		return getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount), nil
+	default:
+		assets := by.getCategoryFromPair(feeBuilder.Pair)
+		var err error
+		var baseCoin, pairString string
+		if assets[0] == asset.Options {
+			baseCoin = feeBuilder.Pair.Base.String()
+		} else {
+			pairString, err = by.FormatSymbol(feeBuilder.Pair, assets[0])
+			if err != nil {
+				return 0, err
+			}
+		}
+		results, err := by.GetFeeRate(ctx, getCategoryName(assets[0]), pairString, baseCoin)
+		if err != nil {
+			return 0, err
+		}
+		if len(results) == 0 {
+			return 0, fmt.Errorf("no fee builder found for currency pair %s", pairString)
+		}
+		if feeBuilder.IsMaker {
+			return results[0].Maker.Float64() * feeBuilder.Amount, nil
+		}
+		return results[0].Taker.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
+	}
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.01 * price * amount
+}
+
+func (by *Bybit) getCategoryFromPair(pair currency.Pair) []asset.Item {
+	assets := by.GetAssetTypes(true)
+	containingAssets := make([]asset.Item, 0, len(assets))
+	for a := range assets {
+		pairs, err := by.GetAvailablePairs(assets[a])
+		if err != nil {
+			continue
+		}
+		if pairs.Contains(pair, true) {
+			containingAssets = append(containingAssets, assets[a])
+		}
+	}
+	return containingAssets
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper

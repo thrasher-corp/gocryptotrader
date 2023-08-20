@@ -1259,6 +1259,9 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 	if !common.StringDataContains(validCategory, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
 	}
+	if category != "" {
+		params.Set("category", category)
+	}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
