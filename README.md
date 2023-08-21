@@ -144,13 +144,13 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 682 |
-| [shazbert](https://github.com/shazbert) | 298 |
-| [gloriousCode](https://github.com/gloriousCode) | 216 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 200 |
+| [shazbert](https://github.com/shazbert) | 299 |
+| [gloriousCode](https://github.com/gloriousCode) | 217 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 202 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [gbjk](https://github.com/gbjk) | 24 |
+| [gbjk](https://github.com/gbjk) | 26 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
@@ -174,9 +174,11 @@ Binaries will be published once the codebase reaches a stable condition.
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
+| [gam-phon](https://github.com/gam-phon) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
+| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
 | [tk42](https://github.com/tk42) | 2 |

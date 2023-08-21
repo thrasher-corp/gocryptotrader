@@ -179,6 +179,11 @@ func main() {
 				Contributions: 2,
 			},
 			{
+				Login:         "gam-phon",
+				URL:           "https://github.com/gam-phon",
+				Contributions: 2,
+			},
+			{
 				Login:         "herenow",
 				URL:           "https://github.com/herenow",
 				Contributions: 2,
@@ -191,6 +196,11 @@ func main() {
 			{
 				Login:         "lozdog245",
 				URL:           "https://github.com/lozdog245",
+				Contributions: 2,
+			},
+			{
+				Login:         "MarkDzulko",
+				URL:           "https://github.com/MarkDzulko",
 				Contributions: 2,
 			},
 			{
