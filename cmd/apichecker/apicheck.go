@@ -64,7 +64,7 @@ const (
 	createCard           = "UpdatesCard"
 	createChecklist      = "UpdatesChecklist"
 	btcMarkets           = "BTC Markets"
-	okcoin               = "OkCoin International"
+	okcoin               = "Okcoin"
 )
 
 var (
