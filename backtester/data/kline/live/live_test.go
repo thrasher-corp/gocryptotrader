@@ -38,7 +38,7 @@ func TestLoadCandles(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	data, err = LoadData(context.Background(), time.Now(), exch, common.DataCandle, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
+	data, err = LoadData(context.Background(), time.Now().Add(-interval.Duration()*10), exch, common.DataCandle, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,8 +73,8 @@ func TestLoadTrades(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	// start is 5 mins in the past to ensure there are some trades to pull from the exchange
-	start := time.Now().Add(-time.Minute * 5)
+	// start is 10 mins in the past to ensure there are some trades to pull from the exchange
+	start := time.Now().Add(-time.Minute * 10)
 	data, err = LoadData(context.Background(), start, exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if err != nil {
 		t.Fatal(err)
