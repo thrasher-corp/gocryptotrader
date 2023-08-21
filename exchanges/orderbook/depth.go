@@ -716,7 +716,7 @@ func (d *Depth) GetImbalance() (float64, error) {
 }
 
 // GetTranches returns the desired tranche for the required depth count. If
-// count is 0, it will return the entire orderbook. Count == 1 will retreive the
+// count is 0, it will return the entire orderbook. Count == 1 will retrieve the
 // best bid and ask. If the required count exceeds the orderbook depth, it will
 // return the entire orderbook.
 func (d *Depth) GetTranches(count int) (ask, bid []Item, err error) {
