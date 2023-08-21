@@ -41,3 +41,33 @@ const (
 	Yearly
 	Unknown
 )
+
+// String returns the string representation of the contract type
+func (c ContractType) String() string {
+	switch c {
+	case Perpetual:
+		return "perpetual"
+	case LongDated:
+		return "long_dated"
+	case Weekly:
+		return "weekly"
+	case Fortnightly:
+		return "fortnightly"
+	case Monthly:
+		return "monthly"
+	case Quarterly:
+		return "quarterly"
+	case SemiAnnually:
+		return "semi-annually"
+	case HalfYearly:
+		return "half-yearly"
+	case NineMonthly:
+		return "nine-monthly"
+	case Yearly:
+		return "yearly"
+	case Unknown:
+		return "unknown"
+	default:
+		return "unset"
+	}
+}

@@ -2277,23 +2277,29 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		resp := make([]futures.Contract, 0, len(ei.Symbols))
 		for i := range ei.Symbols {
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(ei.Symbols[i].Symbol)
+			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+			if len(splitter) != 2 {
+				return nil, fmt.Errorf("%w expected to split %v with %v", errUnexpectedPairFormat, ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+			}
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
 			if err != nil {
 				return nil, err
 			}
 
 			var ct futures.ContractType
+			var ed time.Time
 			if cp.Quote == currency.USDT || cp.Quote == currency.BUSD {
 				ct = futures.Perpetual
 			} else {
 				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
 			resp = append(resp, futures.Contract{
 				Name:           cp,
 				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
 				Asset:          item,
 				StartDate:      ei.Symbols[i].OnboardDate.Time(),
-				EndDate:        ei.Symbols[i].DeliveryDate.Time(),
+				EndDate:        ed,
 				IsActive:       ei.Symbols[i].Status == "TRADING",
 				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
 				Type:           ct,
@@ -2308,23 +2314,29 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		resp := make([]futures.Contract, 0, len(ei.Symbols))
 		for i := range ei.Symbols {
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(ei.Symbols[i].Symbol)
+			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+			if len(splitter) != 2 {
+				return nil, fmt.Errorf("%w expected to split %v with %v", errUnexpectedPairFormat, ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+			}
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
 			if err != nil {
 				return nil, err
 			}
 
 			var ct futures.ContractType
+			var ed time.Time
 			if cp.Quote == currency.PERP {
 				ct = futures.Perpetual
 			} else {
 				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
 			resp = append(resp, futures.Contract{
 				Name:           cp,
 				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
 				Asset:          item,
 				StartDate:      ei.Symbols[i].OnboardDate.Time(),
-				EndDate:        ei.Symbols[i].DeliveryDate.Time(),
+				EndDate:        ed,
 				IsActive:       ei.Symbols[i].ContractStatus == "TRADING",
 				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
 				Type:           ct,

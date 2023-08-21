@@ -1164,8 +1164,12 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		settlementCurrencies := make(currency.Currencies, len(marketSummary[i].AvailableSettlement))
 		var s, e time.Time
 		var ct futures.ContractType
-		s = time.UnixMilli(marketSummary[i].OpenTime)
-		e = time.UnixMilli(marketSummary[i].CloseTime)
+		if marketSummary[i].OpenTime > 0 {
+			s = time.UnixMilli(marketSummary[i].OpenTime)
+		}
+		if marketSummary[i].CloseTime > 0 {
+			e = time.UnixMilli(marketSummary[i].CloseTime)
+		}
 		if marketSummary[i].TimeBasedContract {
 			if e.Sub(s) > kline.OneMonth.Duration() {
 				ct = futures.Quarterly

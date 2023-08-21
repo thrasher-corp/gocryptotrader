@@ -2170,14 +2170,10 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	if err != nil {
 		return nil, err
 	}
-	linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
-	if err != nil {
-		return nil, err
-	}
 
-	resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
 	switch item {
 	case asset.CoinMarginedFutures:
+		resp := make([]futures.Contract, 0, len(inverseContracts.List))
 		for i := range inverseContracts.List {
 			if inverseContracts.List[i].SettleCoin == "USDT" || inverseContracts.List[i].SettleCoin == "USDC" {
 				continue
@@ -2199,19 +2195,44 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 			contractType := strings.ToLower(inverseContracts.List[i].ContractType)
 			var s, e time.Time
-			s = time.UnixMilli(int64(inverseContracts.List[i].LaunchTime.Float64()))
-			e = time.UnixMilli(int64(inverseContracts.List[i].DeliveryTime.Float64()))
+			if inverseContracts.List[i].LaunchTime > 0 {
+				s = time.UnixMilli(int64(inverseContracts.List[i].LaunchTime.Float64()))
+			}
+			if inverseContracts.List[i].DeliveryTime > 0 {
+				e = time.UnixMilli(int64(inverseContracts.List[i].DeliveryTime.Float64()))
+			}
 
 			var ct futures.ContractType
-			if contractType == "inverseperpetual" {
+			switch contractType {
+			case "linearperpetual":
 				ct = futures.Perpetual
-			} else if contractType == "inversefutures" {
+				fmt.Println(by.Name, item, cp, s, e)
+			case "linearfutures":
 				contractLength := e.Sub(s)
-				if contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration() {
+				switch {
+				case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Weekly
+				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Fortnightly
+				case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.Quarterly
+				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
 					ct = futures.HalfYearly
-				} else {
+				case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.NineMonthly
+				case contractLength > kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
 					ct = futures.SemiAnnually
+				default:
+					if by.Verbose {
+						log.Warnf(log.ExchangeSys, "%v unhandled contract length for %v %v %v-%v", by.Name, item, cp, s, e)
+					}
+					ct = futures.Unknown
 				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
 			}
 
 			resp = append(resp, futures.Contract{
@@ -2228,6 +2249,12 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		return resp, nil
 	case asset.USDCMarginedFutures:
+		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
+
 		var instruments []InstrumentInfo
 		for i := range linearContracts.List {
 			if linearContracts.List[i].SettleCoin != "USDC" {
@@ -2258,16 +2285,22 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 			contractType := strings.ToLower(instruments[i].ContractType)
 			var s, e time.Time
-			s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
-			e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
+			if instruments[i].LaunchTime > 0 {
+				s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
+			}
+			if instruments[i].DeliveryTime > 0 {
+				e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
+			}
 
 			var ct futures.ContractType
-			if contractType == "linearperpetual" {
+			switch contractType {
+			case "linearperpetual":
 				ct = futures.Perpetual
-			} else if contractType == "linearfutures" {
+				fmt.Println(by.Name, item, cp, s, e)
+			case "linearfutures":
 				contractLength := e.Sub(s)
 				switch {
-				case contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+				case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
 					ct = futures.Weekly
 				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
 					ct = futures.Fortnightly
@@ -2275,7 +2308,19 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					ct = futures.Quarterly
 				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
 					ct = futures.HalfYearly
+				case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.NineMonthly
+				default:
+					if by.Verbose {
+						log.Warnf(log.ExchangeSys, "%v unhandled contract length for %v %v %v-%v", by.Name, item, cp, s, e)
+					}
+					ct = futures.Unknown
 				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
 			}
 
 			resp = append(resp, futures.Contract{
@@ -2288,10 +2333,17 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDC},
 				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
 	case asset.USDTMarginedFutures:
+		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
+
 		var instruments []InstrumentInfo
 		for i := range linearContracts.List {
 			if linearContracts.List[i].SettleCoin != "USDT" {
@@ -2322,16 +2374,22 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 			contractType := strings.ToLower(instruments[i].ContractType)
 			var s, e time.Time
-			s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
-			e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
+			if instruments[i].LaunchTime > 0 {
+				s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
+			}
+			if instruments[i].DeliveryTime > 0 {
+				e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
+			}
 
 			var ct futures.ContractType
-			if contractType == "linearperpetual" {
+			switch contractType {
+			case "linearperpetual":
 				ct = futures.Perpetual
-			} else if contractType == "linearfutures" {
+				fmt.Println(by.Name, item, cp, s, e)
+			case "linearfutures":
 				contractLength := e.Sub(s)
 				switch {
-				case contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+				case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
 					ct = futures.Weekly
 				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
 					ct = futures.Fortnightly
@@ -2339,7 +2397,19 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					ct = futures.Quarterly
 				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
 					ct = futures.HalfYearly
+				case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.NineMonthly
+				default:
+					if by.Verbose {
+						log.Warnf(log.ExchangeSys, "%v unhandled contract length for %v %v %v-%v", by.Name, item, cp, s, e)
+					}
+					ct = futures.Unknown
 				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
 			}
 
 			resp = append(resp, futures.Contract{
@@ -2352,6 +2422,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDT},
 				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
