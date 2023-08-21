@@ -177,7 +177,7 @@ func (ll *linkedList) retrieve(count int) Items {
 		count = ll.length
 	}
 	depth := make(Items, count)
-	for i, tip := 0, ll.head; i < count; i, tip = i+1, tip.Next {
+	for i, tip := 0, ll.head; i < count && tip != nil; i, tip = i+1, tip.Next {
 		depth[i] = tip.Value
 	}
 	return depth
