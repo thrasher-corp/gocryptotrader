@@ -613,6 +613,7 @@ const (
 	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
 	pong                                   = "pong"
 	wsHeartbeat                            = "hb"
+	wsChecksum                             = "cs"
 	wsPositionSnapshot                     = "ps"
 	wsPositionNew                          = "pn"
 	wsPositionUpdate                       = "pu"
