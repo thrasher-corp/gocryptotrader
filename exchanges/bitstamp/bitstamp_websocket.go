@@ -254,7 +254,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		Bids:            make(orderbook.Items, len(update.Bids)),
 		Asks:            make(orderbook.Items, len(update.Asks)),
 		Pair:            p,
-		LastUpdated:     time.Unix(update.Timestamp, 0),
+		LastUpdated:     time.UnixMicro(update.Microtimestamp),
 		Asset:           assetType,
 		Exchange:        b.Name,
 		VerifyOrderbook: b.CanVerifyOrderbook,
@@ -309,6 +309,7 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			VerifyOrderbook: b.CanVerifyOrderbook,
 			Bids:            make(orderbook.Items, len(orderbookSeed.Bids)),
 			Asks:            make(orderbook.Items, len(orderbookSeed.Asks)),
+			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0),
 		}
 
 		for i := range orderbookSeed.Asks {

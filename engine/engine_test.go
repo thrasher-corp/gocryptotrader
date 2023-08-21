@@ -16,6 +16,7 @@ import (
 // blockedCIExchanges are exchanges that are not able to be tested on CI
 var blockedCIExchanges = []string{
 	"binance", // binance API is banned from executing within the US where github Actions is ran
+	"bybit",   // bybit API is banned from executing within the US where github Actions is ran
 }
 
 func isCITest() bool {
