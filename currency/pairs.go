@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	errSymbolEmpty = errors.New("symbol is empty")
-	errPairsEmpty  = errors.New("pairs are empty")
-	errNoDelimiter = errors.New("no delimiter was supplied")
+	errSymbolEmpty                = errors.New("symbol is empty")
+	errNoDelimiter                = errors.New("no delimiter was supplied")
+	errPairFormattingInconsistent = errors.New("pair formatting is inconsistent")
 
 	// ErrPairDuplication defines an error when there is multiple of the same
 	// currency pairs found.
@@ -136,7 +136,7 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 // original pairs list.
 func (p Pairs) ContainsAll(check Pairs, exact bool) error {
 	if len(check) == 0 {
-		return errPairsEmpty
+		return ErrCurrencyPairsEmpty
 	}
 
 	comparative := make(Pairs, len(p))
@@ -306,7 +306,7 @@ func (p Pairs) GetRandomPair() (Pair, error) {
 // delimiter is supplied.
 func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
 	if len(p) == 0 {
-		return EMPTYPAIR, errPairsEmpty
+		return EMPTYPAIR, ErrCurrencyPairsEmpty
 	}
 	if symbol == "" {
 		return EMPTYPAIR, errSymbolEmpty
@@ -441,4 +441,19 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 		target++
 	}
 	return formatted, nil
+}
+
+// GetFormatting returns the formatting of a set of pairs
+func (p Pairs) GetFormatting() (PairFormat, error) {
+	if len(p) == 0 {
+		return PairFormat{}, ErrCurrencyPairsEmpty
+	}
+	pFmt, err := p[0].GetFormatting()
+	if err != nil {
+		return PairFormat{}, err
+	}
+	if p.HasFormatDifference(pFmt) {
+		return PairFormat{}, errPairFormattingInconsistent
+	}
+	return pFmt, nil
 }

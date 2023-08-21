@@ -72,7 +72,7 @@ func TestLoadTrades(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	interval := gctkline.OneMin
-	tt1 := time.Now().Add(-time.Minute * 2).Round(interval.Duration())
+	tt1 := time.Now().Add(-time.Minute * 10).Round(interval.Duration())
 	tt2 := time.Now().Round(interval.Duration())
 	a := asset.Spot
 	var data *gctkline.Item

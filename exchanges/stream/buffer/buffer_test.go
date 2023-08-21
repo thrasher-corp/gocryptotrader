@@ -44,7 +44,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 		LastUpdated:      time.Now(),
 	}
 
-	newBook := make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	newBook := make(map[Key]*orderbookHolder)
 
 	ch := make(chan interface{})
 	go func(<-chan interface{}) { // reader
@@ -58,7 +58,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 		ob:           newBook,
 	}
 	err = holder.LoadSnapshot(book)
-	return
+	return holder, asks, bids, err
 }
 
 func bidAskGenerator() []orderbook.Item {
@@ -93,7 +93,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		holder := ob.ob[cp.Base][cp.Quote][asset.Spot]
+		holder := ob.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 		err = holder.updateByPrice(update)
 		if err != nil {
 			b.Fatal(err)
@@ -116,7 +116,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		holder := ob.ob[cp.Base][cp.Quote][asset.Spot]
+		holder := ob.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 		err = holder.updateByPrice(update)
 		if err != nil {
 			b.Fatal(err)
@@ -246,7 +246,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book := holder.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	err = book.updateByPrice(&orderbook.Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
@@ -302,7 +302,7 @@ func TestHittingTheBuffer(t *testing.T) {
 		}
 	}
 
-	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book := holder.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	askLen, err := book.ob.GetAskLength()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -350,7 +350,7 @@ func TestInsertWithIDs(t *testing.T) {
 		}
 	}
 
-	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book := holder.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	askLen, err := book.ob.GetAskLength()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -393,7 +393,7 @@ func TestSortIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book := holder.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	askLen, err := book.ob.GetAskLength()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -438,7 +438,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book := holder.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	cpy, err := book.ob.Retrieve()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -570,7 +570,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 func TestRunSnapshotWithNoData(t *testing.T) {
 	t.Parallel()
 	var obl Orderbook
-	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	obl.ob = make(map[Key]*orderbookHolder)
 	obl.dataHandler = make(chan interface{}, 1)
 	var snapShot1 orderbook.Base
 	snapShot1.Asset = asset.Spot
@@ -589,7 +589,7 @@ func TestLoadSnapshot(t *testing.T) {
 	t.Parallel()
 	var obl Orderbook
 	obl.dataHandler = make(chan interface{}, 100)
-	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	obl.ob = make(map[Key]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "SnapshotWithOverride"
 	asks := []orderbook.Item{
@@ -615,11 +615,11 @@ func TestFlushBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obl.ob[cp.Base][cp.Quote][asset.Spot] == nil {
+	if obl.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}] == nil {
 		t.Error("expected ob to have ask entries")
 	}
 	obl.FlushBuffer()
-	if obl.ob[cp.Base][cp.Quote][asset.Spot] != nil {
+	if obl.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}] != nil {
 		t.Error("expected ob be flushed")
 	}
 }
@@ -629,7 +629,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	t.Parallel()
 	var holder Orderbook
 	holder.dataHandler = make(chan interface{}, 100)
-	holder.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	holder.ob = make(map[Key]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
@@ -795,7 +795,7 @@ func TestGetOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bufferOb := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	bufferOb := holder.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	b, err := bufferOb.ob.Retrieve()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -888,7 +888,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 	}
 
 	asks := bidAskGenerator()
-	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book := holder.ob[Key{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	err = book.updateByPrice(&orderbook.Update{
 		Bids:       asks,
 		Asks:       asks,
