@@ -2126,7 +2126,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			var pair currency.Pair
 			pair, err = avail.DeriveFrom(pairsData[x].Name)
 			if err != nil {
-				log.Warnf(log.ExchangeSys, "unable to load limits for %v, pair data missing", pairsData[x].Name)
+				log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, pairsData[x].Name)
 				continue
 			}
 
