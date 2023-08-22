@@ -187,7 +187,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		var chanID int
 		if f, ok := d[0].(float64); !ok {
 			return common.GetTypeAssertError("float64", d[0], "chanID")
-		} else {
+		} else { //nolint:revive // using lexical variable requires else statement
 			chanID = int(f)
 		}
 
@@ -496,14 +496,14 @@ func (b *Bitfinex) handleWSChecksum(chanID int, d []interface{}) error {
 	var token int
 	if f, ok := d[2].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[2], "checksum")
-	} else {
+	} else { //nolint:revive // using lexical variable requires else statement
 		token = int(f)
 	}
 
 	var seqNo int64
 	if f, ok := d[3].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[3], "seqNo")
-	} else {
+	} else { //nolint:revive // using lexical variable requires else statement
 		seqNo = int64(f)
 	}
 
