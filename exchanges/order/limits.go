@@ -171,17 +171,17 @@ func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair
 
 	m1, ok := e.m[a]
 	if !ok {
-		return MinMaxLevel{}, errExchangeLimitAsset
+		return MinMaxLevel{}, fmt.Errorf("%w %v", errExchangeLimitAsset, a)
 	}
 
 	m2, ok := m1[cp.Base.Item]
 	if !ok {
-		return MinMaxLevel{}, errExchangeLimitBase
+		return MinMaxLevel{}, fmt.Errorf("%w %v", errExchangeLimitBase, cp.Base)
 	}
 
 	limit, ok := m2[cp.Quote.Item]
 	if !ok {
-		return MinMaxLevel{}, errExchangeLimitQuote
+		return MinMaxLevel{}, fmt.Errorf("%w %v", errExchangeLimitQuote, cp.Quote)
 	}
 
 	return limit, nil
@@ -242,9 +242,8 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 	}
 	if m.AmountStepIncrementSize != 0 {
 		dAmount := decimal.NewFromFloat(amount)
-		dMinAmount := decimal.NewFromFloat(m.MaximumBaseAmount)
 		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
-		if !dAmount.Sub(dMinAmount).Mod(dStep).IsZero() {
+		if !dAmount.Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrAmountExceedsStep,
 				m.AmountStepIncrementSize,

@@ -10,20 +10,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
-	exchangeName = "Bybit"
+	withdrawManagerTestExchangeName = "okx"
 )
 
 func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManager) {
 	t.Helper()
 	em := NewExchangeManager()
-	b := new(bybit.Bybit)
+	b := new(okx.Okx)
 	b.SetDefaults()
 	cfg, err := b.GetDefaultConfig(context.Background())
 	if err != nil {
@@ -72,9 +72,9 @@ func TestSubmitWithdrawal(t *testing.T) {
 	banking.AppendAccounts(bank)
 
 	req := &withdraw.Request{
-		Exchange:    exchangeName,
+		Exchange:    withdrawManagerTestExchangeName,
 		Currency:    currency.AUD,
-		Description: exchangeName,
+		Description: withdrawManagerTestExchangeName,
 		Amount:      1.0,
 		Type:        withdraw.Fiat,
 		Fiat: withdraw.FiatRequest{
@@ -112,7 +112,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrExchangeNotSupportedByAddress)
 	}
 
-	adds[0].SupportedExchanges = exchangeName
+	adds[0].SupportedExchanges = withdrawManagerTestExchangeName
 	_, err = m.SubmitWithdrawal(context.Background(), req)
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticationSupportNotEnabled)

@@ -107,8 +107,7 @@ const (
 	userAccountStream = "/api/v3/userDataStream"
 
 	// Other Consts
-	defaultRecvWindow      = 5 * time.Second
-	binanceUSAPITimeLayout = "2006-01-02 15:04:05"
+	defaultRecvWindow = 5 * time.Second
 
 	// recvWindowSize5000
 	recvWindowSize5000 = 5000

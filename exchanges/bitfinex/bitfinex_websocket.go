@@ -1402,6 +1402,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.PriceDuplication = true
 	book.IsFundingRate = fundingRate
 	book.VerifyOrderbook = b.CanVerifyOrderbook
+	book.LastUpdated = time.Now()
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
@@ -1409,10 +1410,11 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook, channelID int, sequenceNo int64, fundingRate bool) error {
 	orderbookUpdate := orderbook.Update{
-		Asset: assetType,
-		Pair:  p,
-		Bids:  make([]orderbook.Item, 0, len(book)),
-		Asks:  make([]orderbook.Item, 0, len(book)),
+		Asset:      assetType,
+		Pair:       p,
+		Bids:       make([]orderbook.Item, 0, len(book)),
+		Asks:       make([]orderbook.Item, 0, len(book)),
+		UpdateTime: time.Now(),
 	}
 
 	for i := range book {
@@ -1493,12 +1495,8 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{
-		wsBook,
-		wsTrades,
-		wsTicker,
-		wsCandles,
-	}
+	var wsPairFormat = currency.PairFormat{Uppercase: true}
+	var channels = []string{wsBook, wsTrades, wsTicker, wsCandles}
 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes(true)
@@ -1526,7 +1524,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					}
 					params["key"] = "trade:1m:" + prefix + enabledPairs[k].String() + fundingPeriod
 				} else {
-					params["symbol"] = enabledPairs[k].String()
+					params["symbol"] = wsPairFormat.Format(enabledPairs[k])
 				}
 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{

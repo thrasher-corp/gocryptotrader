@@ -502,7 +502,7 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 	}
 	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
 	for i := range withdrawals {
-		tm, err := time.Parse(binanceUSAPITimeLayout, withdrawals[i].ApplyTime)
+		tm, err := time.Parse(time.DateTime, withdrawals[i].ApplyTime)
 		if err != nil {
 			return nil, err
 		}
@@ -595,7 +595,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	if s.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
 	}
-	if s.Side == order.Buy {
+	if s.Side.IsLong() {
 		sideType = order.Buy.String()
 	} else {
 		sideType = order.Sell.String()

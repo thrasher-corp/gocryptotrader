@@ -30,7 +30,7 @@ type Config struct {
 // Orderbook defines a local cache of orderbooks for amending, appending
 // and deleting changes and updates the main store for a stream
 type Orderbook struct {
-	ob                    map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder
+	ob                    map[Key]*orderbookHolder
 	obBufferLimit         int
 	bufferEnabled         bool
 	sortBuffer            bool
@@ -47,7 +47,12 @@ type Orderbook struct {
 	checksum func(state *orderbook.Base, checksum uint32) error
 
 	publishPeriod time.Duration
-	m             sync.Mutex
+
+	// TODO: sync.RWMutex. For the moment we process the orderbook in a single
+	// thread. In future when there are workers directly involved this can be
+	// can be improved with RW mechanics which will allow updates to occur at
+	// the same time on different books.
+	mtx sync.Mutex
 }
 
 // orderbookHolder defines a store of pending updates and a pointer to the
@@ -61,4 +66,11 @@ type orderbookHolder struct {
 	// currency.
 	ticker   *time.Ticker
 	updateID int64
+}
+
+// Key defines a unique orderbook key for a specific pair and asset
+type Key struct {
+	Base  *currency.Item
+	Quote *currency.Item
+	Asset asset.Item
 }

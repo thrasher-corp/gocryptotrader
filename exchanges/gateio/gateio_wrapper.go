@@ -210,6 +210,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:  g.GenerateDefaultSubscriptions,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
 		Features:               &g.Features.Supports.WebsocketCapabilities,
+		FillsFeed:              g.Features.Enabled.FillsFeed,
+		TradeFeed:              g.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
@@ -331,20 +333,16 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			return nil, err
 		}
 		for x := range tickers {
-			if tickers[x].Name != fPair.String() {
+			if !tickers[x].Name.Equal(fPair) {
 				continue
 			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(strings.ReplaceAll(tickers[x].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
-			if err != nil {
-				return nil, err
-			}
-			cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
+			cleanQuote := strings.ReplaceAll(tickers[x].Name.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter)
+			tickers[x].Name.Quote = currency.NewCode(cleanQuote)
 			if err != nil {
 				return nil, err
 			}
 			tickerData = &ticker.Price{
-				Pair:         cp,
+				Pair:         tickers[x].Name,
 				Last:         tickers[x].LastPrice.Float64(),
 				Bid:          tickers[x].Bid1Price,
 				Ask:          tickers[x].Ask1Price,
@@ -644,17 +642,13 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			for x := range tickers {
-				currencyPair, err := currency.NewPairFromString(tickers[x].Name)
-				if err != nil {
-					return err
-				}
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tickers[x].LastPrice.Float64(),
 					Ask:          tickers[x].Ask1Price,
 					AskSize:      tickers[x].Ask1Size,
 					Bid:          tickers[x].Bid1Price,
 					BidSize:      tickers[x].Bid1Size,
-					Pair:         currencyPair,
+					Pair:         tickers[x].Name,
 					ExchangeName: g.Name,
 					AssetType:    a,
 				})
@@ -724,20 +718,20 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		VerifyOrderbook: g.CanVerifyOrderbook,
 		Pair:            p.Upper(),
 		LastUpdateID:    orderbookNew.ID,
-		LastUpdated:     orderbookNew.Update,
+		LastUpdated:     orderbookNew.Update.Time(),
 	}
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price,
+			Price:  orderbookNew.Bids[x].Price.Float64(),
 		}
 	}
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price,
+			Price:  orderbookNew.Asks[x].Price.Float64(),
 		}
 	}
 	err = book.Process()
@@ -1017,15 +1011,11 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 	var orderTypeFormat string
-	switch s.Side {
-	case order.Buy:
+	switch {
+	case s.Side.IsLong():
 		orderTypeFormat = order.Buy.Lower()
-	case order.Sell:
+	case s.Side.IsShort():
 		orderTypeFormat = order.Sell.Lower()
-	case order.Bid:
-		orderTypeFormat = order.Bid.Lower()
-	case order.Ask:
-		orderTypeFormat = order.Ask.Lower()
 	default:
 		return nil, errInvalidOrderSide
 	}
@@ -1994,4 +1984,59 @@ func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bo
 		return false, err
 	}
 	return availables.Contains(instrument, true), nil
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !g.SupportsAsset(a) {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	avail, err := g.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		var pairsData []CurrencyPairDetail
+		pairsData, err := g.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		for x := range pairsData {
+			if pairsData[x].TradeStatus == "untradable" {
+				continue
+			}
+			var pair currency.Pair
+			pair, err = avail.DeriveFrom(strings.ReplaceAll(pairsData[x].ID, "_", ""))
+			if err != nil {
+				return err
+			}
+
+			// Minimum base amounts are not always provided this will default to
+			// precision for base deployment. This can't be done for quote.
+			minBaseAmount := pairsData[x].MinBaseAmount.Float64()
+			if minBaseAmount == 0 {
+				minBaseAmount = math.Pow10(-int(pairsData[x].AmountPrecision))
+			}
+
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                   a,
+				Pair:                    pair,
+				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[x].Precision)),
+				AmountStepIncrementSize: math.Pow10(-int(pairsData[x].AmountPrecision)),
+				MinimumBaseAmount:       minBaseAmount,
+				MinimumQuoteAmount:      pairsData[x].MinQuoteAmount.Float64(),
+			})
+		}
+	default:
+		// TODO: Add in other assets
+		return fmt.Errorf("%s %w", a, common.ErrNotYetImplemented)
+	}
+
+	return g.LoadLimits(limits)
 }
