@@ -32,21 +32,15 @@ const (
 )
 
 var (
-	createdCounter = 0
-	removedCounter = 0
-	// DefaultSyncerWorkers limits the number of sync workers
-	DefaultSyncerWorkers = 15
-	// DefaultSyncerTimeoutREST the default time to switch from REST to websocket protocols without a response
-	DefaultSyncerTimeoutREST = time.Second * 15
-	// DefaultSyncerTimeoutWebsocket the default time to switch from websocket to REST protocols without a response
-	DefaultSyncerTimeoutWebsocket = time.Minute
-	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
-	errUnknownSyncItem            = errors.New("unknown sync item")
-	errCouldNotSyncNewData        = errors.New("could not sync new data")
+	createdCounter         = 0
+	removedCounter         = 0
+	errNoSyncItemsEnabled  = errors.New("no sync items enabled")
+	errUnknownSyncItem     = errors.New("unknown sync item")
+	errCouldNotSyncNewData = errors.New("could not sync new data")
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
-func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
+func setupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
 	if c == nil {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}
@@ -62,15 +56,15 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 	}
 
 	if c.NumWorkers <= 0 {
-		c.NumWorkers = DefaultSyncerWorkers
+		c.NumWorkers = config.DefaultSyncerWorkers
 	}
 
 	if c.TimeoutREST <= time.Duration(0) {
-		c.TimeoutREST = DefaultSyncerTimeoutREST
+		c.TimeoutREST = config.DefaultSyncerTimeoutREST
 	}
 
 	if c.TimeoutWebsocket <= time.Duration(0) {
-		c.TimeoutWebsocket = DefaultSyncerTimeoutWebsocket
+		c.TimeoutWebsocket = config.DefaultSyncerTimeoutWebsocket
 	}
 
 	if c.FiatDisplayCurrency.IsEmpty() {
@@ -196,19 +190,25 @@ func (m *syncManager) Start() error {
 	}
 
 	if atomic.CompareAndSwapInt32(&m.initSyncStarted, 0, 1) {
-		log.Debugf(log.SyncMgr,
-			"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
-			createdCounter)
+		if m.config.LogInitialSyncEvents {
+			log.Debugf(log.SyncMgr,
+				"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
+				createdCounter)
+		}
 		m.initSyncStartTime = time.Now()
 	}
 
 	go func() {
 		m.initSyncWG.Wait()
 		if atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
+			if m.config.LogInitialSyncEvents {
+				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
+			}
 			completedTime := time.Now()
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
-				completedTime.Sub(m.initSyncStartTime), createdCounter)
+			if m.config.LogInitialSyncEvents {
+				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
+					completedTime.Sub(m.initSyncStartTime), createdCounter)
+			}
 
 			if !m.config.SynchronizeContinuously {
 				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
@@ -382,13 +382,15 @@ func (m *syncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 	if !s.IsUsingWebsocket {
 		s.IsUsingWebsocket = true
 		s.IsUsingREST = false
-		log.Warnf(log.SyncMgr,
-			"%s %s %s: %s Websocket re-enabled, switching from rest to websocket",
-			c.Exchange,
-			m.FormatCurrency(c.Pair),
-			strings.ToUpper(c.AssetType.String()),
-			syncType,
-		)
+		if m.config.LogSwitchProtocolEvents {
+			log.Warnf(log.SyncMgr,
+				"%s %s %s: %s Websocket re-enabled, switching from rest to websocket",
+				c.Exchange,
+				m.FormatCurrency(c.Pair),
+				strings.ToUpper(c.AssetType.String()),
+				syncType,
+			)
+		}
 	}
 
 	return m.update(c, syncType, err)
@@ -410,12 +412,14 @@ func (m *syncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 	s.HaveData = true
 	if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
 		removedCounter++
-		log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
-			c.Exchange,
-			syncType,
-			m.FormatCurrency(c.Pair),
-			removedCounter,
-			createdCounter)
+		if m.config.LogInitialSyncEvents {
+			log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
+				c.Exchange,
+				syncType,
+				m.FormatCurrency(c.Pair),
+				removedCounter,
+				createdCounter)
+		}
 		m.initSyncWG.Done()
 	}
 
@@ -532,13 +536,15 @@ func (m *syncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 		// Downgrade to REST
 		s.IsUsingWebsocket = false
 		s.IsUsingREST = true
-		log.Warnf(log.SyncMgr,
-			"%s %s %s: No ticker update after %s, switching from websocket to rest",
-			c.Exchange,
-			m.FormatCurrency(c.Pair),
-			strings.ToUpper(c.AssetType.String()),
-			m.config.TimeoutWebsocket,
-		)
+		if m.config.LogSwitchProtocolEvents {
+			log.Warnf(log.SyncMgr,
+				"%s %s %s: No ticker update after %s, switching from websocket to rest",
+				c.Exchange,
+				m.FormatCurrency(c.Pair),
+				strings.ToUpper(c.AssetType.String()),
+				m.config.TimeoutWebsocket,
+			)
+		}
 	}
 
 	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.TimeoutREST {
@@ -605,13 +611,15 @@ func (m *syncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExc
 		// Downgrade to REST
 		s.IsUsingWebsocket = false
 		s.IsUsingREST = true
-		log.Warnf(log.SyncMgr,
-			"%s %s %s: No orderbook update after %s, switching from websocket to rest",
-			c.Exchange,
-			m.FormatCurrency(c.Pair).String(),
-			strings.ToUpper(c.AssetType.String()),
-			m.config.TimeoutWebsocket,
-		)
+		if m.config.LogSwitchProtocolEvents {
+			log.Warnf(log.SyncMgr,
+				"%s %s %s: No orderbook update after %s, switching from websocket to rest",
+				c.Exchange,
+				m.FormatCurrency(c.Pair).String(),
+				strings.ToUpper(c.AssetType.String()),
+				m.config.TimeoutWebsocket,
+			)
+		}
 	}
 
 	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.TimeoutREST {
@@ -706,6 +714,9 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 
 	// ignoring error as not all tickers have volume populated and error is not actionable
 	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	if !m.config.LogSyncUpdateEvents {
+		return
+	}
 
 	if result.Pair.Quote.IsFiatCurrency() &&
 		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
@@ -795,7 +806,9 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 			err)
 		return
 	}
-
+	if !m.config.LogSyncUpdateEvents {
+		return
+	}
 	bidsAmount, bidsValue := result.TotalBidsAmount()
 	asksAmount, asksValue := result.TotalAsksAmount()
 

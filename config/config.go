@@ -696,6 +696,56 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 	return pairs.Format(pairFormat), nil
 }
 
+// GetDefaultSyncManagerConfig returns a config with default values
+func GetDefaultSyncManagerConfig() SyncManagerConfig {
+	return SyncManagerConfig{
+		Enabled:                 true,
+		SynchronizeTicker:       true,
+		SynchronizeOrderbook:    true,
+		SynchronizeTrades:       true,
+		SynchronizeContinuously: true,
+		TimeoutREST:             DefaultSyncerTimeoutREST,
+		TimeoutWebsocket:        DefaultSyncerTimeoutWebsocket,
+		NumWorkers:              DefaultSyncerWorkers,
+		FiatDisplayCurrency:     currency.USD,
+		PairFormatDisplay: &currency.PairFormat{
+			Delimiter: "-",
+			Uppercase: true,
+		},
+		Verbose:                 false,
+		LogSyncUpdateEvents:     true,
+		LogSwitchProtocolEvents: true,
+		LogInitialSyncEvents:    true,
+	}
+}
+
+// CheckSyncManagerConfig checks config for valid values
+// sets defaults if values are invalid
+func (c *Config) CheckSyncManagerConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.SyncManagerConfig == (SyncManagerConfig{}) {
+		c.SyncManagerConfig = GetDefaultSyncManagerConfig()
+		return
+	}
+	if c.SyncManagerConfig.TimeoutWebsocket <= 0 {
+		log.Warnf(log.ConfigMgr, "invalid sync manager websocket timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutWebsocket, DefaultSyncerTimeoutWebsocket)
+		c.SyncManagerConfig.TimeoutWebsocket = DefaultSyncerTimeoutWebsocket
+	}
+	if c.SyncManagerConfig.PairFormatDisplay == nil {
+		log.Warnf(log.ConfigMgr, "invalid sync manager pair format value %v, defaulting to %v\n", c.SyncManagerConfig.PairFormatDisplay, c.CurrencyPairFormat)
+		c.SyncManagerConfig.PairFormatDisplay = c.CurrencyPairFormat
+	}
+	if c.SyncManagerConfig.TimeoutREST <= 0 {
+		log.Warnf(log.ConfigMgr, "invalid sync manager REST timeout value %v, defaulting to %v\n", c.SyncManagerConfig.PairFormatDisplay, c.CurrencyPairFormat)
+		c.SyncManagerConfig.TimeoutREST = DefaultSyncerTimeoutREST
+	}
+	if c.SyncManagerConfig.NumWorkers <= 0 {
+		log.Warnf(log.ConfigMgr, "invalid sync manager worker count value %v, defaulting to %v\n", c.SyncManagerConfig.PairFormatDisplay, DefaultSyncerWorkers)
+		c.SyncManagerConfig.NumWorkers = DefaultSyncerWorkers
+	}
+}
+
 // GetEnabledPairs returns a list of currency pairs for a specific exchange
 func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currency.Pairs, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
@@ -1730,6 +1780,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()
 	c.CheckRemoteControlConfig()
+	c.CheckSyncManagerConfig()
 
 	err = c.CheckCurrencyConfigValues()
 	if err != nil {

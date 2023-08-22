@@ -185,19 +185,33 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case SyncManagerName:
 		if enable {
 			if bot.currencyPairSyncer == nil {
-				exchangeSyncCfg := &SyncManagerConfig{
-					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
-					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
-					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
-					SynchronizeContinuously: bot.Settings.SyncContinuously,
-					TimeoutREST:             bot.Settings.SyncTimeoutREST,
-					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
-					NumWorkers:              bot.Settings.SyncWorkersCount,
-					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
-					Verbose:                 bot.Settings.Verbose,
+				cfg := bot.Config.SyncManagerConfig
+				if !bot.Settings.EnableTickerSyncing {
+					cfg.SynchronizeTicker = false
+				}
+				if !bot.Settings.EnableOrderbookSyncing {
+					cfg.SynchronizeOrderbook = false
+				}
+				if !bot.Settings.EnableTradeSyncing {
+					cfg.SynchronizeTrades = false
+				}
+				if !bot.Settings.SyncContinuously {
+					cfg.SynchronizeContinuously = false
+				}
+				if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST && bot.Settings.SyncTimeoutREST != config.DefaultSyncerTimeoutREST {
+					cfg.TimeoutREST = bot.Settings.SyncTimeoutREST
+				}
+				if cfg.TimeoutWebsocket != bot.Settings.SyncTimeoutWebsocket && bot.Settings.SyncTimeoutWebsocket != config.DefaultSyncerTimeoutWebsocket {
+					cfg.TimeoutWebsocket = bot.Settings.SyncTimeoutWebsocket
+				}
+				if cfg.NumWorkers != bot.Settings.SyncWorkersCount && bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
+					cfg.NumWorkers = bot.Settings.SyncWorkersCount
+				}
+				if bot.Settings.Verbose {
+					cfg.Verbose = true
 				}
 				bot.currencyPairSyncer, err = setupSyncManager(
-					exchangeSyncCfg,
+					&cfg,
 					bot.ExchangeManager,
 					&bot.Config.RemoteControl,
 					bot.Settings.EnableWebsocketRoutine)

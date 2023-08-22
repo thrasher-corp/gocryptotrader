@@ -2299,3 +2299,14 @@ func TestExchangeConfigValidate(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }
+
+func TestGetDefaultSyncManagerConfig(t *testing.T) {
+	t.Parallel()
+	cfg := GetDefaultSyncManagerConfig()
+	if cfg == (SyncManagerConfig{}) {
+		t.Error("expected config")
+	}
+	if cfg.TimeoutREST != DefaultSyncerTimeoutREST {
+		t.Errorf("expected %v, received %v", DefaultSyncerTimeoutREST, cfg.TimeoutREST)
+	}
+}
