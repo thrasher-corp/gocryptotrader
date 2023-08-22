@@ -492,18 +492,12 @@ func (bot *Engine) Start() error {
 
 	if bot.Config.SyncManagerConfig.Enabled && bot.Settings.EnableExchangeSyncManager {
 		cfg := bot.Config.SyncManagerConfig
-		if !bot.Settings.EnableTickerSyncing {
-			cfg.SynchronizeTicker = false
-		}
-		if !bot.Settings.EnableOrderbookSyncing {
-			cfg.SynchronizeOrderbook = false
-		}
-		if !bot.Settings.EnableTradeSyncing {
-			cfg.SynchronizeTrades = false
-		}
-		if !bot.Settings.SyncContinuously {
-			cfg.SynchronizeContinuously = false
-		}
+		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing && cfg.SynchronizeTicker
+		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing && cfg.SynchronizeOrderbook
+		cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing && cfg.SynchronizeTrades
+		cfg.SynchronizeContinuously = bot.Settings.SyncContinuously && cfg.SynchronizeContinuously
+		cfg.Verbose = bot.Settings.Verbose && cfg.Verbose
+
 		if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST &&
 			bot.Settings.SyncTimeoutREST != config.DefaultSyncerTimeoutREST {
 			cfg.TimeoutREST = bot.Settings.SyncTimeoutREST
@@ -515,9 +509,6 @@ func (bot *Engine) Start() error {
 		if cfg.NumWorkers != bot.Settings.SyncWorkersCount &&
 			bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
 			cfg.NumWorkers = bot.Settings.SyncWorkersCount
-		}
-		if bot.Settings.Verbose {
-			cfg.Verbose = true
 		}
 		if s, err := setupSyncManager(
 			&cfg,

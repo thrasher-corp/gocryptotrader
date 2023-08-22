@@ -186,29 +186,23 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		if enable {
 			if bot.currencyPairSyncer == nil {
 				cfg := bot.Config.SyncManagerConfig
-				if !bot.Settings.EnableTickerSyncing {
-					cfg.SynchronizeTicker = false
-				}
-				if !bot.Settings.EnableOrderbookSyncing {
-					cfg.SynchronizeOrderbook = false
-				}
-				if !bot.Settings.EnableTradeSyncing {
-					cfg.SynchronizeTrades = false
-				}
-				if !bot.Settings.SyncContinuously {
-					cfg.SynchronizeContinuously = false
-				}
-				if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST && bot.Settings.SyncTimeoutREST != config.DefaultSyncerTimeoutREST {
+				cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing && cfg.SynchronizeTicker
+				cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing && cfg.SynchronizeOrderbook
+				cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing && cfg.SynchronizeTrades
+				cfg.SynchronizeContinuously = bot.Settings.SyncContinuously && cfg.SynchronizeContinuously
+				cfg.Verbose = bot.Settings.Verbose && cfg.Verbose
+
+				if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST &&
+					bot.Settings.SyncTimeoutREST != config.DefaultSyncerTimeoutREST {
 					cfg.TimeoutREST = bot.Settings.SyncTimeoutREST
 				}
-				if cfg.TimeoutWebsocket != bot.Settings.SyncTimeoutWebsocket && bot.Settings.SyncTimeoutWebsocket != config.DefaultSyncerTimeoutWebsocket {
+				if cfg.TimeoutWebsocket != bot.Settings.SyncTimeoutWebsocket &&
+					bot.Settings.SyncTimeoutWebsocket != config.DefaultSyncerTimeoutWebsocket {
 					cfg.TimeoutWebsocket = bot.Settings.SyncTimeoutWebsocket
 				}
-				if cfg.NumWorkers != bot.Settings.SyncWorkersCount && bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
+				if cfg.NumWorkers != bot.Settings.SyncWorkersCount &&
+					bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
 					cfg.NumWorkers = bot.Settings.SyncWorkersCount
-				}
-				if bot.Settings.Verbose {
-					cfg.Verbose = true
 				}
 				bot.currencyPairSyncer, err = setupSyncManager(
 					&cfg,
