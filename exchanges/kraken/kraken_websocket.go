@@ -551,12 +551,14 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 			}
 			for key, val := range result {
 				var oStatus order.Status
-				oStatus, err = order.StringToOrderStatus(val.Status)
-				if err != nil {
-					k.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: k.Name,
-						OrderID:  key,
-						Err:      err,
+				if val.Status != "" {
+					oStatus, err = order.StringToOrderStatus(val.Status)
+					if err != nil {
+						k.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: k.Name,
+							OrderID:  key,
+							Err:      err,
+						}
 					}
 				}
 				if val.Description.Price > 0 {

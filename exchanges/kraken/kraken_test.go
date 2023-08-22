@@ -1296,9 +1296,9 @@ func TestWsCancelAllOrders(t *testing.T) {
 func TestWsPong(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "event": "pong",
-  "reqid": 42
-}`)
+	  "event": "pong",
+	  "reqid": 42
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1308,11 +1308,11 @@ func TestWsPong(t *testing.T) {
 func TestWsSystemStatus(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "connectionID": 8628615390848610000,
-  "event": "systemStatus",
-  "status": "online",
-  "version": "1.0.0"
-}`)
+	  "connectionID": 8628615390848610000,
+	  "event": "systemStatus",
+	  "status": "online",
+	  "version": "1.0.0"
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1322,59 +1322,59 @@ func TestWsSystemStatus(t *testing.T) {
 func TestWsSubscriptionStatus(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "channelID": 10001,
-  "channelName": "ticker",
-  "event": "subscriptionStatus",
-  "pair": "XBT/EUR",
-  "status": "subscribed",
-  "subscription": {
-    "name": "ticker"
-  }
-}`)
+	  "channelID": 10001,
+	  "channelName": "ticker",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/EUR",
+	  "status": "subscribed",
+	  "subscription": {
+		"name": "ticker"
+	  }
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 
 	pressXToJSON = []byte(`{
-  "channelID": 10001,
-  "channelName": "ohlc-5",
-  "event": "subscriptionStatus",
-  "pair": "XBT/EUR",
-  "reqid": 42,
-  "status": "unsubscribed",
-  "subscription": {
-    "interval": 5,
-    "name": "ohlc"
-  }
-}`)
+	  "channelID": 10001,
+	  "channelName": "ohlc-5",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/EUR",
+	  "reqid": 42,
+	  "status": "unsubscribed",
+	  "subscription": {
+		"interval": 5,
+		"name": "ohlc"
+	  }
+	}`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 
 	pressXToJSON = []byte(`{
-  "channelName": "ownTrades",
-  "event": "subscriptionStatus",
-  "status": "subscribed",
-  "subscription": {
-    "name": "ownTrades"
-  }
-}`)
+	  "channelName": "ownTrades",
+	  "event": "subscriptionStatus",
+	  "status": "subscribed",
+	  "subscription": {
+		"name": "ownTrades"
+	  }
+	}`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`{
-  "errorMessage": "Subscription depth not supported",
-  "event": "subscriptionStatus",
-  "pair": "XBT/USD",
-  "status": "error",
-  "subscription": {
-    "depth": 42,
-    "name": "book"
-  }
-}`)
+	  "errorMessage": "Subscription depth not supported",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/USD",
+	  "status": "error",
+	  "subscription": {
+		"depth": 42,
+		"name": "book"
+	  }
+	}`)
 	err = k.wsHandleData(pressXToJSON)
 	if err == nil {
 		t.Error("Expected error")
@@ -1384,64 +1384,64 @@ func TestWsSubscriptionStatus(t *testing.T) {
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "channelID": 1337,
-  "channelName": "ticker",
-  "event": "subscriptionStatus",
-  "pair": "XBT/EUR",
-  "status": "subscribed",
-  "subscription": {
-    "name": "ticker"
-  }
-}`)
+	  "channelID": 1337,
+	  "channelName": "ticker",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/EUR",
+	  "status": "subscribed",
+	  "subscription": {
+		"name": "ticker"
+	  }
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`[
-  1337,
-  {
-    "a": [
-      "5525.40000",
-      1,
-      "1.000"
-    ],
-    "b": [
-      "5525.10000",
-      1,
-      "1.000"
-    ],
-    "c": [
-      "5525.10000",
-      "0.00398963"
-    ],
-    "h": [
-      "5783.00000",
-      "5783.00000"
-    ],
-    "l": [
-      "5505.00000",
-      "5505.00000"
-    ],
-    "o": [
-      "5760.70000",
-      "5763.40000"
-    ],
-    "p": [
-      "5631.44067",
-      "5653.78939"
-    ],
-    "t": [
-      11493,
-      16267
-    ],
-    "v": [
-      "2634.11501494",
-      "3591.17907851"
-    ]
-  },
-  "ticker",
-  "XBT/USD"
-]`)
+	  1337,
+	  {
+		"a": [
+		  "5525.40000",
+		  1,
+		  "1.000"
+		],
+		"b": [
+		  "5525.10000",
+		  1,
+		  "1.000"
+		],
+		"c": [
+		  "5525.10000",
+		  "0.00398963"
+		],
+		"h": [
+		  "5783.00000",
+		  "5783.00000"
+		],
+		"l": [
+		  "5505.00000",
+		  "5505.00000"
+		],
+		"o": [
+		  "5760.70000",
+		  "5763.40000"
+		],
+		"p": [
+		  "5631.44067",
+		  "5653.78939"
+		],
+		"t": [
+		  11493,
+		  16267
+		],
+		"v": [
+		  "2634.11501494",
+		  "3591.17907851"
+		]
+	  },
+	  "ticker",
+	  "XBT/USD"
+	]`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1451,35 +1451,35 @@ func TestWsTicker(t *testing.T) {
 func TestWsOHLC(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "channelID": 13337,
-  "channelName": "ohlc",
-  "event": "subscriptionStatus",
-  "pair": "XBT/EUR",
-  "status": "subscribed",
-  "subscription": {
-    "name": "ohlc"
-  }
-}`)
+	  "channelID": 13337,
+	  "channelName": "ohlc",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/EUR",
+	  "status": "subscribed",
+	  "subscription": {
+		"name": "ohlc"
+	  }
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`[
-  13337,
-  [
-    "1542057314.748456",
-    "1542057360.435743",
-    "3586.70000",
-    "3586.70000",
-    "3586.60000",
-    "3586.60000",
-    "3586.68894",
-    "0.03373000",
-    2
-  ],
-  "ohlc-5",
-  "XBT/USD"
-]`)
+	  13337,
+	  [
+		"1542057314.748456",
+		"1542057360.435743",
+		"3586.70000",
+		"3586.70000",
+		"3586.60000",
+		"3586.60000",
+		"3586.68894",
+		"0.03373000",
+		2
+	  ],
+	  "ohlc-5",
+	  "XBT/USD"
+	]`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1489,42 +1489,42 @@ func TestWsOHLC(t *testing.T) {
 func TestWsTrade(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "channelID": 133337,
-  "channelName": "trade",
-  "event": "subscriptionStatus",
-  "pair": "XBT/EUR",
-  "status": "subscribed",
-  "subscription": {
-    "name": "trade"
-  }
-}`)
+	  "channelID": 133337,
+	  "channelName": "trade",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/EUR",
+	  "status": "subscribed",
+	  "subscription": {
+		"name": "trade"
+	  }
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`[
-  133337,
-  [
-    [
-      "5541.20000",
-      "0.15850568",
-      "1534614057.321597",
-      "s",
-      "l",
-      ""
-    ],
-    [
-      "6060.00000",
-      "0.02455000",
-      "1534614057.324998",
-      "b",
-      "l",
-      ""
-    ]
-  ],
-  "trade",
-  "XBT/USD"
-]`)
+	  133337,
+	  [
+		[
+		  "5541.20000",
+		  "0.15850568",
+		  "1534614057.321597",
+		  "s",
+		  "l",
+		  ""
+		],
+		[
+		  "6060.00000",
+		  "0.02455000",
+		  "1534614057.324998",
+		  "b",
+		  "l",
+		  ""
+		]
+	  ],
+	  "trade",
+	  "XBT/USD"
+	]`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1534,31 +1534,31 @@ func TestWsTrade(t *testing.T) {
 func TestWsSpread(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "channelID": 1333337,
-  "channelName": "spread",
-  "event": "subscriptionStatus",
-  "pair": "XBT/EUR",
-  "status": "subscribed",
-  "subscription": {
-    "name": "spread"
-  }
-}`)
+	  "channelID": 1333337,
+	  "channelName": "spread",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/EUR",
+	  "status": "subscribed",
+	  "subscription": {
+		"name": "spread"
+	  }
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`[
-  1333337,
-  [
-    "5698.40000",
-    "5700.00000",
-    "1542057299.545897",
-    "1.01234567",
-    "0.98765432"
-  ],
-  "spread",
-  "XBT/USD"
-]`)
+	  1333337,
+	  [
+		"5698.40000",
+		"5700.00000",
+		"1542057299.545897",
+		"1.01234567",
+		"0.98765432"
+	  ],
+	  "spread",
+	  "XBT/USD"
+	]`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1568,173 +1568,173 @@ func TestWsSpread(t *testing.T) {
 func TestWsOrdrbook(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
-  "channelID": 13333337,
-  "channelName": "book",
-  "event": "subscriptionStatus",
-  "pair": "XBT/USD",
-  "status": "subscribed",
-  "subscription": {
-    "name": "book"
-  }
-}`)
+	  "channelID": 13333337,
+	  "channelName": "book",
+	  "event": "subscriptionStatus",
+	  "pair": "XBT/USD",
+	  "status": "subscribed",
+	  "subscription": {
+		"name": "book"
+	  }
+	}`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`[
-  13333337,
-  {
-    "as": [
-      [
-        "5541.30000",
-        "2.50700000",
-        "1534614248.123678"
-      ],
-      [
-        "5541.80000",
-        "0.33000000",
-        "1534614098.345543"
-      ],
-      [
-        "5542.70000",
-        "0.64700000",
-        "1534614244.654432"
-	  ],
-	  [
-        "5544.30000",
-        "2.50700000",
-        "1534614248.123678"
-      ],
-      [
-        "5545.80000",
-        "0.33000000",
-        "1534614098.345543"
-      ],
-      [
-        "5546.70000",
-        "0.64700000",
-        "1534614244.654432"
-	  ],
-	  [
-        "5547.70000",
-        "0.64700000",
-        "1534614244.654432"
-	  ],
-	  [
-        "5548.30000",
-        "2.50700000",
-        "1534614248.123678"
-      ],
-      [
-        "5549.80000",
-        "0.33000000",
-        "1534614098.345543"
-      ],
-      [
-        "5550.70000",
-        "0.64700000",
-        "1534614244.654432"
-	  ]
-    ],
-    "bs": [
-      [
-        "5541.20000",
-        "1.52900000",
-        "1534614248.765567"
-      ],
-      [
-        "5539.90000",
-        "0.30000000",
-        "1534614241.769870"
-      ],
-      [
-        "5539.50000",
-        "5.00000000",
-        "1534613831.243486"
-	  ],
-	  [
-        "5538.20000",
-        "1.52900000",
-        "1534614248.765567"
-      ],
-      [
-        "5537.90000",
-        "0.30000000",
-        "1534614241.769870"
-      ],
-      [
-        "5536.50000",
-        "5.00000000",
-        "1534613831.243486"
-	  ],
-	  [
-        "5535.20000",
-        "1.52900000",
-        "1534614248.765567"
-      ],
-      [
-        "5534.90000",
-        "0.30000000",
-        "1534614241.769870"
-      ],
-      [
-        "5533.50000",
-        "5.00000000",
-        "1534613831.243486"
-	  ],
-	  [
-        "5532.50000",
-        "5.00000000",
-        "1534613831.243486"
-	  ]
-    ]
-  },
-  "book-100",
-  "XBT/USD"
-]`)
+	  13333337,
+	  {
+		"as": [
+		  [
+			"5541.30000",
+			"2.50700000",
+			"1534614248.123678"
+		  ],
+		  [
+			"5541.80000",
+			"0.33000000",
+			"1534614098.345543"
+		  ],
+		  [
+			"5542.70000",
+			"0.64700000",
+			"1534614244.654432"
+		  ],
+		  [
+			"5544.30000",
+			"2.50700000",
+			"1534614248.123678"
+		  ],
+		  [
+			"5545.80000",
+			"0.33000000",
+			"1534614098.345543"
+		  ],
+		  [
+			"5546.70000",
+			"0.64700000",
+			"1534614244.654432"
+		  ],
+		  [
+			"5547.70000",
+			"0.64700000",
+			"1534614244.654432"
+		  ],
+		  [
+			"5548.30000",
+			"2.50700000",
+			"1534614248.123678"
+		  ],
+		  [
+			"5549.80000",
+			"0.33000000",
+			"1534614098.345543"
+		  ],
+		  [
+			"5550.70000",
+			"0.64700000",
+			"1534614244.654432"
+		  ]
+		],
+		"bs": [
+		  [
+			"5541.20000",
+			"1.52900000",
+			"1534614248.765567"
+		  ],
+		  [
+			"5539.90000",
+			"0.30000000",
+			"1534614241.769870"
+		  ],
+		  [
+			"5539.50000",
+			"5.00000000",
+			"1534613831.243486"
+		  ],
+		  [
+			"5538.20000",
+			"1.52900000",
+			"1534614248.765567"
+		  ],
+		  [
+			"5537.90000",
+			"0.30000000",
+			"1534614241.769870"
+		  ],
+		  [
+			"5536.50000",
+			"5.00000000",
+			"1534613831.243486"
+		  ],
+		  [
+			"5535.20000",
+			"1.52900000",
+			"1534614248.765567"
+		  ],
+		  [
+			"5534.90000",
+			"0.30000000",
+			"1534614241.769870"
+		  ],
+		  [
+			"5533.50000",
+			"5.00000000",
+			"1534613831.243486"
+		  ],
+		  [
+			"5532.50000",
+			"5.00000000",
+			"1534613831.243486"
+		  ]
+		]
+	  },
+	  "book-100",
+	  "XBT/USD"
+	]`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`[
-  13333337,
-  {
-    "a": [
-      [
-        "5541.30000",
-        "2.50700000",
-        "1534614248.456738"
-      ],
-      [
-        "5542.50000",
-        "0.40100000",
-        "1534614248.456738"
-      ]
-	],
-	"c": "4187525586"
-  },
-  "book-10",
-  "XBT/USD"
-]`)
+	  13333337,
+	  {
+		"a": [
+		  [
+			"5541.30000",
+			"2.50700000",
+			"1534614248.456738"
+		  ],
+		  [
+			"5542.50000",
+			"0.40100000",
+			"1534614248.456738"
+		  ]
+		],
+		"c": "4187525586"
+	  },
+	  "book-10",
+	  "XBT/USD"
+	]`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`[
-  13333337,
-  {
-    "b": [
-      [
-        "5541.30000",
-        "0.00000000",
-        "1534614335.345903"
-      ]
-	],
-	"c": "4187525586"
-  },
-  "book-10",
-  "XBT/USD"
-]`)
+	  13333337,
+	  {
+		"b": [
+		  [
+			"5541.30000",
+			"0.00000000",
+			"1534614335.345903"
+		  ]
+		],
+		"c": "4187525586"
+	  },
+	  "book-10",
+	  "XBT/USD"
+	]`)
 	err = k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1744,70 +1744,70 @@ func TestWsOrdrbook(t *testing.T) {
 func TestWsOwnTrades(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`[
-  [
-    {
-      "TDLH43-DVQXD-2KHVYY": {
-        "cost": "1000000.00000",
-        "fee": "1600.00000",
-        "margin": "0.00000",
-        "ordertxid": "TDLH43-DVQXD-2KHVYY",
-        "ordertype": "limit",
-        "pair": "XBT/USD",
-        "postxid": "OGTT3Y-C6I3P-XRI6HX",
-        "price": "100000.00000",
-        "time": "1560516023.070651",
-        "type": "sell",
-        "vol": "1000000000.00000000"
-      }
-    },
-    {
-      "TDLH43-DVQXD-2KHVYY": {
-        "cost": "1000000.00000",
-        "fee": "600.00000",
-        "margin": "0.00000",
-        "ordertxid": "TDLH43-DVQXD-2KHVYY",
-        "ordertype": "limit",
-        "pair": "XBT/USD",
-        "postxid": "OGTT3Y-C6I3P-XRI6HX",
-        "price": "100000.00000",
-        "time": "1560516023.070658",
-        "type": "buy",
-        "vol": "1000000000.00000000"
-      }
-    },
-    {
-      "TDLH43-DVQXD-2KHVYY": {
-        "cost": "1000000.00000",
-        "fee": "1600.00000",
-        "margin": "0.00000",
-        "ordertxid": "TDLH43-DVQXD-2KHVYY",
-        "ordertype": "limit",
-        "pair": "XBT/USD",
-        "postxid": "OGTT3Y-C6I3P-XRI6HX",
-        "price": "100000.00000",
-        "time": "1560520332.914657",
-        "type": "sell",
-        "vol": "1000000000.00000000"
-      }
-    },
-    {
-      "TDLH43-DVQXD-2KHVYY": {
-        "cost": "1000000.00000",
-        "fee": "600.00000",
-        "margin": "0.00000",
-        "ordertxid": "TDLH43-DVQXD-2KHVYY",
-        "ordertype": "limit",
-        "pair": "XBT/USD",
-        "postxid": "OGTT3Y-C6I3P-XRI6HX",
-        "price": "100000.00000",
-        "time": "1560520332.914664",
-        "type": "buy",
-        "vol": "1000000000.00000000"
-      }
-    }
-  ],
-  "ownTrades"
-]`)
+	  [
+		{
+		  "TDLH43-DVQXD-2KHVYY": {
+			"cost": "1000000.00000",
+			"fee": "1600.00000",
+			"margin": "0.00000",
+			"ordertxid": "TDLH43-DVQXD-2KHVYY",
+			"ordertype": "limit",
+			"pair": "XBT/USD",
+			"postxid": "OGTT3Y-C6I3P-XRI6HX",
+			"price": "100000.00000",
+			"time": "1560516023.070651",
+			"type": "sell",
+			"vol": "1000000000.00000000"
+		  }
+		},
+		{
+		  "TDLH43-DVQXD-2KHVYY": {
+			"cost": "1000000.00000",
+			"fee": "600.00000",
+			"margin": "0.00000",
+			"ordertxid": "TDLH43-DVQXD-2KHVYY",
+			"ordertype": "limit",
+			"pair": "XBT/USD",
+			"postxid": "OGTT3Y-C6I3P-XRI6HX",
+			"price": "100000.00000",
+			"time": "1560516023.070658",
+			"type": "buy",
+			"vol": "1000000000.00000000"
+		  }
+		},
+		{
+		  "TDLH43-DVQXD-2KHVYY": {
+			"cost": "1000000.00000",
+			"fee": "1600.00000",
+			"margin": "0.00000",
+			"ordertxid": "TDLH43-DVQXD-2KHVYY",
+			"ordertype": "limit",
+			"pair": "XBT/USD",
+			"postxid": "OGTT3Y-C6I3P-XRI6HX",
+			"price": "100000.00000",
+			"time": "1560520332.914657",
+			"type": "sell",
+			"vol": "1000000000.00000000"
+		  }
+		},
+		{
+		  "TDLH43-DVQXD-2KHVYY": {
+			"cost": "1000000.00000",
+			"fee": "600.00000",
+			"margin": "0.00000",
+			"ordertxid": "TDLH43-DVQXD-2KHVYY",
+			"ordertype": "limit",
+			"pair": "XBT/USD",
+			"postxid": "OGTT3Y-C6I3P-XRI6HX",
+			"price": "100000.00000",
+			"time": "1560520332.914664",
+			"type": "buy",
+			"vol": "1000000000.00000000"
+		  }
+		}
+	  ],
+	  "ownTrades"
+	]`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -1817,38 +1817,38 @@ func TestWsOwnTrades(t *testing.T) {
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`[
-  [
-    {
-      "OGTT3Y-C6I3P-XRI6HX": {
-        "cost": "0.00000",
-        "descr": {
-          "close": "",
-          "leverage": "0.1",
-          "order": "sell 10.00345345 XBT/USD @ limit 34.50000 with 0:1 leverage",
-          "ordertype": "limit",
-          "pair": "XBT/USD",
-          "price": "34.50000",
-          "price2": "0.00000",
-          "type": "sell"
-        },
-        "expiretm": "0.000000",
-        "fee": "0.00000",
-        "limitprice": "34.50000",
-        "misc": "",
-        "oflags": "fcib",
-        "opentm": "0.000000",
-        "price": "34.50000",
-        "refid": "OKIVMP-5GVZN-Z2D2UA",
-        "starttm": "0.000000",
-        "status": "open",
-        "stopprice": "0.000000",
-        "userref": 0,
-        "vol": "10.00345345",
-        "vol_exec": "0.00000000"
-      }
-    },
-    {
-      "OGTT3Y-C6I3P-XRI6HX": {
+	  [
+		{
+		  "OGTT3Y-C6I3P-XRI6HR": {
+			"cost": "0.00000",
+			"descr": {
+			  "close": "",
+			  "leverage": "0.1",
+			  "order": "sell 10.00345345 XBT/USD @ limit 34.50000 with 0:1 leverage",
+			  "ordertype": "limit",
+			  "pair": "XBT/USD",
+			  "price": "34.50000",
+			  "price2": "0.00000",
+			  "type": "sell"
+			},
+			"expiretm": "0.000000",
+			"fee": "0.00000",
+			"limitprice": "34.50000",
+			"misc": "",
+			"oflags": "fcib",
+			"opentm": "0.000000",
+			"price": "34.50000",
+			"refid": "OKIVMP-5GVZN-Z2D2UA",
+			"starttm": "0.000000",
+			"status": "open",
+			"stopprice": "0.000000",
+			"userref": 0,
+			"vol": "10.00345345",
+			"vol_exec": "0.00000000"
+		  }
+		},
+		{
+		  "OGTT3Y-C6I3P-XRI6HS": {
         "cost": "0.00000",
         "descr": {
           "close": "",
@@ -1877,7 +1877,7 @@ func TestWsOpenOrders(t *testing.T) {
       }
     },
     {
-      "OGTT3Y-C6I3P-XRI6HX": {
+      "OGTT3Y-C6I3P-XRI6HT": {
         "cost": "0.00000",
         "descr": {
           "close": "",
@@ -1906,7 +1906,7 @@ func TestWsOpenOrders(t *testing.T) {
       }
     },
     {
-      "OGTT3Y-C6I3P-XRI6HX": {
+      "OGTT3Y-C6I3P-XRI6HU": {
         "cost": "0.00000",
         "descr": {
           "close": "",
@@ -1941,15 +1941,16 @@ func TestWsOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	pressXToJSON = []byte(`[
   [
     {
-      "OGTT3Y-C6I3P-XRI6HX": {
+      "OGTT3Y-C6I3P-XRI6HR": {
         "status": "closed"
       }
     },
     {
-      "OGTT3Y-C6I3P-XRI6HX": {
+      "OGTT3Y-C6I3P-XRI6HT": {
         "status": "closed"
       }
     }
@@ -1960,6 +1961,44 @@ func TestWsOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	drainWS()
+
+	expectStatus := func(expected order.Status, j []byte) {
+		if err := k.wsHandleData(j); err != nil {
+			t.Errorf("Update without status should not error; err: %v", err)
+		} else {
+			select {
+			case resp := <-k.Websocket.DataHandler:
+				switch rType := resp.(type) {
+				case *order.Detail:
+					if rType.Status != expected {
+						t.Errorf("wrong order status; expected: %s got: %s", expected, rType.Status)
+					}
+				default:
+					t.Errorf("Unexpected type in DataHandler: %T (%s)", rType, rType)
+				}
+			default:
+				t.Error("wsHandleOrder should emit something to DataHandler")
+			}
+		}
+	}
+
+	expectStatus(order.UnknownStatus, []byte(`[[{"OGTT3Y-C6I3P-XRI6HS": { 
+        "vol_exec": "0.00000010",
+		"cost":"0.00053346",
+		"fee":"0.000053",
+		"avg_price":"5334.60000",
+		"userref":0
+	}}],"openOrders"]`))
+	expectStatus(order.Closed, []byte(`[[{"OGTT3Y-C6I3P-XRI6HS": { 
+        "vol_exec": "0.00000010",
+		"cost":"0.00053346",
+		"fee":"0.000053",
+		"avg_price":"5334.60000",
+		"userref":0,
+		"status":"closed"
+	}}],"openOrders"]`))
 }
 
 func TestWsAddOrderJSON(t *testing.T) {
@@ -2254,6 +2293,16 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
 		if err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func drainWS() {
+	for draining := true; draining; {
+		select {
+		case <-k.Websocket.DataHandler:
+		default:
+			draining = false
 		}
 	}
 }
