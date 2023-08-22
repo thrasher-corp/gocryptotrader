@@ -441,14 +441,14 @@ type WebsocketOrderbookSnapshot struct {
 	Type      string      `json:"type"`
 	Bids      [][2]string `json:"bids"`
 	Asks      [][2]string `json:"asks"`
-	Time      string      `json:"time"`
+	Time      time.Time   `json:"time"`
 }
 
 // WebsocketL2Update defines an update on the L2 orderbooks
 type WebsocketL2Update struct {
 	Type      string      `json:"type"`
 	ProductID string      `json:"product_id"`
-	Time      string      `json:"time"`
+	Time      time.Time   `json:"time"`
 	Changes   [][3]string `json:"changes"`
 }
 

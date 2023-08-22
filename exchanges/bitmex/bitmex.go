@@ -111,8 +111,6 @@ const (
 	bitMEXPriceIndexID          = "MRCXXX"
 	bitMEXLendingPremiumIndexID = "MRRXXX"
 	bitMEXVolatilityIndexID     = "MRIXXX"
-
-	timeLayout = "2006-01-02T15:04:05.999Z"
 )
 
 // GetAnnouncement returns the general announcements from Bitmex

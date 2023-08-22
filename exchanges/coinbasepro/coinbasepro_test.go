@@ -863,7 +863,7 @@ func TestWsOrderbook(t *testing.T) {
 	pressXToJSON = []byte(`{
   "type": "l2update",
   "product_id": "BTC-USD",
-  "time": "2023-08-15T06:46:57.933713Z"",
+  "time": "2023-08-15T06:46:57.933713Z",
   "changes": [
     [
       "buy",

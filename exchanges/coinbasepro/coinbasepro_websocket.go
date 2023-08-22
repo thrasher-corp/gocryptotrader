@@ -321,11 +321,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	base.Pair = pair
 	base.Exchange = c.Name
 	base.VerifyOrderbook = c.CanVerifyOrderbook
-	base.LastUpdated, err = time.Parse(timeLayout, snapshot.Time)
-	if err != nil {
-		return err
-	}
-
+	base.LastUpdated = snapshot.Time
 	return c.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
@@ -336,11 +332,6 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 	}
 
 	p, err := currency.NewPairFromString(update.ProductID)
-	if err != nil {
-		return err
-	}
-
-	timestamp, err := time.Parse(timeLayout, update.Time)
 	if err != nil {
 		return err
 	}
@@ -368,7 +359,7 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       p,
-		UpdateTime: timestamp,
+		UpdateTime: update.Time,
 		Asset:      asset.Spot,
 	})
 }

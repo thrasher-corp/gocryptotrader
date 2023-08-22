@@ -41,8 +41,6 @@ const (
 	orderMove           = "moveOrder"
 	tradableBalances    = "returnTradableBalances"
 	transferBalance     = "transferBalance"
-
-	timeLayout = "2006-01-02T15:04:05.999Z"
 )
 
 // HitBTC is the overarching type across the hitbtc package

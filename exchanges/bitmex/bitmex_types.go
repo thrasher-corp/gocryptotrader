@@ -322,12 +322,12 @@ type Order struct {
 
 // OrderBookL2 contains order book l2
 type OrderBookL2 struct {
-	ID        int64   `json:"id"`
-	Price     float64 `json:"price"`
-	Side      string  `json:"side"`
-	Size      int64   `json:"size"`
-	Symbol    string  `json:"symbol"`
-	Timestamp string  `json:"timestamp"`
+	ID        int64     `json:"id"`
+	Price     float64   `json:"price"`
+	Side      string    `json:"side"`
+	Size      int64     `json:"size"`
+	Symbol    string    `json:"symbol"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Position Summary of Open and Closed Positions

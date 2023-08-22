@@ -472,11 +472,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		return errors.New("no orderbook data")
 	}
 
-	ts, err := time.Parse(timeLayout, data[0].Timestamp)
-	if err != nil {
-		return err
-	}
-
 	switch action {
 	case bitmexActionInitialData:
 		book := orderbook.Base{
@@ -505,7 +500,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		book.Pair = p
 		book.Exchange = b.Name
 		book.VerifyOrderbook = b.CanVerifyOrderbook
-		book.LastUpdated = ts
+		book.LastUpdated = data[0].Timestamp
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
@@ -539,7 +534,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			Pair:       p,
 			Asset:      a,
 			Action:     updateAction,
-			UpdateTime: ts,
+			UpdateTime: data[0].Timestamp,
 		})
 		if err != nil {
 			return err
