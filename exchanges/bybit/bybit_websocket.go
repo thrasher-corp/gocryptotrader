@@ -415,12 +415,21 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						err)
 				}
 
-				avail, err := by.GetAvailablePairs(asset.Spot)
+				enabled, err := by.GetEnabledPairs(asset.Spot)
 				if err != nil {
 					return err
 				}
 
 				for j := range data {
+					var pair currency.Pair
+					pair, err = enabled.DeriveFrom(data[j].Symbol)
+					if err != nil {
+						if !errors.Is(err, currency.ErrPairNotFound) {
+							return err
+						}
+						continue
+					}
+
 					oType, err := order.StringToOrderType(data[j].OrderType)
 					if err != nil {
 						by.Websocket.DataHandler <- order.ClassificationError{
@@ -446,11 +455,6 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 							OrderID:  data[j].OrderID,
 							Err:      err,
 						}
-					}
-
-					pair, err := avail.DeriveFrom(data[j].Symbol)
-					if err != nil {
-						return err
 					}
 
 					by.Websocket.DataHandler <- &order.Detail{
