@@ -5,7 +5,6 @@ go 1.20
 require (
 	github.com/d5/tengo/v2 v2.16.1
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/google/go-querystring v1.1.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
