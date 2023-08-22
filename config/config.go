@@ -702,7 +702,7 @@ func GetDefaultSyncManagerConfig() SyncManagerConfig {
 		Enabled:                 true,
 		SynchronizeTicker:       true,
 		SynchronizeOrderbook:    true,
-		SynchronizeTrades:       true,
+		SynchronizeTrades:       false,
 		SynchronizeContinuously: true,
 		TimeoutREST:             DefaultSyncerTimeoutREST,
 		TimeoutWebsocket:        DefaultSyncerTimeoutWebsocket,
