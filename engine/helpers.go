@@ -190,7 +190,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 				cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing && cfg.SynchronizeOrderbook
 				cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing && cfg.SynchronizeTrades
 				cfg.SynchronizeContinuously = bot.Settings.SyncContinuously && cfg.SynchronizeContinuously
-				cfg.Verbose = bot.Settings.Verbose && cfg.Verbose
+				cfg.Verbose = bot.Settings.Verbose || cfg.Verbose
 
 				if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST &&
 					bot.Settings.SyncTimeoutREST != config.DefaultSyncerTimeoutREST {
