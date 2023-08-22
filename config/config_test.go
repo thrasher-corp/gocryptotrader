@@ -2310,3 +2310,35 @@ func TestGetDefaultSyncManagerConfig(t *testing.T) {
 		t.Errorf("expected %v, received %v", DefaultSyncerTimeoutREST, cfg.TimeoutREST)
 	}
 }
+
+func TestCheckSyncManagerConfig(t *testing.T) {
+	t.Parallel()
+	c := Config{}
+	if c.SyncManagerConfig != (SyncManagerConfig{}) {
+		t.Error("expected empty config")
+	}
+	c.CheckSyncManagerConfig()
+	if c.SyncManagerConfig.TimeoutREST != DefaultSyncerTimeoutREST {
+		t.Error("expected default config")
+	}
+	c.SyncManagerConfig.TimeoutWebsocket = -1
+	c.SyncManagerConfig.PairFormatDisplay = nil
+	c.SyncManagerConfig.TimeoutREST = -1
+	c.SyncManagerConfig.NumWorkers = -1
+	c.CurrencyPairFormat = &currency.PairFormat{
+		Uppercase: true,
+	}
+	c.CheckSyncManagerConfig()
+	if c.SyncManagerConfig.TimeoutWebsocket != DefaultSyncerTimeoutWebsocket {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.TimeoutWebsocket, DefaultSyncerTimeoutWebsocket)
+	}
+	if c.SyncManagerConfig.PairFormatDisplay == nil {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.PairFormatDisplay, c.CurrencyPairFormat)
+	}
+	if c.SyncManagerConfig.TimeoutREST != DefaultSyncerTimeoutREST {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.TimeoutREST, DefaultSyncerTimeoutREST)
+	}
+	if c.SyncManagerConfig.NumWorkers != DefaultSyncerWorkers {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.NumWorkers, DefaultSyncerWorkers)
+	}
+}
