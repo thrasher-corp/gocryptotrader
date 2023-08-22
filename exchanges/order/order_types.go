@@ -78,6 +78,8 @@ type Submit struct {
 
 	// Hidden when enabled orders not displaying in order book.
 	Hidden bool
+	// TradeMode specifies the trading mode for margin and non-margin orders: see okcoin_wrapper.go
+	TradeMode string
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -331,6 +333,8 @@ const (
 	Liquidation
 	Trigger
 	OptimalLimitIOC
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
 )
 
 // Side enforces a standard for order sides across the code base
