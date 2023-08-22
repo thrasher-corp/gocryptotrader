@@ -36,7 +36,7 @@ const (
 
 	wsAccountInfo    = "outboundAccountInfo"
 	wsOrderExecution = "executionReport"
-	wsTickerInfo     = "ticketInfo"
+	wsTicketInfo     = "ticketInfo"
 
 	sub    = "sub"    // event for subscribe
 	cancel = "cancel" // event for unsubscribe
@@ -482,7 +482,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					}
 				}
 				return nil
-			case wsTickerInfo:
+			case wsTicketInfo:
 				var data []WsOrderFilled
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
@@ -491,12 +491,20 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						err)
 				}
 
-				avail, err := by.GetAvailablePairs(asset.Spot)
+				enabled, err := by.GetEnabledPairs(asset.Spot)
 				if err != nil {
 					return err
 				}
 
 				for j := range data {
+					var pair currency.Pair
+					pair, err = enabled.DeriveFrom(data[j].Symbol)
+					if err != nil {
+						if !errors.Is(err, currency.ErrPairNotFound) {
+							return err
+						}
+					}
+
 					var oSide order.Side
 					oSide, err = order.StringToOrderSide(data[j].Side)
 					if err != nil {
@@ -507,17 +515,12 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						}
 					}
 
-					p, err := avail.DeriveFrom(data[j].Symbol)
-					if err != nil {
-						return err
-					}
-
 					by.Websocket.DataHandler <- &order.Detail{
 						Exchange:  by.Name,
 						OrderID:   data[j].OrderID,
 						Side:      oSide,
 						AssetType: asset.Spot,
-						Pair:      p,
+						Pair:      pair,
 						Price:     data[j].Price.Float64(),
 						Amount:    data[j].Quantity.Float64(),
 						Date:      data[j].Timestamp.Time(),
