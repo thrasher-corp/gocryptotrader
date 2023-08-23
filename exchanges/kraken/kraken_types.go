@@ -608,7 +608,7 @@ type WsOpenOrder struct {
 	Volume          float64 `json:"vol,string"`
 	ExecutedVolume  float64 `json:"vol_exec,string"`
 	Cost            float64 `json:"cost,string"`
-	Price           float64 `json:"price,string"`
+	AveragePrice    float64 `json:"avg_price,string"`
 	Misc            string  `json:"misc"`
 	OFlags          string  `json:"oflags"`
 	RefID           string  `json:"refid"`

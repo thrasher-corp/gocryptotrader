@@ -1816,6 +1816,7 @@ func TestWsOwnTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
+	drainWS()
 	pressXToJSON := []byte(`[
 	  [
 		{
@@ -1837,7 +1838,7 @@ func TestWsOpenOrders(t *testing.T) {
 			"misc": "",
 			"oflags": "fcib",
 			"opentm": "0.000000",
-			"price": "34.50000",
+			"avg_price": "0.00000",
 			"refid": "OKIVMP-5GVZN-Z2D2UA",
 			"starttm": "0.000000",
 			"status": "open",
@@ -1866,7 +1867,7 @@ func TestWsOpenOrders(t *testing.T) {
         "misc": "",
         "oflags": "fcib",
         "opentm": "0.000000",
-        "price": "5334.60000",
+		"avg_price": "0.00000",
         "refid": "OKIVMP-5GVZN-Z2D2UA",
         "starttm": "0.000000",
         "status": "open",
@@ -1895,7 +1896,7 @@ func TestWsOpenOrders(t *testing.T) {
         "misc": "",
         "oflags": "fcib",
         "opentm": "0.000000",
-        "price": "90.40000",
+		"avg_price": "0.00000",
         "refid": "OKIVMP-5GVZN-Z2D2UA",
         "starttm": "0.000000",
         "status": "open",
@@ -1924,7 +1925,7 @@ func TestWsOpenOrders(t *testing.T) {
         "misc": "",
         "oflags": "fcib",
         "opentm": "0.000000",
-        "price": "9.00000",
+		"avg_price": "0.00000",
         "refid": "OKIVMP-5GVZN-Z2D2UA",
         "starttm": "0.000000",
         "status": "open",
@@ -1940,43 +1941,64 @@ func TestWsOpenOrders(t *testing.T) {
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
-	}
-
-	pressXToJSON = []byte(`[
-  [
-    {
-      "OGTT3Y-C6I3P-XRI6HR": {
-        "status": "closed"
-      }
-    },
-    {
-      "OGTT3Y-C6I3P-XRI6HT": {
-        "status": "closed"
-      }
-    }
-  ],
-  "openOrders"
-]`)
-	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	} else {
+		select {
+		case resp := <-k.Websocket.DataHandler:
+			switch v := resp.(type) {
+			case *order.Detail:
+				if e := "OGTT3Y-C6I3P-XRI6HR"; v.OrderID != e {
+					t.Errorf("wrong OrderID; expected: %v got: %v", e, v.OrderID)
+				}
+				if v.Type != order.Limit {
+					t.Errorf("wrong order type; expected: %s got: %s", order.Limit, v.Type)
+				}
+				if v.Side != order.Sell {
+					t.Errorf("wrong order side; expected: %s got: %s", order.Sell, v.Side)
+				}
+				if v.Status != order.Open {
+					t.Errorf("wrong order status; expected: %s got: %s", order.Open, v.Status)
+				}
+				if e := 34.5; v.Price != e {
+					t.Errorf("wrong Price; expected: %v got: %v", e, v.Price)
+				}
+				if e := 10.00345345; v.Amount != e {
+					t.Errorf("wrong Amount; expected: %v got: %v", e, v.Amount)
+				}
+				if v.Amount != v.RemainingAmount {
+					t.Errorf("wrong Remaining Amount; expected: %v got: %v", v.Amount, v.RemainingAmount)
+				}
+			default:
+				t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+			}
+		default:
+			t.Error("wsHandleOrder should emit something to DataHandler")
+		}
 	}
 
 	drainWS()
 
-	expectStatus := func(expected order.Status, j []byte) {
+	expectStatus := func(expectedStatus order.Status, j []byte) {
 		if err := k.wsHandleData(j); err != nil {
 			t.Errorf("Update without status should not error; err: %v", err)
 		} else {
 			select {
 			case resp := <-k.Websocket.DataHandler:
-				switch rType := resp.(type) {
+				switch v := resp.(type) {
 				case *order.Detail:
-					if rType.Status != expected {
-						t.Errorf("wrong order status; expected: %s got: %s", expected, rType.Status)
+					if v.Status != expectedStatus {
+						t.Errorf("wrong order status; expected: %s got: %s", expectedStatus, v.Status)
+					}
+					if e := 10.00345345; v.ExecutedAmount != e {
+						t.Errorf("wrong executed amount; expected: %v got: %v", e, v.ExecutedAmount)
+					}
+					if e := 34.5; v.AverageExecutedPrice != e {
+						t.Errorf("wrong average executed price; expected: %v got: %v", e, v.AverageExecutedPrice)
+					}
+					if e := 0.001; v.Fee != e {
+						t.Errorf("wrong fee; expected: %v got: %v", e, v.Fee)
 					}
 				default:
-					t.Errorf("Unexpected type in DataHandler: %T (%s)", rType, rType)
+					t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
 				}
 			default:
 				t.Error("wsHandleOrder should emit something to DataHandler")
@@ -1984,21 +2006,23 @@ func TestWsOpenOrders(t *testing.T) {
 		}
 	}
 
-	expectStatus(order.UnknownStatus, []byte(`[[{"OGTT3Y-C6I3P-XRI6HS": { 
-        "vol_exec": "0.00000010",
-		"cost":"0.00053346",
-		"fee":"0.000053",
-		"avg_price":"5334.60000",
-		"userref":0
-	}}],"openOrders"]`))
+	expectStatus(order.UnknownStatus, []byte(`[[{"OGTT3Y-C6I3P-XRI6HS": {
+		"vol_exec":"10.00345345",
+		"cost":"345.119144",
+		"fee":"0.001",
+		"avg_price":"34.50000"
+	}}], "openOrders",{"sequence":2}]`))
+
 	expectStatus(order.Closed, []byte(`[[{"OGTT3Y-C6I3P-XRI6HS": { 
-        "vol_exec": "0.00000010",
-		"cost":"0.00053346",
-		"fee":"0.000053",
-		"avg_price":"5334.60000",
-		"userref":0,
-		"status":"closed"
-	}}],"openOrders"]`))
+        "status":"closed",
+		"vol_exec":"10.00345345",
+		"lastupdated":"1692675961.789052",
+		"status":"closed",
+		"cost":"345.119144",
+		"fee":"0.001",
+		"avg_price":"34.50000",
+		"userref":0
+	}}],"openOrders",{"sequence":3}]`))
 }
 
 func TestWsAddOrderJSON(t *testing.T) {

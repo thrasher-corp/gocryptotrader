@@ -550,76 +550,74 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 				return err
 			}
 			for key, val := range result {
-				var oStatus order.Status
+				d := &order.Detail{
+					Exchange:             k.Name,
+					OrderID:              key,
+					AverageExecutedPrice: val.AveragePrice,
+					Amount:               val.Volume,
+					LimitPriceUpper:      val.LimitPrice,
+					ExecutedAmount:       val.ExecutedVolume,
+					RemainingAmount:      val.Volume - val.ExecutedVolume,
+					Fee:                  val.Fee,
+					Date:                 convert.TimeFromUnixTimestampDecimal(val.OpenTime),
+				}
+
 				if val.Status != "" {
-					oStatus, err = order.StringToOrderStatus(val.Status)
-					if err != nil {
+					if s, err := order.StringToOrderStatus(val.Status); err != nil {
 						k.Websocket.DataHandler <- order.ClassificationError{
 							Exchange: k.Name,
 							OrderID:  key,
 							Err:      err,
 						}
+					} else {
+						d.Status = s
 					}
 				}
+
 				if val.Description.Price > 0 {
-					oSide, err := order.StringToOrderSide(val.Description.Type)
-					if err != nil {
-						k.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: k.Name,
-							OrderID:  key,
-							Err:      err,
-						}
-					}
 					if strings.Contains(val.Description.Order, "sell") {
-						oSide = order.Sell
+						d.Side = order.Sell
+					} else {
+						if oSide, err := order.StringToOrderSide(val.Description.Type); err != nil {
+							k.Websocket.DataHandler <- order.ClassificationError{
+								Exchange: k.Name,
+								OrderID:  key,
+								Err:      err,
+							}
+						} else {
+							d.Side = oSide
+						}
 					}
-					oType, err := order.StringToOrderType(val.Description.OrderType)
-					if err != nil {
+
+					if oType, err := order.StringToOrderType(val.Description.OrderType); err != nil {
 						k.Websocket.DataHandler <- order.ClassificationError{
 							Exchange: k.Name,
 							OrderID:  key,
 							Err:      err,
 						}
+					} else {
+						d.Type = oType
 					}
 
-					p, err := currency.NewPairFromString(val.Description.Pair)
-					if err != nil {
+					if p, err := currency.NewPairFromString(val.Description.Pair); err != nil {
 						k.Websocket.DataHandler <- order.ClassificationError{
 							Exchange: k.Name,
 							OrderID:  key,
 							Err:      err,
 						}
+					} else {
+						d.Pair = p
+						if a, err := k.GetPairAssetType(p); err != nil {
+							return err
+						} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
+							d.AssetType = a
+						}
 					}
 
-					var a asset.Item
-					a, err = k.GetPairAssetType(p)
-					if err != nil {
-						return err
-					}
-					k.Websocket.DataHandler <- &order.Detail{
-						Leverage:        val.Description.Leverage,
-						Price:           val.Price,
-						Amount:          val.Volume,
-						LimitPriceUpper: val.LimitPrice,
-						ExecutedAmount:  val.ExecutedVolume,
-						RemainingAmount: val.Volume - val.ExecutedVolume,
-						Fee:             val.Fee,
-						Exchange:        k.Name,
-						OrderID:         key,
-						Type:            oType,
-						Side:            oSide,
-						Status:          oStatus,
-						AssetType:       a,
-						Date:            convert.TimeFromUnixTimestampDecimal(val.OpenTime),
-						Pair:            p,
-					}
-				} else {
-					k.Websocket.DataHandler <- &order.Detail{
-						Exchange: k.Name,
-						OrderID:  key,
-						Status:   oStatus,
-					}
+					d.Leverage = val.Description.Leverage
+					d.Price = val.Description.Price
 				}
+				k.Websocket.DataHandler <- d
 			}
 		}
 		return nil
