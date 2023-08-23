@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -49,7 +50,7 @@ type Service struct {
 // Exchange defines a holder for the exchange specific depth items with a
 // specific ID associated with that exchange
 type Exchange struct {
-	m  map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth
+	m  map[key.PairAssetKey]*Depth
 	ID uuid.UUID
 }
 

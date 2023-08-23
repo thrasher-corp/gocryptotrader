@@ -12,6 +12,8 @@ var (
 	ErrNotSupported = errors.New("unsupported asset type")
 	// ErrNotEnabled is an error for an asset not enabled
 	ErrNotEnabled = errors.New("asset type not enabled")
+	// ErrInvalidAsset is returned when the assit isn't valid
+	ErrInvalidAsset = errors.New("asset is invalid")
 )
 
 // Item stores the asset type
