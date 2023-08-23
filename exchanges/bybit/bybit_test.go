@@ -77,6 +77,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("%s %v", b.Name, err)
 	}
+	b.checkAccountType(context.Background())
 	os.Exit(m.Run())
 }
 
@@ -1476,6 +1477,15 @@ func TestGetBorrowHistory(t *testing.T) {
 	}
 }
 
+func TestSetCollateralCoin(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SetCollateralCoin(context.Background(), currency.BTC, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetCollateralInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -2180,17 +2190,24 @@ func TestToggleMarginTrade(t *testing.T) {
 
 func TestSetSpotMarginTradeLeverage(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	err := b.SetSpotMarginTradeLeverage(context.Background(), 3)
-	if !errors.Is(err, errNilArgument) {
-		t.Errorf("expected %v, got %v", errNilArgument, err)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetMarginCoinInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetMarginCoinInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetVIPMarginData(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetVIPMarginData(context.Background(), "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2198,7 +2215,6 @@ func TestGetMarginCoinInfo(t *testing.T) {
 
 func TestGetBorrowableCoinInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetBorrowableCoinInfo(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
@@ -2213,7 +2229,7 @@ func TestGetInterestAndQuota(t *testing.T) {
 		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
 	}
 	_, err = b.GetInterestAndQuota(context.Background(), currency.BTC)
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
@@ -2222,7 +2238,7 @@ func TestGetLoanAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetLoanAccountInfo(context.Background())
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
@@ -2272,7 +2288,7 @@ func TestGetBorrowOrderDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetBorrowOrderDetail(context.Background(), time.Time{}, time.Time{}, currency.BTC, 0, 0)
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
@@ -2281,7 +2297,7 @@ func TestGetRepaymentOrderDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetRepaymentOrderDetail(context.Background(), time.Time{}, time.Time{}, currency.BTC, 0)
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
@@ -2290,15 +2306,14 @@ func TestToggleMarginTradeNormal(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.ToggleMarginTradeNormal(context.Background(), true)
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
 
 func TestGetProductInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetProductInfo(context.Background(), "78")
+	_, err := b.GetProductInfo(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2306,8 +2321,7 @@ func TestGetProductInfo(t *testing.T) {
 
 func TestGetInstitutionalLengingMarginCoinInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetInstitutionalLengingMarginCoinInfo(context.Background(), "123")
+	_, err := b.GetInstitutionalLengingMarginCoinInfo(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2317,7 +2331,7 @@ func TestGetInstitutionalLoanOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetInstitutionalLoanOrders(context.Background(), "", time.Time{}, time.Time{}, 0)
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
@@ -2326,7 +2340,7 @@ func TestGetInstitutionalRepayOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetInstitutionalRepayOrders(context.Background(), time.Time{}, time.Time{}, 0)
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
@@ -2335,7 +2349,7 @@ func TestGetLTV(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetLTV(context.Background())
-	if err != nil {
+	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
 		t.Error(err)
 	}
 }
@@ -2412,7 +2426,7 @@ func TestGetC2CLendingAccountInfo(t *testing.T) {
 func TestGetBrokerEarning(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetBrokerEarning(context.Background(), "", "", time.Time{}, time.Time{}, 0)
+	_, err := b.GetBrokerEarning(context.Background(), "DERIVATIVES", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}

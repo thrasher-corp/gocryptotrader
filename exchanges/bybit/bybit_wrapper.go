@@ -279,6 +279,7 @@ func (by *Bybit) Run(ctx context.Context) {
 		return
 	}
 
+	by.checkAccountType(ctx)
 	err := by.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -501,43 +502,54 @@ func getAccountType(a asset.Item) string {
 func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
+	var accountType string
 	info.Exchange = by.Name
 	switch assetType {
-	case asset.Spot, asset.Options, asset.Linear, asset.Inverse:
-		balances, err := by.GetWalletBalance(ctx, getAccountType(assetType), "")
-		if err != nil {
-			return info, err
-		}
-
-		currencyBalance := []account.Balance{}
-		for i := range balances.List {
-			for c := range balances.List[i].Coin {
-				balance := account.Balance{
-					Currency: currency.NewCode(balances.List[i].Coin[0].Coin),
-					Total:    balances.List[i].TotalWalletBalance.Float64(),
-					Free:     balances.List[i].Coin[0].AvailableToWithdraw.Float64(),
-					// AvailableWithoutBorrow: balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
-					Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
-					Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
-				}
-				if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
-					balance.Free = balances.List[i].Coin[0].AvailableBalanceForSpot.Float64()
-				}
-				currencyBalance = append(currencyBalance, balance)
+	case asset.Spot, asset.Options, asset.Linear:
+		switch by.AccountType {
+		case accountTypeUnified:
+			accountType = "UNIFIED"
+		case accountTypeNormal:
+			if assetType == asset.Spot {
+				accountType = "SPOT"
+			} else {
+				accountType = "CONTRACT"
 			}
 		}
-		acc.Currencies = currencyBalance
+	case asset.Inverse:
+		accountType = "CONTRACT"
 	default:
 		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
+	balances, err := by.GetWalletBalance(ctx, accountType, "")
+	if err != nil {
+		return info, err
+	}
+	currencyBalance := []account.Balance{}
+	for i := range balances.List {
+		for c := range balances.List[i].Coin {
+			balance := account.Balance{
+				Currency: currency.NewCode(balances.List[i].Coin[0].Coin),
+				Total:    balances.List[i].TotalWalletBalance.Float64(),
+				Free:     balances.List[i].Coin[0].AvailableToWithdraw.Float64(),
+				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
+				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+			}
+			if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
+				balance.Free = balances.List[i].Coin[0].AvailableBalanceForSpot.Float64()
+			}
+			currencyBalance = append(currencyBalance, balance)
+		}
+	}
+	acc.Currencies = currencyBalance
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	if err := account.Process(&info, creds); err != nil {
+	err = account.Process(&info, creds)
+	if err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -705,7 +717,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	if err != nil {
 		return nil, err
 	}
-
 	formattedPair, err := by.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
@@ -773,6 +784,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
 	}
 }
+
 func getOrderTypeString(oType order.Type) string {
 	switch oType {
 	case order.UnknownType:
@@ -1018,7 +1030,6 @@ func (by *Bybit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 		return nil, err
 	}
 	wID, err := by.WithdrawCurrency(ctx,
-
 		&WithdrawalParam{
 			Coin:      withdrawRequest.Currency,
 			Chain:     withdrawRequest.Crypto.Chain,

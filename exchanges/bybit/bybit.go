@@ -22,11 +22,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Bybit is the overarching type across this package
 type Bybit struct {
 	exchange.Base
+
+	// AccountType holds information about whether the account to which the api key belongs is a unified margin account or not.
+	// 0: unified, and 1: for normal account
+	AccountType uint8
 }
 
 const (
@@ -39,47 +44,52 @@ const (
 	sideSell = "Sell"
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
+
+	accountTypeUnified = 0
+	accountTypeNormal  = 1
 )
 
 var (
-	errCategoryNotSet                     = errors.New("category not set")
-	errBaseNotSet                         = errors.New("base coin not set when category is option")
-	errInvalidTriggerDirection            = errors.New("invalid trigger direction")
-	errInvalidTriggerPriceType            = errors.New("invalid trigger price type")
-	errNilArgument                        = errors.New("nil argument")
-	errMissingUserID                      = errors.New("sub user id missing")
-	errMissingusername                    = errors.New("username is missing")
-	errInvalidMemberType                  = errors.New("invalid member type")
-	errMissingTransferID                  = errors.New("transfer ID is required")
-	errMemberIDRequired                   = errors.New("member ID is required")
-	errNonePointerArgument                = errors.New("argument must be pointer")
-	errEitherOrderIDOROrderLinkIDRequired = errors.New("either orderId or orderLinkId required")
-	errNoOrderPassed                      = errors.New("no order passed")
-	errSymbolOrSettleCoinRequired         = errors.New("provide symbol or settleCoin at least one")
-	errInvalidTradeModeValue              = errors.New("invalid trade mode value")
-	errTakeProfitOrStopLossModeMissing    = errors.New("TP/SL mode missing")
-	errMissingAccountType                 = errors.New("account type not specified")
-	errMembersIDsNotSet                   = errors.New("members IDs not set")
-	errMissingChainType                   = errors.New("missing chain type is empty")
-	errMissingChainInformation            = errors.New("missing transfer chain")
-	errMissingAddressInfo                 = errors.New("address is required")
-	errMissingWithdrawalID                = errors.New("missing withdrawal id")
-	errTimeWindowRequired                 = errors.New("time window is required")
-	errFrozenPeriodRequired               = errors.New("frozen period required")
-	errQuantityLimitRequired              = errors.New("quantity limit required")
-	errInvalidPushData                    = errors.New("invalid push data")
-	errWebsocketNotEnabled                = errors.New(stream.WebsocketNotEnabled)
-	errInvalidSide                        = errors.New("invalid side")
-	errInvalidLeverage                    = errors.New("leverage can't be zero or less then it")
-	errInvalidPositionMode                = errors.New("position mode is invalid")
-	errInvalidMode                        = errors.New("mode can't be empty or missing")
-	errInvalidOrderFilter                 = errors.New("invalid order filter")
-	errInvalidCategory                    = errors.New("invalid category")
-	errEitherSymbolOrCoinRequired         = errors.New("either symbol or coin required")
-	errOrderLinkIDMissing                 = errors.New("order link id missing")
-	errSymbolMissing                      = errors.New("symbol missing")
-	errInvalidAutoAddMarginValue          = errors.New("invalid add auto margin value")
-	errDisconnectTimeWindowNotSet         = errors.New("disconnect time window not set")
+	errCategoryNotSet                          = errors.New("category not set")
+	errBaseNotSet                              = errors.New("base coin not set when category is option")
+	errInvalidTriggerDirection                 = errors.New("invalid trigger direction")
+	errInvalidTriggerPriceType                 = errors.New("invalid trigger price type")
+	errNilArgument                             = errors.New("nil argument")
+	errMissingUserID                           = errors.New("sub user id missing")
+	errMissingusername                         = errors.New("username is missing")
+	errInvalidMemberType                       = errors.New("invalid member type")
+	errMissingTransferID                       = errors.New("transfer ID is required")
+	errMemberIDRequired                        = errors.New("member ID is required")
+	errNonePointerArgument                     = errors.New("argument must be pointer")
+	errEitherOrderIDOROrderLinkIDRequired      = errors.New("either orderId or orderLinkId required")
+	errNoOrderPassed                           = errors.New("no order passed")
+	errSymbolOrSettleCoinRequired              = errors.New("provide symbol or settleCoin at least one")
+	errInvalidTradeModeValue                   = errors.New("invalid trade mode value")
+	errTakeProfitOrStopLossModeMissing         = errors.New("TP/SL mode missing")
+	errMissingAccountType                      = errors.New("account type not specified")
+	errMembersIDsNotSet                        = errors.New("members IDs not set")
+	errMissingChainType                        = errors.New("missing chain type is empty")
+	errMissingChainInformation                 = errors.New("missing transfer chain")
+	errMissingAddressInfo                      = errors.New("address is required")
+	errMissingWithdrawalID                     = errors.New("missing withdrawal id")
+	errTimeWindowRequired                      = errors.New("time window is required")
+	errFrozenPeriodRequired                    = errors.New("frozen period required")
+	errQuantityLimitRequired                   = errors.New("quantity limit required")
+	errInvalidPushData                         = errors.New("invalid push data")
+	errWebsocketNotEnabled                     = errors.New(stream.WebsocketNotEnabled)
+	errInvalidSide                             = errors.New("invalid side")
+	errInvalidLeverage                         = errors.New("leverage can't be zero or less then it")
+	errInvalidPositionMode                     = errors.New("position mode is invalid")
+	errInvalidMode                             = errors.New("mode can't be empty or missing")
+	errInvalidOrderFilter                      = errors.New("invalid order filter")
+	errInvalidCategory                         = errors.New("invalid category")
+	errEitherSymbolOrCoinRequired              = errors.New("either symbol or coin required")
+	errOrderLinkIDMissing                      = errors.New("order link id missing")
+	errSymbolMissing                           = errors.New("symbol missing")
+	errInvalidAutoAddMarginValue               = errors.New("invalid add auto margin value")
+	errDisconnectTimeWindowNotSet              = errors.New("disconnect time window not set")
+	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
+	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
 )
 
 var (
@@ -503,6 +513,10 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 	if err != nil {
 		return nil, err
 	}
+	if by.AccountType == accountTypeNormal &&
+		arg.Category == cOption {
+		return nil, errAPIKeyIsNotUnified
+	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -527,7 +541,7 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 	default:
 		return nil, fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, arg.TriggerDirection)
 	}
-	if arg.OrderFilter != "" && arg.Category == cSpot { //
+	if arg.OrderFilter != "" && arg.Category == cSpot {
 		switch arg.OrderFilter {
 		case "Order", "tpslOrder":
 		default:
@@ -548,6 +562,10 @@ func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderR
 	if arg == nil {
 		return nil, errNilArgument
 	}
+	if by.AccountType == accountTypeNormal &&
+		arg.Category == cOption {
+		return nil, errAPIKeyIsNotUnified
+	}
 	if arg.OrderID == "" && arg.OrderLinkID == "" {
 		return nil, errEitherOrderIDOROrderLinkIDRequired
 	}
@@ -566,6 +584,10 @@ func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderR
 func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
+	}
+	if by.AccountType == accountTypeNormal &&
+		arg.Category == cOption {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if arg.OrderID == "" && arg.OrderLinkID == "" {
 		return nil, errEitherOrderIDOROrderLinkIDRequired
@@ -593,6 +615,9 @@ func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, 
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if baseCoin != "" {
 		params.Set("baseCoin", baseCoin)
@@ -631,6 +656,10 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 	if err != nil {
 		return nil, err
 	}
+	if by.AccountType == accountTypeNormal &&
+		arg.Category == cOption {
+		return nil, errAPIKeyIsNotUnified
+	}
 	var resp CancelAllResponse
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, calcelAllEPL)
 }
@@ -643,6 +672,10 @@ func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, ord
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
+	}
+	if by.AccountType == accountTypeNormal &&
+		category == cOption {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if baseCoin != "" {
 		params.Set("baseCoin", baseCoin)
@@ -683,9 +716,11 @@ func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam)
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
-		return nil, err
+	if arg.Category != cOption {
+		return nil, fmt.Errorf("%w, only 'option' category is allowed", errInvalidCategory)
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if len(arg.Request) == 0 {
 		return nil, errNoOrderPassed
@@ -716,9 +751,11 @@ func (by *Bybit) BatchAmendOrder(ctx context.Context, arg *BatchAmendOrderParams
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
-		return nil, err
+	if arg.Category != cOption {
+		return nil, fmt.Errorf("%w, only 'option' category is allowed", errInvalidCategory)
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if len(arg.Request) == 0 {
 		return nil, errNoOrderPassed
@@ -742,6 +779,9 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 	}
 	if arg.Category != cOption {
 		return nil, fmt.Errorf("%w, only 'option' category is allowed", errInvalidCategory)
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if len(arg.Request) == 0 {
 		return nil, errNoOrderPassed
@@ -785,6 +825,9 @@ func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) 
 	if arg == nil {
 		return errNilArgument
 	}
+	if by.AccountType == accountTypeNormal {
+		return errAPIKeyIsNotUnified
+	}
 	if arg.TimeWindow == 0 {
 		return errDisconnectTimeWindowNotSet
 	}
@@ -800,6 +843,9 @@ func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse && category != cOption {
 		return nil, fmt.Errorf("%w, category: %s", errInvalidCategory, category)
+	}
+	if by.AccountType == accountTypeNormal && category == cOption {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if symbol == "" && settleCoin == "" {
 		return nil, errSymbolOrSettleCoinRequired
@@ -1021,6 +1067,9 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 	if err != nil {
 		return nil, err
 	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
@@ -1118,6 +1167,9 @@ func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol
 	if err != nil {
 		return nil, err
 	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	var resp TradeOrders
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/order/history", params, nil, &resp, defaultEPL)
 }
@@ -1127,6 +1179,9 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Option: false, Inverse: true}, category, symbol, baseCoin, orderID, orderLinkID, "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if executionType != "" {
 		params.Set("executionType", executionType)
@@ -1141,6 +1196,9 @@ func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, c
 	if err != nil {
 		return nil, err
 	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	var resp ClosedProfitAndLossResponse
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/position/closed-pnl", params, nil, &resp, defaultEPL)
 }
@@ -1150,6 +1208,9 @@ func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, base
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	if transactionType != "" {
 		params.Set("type", transactionType)
@@ -1164,6 +1225,9 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 	if err != nil {
 		return nil, err
 	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	if !expiryDate.IsZero() {
 		params.Set("expData", expiryDate.Format("02Jan06"))
 	}
@@ -1176,6 +1240,9 @@ func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, categor
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
 		return nil, err
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	var resp SettlementSession
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/settlement-record", params, nil, &resp, defaultEPL)
@@ -1208,6 +1275,9 @@ func (by *Bybit) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUp
 
 // GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.
 func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -1231,10 +1301,31 @@ func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, 
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/borrow-history", params, nil, &resp, defaultEPL)
 }
 
+// SetCollateralCoin decide whether the assets in the Unified account needs to be collateral coins.
+func (by *Bybit) SetCollateralCoin(ctx context.Context, coin currency.Code, collateralSwitchON bool) error {
+	if by.AccountType == accountTypeNormal {
+		return errAPIKeyIsNotUnified
+	}
+	params := url.Values{}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if collateralSwitchON {
+		params.Set("collateralSwitch", "ON")
+	} else {
+		params.Set("collateralSwitch", "OFF")
+	}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/set-collateral-switch", params, nil, &resp, defaultEPL)
+}
+
 // GetCollateralInfo retrieves the collateral information of the current unified margin account,
 // including loan interest rate, loanable amount, collateral conversion rate,
 // whether it can be mortgaged as margin, etc.
 func (by *Bybit) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -1259,6 +1350,9 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 	if !common.StringDataContains(validCategory, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
 	}
+	if category == cOption && by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	if category != "" {
 		params.Set("category", category)
 	}
@@ -1273,7 +1367,11 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 }
 
 // GetAccountInfo retrieves the margin mode configuration of the account.
+// query the margin mode and the upgraded status of account
 func (by *Bybit) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	var resp AccountInfo
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/info", nil, nil, &resp, defaultEPL)
 }
@@ -1293,6 +1391,9 @@ func (by *Bybit) GetTransactionLog(ctx context.Context, category, baseCoin, tran
 
 // SetMarginMode set margin mode to  either of ISOLATED_MARGIN, REGULAR_MARGIN(i.e. Cross margin), PORTFOLIO_MARGIN
 func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarginModeResponse, error) {
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	if marginMode == "" {
 		return nil, fmt.Errorf("%w, margin mode should be either of ISOLATED_MARGIN, REGULAR_MARGIN, or PORTFOLIO_MARGIN", errInvalidMode)
 	}
@@ -1386,6 +1487,9 @@ func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor
 	if !common.StringDataContains(validCategory, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
 	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	params := url.Values{}
 	params.Set("category", category)
 	if symbol != "" {
@@ -1410,6 +1514,9 @@ func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol,
 	if !common.StringDataContains(validCategory, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
 	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	params := url.Values{}
 	params.Set("category", category)
 	if symbol != "" {
@@ -1429,6 +1536,9 @@ func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol,
 func (by *Bybit) GetAssetInfo(ctx context.Context, accountType, coin string) (AccountInfos, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
+	}
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
 	}
 	params := url.Values{}
 	params.Set("accountType", accountType)
@@ -2057,6 +2167,9 @@ func (by *Bybit) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin cur
 // Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
 // spotMarginMode '1': on, '0': off
 func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+	if by.AccountType == accountTypeNormal {
+		return nil, errAPIKeyIsNotUnified
+	}
 	arg := &SpotMarginMode{}
 	if spotMarginMode {
 		arg.SpotMarginMode = "1"
@@ -2069,6 +2182,9 @@ func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*S
 
 // SetSpotMarginTradeLeverage set the user's maximum leverage in spot cross margin
 func (by *Bybit) SetSpotMarginTradeLeverage(ctx context.Context, leverage float64) error {
+	if by.AccountType == accountTypeNormal {
+		return errAPIKeyIsNotUnified
+	}
 	if leverage <= 2 {
 		return fmt.Errorf("%w, leverage. value range from [2  to 10]", errInvalidLeverage)
 	}
@@ -2077,6 +2193,19 @@ func (by *Bybit) SetSpotMarginTradeLeverage(ctx context.Context, leverage float6
 }
 
 // ---------------------------------------------------------------- Spot Margin Trade (Normal) ----------------------------------------------------------------
+
+// GetVIPMarginData retrieves public VIP Margin data
+func (by *Bybit) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
+	params := url.Values{}
+	if vipLevel != "" {
+		params.Set("vipLevel", vipLevel)
+	}
+	if currency != "" {
+		params.Set("currency", currency)
+	}
+	var resp VIPMarginData
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
+}
 
 // GetMarginCoinInfo retrieves margin coin information.
 func (by *Bybit) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
@@ -2087,7 +2216,7 @@ func (by *Bybit) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]M
 	resp := &struct {
 		List []MarginCoinInfo `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/pledge-token", params, nil, &resp, defaultEPL)
+	return resp.List, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/pledge-token", params), defaultEPL, &resp)
 }
 
 // GetBorrowableCoinInfo retrieves borrowable coin info list.
@@ -2099,13 +2228,16 @@ func (by *Bybit) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) 
 	resp := &struct {
 		List []BorrowableCoinInfo `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/borrow-token", params, nil, &resp, defaultEPL)
+	return resp.List, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/borrow-token", params), defaultEPL, &resp)
 }
 
 // GetInterestAndQuota retrieves interest and quota information.
 func (by *Bybit) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*InterestAndQuota, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
 	}
 	params := url.Values{}
 	params.Set("coin", coin.String())
@@ -2115,6 +2247,9 @@ func (by *Bybit) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*
 
 // GetLoanAccountInfo retrieves loan account information.
 func (by *Bybit) GetLoanAccountInfo(ctx context.Context) (*AccountLoanInfo, error) {
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	var resp AccountLoanInfo
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/account", nil, nil, &resp, getSpotCrossMarginTradeAccountEPL)
 }
@@ -2123,6 +2258,9 @@ func (by *Bybit) GetLoanAccountInfo(ctx context.Context) (*AccountLoanInfo, erro
 func (by *Bybit) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
+	}
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
 	}
 	if arg.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -2139,6 +2277,9 @@ func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, 
 	if arg == nil {
 		return nil, errNilArgument
 	}
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	if arg.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2152,6 +2293,9 @@ func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, 
 // GetBorrowOrderDetail represents the borrow order detail.
 // Status '0'(default)：get all kinds of status '1'：uncleared '2'：cleared
 func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, status, limit int64) ([]BorrowOrderDetail, error) {
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2176,6 +2320,9 @@ func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime ti
 
 // GetRepaymentOrderDetail retrieves repayment order detail.
 func (by *Bybit) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, limit int64) ([]CoinRepaymentResponse, error) {
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2199,6 +2346,9 @@ func (by *Bybit) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime
 // Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
 // spotMarginMode '1': on, '0': off
 func (by *Bybit) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	arg := &SpotMarginMode{}
 	if spotMarginMode {
 		arg.SpotMarginMode = "1"
@@ -2218,7 +2368,7 @@ func (by *Bybit) GetProductInfo(ctx context.Context, productID string) (*Institu
 		params.Set("productId", productID)
 	}
 	var resp InstitutionalProductInfo
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/product-infos", params, nil, &resp, defaultEPL)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/product-infos", params), defaultEPL, &resp)
 }
 
 // GetInstitutionalLengingMarginCoinInfo retrieves institutional lending margin coin information.
@@ -2229,11 +2379,14 @@ func (by *Bybit) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, prod
 		params.Set("productId", productID)
 	}
 	var resp InstitutionalMarginCoinInfo
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ensure-tokens-convert", params, nil, &resp, defaultEPL)
+	return &resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/ensure-tokens-convert", params), defaultEPL, &resp)
 }
 
 // GetInstitutionalLoanOrders retrieves institutional loan orders.
 func (by *Bybit) GetInstitutionalLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time, limit int64) ([]LoanOrderDetails, error) {
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	params := url.Values{}
 	if orderID != "" {
 		params.Set("orderId", orderID)
@@ -2255,6 +2408,9 @@ func (by *Bybit) GetInstitutionalLoanOrders(ctx context.Context, orderID string,
 
 // GetInstitutionalRepayOrders retrieves list of repaid order information.
 func (by *Bybit) GetInstitutionalRepayOrders(ctx context.Context, startTime, endTime time.Time, limit int64) ([]OrderRepayInfo, error) {
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2273,6 +2429,9 @@ func (by *Bybit) GetInstitutionalRepayOrders(ctx context.Context, startTime, end
 
 // GetLTV retrieves a loan-to-value(LTV)
 func (by *Bybit) GetLTV(ctx context.Context) (*LTVInfo, error) {
+	if by.AccountType == accountTypeUnified {
+		return nil, errEndpointAvailableForNormalAPIKeyHolders
+	}
 	var resp LTVInfo
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, defaultEPL)
 }
@@ -2612,4 +2771,13 @@ func getSign(sign, secret string) (string, error) {
 		return "", err
 	}
 	return crypto.HexEncodeToString(hmacSigned), nil
+}
+
+func (by *Bybit) checkAccountType(ctx context.Context) {
+	accInfo, err := by.GetAPIKeyInformation(ctx)
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "checkAccountType: %v", err)
+		return
+	}
+	by.AccountType = uint8(accInfo.Unified)
 }

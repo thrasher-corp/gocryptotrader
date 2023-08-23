@@ -1301,6 +1301,22 @@ type SpotMarginMode struct {
 	SpotMarginMode string `json:"spotMarginMode"`
 }
 
+// VIPMarginData represents VIP margin data.
+type VIPMarginData struct {
+	VipCoinList []struct {
+		List []struct {
+			Borrowable         bool   `json:"borrowable"`
+			CollateralRatio    string `json:"collateralRatio"`
+			Currency           string `json:"currency"`
+			HourlyBorrowRate   string `json:"hourlyBorrowRate"`
+			LiquidationOrder   string `json:"liquidationOrder"`
+			MarginCollateral   bool   `json:"marginCollateral"`
+			MaxBorrowingAmount string `json:"maxBorrowingAmount"`
+		} `json:"list"`
+		VipLevel string `json:"vipLevel"`
+	} `json:"vipCoinList"`
+}
+
 // MarginCoinInfo represents margin coin information.
 type MarginCoinInfo struct {
 	Coin             string `json:"coin"`
