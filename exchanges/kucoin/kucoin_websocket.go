@@ -803,23 +803,13 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	asks := make([][3]string, len(response.Asks))
-	for x := range response.Asks {
-		asks[x][0] = response.Asks[x][0]
-		asks[x][1] = response.Asks[x][1]
-	}
-	bids := make([][3]string, len(response.Bids))
-	for x := range response.Bids {
-		bids[x][0] = response.Bids[x][0]
-		bids[x][1] = response.Bids[x][1]
-	}
 	var init bool
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 		init, err = ku.UpdateLocalBuffer(&WsOrderbook{
 			Changes: OrderbookChanges{
-				Asks: asks,
-				Bids: bids,
+				Asks: response.Asks,
+				Bids: response.Bids,
 			},
 			Symbol:      instrument,
 			TimeMS:      response.TimeMS,
@@ -838,8 +828,8 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		init, err = ku.UpdateLocalBuffer(&WsOrderbook{
 			Changes: OrderbookChanges{
-				Asks: asks,
-				Bids: bids,
+				Asks: response.Asks,
+				Bids: response.Bids,
 			},
 			Symbol:      instrument,
 			TimeMS:      response.TimeMS,

@@ -296,7 +296,7 @@ func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 			return err
 		}
 		if len(pairs) == 0 {
-			continue
+			return fmt.Errorf("%v; no tradable pairs", currency.ErrCurrencyPairsEmpty)
 		}
 		err = ku.UpdatePairs(pairs, assets[a], false, forceUpdate)
 		if err != nil {
@@ -1076,19 +1076,8 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if err != nil {
 				return nil, err
 			}
-			if len(getOrdersRequest.Pairs) == 1 && !dPair.Equal(getOrdersRequest.Pairs[x]) {
+			if len(getOrdersRequest.Pairs) > 0 && !getOrdersRequest.Pairs.Contains(dPair, true) {
 				continue
-			} else if len(getOrdersRequest.Pairs) > 1 {
-				found := false
-				for i := range getOrdersRequest.Pairs {
-					if !getOrdersRequest.Pairs[i].Equal(dPair) {
-						continue
-					}
-					found = true
-				}
-				if !found {
-					continue
-				}
 			}
 			side, err := order.StringToOrderSide(spotOrders.Items[x].Side)
 			if err != nil {

@@ -244,18 +244,16 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 		if value == "" {
 			// Setting the time to zero value because some timestamp fields could return an empty string while there is no error
 			// So, in such cases, Time returns zero timestamp.
-			*k = ExchangeTime(time.Time{})
-			return nil
+			break
 		}
 		standard, err = strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return err
 		}
-	case uint64:
-		standard = int64(value)
+	case int64:
+		println(">>>: int64")
+		standard = value
 	case float64:
-		standard = int64(value)
-	case uint32:
 		standard = int64(value)
 	case nil:
 		// for some exchange timestamp fields, if the timestamp information is not specified,
@@ -278,8 +276,8 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 }
 
 // Time returns a time.Time instance from ExchangeTime instance object.
-func (k *ExchangeTime) Time() time.Time {
-	return time.Time(*k)
+func (k ExchangeTime) Time() time.Time {
+	return time.Time(k)
 }
 
 // Decimal returns the decimal value of the FloatString

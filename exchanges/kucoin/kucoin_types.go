@@ -863,8 +863,8 @@ type OrderbookChanges struct {
 
 // WsLevel2Orderbook represents orderbook information.
 type WsLevel2Orderbook struct {
-	Asks   [][2]string          `json:"asks"`
-	Bids   [][2]string          `json:"bids"`
+	Asks   [][3]string          `json:"asks"`
+	Bids   [][3]string          `json:"bids"`
 	Symbol string               `json:"symbol"`
 	TimeMS convert.ExchangeTime `json:"timestamp"`
 }
