@@ -733,15 +733,18 @@ func (c *Config) CheckSyncManagerConfig() {
 		c.SyncManagerConfig.TimeoutWebsocket = DefaultSyncerTimeoutWebsocket
 	}
 	if c.SyncManagerConfig.PairFormatDisplay == nil {
-		log.Warnf(log.ConfigMgr, "invalid sync manager pair format value %v, defaulting to %v\n", c.SyncManagerConfig.PairFormatDisplay, c.CurrencyPairFormat)
-		c.SyncManagerConfig.PairFormatDisplay = c.CurrencyPairFormat
+		log.Warnf(log.ConfigMgr, "invalid sync manager pair format value %v, using default format eg BTC-USD\n", c.SyncManagerConfig.PairFormatDisplay)
+		c.SyncManagerConfig.PairFormatDisplay = &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		}
 	}
 	if c.SyncManagerConfig.TimeoutREST <= 0 {
-		log.Warnf(log.ConfigMgr, "invalid sync manager REST timeout value %v, defaulting to %v\n", c.SyncManagerConfig.PairFormatDisplay, c.CurrencyPairFormat)
+		log.Warnf(log.ConfigMgr, "invalid sync manager REST timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutREST, DefaultSyncerTimeoutREST)
 		c.SyncManagerConfig.TimeoutREST = DefaultSyncerTimeoutREST
 	}
 	if c.SyncManagerConfig.NumWorkers <= 0 {
-		log.Warnf(log.ConfigMgr, "invalid sync manager worker count value %v, defaulting to %v\n", c.SyncManagerConfig.PairFormatDisplay, DefaultSyncerWorkers)
+		log.Warnf(log.ConfigMgr, "invalid sync manager worker count value %v, defaulting to %v\n", c.SyncManagerConfig.NumWorkers, DefaultSyncerWorkers)
 		c.SyncManagerConfig.NumWorkers = DefaultSyncerWorkers
 	}
 }
