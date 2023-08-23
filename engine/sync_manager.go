@@ -114,6 +114,11 @@ func (m *syncManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return ErrSubSystemAlreadyStarted
 	}
+	if !m.config.SynchronizeTicker &&
+		!m.config.SynchronizeOrderbook &&
+		!m.config.SynchronizeTrades {
+		return errNoSyncItemsEnabled
+	}
 	m.shutdown = make(chan bool)
 	m.initSyncWG.Add(1)
 	m.inService.Done()
@@ -699,6 +704,9 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
+	if !m.config.SynchronizeTicker {
+		return
+	}
 	if err != nil {
 		if err == common.ErrNotYetImplemented {
 			log.Warnf(log.SyncMgr, "Failed to get %s ticker. Error: %s",
@@ -780,6 +788,9 @@ const (
 // PrintOrderbookSummary outputs orderbook results
 func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
+	if !m.config.SynchronizeOrderbook {
 		return
 	}
 	if err != nil {
