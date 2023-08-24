@@ -251,7 +251,6 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	case int64:
-		println(">>>: int64")
 		standard = value
 	case float64:
 		standard = int64(value)
