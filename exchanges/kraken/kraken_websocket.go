@@ -557,9 +557,9 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					Amount:               val.Volume,
 					LimitPriceUpper:      val.LimitPrice,
 					ExecutedAmount:       val.ExecutedVolume,
-					RemainingAmount:      val.Volume - val.ExecutedVolume,
 					Fee:                  val.Fee,
-					Date:                 convert.TimeFromUnixTimestampDecimal(val.OpenTime),
+					Date:                 convert.TimeFromUnixTimestampDecimal(val.OpenTime).Truncate(time.Microsecond),
+					LastUpdated:          convert.TimeFromUnixTimestampDecimal(val.LastUpdated).Truncate(time.Microsecond),
 				}
 
 				if val.Status != "" {
@@ -574,7 +574,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					}
 				}
 
-				if val.Description.Price > 0 {
+				if val.Description.Pair != "" {
 					if strings.Contains(val.Description.Order, "sell") {
 						d.Side = order.Sell
 					} else {
@@ -613,9 +613,16 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 							d.AssetType = a
 						}
 					}
+				}
 
+				if val.Description.Price > 0 {
 					d.Leverage = val.Description.Leverage
 					d.Price = val.Description.Price
+				}
+
+				if val.Volume > 0 {
+					// Note: We don't seem to ever get both there values
+					d.RemainingAmount = val.Volume - val.ExecutedVolume
 				}
 				k.Websocket.DataHandler <- d
 			}

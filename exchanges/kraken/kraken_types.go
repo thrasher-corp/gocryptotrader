@@ -600,6 +600,7 @@ type wsSubscription struct {
 type WsOpenOrder struct {
 	UserReferenceID int64   `json:"userref"`
 	ExpireTime      float64 `json:"expiretm,string"`
+	LastUpdated     float64 `json:"lastupdated,string"`
 	OpenTime        float64 `json:"opentm,string"`
 	StartTime       float64 `json:"starttm,string"`
 	Fee             float64 `json:"fee,string"`

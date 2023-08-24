@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -1817,212 +1818,92 @@ func TestWsOwnTrades(t *testing.T) {
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
 	drainWS()
-	pressXToJSON := []byte(`[
-	  [
-		{
-		  "OGTT3Y-C6I3P-XRI6HR": {
-			"cost": "0.00000",
-			"descr": {
-			  "close": "",
-			  "leverage": "0.1",
-			  "order": "sell 10.00345345 XBT/USD @ limit 34.50000 with 0:1 leverage",
-			  "ordertype": "limit",
-			  "pair": "XBT/USD",
-			  "price": "34.50000",
-			  "price2": "0.00000",
-			  "type": "sell"
-			},
-			"expiretm": "0.000000",
-			"fee": "0.00000",
-			"limitprice": "34.50000",
-			"misc": "",
-			"oflags": "fcib",
-			"opentm": "0.000000",
-			"avg_price": "0.00000",
-			"refid": "OKIVMP-5GVZN-Z2D2UA",
-			"starttm": "0.000000",
-			"status": "open",
-			"stopprice": "0.000000",
-			"userref": 0,
-			"vol": "10.00345345",
-			"vol_exec": "0.00000000"
-		  }
-		},
-		{
-		  "OGTT3Y-C6I3P-XRI6HS": {
-        "cost": "0.00000",
-        "descr": {
-          "close": "",
-          "leverage": "0.1",
-          "order": "sell 0.00000010 XBT/USD @ limit 5334.60000 with 0:1 leverage",
-          "ordertype": "limit",
-          "pair": "XBT/USD",
-          "price": "5334.60000",
-          "price2": "0.00000",
-          "type": "sell"
-        },
-        "expiretm": "0.000000",
-        "fee": "0.00000",
-        "limitprice": "5334.60000",
-        "misc": "",
-        "oflags": "fcib",
-        "opentm": "0.000000",
-		"avg_price": "0.00000",
-        "refid": "OKIVMP-5GVZN-Z2D2UA",
-        "starttm": "0.000000",
-        "status": "open",
-        "stopprice": "0.000000",
-        "userref": 0,
-        "vol": "0.00000010",
-        "vol_exec": "0.00000000"
-      }
-    },
-    {
-      "OGTT3Y-C6I3P-XRI6HT": {
-        "cost": "0.00000",
-        "descr": {
-          "close": "",
-          "leverage": "0.1",
-          "order": "sell 0.00001000 XBT/USD @ limit 90.40000 with 0:1 leverage",
-          "ordertype": "limit",
-          "pair": "XBT/USD",
-          "price": "90.40000",
-          "price2": "0.00000",
-          "type": "sell"
-        },
-        "expiretm": "0.000000",
-        "fee": "0.00000",
-        "limitprice": "90.40000",
-        "misc": "",
-        "oflags": "fcib",
-        "opentm": "0.000000",
-		"avg_price": "0.00000",
-        "refid": "OKIVMP-5GVZN-Z2D2UA",
-        "starttm": "0.000000",
-        "status": "open",
-        "stopprice": "0.000000",
-        "userref": 0,
-        "vol": "0.00001000",
-        "vol_exec": "0.00000000"
-      }
-    },
-    {
-      "OGTT3Y-C6I3P-XRI6HU": {
-        "cost": "0.00000",
-        "descr": {
-          "close": "",
-          "leverage": "0.1",
-          "order": "sell 0.00001000 XBT/USD @ limit 9.00000 with 0:1 leverage",
-          "ordertype": "limit",
-          "pair": "XBT/USD",
-          "price": "9.00000",
-          "price2": "0.00000",
-          "type": "sell"
-        },
-        "expiretm": "0.000000",
-        "fee": "0.00000",
-        "limitprice": "9.00000",
-        "misc": "",
-        "oflags": "fcib",
-        "opentm": "0.000000",
-		"avg_price": "0.00000",
-        "refid": "OKIVMP-5GVZN-Z2D2UA",
-        "starttm": "0.000000",
-        "status": "open",
-        "stopprice": "0.000000",
-        "userref": 0,
-        "vol": "0.00001000",
-        "vol_exec": "0.00000000"
-      }
-    }
-  ],
-  "openOrders"
-]`)
-	err := k.wsHandleData(pressXToJSON)
+
+	fixture, err := os.Open("testdata/wsOpenTrades.json")
 	if err != nil {
+		t.Errorf("Error opening test fixture 'testdata/wsOpenTrades.json': %v", err)
+		return
+	}
+
+	s := bufio.NewScanner(fixture)
+	for s.Scan() {
+		if err = k.wsHandleData(s.Bytes()); err != nil {
+			t.Errorf("Error in wsHandleData; err: '%v', msg: '%v'", err, s.Bytes())
+		}
+	}
+	if err := s.Err(); err != nil {
 		t.Error(err)
-	} else {
-		select {
-		case resp := <-k.Websocket.DataHandler:
-			switch v := resp.(type) {
-			case *order.Detail:
-				if e := "OGTT3Y-C6I3P-XRI6HR"; v.OrderID != e {
-					t.Errorf("wrong OrderID; expected: %v got: %v", e, v.OrderID)
-				}
-				if v.Type != order.Limit {
-					t.Errorf("wrong order type; expected: %s got: %s", order.Limit, v.Type)
-				}
-				if v.Side != order.Sell {
-					t.Errorf("wrong order side; expected: %s got: %s", order.Sell, v.Side)
-				}
-				if v.Status != order.Open {
-					t.Errorf("wrong order status; expected: %s got: %s", order.Open, v.Status)
-				}
-				if e := 34.5; v.Price != e {
-					t.Errorf("wrong Price; expected: %v got: %v", e, v.Price)
-				}
-				if e := 10.00345345; v.Amount != e {
-					t.Errorf("wrong Amount; expected: %v got: %v", e, v.Amount)
-				}
-				if v.Amount != v.RemainingAmount {
-					t.Errorf("wrong Remaining Amount; expected: %v got: %v", v.Amount, v.RemainingAmount)
-				}
+	}
+
+	close(k.Websocket.DataHandler)
+	defer func() { k.Websocket.DataHandler = make(chan interface{}, 5000) }()
+
+	seen := 0
+	assert := func(e, v any, d string) {
+		if v != e {
+			t.Errorf("wrong %s; expected: %v got: %v seqNo: %v", d, e, v, seen)
+		}
+	}
+
+	for resp := range k.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *order.Detail:
+			seen++
+			switch seen {
+			case 1:
+				assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert(order.Limit, v.Type, "order type")
+				assert(order.Sell, v.Side, "order side")
+				assert(order.Open, v.Status, "order status")
+				assert(34.5, v.Price, "price")
+				assert(10.00345345, v.Amount, "amount")
+			case 2:
+				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert(order.Market, v.Type, "order type")
+				assert(order.Buy, v.Side, "order side")
+				assert(order.Pending, v.Status, "order status")
+				assert(0.0, v.Price, "price")
+				assert(0.0001, v.Amount, "amount")
+				assert(time.UnixMicro(1692851641361371), v.Date, "Date")
+			case 3:
+				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert(order.Open, v.Status, "order status")
+			case 4:
+				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert(order.UnknownStatus, v.Status, "order status")
+				assert(26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert(0.0001, v.ExecutedAmount, "ExecutedAmount")
+				assert(0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
+				assert(0.00687, v.Fee, "Fee")
+			case 5:
+				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+				assert(order.Closed, v.Status, "order status")
+				assert(0.0001, v.ExecutedAmount, "ExecutedAmount")
+				assert(26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert(0.00687, v.Fee, "Fee")
+				assert(time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
+			case 6:
+				assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert(order.UnknownStatus, v.Status, "order status")
+				assert(10.00345345, v.ExecutedAmount, "ExecutedAmount")
+				assert(0.001, v.Fee, "Fee")
+				assert(34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
+			case 7:
+				assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+				assert(order.Closed, v.Status, "order status")
+				assert(time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
+				assert(10.00345345, v.ExecutedAmount, "ExecutedAmount")
+				assert(0.001, v.Fee, "Fee")
+				assert(34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
 			default:
-				t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+				t.Errorf("Unexpected sequence of order %v at seqNo %v", v.OrderID, seen)
 			}
 		default:
-			t.Error("wsHandleOrder should emit something to DataHandler")
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
 		}
 	}
 
-	drainWS()
-
-	expectStatus := func(expectedStatus order.Status, j []byte) {
-		if err := k.wsHandleData(j); err != nil {
-			t.Errorf("Update without status should not error; err: %v", err)
-		} else {
-			select {
-			case resp := <-k.Websocket.DataHandler:
-				switch v := resp.(type) {
-				case *order.Detail:
-					if v.Status != expectedStatus {
-						t.Errorf("wrong order status; expected: %s got: %s", expectedStatus, v.Status)
-					}
-					if e := 10.00345345; v.ExecutedAmount != e {
-						t.Errorf("wrong executed amount; expected: %v got: %v", e, v.ExecutedAmount)
-					}
-					if e := 34.5; v.AverageExecutedPrice != e {
-						t.Errorf("wrong average executed price; expected: %v got: %v", e, v.AverageExecutedPrice)
-					}
-					if e := 0.001; v.Fee != e {
-						t.Errorf("wrong fee; expected: %v got: %v", e, v.Fee)
-					}
-				default:
-					t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
-				}
-			default:
-				t.Error("wsHandleOrder should emit something to DataHandler")
-			}
-		}
-	}
-
-	expectStatus(order.UnknownStatus, []byte(`[[{"OGTT3Y-C6I3P-XRI6HS": {
-		"vol_exec":"10.00345345",
-		"cost":"345.119144",
-		"fee":"0.001",
-		"avg_price":"34.50000"
-	}}], "openOrders",{"sequence":2}]`))
-
-	expectStatus(order.Closed, []byte(`[[{"OGTT3Y-C6I3P-XRI6HS": { 
-        "status":"closed",
-		"vol_exec":"10.00345345",
-		"lastupdated":"1692675961.789052",
-		"status":"closed",
-		"cost":"345.119144",
-		"fee":"0.001",
-		"avg_price":"34.50000",
-		"userref":0
-	}}],"openOrders",{"sequence":3}]`))
+	assert(7, seen, "number of DataHandler emissions")
 }
 
 func TestWsAddOrderJSON(t *testing.T) {
