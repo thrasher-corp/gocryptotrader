@@ -186,10 +186,10 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		if enable {
 			if bot.currencyPairSyncer == nil {
 				cfg := bot.Config.SyncManagerConfig
-				cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing || cfg.SynchronizeTicker
-				cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing || cfg.SynchronizeOrderbook
-				cfg.SynchronizeContinuously = bot.Settings.SyncContinuously || cfg.SynchronizeContinuously
-				cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing || cfg.SynchronizeTrades
+				cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing
+				cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing
+				cfg.SynchronizeContinuously = bot.Settings.SyncContinuously
+				cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing
 				cfg.Verbose = bot.Settings.Verbose || cfg.Verbose
 
 				if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST &&

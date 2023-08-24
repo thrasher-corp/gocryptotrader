@@ -179,6 +179,12 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("currencystatemanager", &b.Settings.EnableCurrencyStateManager, b.Config.CurrencyStateManager.Enabled != nil && *b.Config.CurrencyStateManager.Enabled)
 	flagSet.WithBool("gctscriptmanager", &b.Settings.EnableGCTScriptManager, b.Config.GCTScript.Enabled)
 
+	flagSet.WithBool("tickersync", &b.Settings.EnableTickerSyncing, b.Config.SyncManagerConfig.SynchronizeTicker)
+	flagSet.WithBool("orderbooksync", &b.Settings.EnableOrderbookSyncing, b.Config.SyncManagerConfig.SynchronizeOrderbook)
+	flagSet.WithBool("tradesync", &b.Settings.EnableTradeSyncing, b.Config.SyncManagerConfig.SynchronizeTrades)
+	flagSet.WithBool("synccontinuously", &b.Settings.SyncContinuously, b.Config.SyncManagerConfig.SynchronizeContinuously)
+	flagSet.WithBool("syncmanager", &b.Settings.EnableExchangeSyncManager, b.Config.SyncManagerConfig.Enabled)
+
 	if b.Settings.EnablePortfolioManager &&
 		b.Settings.PortfolioManagerDelay <= 0 {
 		b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
@@ -490,12 +496,12 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	if bot.Config.SyncManagerConfig.Enabled && bot.Settings.EnableExchangeSyncManager {
+	if bot.Settings.EnableExchangeSyncManager {
 		cfg := bot.Config.SyncManagerConfig
-		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing || cfg.SynchronizeTicker
-		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing || cfg.SynchronizeOrderbook
-		cfg.SynchronizeContinuously = bot.Settings.SyncContinuously || cfg.SynchronizeContinuously
-		cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing || cfg.SynchronizeTrades
+		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing
+		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing
+		cfg.SynchronizeContinuously = bot.Settings.SyncContinuously
+		cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing
 		cfg.Verbose = bot.Settings.Verbose || cfg.Verbose
 
 		if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST &&
