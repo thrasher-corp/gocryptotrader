@@ -1,37 +1,72 @@
 package key
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-func TestGenerateMapKey(t *testing.T) {
+func TestMatchesExchangeAsset(t *testing.T) {
 	t.Parallel()
-	_, err := GeneratePairAssetKey(currency.EMPTYPAIR, 0)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Error(err)
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	k := ExchangePairAssetKey{
+		Exchange: "test",
+		Base:     cp.Base.Item,
+		Quote:    cp.Quote.Item,
+		Asset:    asset.Spot,
 	}
+	if !k.MatchesExchangeAsset("test", asset.Spot) {
+		t.Error("expected true")
+	}
+	if k.MatchesExchangeAsset("TEST", asset.Futures) {
+		t.Error("expected false")
+	}
+	if k.MatchesExchangeAsset("test", asset.Futures) {
+		t.Error("expected false")
+	}
+	if !k.MatchesExchangeAsset("TEST", asset.Spot) {
+		t.Error("expected true")
+	}
+}
 
-	cp := currency.NewPair(currency.BTC, currency.USDT)
-	_, err = GeneratePairAssetKey(cp, 0)
-	if !errors.Is(err, asset.ErrInvalidAsset) {
-		t.Error(err)
+func TestMatchesPairAsset(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	k := ExchangePairAssetKey{
+		Base:  cp.Base.Item,
+		Quote: cp.Quote.Item,
+		Asset: asset.Spot,
 	}
+	if !k.MatchesPairAsset(cp, asset.Spot) {
+		t.Error("expected true")
+	}
+	if k.MatchesPairAsset(cp, asset.Futures) {
+		t.Error("expected false")
+	}
+	if k.MatchesPairAsset(currency.EMPTYPAIR, asset.Futures) {
+		t.Error("expected false")
+	}
+	if k.MatchesPairAsset(currency.NewPair(currency.BTC, currency.USDT), asset.Spot) {
+		t.Error("expected false")
+	}
+}
 
-	k, err := GeneratePairAssetKey(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+func TestMatchesExchange(t *testing.T) {
+	t.Parallel()
+	k := ExchangePairAssetKey{
+		Exchange: "test",
 	}
-	if k.Base != cp.Base.Item {
-		t.Errorf("received %v expected %v", k.Base, cp.Base.Item)
+	if !k.MatchesExchange("test") {
+		t.Error("expected true")
 	}
-	if k.Quote != cp.Quote.Item {
-		t.Errorf("received %v expected %v", k.Quote, cp.Quote.Item)
+	if !k.MatchesExchange("TEST") {
+		t.Error("expected true")
 	}
-	if k.Asset != asset.Spot {
-		t.Errorf("received %v expected %v", k.Asset, asset.Spot)
+	if k.MatchesExchange("tèst") {
+		t.Error("expected false")
+	}
+	if k.MatchesExchange("") {
+		t.Error("expected false")
 	}
 }
