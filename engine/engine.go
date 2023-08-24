@@ -492,9 +492,9 @@ func (bot *Engine) Start() error {
 
 	if bot.Config.SyncManagerConfig.Enabled && bot.Settings.EnableExchangeSyncManager {
 		cfg := bot.Config.SyncManagerConfig
-		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing && cfg.SynchronizeTicker
-		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing && cfg.SynchronizeOrderbook
-		cfg.SynchronizeContinuously = bot.Settings.SyncContinuously && cfg.SynchronizeContinuously
+		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing || cfg.SynchronizeTicker
+		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing || cfg.SynchronizeOrderbook
+		cfg.SynchronizeContinuously = bot.Settings.SyncContinuously || cfg.SynchronizeContinuously
 		cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing || cfg.SynchronizeTrades
 		cfg.Verbose = bot.Settings.Verbose || cfg.Verbose
 

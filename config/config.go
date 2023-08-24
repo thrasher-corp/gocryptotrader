@@ -747,6 +747,10 @@ func (c *Config) CheckSyncManagerConfig() {
 		log.Warnf(log.ConfigMgr, "invalid sync manager worker count value %v, defaulting to %v\n", c.SyncManagerConfig.NumWorkers, DefaultSyncerWorkers)
 		c.SyncManagerConfig.NumWorkers = DefaultSyncerWorkers
 	}
+	if c.SyncManagerConfig.FiatDisplayCurrency.IsEmpty() {
+		log.Warnf(log.ConfigMgr, "invalid sync manager fiat display currency value, defaulting to %v\n", currency.USD)
+		c.SyncManagerConfig.FiatDisplayCurrency = currency.USD
+	}
 }
 
 // GetEnabledPairs returns a list of currency pairs for a specific exchange
