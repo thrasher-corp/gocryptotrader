@@ -1,15 +1,12 @@
 package key
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
-
-var ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
 
 // ExchangePairAssetKey is a unique map key signature for exchange, currency pair and asset
 type ExchangePairAssetKey struct {
@@ -24,13 +21,6 @@ type PairAssetKey struct {
 	Base  *currency.Item
 	Quote *currency.Item
 	Asset asset.Item
-}
-
-// ExchangeCurrencyAssetKey is a unique map key signature for exchange, currency code and asset
-type ExchangeCurrencyAssetKey struct {
-	Exchange string
-	Currency *currency.Item
-	Asset    asset.Item
 }
 
 // SubAccountCurrencyAssetKey is a unique map key signature for subaccount, currency code and asset
@@ -58,47 +48,10 @@ func GeneratePairAssetKey(pair currency.Pair, item asset.Item) (PairAssetKey, er
 	}, nil
 }
 
-// GenerateExchangePairAssetKey is a helper function to generate a unique map key with an exchange name
-// and don't want to write validation yourself
-func GenerateExchangePairAssetKey(exch string, pair currency.Pair, item asset.Item) (ExchangePairAssetKey, error) {
-	if pair.IsEmpty() {
-		return ExchangePairAssetKey{}, currency.ErrCurrencyPairEmpty
-	}
-	if !item.IsValid() {
-		return ExchangePairAssetKey{}, fmt.Errorf("%w %v", asset.ErrInvalidAsset, item)
-	}
-	if exch == "" {
-		return ExchangePairAssetKey{}, ErrExchangeNameIsEmpty
-	}
-	return ExchangePairAssetKey{
-		Exchange: strings.ToLower(exch),
-		Base:     pair.Base.Item,
-		Quote:    pair.Quote.Item,
-		Asset:    item,
-	}, nil
-}
-
-func GenerateExchangeCurrencyAssetKey(exch string, curr currency.Code, item asset.Item) (ExchangeCurrencyAssetKey, error) {
-	if curr.IsEmpty() {
-		return ExchangeCurrencyAssetKey{}, currency.ErrCurrencyPairEmpty
-	}
-	if !item.IsValid() {
-		return ExchangeCurrencyAssetKey{}, fmt.Errorf("%w %v", asset.ErrInvalidAsset, item)
-	}
-	if exch == "" {
-		return ExchangeCurrencyAssetKey{}, ErrExchangeNameIsEmpty
-	}
-	return ExchangeCurrencyAssetKey{
-		Exchange: strings.ToLower(exch),
-		Currency: curr.Item,
-		Asset:    item,
-	}, nil
-}
-
 // MatchesExchangeAsset checks if the key matches the exchange and asset
 // used in Backtester funding statistics
 func (k *ExchangePairAssetKey) MatchesExchangeAsset(exch string, item asset.Item) bool {
-	return strings.ToLower(k.Exchange) == strings.ToLower(exch) && k.Asset == item
+	return strings.EqualFold(k.Exchange, exch) && k.Asset == item
 }
 
 // MatchesPairAsset checks if the key matches the pair and asset
@@ -109,6 +62,7 @@ func (k *ExchangePairAssetKey) MatchesPairAsset(pair currency.Pair, item asset.I
 		k.Asset == item
 }
 
+// MatchesExchange checks if the exchange matches
 func (k *ExchangePairAssetKey) MatchesExchange(exch string) bool {
-	return strings.ToLower(k.Exchange) == strings.ToLower(exch)
+	return strings.EqualFold(k.Exchange, exch)
 }

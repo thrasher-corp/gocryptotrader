@@ -221,7 +221,7 @@ func (s *Statistic) CalculateAllResults() error {
 	log.Infoln(common.Statistics, "Calculating backtesting results")
 	s.PrintAllEventsChronologically()
 	currCount := 0
-	var finalResults []FinalResultsHolder
+	finalResults := make([]FinalResultsHolder, 0, len(s.ExchangeAssetPairStatistics))
 	var err error
 	for mapKey, stats := range s.ExchangeAssetPairStatistics {
 		currCount++

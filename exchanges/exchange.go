@@ -51,6 +51,8 @@ var (
 	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
 	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
+	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
+	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
 )
 
 // SetRequester sets the instance of the requester

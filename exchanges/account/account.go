@@ -96,7 +96,6 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, errExchangeHoldingsNotFound)
 	}
 
-	var accountsHoldings []SubAccount
 	subAccountHoldings, ok := accounts.SubAccounts[*creds]
 	if !ok {
 		return Holdings{}, fmt.Errorf("%s %s %s %w",
@@ -107,22 +106,21 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 	}
 
 	var currencyBalances = make([]Balance, len(subAccountHoldings))
-	for key, assetHoldings := range subAccountHoldings {
-		if key.Asset != assetType {
+	accountsHoldings := make([]SubAccount, 0, len(subAccountHoldings))
+	for mapKey, assetHoldings := range subAccountHoldings {
+		if mapKey.Asset != assetType {
 			continue
 		}
-		target := 0
 		assetHoldings.m.Lock()
-		currencyBalances[target] = Balance{
-			Currency:               currency.Code{Item: key.Currency, UpperCase: true},
+		currencyBalances = append(currencyBalances, Balance{
+			Currency:               currency.Code{Item: mapKey.Currency, UpperCase: true},
 			Total:                  assetHoldings.total,
 			Hold:                   assetHoldings.hold,
 			Free:                   assetHoldings.free,
 			AvailableWithoutBorrow: assetHoldings.availableWithoutBorrow,
 			Borrowed:               assetHoldings.borrowed,
-		}
+		})
 		assetHoldings.m.Unlock()
-		target++
 
 		if len(currencyBalances) == 0 {
 			continue
@@ -130,13 +128,13 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 
 		cpy := *creds
 		if cpy.SubAccount == "" {
-			cpy.SubAccount = key.SubAccount
+			cpy.SubAccount = mapKey.SubAccount
 		}
 
 		accountsHoldings = append(accountsHoldings, SubAccount{
 			Credentials: Protected{creds: cpy},
-			ID:          key.SubAccount,
-			AssetType:   key.Asset,
+			ID:          mapKey.SubAccount,
+			AssetType:   mapKey.Asset,
 			Currencies:  currencyBalances,
 		})
 		break
@@ -191,7 +189,7 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 	}]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %s %w",
-			exch, subAccount, ai, c, errNoBalanceFound)
+			exch, subAccount, ai, c, errNoExchangeSubAccountBalances)
 	}
 	return bal, nil
 }

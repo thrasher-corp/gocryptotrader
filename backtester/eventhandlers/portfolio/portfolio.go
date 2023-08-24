@@ -323,7 +323,7 @@ func (p *Portfolio) GetLatestOrderSnapshotForEvent(ev common.Event) (compliance.
 
 // GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
 func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
-	var resp []compliance.Snapshot
+	resp := make([]compliance.Snapshot, 0, len(p.exchangeAssetPairPortfolioSettings))
 	for _, d := range p.exchangeAssetPairPortfolioSettings {
 		resp = append(resp, d.ComplianceManager.GetLatestSnapshot())
 	}
@@ -671,7 +671,7 @@ func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) er
 // GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies
 // this is useful to assess the position of your entire portfolio in order to help with risk decisions
 func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
-	var resp []holdings.Holding
+	resp := make([]holdings.Holding, 0, len(p.exchangeAssetPairPortfolioSettings))
 	for _, d := range p.exchangeAssetPairPortfolioSettings {
 		holds, err := d.GetLatestHoldings()
 		if err != nil {

@@ -46,7 +46,7 @@ func (h *HandlerHolder) GetAllData() ([]Handler, error) {
 	}
 	h.m.Lock()
 	defer h.m.Unlock()
-	var resp []Handler
+	resp := make([]Handler, 0, len(h.data))
 	for _, handler := range h.data {
 		resp = append(resp, handler)
 	}

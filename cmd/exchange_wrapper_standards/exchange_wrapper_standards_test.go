@@ -524,6 +524,7 @@ var unsupportedExchangeNames = []string{
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
 	"itbit",    // itbit has no way of retrieving pair data
+	"poloniex", // poloniex has dropped support for the API GCT has implemented //TODO: drop this when supported
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
