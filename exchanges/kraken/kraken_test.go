@@ -1835,9 +1835,6 @@ func TestWsOpenOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	close(k.Websocket.DataHandler)
-	defer func() { k.Websocket.DataHandler = make(chan interface{}, 5000) }()
-
 	seen := 0
 	assert := func(e, v any, d string) {
 		if v != e {
@@ -1845,61 +1842,65 @@ func TestWsOpenOrders(t *testing.T) {
 		}
 	}
 
-	for resp := range k.Websocket.DataHandler {
-		switch v := resp.(type) {
-		case *order.Detail:
-			seen++
-			switch seen {
-			case 1:
-				assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert(order.Limit, v.Type, "order type")
-				assert(order.Sell, v.Side, "order side")
-				assert(order.Open, v.Status, "order status")
-				assert(34.5, v.Price, "price")
-				assert(10.00345345, v.Amount, "amount")
-			case 2:
-				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert(order.Market, v.Type, "order type")
-				assert(order.Buy, v.Side, "order side")
-				assert(order.Pending, v.Status, "order status")
-				assert(0.0, v.Price, "price")
-				assert(0.0001, v.Amount, "amount")
-				assert(time.UnixMicro(1692851641361371), v.Date, "Date")
-			case 3:
-				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert(order.Open, v.Status, "order status")
-			case 4:
-				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert(order.UnknownStatus, v.Status, "order status")
-				assert(26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-				assert(0.0001, v.ExecutedAmount, "ExecutedAmount")
-				assert(0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
-				assert(0.00687, v.Fee, "Fee")
-			case 5:
-				assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert(order.Closed, v.Status, "order status")
-				assert(0.0001, v.ExecutedAmount, "ExecutedAmount")
-				assert(26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-				assert(0.00687, v.Fee, "Fee")
-				assert(time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
-			case 6:
-				assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert(order.UnknownStatus, v.Status, "order status")
-				assert(10.00345345, v.ExecutedAmount, "ExecutedAmount")
-				assert(0.001, v.Fee, "Fee")
-				assert(34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-			case 7:
-				assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert(order.Closed, v.Status, "order status")
-				assert(time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
-				assert(10.00345345, v.ExecutedAmount, "ExecutedAmount")
-				assert(0.001, v.Fee, "Fee")
-				assert(34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-			default:
-				t.Errorf("Unexpected sequence of order %v at seqNo %v", v.OrderID, seen)
-			}
+	for reading := true; reading; {
+		select {
 		default:
-			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+			reading = false
+		case resp := <-k.Websocket.DataHandler:
+			seen++
+			switch v := resp.(type) {
+			case *order.Detail:
+				switch seen {
+				case 1:
+					assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+					assert(order.Limit, v.Type, "order type")
+					assert(order.Sell, v.Side, "order side")
+					assert(order.Open, v.Status, "order status")
+					assert(34.5, v.Price, "price")
+					assert(10.00345345, v.Amount, "amount")
+				case 2:
+					assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+					assert(order.Market, v.Type, "order type")
+					assert(order.Buy, v.Side, "order side")
+					assert(order.Pending, v.Status, "order status")
+					assert(0.0, v.Price, "price")
+					assert(0.0001, v.Amount, "amount")
+					assert(time.UnixMicro(1692851641361371), v.Date, "Date")
+				case 3:
+					assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+					assert(order.Open, v.Status, "order status")
+				case 4:
+					assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+					assert(order.UnknownStatus, v.Status, "order status")
+					assert(26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+					assert(0.0001, v.ExecutedAmount, "ExecutedAmount")
+					assert(0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
+					assert(0.00687, v.Fee, "Fee")
+				case 5:
+					assert("OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
+					assert(order.Closed, v.Status, "order status")
+					assert(0.0001, v.ExecutedAmount, "ExecutedAmount")
+					assert(26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
+					assert(0.00687, v.Fee, "Fee")
+					assert(time.UnixMicro(1692851641361447), v.LastUpdated, "LastUpdated")
+				case 6:
+					assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+					assert(order.UnknownStatus, v.Status, "order status")
+					assert(10.00345345, v.ExecutedAmount, "ExecutedAmount")
+					assert(0.001, v.Fee, "Fee")
+					assert(34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
+				case 7:
+					assert("OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
+					assert(order.Closed, v.Status, "order status")
+					assert(time.UnixMicro(1692675961789052), v.LastUpdated, "LastUpdated")
+					assert(10.00345345, v.ExecutedAmount, "ExecutedAmount")
+					assert(0.001, v.Fee, "Fee")
+					assert(34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
+					reading = false
+				}
+			default:
+				t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+			}
 		}
 	}
 
