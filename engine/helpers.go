@@ -1035,8 +1035,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(kraken.Kraken), nil
 	case "lbank":
 		return new(lbank.Lbank), nil
-	case "okcoin international":
-		return new(okcoin.OKCoin), nil
+	case "okcoin":
+		return new(okcoin.Okcoin), nil
 	case "okx":
 		return new(okx.Okx), nil
 	case "poloniex":
