@@ -328,7 +328,7 @@
    "Disabled": false
   },
   {
-   "Name": "OkCoin International",
+   "Name": "Okcoin",
    "CheckType": "HTML String Check",
    "Data": {
     "HTMLData": {
