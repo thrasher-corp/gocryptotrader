@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -18,6 +19,8 @@ var (
 	ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
 	// ErrInvalidAction defines and error when an action is invalid
 	ErrInvalidAction = errors.New("invalid action")
+
+	errInvalidBookDepth = errors.New("invalid book depth")
 )
 
 // Outbound restricts outbound usage of depth. NOTE: Type assert to
@@ -73,8 +76,8 @@ func (d *Depth) Retrieve() (*Base, error) {
 		return nil, d.validationError
 	}
 	return &Base{
-		Bids:             d.bids.retrieve(),
-		Asks:             d.asks.retrieve(),
+		Bids:             d.bids.retrieve(0),
+		Asks:             d.asks.retrieve(0),
 		Exchange:         d.exchange,
 		Asset:            d.asset,
 		Pair:             d.pair,
@@ -710,4 +713,30 @@ func (d *Depth) GetImbalance() (float64, error) {
 		return 0, err
 	}
 	return (bidVolume - askVolume) / (bidVolume + askVolume), nil
+}
+
+// GetTranches returns the desired tranche for the required depth count. If
+// count is 0, it will return the entire orderbook. Count == 1 will retrieve the
+// best bid and ask. If the required count exceeds the orderbook depth, it will
+// return the entire orderbook.
+func (d *Depth) GetTranches(count int) (ask, bid []Item, err error) {
+	if count < 0 {
+		return nil, nil, errInvalidBookDepth
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, nil, d.validationError
+	}
+	return d.asks.retrieve(count), d.bids.retrieve(count), nil
+}
+
+// GetPair returns the pair associated with the depth
+func (d *Depth) GetPair() (currency.Pair, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.pair.IsEmpty() {
+		return currency.Pair{}, currency.ErrCurrencyPairEmpty
+	}
+	return d.pair, nil
 }

@@ -2121,6 +2121,84 @@ func TestGetImbalance_Depth(t *testing.T) {
 	}
 }
 
+func TestGetTranches(t *testing.T) {
+	t.Parallel()
+	_, _, err := getInvalidDepth().GetTranches(0)
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
+	depth := NewDepth(id)
+
+	_, _, err = depth.GetTranches(-1)
+	if !errors.Is(err, errInvalidBookDepth) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidBookDepth)
+	}
+
+	askT, bidT, err := depth.GetTranches(0)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(askT) != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(askT), 0)
+	}
+
+	if len(bidT) != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(bidT), 0)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+
+	askT, bidT, err = depth.GetTranches(0)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(askT) != 20 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(askT), 20)
+	}
+
+	if len(bidT) != 20 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(bidT), 20)
+	}
+
+	askT, bidT, err = depth.GetTranches(5)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(askT) != 5 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(askT), 5)
+	}
+
+	if len(bidT) != 5 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(bidT), 5)
+	}
+}
+
+func TestGetPair(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+
+	_, err := depth.GetPair()
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	expected := currency.NewPair(currency.BTC, currency.WABI)
+	depth.pair = expected
+
+	pair, err := depth.GetPair()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !pair.Equal(expected) {
+		t.Fatalf("received: '%v' but expected: '%v'", pair, expected)
+	}
+}
+
 func getInvalidDepth() *Depth {
 	depth := NewDepth(id)
 	_ = depth.Invalidate(errors.New("invalid reasoning"))
