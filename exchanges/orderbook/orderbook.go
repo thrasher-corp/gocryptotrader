@@ -17,8 +17,7 @@ func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	return service.Retrieve(exchange, p, a)
 }
 
-// GetDepth returns a Depth pointer allowing the caller to stream orderbook
-// changes
+// GetDepth returns a Depth pointer allowing the caller to stream orderbook changes
 func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	return service.GetDepth(exchange, p, a)
 }
@@ -200,6 +199,13 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			p.Quote)
 	}
 	return book.Retrieve()
+}
+
+// GetDepth returns the concrete book of which Base is a copy
+// This is probably useful for immutably monitoring orderbook health and state
+// whereas FetchOrderbook would trigger a refresh.
+func (b *Base) GetDepth() (*Depth, error) {
+	return service.GetDepth(b.Exchange, b.Pair, b.Asset)
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
