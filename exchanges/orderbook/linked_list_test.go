@@ -460,11 +460,15 @@ func TestUpdateByID(t *testing.T) {
 		t.Fatalf("expecting %v but received %v", nil, err)
 	}
 
-	if a.retrieve()[1].Price == 0 {
+	if got := a.retrieve(2); len(got) != 2 || got[1].Price == 0 {
 		t.Fatal("price should not be replaced with zero")
 	}
 
-	if a.retrieve()[1].Amount != 1337 {
+	if got := a.retrieve(3); len(got) != 3 || got[1].Amount != 1337 {
+		t.Fatal("unexpected value for update")
+	}
+
+	if got := a.retrieve(1000); len(got) != 6 {
 		t.Fatal("unexpected value for update")
 	}
 }

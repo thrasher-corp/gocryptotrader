@@ -961,6 +961,14 @@ func TestSubmitOrder(t *testing.T) {
 // TestCancelExchangeOrder wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
+
+	if err := k.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.Options,
+		OrderID:   "1337",
+	}); !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected: %v, received: %v", asset.ErrNotSupported, err)
+	}
+
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
 
 	var orderCancellation = &order.Cancel{

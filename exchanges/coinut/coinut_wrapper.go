@@ -652,7 +652,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 			currencyID,
 			o.Amount,
 			o.Price,
-			o.Side == order.Buy,
+			o.Side.IsLong(),
 			uint32(clientIDInt))
 		if err != nil {
 			return nil, err

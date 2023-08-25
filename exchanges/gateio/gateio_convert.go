@@ -3,6 +3,7 @@ package gateio
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 )
@@ -19,11 +20,11 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 	var standard int64
 	switch val := value.(type) {
 	case float64:
-		standard = int64(val)
-	case int64:
-		standard = val
-	case int32:
-		standard = int64(val)
+		if math.Trunc(val) != val {
+			standard = int64(val * 1e3) // Account for 1684981731.098
+		} else {
+			standard = int64(val)
+		}
 	case string:
 		if val == "" {
 			return nil
@@ -31,6 +32,10 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 		parsedValue, err := strconv.ParseFloat(val, 64)
 		if err != nil {
 			return err
+		}
+		if math.Trunc(parsedValue) != parsedValue {
+			*a = gateioTime(time.UnixMicro(int64(parsedValue * 1e3))) // Account for "1691122380942.173000" microseconds
+			return nil
 		}
 		standard = int64(parsedValue)
 	default:
@@ -45,7 +50,7 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 }
 
 // Time represents a time instance.
-func (a *gateioTime) Time() time.Time { return time.Time(*a) }
+func (a gateioTime) Time() time.Time { return time.Time(a) }
 
 type gateioNumericalValue float64
 
@@ -75,59 +80,4 @@ func (a *gateioNumericalValue) UnmarshalJSON(data []byte) error {
 }
 
 // Float64 returns float64 value from gateioNumericalValue instance.
-func (a *gateioNumericalValue) Float64() float64 { return float64(*a) }
-
-// UnmarshalJSON to deserialize timestamp information and create OrderbookItem instance from the list of asks and bids data.
-func (a *Orderbook) UnmarshalJSON(data []byte) error {
-	type Alias Orderbook
-	type askorbid struct {
-		Price gateioNumericalValue `json:"p"`
-		Size  float64              `json:"s"`
-	}
-	chil := &struct {
-		*Alias
-		Current float64    `json:"current"`
-		Update  float64    `json:"update"`
-		Asks    []askorbid `json:"asks"`
-		Bids    []askorbid `json:"bids"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	err := json.Unmarshal(data, &chil)
-	if err != nil {
-		return err
-	}
-	a.Current = time.UnixMilli(int64(chil.Current * 1000))
-	a.Update = time.UnixMilli(int64(chil.Update * 1000))
-	a.Asks = make([]OrderbookItem, len(chil.Asks))
-	a.Bids = make([]OrderbookItem, len(chil.Bids))
-	for x := range chil.Asks {
-		a.Asks[x] = OrderbookItem{
-			Amount: chil.Asks[x].Size,
-			Price:  chil.Asks[x].Price.Float64(),
-		}
-	}
-	for x := range chil.Bids {
-		a.Bids[x] = OrderbookItem{
-			Amount: chil.Bids[x].Size,
-			Price:  chil.Bids[x].Price.Float64(),
-		}
-	}
-	return nil
-}
-
-// UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *WsUserPersonalTrade) UnmarshalJSON(data []byte) error {
-	type Alias WsUserPersonalTrade
-	chil := &struct {
-		*Alias
-		CreateTimeMicroS float64 `json:"create_time_ms,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreateTimeMicroS = time.UnixMicro(int64(chil.CreateTimeMicroS * 1000))
-	return nil
-}
+func (a gateioNumericalValue) Float64() float64 { return float64(a) }
