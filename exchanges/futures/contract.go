@@ -23,6 +23,13 @@ type Contract struct {
 	MaxLeverage          float64
 }
 
+func FormatPairs(c []Contract) {
+	for i := range c {
+		c[i].Name.Delimiter = "-"
+		c[i].Underlying.Delimiter = "-"
+	}
+}
+
 // ContractType holds the various style of contracts offered by futures exchanges
 type ContractType uint8
 

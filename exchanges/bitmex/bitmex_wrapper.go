@@ -1115,7 +1115,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 
-	marketInfo, err := b.GetActiveAndIndexInstruments(ctx)
+	marketInfo, err := b.GetInstruments(ctx, &GenericRequestParams{})
 	if err != nil {
 		return nil, err
 	}

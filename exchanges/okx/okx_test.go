@@ -3389,12 +3389,18 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ok.GetFuturesContractDetails(context.Background(), asset.Futures)
+	resp, err := ok.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
+	futures.FormatPairs(resp)
+	m, _ := json.MarshalIndent(resp, "", " ")
+	t.Log(string(m))
+	resp, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+	futures.FormatPairs(resp)
+	m, _ = json.MarshalIndent(resp, "", " ")
+	t.Log(string(m))
 }

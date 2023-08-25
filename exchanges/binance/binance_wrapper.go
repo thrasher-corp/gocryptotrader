@@ -2279,7 +2279,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			var cp currency.Pair
 			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
 			if len(splitter) != 2 {
-				return nil, fmt.Errorf("%w expected to split %v with %v", errUnexpectedPairFormat, ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+				return nil, fmt.Errorf("%w expected to split %v with %v", errors.New("unexpected pair format"), ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
 			}
 			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
 			if err != nil {
@@ -2316,7 +2316,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			var cp currency.Pair
 			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
 			if len(splitter) != 2 {
-				return nil, fmt.Errorf("%w expected to split %v with %v", errUnexpectedPairFormat, ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+				return nil, fmt.Errorf("%w expected to split %v with %v", errors.New("unexpected pair format"), ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
 			}
 			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
 			if err != nil {

@@ -3,6 +3,7 @@ package kraken
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -2238,8 +2239,11 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = k.GetFuturesContractDetails(context.Background(), asset.Futures)
+	resp, err := k.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+	futures.FormatPairs(resp)
+	m, _ := json.MarshalIndent(resp, "", " ")
+	t.Log(string(m))
 }

@@ -503,9 +503,6 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 		}
 	case asset.USDCMarginedFutures:
 		for x := range enabled {
-			if enabled[x].IsEmpty() {
-				panic("wow")
-			}
 			formattedPair, err := by.FormatExchangeCurrency(enabled[x], assetType)
 			if err != nil {
 				return err
@@ -2206,7 +2203,6 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			switch contractType {
 			case "linearperpetual":
 				ct = futures.Perpetual
-				fmt.Println(by.Name, item, cp, s, e)
 			case "linearfutures":
 				contractLength := e.Sub(s)
 				switch {
@@ -2296,7 +2292,6 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			switch contractType {
 			case "linearperpetual":
 				ct = futures.Perpetual
-				fmt.Println(by.Name, item, cp, s, e)
 			case "linearfutures":
 				contractLength := e.Sub(s)
 				switch {
@@ -2385,7 +2380,6 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			switch contractType {
 			case "linearperpetual":
 				ct = futures.Perpetual
-				fmt.Println(by.Name, item, cp, s, e)
 			case "linearfutures":
 				contractLength := e.Sub(s)
 				switch {
