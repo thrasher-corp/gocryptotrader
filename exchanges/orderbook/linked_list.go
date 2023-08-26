@@ -172,10 +172,13 @@ func (ll *linkedList) amount() (liquidity, value float64) {
 }
 
 // retrieve returns a full slice of contents from the linked list
-func (ll *linkedList) retrieve() Items {
-	depth := make(Items, 0, ll.length)
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		depth = append(depth, tip.Value)
+func (ll *linkedList) retrieve(count int) Items {
+	if count == 0 || ll.length < count {
+		count = ll.length
+	}
+	depth := make(Items, count)
+	for i, tip := 0, ll.head; i < count && tip != nil; i, tip = i+1, tip.Next {
+		depth[i] = tip.Value
 	}
 	return depth
 }

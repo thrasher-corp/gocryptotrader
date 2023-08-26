@@ -3,21 +3,17 @@ package bybit
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -32,54 +28,6 @@ const (
 var b = &Bybit{}
 
 var spotTradablePair, linearTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
-
-func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg, err := cfg.GetExchangeConfig("Bybit")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg.Enabled = true
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	request.MaxRequestJobs = 100
-	err = b.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Turn on all pairs for testing
-	supportedAssets := b.GetAssetTypes(false)
-	for x := range supportedAssets {
-		var avail currency.Pairs
-		avail, err = b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	err = instantiateTradablePairs()
-	if err != nil {
-		log.Fatalf("%s %v", b.Name, err)
-	}
-	b.checkAccountType(context.Background())
-	os.Exit(m.Run())
-}
 
 func TestStart(t *testing.T) {
 	t.Parallel()
@@ -119,19 +67,25 @@ func TestGetInstrumentInfo(t *testing.T) {
 
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetKlines(context.Background(), "spot", spotTradablePair.String(), kline.FiveMin, time.Now().Add(-time.Hour*1), time.Now(), 5)
+	s := time.Now().Add(-time.Hour)
+	e := time.Now()
+	if mockTests {
+		s = time.Unix(1691897100, 0).Round(kline.FiveMin.Duration())
+		e = time.Unix(1691907100, 0).Round(kline.FiveMin.Duration())
+	}
+	_, err := b.GetKlines(context.Background(), "spot", spotTradablePair.String(), kline.FiveMin, s, e, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetKlines(context.Background(), "linear", linearTradablePair.String(), kline.FiveMin, time.Now().Add(-time.Hour*1), time.Now(), 5)
+	_, err = b.GetKlines(context.Background(), "linear", linearTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetKlines(context.Background(), "inverse", inverseTradablePair.String(), kline.FiveMin, time.Now().Add(-time.Hour*1), time.Now(), 5)
+	_, err = b.GetKlines(context.Background(), "inverse", inverseTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetKlines(context.Background(), "option", optionsTradablePair.String(), kline.FiveMin, time.Now().Add(-time.Hour*1), time.Now(), 5)
+	_, err = b.GetKlines(context.Background(), "option", optionsTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err == nil {
 		t.Fatalf("expected 'params error: Category is invalid', but found nil")
 	}
@@ -224,6 +178,26 @@ func TestUpdateTicker(t *testing.T) {
 	_, err = b.UpdateTicker(context.Background(), inverseTradablePair, asset.Inverse)
 	if err != nil {
 		t.Error(err)
+	}
+	var pairs currency.Pairs
+	if mockTests {
+		if optionsTradablePair.IsEmpty() {
+			optionsTradablePair, err = currency.NewPairFromString("BTC-29DEC23-80000-C")
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		pairs = pairs.Add(optionsTradablePair)
+	} else {
+		// Futures update dynamically, so fetch the available tradable futures for this test
+		pairs, err = b.FetchTradablePairs(context.Background(), asset.Options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Needs to be set before calling extractCurrencyPair
+		if err = b.SetPairs(pairs, asset.Futures, true); err != nil {
+			t.Fatal(err)
+		}
 	}
 	_, err = b.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {

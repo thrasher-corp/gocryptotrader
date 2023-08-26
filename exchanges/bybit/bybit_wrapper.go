@@ -1404,7 +1404,8 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		var pair currency.Pair
 		pair, err = avail.DeriveFrom(instrumentsInfo.List[x].Symbol)
 		if err != nil {
-			return err
+			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, instrumentsInfo.List[x].Symbol)
+			continue
 		}
 
 		limits = append(limits, order.MinMaxLevel{
@@ -1416,6 +1417,9 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			MaxPrice:                instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 			PriceStepIncrementSize:  instrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
 			AmountStepIncrementSize: instrumentsInfo.List[x].LotSizeFilter.QtyStep.Float64(),
+			QuoteStepIncrementSize:  instrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
+			MinimumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
+			MaximumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
 	return by.LoadLimits(limits)
