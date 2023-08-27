@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -57,10 +58,9 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetTicker(context.Background())
 	if err != nil {
-		t.Error("Poloniex GetTicker() error", err)
+		t.Error(err)
 	}
 }
-
 func TestGetVolume(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetVolume(context.Background())
@@ -69,9 +69,9 @@ func TestGetVolume(t *testing.T) {
 	}
 }
 
-func TestGetOrderbook(t *testing.T) {
+func TestGetOrderbookOld(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetOrderbook(context.Background(), "BTC_XMR", 50)
+	_, err := p.GetOrderbookOld(context.Background(), "BTC_XMR", 50)
 	if err != nil {
 		t.Error("Test failed - Poloniex GetOrderbook() error", err)
 	}
@@ -1153,4 +1153,141 @@ func TestFetchTradablePairs(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetSymbolInformation(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("ETH_USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = p.GetSymbolInformation(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = p.GetSymbolInformation(context.Background(), currency.EMPTYPAIR)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrencyInformations(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetCurrencyInformations(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrencyInformation(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetCurrencyInformation(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2CurrencyInformations(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetV2CurrencyInformations(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2CurrencyInformation(t *testing.T) {
+	t.Parallel()
+	p.Verbose = true
+	_, err := p.GetV2CurrencyInformation(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSystemTimestamp(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetSystemTimestamp(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarketPrices(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetMarketPrices(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarketPrice(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("TRX_USDC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetMarketPrice(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarkPrices(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetMarkPrices(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarkPrice(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetMarkPrice(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMarkPriceComponents(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.MarkPriceComponents(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetOrderbook(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCandlesticks(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	candles, err := p.GetCandlesticks(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	} else {
+		val, _ := json.Marshal(candles)
+		println(string(val))
+	}
+
 }

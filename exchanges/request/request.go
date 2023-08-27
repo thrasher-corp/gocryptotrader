@@ -237,6 +237,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		if err != nil {
 			return err
 		}
+		println(string(contents))
 		// Even in the case of an erroneous condition below, yield the parsed
 		// response to caller.
 		var unmarshallError error

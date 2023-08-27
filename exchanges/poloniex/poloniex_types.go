@@ -2,9 +2,12 @@ package poloniex
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // Ticker holds ticker data
@@ -520,4 +523,202 @@ type WalletWithdrawals struct {
 // TimeStampResponse returns the time
 type TimeStampResponse struct {
 	ServerTime int64 `json:"serverTime"`
+}
+
+//  ---------------------------------------------------------------- New ----------------------------------------------------------------
+
+type SymbolDetail struct {
+	Symbol            string               `json:"symbol"`
+	BaseCurrencyName  string               `json:"baseCurrencyName"`
+	QuoteCurrencyName string               `json:"quoteCurrencyName"`
+	DisplayName       string               `json:"displayName"`
+	State             string               `json:"state"`
+	VisibleStartTime  convert.ExchangeTime `json:"visibleStartTime"`
+	TradableStartTime convert.ExchangeTime `json:"tradableStartTime"`
+	SymbolTradeLimit  struct {
+		Symbol        string                  `json:"symbol"`
+		PriceScale    float64                 `json:"priceScale"`
+		QuantityScale float64                 `json:"quantityScale"`
+		AmountScale   float64                 `json:"amountScale"`
+		MinQuantity   convert.StringToFloat64 `json:"minQuantity"`
+		MinAmount     convert.StringToFloat64 `json:"minAmount"`
+		HighestBid    convert.StringToFloat64 `json:"highestBid"`
+		LowestAsk     convert.StringToFloat64 `json:"lowestAsk"`
+	} `json:"symbolTradeLimit"`
+	CrossMargin struct {
+		SupportCrossMargin bool    `json:"supportCrossMargin"`
+		MaxLeverage        float64 `json:"maxLeverage"`
+	} `json:"crossMargin"`
+}
+
+// CurrencyDetail represents all supported currencies.
+type CurrencyDetail map[string]struct {
+	ID                    int64    `json:"id"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Type                  string   `json:"type"`
+	WithdrawalFee         string   `json:"withdrawalFee"`
+	MinConf               int64    `json:"minConf"`
+	DepositAddress        string   `json:"depositAddress"`
+	Blockchain            string   `json:"blockchain"`
+	Delisted              bool     `json:"delisted"`
+	TradingState          string   `json:"tradingState"`
+	WalletState           string   `json:"walletState"`
+	WalletDepositState    string   `json:"walletDepositState"`
+	WalletWithdrawalState string   `json:"walletWithdrawalState"`
+	ParentChain           string   `json:"parentChain"`
+	IsMultiChain          bool     `json:"isMultiChain"`
+	IsChildChain          bool     `json:"isChildChain"`
+	SupportCollateral     bool     `json:"supportCollateral"`
+	SupportBorrow         bool     `json:"supportBorrow"`
+	ChildChains           []string `json:"childChains"`
+}
+
+// CurrencyV2Information represents all supported currencies
+type CurrencyV2Information struct {
+	ID          int64  `json:"id"`
+	Coin        string `json:"coin"`
+	Delisted    bool   `json:"delisted"`
+	TradeEnable bool   `json:"tradeEnable"`
+	Name        string `json:"name"`
+	NetworkList []struct {
+		ID               int64                   `json:"id"`
+		Coin             string                  `json:"coin"`
+		Name             string                  `json:"name"`
+		CurrencyType     string                  `json:"currencyType"`
+		Blockchain       string                  `json:"blockchain"`
+		WithdrawalEnable bool                    `json:"withdrawalEnable"`
+		DepositEnable    bool                    `json:"depositEnable"`
+		DepositAddress   string                  `json:"depositAddress"`
+		Decimals         float64                 `json:"decimals"`
+		MinConfirm       float64                 `json:"minConfirm"`
+		WithdrawMin      convert.StringToFloat64 `json:"withdrawMin"`
+		WithdrawFee      convert.StringToFloat64 `json:"withdrawFee"`
+	} `json:"networkList"`
+	SupportCollateral bool `json:"supportCollateral,omitempty"`
+	SupportBorrow     bool `json:"supportBorrow,omitempty"`
+}
+
+// MarketPrice represents ticker information.
+type MarketPrice struct {
+	Symbol        string                  `json:"symbol"`
+	DailyChange   convert.StringToFloat64 `json:"dailyChange"`
+	Price         convert.StringToFloat64 `json:"price"`
+	Timestamp     convert.ExchangeTime    `json:"time"`
+	PushTimestamp convert.ExchangeTime    `json:"ts"`
+}
+
+// MarkPrice represents latest mark price for all cross margin symbols.
+type MarkPrice struct {
+	Symbol          string                  `json:"symbol"`
+	MarkPrice       convert.StringToFloat64 `json:"markPrice"`
+	RecordTimestamp convert.ExchangeTime    `json:"time"`
+}
+
+// MarkPriceComponent represents a mark price component instance.
+type MarkPriceComponent struct {
+	Symbol     string                  `json:"symbol"`
+	Timestamp  convert.ExchangeTime    `json:"ts"`
+	MarkPrice  convert.StringToFloat64 `json:"markPrice"`
+	Components []struct {
+		Symbol       string                  `json:"symbol"`
+		Exchange     string                  `json:"exchange"`
+		SymbolPrice  convert.StringToFloat64 `json:"symbolPrice"`
+		Weight       convert.StringToFloat64 `json:"weight"`
+		ConvertPrice convert.StringToFloat64 `json:"convertPrice"`
+	} `json:"components"`
+}
+
+// OrderbookData represents an order book data for a specific symbol.
+type OrderbookData struct {
+	CreationTime  convert.ExchangeTime `json:"time"`
+	Scale         string               `json:"scale"`
+	Asks          []string             `json:"asks"`
+	Bids          []string             `json:"bids"`
+	PushTimestamp convert.ExchangeTime `json:"ts"`
+}
+
+// CandlestickArrayData symbol at given timeframe (interval).
+type CandlestickArrayData [14]interface{}
+
+// CandlestickData represents a candlestick data for a specific symbol.
+type CandlestickData struct {
+	Low              float64
+	High             float64
+	Open             float64
+	Close            float64
+	Amount           float64
+	Quantity         float64
+	BuyTakeAmount    float64
+	BuyTakerQuantity float64
+	TradeCount       int64
+	PushTimestamp    time.Time
+	WeightedAverage  float64
+	Interval         kline.Interval
+	StartTime        time.Time
+	EndTime          time.Time
+}
+
+func processCandlestickData(candlestickData []CandlestickArrayData) ([]CandlestickData, error) {
+	candles := make([]CandlestickData, len(candlestickData))
+	var err error
+	var candle *CandlestickData
+	for i := range candlestickData {
+		candle, err = getCandlestickData(candlestickData[i])
+		if err != nil {
+			return nil, err
+		}
+		candles[i] = *candle
+	}
+	return candles, nil
+}
+
+func getCandlestickData(candlestickData CandlestickArrayData) (*CandlestickData, error) {
+	candle := &CandlestickData{}
+	var err error
+	candle.Low, err = strconv.ParseFloat(candlestickData[0].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.High, err = strconv.ParseFloat(candlestickData[1].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.Open, err = strconv.ParseFloat(candlestickData[2].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.Close, err = strconv.ParseFloat(candlestickData[3].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.Amount, err = strconv.ParseFloat(candlestickData[4].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.Quantity, err = strconv.ParseFloat(candlestickData[5].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.BuyTakeAmount, err = strconv.ParseFloat(candlestickData[6].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.BuyTakerQuantity, err = strconv.ParseFloat(candlestickData[7].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.TradeCount = candlestickData[8].(int64)
+	candle.PushTimestamp = time.UnixMilli(candlestickData[9].(int64))
+	candle.WeightedAverage, err = strconv.ParseFloat(candlestickData[10].(string), 64)
+	if err != nil {
+		return nil, err
+	}
+	candle.Interval, err = stringToInterval(candlestickData[11].(string))
+	if err != nil {
+		return nil, err
+	}
+	candle.StartTime = time.UnixMilli(candlestickData[12].(int64))
+	candle.EndTime = time.UnixMilli(candlestickData[13].(int64))
+	return candle, nil
 }

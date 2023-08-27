@@ -84,8 +84,8 @@ func (p *Poloniex) GetVolume(ctx context.Context) (interface{}, error) {
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
-// GetOrderbook returns the full orderbook from poloniex
-func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth int) (OrderbookAll, error) {
+// GetOrderbookOld returns the full orderbook from poloniex
+func (p *Poloniex) GetOrderbookOld(ctx context.Context, currencyPair string, depth int) (OrderbookAll, error) {
 	vals := url.Values{}
 
 	if depth != 0 {

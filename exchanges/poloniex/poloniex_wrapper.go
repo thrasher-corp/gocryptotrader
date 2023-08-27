@@ -151,8 +151,8 @@ func (p *Poloniex) SetDefaults() {
 	}
 	p.API.Endpoints = p.NewEndpoints()
 	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              poloniexAPIURL,
-		exchange.RestSpotSupplementary: poloniexAltAPIUrl,
+		exchange.RestSpot:              poloniexAltAPIUrl,
+		exchange.RestSpotSupplementary: poloniexAPIURL,
 		exchange.WebsocketSpot:         poloniexWebsocketAddress,
 	})
 	if err != nil {
@@ -382,7 +382,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		Asset:           assetType,
 		VerifyOrderbook: p.CanVerifyOrderbook,
 	}
-	orderbookNew, err := p.GetOrderbook(ctx, "", poloniexMaxOrderbookDepth)
+	orderbookNew, err := p.GetOrderbookOld(ctx, "", poloniexMaxOrderbookDepth)
 	if err != nil {
 		return callingBook, err
 	}
