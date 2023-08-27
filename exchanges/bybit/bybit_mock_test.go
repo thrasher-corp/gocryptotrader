@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -66,7 +67,8 @@ func TestMain(m *testing.M) {
 	// Turn on all pairs for testing
 	supportedAssets := b.GetAssetTypes(false)
 	for x := range supportedAssets {
-		avail, err := b.GetAvailablePairs(supportedAssets[x])
+		var avail currency.Pairs
+		avail, err = b.GetAvailablePairs(supportedAssets[x])
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -75,6 +77,22 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+	spotTradablePair, err = currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		log.Fatal(err)
+	}
+	linearTradablePair, err = currency.NewPairFromString("10000LADYSUSDT")
+	if err != nil {
+		log.Fatal(err)
+	}
+	inverseTradablePair, err = currency.NewPairFromString("ADAUSD")
+	if err != nil {
+		log.Fatal(err)
+	}
+	optionsTradablePair, err = currency.NewPairFromString("BTC-29DEC23-80000-C")
+	if err != nil {
+		log.Fatal(err)
 	}
 	os.Exit(m.Run())
 }
