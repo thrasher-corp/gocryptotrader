@@ -2051,7 +2051,6 @@ func assetPairFromSymbol(symbol string) (asset.Item, currency.Pair, error) {
 		assetType = asset.Spot
 	default:
 		return assetType, currency.EMPTYPAIR, fmt.Errorf("unknown pair prefix: %v", symbol[0])
-
 	}
 
 	pair, err := currency.NewPairFromString(symbol[1:])
