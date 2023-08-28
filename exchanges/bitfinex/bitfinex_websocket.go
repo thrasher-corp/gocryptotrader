@@ -1559,7 +1559,11 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					}
 					params["key"] = "trade:1m:" + prefix + enabledPairs[k].String() + fundingPeriod
 				} else {
-					params["symbol"] = wsPairFormat.Format(enabledPairs[k])
+					if enabledPairs[k].Len() > 6 {
+						params["symbol"] = enabledPairs[k].Format(currency.PairFormat{Uppercase: true, Delimiter: ":"})
+					} else {
+						params["symbol"] = wsPairFormat.Format(enabledPairs[k])
+					}
 				}
 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -1689,11 +1693,12 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, symbol string) 
 
 	if c == nil {
 		log.Errorf(log.ExchangeSys,
-			"%s Could not find an existing channel subscription: %s Pair: %s ChannelID: %d\n",
+			"%s Could not find an existing channel subscription: %s Pair: %s ChannelID: %d Asset: %s\n",
 			b.Name,
 			channel,
 			pair,
-			chanID)
+			chanID,
+			assetType)
 		c = &stream.ChannelSubscription{
 			Channel:  channel,
 			Currency: pair,
