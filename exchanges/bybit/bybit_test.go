@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -3516,25 +3515,16 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp, err := b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	futures.FormatPairs(resp)
-	m, _ := json.MarshalIndent(resp, "", " ")
-	t.Log(string(m))
-	resp, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	futures.FormatPairs(resp)
-	m, _ = json.MarshalIndent(resp, "", " ")
-	t.Log(string(m))
-	resp, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	futures.FormatPairs(resp)
-	m, _ = json.MarshalIndent(resp, "", " ")
-	t.Log(string(m))
 }

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1115,7 +1117,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 
-	marketInfo, err := b.GetInstruments(ctx, &GenericRequestParams{})
+	marketInfo, err := b.GetInstruments(ctx, &GenericRequestParams{Reverse: true, Count: 500})
 	if err != nil {
 		return nil, err
 	}
@@ -1152,6 +1154,10 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                 futures.Perpetual,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
 				Multiplier:           float64(marketInfo[x].Multiplier),
+				LatestRate: &fundingrate.Rate{
+					Time: marketInfo[x].FundingTimestamp,
+					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
+				},
 			})
 		}
 	case asset.Futures:
@@ -1160,7 +1166,12 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				continue
 			}
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromString(marketInfo[x].Symbol)
+			splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+			if len(splitter) != 2 {
+				log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+				continue
+			}
+			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, splitter[1])
 			if err != nil {
 				return nil, err
 			}

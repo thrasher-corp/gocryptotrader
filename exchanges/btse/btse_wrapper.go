@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1156,8 +1158,13 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 	}
 	resp := make([]futures.Contract, 0, len(marketSummary))
 	for i := range marketSummary {
+		splitter := strings.Split(marketSummary[i].Symbol, marketSummary[i].Base)
+		if len(splitter) != 2 {
+			log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketSummary[i].Symbol, marketSummary[i].Base)
+			continue
+		}
 		var cp currency.Pair
-		cp, err = currency.NewPairFromString(marketSummary[i].Symbol)
+		cp, err = currency.NewPairFromStrings(marketSummary[i].Base, splitter[1])
 		if err != nil {
 			return nil, err
 		}
@@ -1183,7 +1190,7 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			settlementCurrencies[j] = currency.NewCode(marketSummary[i].AvailableSettlement[j])
 		}
 
-		resp = append(resp, futures.Contract{
+		c := futures.Contract{
 			Name:                 cp,
 			Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
 			Asset:                item,
@@ -1192,7 +1199,15 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			EndDate:              e,
 			IsActive:             marketSummary[i].Active,
 			Type:                 ct,
-		})
+		}
+		if marketSummary[i].FundingRate > 0 {
+			c.LatestRate = &fundingrate.Rate{
+				Rate: decimal.NewFromFloat(marketSummary[i].FundingRate),
+				Time: time.Now().Truncate(time.Hour),
+			}
+		}
+
+		resp = append(resp, c)
 	}
 	return resp, nil
 }

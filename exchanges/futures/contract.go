@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 )
 
 // Contract holds details on futures contracts
@@ -21,13 +22,7 @@ type Contract struct {
 	MarginCurrency       currency.Code
 	Multiplier           float64
 	MaxLeverage          float64
-}
-
-func FormatPairs(c []Contract) {
-	for i := range c {
-		c[i].Name.Delimiter = "-"
-		c[i].Underlying.Delimiter = "-"
-	}
+	LatestRate           *fundingrate.Rate
 }
 
 // ContractType holds the various style of contracts offered by futures exchanges

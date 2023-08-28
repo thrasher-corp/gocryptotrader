@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -2011,7 +2012,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				if err != nil {
 					return nil, err
 				}
-				contractsToAdd[j] = futures.Contract{
+				c := futures.Contract{
 					Name:                 name,
 					Underlying:           name,
 					Asset:                item,
@@ -2021,6 +2022,13 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
 				}
+				if contracts[j].FundingRate > 0 {
+					c.LatestRate = &fundingrate.Rate{
+						Time: contracts[j].FundingNextApply.Time().Add(-time.Duration(contracts[j].FundingInterval) * time.Second),
+						Rate: contracts[j].FundingRate.Decimal(),
+					}
+				}
+				contractsToAdd[j] = c
 			}
 			resp = append(resp, contractsToAdd...)
 		}

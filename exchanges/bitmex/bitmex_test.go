@@ -2,7 +2,6 @@ package bitmex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -1246,18 +1245,13 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp, err := b.GetFuturesContractDetails(context.Background(), asset.Futures)
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	futures.FormatPairs(resp)
-	m, _ := json.MarshalIndent(resp, "", " ")
-	t.Log(string(m))
+
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	futures.FormatPairs(resp)
-	m, _ = json.MarshalIndent(resp, "", " ")
-	t.Log(string(m))
 }
