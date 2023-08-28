@@ -1206,9 +1206,33 @@ func TestWsCancelOffer(t *testing.T) {
 
 func TestWsSubscribedResponse(t *testing.T) {
 	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: wsTicker, Params: map[string]interface{}{"chanId": 224555}})
-	pressXToJSON := `{"event":"subscribed","channel":"ticker","chanId":224555,"symbol":"tBTCUSD","pair":"BTCUSD"}`
-	err := b.wsHandleData([]byte(pressXToJSON))
+	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"symbol":"tBTCUSD","pair":"BTCUSD"}`)); err != nil {
+		t.Error(err)
+	}
+
+	// Spot Candles
+	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: wsCandles, Params: map[string]interface{}{"chanId": 224556}})
+	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"candles","chanId":224556,"key":"trade:1m:tBTCUSD"}`)); err != nil {
+		t.Error(err)
+	}
+
+	pair, err := currency.NewPairFromString("tBTC:CNHT")
 	if err != nil {
+		t.Error(err)
+	}
+	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: pair, Channel: wsCandles, Params: map[string]interface{}{"chanId": 224557}})
+	pressXToJSON := `{"event":"subscribed","channel":"candles","chanId":224557,"key":"trade:1m:tBTC:CNHT"}`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+
+	// Margin Candles
+	pair, err = currency.NewPairFromString("fBTC")
+	if err != nil {
+		t.Error(err)
+	}
+	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.MarginFunding, Currency: pair, Channel: wsCandles, Params: map[string]interface{}{"chanId": 224557}})
+	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"candles","chanId":224557,"key":"trade:1m:fBTC:a30:p2:p30"}`)); err != nil {
 		t.Error(err)
 	}
 }

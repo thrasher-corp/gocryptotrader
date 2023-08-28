@@ -151,12 +151,12 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 			} else if key, ok := d["key"].(string); ok {
 				// Capture trading subscriptions
-				if contents := strings.Split(key, ":"); len(contents) > 3 {
-					// Edge case to parse margin strings.
-					// map[chanId:139136 channel:candles event:subscribed key:trade:1m:tXAUTF0:USTF0]
-					if contents[2][0] == 't' {
-						key = contents[2] + ":" + contents[3]
-					}
+				contents := strings.Split(key, ":")
+				switch len(contents) {
+				case 3, 6: // trade:1m:tBTCUST or trade:1m:fBTC:a30:p2:30
+					key = contents[2]
+				case 4: // trade:1m:tBTC:CNHT
+					key = contents[2] + ":" + contents[3]
 				}
 				if err := b.WsAddSubscriptionChannel(int(chanID), channel, key); err != nil {
 					return err
@@ -2044,26 +2044,17 @@ func assetPairFromSymbol(symbol string) (asset.Item, currency.Pair, error) {
 		return assetType, currency.EMPTYPAIR, nil
 	}
 
-	pairInfo := strings.Split(symbol, ":")
-	switch len(pairInfo) {
-	case 1:
-		newPair := pairInfo[0]
-		if newPair[0] == 'f' {
-			assetType = asset.MarginFunding
-		}
-		symbol = newPair[1:]
-	case 2:
-		assetType = asset.Margin
-		symbol = symbol[1:]
+	switch symbol[0] {
+	case 'f':
+		assetType = asset.MarginFunding
+	case 't':
+		assetType = asset.Spot
 	default:
-		newPair := pairInfo[2]
-		if newPair[0] == 'f' {
-			assetType = asset.MarginFunding
-		}
-		symbol = newPair[1:]
+		return assetType, currency.EMPTYPAIR, fmt.Errorf("unknown pair prefix: %v", symbol[0])
+
 	}
 
-	pair, err := currency.NewPairFromString(symbol)
+	pair, err := currency.NewPairFromString(symbol[1:])
 
 	return assetType, pair, err
 }
