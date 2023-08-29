@@ -607,10 +607,12 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						}
 					} else {
 						d.Pair = p
-						if a, err := k.GetPairAssetType(p); err != nil {
-							return err
-						} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
-							d.AssetType = a
+						if d.AssetType, err = k.GetPairAssetType(p); err != nil {
+							k.Websocket.DataHandler <- order.ClassificationError{
+								Exchange: k.Name,
+								OrderID:  key,
+								Err:      err,
+							}
 						}
 					}
 				}
