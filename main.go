@@ -46,7 +46,7 @@ func main() {
 	flag.BoolVar(&settings.EnableCommsRelayer, "enablecommsrelayer", true, "enables available communications relayer")
 	flag.BoolVar(&settings.Verbose, "verbose", false, "increases logging verbosity for GoCryptoTrader")
 	flag.BoolVar(&settings.EnableFuturesTracking, "enablefuturestracking", true, "tracks futures orders PNL is supported by the exchange")
-	flag.BoolVar(&settings.EnableExchangeSyncManager, "syncmanager", true, "enables to exchange sync manager")
+	flag.BoolVar(&settings.EnableExchangeSyncManager, "syncmanager", false, "enables to exchange sync manager")
 	flag.BoolVar(&settings.EnableWebsocketRoutine, "websocketroutine", true, "enables the websocket routine for all loaded exchanges")
 	flag.BoolVar(&settings.EnableCoinmarketcapAnalysis, "coinmarketcap", false, "overrides config and runs currency analysis")
 	flag.BoolVar(&settings.EnableEventManager, "eventmanager", true, "enables the event manager")
@@ -63,14 +63,14 @@ func main() {
 	flag.IntVar(&settings.DispatchJobsLimit, "dispatchjobslimit", dispatch.DefaultJobsLimit, "sets the dispatch package max jobs limit")
 
 	// Exchange syncer settings
-	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
-	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")
-	flag.BoolVar(&settings.EnableTradeSyncing, "tradesync", false, "enables trade syncing for all enabled exchanges")
-	flag.IntVar(&settings.SyncWorkersCount, "syncworkers", engine.DefaultSyncerWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
-	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", true, "whether to sync exchange data continuously (ticker, orderbook and trade history info")
-	flag.DurationVar(&settings.SyncTimeoutREST, "synctimeoutrest", engine.DefaultSyncerTimeoutREST,
+	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", false, "enables ticker syncing for all enabled exchanges, overriding false config value")
+	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", false, "enables orderbook syncing for all enabled exchanges, overriding false config value")
+	flag.BoolVar(&settings.EnableTradeSyncing, "tradesync", false, "enables trade syncing for all enabled exchanges, overriding false config value")
+	flag.IntVar(&settings.SyncWorkersCount, "syncworkers", config.DefaultSyncerWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
+	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", false, "whether to sync exchange data continuously (ticker, orderbook and trade history info), overriding false config value")
+	flag.DurationVar(&settings.SyncTimeoutREST, "synctimeoutrest", config.DefaultSyncerTimeoutREST,
 		"the amount of time before the syncer will switch from rest protocol to the streaming protocol (e.g. from REST to websocket)")
-	flag.DurationVar(&settings.SyncTimeoutWebsocket, "synctimeoutwebsocket", engine.DefaultSyncerTimeoutWebsocket,
+	flag.DurationVar(&settings.SyncTimeoutWebsocket, "synctimeoutwebsocket", config.DefaultSyncerTimeoutWebsocket,
 		"the amount of time before the syncer will switch from the websocket protocol to REST protocol (e.g. from websocket to REST)")
 
 	// Forex provider settings
