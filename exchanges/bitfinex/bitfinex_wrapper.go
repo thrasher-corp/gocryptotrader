@@ -85,6 +85,13 @@ func (b *Bitfinex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+
+	// Margin WS Currently not fully implemented and causes subscription collisions with spot
+	err = b.DisableAssetWebsocketSupport(asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	// TODO: Implement Futures and Securities asset types.
 
 	b.Features = exchange.Features{
