@@ -1817,7 +1817,33 @@ func TestWsOwnTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	drainWS()
+	pairs := currency.Pairs{
+		currency.Pair{Base: currency.XBT, Quote: currency.USD},
+		currency.Pair{Base: currency.XBT, Quote: currency.USDT},
+	}
+	k := Kraken{
+		Base: exchange.Base{
+			Name: "dummy",
+			CurrencyPairs: currency.PairsManager{
+				Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot: {
+						Available: pairs,
+						Enabled:   pairs,
+						ConfigFormat: &currency.PairFormat{
+							Uppercase: true,
+							Delimiter: currency.DashDelimiter,
+						},
+					},
+				},
+			},
+			Websocket: &stream.Websocket{
+				Wg:          new(sync.WaitGroup),
+				DataHandler: make(chan interface{}, 128),
+			},
+		},
+	}
+
+	k.API.Endpoints = k.NewEndpoints()
 
 	fixture, err := os.Open("testdata/wsOpenTrades.json")
 	if err != nil {
@@ -2199,16 +2225,6 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
 		if err != nil {
 			t.Fatal(err)
-		}
-	}
-}
-
-func drainWS() {
-	for draining := true; draining; {
-		select {
-		case <-k.Websocket.DataHandler:
-		default:
-			draining = false
 		}
 	}
 }
