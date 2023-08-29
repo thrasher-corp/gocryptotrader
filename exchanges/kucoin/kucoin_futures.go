@@ -340,7 +340,7 @@ func (ku *Kucoin) PostFuturesOrder(ctx context.Context, arg *FuturesOrderParam) 
 			return "", fmt.Errorf("%w, visible size must be non-zero positive value", errInvalidSize)
 		}
 	case "market":
-		if arg.Size < 0 {
+		if arg.Size <= 0 {
 			return "", fmt.Errorf("%w, market size must be >=0", errInvalidSize)
 		}
 	default:

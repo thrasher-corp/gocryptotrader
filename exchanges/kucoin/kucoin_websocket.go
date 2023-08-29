@@ -221,7 +221,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch {
-	case strings.HasPrefix(marketAllTickersChannel, topicInfo[0]) ||
+	case strings.HasPrefix(marketAllTickersChannel, topicInfo[0]),
 		strings.HasPrefix(marketTickerChannel, topicInfo[0]):
 		var instruments string
 		if topicInfo[1] == "all" {
@@ -551,7 +551,7 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 		return err
 	}
 	if !enabledPairs.Contains(pair, true) {
-		return nil
+		return errCurrencyPairNotEnabled
 	}
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Futures,
@@ -799,7 +799,12 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 		return err
 	}
 	response := WsLevel2Orderbook{}
-	err = json.Unmarshal(respData, &response)
+	result := struct {
+		Result *WsLevel2Orderbook `json:"data"`
+	}{
+		Result: &response,
+	}
+	err = json.Unmarshal(respData, &result)
 	if err != nil {
 		return err
 	}
@@ -848,7 +853,8 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	return nil
 }
 
-// UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
+// UpdateLocalBuffer updates orderbook buffer and checks status if the book is Initial Sync being via the REST
+// protocol.
 func (ku *Kucoin) UpdateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bool, error) {
 	enabledPairs, err := ku.GetEnabledPairs(assetType)
 	if err != nil {

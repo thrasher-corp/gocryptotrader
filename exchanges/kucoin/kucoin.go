@@ -1482,7 +1482,7 @@ func (ku *Kucoin) GetDepositAddressesV2(ctx context.Context, ccy string) ([]Depo
 }
 
 // GetDepositAddressesV1 get a deposit address for the currency you intend to deposit
-func (ku *Kucoin) GetDepositAddressesV1(ctx context.Context, ccy, chain string) ([]DepositAddress, error) {
+func (ku *Kucoin) GetDepositAddressesV1(ctx context.Context, ccy, chain string) (*DepositAddress, error) {
 	if ccy == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1491,8 +1491,8 @@ func (ku *Kucoin) GetDepositAddressesV1(ctx context.Context, ccy, chain string) 
 	if chain != "" {
 		params.Set("chain", chain)
 	}
-	var resp []DepositAddress
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressV1, params), nil, &resp)
+	var resp DepositAddress
+	return &resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressV1, params), nil, &resp)
 }
 
 // GetDepositList get deposit list items and sorted to show the latest first
@@ -1828,12 +1828,14 @@ func (ku *Kucoin) accountToTradeTypeString(a asset.Item, marginMode string) stri
 	}
 }
 
-func (ku *Kucoin) orderTypeToString(orderType order.Type) string {
+func (ku *Kucoin) orderTypeToString(orderType order.Type) (string, error) {
 	switch orderType {
 	case order.AnyType, order.UnknownType:
-		return ""
+		return "", nil
+	case order.Market, order.Limit:
+		return orderType.Lower(), nil
 	default:
-		return orderType.Lower()
+		return "", order.ErrUnsupportedOrderType
 	}
 }
 

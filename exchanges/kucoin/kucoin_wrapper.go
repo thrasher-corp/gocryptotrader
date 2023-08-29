@@ -499,8 +499,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			}},
 		})
 	case asset.Spot, asset.Margin:
-		acc := ku.accountTypeToString(assetType)
-		accountH, err := ku.GetAllAccounts(ctx, "", acc)
+		accountH, err := ku.GetAllAccounts(ctx, "", ku.accountTypeToString(assetType))
 		if err != nil {
 			return account.Holdings{}, err
 		}
@@ -820,17 +819,17 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	if err != nil {
 		return result, err
 	}
-	orderCancellation.Pair, err = ku.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
-	if err != nil {
-		return result, err
+	var pairString string
+	if !orderCancellation.Pair.IsEmpty() {
+		orderCancellation.Pair, err = ku.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
+		if err != nil {
+			return result, err
+		}
+		pairString = orderCancellation.Pair.String()
 	}
 	var values []string
 	switch orderCancellation.AssetType {
 	case asset.Margin, asset.Spot:
-		var pairString string
-		if !orderCancellation.Pair.IsEmpty() {
-			pairString = orderCancellation.Pair.String()
-		}
 		tradeType := ku.accountToTradeTypeString(orderCancellation.AssetType, orderCancellation.MarginMode)
 		values, err = ku.CancelAllOpenOrders(ctx, pairString, tradeType)
 		if err != nil {
@@ -991,6 +990,23 @@ func (ku *Kucoin) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 	return nil, common.ErrFunctionNotSupported
 }
 
+func orderTypeToString(oType order.Type) (string, error) {
+	switch oType {
+	case order.Limit:
+		return "limit", nil
+	case order.Market:
+		return "market", nil
+	case order.StopLimit:
+		return "limit_stop", nil
+	case order.StopMarket:
+		return "market_stop", nil
+	case order.AnyType, order.UnknownType:
+		return "", nil
+	default:
+		return "", order.ErrUnsupportedOrderType
+	}
+}
+
 // GetActiveOrders retrieves any orders that are active/open
 func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if getOrdersRequest == nil {
@@ -1018,7 +1034,11 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		futuresOrders, err := ku.GetFuturesOrders(ctx, "active", pair, sideString, getOrdersRequest.Type.Lower(), getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+		oType, err := orderTypeToString(getOrdersRequest.Type)
+		if err != nil {
+			return nil, err
+		}
+		futuresOrders, err := ku.GetFuturesOrders(ctx, "active", pair, sideString, oType, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1040,7 +1060,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				}
 				oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
 				}
 				orders = append(orders, order.Detail{
 					OrderID:         futuresOrders.Items[x].ID,
@@ -1065,7 +1085,11 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, ku.orderTypeToString(getOrdersRequest.Type), "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+		oType, err := ku.orderTypeToString(getOrdersRequest.Type)
+		if err != nil {
+			return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
+		}
+		spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, oType, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
 		if err != nil {
 			return nil, err
 		}

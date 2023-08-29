@@ -228,6 +228,13 @@ func (f *StringToFloat64) Float64() float64 {
 	return float64(*f)
 }
 
+// Decimal returns the decimal value of the FloatString
+// Warning: this does not handle big numbers as the underlying
+// is still a float
+func (f *StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(*f))
+}
+
 // ExchangeTime provides timestamp to time conversion method.
 type ExchangeTime time.Time
 
@@ -253,6 +260,8 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 	case int64:
 		standard = value
 	case float64:
+		// Warning: converting float64 to int64 instance may create loss of precision in the timestamp information.
+		// be aware or consider customizing this section if found necessary.
 		standard = int64(value)
 	case nil:
 		// for some exchange timestamp fields, if the timestamp information is not specified,
@@ -277,11 +286,4 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 // Time returns a time.Time instance from ExchangeTime instance object.
 func (k ExchangeTime) Time() time.Time {
 	return time.Time(k)
-}
-
-// Decimal returns the decimal value of the FloatString
-// Warning: this does not handle big numbers as the underlying
-// is still a float
-func (f *StringToFloat64) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(*f))
 }
