@@ -208,11 +208,8 @@ func (m *syncManager) Start() error {
 		if atomic.CompareAndSwapInt32(&m.initSyncCompleted, 0, 1) {
 			if m.config.LogInitialSyncEvents {
 				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
-			}
-			completedTime := time.Now()
-			if m.config.LogInitialSyncEvents {
 				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
-					completedTime.Sub(m.initSyncStartTime), createdCounter)
+					time.Since(m.initSyncStartTime), createdCounter)
 			}
 
 			if !m.config.SynchronizeContinuously {
