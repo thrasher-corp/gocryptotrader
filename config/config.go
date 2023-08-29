@@ -729,26 +729,26 @@ func (c *Config) CheckSyncManagerConfig() {
 		return
 	}
 	if c.SyncManagerConfig.TimeoutWebsocket <= 0 {
-		log.Warnf(log.ConfigMgr, "invalid sync manager websocket timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutWebsocket, DefaultSyncerTimeoutWebsocket)
+		log.Warnf(log.ConfigMgr, "Invalid sync manager websocket timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutWebsocket, DefaultSyncerTimeoutWebsocket)
 		c.SyncManagerConfig.TimeoutWebsocket = DefaultSyncerTimeoutWebsocket
 	}
 	if c.SyncManagerConfig.PairFormatDisplay == nil {
-		log.Warnf(log.ConfigMgr, "invalid sync manager pair format value %v, using default format eg BTC-USD\n", c.SyncManagerConfig.PairFormatDisplay)
+		log.Warnf(log.ConfigMgr, "Invalid sync manager pair format value %v, using default format eg BTC-USD\n", c.SyncManagerConfig.PairFormatDisplay)
 		c.SyncManagerConfig.PairFormatDisplay = &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: currency.DashDelimiter,
 		}
 	}
 	if c.SyncManagerConfig.TimeoutREST <= 0 {
-		log.Warnf(log.ConfigMgr, "invalid sync manager REST timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutREST, DefaultSyncerTimeoutREST)
+		log.Warnf(log.ConfigMgr, "Invalid sync manager REST timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutREST, DefaultSyncerTimeoutREST)
 		c.SyncManagerConfig.TimeoutREST = DefaultSyncerTimeoutREST
 	}
 	if c.SyncManagerConfig.NumWorkers <= 0 {
-		log.Warnf(log.ConfigMgr, "invalid sync manager worker count value %v, defaulting to %v\n", c.SyncManagerConfig.NumWorkers, DefaultSyncerWorkers)
+		log.Warnf(log.ConfigMgr, "Invalid sync manager worker count value %v, defaulting to %v\n", c.SyncManagerConfig.NumWorkers, DefaultSyncerWorkers)
 		c.SyncManagerConfig.NumWorkers = DefaultSyncerWorkers
 	}
 	if c.SyncManagerConfig.FiatDisplayCurrency.IsEmpty() {
-		log.Warnf(log.ConfigMgr, "invalid sync manager fiat display currency value, defaulting to %v\n", currency.USD)
+		log.Warnf(log.ConfigMgr, "Invalid sync manager fiat display currency value, defaulting to %v\n", currency.USD)
 		c.SyncManagerConfig.FiatDisplayCurrency = currency.USD
 	}
 }
