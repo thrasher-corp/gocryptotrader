@@ -109,6 +109,7 @@ const (
 
 var (
 	errLoanCoinMustBeSet       = errors.New("loan coin must bet set")
+	errLoanTermMustBeSet       = errors.New("loan term must be set")
 	errCollateralCoinMustBeSet = errors.New("collateral coin must be set")
 	errOrderIDMustBeSet        = errors.New("orderID must be set")
 	errAmountMustBeSet         = errors.New("amount must not be <= 0")
@@ -1323,8 +1324,6 @@ func (b *Binance) CryptoLoanIncomeHistory(ctx context.Context, curr currency.Cod
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanIncomeHistory, params, spotDefaultRate, &resp)
 }
 
-var errLoanTermMustBeSet = errors.New("loan term must be set")
-
 // CryptoLoanBorrow borrows crypto
 func (b *Binance) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, loanAmount float64, collateralCoin currency.Code, collateralAmount float64, loanTerm int64) ([]CryptoLoanBorrow, error) {
 	if loanCoin.IsEmpty() {
@@ -1419,9 +1418,7 @@ func (b *Binance) CryptoLoanRepay(ctx context.Context, orderID int64, amount flo
 	if repayType != 0 {
 		params.Set("type", strconv.FormatInt(repayType, 10))
 	}
-	if collateralReturn {
-		params.Set("collateralReturn", "true")
-	}
+	params.Set("collateralReturn", strconv.FormatBool(collateralReturn))
 
 	var resp []CryptoLoanRepay
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanRepay, params, spotDefaultRate, &resp)
@@ -1660,9 +1657,7 @@ func (b *Binance) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoi
 	params.Set("loanCoin", loanCoin.String())
 	params.Set("collateralCoin", collateralCoin.String())
 	params.Set("repayAmount", strconv.FormatFloat(amount, 'f', -1, 64))
-	if collateralReturn {
-		params.Set("collateralReturn", "true")
-	}
+	params.Set("collateralReturn", strconv.FormatBool(collateralReturn))
 	if fullRepayment {
 		params.Set("fullRepayment", "true")
 	}

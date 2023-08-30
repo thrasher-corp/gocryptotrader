@@ -983,7 +983,7 @@ type CryptoLoanOngoingOrderItem struct {
 	ResidualInterest float64       `json:"residualInterest,string"`
 	CollateralCoin   currency.Code `json:"collateralCoin"`
 	CollateralAmount float64       `json:"collateralAmount,string"`
-	CurrentLTV       float64       `json:"currentLtv,string"`
+	CurrentLTV       float64       `json:"currentLTV,string"`
 	ExpirationTime   binanceTime   `json:"expirationTime"`
 }
 
