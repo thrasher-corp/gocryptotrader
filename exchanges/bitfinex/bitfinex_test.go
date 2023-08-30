@@ -1216,7 +1216,7 @@ func TestWsSubscribedResponse(t *testing.T) {
 		t.Error(err)
 	}
 
-	pair, err := currency.NewPairFromString("tBTC:CNHT")
+	pair, err := currency.NewPairFromString("BTC:CNHT")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1227,12 +1227,21 @@ func TestWsSubscribedResponse(t *testing.T) {
 	}
 
 	// Margin Candles
-	pair, err = currency.NewPairFromString("fBTC")
+	pair, err = currency.NewPairFromString("BTC")
 	if err != nil {
 		t.Error(err)
 	}
-	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.MarginFunding, Currency: pair, Channel: wsCandles, Params: map[string]interface{}{"chanId": 224557}})
-	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"candles","chanId":224557,"key":"trade:1m:fBTC:a30:p2:p30"}`)); err != nil {
+	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.MarginFunding, Currency: pair, Channel: wsCandles, Params: map[string]interface{}{"chanId": 224558}})
+	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"candles","chanId":224558,"key":"trade:1m:fBTC:a30:p2:p30"}`)); err != nil {
+		t.Error(err)
+	}
+
+	pair, err = currency.NewPairFromString("USD")
+	if err != nil {
+		t.Error(err)
+	}
+	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.MarginFunding, Currency: pair, Channel: wsCandles, Params: map[string]interface{}{"chanId": 224559}})
+	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"candles","chanId":224559,"key":"trade:1m:fUSD:p30"}`)); err != nil {
 		t.Error(err)
 	}
 }

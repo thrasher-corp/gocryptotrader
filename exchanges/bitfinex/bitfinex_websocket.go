@@ -3,7 +3,6 @@ package bitfinex
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -145,22 +145,24 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if !ok {
 				return errors.New("unable to type assert channel")
 			}
-			if symbol, ok := d["symbol"].(string); ok {
-				if err := b.WsAddSubscriptionChannel(int(chanID), channel, symbol); err != nil {
+			symbol, ok := d["symbol"].(string)
+			if !ok {
+				key, ok := d["key"].(string)
+				if !ok {
+					return fmt.Errorf("subscribed to channel but no symbol or key: %v", channel)
+				}
+				if channel != wsCandles {
+					// status channel not implemented at all yet.
+					return errors.Wrapf(common.ErrNotYetImplemented, "%v channel subscription keys", channel)
+				}
+				if s, err := symbolFromCandleKey(key); err != nil {
 					return err
+				} else {
+					symbol = s
 				}
-			} else if key, ok := d["key"].(string); ok {
-				// Capture trading subscriptions
-				contents := strings.Split(key, ":")
-				switch len(contents) {
-				case 3, 6: // trade:1m:tBTCUST or trade:1m:fBTC:a30:p2:30
-					key = contents[2]
-				case 4: // trade:1m:tBTC:CNHT
-					key = contents[2] + ":" + contents[3]
-				}
-				if err := b.WsAddSubscriptionChannel(int(chanID), channel, key); err != nil {
-					return err
-				}
+			}
+			if err := b.WsAddSubscriptionChannel(int(chanID), channel, symbol); err != nil {
+				return err
 			}
 		case "unsubscribed":
 			chanID, ok := d["chanId"].(float64)
@@ -1549,21 +1551,29 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					params["len"] = "100"
 				}
 
+				prefix := "t"
+				if assets[i] == asset.MarginFunding {
+					prefix = "f"
+				}
+
+				needsDelimiter := enabledPairs[k].Len() > 6
+
+				var formattedPair string
+				if needsDelimiter {
+					formattedPair = enabledPairs[k].Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
+				} else {
+					formattedPair = wsPairFormat.Format(enabledPairs[k])
+				}
+
 				if channels[j] == wsCandles {
 					// TODO: Add ability to select timescale && funding period
-					var fundingPeriod string
-					prefix := "t"
+					fundingPeriod := ""
 					if assets[i] == asset.MarginFunding {
-						prefix = "f"
 						fundingPeriod = ":p30"
 					}
-					params["key"] = "trade:1m:" + prefix + enabledPairs[k].String() + fundingPeriod
+					params["key"] = "trade:1m:" + prefix + formattedPair + fundingPeriod
 				} else {
-					if enabledPairs[k].Len() > 6 {
-						params["symbol"] = enabledPairs[k].Format(currency.PairFormat{Uppercase: true, Delimiter: ":"})
-					} else {
-						params["symbol"] = wsPairFormat.Format(enabledPairs[k])
-					}
+					params["symbol"] = prefix + formattedPair
 				}
 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -2047,6 +2057,10 @@ func assetPairFromSymbol(symbol string) (asset.Item, currency.Pair, error) {
 	switch symbol[0] {
 	case 'f':
 		assetType = asset.MarginFunding
+		if idx := strings.Index(symbol, ":"); idx != -1 {
+			pair, err := currency.NewPairFromString(symbol[1:idx])
+			return assetType, pair, err
+		}
 	case 't':
 		assetType = asset.Spot
 	default:
@@ -2056,4 +2070,22 @@ func assetPairFromSymbol(symbol string) (asset.Item, currency.Pair, error) {
 	pair, err := currency.NewPairFromString(symbol[1:])
 
 	return assetType, pair, err
+}
+
+// symbolFromCandleKey extracts the symbol or pair from a subscribed channel key
+// e.g. trade:1h:tBTC, trade:1h:tBTC:CNHT, trade:1m:fBTC:p30 and trade:1m:fBTC:a30:p2:p30
+func symbolFromCandleKey(key string) (string, error) {
+	parts := strings.Split(key, ":")
+	if len(parts) < 3 {
+		return "", fmt.Errorf("subscription key has too few parts, need 3: %v", key)
+	}
+	parts = parts[2:]
+	if parts[0][0] == 'f' {
+		// Margin Funding subscription has one currency, and suffixes
+		return parts[0], nil
+	}
+	if len(parts) > 2 {
+		return "", fmt.Errorf("subscription key has too many parts for trade types: %v", key)
+	}
+	return strings.Join(parts, ":"), nil
 }
