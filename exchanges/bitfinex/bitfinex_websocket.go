@@ -155,10 +155,10 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					// status channel not implemented at all yet.
 					return errors.Wrapf(common.ErrNotYetImplemented, "%v channel subscription keys", channel)
 				}
-				if s, err := symbolFromCandleKey(key); err != nil {
+				var err error
+				symbol, err = symbolFromCandleKey(key)
+				if err != nil {
 					return err
-				} else {
-					symbol = s
 				}
 			}
 			if err := b.WsAddSubscriptionChannel(int(chanID), channel, symbol); err != nil {
