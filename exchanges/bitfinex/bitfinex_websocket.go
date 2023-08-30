@@ -2057,10 +2057,6 @@ func assetPairFromSymbol(symbol string) (asset.Item, currency.Pair, error) {
 	switch symbol[0] {
 	case 'f':
 		assetType = asset.MarginFunding
-		if idx := strings.Index(symbol, ":"); idx != -1 {
-			pair, err := currency.NewPairFromString(symbol[1:idx])
-			return assetType, pair, err
-		}
 	case 't':
 		assetType = asset.Spot
 	default:
