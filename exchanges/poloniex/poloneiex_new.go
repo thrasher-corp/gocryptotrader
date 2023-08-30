@@ -2,14 +2,20 @@ package poloniex
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
+
+var errIntervalRequired = errors.New("interval is required")
 
 // Reference data endpoints.
 
@@ -119,16 +125,82 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, symbol currency.Pair) (*Ord
 }
 
 // GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
-func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair) ([]CandlestickData, error) {
+func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]CandlestickData, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	intervalString, err := intervalToString(interval)
+	if err != nil {
+		return nil, err
+	} else if intervalString == "" {
+		return nil, errIntervalRequired
+	}
+	params := url.Values{}
+	params.Set("interval", intervalString)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	var resp []CandlestickArrayData
-	err := p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/candles", symbol.String()), &resp)
+	err = p.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf("/markets/%s/candles", symbol.String()), params), &resp)
 	if err != nil {
 		return nil, err
 	}
 	return processCandlestickData(resp)
 }
 
+// GetTrades returns a list of recent trades, request param limit is optional, its default value is 500, and max value is 1000.
+func (p *Poloniex) GetTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]Trade, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []Trade
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf("/markets/%s/trades", symbol.String()), params), &resp)
+}
+
+// GetTicker retrieve ticker in last 24 hours for all symbols.
+func (p *Poloniex) GetTickers(ctx context.Context) ([]TickerData, error) {
+	var resp []TickerData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/ticker24h", &resp)
+}
+
+// GetTicker retrieve ticker in last 24 hours for provided symbols.
+func (p *Poloniex) GetTicker(ctx context.Context, symbol currency.Pair) (*TickerData, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var resp TickerData
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/ticker24h", symbol.String()), &resp)
+}
+
 // Margin endpoints.
+
+// GetCollateralInfos retrieves collateral information for all currencies.
+func (p *Poloniex) GetCollateralInfos(ctx context.Context) ([]CollateralInfo, error) {
+	var resp []CollateralInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/collateralInfo", &resp)
+}
+
+// GetCollateralInfo retrieves collateral information for all currencies.
+func (p *Poloniex) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*CollateralInfo, error) {
+	var resp CollateralInfo
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/collateralInfo", ccy.String()), &resp)
+}
+
+// GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.
+func (p *Poloniex) GetBorrowRateInfo(ctx context.Context) ([]BorrowRateinfo, error) {
+	var resp []BorrowRateinfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/borrowRatesInfo", &resp)
+}
 
 // -------- end --------------------
 

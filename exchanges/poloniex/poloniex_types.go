@@ -651,7 +651,7 @@ type CandlestickData struct {
 	Quantity         float64
 	BuyTakeAmount    float64
 	BuyTakerQuantity float64
-	TradeCount       int64
+	TradeCount       float64
 	PushTimestamp    time.Time
 	WeightedAverage  float64
 	Interval         kline.Interval
@@ -708,8 +708,8 @@ func getCandlestickData(candlestickData CandlestickArrayData) (*CandlestickData,
 	if err != nil {
 		return nil, err
 	}
-	candle.TradeCount = candlestickData[8].(int64)
-	candle.PushTimestamp = time.UnixMilli(candlestickData[9].(int64))
+	candle.TradeCount = candlestickData[8].(float64)
+	candle.PushTimestamp = time.UnixMilli(int64(candlestickData[9].(float64)))
 	candle.WeightedAverage, err = strconv.ParseFloat(candlestickData[10].(string), 64)
 	if err != nil {
 		return nil, err
@@ -718,7 +718,59 @@ func getCandlestickData(candlestickData CandlestickArrayData) (*CandlestickData,
 	if err != nil {
 		return nil, err
 	}
-	candle.StartTime = time.UnixMilli(candlestickData[12].(int64))
-	candle.EndTime = time.UnixMilli(candlestickData[13].(int64))
+	candle.StartTime = time.UnixMilli(int64(candlestickData[12].(float64)))
+	candle.EndTime = time.UnixMilli(int64(candlestickData[13].(float64)))
 	return candle, nil
+}
+
+// Trade represents a trade instance.
+type Trade struct {
+	ID         string                  `json:"id"`
+	Price      convert.StringToFloat64 `json:"price"`
+	Quantity   convert.StringToFloat64 `json:"quantity"`
+	Amount     convert.StringToFloat64 `json:"amount"`
+	TakerSide  string                  `json:"takerSide"`
+	Timestamp  convert.ExchangeTime    `json:"ts"`
+	CreateTime convert.ExchangeTime    `json:"createTime"`
+}
+
+// TickerData represents a price ticker information.
+type TickerData struct {
+	Symbol      string                  `json:"symbol"`
+	Open        convert.StringToFloat64 `json:"open"`
+	Low         convert.StringToFloat64 `json:"low"`
+	High        convert.StringToFloat64 `json:"high"`
+	Close       convert.StringToFloat64 `json:"close"`
+	Quantity    convert.StringToFloat64 `json:"quantity"`
+	Amount      convert.StringToFloat64 `json:"amount"`
+	TradeCount  int64                   `json:"tradeCount"`
+	StartTime   convert.ExchangeTime    `json:"startTime"`
+	CloseTime   convert.ExchangeTime    `json:"closeTime"`
+	DisplayName string                  `json:"displayName"`
+	DailyChange string                  `json:"dailyChange"`
+	Bid         convert.StringToFloat64 `json:"bid"`
+	BidQuantity convert.StringToFloat64 `json:"bidQuantity"`
+	Ask         convert.StringToFloat64 `json:"ask"`
+	AskQuantity convert.StringToFloat64 `json:"askQuantity"`
+	Timestamp   convert.ExchangeTime    `json:"ts"`
+	MarkPrice   convert.StringToFloat64 `json:"markPrice"`
+}
+
+// CollateralInfo represents collateral information.
+type CollateralInfo struct {
+	Currency              string                  `json:"currency"`
+	CollateralRate        convert.StringToFloat64 `json:"collateralRate"`
+	InitialMarginRate     convert.StringToFloat64 `json:"initialMarginRate"`
+	MaintenanceMarginRate convert.StringToFloat64 `json:"maintenanceMarginRate"`
+}
+
+// BorrowRateinfo represents borrow rates information
+type BorrowRateinfo struct {
+	Tier  string `json:"tier"`
+	Rates []struct {
+		Currency         string `json:"currency"`
+		DailyBorrowRate  string `json:"dailyBorrowRate"`
+		HourlyBorrowRate string `json:"hourlyBorrowRate"`
+		BorrowLimit      string `json:"borrowLimit"`
+	} `json:"rates"`
 }

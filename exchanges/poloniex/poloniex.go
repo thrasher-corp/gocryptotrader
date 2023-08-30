@@ -64,8 +64,8 @@ type Poloniex struct {
 	details CurrencyDetails
 }
 
-// GetTicker returns current ticker information
-func (p *Poloniex) GetTicker(ctx context.Context) (map[string]Ticker, error) {
+// GetTickerLegacy returns current ticker information
+func (p *Poloniex) GetTickerLegacy(ctx context.Context) (map[string]Ticker, error) {
 	type response struct {
 		Data map[string]Ticker
 	}

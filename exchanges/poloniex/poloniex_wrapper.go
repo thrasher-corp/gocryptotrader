@@ -267,7 +267,7 @@ func (p *Poloniex) Run(ctx context.Context) {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	// TODO: Upgrade to new API version for fetching operational pairs.
-	resp, err := p.GetTicker(ctx)
+	resp, err := p.GetTickerLegacy(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +305,7 @@ func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) e
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	tick, err := p.GetTicker(ctx)
+	tick, err := p.GetTickerLegacy(ctx)
 	if err != nil {
 		return err
 	}

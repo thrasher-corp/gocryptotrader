@@ -75,7 +75,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tick, err := p.GetTicker(context.Background())
+	tick, err := p.GetTickerLegacy(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

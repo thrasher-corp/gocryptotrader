@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -54,9 +53,9 @@ func TestTimestamp(t *testing.T) {
 	}
 }
 
-func TestGetTicker(t *testing.T) {
+func TestGetTickerLegacy(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTicker(context.Background())
+	_, err := p.GetTickerLegacy(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1282,12 +1281,64 @@ func TestGetCandlesticks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	candles, err := p.GetCandlesticks(context.Background(), pair)
+	_, err = p.GetCandlesticks(context.Background(), pair, kline.FiveMin, time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(candles)
-		println(string(val))
 	}
+}
 
+func TestGetTrades(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetTrades(context.Background(), pair, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetTickers(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTicker(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetTicker(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCollateralInfos(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetCollateralInfos(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCollateralInfo(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetCollateralInfo(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowRateInfo(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetBorrowRateInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
 }

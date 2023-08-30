@@ -76,7 +76,7 @@ func (p *Poloniex) WsConnect() error {
 // TODO: Create routine to refresh list every day/week(?) for production
 func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
 	if p.details.isInitial() {
-		ticks, err := p.GetTicker(ctx)
+		ticks, err := p.GetTickerLegacy(ctx)
 		if err != nil {
 			return err
 		}
