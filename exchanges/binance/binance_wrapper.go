@@ -2288,7 +2288,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 
 			var ct futures.ContractType
 			var ed time.Time
-			if cp.Quote == currency.USDT || cp.Quote == currency.BUSD {
+			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
 				ct = futures.Perpetual
 			} else {
 				ct = futures.Quarterly
@@ -2314,18 +2314,14 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		resp := make([]futures.Contract, 0, len(ei.Symbols))
 		for i := range ei.Symbols {
 			var cp currency.Pair
-			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
-			if len(splitter) != 2 {
-				return nil, fmt.Errorf("%w expected to split %v with %v", errors.New("unexpected pair format"), ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
-			}
-			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
+			cp, err = currency.NewPairFromString(ei.Symbols[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
 
 			var ct futures.ContractType
 			var ed time.Time
-			if cp.Quote == currency.PERP {
+			if cp.Quote.Equal(currency.PERP) {
 				ct = futures.Perpetual
 			} else {
 				ct = futures.Quarterly

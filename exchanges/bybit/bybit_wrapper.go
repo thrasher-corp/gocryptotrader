@@ -2177,7 +2177,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 			var cp, underlying currency.Pair
 			splitCoin := strings.Split(inverseContracts.List[i].Symbol, inverseContracts.List[i].BaseCoin)
-			if len(splitCoin) != 2 {
+			if len(splitCoin) <= 1 {
 				continue
 			}
 
@@ -2201,29 +2201,11 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 
 			var ct futures.ContractType
 			switch contractType {
-			case "linearperpetual":
+			case "inverseperpetual":
 				ct = futures.Perpetual
-			case "linearfutures":
-				contractLength := e.Sub(s)
-				switch {
-				case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Weekly
-				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Fortnightly
-				case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.Quarterly
-				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.HalfYearly
-				case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.NineMonthly
-				case contractLength > kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.SemiAnnually
-				default:
-					if by.Verbose {
-						log.Warnf(log.ExchangeSys, "%v unhandled contract length for %v %v %v-%v", by.Name, item, cp, s, e)
-					}
-					ct = futures.Unknown
-				}
+			case "inversefutures":
+				contractLenght := e.Sub(s)
+				ct = by.getContractType(contractLenght, item, cp, s, e)
 			default:
 				if by.Verbose {
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
@@ -2265,16 +2247,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			instruments = append(instruments, inverseContracts.List[i])
 		}
 		for i := range instruments {
-			splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
-			if len(splitCoin) != 2 {
-				continue
-			}
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
-			if err != nil {
-				return nil, err
-			}
-
 			underlying, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].QuoteCoin)
 			if err != nil {
 				return nil, err
@@ -2292,30 +2265,30 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			switch contractType {
 			case "linearperpetual":
 				ct = futures.Perpetual
+				splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
+				if len(splitCoin) <= 1 {
+					continue
+				}
+				cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
+				if err != nil {
+					return nil, err
+				}
 			case "linearfutures":
 				contractLength := e.Sub(s)
-				switch {
-				case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Weekly
-				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Fortnightly
-				case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.Quarterly
-				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.HalfYearly
-				case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.NineMonthly
-				default:
-					if by.Verbose {
-						log.Warnf(log.ExchangeSys, "%v unhandled contract length for %v %v %v-%v", by.Name, item, cp, s, e)
-					}
-					ct = futures.Unknown
+				ct = by.getContractType(contractLength, item, cp, s, e)
+				cp, err = currency.NewPairFromString(instruments[i].Symbol)
+				if err != nil {
+					return nil, err
 				}
 			default:
 				if by.Verbose {
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
 				}
 				ct = futures.Unknown
+				cp, err = currency.NewPairFromString(instruments[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			resp = append(resp, futures.Contract{
@@ -2354,7 +2327,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		for i := range instruments {
 			splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
-			if len(splitCoin) != 2 {
+			if len(splitCoin) <= 1 {
 				continue
 			}
 			var cp, underlying currency.Pair
@@ -2382,23 +2355,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				ct = futures.Perpetual
 			case "linearfutures":
 				contractLength := e.Sub(s)
-				switch {
-				case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Weekly
-				case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Fortnightly
-				case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.Quarterly
-				case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.HalfYearly
-				case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.NineMonthly
-				default:
-					if by.Verbose {
-						log.Warnf(log.ExchangeSys, "%v unhandled contract length for %v %v %v-%v", by.Name, item, cp, s, e)
-					}
-					ct = futures.Unknown
-				}
+				ct = by.getContractType(contractLength, item, cp, s, e)
 			default:
 				if by.Verbose {
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
@@ -2423,4 +2380,23 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	}
 
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+}
+
+func (by *Bybit) getContractType(contractLength time.Duration, item asset.Item, cp currency.Pair, s time.Time, e time.Time) futures.ContractType {
+	var ct futures.ContractType
+	switch {
+	case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+		ct = futures.Weekly
+	case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+		ct = futures.Fortnightly
+	case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.Quarterly
+	case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.HalfYearly
+	case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.NineMonthly
+	default:
+		ct = futures.SemiAnnually
+	}
+	return ct
 }

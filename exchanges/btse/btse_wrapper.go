@@ -1201,7 +1201,7 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			Type:                 ct,
 		}
 		if marketSummary[i].FundingRate > 0 {
-			c.LatestRate = &fundingrate.Rate{
+			c.LatestRate = fundingrate.Rate{
 				Rate: decimal.NewFromFloat(marketSummary[i].FundingRate),
 				Time: time.Now().Truncate(time.Hour),
 			}

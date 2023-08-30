@@ -22,7 +22,7 @@ type Contract struct {
 	MarginCurrency       currency.Code
 	Multiplier           float64
 	MaxLeverage          float64
-	LatestRate           *fundingrate.Rate
+	LatestRate           fundingrate.Rate
 }
 
 // ContractType holds the various style of contracts offered by futures exchanges

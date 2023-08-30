@@ -85,7 +85,6 @@ func (b *Bittrex) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,

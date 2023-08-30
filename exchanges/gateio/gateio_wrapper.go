@@ -2023,7 +2023,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
 				}
 				if contracts[j].FundingRate > 0 {
-					c.LatestRate = &fundingrate.Rate{
+					c.LatestRate = fundingrate.Rate{
 						Time: contracts[j].FundingNextApply.Time().Add(-time.Duration(contracts[j].FundingInterval) * time.Second),
 						Rate: contracts[j].FundingRate.Decimal(),
 					}

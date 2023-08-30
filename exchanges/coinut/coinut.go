@@ -415,7 +415,7 @@ func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
 		} else {
 			fee = amount * 0.001
 		}
-	} else if c == currency.CAD {
+	} else if c.Equal(currency.CAD) {
 		if amount*0.005 < 10 {
 			fee = 2
 		} else {
