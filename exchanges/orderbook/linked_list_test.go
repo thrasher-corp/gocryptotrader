@@ -360,15 +360,15 @@ func TestCleanup(t *testing.T) {
 	}
 	a.load(asksSnapshot, stack, time.Now())
 
-	a.cleanup(6, stack)
+	a.cleanup(6, stack, time.Now())
 	Check(t, a, 6, 36, 6)
-	a.cleanup(5, stack)
+	a.cleanup(5, stack, time.Now())
 	Check(t, a, 5, 25, 5)
-	a.cleanup(1, stack)
+	a.cleanup(1, stack, time.Now())
 	Check(t, a, 1, 1, 1)
-	a.cleanup(10, stack)
+	a.cleanup(10, stack, time.Now())
 	Check(t, a, 1, 1, 1)
-	a.cleanup(0, stack) // will purge, underlying checks are done elseware to prevent this
+	a.cleanup(0, stack, time.Now()) // will purge, underlying checks are done elseware to prevent this
 	Check(t, a, 0, 0, 0)
 }
 

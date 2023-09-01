@@ -134,7 +134,7 @@ updates:
 // cleanup reduces the max size of the depth length if exceeded. Is used after
 // updates have been applied instead of adhoc, reason being its easier to prune
 // at the end. (can't inline)
-func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
+func (ll *linkedList) cleanup(maxChainLength int, stack *stack, tn time.Time) {
 	// Reduces the max length of total linked list chain, occurs after updates
 	// have been implemented as updates can push length out of bounds, if
 	// cleaved after that update, new update might not applied correctly.
@@ -157,7 +157,7 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	for n != nil {
 		pruned++
 		pending := n.Next
-		stack.Push(n, time.Now())
+		stack.Push(n, tn)
 		n = pending
 	}
 	ll.length -= pruned
@@ -225,7 +225,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 	}
 	// Reduces length of total linked list chain to a maxChainLength value
 	if maxChainLength != 0 && ll.length > maxChainLength {
-		ll.cleanup(maxChainLength, stack)
+		ll.cleanup(maxChainLength, stack, tn)
 	}
 }
 
