@@ -3,6 +3,7 @@ package bitfinex
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -153,7 +153,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				if channel != wsCandles {
 					// status channel not implemented at all yet.
-					return errors.Wrapf(common.ErrNotYetImplemented, "%v channel subscription keys", channel)
+					return fmt.Errorf("%v channel subscription keys: %w", channel, common.ErrNotYetImplemented)
 				}
 				var err error
 				symbol, err = symbolFromCandleKey(key)
