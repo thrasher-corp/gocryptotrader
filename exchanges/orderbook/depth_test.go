@@ -39,7 +39,7 @@ func TestGetLength(t *testing.T) {
 		t.Errorf("expected len %v, but received %v", 0, askLen)
 	}
 
-	d.asks.load([]Item{{Price: 1337}}, d.stack)
+	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	askLen, err = d.GetAskLength()
 	if !errors.Is(err, nil) {
@@ -74,7 +74,7 @@ func TestGetLength(t *testing.T) {
 		t.Errorf("expected len %v, but received %v", 0, bidLen)
 	}
 
-	d.bids.load([]Item{{Price: 1337}}, d.stack)
+	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	bidLen, err = d.GetBidLength()
 	if !errors.Is(err, nil) {
@@ -89,8 +89,8 @@ func TestGetLength(t *testing.T) {
 func TestRetrieve(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.asks.load([]Item{{Price: 1337}}, d.stack)
-	d.bids.load([]Item{{Price: 1337}}, d.stack)
+	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
+	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 	d.options = options{
 		exchange:         "THE BIG ONE!!!!!!",
 		pair:             currency.NewPair(currency.THETA, currency.USD),
@@ -186,8 +186,8 @@ func TestTotalAmounts(t *testing.T) {
 			value)
 	}
 
-	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack)
-	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack)
+	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack, time.Now())
+	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack, time.Now())
 
 	liquidity, value, err = d.TotalBidAmounts()
 	if !errors.Is(err, nil) {

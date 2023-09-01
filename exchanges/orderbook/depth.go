@@ -105,8 +105,8 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
 	d.restSnapshot = updateByREST
-	d.bids.load(bids, d.stack)
-	d.asks.load(asks, d.stack)
+	d.bids.load(bids, d.stack, lastUpdated)
+	d.asks.load(asks, d.stack, lastUpdated)
 	d.validationError = nil
 	d.Alert()
 	d.m.Unlock()
@@ -118,8 +118,9 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
-	d.bids.load(nil, d.stack)
-	d.asks.load(nil, d.stack)
+	tn := time.Now()
+	d.bids.load(nil, d.stack, tn)
+	d.asks.load(nil, d.stack, tn)
 	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]",
 		d.exchange,
 		d.pair,
@@ -157,10 +158,10 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) error {
 	}
 	d.m.Lock()
 	if len(update.Bids) != 0 {
-		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, now(update.UpdateTime))
+		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, update.UpdateTime)
 	}
 	if len(update.Asks) != 0 {
-		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, now(update.UpdateTime))
+		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, update.UpdateTime)
 	}
 	d.updateAndAlert(update)
 	d.m.Unlock()
@@ -206,13 +207,13 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
-		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr)
+		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr, update.UpdateTime)
 		if err != nil {
 			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
-		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr)
+		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr, update.UpdateTime)
 		if err != nil {
 			return d.invalidate(err)
 		}
