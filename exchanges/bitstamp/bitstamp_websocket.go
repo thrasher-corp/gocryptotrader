@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -25,7 +27,19 @@ const (
 	hbInterval    = 8 * time.Second         // Connection monitor defaults to 10s inactivity
 )
 
-var hbMsg = []byte(`{"event":"bts:heartbeat"}`)
+var (
+	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
+
+	defaultSubChannels = []string{
+		bitstampAPIWSTrades,
+		bitstampAPIWSOrderbook,
+	}
+
+	defaultAuthSubChannels = []string{
+		bitstampAPIWSMyOrders,
+		bitstampAPIWSMyTrades,
+	}
+)
 
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
@@ -194,22 +208,32 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 }
 
 func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"live_trades_", "order_book_"}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	var subscriptions []stream.ChannelSubscription
-	for i := range channels {
-		for j := range enabledCurrencies {
-			p, err := b.FormatExchangeCurrency(enabledCurrencies[j], asset.Spot)
-			if err != nil {
-				return nil, err
-			}
+	for i := range enabledCurrencies {
+		p, err := b.FormatExchangeCurrency(enabledCurrencies[i], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for j := range defaultSubChannels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: channels[i] + p.String(),
+				Channel: defaultSubChannels[j] + "_" + p.String(),
 				Asset:   asset.Spot,
 			})
+		}
+		if b.Websocket.CanUseAuthenticatedEndpoints() {
+			for j := range defaultAuthSubChannels {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
+					Asset:   asset.Spot,
+					Params: map[string]interface{}{
+						"auth": struct{}{},
+					},
+				})
+			}
 		}
 	}
 	return subscriptions, nil
@@ -218,12 +242,29 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
+	var auth *websocketAuthResponse
+
+	for i := range channelsToSubscribe {
+		if _, ok := channelsToSubscribe[i].Params["auth"]; ok {
+			var err error
+			auth, err = b.fetchWSAuth(context.TODO())
+			if err != nil {
+				errs = common.AppendError(errs, err)
+			}
+			break
+		}
+	}
+
 	for i := range channelsToSubscribe {
 		req := websocketEventRequest{
 			Event: "bts:subscribe",
 			Data: websocketData{
 				Channel: channelsToSubscribe[i].Channel,
 			},
+		}
+		if _, ok := channelsToSubscribe[i].Params["auth"]; ok && auth != nil {
+			req.Data.Channel = req.Data.Channel + "-" + string(auth.UserID)
+			req.Data.Auth = auth.Token
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
@@ -232,6 +273,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		}
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
+
 	return errs
 }
 
@@ -343,4 +385,15 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// fetchWSAuth Retrieves a userID and auth-token from REST for subscribing to a websocket channel
+// The token life-expectancy is only about 60s; use it immediately and do not store it
+func (b *Bitstamp) fetchWSAuth(ctx context.Context) (*websocketAuthResponse, error) {
+	resp := &websocketAuthResponse{}
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWSAuthToken, true, nil, resp)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching auth token: %w", err)
+	}
+	return resp, nil
 }

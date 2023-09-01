@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -195,6 +196,7 @@ type websocketEventRequest struct {
 
 type websocketData struct {
 	Channel string `json:"channel"`
+	Auth    string `json:"auth,omitempty"`
 }
 
 type websocketResponse struct {
@@ -218,6 +220,12 @@ type websocketTradeData struct {
 	Price          float64 `json:"price"`
 	Type           int     `json:"type"`
 	ID             int64   `json:"id"`
+}
+
+type websocketAuthResponse struct {
+	Token     string      `json:"token"`
+	UserID    json.Number `json:"user_id"`
+	ValidSecs int64       `json:"valid_sec"`
 }
 
 type websocketOrderBookResponse struct {
