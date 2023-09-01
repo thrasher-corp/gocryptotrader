@@ -392,7 +392,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	}
 
 	if len(data) < 3 {
-		return errNotEnoughData
+		return fmt.Errorf("%w for pair %v", errNotEnoughData, pair)
 	}
 
 	ts, ok := data[2].(string)

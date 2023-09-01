@@ -155,13 +155,12 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) error {
 			d.asset,
 			errLastUpdatedNotSet)
 	}
-	tn := getNow()
 	d.m.Lock()
 	if len(update.Bids) != 0 {
-		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, tn)
+		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, now(update.UpdateTime))
 	}
 	if len(update.Asks) != 0 {
-		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, tn)
+		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, now(update.UpdateTime))
 	}
 	d.updateAndAlert(update)
 	d.m.Unlock()

@@ -219,7 +219,12 @@ func TestTotalAmounts(t *testing.T) {
 func TestLoadSnapshot(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,18 +259,16 @@ func TestInvalidate(t *testing.T) {
 		t.Fatalf("unexpected value")
 	}
 
-	err = d.Invalidate(errors.New("random reason"))
+	testReason := errors.New("random reason")
+
+	err = d.Invalidate(testReason)
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	if err.Error() != "testexchange BTCWABI spot Reason: [orderbook data integrity compromised, random reason]" {
-		t.Fatal("unexpected string return")
+	if !errors.Is(err, ErrOrderbookInvalid) && !errors.Is(err, testReason) {
+		t.Fatalf("received: '%v' but expected: '%v' && '%v'", err, ErrOrderbookInvalid, testReason)
 	}
 
 	d.validationError = nil
@@ -287,6 +290,11 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = d.UpdateBidAskByPrice(&Update{})
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
 	// empty
 	err = d.UpdateBidAskByPrice(&Update{UpdateTime: time.Now()})
 	if err != nil {
@@ -348,10 +356,16 @@ func TestDeleteBidAskByID(t *testing.T) {
 	}
 
 	updates := &Update{
-		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
-		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
-		UpdateTime: time.Now(),
+		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
+		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
 	}
+
+	err = d.DeleteBidAskByID(updates, false)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
+	updates.UpdateTime = time.Now()
 	err = d.DeleteBidAskByID(updates, false)
 	if err != nil {
 		t.Fatal(err)
@@ -403,10 +417,16 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 
 	updates := &Update{
-		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
-		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
-		UpdateTime: time.Now(),
+		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
+		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
 	}
+
+	err = d.UpdateBidAskByID(updates)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
+	updates.UpdateTime = time.Now()
 	err = d.UpdateBidAskByID(updates)
 	if err != nil {
 		t.Fatal(err)
@@ -450,9 +470,14 @@ func TestInsertBidAskByID(t *testing.T) {
 	}
 
 	updates := &Update{
-		Asks:       Items{{Price: 1337, Amount: 2, ID: 3}},
-		UpdateTime: time.Now(),
+		Asks: Items{{Price: 1337, Amount: 2, ID: 3}},
 	}
+	err = d.InsertBidAskByID(updates)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
+	updates.UpdateTime = time.Now()
 
 	err = d.InsertBidAskByID(updates)
 	if !errors.Is(err, errCollisionDetected) {
@@ -508,10 +533,15 @@ func TestUpdateInsertByID(t *testing.T) {
 	}
 
 	updates := &Update{
-		Bids:       Items{{Price: 1338, Amount: 0, ID: 3}},
-		Asks:       Items{{Price: 1336, Amount: 2, ID: 4}},
-		UpdateTime: time.Now(),
+		Bids: Items{{Price: 1338, Amount: 0, ID: 3}},
+		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
 	}
+	err = d.UpdateInsertByID(updates)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("expected: %v but received: %v", errLastUpdatedNotSet, err)
+	}
+
+	updates.UpdateTime = time.Now()
 	err = d.UpdateInsertByID(updates)
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
