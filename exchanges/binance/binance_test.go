@@ -2958,6 +2958,9 @@ func TestCryptoLoanBorrow(t *testing.T) {
 	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 1, 0); !errors.Is(err, errLoanTermMustBeSet) {
 		t.Errorf("received %v, expected %v", err, errLoanTermMustBeSet)
 	}
+	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 0, 7); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 1000, currency.BTC, 1, 7); err != nil {
@@ -3081,6 +3084,9 @@ func TestFlexibleLoanBorrow(t *testing.T) {
 	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.EMPTYCODE, 1, 0); !errors.Is(err, errCollateralCoinMustBeSet) {
 		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
 	}
+	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 0, 0); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 1, 0); err != nil {
@@ -3091,7 +3097,7 @@ func TestFlexibleLoanBorrow(t *testing.T) {
 func TestFlexibleLoanOngoingOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	if _, err := b.FlexibleLoanOngoingOrders(context.Background(), currency.Code{}, currency.Code{}, 0, 0); err != nil {
+	if _, err := b.FlexibleLoanOngoingOrders(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, 0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -3099,7 +3105,7 @@ func TestFlexibleLoanOngoingOrders(t *testing.T) {
 func TestFlexibleLoanBorrowHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	if _, err := b.FlexibleLoanBorrowHistory(context.Background(), currency.Code{}, currency.Code{}, time.Time{}, time.Time{}, 0, 0); err != nil {
+	if _, err := b.FlexibleLoanBorrowHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -3126,7 +3132,7 @@ func TestFlexibleLoanRepay(t *testing.T) {
 func TestFlexibleLoanRepayHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	if _, err := b.FlexibleLoanRepayHistory(context.Background(), currency.Code{}, currency.Code{}, time.Time{}, time.Time{}, 0, 0); err != nil {
+	if _, err := b.FlexibleLoanRepayHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -3149,7 +3155,7 @@ func TestFlexibleLoanAdjustLTV(t *testing.T) {
 func TestFlexibleLoanLTVAdjustmentHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	if _, err := b.FlexibleLoanLTVAdjustmentHistory(context.Background(), currency.Code{}, currency.Code{}, time.Time{}, time.Time{}, 0, 0); err != nil {
+	if _, err := b.FlexibleLoanLTVAdjustmentHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Error(err)
 	}
 }
@@ -3157,7 +3163,7 @@ func TestFlexibleLoanLTVAdjustmentHistory(t *testing.T) {
 func TestFlexibleLoanAssetsData(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	if _, err := b.FlexibleLoanAssetsData(context.Background(), currency.Code{}); err != nil {
+	if _, err := b.FlexibleLoanAssetsData(context.Background(), currency.EMPTYCODE); err != nil {
 		t.Error(err)
 	}
 }
@@ -3165,7 +3171,7 @@ func TestFlexibleLoanAssetsData(t *testing.T) {
 func TestFlexibleCollateralAssetsData(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	if _, err := b.FlexibleCollateralAssetsData(context.Background(), currency.Code{}); err != nil {
+	if _, err := b.FlexibleCollateralAssetsData(context.Background(), currency.EMPTYCODE); err != nil {
 		t.Error(err)
 	}
 }

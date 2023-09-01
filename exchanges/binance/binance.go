@@ -108,11 +108,12 @@ const (
 )
 
 var (
-	errLoanCoinMustBeSet       = errors.New("loan coin must bet set")
-	errLoanTermMustBeSet       = errors.New("loan term must be set")
-	errCollateralCoinMustBeSet = errors.New("collateral coin must be set")
-	errOrderIDMustBeSet        = errors.New("orderID must be set")
-	errAmountMustBeSet         = errors.New("amount must not be <= 0")
+	errLoanCoinMustBeSet                      = errors.New("loan coin must bet set")
+	errLoanTermMustBeSet                      = errors.New("loan term must be set")
+	errCollateralCoinMustBeSet                = errors.New("collateral coin must be set")
+	errOrderIDMustBeSet                       = errors.New("orderID must be set")
+	errAmountMustBeSet                        = errors.New("amount must not be <= 0")
+	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
 )
 
 // GetUndocumentedInterestHistory gets interest history for currency/currencies provided
@@ -1335,6 +1336,9 @@ func (b *Binance) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, 
 	if loanTerm <= 0 {
 		return nil, errLoanTermMustBeSet
 	}
+	if loanAmount == 0 && collateralAmount == 0 {
+		return nil, errEitherLoanOrCollateralAmountsMustBeSet
+	}
 
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -1579,6 +1583,9 @@ func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCo
 	}
 	if collateralCoin.IsEmpty() {
 		return nil, errCollateralCoinMustBeSet
+	}
+	if loanAmount == 0 && collateralAmount == 0 {
+		return nil, errEitherLoanOrCollateralAmountsMustBeSet
 	}
 
 	params := url.Values{}
