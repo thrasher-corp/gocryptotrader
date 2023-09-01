@@ -475,12 +475,6 @@ type Fee struct {
 	MakerFees float64
 }
 
-// WebsocketChanInfo holds websocket channel information
-type WebsocketChanInfo struct {
-	Channel string
-	Pair    string
-}
-
 // WebsocketBook holds booking information
 type WebsocketBook struct {
 	ID     int64
@@ -619,6 +613,7 @@ const (
 	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
 	pong                                   = "pong"
 	wsHeartbeat                            = "hb"
+	wsChecksum                             = "cs"
 	wsPositionSnapshot                     = "ps"
 	wsPositionNew                          = "pn"
 	wsPositionUpdate                       = "pu"
