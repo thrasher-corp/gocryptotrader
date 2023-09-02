@@ -916,7 +916,9 @@ func (b *Bitfinex) handleWSNotification(d []interface{}, respRaw []byte) error {
 			}
 		case strings.Contains(channelName, wsOrderNewRequest):
 			if data[2] != nil {
-				if cid, ok := data[2].(float64); ok && cid > 0 {
+				if cid, ok := data[2].(float64); !ok {
+					return common.GetTypeAssertError("float64", data[2])
+				} else if cid > 0 {
 					if b.Websocket.Match.IncomingWithData(int64(cid), respRaw) {
 						return nil
 					}
@@ -926,7 +928,9 @@ func (b *Bitfinex) handleWSNotification(d []interface{}, respRaw []byte) error {
 		case strings.Contains(channelName, wsOrderUpdateRequest),
 			strings.Contains(channelName, wsOrderCancelRequest):
 			if data[0] != nil {
-				if id, ok := data[0].(float64); ok && id > 0 {
+				if id, ok := data[0].(float64); !ok {
+					return common.GetTypeAssertError("float64", data[0])
+				} else if id > 0 {
 					if b.Websocket.Match.IncomingWithData(int64(id), respRaw) {
 						return nil
 					}
