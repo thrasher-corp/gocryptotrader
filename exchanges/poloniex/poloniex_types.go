@@ -2,12 +2,18 @@ package poloniex
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+)
+
+var (
+	errAccountIDRequired   = errors.New("missing account ID")
+	errAccountTypeRequired = errors.New("account type required")
 )
 
 // Ticker holds ticker data
@@ -773,4 +779,142 @@ type BorrowRateinfo struct {
 		HourlyBorrowRate string `json:"hourlyBorrowRate"`
 		BorrowLimit      string `json:"borrowLimit"`
 	} `json:"rates"`
+}
+
+// AccountInformation represents a user account information.
+type AccountInformation struct {
+	AccountID    string `json:"accountId"`
+	AccountType  string `json:"accountType"`
+	AccountState string `json:"accountState"`
+}
+
+// AccountBalance represents each account’s id, type and balances (assets).
+type AccountBalance struct {
+	AccountID   string `json:"accountId"`
+	AccountType string `json:"accountType"`
+	Balances    []struct {
+		CurrencyID string                  `json:"currencyId"`
+		Currency   string                  `json:"currency"`
+		Available  convert.StringToFloat64 `json:"available"`
+		Hold       convert.StringToFloat64 `json:"hold"`
+	} `json:"balances"`
+}
+
+// AccountActivity represents activities such as airdrop, rebates, staking,
+// credit/debit adjustments, and other (historical adjustments).
+type AccountActivity struct {
+	ID           string                  `json:"id"`
+	Currency     string                  `json:"currency"`
+	Amount       convert.StringToFloat64 `json:"amount"`
+	State        string                  `json:"state"`
+	CreateTime   convert.ExchangeTime    `json:"createTime"`
+	Description  string                  `json:"description"`
+	ActivityType int64                   `json:"activityType"`
+}
+
+// AccountTransferParams request parameter for account fund transfer.
+type AccountTransferParams struct {
+	Ccy         currency.Code `json:"currency"`
+	Amount      float64       `json:"amount,string"`
+	FromAccount string        `json:"fromAccount"`
+	ToAccount   string        `json:"toAccount"`
+}
+
+// AccountTransferResponse represents an account transfer response.
+type AccountTransferResponse struct {
+	TransferID string `json:"transferId"`
+}
+
+type errorResponse struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+}
+
+// AccountTransferRecord represents an account transfer record.
+type AccountTransferRecord struct {
+	ID          string                  `json:"id"`
+	FromAccount string                  `json:"fromAccount"`
+	ToAccount   string                  `json:"toAccount"`
+	Currency    string                  `json:"currency"`
+	State       string                  `json:"state"`
+	CreateTime  convert.ExchangeTime    `json:"createTime"`
+	Amount      convert.StringToFloat64 `json:"amount"`
+}
+
+// FeeInfo represents an account transfer information.
+type FeeInfo struct {
+	TransactionDiscount bool                    `json:"trxDiscount"`
+	MakerRate           convert.StringToFloat64 `json:"makerRate"`
+	TakerRate           convert.StringToFloat64 `json:"takerRate"`
+	Volume30D           convert.StringToFloat64 `json:"volume30D"`
+	SpecialFeeRates     []struct {
+		Symbol    string                  `json:"symbol"`
+		MakerRate convert.StringToFloat64 `json:"makerRate"`
+		TakerRate convert.StringToFloat64 `json:"takerRate"`
+	} `json:"specialFeeRates"`
+}
+
+// InterestHistory represents an interest history.
+type InterestHistory struct {
+	ID                  string                  `json:"id"`
+	CurrencyName        string                  `json:"currencyName"`
+	Principal           convert.StringToFloat64 `json:"principal"`
+	Interest            convert.StringToFloat64 `json:"interest"`
+	InterestRate        convert.StringToFloat64 `json:"interestRate"`
+	InterestAccuredTime convert.ExchangeTime    `json:"interestAccuredTime"`
+}
+
+// SubAccount represents a users account.
+type SubAccount struct {
+	AccountID    string `json:"accountId"`
+	AccountName  string `json:"accountName"`
+	AccountState string `json:"accountState"`
+	IsPrimary    string `json:"isPrimary"`
+}
+
+// SubAccountBalance represents a users account balance.
+type SubAccountBalance struct {
+	AccountID   string `json:"accountId"`
+	AccountName string `json:"accountName"`
+	AccountType string `json:"accountType"`
+	IsPrimary   string `json:"isPrimary"`
+	Balances    []struct {
+		Currency              string                  `json:"currency"`
+		Available             convert.StringToFloat64 `json:"available"`
+		Hold                  convert.StringToFloat64 `json:"hold"`
+		MaxAvailable          convert.StringToFloat64 `json:"maxAvailable"`
+		AccountEquity         string                  `json:"accountEquity,omitempty"`
+		UnrealisedPNL         string                  `json:"unrealisedPNL,omitempty"`
+		MarginBalance         string                  `json:"marginBalance,omitempty"`
+		PositionMargin        string                  `json:"positionMargin,omitempty"`
+		OrderMargin           string                  `json:"orderMargin,omitempty"`
+		FrozenFunds           string                  `json:"frozenFunds,omitempty"`
+		AvailableBalance      convert.StringToFloat64 `json:"availableBalance,omitempty"`
+		RealizedProfitAndLoss string                  `json:"pnl,omitempty"`
+	} `json:"balances"`
+}
+
+// SubAccountTransferParam represents a sub-account transfer request parameters.
+type SubAccountTransferParam struct {
+	Currency        currency.Code `json:"currency"`
+	Amount          float64       `json:"amount,string"`
+	FromAccountID   string        `json:"fromAccountId"`
+	FromAccountType string        `json:"fromAccountType"`
+	ToAccountID     string        `json:"toAccountId"`
+	ToAccountType   string        `json:"toAccountType"`
+}
+
+// SubAccountTransfer represents a sub-account transfer record.
+type SubAccountTransfer struct {
+	ID              string                  `json:"id"`
+	FromAccountID   string                  `json:"fromAccountId"`
+	FromAccountName string                  `json:"fromAccountName"`
+	FromAccountType string                  `json:"fromAccountType"`
+	ToAccountID     string                  `json:"toAccountId"`
+	ToAccountName   string                  `json:"toAccountName"`
+	ToAccountType   string                  `json:"toAccountType"`
+	Currency        string                  `json:"currency"`
+	Amount          convert.StringToFloat64 `json:"amount"`
+	State           string                  `json:"state"`
+	CreateTime      convert.ExchangeTime    `json:"createTime"`
 }

@@ -1,5 +1,641 @@
 {
  "routes": {
+  "/accounts": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountId": "219961623421431808",
+       "accountState": "NORMAL",
+       "accountType": "SPOT"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "mNisWiZOPzmRCVUROH+ncUMQR+TFn2XqnAwTS8c+GJM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693657854528"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/1/balances": {
+   "GET": [
+    {
+     "data": {
+      "code": 21600,
+      "message": "Account not found"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "CYq46ikZfg51Bau1BnniEavTlp+ipFqcAz+UrgTBF+4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693659064517"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 21600,
+      "message": "Account not found"
+     },
+     "queryString": "accountType=SPOT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "sy+Dy0ikYZawHOSFrOpobQ0b4fKuF6ZJy9EUNzabQu8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693659065075"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/219961623421431808/balances": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountId": "219961623421431808",
+       "accountType": "SPOT",
+       "balances": []
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "IF5UKJpoqicaE5UcCFH+S1bImuwun88mlYKaKdn9vo8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693659217624"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "accountId": "219961623421431808",
+       "accountType": "SPOT",
+       "balances": []
+      }
+     ],
+     "queryString": "accountType=SPOT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "sk5nQmNY/Rsd8S8rVqWp6UBFShI4ifKCZlHCMomeUVQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693659218150"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/activity": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "activityType=202\u0026currency=USDT\u0026direction=PRE\u0026endTime=-62135596800000\u0026startTime=-62135596800000",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "yV8Fjdhpz7PBm7oglxzceSBsYgEjDpiK5DWodXs+Kjo="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693663507712"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "activityType=202\u0026currency=USDT\u0026direction=PRE",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "NFKFaE5bnNflBAbtShSgRjl0g6XN+hFV1J0GDDMexIY="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693663812591"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "nd0RXPyeyszoPaqn9Tezjs14wj9/t/hrJwdiPUUcxp8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693664312856"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/balances": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountId": "219961623421431808",
+       "accountType": "SPOT",
+       "balances": []
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "phDyx4Em6s7M24vcg/auXn7cmnjGcXhneBogQxGKRW4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693658749825"
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "accountId": "219961623421431808",
+       "accountType": "SPOT",
+       "balances": []
+      }
+     ],
+     "queryString": "accountType=SPOT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "wLvJAI6AVF9y+c/+Defxa4GGA3sXPc/h/crtz1kGpqY="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693658750360"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/balances/": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountId": "219961623421431808",
+       "accountType": "SPOT",
+       "balances": []
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "ouPW25yFC68AZ/gjWQtE2kWmMvNUG89nU/9fNPmloGs="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693657752788"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/interest/history": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "yRx6BoKyj6d8uCshEs9blVQL/Oybrq2yp2+SD+s51Jc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693675035731"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1693675207645\u0026startTime=1693646407645",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "uhIK19jOR+jxRbCfJXSWo3Q1NO4EXWKK9JZ/ChHVFiE="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693675207645"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1693675238123\u0026startTime=1693646438123",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "wIMWakmDNZM1ZP5XKDjJdcK7UtUdvf9/DQTDWW0lVnM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693675238123"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1693675257975\u0026startTime=1693646457975",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "zJ8xcQpfCYeePiVODyTSwpllklE/a1GFV72MdsSbzNw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693675257975"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/transfer": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "endTime=1693669663283",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "llOnaxe1PtewGyk4qXwxbJWN8P5pu4rAxzRtlDTMgZo="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693669663284"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1693669687045",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "wYQTELRkXGlTHFTxm5PgYskR9T0vz5ge3FCjrJUgliM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693669687045"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "gTtAASm0LGpVebgtaTgOoJMWrLO5uX0WItpXIZCnol8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693669821288"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "currency=BTC",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Z8IJ1vcQ0nh5x1KrpmlGLPfLv3POYcLkdYASObCvNf8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693669837226"
+      ]
+     }
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 601,
+      "message": "Invalid toAccount: 219961623421431808"
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\",\"amount\":\"1\",\"fromAccount\":\"219961623421431808\",\"toAccount\":\"219961623421431808\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "tFJHrDRPACju86hc/XqUXKznhtGegOaM9RmlqBgiqS8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693666584077"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 601,
+      "message": "Invalid toAccount: 219961623421431890"
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\",\"amount\":\"1\",\"fromAccount\":\"219961623421431808\",\"toAccount\":\"219961623421431890\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "DMG5Y7uIK7G5i3gppztkJTtnYmiDBvObicbzbjJ1dpk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693668620475"
+      ]
+     }
+    }
+   ]
+  },
+  "/accounts/transfer/23123123120": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "88ymTeA/FWdCQYKO8NIAFWkUM5HgTtc8hCKm97v7TeU="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693670100907"
+      ]
+     }
+    }
+   ]
+  },
   "/currencies": {
    "GET": [
     {
@@ -15430,6 +16066,41 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/feeinfo": {
+   "GET": [
+    {
+     "data": {
+      "makerRate": "0.002",
+      "specialFeeRates": [],
+      "takerRate": "0.002",
+      "trxDiscount": false,
+      "volume30D": "0"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "ttIo+z858lV89tTYMoXPVHfmHBckMCY5m8jHxvvsbAU="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693670624641"
+      ]
+     }
     }
    ]
   },
@@ -93002,6 +93673,215 @@
      "queryString": "command=returnChartData\u0026currencyPair=BTC_LTC\u0026end=1588745100\u0026period=300\u0026start=1588741200",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/subaccounts": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountId": "2d45301d-5f08-4a2b-a763-f9199778d854",
+       "accountName": "Primary Account",
+       "accountState": "ACTIVE",
+       "isPrimary": "true"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "QisbYbBXlA7kv/b6aXARLUlYYX9+KMC/AvEZvUSTHt4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693675881945"
+      ]
+     }
+    }
+   ]
+  },
+  "/subaccounts/2d45301d-5f08-4a2b-a763-f9199778d854/balances": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountId": "2d45301d-5f08-4a2b-a763-f9199778d854",
+       "accountName": "Primary Account",
+       "accountType": "SPOT",
+       "balances": [],
+       "isPrimary": "true"
+      },
+      {
+       "accountId": "2d45301d-5f08-4a2b-a763-f9199778d854",
+       "accountName": "Primary Account",
+       "accountType": "FUTURES",
+       "balances": [
+        {
+         "accountEquity": "0",
+         "availableBalance": "0",
+         "currency": "USDT",
+         "frozenFunds": "0",
+         "marginBalance": "0",
+         "orderMargin": "0",
+         "pnl": "0.0",
+         "positionMargin": "0",
+         "unrealisedPNL": "0"
+        }
+       ],
+       "isPrimary": "true"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "MkD05Eak5vmHQvGzKoZbRpdg90SKdBVtV7sqcgj5gDk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693676940724"
+      ]
+     }
+    }
+   ]
+  },
+  "/subaccounts/balances": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountId": "2d45301d-5f08-4a2b-a763-f9199778d854",
+       "accountName": "Primary Account",
+       "accountType": "SPOT",
+       "balances": [],
+       "isPrimary": "true"
+      },
+      {
+       "accountId": "2d45301d-5f08-4a2b-a763-f9199778d854",
+       "accountName": "Primary Account",
+       "accountType": "FUTURES",
+       "balances": [
+        {
+         "accountEquity": "0",
+         "availableBalance": "0",
+         "currency": "USDT",
+         "frozenFunds": "0",
+         "marginBalance": "0",
+         "orderMargin": "0",
+         "pnl": "0.0",
+         "positionMargin": "0",
+         "unrealisedPNL": "0"
+        }
+       ],
+       "isPrimary": "true"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "HZ8JcR85CG+YVyYYwi7qb4d8NQ/UselxPXYs39Scsks="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693676676556"
+      ]
+     }
+    }
+   ]
+  },
+  "/subaccounts/transfer": {
+   "POST": [
+    {
+     "data": {
+      "code": 250020,
+      "message": "No permission"
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\",\"amount\":\"1\",\"fromAccountId\":\"1234568\",\"fromAccountType\":\"SPOT\",\"toAccountId\":\"1234567\",\"toAccountType\":\"SPOT\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "wEEzzHATAHkiHaqWn4h+S3EOlokc/yFqaUAVl0nVHZ0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693680410155"
+      ]
+     }
+    }
+   ]
+  },
+  "/subaccounts/transfer/1234567": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "m3MSWKDqIVWfmkt2MXJ/WgF4016NhTq5RToogJS32FY="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693681493804"
+      ]
+     }
     }
    ]
   },

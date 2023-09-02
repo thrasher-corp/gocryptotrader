@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -13,9 +14,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var errIntervalRequired = errors.New("interval is required")
+var (
+	errIntervalRequired = errors.New("interval is required")
+	errNilArgument      = errors.New("error: nil argument")
+	errAddressRequired  = errors.New("address is required")
+)
 
 // Reference data endpoints.
 
@@ -202,7 +208,248 @@ func (p *Poloniex) GetBorrowRateInfo(ctx context.Context) ([]BorrowRateinfo, err
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/borrowRatesInfo", &resp)
 }
 
-// -------- end --------------------
+// ---------------- Authenticated endpoints ----------------------------------
+
+// GetAccountInformation retrieves all accounts of a user.
+func (p *Poloniex) GetAccountInformation(ctx context.Context) ([]AccountInformation, error) {
+	var resp []AccountInformation
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts", nil, nil, &resp)
+}
+
+// GetAllBalances get a list of all accounts of a user with each account’s id, type and balances (assets).
+func (p *Poloniex) GetAllBalances(ctx context.Context, accountType string) ([]AccountBalance, error) {
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp []AccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/balances", params, nil, &resp)
+}
+
+// GetAllBalance get an accounts of a user with each account’s id, type and balances (assets).
+func (p *Poloniex) GetAllBalance(ctx context.Context, accountID, accountType string) ([]AccountBalance, error) {
+	if accountID == "" {
+		return nil, errAccountIDRequired
+	}
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp []AccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/accounts/%s/balances", accountID), params, nil, &resp)
+}
+
+// GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
+// Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERAL_REBATE: 204, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
+func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time,
+	activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if activityType != 0 {
+		params.Set("activityType", strconv.FormatInt(activityType, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if from != 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []AccountActivity
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/activity", params, nil, &resp)
+}
+
+// AccountsTransfer transfer amount of currency from an account to another account for a user.
+func (p *Poloniex) AccountsTransfer(ctx context.Context, arg *AccountTransferParams) (*AccountTransferResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w, amount has to be greater than zero", order.ErrAmountIsInvalid)
+	}
+	if arg.FromAccount == "" {
+		return nil, fmt.Errorf("%w, fromAccount=''", errAddressRequired)
+	}
+	if arg.ToAccount == "" {
+		return nil, fmt.Errorf("%w, toAccount=''", errAddressRequired)
+	}
+	var resp AccountTransferResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
+}
+
+// GetAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
+func (p *Poloniex) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit int64) ([]AccountTransferRecord, error) {
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if from != 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []AccountTransferRecord
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/transfer", params, nil, &resp)
+}
+
+// GetAccountTransferRecord gets a transfer records of a user.
+func (p *Poloniex) GetAccountTransferRecord(ctx context.Context, accountID string) ([]AccountTransferRecord, error) {
+	var resp []AccountTransferRecord
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/accounts/transfer/%s", accountID), nil, nil, &resp)
+}
+
+// GetFeeInfo retrieves fee rate for an account
+func (p *Poloniex) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
+	var resp FeeInfo
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/feeinfo", nil, nil, &resp)
+}
+
+// GetInterestHistory get a list of interest collection records of a user.
+// Max interval for start and end time is 90 days.
+// If no start/end time params are specified then records for last 7 days will be returned.
+func (p *Poloniex) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit int64) ([]InterestHistory, error) {
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if from != 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []InterestHistory
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
+}
+
+// ------------------------------------  Sub-Accounts endpoints ----------------------------
+
+// GetSubAccountInformations get a list of all the accounts within an Account Group for a user.
+func (p *Poloniex) GetSubAccountInformations(ctx context.Context) ([]SubAccount, error) {
+	var resp []SubAccount
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/subaccounts", nil, nil, &resp)
+}
+
+// GetSubAccountBalances get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
+// This is only functional for a primary user.
+// A subaccount user can call /accounts/balances for SPOT account type and the futures API overview for its FUTURES balances.
+func (p *Poloniex) GetSubAccountBalances(ctx context.Context) ([]SubAccountBalance, error) {
+	var resp []SubAccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
+}
+
+// GetSubAccountBalance get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
+func (p *Poloniex) GetSubAccountBalance(ctx context.Context, id string) ([]SubAccountBalance, error) {
+	var resp []SubAccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/subaccounts/%s/balances", id), nil, nil, &resp)
+}
+
+// SubAccountTransfer transfer amount of currency from an account and account type to another account and account type among the accounts in the account group.
+// Primary account can transfer to and from any subaccounts as well as transfer between 2 subaccounts across account types.
+// Subaccount can only transfer to the primary account across account types.
+func (p *Poloniex) SubAccountTransfer(ctx context.Context, arg *SubAccountTransferParam) (*AccountTransferResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	if arg.FromAccountID == "" {
+		return nil, fmt.Errorf("%w, fromAccountID=''", errAccountIDRequired)
+	}
+	if arg.ToAccountID == "" {
+		return nil, fmt.Errorf("%w, toAccountID=''", errAccountIDRequired)
+	}
+	if arg.FromAccountType == "" {
+		return nil, fmt.Errorf("%w, fromAccountType=''", errAccountTypeRequired)
+	}
+	if arg.ToAccountType == "" {
+		return nil, fmt.Errorf("%w, toAccountType=''", errAccountTypeRequired)
+	}
+	var resp AccountTransferResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
+}
+
+// GetSubAccountTransferRecords get a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
+func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currency.Code, startTime,
+	endTime time.Time, fromAccountID, toAccountID, fromAccountType,
+	toAccountType, direction string, from, limit int64) ([]SubAccountTransfer, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", startTime.String())
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", endTime.String())
+	}
+	if fromAccountID != "" {
+		params.Set("fromAccountID", fromAccountID)
+	}
+	if toAccountID != "" {
+		params.Set("toAccountID", toAccountID)
+	}
+	if fromAccountType != "" {
+		params.Set("fromAccountType", fromAccountType)
+	}
+	if toAccountType != "" {
+		params.Set("toAccountType", toAccountType)
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if from > 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SubAccountTransfer
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
+}
+
+// GetSubAccountTransferRecord retrieves a subaccount transfer record.
+func (p *Poloniex) GetSubAccountTransferRecord(ctx context.Context, id string) ([]SubAccountTransfer, error) {
+	var resp []SubAccountTransfer
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/subaccounts/transfer/%s", id), nil, nil, &resp)
+}
+
+// -------------------------------------  Wallet sub-accounts  ---------------------------------------
+
+// ---------------------------------------------- End ------------------------------------------------
 
 func intervalToString(interval kline.Interval) (string, error) {
 	intervalMap := map[kline.Interval]string{

@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -1341,4 +1342,228 @@ func TestGetBorrowRateInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetAccountInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetAccountInformation(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllBalances(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetAllBalances(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+	results, err := p.GetAllBalances(context.Background(), "SPOT")
+	if err != nil {
+		t.Error(err)
+	} else {
+		val, _ := json.Marshal(results)
+		println(string(val))
+	}
+}
+
+func TestGetAllBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetAllBalance(context.Background(), "219961623421431808", "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = p.GetAllBalance(context.Background(), "219961623421431808", "SPOT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllAccountActivities(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetAllAccountActivities(context.Background(), time.Time{}, time.Time{}, 0, 0, 0, "", currency.EMPTYCODE)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAccountsTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.AccountsTransfer(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.AccountsTransfer(context.Background(), &AccountTransferParams{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = p.AccountsTransfer(context.Background(), &AccountTransferParams{
+		Ccy: currency.BTC,
+	})
+	if !errors.Is(err, order.ErrAmountIsInvalid) {
+		t.Errorf("expected %v, got %v", order.ErrAmountIsInvalid, err)
+	}
+	_, err = p.AccountsTransfer(context.Background(), &AccountTransferParams{
+		Amount:      1,
+		Ccy:         currency.BTC,
+		FromAccount: "219961623421431808",
+	})
+	if !errors.Is(err, errAddressRequired) {
+		t.Errorf("expected %v, got %v", errAddressRequired, err)
+	}
+	_, err = p.AccountsTransfer(context.Background(), &AccountTransferParams{
+		Amount:      1,
+		Ccy:         currency.BTC,
+		FromAccount: "219961623421431808",
+		ToAccount:   "219961623421431890",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountTransferRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetAccountTransferRecords(context.Background(), time.Time{}, time.Time{}, "", currency.BTC, 0, 0)
+	if err != nil {
+		t.Error(err)
+	} else {
+		val, _ := json.Marshal(result)
+		println(string(val))
+	}
+}
+
+func TestGetAccountTransferRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetAccountTransferRecord(context.Background(), "23123123120")
+	if err != nil {
+		t.Error(err)
+	} else {
+		val, _ := json.Marshal(result)
+		println(string(val))
+	}
+}
+
+func TestGetFeeInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetFeeInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInterestHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetInterestHistory(context.Background(), time.Time{}, time.Time{}, "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountInformations(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetSubAccountInformations(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountBalances(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetSubAccountBalances(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetSubAccountBalance(context.Background(), "2d45301d-5f08-4a2b-a763-f9199778d854")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubAccountTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.SubAccountTransfer(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
+	}
+	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{
+		Currency: currency.BTC,
+	})
+	if !errors.Is(err, order.ErrAmountIsInvalid) {
+		t.Errorf("expected %v, got %v", order.ErrAmountIsInvalid, err)
+	}
+	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{
+		Currency: currency.BTC,
+		Amount:   1,
+	})
+	if !errors.Is(err, errAccountIDRequired) {
+		t.Errorf("expected %v, got %v", errAccountIDRequired, err)
+	}
+	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{
+		Currency:      currency.BTC,
+		Amount:        1,
+		FromAccountID: "1234568",
+		ToAccountID:   "1234567",
+	})
+	if !errors.Is(err, errAccountTypeRequired) {
+		t.Errorf("expected %v, got %v", errAccountTypeRequired, err)
+	}
+	_, err = p.SubAccountTransfer(context.Background(), &SubAccountTransferParam{
+		Currency:        currency.BTC,
+		Amount:          1,
+		FromAccountID:   "1234568",
+		ToAccountID:     "1234567",
+		FromAccountType: "SPOT",
+		ToAccountType:   "SPOT",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountTransferRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetSubAccountTransferRecords(context.Background(), currency.BTC, time.Time{}, time.Now(), "", "", "", "", "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	// else {
+	// 	val, _ := json.Marshal(result)
+	// 	println(string(val))
+	// }
+}
+
+func TestGetSubAccountTransferRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetSubAccountTransferRecord(context.Background(), "1234567")
+	if err != nil {
+		t.Error(err)
+	}
+	//  else {
+	// 	val, _ := json.Marshal(result)
+	// 	println(string(val))
+	// }
 }
