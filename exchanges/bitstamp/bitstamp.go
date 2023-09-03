@@ -45,9 +45,10 @@ const (
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
 	bitstampAPIWSAuthToken        = "websockets_token"
 	bitstampAPIWSTrades           = "live_trades"
+	bitstampAPIWSOrders           = "live_orders"
 	bitstampAPIWSOrderbook        = "order_book"
-	bitstampAPIWSMyOrders         = "private-my_orders"
-	bitstampAPIWSMyTrades         = "private-my_trades"
+	bitstampAPIWSMyOrders         = "my_orders"
+	bitstampAPIWSMyTrades         = "my_trades"
 
 	bitstampOHLC = "ohlc"
 

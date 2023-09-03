@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -692,6 +693,27 @@ func TestParseTime(t *testing.T) {
 		tm.Minute() != 55 ||
 		tm.Second() != 14 {
 		t.Error("invalid time values")
+	}
+}
+
+func TestWebsocketOrderDataUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	var o websocketOrderData
+	if err := o.UnmarshalJSON([]byte(`{"id":1658394968748032,"id_str":"1658394968748032","client_order_id":"balrog-42","order_type":1,"datetime":"1231006505","microtimestamp":"1231006505314159","amount":0.0004,"amount_str":"0.00040000","amount_traded":"0.0001","amount_at_create":"0.00060000","price":28265,"price_str":"28265","trade_account_id":12345678}`)); err != nil {
+		t.Error(err)
+	} else {
+		genesis := time.UnixMicro(1231006505314159)
+		assert.Equal(t, int64(1658394968748032), o.ID, "ID")
+		assert.Equal(t, "1658394968748032", o.IDStr, "IDStr")
+		assert.Equal(t, "balrog-42", o.ClientOrderID, "ClientOrderID")
+		assert.Equal(t, genesis.Truncate(time.Second), o.Datetime, "Datetime")
+		assert.Equal(t, genesis, o.Microtimestamp, "Microtimestamp")
+		assert.Equal(t, order.Sell, o.Side, "Side")
+		assert.Equal(t, 0.0006, o.Amount, "Amount")
+		assert.Equal(t, 0.0001, o.ExecutedAmount, "ExecutedAmount")
+		assert.Equal(t, 0.0004, o.RemainingAmount, "RemainingAmount")
+		assert.Equal(t, 28265.0, o.Price, "Price")
 	}
 }
 
