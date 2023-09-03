@@ -182,15 +182,10 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if wsTradeTemp.Data.Type == 1 {
 			side = order.Sell
 		}
-		var a asset.Item
-		a, err = b.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
 		return trade.AddTradesToBuffer(b.Name, trade.Data{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,
-			AssetType:    a,
+			AssetType:    asset.Spot,
 			Exchange:     b.Name,
 			Price:        wsTradeTemp.Data.Price,
 			Amount:       wsTradeTemp.Data.Amount,
