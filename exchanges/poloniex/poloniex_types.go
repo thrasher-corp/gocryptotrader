@@ -169,10 +169,8 @@ type CompleteBalance struct {
 	BTCValue  float64 `json:"btcValue,string"`
 }
 
-// DepositAddresses holds the full address per crypto-currency
-type DepositAddresses struct {
-	Addresses map[string]string
-}
+// DepositAddressesResponse holds the full address per crypto-currency
+type DepositAddressesResponse map[string]string
 
 // DepositsWithdrawals holds withdrawal information
 type DepositsWithdrawals struct {
@@ -271,12 +269,6 @@ type MoveOrderResponse struct {
 	Error       string                       `json:"error"`
 	OrderNumber int64                        `json:"orderNumber,string"`
 	Trades      map[string][]ResultingTrades `json:"resultingTrades"`
-}
-
-// Withdraw holds withdraw information
-type Withdraw struct {
-	Response string `json:"response"`
-	Error    string `json:"error"`
 }
 
 // Fee holds fees for specific trades
@@ -492,38 +484,6 @@ type CancelOrdersResponse struct {
 	State         string `json:"state"`
 	Code          int64  `json:"code"`
 	Message       string `json:"message"`
-}
-
-// WalletActivityResponse holds wallet activity info
-type WalletActivityResponse struct {
-	Deposits    []WalletDeposits    `json:"deposits"`
-	Withdrawals []WalletWithdrawals `json:"withdrawals"`
-}
-
-// WalletDeposits holds wallet deposit info
-type WalletDeposits struct {
-	DepositNumber int64         `json:"depositNumber"`
-	Currency      currency.Code `json:"currency"`
-	Address       string        `json:"address"`
-	Amount        float64       `json:"amount,string"`
-	Confirmations int64         `json:"confirmations"`
-	TransactionID string        `json:"txid"`
-	Timestamp     int64         `json:"timestamp"`
-	Status        string        `json:"status"`
-}
-
-// WalletWithdrawals holds wallet withdrawal info
-type WalletWithdrawals struct {
-	WithdrawalRequestsID int64         `json:"withdrawalRequestsId"`
-	Currency             currency.Code `json:"currency"`
-	Address              string        `json:"address"`
-	Amount               float64       `json:"amount,string"`
-	Fee                  float64       `json:"fee,string"`
-	Timestamp            int64         `json:"timestamp"`
-	Status               string        `json:"status"`
-	TransactionID        string        `json:"txid"`
-	IPAddress            string        `json:"ipAddress"`
-	PaymentID            string        `json:"paymentID"`
 }
 
 // TimeStampResponse returns the time
@@ -917,4 +877,204 @@ type SubAccountTransfer struct {
 	Amount          convert.StringToFloat64 `json:"amount"`
 	State           string                  `json:"state"`
 	CreateTime      convert.ExchangeTime    `json:"createTime"`
+}
+
+// WalletActivityResponse holds wallet activity info
+type WalletActivityResponse struct {
+	Deposits    []WalletDeposits    `json:"deposits"`
+	Withdrawals []WalletWithdrawals `json:"withdrawals"`
+}
+
+// WalletDeposits holds wallet deposit info
+type WalletDeposits struct {
+	DepositNumber int64                   `json:"depositNumber"`
+	Currency      string                  `json:"currency"`
+	Address       string                  `json:"address"`
+	Amount        convert.StringToFloat64 `json:"amount"`
+	Confirmations int64                   `json:"confirmations"`
+	TransactionID string                  `json:"txid"`
+	Timestamp     convert.ExchangeTime    `json:"timestamp"`
+	Status        string                  `json:"status"`
+}
+
+// WalletWithdrawals holds wallet withdrawal info
+type WalletWithdrawals struct {
+	WithdrawalRequestsID int64                   `json:"withdrawalRequestsId"`
+	Currency             string                  `json:"currency"`
+	Address              string                  `json:"address"`
+	Amount               convert.StringToFloat64 `json:"amount"`
+	Fee                  convert.StringToFloat64 `json:"fee"`
+	Timestamp            convert.ExchangeTime    `json:"timestamp"`
+	Status               string                  `json:"status"`
+	TransactionID        string                  `json:"txid"`
+	IPAddress            string                  `json:"ipAddress"`
+	PaymentID            string                  `json:"paymentID"`
+}
+
+// Withdraw holds withdraw information
+type Withdraw struct {
+	WithdrawRequestID int64 `json:"withdrawalRequestsId"`
+}
+
+// WithdrawCurrencyParam represents a currency withdrawal parameter.
+type WithdrawCurrencyParam struct {
+	Currency    currency.Code `json:"currency"`
+	Amount      float64       `json:"amount,string"`
+	Address     string        `json:"address"`
+	PaymentID   string        `json:"paymentId,omitempty"`
+	AllowBorrow bool          `json:"allowBorrow,omitempty"`
+}
+
+// WithdrawCurrencyV2Param represents a V2 currency withdrawal parameter.
+type WithdrawCurrencyV2Param struct {
+	Coin        currency.Code `json:"coin"`
+	Network     string        `json:"network"`
+	Amount      float64       `json:"amount,string"`
+	Address     string        `json:"address"`
+	AddressTag  string        `json:"addressTag,omitempty"`
+	AllowBorrow bool          `json:"allowBorrow,omitempty"`
+}
+
+// AccountMargin represents an account margin response
+type AccountMargin struct {
+	TotalAccountValue convert.StringToFloat64 `json:"totalAccountValue"`
+	TotalMargin       convert.StringToFloat64 `json:"totalMargin"`
+	UsedMargin        convert.StringToFloat64 `json:"usedMargin"`
+	FreeMargin        convert.StringToFloat64 `json:"freeMargin"`
+	MaintenanceMargin convert.StringToFloat64 `json:"maintenanceMargin"`
+	CreationTime      convert.ExchangeTime    `json:"time"`
+	MarginRatio       string                  `json:"marginRatio"`
+}
+
+// BorroweStatus represents currency borrow status.
+type BorroweStatus struct {
+	Currency         string                  `json:"currency"`
+	Available        convert.StringToFloat64 `json:"available"`
+	Borrowed         convert.StringToFloat64 `json:"borrowed"`
+	Hold             convert.StringToFloat64 `json:"hold"`
+	MaxAvailable     convert.StringToFloat64 `json:"maxAvailable"`
+	HourlyBorrowRate convert.StringToFloat64 `json:"hourlyBorrowRate"`
+	Version          string                  `json:"version"`
+}
+
+// MaxBuySellAmount represents a maximum buy and sell amount.
+type MaxBuySellAmount struct {
+	Symbol           string                  `json:"symbol"`
+	MaxLeverage      int64                   `json:"maxLeverage"`
+	AvailableBuy     convert.StringToFloat64 `json:"availableBuy"`
+	MaxAvailableBuy  convert.StringToFloat64 `json:"maxAvailableBuy"`
+	AvailableSell    convert.StringToFloat64 `json:"availableSell"`
+	MaxAvailableSell convert.StringToFloat64 `json:"maxAvailableSell"`
+}
+
+// PlaceOrderParams represents place order parameters.
+type PlaceOrderParams struct {
+	Symbol      currency.Pair `json:"symbol"`
+	Side        string        `json:"side"`
+	Type        string        `json:"type,omitempty"`
+	AccountType string        `json:"accountType,omitempty"`
+
+	// Quantity Base units for the order. Quantity is required for MARKET SELL or any LIMIT orders
+	Quantity float64 `json:"quantity,omitempty,string"`
+
+	// Amount Quote units for the order. Amount is required for MARKET BUY order
+	Amount float64 `json:"amount,omitempty,string"`
+
+	// Price is required for non-market orders
+	Price float64 `json:"price,omitempty,string"`
+
+	TimeInForce   string `json:"timeInForce,omitempty"` // GTC, IOC, FOK (Default: GTC)
+	ClientOrderID string `json:"clientOrderId,omitempty"`
+
+	AllowBorrow bool   `json:"allowBorrow,omitempty"`
+	STPMode     string `json:"stpMode,omitempty"` // self-trade prevention. Defaults to EXPIRE_TAKER. None: enable self-trade; EXPIRE_TAKER: Taker order will be canceled when self-trade happens
+
+	SlippageTolerance string `json:"slippageTolerance,omitempty"` // Used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
+}
+
+// PlaceOrder places a new order on the exchange
+// func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+// 	result := OrderResponse{}
+// 	values := url.Values{}
+
+// 	var orderType string
+// 	if buy {
+// 		orderType = order.Buy.Lower()
+// 	} else {
+// 		orderType = order.Sell.Lower()
+// 	}
+
+// 	values.Set("currencyPair", currency)
+// 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
+// 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+
+// 	if immediate {
+// 		values.Set("immediateOrCancel", "1")
+// 	}
+
+// 	if fillOrKill {
+// 		values.Set("fillOrKill", "1")
+// 	}
+
+// 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orderType, values, nil, &result)
+// }
+
+// PlaceOrderResponse represents a response structure for placing order.
+type PlaceOrderResponse struct {
+	ID            string `json:"id"`
+	ClientOrderID string `json:"clientOrderId"`
+}
+
+// PlaceBatchOrderRespItem represents a single batch order response item.
+type PlaceBatchOrderRespItem struct {
+	ID            string `json:"id,omitempty"`
+	ClientOrderID string `json:"clientOrderId"`
+	Code          int    `json:"code,omitempty"`
+	Message       string `json:"message,omitempty"`
+}
+
+// CancelReplaceOrderParam represents a cancellation and order replacement request parameter.
+type CancelReplaceOrderParam struct {
+	ID                string  `json:"-"`
+	ClientOrderID     string  `json:"clientOrderId"`
+	Price             float64 `json:"price,omitempty,string"`
+	Quantity          float64 `json:"quantity,omitempty,string"`
+	Amount            float64 `json:"amount,omitempty,string"`
+	AmendedType       string  `json:"type,omitempty,string"`
+	TimeInForce       string  `json:"timeInForce"`
+	AllowBorrow       bool    `json:"allowBorrow"`
+	ProceedOnFailure  bool    `json:"proceedOnFailure,omitempty,string"`
+	SlippageTolerance float64 `json:"slippageTolerance,omitempty,string"`
+}
+
+// CancelReplaceOrderResponse represents a response parameter for order cancellation and replacement operation.
+type CancelReplaceOrderResponse struct {
+	ID            string               `json:"id"`
+	ClientOrderID string               `json:"clientOrderId"`
+	Price         convert.ExchangeTime `json:"price"`
+	Quantity      convert.ExchangeTime `json:"quantity"`
+	Code          int64                `json:"code"`
+	Message       string               `json:"message"`
+}
+
+// TradeOrder represents a trade order instance.
+type TradeOrder struct {
+	ID             string                  `json:"id"`
+	ClientOrderID  string                  `json:"clientOrderId"`
+	Symbol         string                  `json:"symbol"`
+	State          string                  `json:"state"`
+	AccountType    string                  `json:"accountType"`
+	Side           string                  `json:"side"`
+	Type           string                  `json:"type"`
+	TimeInForce    string                  `json:"timeInForce"`
+	Quantity       convert.StringToFloat64 `json:"quantity"`
+	Price          convert.StringToFloat64 `json:"price"`
+	AvgPrice       convert.StringToFloat64 `json:"avgPrice"`
+	Amount         convert.StringToFloat64 `json:"amount"`
+	FilledQuantity convert.StringToFloat64 `json:"filledQuantity"`
+	FilledAmount   convert.StringToFloat64 `json:"filledAmount"`
+	CreateTime     convert.ExchangeTime    `json:"createTime"`
+	UpdateTime     convert.ExchangeTime    `json:"updateTime"`
+	OrderSource    string                  `json:"orderSource"`
+	Loan           bool                    `json:"loan"`
 }

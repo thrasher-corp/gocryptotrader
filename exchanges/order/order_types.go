@@ -323,6 +323,7 @@ const (
 	OptimalLimitIOC
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
+	LimitMaker
 )
 
 // Side enforces a standard for order sides across the code base

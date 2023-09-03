@@ -165,7 +165,12 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 					log.Fatalf("Mock Test Failure - %v", err)
 				}
 
-				payload, err := MatchAndGetResponse(httpResponses, reqVals, false)
+				var payload json.RawMessage
+				if len(reqVals) == 1 {
+					payload, err = MatchAndGetResponse(httpResponses, reqVals[0], false)
+				} else {
+					payload, err = MatchBatchAndGetResponse(httpResponses, reqVals)
+				}
 				if err != nil {
 					log.Fatal("Mock Test Failure - MatchAndGetResponse error ", err)
 				}
@@ -190,8 +195,12 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 				if err != nil {
 					log.Fatalf("Mock Test Failure - %v", err)
 				}
-
-				payload, err := MatchAndGetResponse(httpResponses, reqVals, false)
+				var payload json.RawMessage
+				if len(reqVals) == 1 {
+					payload, err = MatchAndGetResponse(httpResponses, reqVals[0], false)
+				} else {
+					payload, err = MatchBatchAndGetResponse(httpResponses, reqVals)
+				}
 				if err != nil {
 					log.Fatal("Mock Test Failure - MatchAndGetResponse error ", err)
 				}
@@ -255,7 +264,7 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			something := make(map[string]interface{})
 			err = json.Unmarshal([]byte(data), &something)
 			if err != nil {
-				return nil, err
+				continue
 			}
 
 			for k, v := range something {
@@ -282,6 +291,55 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 
 		if MatchURLVals(mockVals, requestVals) {
 			return mockData[i].Data, nil
+		}
+	}
+	return nil, errors.New("no data could be matched")
+}
+
+// MatchBatchAndGetResponse matches a batch of incoming request values with mockdata response
+// values and returns the payload
+func MatchBatchAndGetResponse(mockData []HTTPResponse, requestVals []url.Values) (json.RawMessage, error) {
+	for i := range mockData {
+		data := mockData[i].BodyParams
+		var mockVals = []url.Values{}
+		var err error
+
+		if json.Valid([]byte(data)) {
+			something := make([]map[string]interface{}, 0, len(requestVals))
+			err = json.Unmarshal([]byte(data), &something)
+			if err != nil {
+				continue
+			}
+			for a := range something {
+				mockValsItem := url.Values{}
+				for k, v := range something[a] {
+					switch val := v.(type) {
+					case string:
+						mockValsItem.Add(k, val)
+					case bool:
+						mockValsItem.Add(k, strconv.FormatBool(val))
+					case float64:
+						mockValsItem.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
+					case map[string]interface{}, []interface{}, nil:
+						mockValsItem.Add(k, fmt.Sprintf("%v", val))
+					default:
+						log.Println(reflect.TypeOf(val))
+						log.Fatal("unhandled type please add as needed")
+					}
+				}
+				mockVals = append(mockVals, mockValsItem)
+			}
+		} else {
+			continue
+		}
+
+		if len(mockVals) != len(requestVals) {
+			continue
+		}
+		for x := range mockVals {
+			if MatchURLVals(mockVals[x], requestVals[x]) {
+				return mockData[i].Data, nil
+			}
 		}
 	}
 	return nil, errors.New("no data could be matched")

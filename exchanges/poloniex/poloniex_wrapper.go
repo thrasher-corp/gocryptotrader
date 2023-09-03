@@ -495,9 +495,9 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Deposits[i].Status,
-			Timestamp:       time.Unix(walletActivity.Deposits[i].Timestamp, 0),
-			Currency:        walletActivity.Deposits[i].Currency.String(),
-			Amount:          walletActivity.Deposits[i].Amount,
+			Timestamp:       walletActivity.Deposits[i].Timestamp.Time(),
+			Currency:        walletActivity.Deposits[i].Currency,
+			Amount:          walletActivity.Deposits[i].Amount.Float64(),
 			CryptoToAddress: walletActivity.Deposits[i].Address,
 			CryptoTxID:      walletActivity.Deposits[i].TransactionID,
 		}
@@ -506,10 +506,10 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Withdrawals[i].Status,
-			Timestamp:       time.Unix(walletActivity.Withdrawals[i].Timestamp, 0),
-			Currency:        walletActivity.Withdrawals[i].Currency.String(),
-			Amount:          walletActivity.Withdrawals[i].Amount,
-			Fee:             walletActivity.Withdrawals[i].Fee,
+			Timestamp:       walletActivity.Withdrawals[i].Timestamp.Time(),
+			Currency:        walletActivity.Withdrawals[i].Currency,
+			Amount:          walletActivity.Withdrawals[i].Amount.Float64(),
+			Fee:             walletActivity.Withdrawals[i].Fee.Float64(),
 			CryptoToAddress: walletActivity.Withdrawals[i].Address,
 			CryptoTxID:      walletActivity.Withdrawals[i].TransactionID,
 		}
@@ -526,15 +526,15 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals.Withdrawals))
 	for i := range withdrawals.Withdrawals {
-		if !withdrawals.Withdrawals[i].Currency.Equal(c) {
+		if !c.Equal(currency.NewCode(withdrawals.Withdrawals[i].Currency)) {
 			continue
 		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Withdrawals[i].Status,
-			Timestamp:       time.Unix(withdrawals.Withdrawals[i].Timestamp, 0),
-			Currency:        withdrawals.Withdrawals[i].Currency.String(),
-			Amount:          withdrawals.Withdrawals[i].Amount,
-			Fee:             withdrawals.Withdrawals[i].Fee,
+			Timestamp:       withdrawals.Withdrawals[i].Timestamp.Time(),
+			Currency:        withdrawals.Withdrawals[i].Currency,
+			Amount:          withdrawals.Withdrawals[i].Amount.Float64(),
+			Fee:             withdrawals.Withdrawals[i].Fee.Float64(),
 			CryptoToAddress: withdrawals.Withdrawals[i].Address,
 			CryptoTxID:      withdrawals.Withdrawals[i].TransactionID,
 		}
@@ -627,17 +627,18 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	response, err := p.PlaceOrder(ctx,
-		fPair.String(),
-		s.Price,
-		s.Amount,
-		false,
-		s.Type == order.Market,
-		s.Side.IsLong())
+	response, err := p.PlaceOrder(ctx, &PlaceOrderParams{
+		Symbol:      fPair,
+		Price:       s.Price,
+		Amount:      s.Amount,
+		AllowBorrow: false,
+		Type:        s.Type.String(),
+		Side:        s.Side.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderNumber, 10))
+	return s.DeriveSubmitResponse(response.ID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -811,71 +812,70 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
-	depositAddrs, err := p.GetDepositAddresses(ctx)
+	/*depositAddrs*/ _, err := p.GetDepositAddresses(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
 
 	// Some coins use a main address, so we must use this in conjunction with the returned
 	// deposit address to produce the full deposit address and tag
-	currencies, err := p.GetCurrencies(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// currencies, err := p.GetCurrencies(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	coinParams, ok := currencies[cryptocurrency.Upper().String()]
-	if !ok {
-		return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
-	}
+	// coinParams, ok := currencies[cryptocurrency.Upper().String()]
+	// if !ok {
+	// 	return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
+	// }
 
-	// Handle coins with payment ID's like XRP
-	var address, tag string
-	if coinParams.CurrencyType == "address-payment-id" && coinParams.DepositAddress != "" {
-		address = coinParams.DepositAddress
-		tag, ok = depositAddrs.Addresses[cryptocurrency.Upper().String()]
-		if !ok {
-			newAddr, err := p.GenerateNewAddress(ctx, cryptocurrency.Upper().String())
-			if err != nil {
-				return nil, err
-			}
-			tag = newAddr
-		}
-		return &deposit.Address{
-			Address: address,
-			Tag:     tag,
-		}, nil
-	}
+	// // Handle coins with payment ID's like XRP
+	// var address, tag string
+	// if coinParams.CurrencyType == "address-payment-id" && coinParams.DepositAddress != "" {
+	// 	address = coinParams.DepositAddress
+	// 	tag, ok = depositAddrs[cryptocurrency.Upper().String()]
+	// 	if !ok {
+	// 		newAddr, err := p.GenerateNewAddress(ctx, cryptocurrency.Upper().String())
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		tag = newAddr
+	// 	}
+	// 	return &deposit.Address{
+	// 		Address: address,
+	// 		Tag:     tag,
+	// 	}, nil
+	// }
+	// // Handle coins like BTC or multichain coins
+	// targetCurrency := cryptocurrency.String()
+	// if chain != "" && !strings.EqualFold(chain, cryptocurrency.String()) {
+	// 	targetCurrency = chain
+	// }
+	// address, ok = depositAddrs[strings.ToUpper(targetCurrency)]
+	// if !ok {
+	// 	if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetCurrency) {
+	// 		// rather than assume, return an error
+	// 		return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
+	// 			cryptocurrency,
+	// 			coinParams.ChildChains)
+	// 	}
+	// }
 
-	// Handle coins like BTC or multichain coins
-	targetCurrency := cryptocurrency.String()
-	if chain != "" && !strings.EqualFold(chain, cryptocurrency.String()) {
-		targetCurrency = chain
-	}
+	// 	coinParams, ok = currencies[strings.ToUpper(targetCurrency)]
+	// 	if !ok {
+	// 		return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
+	// 	}
+	// 	if coinParams.WithdrawalDepositDisabled == 1 {
+	// 		return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", targetCurrency)
+	// 	}
 
-	address, ok = depositAddrs.Addresses[strings.ToUpper(targetCurrency)]
-	if !ok {
-		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetCurrency) {
-			// rather than assume, return an error
-			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
-				cryptocurrency,
-				coinParams.ChildChains)
-		}
-
-		coinParams, ok = currencies[strings.ToUpper(targetCurrency)]
-		if !ok {
-			return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
-		}
-		if coinParams.WithdrawalDepositDisabled == 1 {
-			return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", targetCurrency)
-		}
-
-		newAddr, err := p.GenerateNewAddress(ctx, targetCurrency)
-		if err != nil {
-			return nil, err
-		}
-		address = newAddr
-	}
-	return &deposit.Address{Address: address}, nil
+	// 	newAddr, err := p.GenerateNewAddress(ctx, targetCurrency)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	address = newAddr
+	// }
+	return &deposit.Address{Address: "" /*address*/}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -884,17 +884,12 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-
-	targetCurrency := withdrawRequest.Currency.String()
-	if withdrawRequest.Crypto.Chain != "" {
-		targetCurrency = withdrawRequest.Crypto.Chain
-	}
-	v, err := p.Withdraw(ctx, targetCurrency, withdrawRequest.Crypto.Address, withdrawRequest.Amount)
+	v, err := p.WithdrawCurrency(ctx, &WithdrawCurrencyParam{Currency: withdrawRequest.Currency, Address: withdrawRequest.Crypto.Address, Amount: withdrawRequest.Amount})
 	if err != nil {
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		Status: v.Response,
+		Status: strconv.FormatInt(v.WithdrawRequestID, 10),
 	}, err
 }
 

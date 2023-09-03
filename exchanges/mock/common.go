@@ -40,31 +40,42 @@ func MatchURLVals(v1, v2 url.Values) bool {
 }
 
 // DeriveURLValsFromJSONMap gets url vals from a map[string]string encoded JSON body
-func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
-	var vals = url.Values{}
+func DeriveURLValsFromJSONMap(payload []byte) ([]url.Values, error) {
+	var vals = []url.Values{}
 	if len(payload) == 0 {
 		return vals, nil
 	}
-	intermediary := make(map[string]interface{})
-	err := json.Unmarshal(payload, &intermediary)
+	intermediary := make([]map[string]interface{}, 1, 5)
+	intermediary[0] = make(map[string]interface{})
+	err := json.Unmarshal(payload, &intermediary[0])
 	if err != nil {
-		return vals, err
-	}
-
-	for k, v := range intermediary {
-		switch val := v.(type) {
-		case string:
-			vals.Add(k, val)
-		case bool:
-			vals.Add(k, strconv.FormatBool(val))
-		case float64:
-			vals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
-		case map[string]interface{}, []interface{}, nil:
-			vals.Add(k, fmt.Sprintf("%v", val))
-		default:
-			log.Println(reflect.TypeOf(val))
-			return vals, errors.New("unhandled conversion type, please add as needed")
+		if strings.EqualFold(err.Error(), "json: cannot unmarshal array into Go value of type map[string]interface {}") {
+			err := json.Unmarshal(payload, &intermediary)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return vals, err
 		}
+	}
+	for x := range intermediary {
+		valsItem := url.Values{}
+		for k, v := range intermediary[x] {
+			switch val := v.(type) {
+			case string:
+				valsItem.Add(k, val)
+			case bool:
+				valsItem.Add(k, strconv.FormatBool(val))
+			case float64:
+				valsItem.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
+			case map[string]interface{}, []interface{}, nil:
+				valsItem.Add(k, fmt.Sprintf("%v", val))
+			default:
+				log.Println(reflect.TypeOf(val))
+				return vals, errors.New("unhandled conversion type, please add as needed")
+			}
+		}
+		vals = append(vals, valsItem)
 	}
 
 	return vals, nil

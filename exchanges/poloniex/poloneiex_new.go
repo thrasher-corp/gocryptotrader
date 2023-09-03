@@ -18,9 +18,10 @@ import (
 )
 
 var (
-	errIntervalRequired = errors.New("interval is required")
-	errNilArgument      = errors.New("error: nil argument")
-	errAddressRequired  = errors.New("address is required")
+	errIntervalRequired       = errors.New("interval is required")
+	errNilArgument            = errors.New("error: nil argument")
+	errAddressRequired        = errors.New("address is required")
+	errInvalidWithdrawalChain = errors.New("invalid withdrawal chain")
 )
 
 // Reference data endpoints.
@@ -449,6 +450,55 @@ func (p *Poloniex) GetSubAccountTransferRecord(ctx context.Context, id string) (
 
 // -------------------------------------  Wallet sub-accounts  ---------------------------------------
 
+// GetDepositAddresses get all deposit addresses for a user.
+func (p *Poloniex) GetDepositAddresses(ctx context.Context, ccy currency.Code) (*DepositAddressesResponse, error) {
+	addresses := &DepositAddressesResponse{}
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/wallets/addresses", url.Values{}, params, addresses)
+}
+
+// WalletActivity returns the wallet activity between set start and end time
+func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
+	values := url.Values{}
+	err := common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
+	values.Set("start", strconv.FormatInt(start.Unix(), 10))
+	values.Set("end", strconv.FormatInt(end.Unix(), 10))
+	if activityType != "" {
+		values.Set("activityType", activityType)
+	}
+	var resp WalletActivityResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		poloniexWalletActivity,
+		values,
+		nil,
+		&resp)
+}
+
+// NewCurrencyDepoditAddress create a new address for a currency.
+
+// Some currencies use a common deposit address for everyone on the exchange and designate the account
+// for which this payment is destined by populating paymentID field.
+// In these cases, use /currencies to look up the mainAccount for the currency to find
+// the deposit address and use the address returned here as the paymentID.
+// Note: currencies will only include a mainAccount property for currencies which require a paymentID.
+func (p *Poloniex) NewCurrencyDepoditAddress(ctx context.Context, ccy currency.Code) (string, error) {
+	if ccy.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	resp := &struct {
+		Address string `json:"address"`
+	}{}
+	return resp.Address, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
+}
+
+// func (p *Poloniex) WithdrawCurrency(ctx context.Context, )
+
 // ---------------------------------------------- End ------------------------------------------------
 
 func intervalToString(interval kline.Interval) (string, error) {
@@ -498,3 +548,190 @@ func stringToInterval(interval string) (kline.Interval, error) {
 	}
 	return kline.Interval(0), kline.ErrUnsupportedInterval
 }
+
+// WithdrawCurrency withdraws a currency to a specific delegated address.
+// Immediately places a withdrawal for a given currency, with no email confirmation.
+// In order to use this method, withdrawal privilege must be enabled for your API key.
+// Some currencies use a common deposit address for everyone on the exchange and designate the account for
+// which this payment is destined by populating paymentID field.
+// In these cases, use /currencies to look up the mainAccount for the currency to find the deposit address and
+// use the address returned by /wallets/addresses or generate one using /wallets/address as the paymentId.
+// Note: currencies will only include a mainAccount property for currencies which require a paymentID.
+// For currencies where there are multiple networks to choose from (like USDT or BTC), you can specify the chain by setting the "currency" parameter
+//
+//	to be a multiChain currency name, like USDTTRON, USDTETH, or BTCTRON. You can get information on these currencies,
+//
+// like fees or if they"re disabled, by adding the "includeMultiChainCurrencies" optional parameter to the /currencies endpoint.
+func (p *Poloniex) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyParam) (*Withdraw, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Address == "" {
+		return nil, errAddressRequired
+	}
+	result := &Withdraw{}
+	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/wallets/withdraw", nil, arg, &result)
+}
+
+// WithdrawCurrencyV2 withdraws a currency to a specific delegated address.
+// Immediately places a withdrawal for a given currency, with no email confirmation.
+// In order to use this method, withdrawal privilege must be enabled for your API key.
+func (p *Poloniex) WithdrawCurrencyV2(ctx context.Context, arg *WithdrawCurrencyV2Param) (*Withdraw, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Network == "" {
+		return nil, errInvalidWithdrawalChain
+	}
+	if arg.Address == "" {
+		return nil, errAddressRequired
+	}
+	var resp Withdraw
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v2/wallets/withdraw", nil, arg, &resp)
+}
+
+// ---------------------------------------------------------------- Margin endpoints ------------------------------------------------
+
+// GetAccountMarginInformation retrieves account margin information
+func (p *Poloniex) GetAccountMarginInformation(ctx context.Context, accountType string) (*AccountMargin, error) {
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp AccountMargin
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
+}
+
+// GetBorrowStatus retrieves borrow status of currencies
+func (p *Poloniex) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]BorroweStatus, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []BorroweStatus
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
+}
+
+// MaximumBuySellAmount get maximum and available buy/sell amount for a given symbol.
+func (p *Poloniex) MaximumBuySellAmount(ctx context.Context, symbol currency.Pair) (*MaxBuySellAmount, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	var resp MaxBuySellAmount
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/maxSize", params, nil, &resp)
+}
+
+// ---------------------------------------------- Orders endpoint ------------------------------------------------------------
+
+// PlaceOrder places an order for an account.
+func (p *Poloniex) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	var resp PlaceOrderResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/orders", nil, arg, &resp)
+}
+
+// PlaceBatchOrders places a batch of order for an account.
+func (p *Poloniex) PlaceBatchOrders(ctx context.Context, args []PlaceOrderParams) ([]PlaceBatchOrderRespItem, error) {
+	if len(args) == 0 {
+		return nil, errNilArgument
+	}
+	for x := range args {
+		if args[x].Symbol.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if args[x].Side == "" {
+			return nil, order.ErrSideIsInvalid
+		}
+	}
+	var resp []PlaceBatchOrderRespItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/orders/batch", nil, args, &resp)
+}
+
+// CancelReplaceOrder cancel an existing active order, new or partially filled, and place a new order on the same
+// symbol with details from existing order unless amended by new parameters.
+// The replacement order can amend price, quantity, amount, type, timeInForce, and allowBorrow fields.
+// Specify the existing order id in the path; if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.
+// The proceedOnFailure flag is intended to specify whether to continue with new order placement in case cancelation of the existing order fails.
+// Please note that since the new order placement does not wait for funds to clear from the existing order cancelation,
+// it is possible that the new order will fail due to low available balance.
+func (p *Poloniex) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrderParam) (*CancelReplaceOrderResponse, error) {
+	if arg == nil || (*arg) == (CancelReplaceOrderParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.ID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp CancelReplaceOrderResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/orders/%s", arg.ID), nil, arg, &resp)
+}
+
+// GetOpenOrders retrieves a list of active orders for an account.
+func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side, direction string, fromOrderID, limit int64) ([]TradeOrder, error) {
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if fromOrderID != 0 {
+		params.Set("from", strconv.FormatInt(fromOrderID, 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []TradeOrder
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/orders", nil, nil, &resp)
+}
+
+// PlaceOrder places a new order on the exchange
+// func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+// 	result := OrderResponse{}
+// 	values := url.Values{}
+
+// 	var orderType string
+// 	if buy {
+// 		orderType = order.Buy.Lower()
+// 	} else {
+// 		orderType = order.Sell.Lower()
+// 	}
+
+// 	values.Set("currencyPair", currency)
+// 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
+// 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+
+// 	if immediate {
+// 		values.Set("immediateOrCancel", "1")
+// 	}
+
+// 	if fillOrKill {
+// 		values.Set("fillOrKill", "1")
+// 	}
+
+// 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orderType, values, nil, &result)
+// }

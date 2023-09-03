@@ -16104,6 +16104,136 @@
     }
    ]
   },
+  "/margin/accountMargin": {
+   "GET": [
+    {
+     "data": {
+      "freeMargin": "0",
+      "maintenanceMargin": "0",
+      "marginRatio": "999",
+      "time": 1693754955044,
+      "totalAccountValue": "0",
+      "totalMargin": "0",
+      "usedMargin": "0"
+     },
+     "queryString": "accountType=SPOT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "zU5Nlm4seNyLQXD0qjT/XljvKTpwaxHfkRhuz71i1j4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693754954385"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 500,
+      "message": "Internal error"
+     },
+     "queryString": "accountType=FUTURES",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "3Z92Cp/JN3/FZzLX2wpRbu1tnniLlcG0cvbTkTeSmL0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693755312972"
+      ]
+     }
+    }
+   ]
+  },
+  "/margin/borrowStatus": {
+   "GET": [
+    {
+     "data": [],
+     "queryString": "currency=USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "p5Ko1+6tF0hMyINOohKR6qgS0eRxEfFl/9c+oWLJWM4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693756145742"
+      ]
+     }
+    }
+   ]
+  },
+  "/margin/maxSize": {
+   "GET": [
+    {
+     "data": {
+      "availableBuy": "0",
+      "availableSell": "0",
+      "maxAvailableBuy": "0",
+      "maxAvailableSell": "0",
+      "maxLeverage": 3,
+      "symbol": "BTC_USDT"
+     },
+     "queryString": "symbol=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "UtJyukM7nM6KzcK9b30tBfdbpVR1AZQrFlISA0Lta2Y="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693756597826"
+      ]
+     }
+    }
+   ]
+  },
   "/markets": {
    "GET": [
     {
@@ -76249,6 +76379,236 @@
     }
    ]
   },
+  "/orders": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "XgnxxqBVAxAQWwD3Vj8JqEXnDf+zMO5C2s+OLt+0+gc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693772135181"
+      ]
+     }
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 10041,
+      "message": "Symbol cannot trading"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"\",\"accountType\":\"\",\"timeInForce\":\"\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "K/qme6pCdkJNxTjrvjYnw83wMWYo807V5NWIeXnZ4g8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693760949828"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 10041,
+      "message": "Symbol cannot trading"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Vyoko63Z9mbjZsAY13+chZ7MXsQxT0eJmXBL86Hlt0M="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693761079622"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 21321,
+      "message": "Invalid order TimeInForce"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"quantity\":\"100\",\"price\":\"40000.5\",\"timeInForce\":\"IOC\",\"clientOrderId\":\"1234Abc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "rfBlSd4CS2FVWyxqMx1qJz8POy/ixwqMtU7Oz5Ew0G0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693761194281"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 10041,
+      "message": "Symbol cannot trading"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"quantity\":\"100\",\"price\":\"40000.5\",\"timeInForce\":\"GTC\",\"clientOrderId\":\"1234Abc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "jXoEhkyD/DBKoxZoO4KpaXWcxTaULTLpCik3STDg/kE="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693761222380"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/29772698821328896": {
+   "GET": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Order not exists"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "KnNGkGO/PkUjIqrmtPUSoTsh4ApBbsExlDUO3wOA8bk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693771500143"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/batch": {
+   "POST": [
+    {
+     "data": [
+      {
+       "clientOrderId": "1234Abc",
+       "code": 10041,
+       "message": "Symbol cannot trading"
+      },
+      {
+       "clientOrderId": "",
+       "code": 10041,
+       "message": "Symbol cannot trading"
+      },
+      {
+       "clientOrderId": "1234Abc",
+       "code": 10041,
+       "message": "Symbol cannot trading"
+      },
+      {
+       "clientOrderId": "",
+       "code": 10041,
+       "message": "Symbol cannot trading"
+      },
+      {
+       "clientOrderId": "456Xyz",
+       "code": 10041,
+       "message": "Symbol cannot trading"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "[{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"quantity\":\"100\",\"price\":\"40000.5\",\"timeInForce\":\"GTC\",\"clientOrderId\":\"1234Abc\"},{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"amount\":\"100\",\"timeInForce\":\"\"},{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"LIMIT\",\"quantity\":\"100\",\"price\":\"40000.5\",\"timeInForce\":\"IOC\",\"clientOrderId\":\"1234Abc\"},{\"symbol\":\"ETH_USDT\",\"side\":\"BUY\",\"amount\":\"1000\",\"timeInForce\":\"\"},{\"symbol\":\"TRX_USDT\",\"side\":\"SELL\",\"type\":\"LIMIT\",\"quantity\":\"15000\",\"price\":\"0.0623423423\",\"timeInForce\":\"IOC\",\"clientOrderId\":\"456Xyz\"}]",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "BeQ44x5eN9DbjV7BDmgvOg25Mzmf3A5T2/xfwHlmzsA="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693762611364"
+      ]
+     }
+    }
+   ]
+  },
   "/public": {
    "GET": [
     {
@@ -117706,6 +118066,218 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/v2/wallets/withdraw": {
+   "POST": [
+    {
+     "data": {
+      "code": 400,
+      "message": "balance not enough."
+     },
+     "queryString": "",
+     "bodyParams": "{\"coin\":\"BTC\",\"network\":\"BTC\",\"amount\":\"1\",\"address\":\"0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "3SW9+CiLNy+fOBiSFRmghwE7lZWRFo/Xv0bwkti5aM4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693754321624"
+      ]
+     }
+    }
+   ]
+  },
+  "/wallets/activity": {
+   "GET": [
+    {
+     "data": {
+      "deposits": [
+       {
+        "depositNumber": 7397520,
+        "currency": "BTC",
+        "address": "131rdg5Rzn6BFufnnQaHhVa5ZtRU1J2EZR",
+        "amount": "0.06830697",
+        "confirmations": 1,
+        "txid": "3a4b9b2404f6e6fb556c3e1d46a9752f5e70a93ac1718605c992b80aacd8bd1d",
+        "timestamp": 1506005439,
+        "status": "COMPLETED"
+       },
+       {
+        "depositNumber": 7397521,
+        "currency": "BCH",
+        "address": "1FhCkdKeMGa621mCpAtFYzeVfUBnHbooLj",
+        "amount": "10.00000000",
+        "confirmations": 5,
+        "txid": "eb2e0914105b02fbe6e17913d74b4e5950c1ba122eb71afdfc49e2c58b272456",
+        "timestamp": 1508436102,
+        "status": "COMPLETED"
+       },
+       {
+        "depositNumber": 7397518,
+        "currency": "ETH",
+        "address": "0xb7e033598cb94ef5a35349316d3a2e4f95f308da",
+        "amount": "29.99825341",
+        "confirmations": 53,
+        "txid": "f7e7eeb44edcad14c0f90a5fffb1cbb4b80e8f9652124a0838f6906ca939ccd2",
+        "timestamp": 1537305507,
+        "status": "COMPLETED"
+       }
+      ],
+      "withdrawals": [
+       {
+        "withdrawalRequestsId": 7397527,
+        "currency": "ETC",
+        "address": "0x26419a62055af459d2cd69bb7392f5100b75e304",
+        "amount": "13.19951600",
+        "fee": "0.01000000",
+        "timestamp": 1506010932,
+        "status": "COMPLETED",
+        "txid": "343346392f82ac16e8c2604f2a604b7b2382d0e9d8030f673821f8de4b5f5bk",
+        "ipAddress": "1.2.3.4",
+        "paymentID": "null"
+       },
+       {
+        "withdrawalRequestsId": 7704882,
+        "currency": "ETH",
+        "address": "0x00c90335F92FfcD26C8c915c79d7aB424454B7c7",
+        "amount": "0.01318826",
+        "fee": "0.00500000",
+        "timestamp": 1507908127,
+        "status": "COMPLETED",
+        "txid": "423346392f82ac16e8c2604f2a604b7b2382d0e9d8030f673821f8de4b5f5a30",
+        "ipAddress": "1.2.3.4",
+        "paymentID": "null"
+       }
+      ]
+     },
+     "queryString": "end=1693748631\u0026start=1693741431",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "xkM4jwqPwjpm7h2L3Sicn+ieFZ2ekC/Bol706dHel2s="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693748631197"
+      ]
+     }
+    }
+   ]
+  },
+  "/wallets/address": {
+   "POST": [
+    {
+     "data": {
+      "address": "1HeLjPNpqG6jRjhZsfti5ABckumer1eqDU"
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "XwURC7YDiMFN2IPxZlhS0TFAydjY8/uRpSrp045UhrY="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693749754921"
+      ]
+     }
+    }
+   ]
+  },
+  "/wallets/addresses": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Rypq/Puayd0L7BW8hwywDjHwqwXIdwV6rKqedBjrzTc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693739566890"
+      ]
+     }
+    }
+   ]
+  },
+  "/wallets/withdraw": {
+   "POST": [
+    {
+     "data": {
+      "code": 400,
+      "message": "balance not enough."
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\",\"amount\":\"1\",\"address\":\"0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "96Gu7jtOWnwl4Qt5atk8xLzGrbaqVSLeag0kNkPGk6c="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1693752310477"
+      ]
+     }
     }
    ]
   }

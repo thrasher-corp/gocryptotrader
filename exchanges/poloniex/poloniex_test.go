@@ -535,19 +535,6 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
-	t.Parallel()
-	_, err := p.GetDepositAddress(context.Background(), currency.USDT, "", "USDTETH")
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
-		t.Error("GetDepositAddress()", err)
-	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
-		t.Error("GetDepositAddress() cannot be nil")
-	case mockTests && err != nil:
-		t.Error("Mock GetDepositAddress() err", err)
-	}
-}
-
 func TestGenerateNewAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
@@ -1070,16 +1057,6 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 }
 
-func TestWalletActivity(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-
-	_, err := p.WalletActivity(context.Background(), time.Now().Add(-time.Minute), time.Now(), "")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
@@ -1566,4 +1543,275 @@ func TestGetSubAccountTransferRecord(t *testing.T) {
 	// 	val, _ := json.Marshal(result)
 	// 	println(string(val))
 	// }
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetDepositAddresses(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWalletActivity(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	var start, end time.Time
+	if mockTests {
+		start = time.UnixMilli(1693741163970)
+		end = time.UnixMilli(1693748363970)
+	} else {
+		start = time.Now().Add(-time.Hour * 2)
+		end = time.Now()
+	}
+	_, err := p.WalletActivity(context.Background(), start, end, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNewCurrencyDepoditAddress(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err := p.NewCurrencyDepoditAddress(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawCurrency(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err := p.WithdrawCurrency(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
+		Currency: currency.BTC,
+	})
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
+		Currency: currency.BTC,
+		Amount:   1,
+	})
+	if !errors.Is(err, errAddressRequired) {
+		t.Errorf("expected %v, got %v", errAddressRequired, err)
+	}
+	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
+		Currency: currency.BTC,
+		Amount:   1,
+		Address:  "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawCurrencyV2(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err := p.WithdrawCurrencyV2(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	if _, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{
+		Coin: currency.BTC}); !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	if _, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{Coin: currency.BTC, Amount: 1}); !errors.Is(err, errInvalidWithdrawalChain) {
+		t.Errorf("expected %v, got %v", errInvalidWithdrawalChain, err)
+	}
+	if _, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{
+		Coin: currency.BTC, Amount: 1, Network: "BTC"}); !errors.Is(err, errAddressRequired) {
+		t.Errorf("expected %v, got %v", errAddressRequired, err)
+	}
+	if _, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{
+		Network: "BTC", Coin: currency.BTC, Amount: 1, Address: "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountMarginInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetAccountMarginInformation(context.Background(), "SPOT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBorrowStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetBorrowStatus(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMaximumBuySellAmount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.MaximumBuySellAmount(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceOrder(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err := p.PlaceOrder(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{
+		Symbol: pair,
+	})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("expected %v, got %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{
+		Symbol:        pair,
+		Side:          order.Buy.String(),
+		Type:          order.Market.String(),
+		Quantity:      100,
+		Price:         40000.50000,
+		TimeInForce:   "GTC",
+		ClientOrderID: "1234Abc",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceBatchOrders(t *testing.T) {
+	t.Parallel()
+	_, err := p.PlaceBatchOrders(context.Background(), nil)
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.PlaceBatchOrders(context.Background(), []PlaceOrderParams{{}})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.PlaceBatchOrders(context.Background(), []PlaceOrderParams{
+		{
+			Symbol: pair,
+		},
+	})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("expected %v, got %v", order.ErrSideIsInvalid, err)
+	}
+	getPairFromString := func(pairString string) currency.Pair {
+		pair, err := currency.NewPairFromString(pairString)
+		if err != nil {
+			return currency.EMPTYPAIR
+		}
+		return pair
+	}
+	result, err := p.PlaceBatchOrders(context.Background(), []PlaceOrderParams{
+		{
+			Symbol:        pair,
+			Side:          order.Buy.String(),
+			Type:          order.Market.String(),
+			Quantity:      100,
+			Price:         40000.50000,
+			TimeInForce:   "GTC",
+			ClientOrderID: "1234Abc",
+		},
+		{
+			Symbol: getPairFromString("BTC_USDT"),
+			Amount: 100,
+			Side:   "BUY",
+		},
+		{
+			Symbol:        getPairFromString("BTC_USDT"),
+			Type:          "LIMIT",
+			Quantity:      100,
+			Side:          "BUY",
+			Price:         40000.50000,
+			TimeInForce:   "IOC",
+			ClientOrderID: "1234Abc",
+		},
+		{
+			Symbol: getPairFromString("ETH_USDT"),
+			Amount: 1000,
+			Side:   "BUY",
+		},
+		{
+			Symbol:        getPairFromString("TRX_USDT"),
+			Type:          "LIMIT",
+			Quantity:      15000,
+			Side:          "SELL",
+			Price:         0.0623423423,
+			TimeInForce:   "IOC",
+			ClientOrderID: "456Xyz",
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	} else {
+		val, _ := json.Marshal(result)
+		println(string(val))
+	}
+}
+
+func TestCancelReplaceOrder(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err := p.CancelReplaceOrder(context.Background(), &CancelReplaceOrderParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.CancelReplaceOrder(context.Background(), &CancelReplaceOrderParam{
+		ID:            "29772698821328896",
+		ClientOrderID: "1234Abc",
+		Price:         18000,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetOpenOrders(context.Background(), pair, "", "NEXT", 0, 10)
+	if err != nil {
+		t.Error(err)
+	}
 }

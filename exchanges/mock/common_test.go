@@ -133,8 +133,8 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 		t.Error("DeriveURLValsFromJSON error", err)
 	}
 
-	if vals["val"][0] != "1" {
+	if vals[0]["val"][0] != "1" {
 		t.Error("DeriveURLValsFromJSON unexpected value",
-			vals["val"][0])
+			vals[0]["val"][0])
 	}
 }

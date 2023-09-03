@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -319,32 +318,6 @@ func (p *Poloniex) GetCompleteBalances(ctx context.Context) (CompleteBalances, e
 	return result, err
 }
 
-// GetDepositAddresses returns deposit addresses for all enabled cryptos.
-func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, error) {
-	var result interface{}
-	addresses := DepositAddresses{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexDepositAddresses, url.Values{}, nil, &result)
-	if err != nil {
-		return addresses, err
-	}
-
-	addresses.Addresses = make(map[string]string)
-	data, ok := result.(map[string]interface{})
-	if !ok {
-		return addresses, errors.New("return val not map[string]interface{}")
-	}
-
-	for x, y := range data {
-		addresses.Addresses[x], ok = y.(string)
-		if !ok {
-			return addresses, common.GetTypeAssertError("string", y, "address")
-		}
-	}
-
-	return addresses, nil
-}
-
 // GenerateNewAddress generates a new address for a currency
 func (p *Poloniex) GenerateNewAddress(ctx context.Context, curr string) (string, error) {
 	type Response struct {
@@ -389,12 +362,12 @@ func (p *Poloniex) GetDepositsWithdrawals(ctx context.Context, start, end string
 }
 
 // GetOpenOrders returns current unfilled opened orders
-func (p *Poloniex) GetOpenOrders(ctx context.Context, currency string) (OpenOrdersResponse, error) {
-	values := url.Values{}
-	values.Set("currencyPair", currency)
-	result := OpenOrdersResponse{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrders, values, nil, &result.Data)
-}
+// func (p *Poloniex) GetOpenOrders(ctx context.Context, currency string) (OpenOrdersResponse, error) {
+// 	values := url.Values{}
+// 	values.Set("currencyPair", currency)
+// 	result := OpenOrdersResponse{}
+// 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrders, values, nil, &result.Data)
+// }
 
 // GetOpenOrdersForAllCurrencies returns all open orders
 func (p *Poloniex) GetOpenOrdersForAllCurrencies(ctx context.Context) (OpenOrdersResponseAll, error) {
@@ -535,33 +508,6 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID stri
 	return o, err
 }
 
-// PlaceOrder places a new order on the exchange
-func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
-	result := OrderResponse{}
-	values := url.Values{}
-
-	var orderType string
-	if buy {
-		orderType = order.Buy.Lower()
-	} else {
-		orderType = order.Sell.Lower()
-	}
-
-	values.Set("currencyPair", currency)
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-
-	if immediate {
-		values.Set("immediateOrCancel", "1")
-	}
-
-	if fillOrKill {
-		values.Set("fillOrKill", "1")
-	}
-
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orderType, values, nil, &result)
-}
-
 // CancelExistingOrder cancels and order by orderID
 func (p *Poloniex) CancelExistingOrder(ctx context.Context, orderID int64) error {
 	result := GenericResponse{}
@@ -619,30 +565,6 @@ func (p *Poloniex) MoveOrder(ctx context.Context, orderID int64, rate, amount fl
 
 	if result.Success != 1 {
 		return result, errors.New(result.Error)
-	}
-
-	return result, nil
-}
-
-// Withdraw withdraws a currency to a specific delegated address.
-// For currencies where there are multiple networks to choose from (like USDT or BTC),
-// you can specify the chain by setting the "currency" parameter to be a multiChain currency
-// name, like USDTTRON, USDTETH, or BTCTRON
-func (p *Poloniex) Withdraw(ctx context.Context, currency, address string, amount float64) (*Withdraw, error) {
-	result := &Withdraw{}
-	values := url.Values{}
-
-	values.Set("currency", strings.ToUpper(currency))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	values.Set("address", address)
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexWithdraw, values, nil, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	if result.Error != "" {
-		return nil, errors.New(result.Error)
 	}
 
 	return result, nil
@@ -884,26 +806,6 @@ func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool
 	}
 
 	return true, nil
-}
-
-// WalletActivity returns the wallet activity between set start and end time
-func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
-	values := url.Values{}
-	err := common.StartEndTimeCheck(start, end)
-	if err != nil {
-		return nil, err
-	}
-	values.Set("start", strconv.FormatInt(start.Unix(), 10))
-	values.Set("end", strconv.FormatInt(end.Unix(), 10))
-	if activityType != "" {
-		values.Set("activityType", activityType)
-	}
-	var resp WalletActivityResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		poloniexWalletActivity,
-		values,
-		nil,
-		&resp)
 }
 
 // CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
