@@ -65,8 +65,9 @@ const (
 )
 
 var (
-	errCategoryNotSet = errors.New("category not set")
-	errBaseNotSet     = errors.New("base coin not set when category is option")
+	errCategoryNotSet        = errors.New("category not set")
+	errBaseNotSet            = errors.New("base coin not set when category is option")
+	errInvalidContractLength = errors.New("contract length cannot be less than or equal to zero")
 )
 
 // GetAllSpotPairs gets all pairs on the exchange

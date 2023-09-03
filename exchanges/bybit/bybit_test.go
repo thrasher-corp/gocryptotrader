@@ -3528,3 +3528,59 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetContractLength(t *testing.T) {
+	t.Parallel()
+	_, err := getContractLength(-1)
+	if !errors.Is(err, errInvalidContractLength) {
+		t.Error(err)
+	}
+
+	cl, err := getContractLength(time.Hour)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.Weekly {
+		t.Error("expected weekly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 14)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.Fortnightly {
+		t.Error("expected fortnightly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 3)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.Quarterly {
+		t.Error("expected quarterly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 6)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.HalfYearly {
+		t.Error("expected half yearly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 9)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.NineMonthly {
+		t.Error("expected nine monthly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 12)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.SemiAnnually {
+		t.Error("expected semi annually")
+	}
+}

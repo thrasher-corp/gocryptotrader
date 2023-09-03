@@ -2204,8 +2204,10 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			case "inverseperpetual":
 				ct = futures.Perpetual
 			case "inversefutures":
-				contractLenght := e.Sub(s)
-				ct = by.getContractType(contractLenght, item, cp, s, e)
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, s, e)
+				}
 			default:
 				if by.Verbose {
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
@@ -2274,8 +2276,10 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					return nil, err
 				}
 			case "linearfutures":
-				contractLength := e.Sub(s)
-				ct = by.getContractType(contractLength, item, cp, s, e)
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, s, e)
+				}
 				cp, err = currency.NewPairFromString(instruments[i].Symbol)
 				if err != nil {
 					return nil, err
@@ -2354,8 +2358,10 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			case "linearperpetual":
 				ct = futures.Perpetual
 			case "linearfutures":
-				contractLength := e.Sub(s)
-				ct = by.getContractType(contractLength, item, cp, s, e)
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, s, e)
+				}
 			default:
 				if by.Verbose {
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
@@ -2382,7 +2388,10 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }
 
-func (by *Bybit) getContractType(contractLength time.Duration, item asset.Item, cp currency.Pair, s time.Time, e time.Time) futures.ContractType {
+func getContractLength(contractLength time.Duration) (futures.ContractType, error) {
+	if contractLength <= 0 {
+		return futures.Unknown, errInvalidContractLength
+	}
 	var ct futures.ContractType
 	switch {
 	case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
@@ -2398,5 +2407,5 @@ func (by *Bybit) getContractType(contractLength time.Duration, item asset.Item, 
 	default:
 		ct = futures.SemiAnnually
 	}
-	return ct
+	return ct, nil
 }
