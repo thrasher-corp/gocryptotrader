@@ -294,6 +294,34 @@ func TestGetDepth(t *testing.T) {
 	}
 }
 
+func TestBaseGetDepth(t *testing.T) {
+	c, err := currency.NewPairFromStrings("BTC", "UST")
+	if err != nil {
+		t.Error(err)
+	}
+	base := &Base{
+		Pair:     c,
+		Asks:     []Item{{Price: 100, Amount: 10}},
+		Bids:     []Item{{Price: 200, Amount: 10}},
+		Exchange: "Exchange",
+		Asset:    asset.Spot,
+	}
+
+	if _, err = base.GetDepth(); !errors.Is(err, errCannotFindOrderbook) {
+		t.Errorf("expecting %s error but received %v", errCannotFindOrderbook, err)
+	}
+
+	if err = base.Process(); err != nil {
+		t.Error(err)
+	}
+
+	if result, err := base.GetDepth(); err != nil {
+		t.Errorf("failed to get orderbook. Error %s", err)
+	} else if !result.pair.Equal(c) {
+		t.Errorf("Mismatched pairs: %v %v", result.pair, c)
+	}
+}
+
 func TestDeployDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {

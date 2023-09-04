@@ -22,7 +22,10 @@ import (
 
 const (
 	bitstampWSURL = "wss://ws.bitstamp.net" //nolint // gosec false positive
+	hbInterval    = 8 * time.Second         // Connection monitor defaults to 10s inactivity
 )
+
+var hbMsg = []byte(`{"event":"bts:heartbeat"}`)
 
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect(ctx context.Context) error {
@@ -37,6 +40,11 @@ func (b *Bitstamp) WsConnect(ctx context.Context) error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
+	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+		MessageType: websocket.TextMessage,
+		Message:     hbMsg,
+		Delay:       hbInterval,
+	})
 	err = b.seedOrderBook(ctx)
 	if err != nil {
 		b.Websocket.DataHandler <- err
@@ -72,6 +80,8 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	}
 
 	switch wsResponse.Event {
+	case "bts:heartbeat":
+		return nil
 	case "bts:subscribe", "bts:subscription_succeeded":
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket subscription acknowledgement", b.Name)

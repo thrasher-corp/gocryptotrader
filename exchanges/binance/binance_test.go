@@ -2938,3 +2938,240 @@ func TestGetUserMarginInterestHistory(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetCryptoLoansIncomeHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanIncomeHistory(context.Background(), currency.USDT, "", time.Time{}, time.Time{}, 100); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanBorrow(t *testing.T) {
+	t.Parallel()
+	if _, err := b.CryptoLoanBorrow(context.Background(), currency.EMPTYCODE, 1000, currency.BTC, 1, 7); !errors.Is(err, errLoanCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
+	}
+	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 1000, currency.EMPTYCODE, 1, 7); !errors.Is(err, errCollateralCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
+	}
+	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 1, 0); !errors.Is(err, errLoanTermMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errLoanTermMustBeSet)
+	}
+	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 0, 7); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 1000, currency.BTC, 1, 7); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanBorrowHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanBorrowHistory(context.Background(), 0, currency.USDT, currency.BTC, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanOngoingOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanOngoingOrders(context.Background(), 0, currency.USDT, currency.BTC, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanRepay(t *testing.T) {
+	t.Parallel()
+	if _, err := b.CryptoLoanRepay(context.Background(), 0, 1000, 1, false); !errors.Is(err, errOrderIDMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errOrderIDMustBeSet)
+	}
+	if _, err := b.CryptoLoanRepay(context.Background(), 42069, 0, 1, false); !errors.Is(err, errAmountMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if _, err := b.CryptoLoanRepay(context.Background(), 42069, 1000, 1, false); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanRepaymentHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanRepaymentHistory(context.Background(), 0, currency.USDT, currency.BTC, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanAdjustLTV(t *testing.T) {
+	t.Parallel()
+	if _, err := b.CryptoLoanAdjustLTV(context.Background(), 0, true, 1); !errors.Is(err, errOrderIDMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errOrderIDMustBeSet)
+	}
+	if _, err := b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 0); !errors.Is(err, errAmountMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if _, err := b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 1); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanLTVAdjustmentHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanLTVAdjustmentHistory(context.Background(), 0, currency.USDT, currency.BTC, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanAssetsData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanAssetsData(context.Background(), currency.EMPTYCODE, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanCollateralAssetsData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanCollateralAssetsData(context.Background(), currency.EMPTYCODE, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanCheckCollateralRepayRate(t *testing.T) {
+	t.Parallel()
+	if _, err := b.CryptoLoanCheckCollateralRepayRate(context.Background(), currency.EMPTYCODE, currency.BNB, 69); !errors.Is(err, errLoanCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
+	}
+	if _, err := b.CryptoLoanCheckCollateralRepayRate(context.Background(), currency.BUSD, currency.EMPTYCODE, 69); !errors.Is(err, errCollateralCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
+	}
+	if _, err := b.CryptoLoanCheckCollateralRepayRate(context.Background(), currency.BUSD, currency.BNB, 0); !errors.Is(err, errAmountMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.CryptoLoanCheckCollateralRepayRate(context.Background(), currency.BUSD, currency.BNB, 69); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCryptoLoanCustomiseMarginCall(t *testing.T) {
+	t.Parallel()
+	if _, err := b.CryptoLoanCustomiseMarginCall(context.Background(), 0, currency.BTC, 0); err == nil {
+		t.Error("expected an error")
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if _, err := b.CryptoLoanCustomiseMarginCall(context.Background(), 1337, currency.BTC, .70); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanBorrow(t *testing.T) {
+	t.Parallel()
+	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.EMPTYCODE, currency.USDC, 1, 0); !errors.Is(err, errLoanCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
+	}
+	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.EMPTYCODE, 1, 0); !errors.Is(err, errCollateralCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
+	}
+	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 0, 0); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 1, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanOngoingOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.FlexibleLoanOngoingOrders(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanBorrowHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.FlexibleLoanBorrowHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanRepay(t *testing.T) {
+	t.Parallel()
+
+	if _, err := b.FlexibleLoanRepay(context.Background(), currency.EMPTYCODE, currency.BTC, 1, false, false); !errors.Is(err, errLoanCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
+	}
+	if _, err := b.FlexibleLoanRepay(context.Background(), currency.USDT, currency.EMPTYCODE, 1, false, false); !errors.Is(err, errCollateralCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
+	}
+	if _, err := b.FlexibleLoanRepay(context.Background(), currency.USDT, currency.BTC, 0, false, false); !errors.Is(err, errAmountMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if _, err := b.FlexibleLoanRepay(context.Background(), currency.ATOM, currency.USDC, 1, false, false); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanRepayHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.FlexibleLoanRepayHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanAdjustLTV(t *testing.T) {
+	t.Parallel()
+	if _, err := b.FlexibleLoanAdjustLTV(context.Background(), currency.EMPTYCODE, currency.BTC, 1, true); !errors.Is(err, errLoanCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
+	}
+	if _, err := b.FlexibleLoanAdjustLTV(context.Background(), currency.USDT, currency.EMPTYCODE, 1, true); !errors.Is(err, errCollateralCoinMustBeSet) {
+		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if _, err := b.FlexibleLoanAdjustLTV(context.Background(), currency.USDT, currency.BTC, 1, true); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanLTVAdjustmentHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.FlexibleLoanLTVAdjustmentHistory(context.Background(), currency.EMPTYCODE, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleLoanAssetsData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.FlexibleLoanAssetsData(context.Background(), currency.EMPTYCODE); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFlexibleCollateralAssetsData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if _, err := b.FlexibleCollateralAssetsData(context.Background(), currency.EMPTYCODE); err != nil {
+		t.Error(err)
+	}
+}
