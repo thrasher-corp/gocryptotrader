@@ -792,7 +792,7 @@ func TestWsOrderUpdate(t *testing.T) {
 					assert.Equal(t, order.New, v.Status, "Status")
 					assert.Equal(t, order.Buy, v.Side, "Side")
 					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, currency.Pair{"/", currency.BTC, currency.USD}, v.Pair, "Pair")
+					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "/"), v.Pair, "Pair")
 					assert.Equal(t, 0.0, v.ExecutedAmount, "ExecutedAmount")
 					assert.Equal(t, 999999999.0, v.Price, "Price") // Market Buy Price
 					// Note: Amount is 0 for market order create messages, oddly

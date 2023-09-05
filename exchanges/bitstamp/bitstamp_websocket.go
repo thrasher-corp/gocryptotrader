@@ -134,7 +134,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) handleWSOrderbook(ctx context.Context, wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSOrderbook(_ context.Context, wsResp *websocketResponse, msg []byte) error {
 	if wsResp.pair == currency.EMPTYPAIR {
 		return errWSPairParsingError
 	}
@@ -148,7 +148,7 @@ func (b *Bitstamp) handleWSOrderbook(ctx context.Context, wsResp *websocketRespo
 	return b.wsUpdateOrderbook(&wsOrderBookTemp.Data, wsResp.pair, asset.Spot)
 }
 
-func (b *Bitstamp) handleWSTrade(ctx context.Context, wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSTrade(_ context.Context, wsResp *websocketResponse, msg []byte) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -178,7 +178,7 @@ func (b *Bitstamp) handleWSTrade(ctx context.Context, wsResp *websocketResponse,
 	})
 }
 
-func (b *Bitstamp) handleWSOrder(ctx context.Context, wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSOrder(_ context.Context, wsResp *websocketResponse, msg []byte) error {
 	if wsResp.channelType != bitstampAPIWSMyOrders {
 		return nil
 	}
@@ -444,8 +444,7 @@ func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
 
 	parts := strings.Split(chanName, currency.UnderscoreDelimiter)
 	if len(parts) != 3 {
-		return errWSPairParsingError
-		return fmt.Errorf("channel name does not contain exactly 2 underscores: %v", r.Channel)
+		return fmt.Errorf("%v: channel name does not contain exactly 2 underscores: %v", errWSPairParsingError, r.Channel)
 	}
 
 	symbol := parts[2]
@@ -468,5 +467,4 @@ func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
 	r.channelType = parts[0] + "_" + parts[1]
 
 	return nil
-
 }

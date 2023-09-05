@@ -20,18 +20,19 @@ func (d *datetime) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if t, err := convert.UnixTimestampStrToTime(s); err != nil {
+	t, err := convert.UnixTimestampStrToTime(s)
+	if err != nil {
 		return err
-	} else {
-		*d = datetime(t)
 	}
+
+	*d = datetime(t)
 
 	return nil
 }
 
 // Time returns datetime cast directly as time.Time
-func (t datetime) Time() time.Time {
-	return time.Time(t)
+func (d datetime) Time() time.Time {
+	return time.Time(d)
 }
 
 // microTimestamp provides an internal conversion helper
