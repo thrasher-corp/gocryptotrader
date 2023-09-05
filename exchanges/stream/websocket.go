@@ -231,7 +231,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 
 // Connect initiates a websocket connection by using a package defined connection
 // function
-func (w *Websocket) Connect(ctx context.Context, allowAutoSubscribe bool) error {
+func (w *Websocket) Connect(ctx context.Context, allowAutoSubscribe SubscriptionAllowed) error {
 	if w.connector == nil {
 		return errors.New("websocket connect function not set, cannot continue")
 	}
@@ -274,7 +274,7 @@ func (w *Websocket) Connect(ctx context.Context, allowAutoSubscribe bool) error 
 		}
 	}
 
-	if allowAutoSubscribe {
+	if allowAutoSubscribe == AutoSubscribe {
 		var subs []ChannelSubscription
 		subs, err = w.GenerateSubs() // regenerate state on new connection
 		if err != nil {
@@ -299,7 +299,7 @@ func (w *Websocket) Disable() error {
 }
 
 // Enable enables the exchange websocket protocol
-func (w *Websocket) Enable(ctx context.Context, allowAutoSubscribe bool) error {
+func (w *Websocket) Enable(ctx context.Context, allowAutoSubscribe SubscriptionAllowed) error {
 	if w.IsConnected() || w.IsEnabled() {
 		return fmt.Errorf("websocket is already enabled for exchange %s",
 			w.exchangeName)
@@ -356,7 +356,7 @@ func (w *Websocket) dataMonitor() {
 }
 
 // connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor(ctx context.Context, allowAutoSubscribe bool) error {
+func (w *Websocket) connectionMonitor(ctx context.Context, allowAutoSubscribe SubscriptionAllowed) error {
 	if w.checkAndSetMonitorRunning() {
 		return errAlreadyRunning
 	}
@@ -482,7 +482,7 @@ func (w *Websocket) Shutdown() error {
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (w *Websocket) FlushChannels(ctx context.Context, allowAutoSubscribe bool) error {
+func (w *Websocket) FlushChannels(ctx context.Context) error {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%s websocket: service not enabled", w.exchangeName)
 	}
@@ -535,7 +535,7 @@ func (w *Websocket) FlushChannels(ctx context.Context, allowAutoSubscribe bool) 
 	if err := w.Shutdown(); err != nil {
 		return err
 	}
-	return w.Connect(ctx, allowAutoSubscribe)
+	return w.Connect(ctx, AutoSubscribe)
 }
 
 // trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
@@ -792,7 +792,7 @@ func (w *Websocket) GetWebsocketURL() string {
 }
 
 // SetProxyAddress sets websocket proxy address
-func (w *Websocket) SetProxyAddress(ctx context.Context, proxyAddr string, allowAutoSubscribe bool) error {
+func (w *Websocket) SetProxyAddress(ctx context.Context, proxyAddr string, allowAutoSubscribe SubscriptionAllowed) error {
 	if proxyAddr != "" {
 		_, err := url.ParseRequestURI(proxyAddr)
 		if err != nil {

@@ -40,6 +40,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -2092,7 +2093,7 @@ func (s *RPCServer) SetExchangePair(ctx context.Context, r *gctrpc.SetExchangePa
 	}
 
 	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels(ctx, true /*this will auto-subscribe to websocket subscriptions*/)
+		err = exch.FlushWebsocketChannels(ctx)
 		if err != nil {
 			newErrors = common.AppendError(newErrors, err)
 		}
@@ -2957,7 +2958,7 @@ func (s *RPCServer) SetAllExchangePairs(ctx context.Context, r *gctrpc.SetExchan
 	}
 
 	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels(ctx, true /* this will auto-subscribe to websocket subscriptions*/)
+		err = exch.FlushWebsocketChannels(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -2991,7 +2992,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 	}
 
 	if exch.IsWebsocketEnabled() {
-		err = exch.FlushWebsocketChannels(ctx, true /* this will auto-subscribe to websocket subscriptions*/)
+		err = exch.FlushWebsocketChannels(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -3051,7 +3052,7 @@ func (s *RPCServer) WebsocketSetEnabled(ctx context.Context, r *gctrpc.Websocket
 	}
 
 	if r.Enable {
-		err = w.Enable(ctx, true /* this will auto-subscribe to websocket subscriptions*/)
+		err = w.Enable(ctx, stream.AutoSubscribe)
 		if err != nil {
 			return nil, err
 		}
@@ -3111,7 +3112,7 @@ func (s *RPCServer) WebsocketSetProxy(ctx context.Context, r *gctrpc.WebsocketSe
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetProxyAddress(ctx, r.Proxy, true /* this will auto-subscribe to websocket subscriptions*/)
+	err = w.SetProxyAddress(ctx, r.Proxy, stream.AutoSubscribe)
 	if err != nil {
 		return nil, err
 	}

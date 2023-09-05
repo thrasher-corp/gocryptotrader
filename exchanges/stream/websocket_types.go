@@ -21,7 +21,17 @@ const (
 	Ping                               = "ping"
 	Pong                               = "pong"
 	UnhandledMessage                   = " - Unhandled websocket message: "
+
+	// AutoSubscribe defines if the websocket should automatically subscribe
+	// to channels on connection.
+	AutoSubscribe SubscriptionAllowed = 1
+	// DeferSubscribe defines if the websocket should defer subscription to
+	// channels until after connection.
+	DeferSubscribe SubscriptionAllowed = 0
 )
+
+// SubscriptionAllowed defines if the websocket should automatically subscribe
+type SubscriptionAllowed uint8
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing

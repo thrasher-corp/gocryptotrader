@@ -261,13 +261,13 @@ func TestIsDisconnectionError(t *testing.T) {
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
 	var wsWrong = &Websocket{}
-	err := wsWrong.Connect(context.Background(), true)
+	err := wsWrong.Connect(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
 	wsWrong.connector = func(ctx context.Context) error { return nil }
-	err = wsWrong.Connect(context.Background(), true)
+	err = wsWrong.Connect(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -275,14 +275,14 @@ func TestConnectionMessageErrors(t *testing.T) {
 	wsWrong.setEnabled(true)
 	wsWrong.setConnectingStatus(true)
 	wsWrong.Wg = &sync.WaitGroup{}
-	err = wsWrong.Connect(context.Background(), true)
+	err = wsWrong.Connect(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
 	wsWrong.setConnectedStatus(false)
 	wsWrong.connector = func(ctx context.Context) error { return errors.New("edge case error of dooooooom") }
-	err = wsWrong.Connect(context.Background(), true)
+	err = wsWrong.Connect(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -295,7 +295,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.trafficTimeout = time.Minute
 	ws.connector = func(ctx context.Context) error { return nil }
 
-	err = ws.Connect(context.Background(), true)
+	err = ws.Connect(context.Background(), AutoSubscribe)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +346,7 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	ws := *New()
-	err = ws.SetProxyAddress(context.Background(), "garbagio", true)
+	err = ws.SetProxyAddress(context.Background(), "garbagio", AutoSubscribe)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -354,36 +354,36 @@ func TestWebsocket(t *testing.T) {
 	ws.Conn = &WebsocketConnection{}
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setEnabled(true)
-	err = ws.SetProxyAddress(context.Background(), "https://192.168.0.1:1337", true)
+	err = ws.SetProxyAddress(context.Background(), "https://192.168.0.1:1337", AutoSubscribe)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 	ws.setConnectedStatus(true)
 	ws.ShutdownC = make(chan struct{})
 	ws.Wg = &sync.WaitGroup{}
-	err = ws.SetProxyAddress(context.Background(), "https://192.168.0.1:1336", true)
+	err = ws.SetProxyAddress(context.Background(), "https://192.168.0.1:1336", AutoSubscribe)
 	if err == nil {
 		t.Error("SetProxyAddress", err)
 	}
 
-	err = ws.SetProxyAddress(context.Background(), "https://192.168.0.1:1336", true)
+	err = ws.SetProxyAddress(context.Background(), "https://192.168.0.1:1336", AutoSubscribe)
 	if err == nil {
 		t.Error("SetProxyAddress", err)
 	}
 	ws.setEnabled(false)
 
 	// removing proxy
-	err = ws.SetProxyAddress(context.Background(), "", true)
+	err = ws.SetProxyAddress(context.Background(), "", AutoSubscribe)
 	if err != nil {
 		t.Error(err)
 	}
 	// reinstate proxy
-	err = ws.SetProxyAddress(context.Background(), "http://localhost:1337", true)
+	err = ws.SetProxyAddress(context.Background(), "http://localhost:1337", AutoSubscribe)
 	if err != nil {
 		t.Error(err)
 	}
 	// conflict proxy
-	err = ws.SetProxyAddress(context.Background(), "http://localhost:1337", true)
+	err = ws.SetProxyAddress(context.Background(), "http://localhost:1337", AutoSubscribe)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -444,7 +444,7 @@ func TestWebsocket(t *testing.T) {
 	ws.setConnectedStatus(false)
 
 	// -- Normal connect
-	err = ws.Connect(context.Background(), true)
+	err = ws.Connect(context.Background(), AutoSubscribe)
 	if err != nil {
 		t.Fatal("WebsocketSetup", err)
 	}
@@ -474,11 +474,11 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal(err)
 	}
 	// -- initiate the reconnect which is usually handled by connection monitor
-	err = ws.Connect(context.Background(), true)
+	err = ws.Connect(context.Background(), AutoSubscribe)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ws.Connect(context.Background(), true)
+	err = ws.Connect(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("should already be connected")
 	}
@@ -596,14 +596,14 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.exchangeName = "hello"
 	ws.Wg = &sync.WaitGroup{}
 	ws.enabled = true
-	err := ws.connectionMonitor(context.Background(), true)
+	err := ws.connectionMonitor(context.Background(), AutoSubscribe)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	err = ws.connectionMonitor(context.Background(), true)
+	err = ws.connectionMonitor(context.Background(), AutoSubscribe)
 	if !errors.Is(err, errAlreadyRunning) {
 		t.Fatalf("received: %v, but expected: %v", err, errAlreadyRunning)
 	}
@@ -1104,13 +1104,13 @@ func TestFlushChannels(t *testing.T) {
 	}}
 
 	dodgyWs := Websocket{}
-	err := dodgyWs.FlushChannels(context.Background(), true)
+	err := dodgyWs.FlushChannels(context.Background())
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
 	dodgyWs.setEnabled(true)
-	err = dodgyWs.FlushChannels(context.Background(), true)
+	err = dodgyWs.FlushChannels(context.Background())
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -1145,20 +1145,20 @@ func TestFlushChannels(t *testing.T) {
 	web.GenerateSubs = func() ([]ChannelSubscription, error) {
 		return []ChannelSubscription{{Channel: "test"}}, nil
 	}
-	err = web.FlushChannels(context.Background(), true)
+	err = web.FlushChannels(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	web.features.FullPayloadSubscribe = true
 	web.GenerateSubs = problemFunc
-	err = web.FlushChannels(context.Background(), true) // error on full subscribeToChannels
+	err = web.FlushChannels(context.Background()) // error on full subscribeToChannels
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
 	web.GenerateSubs = noSub
-	err = web.FlushChannels(context.Background(), true) // No subs to sub
+	err = web.FlushChannels(context.Background()) // No subs to sub
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1171,7 +1171,7 @@ func TestFlushChannels(t *testing.T) {
 	web.subscriptionMutex.Lock()
 	web.subscriptions = subs
 	web.subscriptionMutex.Unlock()
-	err = web.FlushChannels(context.Background(), true)
+	err = web.FlushChannels(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1179,13 +1179,13 @@ func TestFlushChannels(t *testing.T) {
 	web.features.Subscribe = true
 
 	web.GenerateSubs = problemFunc
-	err = web.FlushChannels(context.Background(), true)
+	err = web.FlushChannels(context.Background())
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
 	web.GenerateSubs = newgen.generateSubs
-	err = web.FlushChannels(context.Background(), true)
+	err = web.FlushChannels(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1202,19 +1202,19 @@ func TestFlushChannels(t *testing.T) {
 	}
 	web.subscriptionMutex.Unlock()
 
-	err = web.FlushChannels(context.Background(), true)
+	err = web.FlushChannels(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = web.FlushChannels(context.Background(), true)
+	err = web.FlushChannels(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	web.setConnectedStatus(true)
 	web.features.Unsubscribe = true
-	err = web.FlushChannels(context.Background(), true)
+	err = web.FlushChannels(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1249,12 +1249,12 @@ func TestEnable(t *testing.T) {
 		Subscriber: func(context.Context, []ChannelSubscription) error { return nil },
 	}
 
-	err := web.Enable(context.Background(), true)
+	err := web.Enable(context.Background(), AutoSubscribe)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = web.Enable(context.Background(), true)
+	err = web.Enable(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("should already be enabled")
 	}

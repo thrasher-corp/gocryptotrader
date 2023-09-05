@@ -191,11 +191,11 @@ func TestSetClientProxyAddress(t *testing.T) {
 		Requester: requester}
 
 	newBase.Websocket = stream.New()
-	err = newBase.SetClientProxyAddress(context.Background(), "", true)
+	err = newBase.SetClientProxyAddress(context.Background(), "", stream.AutoSubscribe)
 	if err != nil {
 		t.Error(err)
 	}
-	err = newBase.SetClientProxyAddress(context.Background(), ":invalid", true)
+	err = newBase.SetClientProxyAddress(context.Background(), ":invalid", stream.AutoSubscribe)
 	if err == nil {
 		t.Error("SetClientProxyAddress parsed invalid URL")
 	}
@@ -204,13 +204,13 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("SetClientProxyAddress error", err)
 	}
 
-	err = newBase.SetClientProxyAddress(context.Background(), "http://www.valid.com", true)
+	err = newBase.SetClientProxyAddress(context.Background(), "http://www.valid.com", stream.AutoSubscribe)
 	if err != nil {
 		t.Error("SetClientProxyAddress error", err)
 	}
 
 	// calling this again will cause the ws check to fail
-	err = newBase.SetClientProxyAddress(context.Background(), "http://www.valid.com", true)
+	err = newBase.SetClientProxyAddress(context.Background(), "http://www.valid.com", stream.AutoSubscribe)
 	if err == nil {
 		t.Error("trying to set the same proxy addr should thrown an err for ws")
 	}
@@ -1261,7 +1261,7 @@ func TestSetupDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Websocket.Enable(context.Background(), true)
+	err = b.Websocket.Enable(context.Background(), stream.AutoSubscribe)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2037,13 +2037,13 @@ func TestGetWebsocket(t *testing.T) {
 
 func TestFlushWebsocketChannels(t *testing.T) {
 	b := Base{}
-	err := b.FlushWebsocketChannels(context.Background(), true)
+	err := b.FlushWebsocketChannels(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	b.Websocket = &stream.Websocket{}
-	err = b.FlushWebsocketChannels(context.Background(), true)
+	err = b.FlushWebsocketChannels(context.Background())
 	if err == nil {
 		t.Fatal(err)
 	}

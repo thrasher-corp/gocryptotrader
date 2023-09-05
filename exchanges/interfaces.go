@@ -57,7 +57,7 @@ type IBotExchange interface {
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
-	SetClientProxyAddress(ctx context.Context, addr string, allowAutoWebsocketSubscribe bool) error
+	SetClientProxyAddress(ctx context.Context, addr string, allowAutoSubscribe stream.SubscriptionAllowed) error
 	GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	GetBase() *Base
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
@@ -69,7 +69,7 @@ type IBotExchange interface {
 	SubscribeToWebsocketChannels(ctx context.Context, channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(ctx context.Context, channels []stream.ChannelSubscription) error
 	GetSubscriptions() ([]stream.ChannelSubscription, error)
-	FlushWebsocketChannels(ctx context.Context, allowAutoSubscribe bool) error
+	FlushWebsocketChannels(ctx context.Context) error
 	AuthenticateWebsocket(ctx context.Context) error
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error

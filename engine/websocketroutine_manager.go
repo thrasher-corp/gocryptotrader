@@ -103,6 +103,7 @@ func (m *WebsocketRoutineManager) Stop() error {
 
 // websocketRoutine Initial routine management system for websocket
 func (m *WebsocketRoutineManager) websocketRoutine() {
+	fmt.Println("BRO WEBSOCKET")
 	if m.verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
@@ -136,7 +137,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 				}
 
 				if ws.IsEnabled() {
-					err = ws.Connect(context.TODO(), false /*this will not auto-subscribe to websocket subscriptions*/)
+					err = ws.Connect(context.TODO(), stream.AutoSubscribe)
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
@@ -146,7 +147,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
 
-					err = ws.FlushChannels(context.TODO(), true /*this will auto-subscribe to websocket subscriptions*/)
+					err = ws.FlushChannels(context.TODO())
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
 					}
