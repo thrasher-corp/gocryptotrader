@@ -309,7 +309,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			if err != nil {
 				return err
 			}
-			m.printOrderSummary(d, true)
+			m.printOrderSummary(od, true)
 		}
 	case []order.Detail:
 		for x := range d {
@@ -332,7 +332,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				if err != nil {
 					return err
 				}
-				m.printOrderSummary(&d[x], true)
+				m.printOrderSummary(od, true)
 			}
 		}
 	case order.ClassificationError:
