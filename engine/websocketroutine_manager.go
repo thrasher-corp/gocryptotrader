@@ -103,7 +103,6 @@ func (m *WebsocketRoutineManager) Stop() error {
 
 // websocketRoutine Initial routine management system for websocket
 func (m *WebsocketRoutineManager) websocketRoutine() {
-	fmt.Println("BRO WEBSOCKET")
 	if m.verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
