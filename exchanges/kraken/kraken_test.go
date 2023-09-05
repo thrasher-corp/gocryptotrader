@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -1818,58 +1817,14 @@ func TestWsOwnTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	pairs := currency.Pairs{
-		currency.Pair{Base: currency.XBT, Quote: currency.USD},
-		currency.Pair{Base: currency.XBT, Quote: currency.USDT},
-	}
-	k := Kraken{
-		Base: exchange.Base{
-			Name: "dummy",
-			CurrencyPairs: currency.PairsManager{
-				Pairs: map[asset.Item]*currency.PairStore{
-					asset.Spot: {
-						Available: pairs,
-						Enabled:   pairs,
-						ConfigFormat: &currency.PairFormat{
-							Uppercase: true,
-							Delimiter: currency.DashDelimiter,
-						},
-					},
-				},
-			},
-			Websocket: &stream.Websocket{
-				Wg:          new(sync.WaitGroup),
-				DataHandler: make(chan interface{}, 128),
-			},
-		},
-	}
-
-	k.API.Endpoints = k.NewEndpoints()
-
-	fixture, err := os.Open("testdata/wsOpenTrades.json")
-	defer func() { assert.Nil(t, fixture.Close()) }()
-	if err != nil {
-		t.Errorf("Error opening test fixture 'testdata/wsOpenTrades.json': %v", err)
-		return
-	}
-
-	s := bufio.NewScanner(fixture)
-	for s.Scan() {
-		if err = k.wsHandleData(s.Bytes()); err != nil {
-			t.Errorf("Error in wsHandleData; err: '%v', msg: '%v'", err, s.Bytes())
-		}
-	}
-	if err := s.Err(); err != nil {
-		t.Error(err)
-	}
-
+	n := new(Kraken)
+	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
 	seen := 0
-
 	for reading := true; reading; {
 		select {
 		default:
 			reading = false
-		case resp := <-k.Websocket.DataHandler:
+		case resp := <-n.Websocket.DataHandler:
 			seen++
 			switch v := resp.(type) {
 			case *order.Detail:
