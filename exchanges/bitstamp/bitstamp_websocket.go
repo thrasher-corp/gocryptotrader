@@ -79,8 +79,7 @@ func (b *Bitstamp) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
-		if err != nil {
+		if err := b.wsHandleData(resp.Raw); err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
@@ -119,16 +118,15 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		}() // Connection monitor will reconnect
 	case "data":
 		if err := b.handleWSOrderbook(context.TODO(), wsResponse, respRaw); err != nil {
-			b.Websocket.DataHandler <- err
+			return err
 		}
 	case "trade":
 		if err := b.handleWSTrade(context.TODO(), wsResponse, respRaw); err != nil {
-			b.Websocket.DataHandler <- err
+			return err
 		}
 	case "order_created", "order_deleted", "order_changed":
 		if err := b.handleWSOrder(context.TODO(), wsResponse, respRaw); err != nil {
-			log.Errorf(log.WebsocketMgr, "%s order failed: %v", b.Name, err)
-			b.Websocket.DataHandler <- err
+			return err
 		}
 	default:
 		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
@@ -211,11 +209,6 @@ func (b *Bitstamp) handleWSOrder(ctx context.Context, wsResp *websocketResponse,
 		}
 	}
 
-	orderType := order.Limit
-	if o.Price == 0 {
-		orderType = order.Market
-	}
-
 	// o.ExecutedAmount is an atomic partial fill amount; We want total
 	executedAmount := o.Amount - o.RemainingAmount
 
@@ -229,7 +222,6 @@ func (b *Bitstamp) handleWSOrder(ctx context.Context, wsResp *websocketResponse,
 		ClientOrderID:   o.ClientOrderID,
 		Side:            o.Side,
 		Status:          status,
-		Type:            orderType,
 		AssetType:       asset.Spot,
 		Date:            o.Microtimestamp,
 		Pair:            wsResp.pair,
