@@ -1,15 +1,18 @@
 package sharedtestvalues
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
@@ -146,4 +149,31 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 		return fmt.Errorf("failed to walk directory: %w", err)
 	}
 	return nil
+}
+
+func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixturePath string, reader func([]byte) error) {
+	b := e.GetBase()
+	b.CurrencyPairs = seed.GetBase().CurrencyPairs
+	b.Name = "fixture"
+	b.Websocket = &stream.Websocket{
+		Wg:          new(sync.WaitGroup),
+		DataHandler: make(chan interface{}, 128),
+	}
+	b.API.Endpoints = b.NewEndpoints()
+
+	fixture, err := os.Open(fixturePath)
+	if err != nil {
+		t.Errorf("Error opening test fixture '%v': %v", fixturePath, err)
+		return
+	}
+	defer func() { assert.Nil(t, fixture.Close()) }()
+
+	s := bufio.NewScanner(fixture)
+	for s.Scan() {
+		msg := s.Bytes()
+		if err := reader(msg); err != nil {
+			t.Errorf("%v from message: %s", err, msg)
+		}
+	}
+	assert.Nil(t, s.Err())
 }

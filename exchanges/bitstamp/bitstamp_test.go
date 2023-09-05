@@ -772,11 +772,30 @@ func TestWsOrderbook2(t *testing.T) {
 }
 
 func TestWsOrderUpdate(t *testing.T) {
-	pressXToJSON := []byte(`{"data": {"microtimestamp": "1580336940972599", "amount": 0.6347086, "order_type": 0, "amount_str": "0.63470860", "price_str": "9350.49", "price": 9350.49, "id": 4621332237, "datetime": "1580336940"}, "event": "order_created", "channel": "live_orders_btcusd"}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	n := new(Bitstamp)
+	sharedtestvalues.TestFixtureToDataHandler(t, b, n, "testdata/wsMyOrders.json", n.wsHandleData)
+
+	seen := 0
+	for reading := true; reading; {
+		select {
+		default:
+			reading = false
+		case resp := <-n.GetBase().Websocket.DataHandler:
+			seen++
+			switch v := resp.(type) {
+			case *order.Detail:
+				switch seen {
+				case 1:
+					t.Log(v.OrderID)
+				}
+			case error:
+				t.Error(v)
+			default:
+				t.Errorf("Got unexpected data: %T %v", v, v)
+			}
+		}
 	}
+	assert.Equal(t, 8, seen, "Number of messages")
 }
 
 func TestWsRequestReconnect(t *testing.T) {

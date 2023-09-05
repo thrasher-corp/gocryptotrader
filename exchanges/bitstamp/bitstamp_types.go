@@ -201,8 +201,10 @@ type websocketData struct {
 }
 
 type websocketResponse struct {
-	Event   string `json:"event"`
-	Channel string `json:"channel"`
+	Event       string `json:"event"`
+	Channel     string `json:"channel"`
+	channelType string
+	pair        currency.Pair
 }
 
 type websocketTradeResponse struct {
