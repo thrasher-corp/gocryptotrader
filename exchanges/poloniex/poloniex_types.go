@@ -1077,4 +1077,81 @@ type TradeOrder struct {
 	UpdateTime     convert.ExchangeTime    `json:"updateTime"`
 	OrderSource    string                  `json:"orderSource"`
 	Loan           bool                    `json:"loan"`
+	CancelReason   int64                   `json:"cancelReason"`
+}
+
+// CancelOrderResponse represents a cancel order response instance.
+type CancelOrderResponse struct {
+	OrderID       string `json:"orderId"`
+	ClientOrderID string `json:"clientOrderId"`
+	State         string `json:"state"`
+	Code          int64  `json:"code"`
+	Message       string `json:"message"`
+}
+
+// OrderCancellationParams represents an order cancellation parameters.
+type OrderCancellationParams struct {
+	OrderIds       []string `json:"orderIds"`
+	ClientOrderIds []string `json:"clientOrderIds"`
+}
+
+// KillSwitchStatus represents a kill switch response
+type KillSwitchStatus struct {
+	StartTime        convert.ExchangeTime `json:"startTime"`
+	CancellationTime convert.ExchangeTime `json:"cancellationTime"`
+}
+
+// SmartOrderRequestParam represents a smart trade order parameters
+type SmartOrderRequestParam struct {
+	Symbol        currency.Pair `json:"symbol"`
+	Side          string        `json:"side"`
+	TimeInForce   string        `json:"timeInForce,omitempty"`
+	Type          string        `json:"type,omitempty"`
+	AccountType   string        `json:"accountType,omitempty"`
+	Price         float64       `json:"price,omitempty,string"`
+	StopPrice     float64       `json:"stopPrice,omitempty,string"`
+	Quantity      float64       `json:"quantity,omitempty,string"`
+	Amount        float64       `json:"amount,omitempty,string"`
+	ClientOrderID string        `json:"clientOrderId,omitempty"`
+}
+
+// CancelReplaceSmartOrderParam represents a cancellation and order replacement request parameter for smart orders.
+type CancelReplaceSmartOrderParam struct {
+	ID               string  `json:"-"`
+	ClientOrderID    string  `json:"clientOrderId"`
+	Price            float64 `json:"price,omitempty,string"`
+	StopPrice        float64 `json:"stopPrice,omitempty,string"`
+	Quantity         float64 `json:"quantity,omitempty,string"`
+	Amount           float64 `json:"amount,omitempty,string"`
+	AmendedType      string  `json:"type,omitempty,string"`
+	TimeInForce      string  `json:"timeInForce,omitempty"`
+	ProceedOnFailure bool    `json:"proceedOnFailure,omitempty,string"`
+}
+
+// CancelReplaceSmartOrderResponse represents a response parameter for order cancellation and replacement operation.
+type CancelReplaceSmartOrderResponse struct {
+	ID        string                  `json:"id"`
+	StopPrice convert.StringToFloat64 `json:"stopPrice"`
+	Price     convert.ExchangeTime    `json:"price"`
+	Quantity  convert.ExchangeTime    `json:"quantity"`
+	Code      int64                   `json:"code"`
+	Message   string                  `json:"message"`
+}
+
+// SmartOrderDetail represents a smart order detail.
+type SmartOrderDetail struct {
+	ID            string                  `json:"id"`
+	ClientOrderID string                  `json:"clientOrderId"`
+	Symbol        string                  `json:"symbol"`
+	State         string                  `json:"state"`
+	AccountType   string                  `json:"accountType"`
+	Side          string                  `json:"side"`
+	Type          string                  `json:"type"`
+	TimeInForce   string                  `json:"timeInForce"`
+	Quantity      convert.StringToFloat64 `json:"quantity"`
+	Price         convert.StringToFloat64 `json:"price"`
+	Amount        convert.StringToFloat64 `json:"amount"`
+	StopPrice     convert.StringToFloat64 `json:"stopPrice"`
+	CreateTime    convert.ExchangeTime    `json:"createTime"`
+	UpdateTime    convert.ExchangeTime    `json:"updateTime"`
 }

@@ -18,10 +18,12 @@ import (
 )
 
 var (
-	errIntervalRequired       = errors.New("interval is required")
-	errNilArgument            = errors.New("error: nil argument")
-	errAddressRequired        = errors.New("address is required")
-	errInvalidWithdrawalChain = errors.New("invalid withdrawal chain")
+	errIntervalRequired                = errors.New("interval is required")
+	errNilArgument                     = errors.New("error: nil argument")
+	errAddressRequired                 = errors.New("address is required")
+	errInvalidWithdrawalChain          = errors.New("invalid withdrawal chain")
+	errClientOrderIDOROrderIDsRequired = errors.New("either client order IDs or order IDs or both are required")
+	errInvalidTimeout                  = errors.New("timeout must not be empty")
 )
 
 // Reference data endpoints.
@@ -707,6 +709,147 @@ func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 	}
 	var resp []TradeOrder
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/orders", nil, nil, &resp)
+}
+
+// GetOrderDetail get an order’s status. Either by specifying orderId or clientOrderId. If id is a clientOrderId, prefix with cid: e.g. cid:myId-1
+func (p *Poloniex) GetOrderDetail(ctx context.Context, id, clientOrderID string) (*TradeOrder, error) {
+	var path string
+	if id != "" {
+		path = fmt.Sprintf("/orders/%s", id)
+	} else if clientOrderID != "" {
+		path = fmt.Sprintf("/orders/cid:%s", id)
+	} else {
+		return nil, fmt.Errorf("%w, orderid or client order id is required", order.ErrOrderIDNotSet)
+	}
+	var resp TradeOrder
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp)
+}
+
+// CancelOrderByID cancel an active order.
+func (p *Poloniex) CancelOrderByID(ctx context.Context, id string) (*CancelOrderResponse, error) {
+	if id == "" {
+		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
+	}
+	var resp CancelOrderResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/orders/%s", id), nil, nil, &resp)
+}
+
+// CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
+// func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
+// 	values := url.Values{}
+// 	if len(orderIDs) > 0 {
+// 		values.Set("orderIds", strings.Join(orderIDs, ","))
+// 	}
+// 	if len(clientOrderIDs) > 0 {
+// 		values.Set("clientOrderIds", strings.Join(clientOrderIDs, ","))
+// 	}
+// 	var result []CancelOrdersResponse
+// 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
+// 		poloniexCancelByIDs,
+// 		values,
+// 		nil,
+// 		&result)
+// }
+
+// CancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs.
+func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, args *OrderCancellationParams) ([]CancelOrderResponse, error) {
+	if args == nil {
+		return nil, errNilArgument
+	}
+	if len(args.ClientOrderIds) == 0 && len(args.OrderIds) == 0 {
+		return nil, errClientOrderIDOROrderIDsRequired
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
+}
+
+// CancelAllTradeOrders batch cancel all orders in an account.
+func (p *Poloniex) CancelAllTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]CancelOrderResponse, error) {
+	args := make(map[string][]string)
+	if len(symbols) > 0 {
+		args["symbols"] = symbols
+	}
+	if len(accountTypes) > 0 {
+		args["accountTypes"] = accountTypes
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/orders", nil, args, &resp)
+}
+
+// KillSwitch set a timer that cancels all regular and smartorders after the timeout has expired.
+// Timeout can be reset by calling this command again with a new timeout value.
+// A timeout value of -1 disables the timer. Timeout is defined in seconds.
+// timeout value in seconds; range is -1 and 10 to 600
+func (p *Poloniex) KillSwitch(ctx context.Context, timeout string) (*KillSwitchStatus, error) {
+	if timeout == "" {
+		return nil, errInvalidTimeout
+	}
+	var resp *KillSwitchStatus
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/orders/killSwitch", nil, map[string]string{"timeout": timeout}, &resp)
+}
+
+// GetKillSwitchStatus get status of kill switch.
+// If there is an active kill switch then the start and cancellation time is returned.
+// If no active kill switch then an error message with code is returned
+func (p *Poloniex) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, error) {
+	var resp KillSwitchStatus
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/orders/killSwitchStatus", nil, nil, &resp)
+}
+
+// ---------------------------------------------- Smart Orders -----------------------------------------
+
+// CreateSmartOrder create a smart order for an account. Funds will only be frozen when the smart order triggers, not upon smart order creation.
+func (p *Poloniex) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestParam) (*PlaceOrderResponse, error) {
+	if arg == nil || (*arg) == (SmartOrderRequestParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	var resp PlaceOrderResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/smartorders", nil, arg, &resp)
+}
+
+func orderTypeString(oType order.Type) string {
+	switch oType {
+	case order.StopLimit:
+		return "STOP_LIMIT"
+	default:
+		return oType.String()
+	}
+}
+
+// CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters.
+// The replacement smart order can amend price, stopPrice, quantity, amount, type, and timeInForce fields. Specify the existing smart order id in the path;
+// if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.
+// The proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancelation of the existing smart order fails.
+func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderParam) (*CancelReplaceSmartOrderResponse, error) {
+	if arg == nil || (*arg) == (CancelReplaceSmartOrderParam{}) {
+		return nil, errNilArgument
+	}
+	var path string
+	if arg.ID != "" {
+		path = fmt.Sprintf("/smartorders/%s", arg.ID)
+	} else if arg.ClientOrderID != "" {
+		path = fmt.Sprintf("/smartorders/cid:%s", arg.ClientOrderID)
+	} else {
+		return nil, errClientOrderIDOROrderIDsRequired
+	}
+	var resp CancelReplaceSmartOrderResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, arg, &resp)
+}
+
+// GetSmartOpenOrders get a list of (pending) smart orders for an account.
+func (p *Poloniex) GetSmartOpenOrders(ctx context.Context, limit int64) ([]SmartOrderDetail, error) {
+	params := url.Values{}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SmartOrderDetail
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/smartorders", params, nil, &resp)
 }
 
 // PlaceOrder places a new order on the exchange

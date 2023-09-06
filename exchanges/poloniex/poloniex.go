@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -806,23 +805,6 @@ func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool
 	}
 
 	return true, nil
-}
-
-// CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
-func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
-	values := url.Values{}
-	if len(orderIDs) > 0 {
-		values.Set("orderIds", strings.Join(orderIDs, ","))
-	}
-	if len(clientOrderIDs) > 0 {
-		values.Set("clientOrderIds", strings.Join(clientOrderIDs, ","))
-	}
-	var result []CancelOrdersResponse
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
-		poloniexCancelByIDs,
-		values,
-		nil,
-		&result)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

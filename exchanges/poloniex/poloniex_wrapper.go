@@ -702,7 +702,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, orderIDs, clientOrderIDs)
+	cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, &OrderCancellationParams{OrderIds: orderIDs, ClientOrderIds: clientOrderIDs})
 	if err != nil {
 		return nil, err
 	}

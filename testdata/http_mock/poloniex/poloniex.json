@@ -76380,6 +76380,33 @@
    ]
   },
   "/orders": {
+   "DELETE": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "{\"accountTypes\":[\"SPOT\"],\"symbols\":[\"BTC_USDT\",\"ETH_USDT\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "E1K+3e0F5ou9+w44cdURTSWkRQmGapJU6e9LqInYTtA="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694030528794"
+      ]
+     }
+    }
+   ],
    "GET": [
     {
      "data": null,
@@ -76396,13 +76423,13 @@
        "1500"
       ],
       "Signature": [
-       "XgnxxqBVAxAQWwD3Vj8JqEXnDf+zMO5C2s+OLt+0+gc="
+       "KIcFOEInkWlpSIdlmL0PJNPWiprj0KgHsbynLrRryMA="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1693772135181"
+       "1694025260157"
       ]
      }
     }
@@ -76522,6 +76549,38 @@
     }
    ]
   },
+  "/orders/12345536545645": {
+   "GET": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Order not exists"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "hKzMzqOG9GNHNCXN9cvCE6ZljEmEiRlkVBpzbzHP7ls="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694029457991"
+      ]
+     }
+    }
+   ]
+  },
   "/orders/29772698821328896": {
    "GET": [
     {
@@ -76604,6 +76663,176 @@
       ],
       "Signtimestamp": [
        "1693762611364"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/cancelByIds": {
+   "DELETE": [
+    {
+     "data": [
+      {
+       "clientOrderId": "",
+       "code": 21301,
+       "message": "Order not exists, order id: 1234",
+       "orderId": "1234",
+       "state": ""
+      },
+      {
+       "clientOrderId": "5678",
+       "code": 21301,
+       "message": "Order not exists, client order id: 5678",
+       "orderId": "",
+       "state": ""
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"orderIds\":[\"1234\"],\"clientOrderIds\":[\"5678\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "tYa32h1TsebBltc271NenUx4IOwZS+RCq1K1LSa3+9U="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694029509101"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/cid:": {
+   "GET": [
+    {
+     "data": {
+      "code": 500,
+      "message": "System error"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Xo6pOftZGev2bfa4ipXj4+zhf4hsdk9usevoML6bv7c="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694026965296"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/killSwitch": {
+   "GET": [
+    {
+     "data": {
+      "code": 400,
+      "message": "Invalid id: killSwitch"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "GijvDjr7s2nMWAzthYCLaN4e/thpmBpYQOBAV50gQ9k="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694031076780"
+      ]
+     }
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "cancellationTime": "1694032006549",
+      "startTime": "1694031976549"
+     },
+     "queryString": "",
+     "bodyParams": "{\"timeout\":\"30\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Is33S3+5KmP8vl9dhYC+LrfZqxYVgTIncvs3HjG+5Bk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694031975768"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/killSwitchStatus": {
+   "GET": [
+    {
+     "data": {
+      "cancellationTime": "1694032006549",
+      "startTime": "1694031976549"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "oT2Zkp/lghfBKpOv0h/s/Fel7hToAlEJfcKuG3k0LNE="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694031985149"
       ]
      }
     }
@@ -94033,6 +94262,153 @@
      "queryString": "command=returnChartData\u0026currencyPair=BTC_LTC\u0026end=1588745100\u0026period=300\u0026start=1588741200",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/smartorders": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "limit=10",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "J1FV7XXuyI80U2P2HVBMEk3xYKac2fkbsU2Ex2qsgm0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694035473990"
+      ]
+     }
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 601,
+      "message": "Invalid type: MARKET"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"MARKET\",\"price\":\"40000.5\",\"quantity\":\"100\",\"clientOrderId\":\"1234Abc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "wRA7AgHfrqHX+0Q8cwYPJ0Q/5kwHAedZ099eT6TGxpA="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694033719613"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 601,
+      "message": "Invalid type: STOP LIMIT"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"STOP LIMIT\",\"price\":\"40000.5\",\"quantity\":\"100\",\"clientOrderId\":\"1234Abc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "dkYk/0vmw5BftF6GbhpUWvqku08gdKSLSZot2ubbSmA="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694033763896"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 601,
+      "message": "Symbol cannot trading"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"STOP_LIMIT\",\"price\":\"40000.5\",\"quantity\":\"100\",\"clientOrderId\":\"1234Abc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Ot9kXOj+yPtXYFToq9zE3L80yJSNERX8ZnkKC5PR2q8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694033899923"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/29772698821328896": {
+   "PUT": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Couldn't locate smart order"
+     },
+     "queryString": "",
+     "bodyParams": "{\"clientOrderId\":\"1234Abc\",\"price\":\"18000\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "7/aiXJ5aEnh16NKatwsOBgAEXhNrF++zBRtfYyvKUEc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694035115367"
+      ]
+     }
     }
    ]
   },

@@ -1057,15 +1057,6 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 }
 
-func TestCancelMultipleOrdersByIDs(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	_, err := p.CancelMultipleOrdersByIDs(context.Background(), []string{"1234"}, []string{"5678"})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
@@ -1811,6 +1802,123 @@ func TestGetOpenOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = p.GetOpenOrders(context.Background(), pair, "", "NEXT", 0, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetOrderDetail(context.Background(), "12345536545645", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrderByID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.CancelOrderByID(context.Background(), "12345536545645")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelMultipleOrdersByIDs(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.CancelMultipleOrdersByIDs(context.Background(), &OrderCancellationParams{OrderIds: []string{"1234"}, ClientOrderIds: []string{"5678"}})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllTradeOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.CancelAllTradeOrders(context.Background(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestKillSwitch(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.KillSwitch(context.Background(), "30")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetKillSwitchStatus(t *testing.T) {
+	t.Parallel()
+	_, err := p.GetKillSwitchStatus(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateSmartOrder(t *testing.T) {
+	t.Parallel()
+	_, err := p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{
+		Side: "BUY",
+	})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	}
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{
+		Symbol: pair,
+	})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("expected %v, got %v", order.ErrSideIsInvalid, err)
+	}
+	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{
+		Symbol:        pair,
+		Side:          "BUY",
+		Type:          orderTypeString(order.StopLimit),
+		Quantity:      100,
+		Price:         40000.50000,
+		TimeInForce:   "GTC",
+		ClientOrderID: "1234Abc",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelReplaceSmartOrder(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err := p.CancelReplaceSmartOrder(context.Background(), &CancelReplaceSmartOrderParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = p.CancelReplaceSmartOrder(context.Background(), &CancelReplaceSmartOrderParam{
+		ID:            "29772698821328896",
+		ClientOrderID: "1234Abc",
+		Price:         18000,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSmartOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	_, err := p.GetSmartOpenOrders(context.Background(), 10)
 	if err != nil {
 		t.Error(err)
 	}
