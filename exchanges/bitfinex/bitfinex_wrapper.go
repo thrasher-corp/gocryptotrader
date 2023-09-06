@@ -59,7 +59,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = true
 	b.Verbose = true
-	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+	b.WebsocketSubdChannels = make(map[int]*stream.ChannelSubscription)
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
@@ -85,6 +85,13 @@ func (b *Bitfinex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+
+	// Margin WS Currently not fully implemented and causes subscription collisions with spot
+	err = b.DisableAssetWebsocketSupport(asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	// TODO: Implement Futures and Securities asset types.
 
 	b.Features = exchange.Features{
