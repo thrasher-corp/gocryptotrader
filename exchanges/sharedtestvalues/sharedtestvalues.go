@@ -151,6 +151,8 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 	return nil
 }
 
+// TestFixtureToDataHandler takes a new empty exchange and configures a new websocket handler for it, and squirts the json path contents to it
+// It accepts a reader function, which is probably e.wsHandleData but could be anything
 func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixturePath string, reader func([]byte) error) {
 	b := e.GetBase()
 	b.CurrencyPairs = seed.GetBase().CurrencyPairs
