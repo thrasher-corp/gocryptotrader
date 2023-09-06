@@ -45,6 +45,22 @@ func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 	return assetTypes
 }
 
+// Clone returns a Deep clone of the pair manager
+// Beware; implementation is not very efficient and should not be used in any hot paths
+func (p *PairsManager) Clone() (PairsManager, error) {
+	var pN PairsManager
+	j, err := json.Marshal(p)
+	if err != nil {
+		return pN, err
+	}
+
+	if err := json.Unmarshal(j, &pN); err != nil {
+		return pN, err
+	}
+
+	return pN, nil
+}
+
 // Get gets the currency pair config based on the asset type
 func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 	if !a.IsValid() {

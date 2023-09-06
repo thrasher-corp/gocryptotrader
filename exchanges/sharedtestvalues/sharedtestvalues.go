@@ -155,7 +155,13 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 // It accepts a reader function, which is probably e.wsHandleData but could be anything
 func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixturePath string, reader func([]byte) error) {
 	b := e.GetBase()
-	b.CurrencyPairs = seed.GetBase().CurrencyPairs
+	p, err := seed.GetBase().CurrencyPairs.Clone()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	b.CurrencyPairs = p
+
 	b.Name = "fixture"
 	b.Websocket = &stream.Websocket{
 		Wg:          new(sync.WaitGroup),
