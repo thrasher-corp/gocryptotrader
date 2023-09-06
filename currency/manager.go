@@ -50,15 +50,11 @@ func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 func (p *PairsManager) Clone() (PairsManager, error) {
 	var pN PairsManager
 	j, err := json.Marshal(p)
-	if err != nil {
-		return pN, err
+	if err == nil {
+		err = json.Unmarshal(j, &pN)
 	}
 
-	if err := json.Unmarshal(j, &pN); err != nil {
-		return pN, err
-	}
-
-	return pN, nil
+	return pN, err //nolint:govet // copylocks not relevant; We're cloning
 }
 
 // Get gets the currency pair config based on the asset type

@@ -160,7 +160,7 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 		t.Error(err)
 		return
 	}
-	b.CurrencyPairs = p
+	b.CurrencyPairs = p //nolint:govet // copylocks not relevant; We just cloned it
 
 	b.Name = "fixture"
 	b.Websocket = &stream.Websocket{
