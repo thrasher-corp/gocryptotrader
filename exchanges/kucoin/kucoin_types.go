@@ -1110,8 +1110,8 @@ type WsOrderbookLevel5 struct {
 type WsOrderbookLevel5Response struct {
 	Timestamp     convert.ExchangeTime `json:"timestamp"`
 	Sequence      int64                `json:"sequence"`
-	Bids          [][2]float64         `json:"bids"`
-	Asks          [][2]float64         `json:"asks"`
+	Bids          [][2]kucoinNumber    `json:"bids"`
+	Asks          [][2]kucoinNumber    `json:"asks"`
 	PushTimestamp convert.ExchangeTime `json:"ts"`
 }
 
@@ -1125,15 +1125,15 @@ func (a *WsOrderbookLevel5Response) ExtractOrderbookItems() *WsOrderbookLevel5 {
 	resp.Asks = make([]orderbook.Item, len(a.Asks))
 	for x := range a.Asks {
 		resp.Asks[x] = orderbook.Item{
-			Price:  a.Asks[x][0],
-			Amount: a.Asks[x][1],
+			Price:  a.Asks[x][0].Float64(),
+			Amount: a.Asks[x][1].Float64(),
 		}
 	}
 	resp.Bids = make([]orderbook.Item, len(a.Bids))
 	for x := range a.Bids {
 		resp.Bids[x] = orderbook.Item{
-			Price:  a.Bids[x][0],
-			Amount: a.Bids[x][1],
+			Price:  a.Bids[x][0].Float64(),
+			Amount: a.Bids[x][1].Float64(),
 		}
 	}
 	return &resp
