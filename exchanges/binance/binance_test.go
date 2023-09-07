@@ -3007,7 +3007,7 @@ func TestSetCollateralMode(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, collateral.GlobalMode)
+	err = b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, collateral.PortfolioMode)
 	if !errors.Is(err, order.ErrCollateralInvalid) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
 	}

@@ -32,8 +32,8 @@ func (t Mode) String() string {
 		return singleCollateralStr
 	case MultiMode:
 		return multiCollateralStr
-	case GlobalMode:
-		return globalCollateralStr
+	case PortfolioMode:
+		return portfolioCollateralStr
 	case UnknownMode:
 		return unknownCollateralStr
 	}
@@ -48,7 +48,7 @@ func (t Mode) Upper() string {
 // IsValidCollateralModeString checks to see if the supplied string is a valid collateral mode
 func IsValidCollateralModeString(m string) bool {
 	switch strings.ToLower(m) {
-	case singleCollateralStr, multiCollateralStr, globalCollateralStr, unsetCollateralStr:
+	case singleCollateralStr, multiCollateralStr, portfolioCollateralStr, unsetCollateralStr:
 		return true
 	}
 	return false
@@ -62,8 +62,8 @@ func StringToMode(m string) (Mode, error) {
 		return SingleMode, nil
 	case multiCollateralStr:
 		return MultiMode, nil
-	case globalCollateralStr:
-		return GlobalMode, nil
+	case portfolioCollateralStr:
+		return PortfolioMode, nil
 	case "":
 		return UnsetMode, nil
 	}

@@ -1769,7 +1769,7 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 	case 3:
 		return collateral.MultiMode, nil
 	case 4:
-		return collateral.GlobalMode, nil
+		return collateral.PortfolioMode, nil
 	default:
 		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
 	}

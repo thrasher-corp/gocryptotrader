@@ -20,24 +20,24 @@ const (
 	SingleMode Mode = 1 << (iota - 1)
 	// MultiMode has collateral allocated across the whole asset
 	MultiMode
-	// GlobalMode has collateral allocated across account
-	GlobalMode
+	// PortfolioMode has collateral allocated across account
+	PortfolioMode
 	// UnknownMode has collateral allocated in an unknown manner at present, but is not unset
 	UnknownMode
 )
 
 const (
-	unsetCollateralStr   = "unset"
-	singleCollateralStr  = "single"
-	multiCollateralStr   = "multi"
-	globalCollateralStr  = "global"
-	unknownCollateralStr = "unknown"
+	unsetCollateralStr     = "unset"
+	singleCollateralStr    = "single"
+	multiCollateralStr     = "multi"
+	portfolioCollateralStr = "portfolio"
+	unknownCollateralStr   = "unknown"
 )
 
 // ErrInvalidCollateralMode is returned when converting invalid string to collateral mode
 var ErrInvalidCollateralMode = errors.New("invalid collateral mode")
 
-var supportedCollateralModes = SingleMode | MultiMode | GlobalMode
+var supportedCollateralModes = SingleMode | MultiMode | PortfolioMode
 
 // ByPosition shows how much collateral is used
 // from positions

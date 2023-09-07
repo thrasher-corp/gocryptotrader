@@ -15,7 +15,7 @@ func TestValidCollateralType(t *testing.T) {
 	if !MultiMode.Valid() {
 		t.Fatal("expected 'true', received 'false'")
 	}
-	if !GlobalMode.Valid() {
+	if !PortfolioMode.Valid() {
 		t.Fatal("expected 'true', received 'false'")
 	}
 	if UnsetMode.Valid() {
@@ -54,13 +54,13 @@ func TestUnmarshalJSONCollateralType(t *testing.T) {
 		t.Errorf("received '%v' expected 'Multi'", alien.M)
 	}
 
-	jason = []byte(`{"collateral":"global"}`)
+	jason = []byte(`{"collateral":"portfolio"}`)
 	err = json.Unmarshal(jason, &alien)
 	if err != nil {
 		t.Error(err)
 	}
-	if alien.M != GlobalMode {
-		t.Errorf("received '%v' expected 'Global'", alien.M)
+	if alien.M != PortfolioMode {
+		t.Errorf("received '%v' expected 'Portfolio'", alien.M)
 	}
 
 	jason = []byte(`{"collateral":"hello moto"}`)
@@ -84,8 +84,8 @@ func TestStringCollateralType(t *testing.T) {
 	if MultiMode.String() != multiCollateralStr {
 		t.Errorf("received '%v' expected '%v'", MultiMode.String(), multiCollateralStr)
 	}
-	if GlobalMode.String() != globalCollateralStr {
-		t.Errorf("received '%v' expected '%v'", GlobalMode.String(), globalCollateralStr)
+	if PortfolioMode.String() != portfolioCollateralStr {
+		t.Errorf("received '%v' expected '%v'", PortfolioMode.String(), portfolioCollateralStr)
 	}
 	if UnsetMode.String() != unsetCollateralStr {
 		t.Errorf("received '%v' expected '%v'", UnsetMode.String(), unsetCollateralStr)
@@ -103,8 +103,8 @@ func TestUpperCollateralType(t *testing.T) {
 	if MultiMode.Upper() != strings.ToUpper(multiCollateralStr) {
 		t.Errorf("received '%v' expected '%v'", MultiMode.Upper(), strings.ToUpper(multiCollateralStr))
 	}
-	if GlobalMode.Upper() != strings.ToUpper(globalCollateralStr) {
-		t.Errorf("received '%v' expected '%v'", GlobalMode.Upper(), strings.ToUpper(globalCollateralStr))
+	if PortfolioMode.Upper() != strings.ToUpper(portfolioCollateralStr) {
+		t.Errorf("received '%v' expected '%v'", PortfolioMode.Upper(), strings.ToUpper(portfolioCollateralStr))
 	}
 	if UnsetMode.Upper() != strings.ToUpper(unsetCollateralStr) {
 		t.Errorf("received '%v' expected '%v'", UnsetMode.Upper(), strings.ToUpper(unsetCollateralStr))
@@ -122,7 +122,7 @@ func TestIsValidCollateralTypeString(t *testing.T) {
 	if !IsValidCollateralModeString("multi") {
 		t.Fatal("expected 'true', received 'false'")
 	}
-	if !IsValidCollateralModeString("global") {
+	if !IsValidCollateralModeString("portfolio") {
 		t.Fatal("expected 'true', received 'false'")
 	}
 	if !IsValidCollateralModeString("unset") {
@@ -170,11 +170,11 @@ func TestStringToCollateralType(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", resp, MultiMode)
 	}
 
-	resp, err = StringToMode("global")
+	resp, err = StringToMode("portfolio")
 	if err != nil {
 		t.Error(err)
 	}
-	if resp != GlobalMode {
-		t.Errorf("received '%v' expected '%v'", resp, GlobalMode)
+	if resp != PortfolioMode {
+		t.Errorf("received '%v' expected '%v'", resp, PortfolioMode)
 	}
 }
