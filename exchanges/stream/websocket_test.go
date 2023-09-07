@@ -94,6 +94,15 @@ func (d *dodgyConnection) Connect() error {
 	return errors.New("cannot connect due to some dastardly reason")
 }
 
+type TestWebsocketTrackSubscribe struct{ Subbed bool }
+
+func (tt *TestWebsocketTrackSubscribe) WasSubbed() bool { return tt.Subbed }
+func (tt *TestWebsocketTrackSubscribe) Reset()          { tt.Subbed = false }
+func (tt *TestWebsocketTrackSubscribe) Subsonic(context.Context, []ChannelSubscription) error {
+	tt.Subbed = true
+	return nil
+}
+
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	var w *Websocket
@@ -473,12 +482,23 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	subState := &TestWebsocketTrackSubscribe{}
+	ws.Subscriber = subState.Subsonic
+
 	// -- initiate the reconnect which is usually handled by connection monitor
 	err = ws.Connect(context.Background(), AutoSubscribe)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ws.Connect(context.Background(), AutoSubscribe)
+
+	if !subState.WasSubbed() {
+		t.Fatal("subscriptions should have been auto subscribed")
+	}
+
+	subState.Reset()
+
+	err = ws.Connect(context.Background(), DeferSubscribe)
 	if err == nil {
 		t.Fatal("should already be connected")
 	}
@@ -488,6 +508,15 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal("WebsocketSetup", err)
 	}
 	ws.Wg.Wait()
+
+	err = ws.Connect(context.Background(), DeferSubscribe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if subState.WasSubbed() {
+		t.Fatal("should not have auto subscribed when connecting")
+	}
 }
 
 // TestSubscribe logic test
