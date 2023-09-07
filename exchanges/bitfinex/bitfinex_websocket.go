@@ -1439,7 +1439,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.PriceDuplication = true
 	book.IsFundingRate = fundingRate
 	book.VerifyOrderbook = b.CanVerifyOrderbook
-	book.LastUpdated = time.Now()
+	book.LastUpdated = time.Now() // Not included in snapshot
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
@@ -1451,7 +1451,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 		Pair:       p,
 		Bids:       make([]orderbook.Item, 0, len(book)),
 		Asks:       make([]orderbook.Item, 0, len(book)),
-		UpdateTime: time.Now(),
+		UpdateTime: time.Now(), // Not included in update
 	}
 
 	for i := range book {
