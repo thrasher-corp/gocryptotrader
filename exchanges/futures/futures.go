@@ -929,9 +929,9 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 	p.unrealisedPNL = result.UnrealisedPNL
 
 	switch {
-	case longSide.GreaterThan(shortSide):
+	case longSideAmount.GreaterThan(shortSideAmount):
 		p.latestDirection = order.Long
-	case shortSide.GreaterThan(longSide):
+	case shortSideAmount.GreaterThan(longSideAmount):
 		p.latestDirection = order.Short
 	default:
 		p.latestDirection = order.ClosePosition

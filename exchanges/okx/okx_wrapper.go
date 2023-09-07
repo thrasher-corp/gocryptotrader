@@ -1602,7 +1602,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 			return nil, fmt.Errorf("%w earliest date is %v", fundingrate.ErrFundingRateOutsideLimits, maxLookback)
 		}
 		if r.EndDate.Before(maxLookback) {
-			return nil, order.ErrGetFundingDataRequired
+			return nil, futures.ErrGetFundingDataRequired
 		}
 		r.StartDate = maxLookback
 	}
