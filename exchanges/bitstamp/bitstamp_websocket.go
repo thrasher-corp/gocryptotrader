@@ -135,7 +135,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 }
 
 func (b *Bitstamp) handleWSOrderbook(_ context.Context, wsResp *websocketResponse, msg []byte) error {
-	if wsResp.pair == currency.EMPTYPAIR {
+	if wsResp.pair.IsEmpty() {
 		return errWSPairParsingError
 	}
 
@@ -153,7 +153,7 @@ func (b *Bitstamp) handleWSTrade(_ context.Context, wsResp *websocketResponse, m
 		return nil
 	}
 
-	if wsResp.pair == currency.EMPTYPAIR {
+	if wsResp.pair.IsEmpty() {
 		return errWSPairParsingError
 	}
 
@@ -442,7 +442,7 @@ func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
 		return fmt.Errorf("channel name does not contain exactly 0 or 2 hyphens: %v", r.Channel)
 	}
 
-	parts := strings.Split(chanName, currency.UnderscoreDelimiter)
+	parts := strings.Split(chanName, "_")
 	if len(parts) != 3 {
 		return fmt.Errorf("%v: channel name does not contain exactly 2 underscores: %v", errWSPairParsingError, r.Channel)
 	}
