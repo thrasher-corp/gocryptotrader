@@ -76550,6 +76550,36 @@
    ]
   },
   "/orders/12345536545645": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Order not exists"
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "FIkZpAbRNqnKjq08e1iRyrqfpQYpywwp7dkGG+JBa7o="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694104201728"
+      ]
+     }
+    }
+   ],
    "GET": [
     {
      "data": {
@@ -76576,6 +76606,35 @@
       ],
       "Signtimestamp": [
        "1694029457991"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/13123242323/trades": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "vH0fkqQQaVldmdRps9hUjteTZ/qfAXA+fB4srDi+fvk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694112117578"
       ]
      }
     }
@@ -76608,6 +76667,36 @@
       ],
       "Signtimestamp": [
        "1693771500143"
+      ]
+     }
+    }
+   ],
+   "PUT": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Couldn't locate order"
+     },
+     "queryString": "",
+     "bodyParams": "{\"clientOrderId\":\"1234Abc\",\"price\":\"18000\",\"timeInForce\":\"\",\"allowBorrow\":false}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "dGawQhMMZQYOY3tAvqVKlTWcLkRKXSw5O5SdIyqZSNQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694104157763"
       ]
      }
     }
@@ -76739,6 +76828,35 @@
       ],
       "Signtimestamp": [
        "1694026965296"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/history": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "9abyq/PAbpVL8gYPFp06Nf67iJiyo4uNknDuvpG1MNc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694109347175"
       ]
      }
     }
@@ -94266,6 +94384,36 @@
    ]
   },
   "/smartorders": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 25015,
+      "message": "No orders found"
+     },
+     "queryString": "",
+     "bodyParams": "{\"accountTypes\":[\"SPOT\"],\"symbols\":[\"BTC_USDT\",\"ETH_USDT\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "5eQwsf9TrlAv8XqnZmUGnU+MUYnB1RRVu1Pu2QPSMx4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694107061753"
+      ]
+     }
+    }
+   ],
    "GET": [
     {
      "data": null,
@@ -94380,6 +94528,65 @@
     }
    ]
   },
+  "/smartorders/123313413": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 25009,
+      "message": "Failed to cancel the order"
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "ShPJVO+gy3WSg/ANlBOfAMmrLjfXWBAWnJsIjOUBmAY="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694104052173"
+      ]
+     }
+    }
+   ],
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "76XWfYs3EcqXuhtkgk8wQcb1EuoIFlL+DaQI7IQmfDk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694103675540"
+      ]
+     }
+    }
+   ]
+  },
   "/smartorders/29772698821328896": {
    "PUT": [
     {
@@ -94407,6 +94614,79 @@
       ],
       "Signtimestamp": [
        "1694035115367"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/cancelByIds": {
+   "DELETE": [
+    {
+     "data": [
+      {
+       "clientOrderId": "",
+       "code": 25009,
+       "message": "Failed to cancel the order",
+       "orderId": "1234",
+       "state": ""
+      },
+      {
+       "clientOrderId": "5678",
+       "code": 25009,
+       "message": "Failed to cancel the order",
+       "orderId": "",
+       "state": ""
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"orderIds\":[\"1234\"],\"clientOrderIds\":[\"5678\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "kxVZuTICLXpw47OJAP/A1mZ1dIlT09YVZ9i1DVhs6Tw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694105649531"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/history": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "hDTl5SYM+4KEU4n3ZjWq5i9nyKLoNuTJ4PZsAC0PLlk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694109833426"
       ]
      }
     }
@@ -94630,6 +94910,35 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/trades": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "QP7v4OfiGVIZLrtzBTILk9ieCZ6pKqiuRZW5rJf7j4k="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694111738883"
+      ]
+     }
     }
    ]
   },

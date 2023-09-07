@@ -1138,8 +1138,8 @@ type CancelReplaceSmartOrderResponse struct {
 	Message   string                  `json:"message"`
 }
 
-// SmartOrderDetail represents a smart order detail.
-type SmartOrderDetail struct {
+// SmartOrderItem represents a smart order detail.
+type SmartOrderItem struct {
 	ID            string                  `json:"id"`
 	ClientOrderID string                  `json:"clientOrderId"`
 	Symbol        string                  `json:"symbol"`
@@ -1154,4 +1154,68 @@ type SmartOrderDetail struct {
 	StopPrice     convert.StringToFloat64 `json:"stopPrice"`
 	CreateTime    convert.ExchangeTime    `json:"createTime"`
 	UpdateTime    convert.ExchangeTime    `json:"updateTime"`
+}
+
+// SmartOrderDetail represents a smart order information and trigger detailed information.
+type SmartOrderDetail struct {
+	ID             string                  `json:"id"`
+	ClientOrderID  string                  `json:"clientOrderId"`
+	Symbol         string                  `json:"symbol"`
+	State          string                  `json:"state"`
+	AccountType    string                  `json:"accountType"`
+	Side           string                  `json:"side"`
+	Type           string                  `json:"type"`
+	TimeInForce    string                  `json:"timeInForce"`
+	Quantity       convert.StringToFloat64 `json:"quantity"`
+	Price          convert.StringToFloat64 `json:"price"`
+	Amount         convert.StringToFloat64 `json:"amount"`
+	StopPrice      convert.StringToFloat64 `json:"stopPrice"`
+	CreateTime     convert.ExchangeTime    `json:"createTime"`
+	UpdateTime     convert.ExchangeTime    `json:"updateTime"`
+	TriggeredOrder struct {
+		ID             string                  `json:"id"`
+		ClientOrderID  string                  `json:"clientOrderId"`
+		Symbol         string                  `json:"symbol"`
+		State          string                  `json:"state"`
+		AccountType    string                  `json:"accountType"`
+		Side           string                  `json:"side"`
+		Type           string                  `json:"type"`
+		TimeInForce    string                  `json:"timeInForce"`
+		Quantity       convert.StringToFloat64 `json:"quantity"`
+		Price          convert.StringToFloat64 `json:"price"`
+		AvgPrice       convert.StringToFloat64 `json:"avgPrice"`
+		Amount         convert.StringToFloat64 `json:"amount"`
+		FilledQuantity convert.StringToFloat64 `json:"filledQuantity"`
+		FilledAmount   convert.StringToFloat64 `json:"filledAmount"`
+		CreateTime     convert.ExchangeTime    `json:"createTime"`
+		UpdateTime     convert.ExchangeTime    `json:"updateTime"`
+	} `json:"triggeredOrder"`
+}
+
+// CancelSmartOrderResponse represents a close cancel smart order response instance.
+type CancelSmartOrderResponse struct {
+	OrderID       string `json:"orderId"`
+	ClientOrderID string `json:"clientOrderId"`
+	State         string `json:"state"`
+	Code          int64  `json:"code"`
+	Message       string `json:"message"`
+}
+
+// TradeHistoryItem represents an order trade history instance.
+type TradeHistoryItem struct {
+	ID            string                  `json:"id"`
+	ClientOrderID string                  `json:"clientOrderId"`
+	Symbol        string                  `json:"symbol"`
+	AccountType   string                  `json:"accountType"`
+	OrderID       string                  `json:"orderId"`
+	Side          string                  `json:"side"`
+	Type          string                  `json:"type"`
+	MatchRole     string                  `json:"matchRole"`
+	Price         convert.StringToFloat64 `json:"price"`
+	Quantity      convert.StringToFloat64 `json:"quantity"`
+	Amount        convert.StringToFloat64 `json:"amount"`
+	FeeCurrency   string                  `json:"feeCurrency"`
+	FeeAmount     convert.StringToFloat64 `json:"feeAmount"`
+	PageID        string                  `json:"pageId"`
+	CreateTime    convert.ExchangeTime    `json:"createTime"`
 }

@@ -1,7 +1,9 @@
 package poloniex
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,10 +13,20 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+)
+
+const (
+	poloniexAPIURL             = "https://api.poloniex.com"
+	poloniexAltAPIUrl          = "https://api.poloniex.com"
+	poloniexAPITradingEndpoint = "tradingApi"
+	poloniexAPIVersion         = "1"
+	poloniexMaxOrderbookDepth  = 100
 )
 
 var (
@@ -25,6 +37,12 @@ var (
 	errClientOrderIDOROrderIDsRequired = errors.New("either client order IDs or order IDs or both are required")
 	errInvalidTimeout                  = errors.New("timeout must not be empty")
 )
+
+// Poloniex is the overarching type across the poloniex package
+type Poloniex struct {
+	exchange.Base
+	details CurrencyDetails
+}
 
 // Reference data endpoints.
 
@@ -475,11 +493,7 @@ func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, act
 		values.Set("activityType", activityType)
 	}
 	var resp WalletActivityResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		poloniexWalletActivity,
-		values,
-		nil,
-		&resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/wallets/activity", values, nil, &resp)
 }
 
 // NewCurrencyDepoditAddress create a new address for a currency.
@@ -686,7 +700,7 @@ func (p *Poloniex) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp CancelReplaceOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/orders/%s", arg.ID), nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, fmt.Sprintf("/orders/%s", arg.ID), nil, arg, &resp)
 }
 
 // GetOpenOrders retrieves a list of active orders for an account.
@@ -731,25 +745,8 @@ func (p *Poloniex) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
 	}
 	var resp CancelOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/orders/%s", id), nil, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf("/orders/%s", id), nil, nil, &resp)
 }
-
-// CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
-// func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
-// 	values := url.Values{}
-// 	if len(orderIDs) > 0 {
-// 		values.Set("orderIds", strings.Join(orderIDs, ","))
-// 	}
-// 	if len(clientOrderIDs) > 0 {
-// 		values.Set("clientOrderIds", strings.Join(clientOrderIDs, ","))
-// 	}
-// 	var result []CancelOrdersResponse
-// 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
-// 		poloniexCancelByIDs,
-// 		values,
-// 		nil,
-// 		&result)
-// }
 
 // CancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs.
 func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, args *OrderCancellationParams) ([]CancelOrderResponse, error) {
@@ -843,38 +840,325 @@ func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 }
 
 // GetSmartOpenOrders get a list of (pending) smart orders for an account.
-func (p *Poloniex) GetSmartOpenOrders(ctx context.Context, limit int64) ([]SmartOrderDetail, error) {
+func (p *Poloniex) GetSmartOpenOrders(ctx context.Context, limit int64) ([]SmartOrderItem, error) {
 	params := url.Values{}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []SmartOrderDetail
+	var resp []SmartOrderItem
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/smartorders", params, nil, &resp)
 }
 
-// PlaceOrder places a new order on the exchange
-// func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
-// 	result := OrderResponse{}
-// 	values := url.Values{}
+// GetSmartOrderDetail get a smart order’s status. {id} can be smart order’s id or its clientOrderId (prefix with cid: ).
+// If smart order’s state is TRIGGERED, the response will include the triggered order’s data
+func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, id, clientSuppliedID string) ([]SmartOrderDetail, error) {
+	var path string
+	if id != "" {
+		path = fmt.Sprintf("/smartorders/%s", id)
+	} else if clientSuppliedID != "" {
+		path = fmt.Sprintf("/smartorders/cid:%s", clientSuppliedID)
+	} else {
+		return nil, errClientOrderIDOROrderIDsRequired
+	}
+	var resp []SmartOrderDetail
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp)
+}
 
-// 	var orderType string
-// 	if buy {
-// 		orderType = order.Buy.Lower()
-// 	} else {
-// 		orderType = order.Sell.Lower()
-// 	}
+// CancelSmartOrderByID cancel a smart order by its id.
+func (p *Poloniex) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedID string) (*CancelSmartOrderResponse, error) {
+	var path string
+	if id != "" {
+		path = fmt.Sprintf("/smartorders/%s", id)
+	} else if clientSuppliedID != "" {
+		path = fmt.Sprintf("/smartorders/cid:%s", clientSuppliedID)
+	} else {
+		return nil, errClientOrderIDOROrderIDsRequired
+	}
+	var resp CancelSmartOrderResponse
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, &resp)
+}
 
-// 	values.Set("currencyPair", currency)
-// 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-// 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+// CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
+func (p *Poloniex) CancelMultipleSmartOrders(ctx context.Context, args *OrderCancellationParams) ([]CancelOrderResponse, error) {
+	if args == nil {
+		return nil, errNilArgument
+	}
+	if len(args.ClientOrderIds) == 0 && len(args.OrderIds) == 0 {
+		return nil, errClientOrderIDOROrderIDsRequired
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
+}
 
-// 	if immediate {
-// 		values.Set("immediateOrCancel", "1")
-// 	}
+// CancelAllSmartOrders batch cancel all smart orders in an account.
+func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTypes []string) ([]CancelOrderResponse, error) {
+	args := make(map[string][]string)
+	if len(symbols) > 0 {
+		args["symbols"] = symbols
+	}
+	if len(accountTypes) > 0 {
+		args["accountTypes"] = accountTypes
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/smartorders", nil, args, &resp)
+}
 
-// 	if fillOrKill {
-// 		values.Set("fillOrKill", "1")
-// 	}
+// ---------------------------------------------------------------- Order History ----------------------------------------------------------------
 
-// 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orderType, values, nil, &result)
-// }
+func orderFillParams(symbol currency.Pair,
+	accountType, orderType, side, direction, states string,
+	from, limit int64, startTime, endTime time.Time, hideCancel bool) url.Values {
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
+	}
+	if from > 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if states != "" {
+		params.Set("states", states)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if hideCancel {
+		params.Set("hideCancel", "true")
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	return params
+}
+
+// GetOrdersHistory get a list of historical orders in an account.
+// Interval between startTime and endTime cannot exceed 30 days.
+// If only endTime is populated then startTime will default to 7 days before endTime.
+// If only startTime is populated then endTime will be defaulted to 7 days after startTime.
+// Please note that canceled orders that are before 7 days from current time will be archived.
+// Rest of the orders will be archived before 90 days from current time.
+func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
+	accountType, orderType, side, direction, states string,
+	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]TradeOrder, error) {
+	params := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
+	var resp []TradeOrder
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/orders/history", params, nil, &resp)
+}
+
+// GetSmartOrderHistory get a list of historical smart orders in an account.
+// Interval between startTime and endTime cannot exceed 30 days.
+// If only endTime is populated then startTime will default to 7 days before endTime.
+// If only startTime is populated then endTime will be defaulted to 7 days after startTime.
+func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pair,
+	accountType, orderType, side, direction, states string,
+	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]SmartOrderItem, error) {
+	params := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
+	var resp []SmartOrderItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/smartorders/history", params, nil, &resp)
+}
+
+// ------------------------------------------- Trade endpoints --------------------------------
+
+// GetTradeHistory get a list of all trades for an account. Currently, trade history is supported since 07/30/2021.
+// Interval between startTime and endTime cannot exceed 90 days.
+// If only endTime is populated then startTime will default to 7 days before endTime.
+// If only startTime is populated then endTime will be defaulted to 7 days after startTime.
+func (p *Poloniex) GetTradeHistory(ctx context.Context, symbols currency.Pairs, direction string, from, limit int64, startTime, endTime time.Time) ([]TradeHistoryItem, error) {
+	params := url.Values{}
+	if len(symbols) == 0 {
+		params.Set("symbols", symbols.Join())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if from > 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	var resp []TradeHistoryItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/trades", params, nil, &resp)
+}
+
+// GetTradeOrderID get a list of all trades for an order specified by its orderId.
+func (p *Poloniex) GetTradeOrderID(ctx context.Context, orderID string) ([]TradeHistoryItem, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp []TradeHistoryItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/orders/%s/trades", orderID), nil, nil, &resp)
+}
+
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+	endpoint, err := p.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          endpoint + path,
+		Result:        result,
+		Verbose:       p.Verbose,
+		HTTPDebugging: p.HTTPDebugging,
+		HTTPRecording: p.HTTPRecording,
+	}
+
+	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return item, nil
+	}, request.UnauthenticatedRequest)
+}
+
+// SendAuthenticatedHTTPRequest sends an authenticated HTTP request
+func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, body interface{}, result interface{}) error {
+	creds, err := p.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	ePoint, err := p.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+	var rawResponse = &json.RawMessage{}
+	requestFunc := func() (*request.Item, error) {
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/json"
+		headers["key"] = creds.Key
+		headers["recvWindow"] = strconv.FormatInt(1500, 10)
+		if values == nil {
+			values = url.Values{}
+		}
+		var bodyPayload []byte
+		var signatureStrings string
+		bodyPayload, err = json.Marshal(&struct{}{})
+		timestamp := time.Now()
+		values.Set("signTimestamp", strconv.FormatInt(timestamp.UnixMilli(), 10))
+		switch method {
+		case http.MethodGet, "get":
+			signatureStrings = fmt.Sprintf("%s\n%s\n%s", http.MethodGet, endpoint, values.Encode())
+		default:
+			if body != nil {
+				bodyPayload, err = json.Marshal(body)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if string(bodyPayload) != "{}" {
+				signatureStrings = fmt.Sprintf("%s\n%s\n%s&%s", method, endpoint, "requestBody="+string(bodyPayload), values.Encode())
+			} else {
+				signatureStrings = fmt.Sprintf("%s\n%s\n%s", method, endpoint, values.Encode())
+			}
+		}
+
+		// println("Signature string: ", signatureStrings)
+
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(signatureStrings),
+			[]byte(creds.Secret))
+		if err != nil {
+			return nil, err
+		}
+
+		headers["signatureMethod"] = "hmacSHA256"
+		headers["signature"] = crypto.Base64Encode(hmac)
+		headers["signTimestamp"] = strconv.FormatInt(timestamp.UnixMilli(), 10)
+		values.Del("signTimestamp")
+		path := common.EncodeURLValues(fmt.Sprintf("%s%s", ePoint, endpoint), values)
+		req := &request.Item{
+			Method:        method,
+			Path:          path,
+			Result:        rawResponse,
+			Headers:       headers,
+			Verbose:       p.Verbose,
+			HTTPDebugging: p.HTTPDebugging,
+			HTTPRecording: p.HTTPRecording,
+		}
+		if method != http.MethodGet && len(bodyPayload) > 0 {
+			req.Body = bytes.NewBuffer(bodyPayload)
+		}
+		return req, nil
+	}
+	err = p.SendPayload(ctx, request.Unset, requestFunc, request.AuthenticatedRequest)
+	if err != nil {
+		return err
+	}
+	errorResp := &errorResponse{}
+	err = json.Unmarshal(*rawResponse, errorResp)
+	if err == nil && errorResp.Code != 0 {
+		// if errorResp.Message != "" {
+		return fmt.Errorf("error code: %d message: %s", errorResp.Code, errorResp.Message)
+		// }
+		// err, okay := ErrorCodes[strconv.FormatInt(errorResp.Code, 10)]
+		// if okay {
+		// 	return err
+		// }
+		// return fmt.Errorf("error code: %d", errorResp.Code)
+	}
+	return json.Unmarshal(*rawResponse, result)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (p *Poloniex) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		feeInfo, err := p.GetFeeInfo(ctx)
+		if err != nil {
+			return 0, err
+		}
+		fee = calculateTradingFee(feeInfo,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
+
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.Pair.Base)
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.002 * price * amount
+}
+
+func calculateTradingFee(feeInfo *FeeInfo, purchasePrice, amount float64, isMaker bool) (fee float64) {
+	if isMaker {
+		fee = feeInfo.MakerRate.Float64()
+	} else {
+		fee = feeInfo.TakerRate.Float64()
+	}
+	return fee * amount * purchasePrice
+}
+
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
+}

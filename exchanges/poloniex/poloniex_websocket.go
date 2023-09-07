@@ -62,10 +62,10 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	err = p.loadCurrencyDetails(context.TODO())
-	if err != nil {
-		return err
-	}
+	// err = p.loadCurrencyDetails(context.TODO())
+	// if err != nil {
+	// 	return err
+	// }
 
 	p.Websocket.Wg.Add(1)
 	go p.wsReadData()
@@ -74,29 +74,29 @@ func (p *Poloniex) WsConnect() error {
 }
 
 // TODO: Create routine to refresh list every day/week(?) for production
-func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
-	if p.details.isInitial() {
-		ticks, err := p.GetTickerLegacy(ctx)
-		if err != nil {
-			return err
-		}
-		err = p.details.loadPairs(ticks)
-		if err != nil {
-			return err
-		}
+// func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
+// 	if p.details.isInitial() {
+// 		ticks, err := p.GetTickers(ctx)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		err = p.details.loadPairs(ticks)
+// 		if err != nil {
+// 			return err
+// 		}
 
-		currs, err := p.GetCurrencies(ctx)
-		if err != nil {
-			return err
-		}
+// 		currs, err := p.GetCurrencyInformations(ctx)
+// 		if err != nil {
+// 			return err
+// 		}
 
-		err = p.details.loadCodes(currs)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// 		err = p.details.loadCodes(currs)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
 
 // wsReadData handles data from the websocket connection
 func (p *Poloniex) wsReadData() {
