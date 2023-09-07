@@ -189,7 +189,7 @@ func (b *Bitstamp) handleWSOrder(_ context.Context, wsResp *websocketResponse, m
 	}
 
 	o := r.Order
-	if o.ID == 0 {
+	if o.ID == 0 && o.ClientOrderID == "" {
 		return fmt.Errorf("unable to parse an order id from order msg: %s", msg)
 	}
 
