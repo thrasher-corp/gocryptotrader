@@ -45,16 +45,14 @@ func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 	return assetTypes
 }
 
-// Clone returns a Deep clone of the pair manager
-// Beware; implementation is not very efficient and should not be used in any hot paths
-func (p *PairsManager) Clone() (PairsManager, error) {
-	var pN PairsManager
-	j, err := json.Marshal(p)
-	if err == nil {
-		err = json.Unmarshal(j, &pN)
-	}
+// ReadLock locks the PairsManager for reading
+func (p *PairsManager) ReadLock() {
+	p.m.RLock()
+}
 
-	return pN, err //nolint:govet // copylocks not relevant; We're cloning
+// ReadUnlock unlocks the PairsManager for reading
+func (p *PairsManager) ReadUnlock() {
+	p.m.RUnlock()
 }
 
 // Get gets the currency pair config based on the asset type
