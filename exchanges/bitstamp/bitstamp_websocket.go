@@ -447,24 +447,13 @@ func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
 		return fmt.Errorf("%v: channel name does not contain exactly 2 underscores: %v", errWSPairParsingError, r.Channel)
 	}
 
+	r.channelType = parts[0] + "_" + parts[1]
 	symbol := parts[2]
-	pFmt, err := b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
 
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
+	if err == nil {
+		r.pair, err = enabledPairs.DeriveFrom(symbol)
 	}
 
-	p, err := currency.NewPairFromFormattedPairs(symbol, enabledPairs, pFmt)
-	if err != nil {
-		return err
-	}
-
-	r.pair = p
-	r.channelType = parts[0] + "_" + parts[1]
-
-	return nil
+	return err
 }
