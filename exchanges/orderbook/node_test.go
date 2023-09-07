@@ -19,7 +19,7 @@ func TestPushPop(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		s.Push(nSlice[i], getNow())
+		s.Push(nSlice[i], time.Now())
 	}
 
 	if s.getCount() != 100 {
@@ -34,13 +34,13 @@ func TestCleaner(t *testing.T) {
 		nSlice[i] = s.Pop()
 	}
 
-	tn := getNow()
+	tn := time.Now()
 	for i := 0; i < 50; i++ {
 		s.Push(nSlice[i], tn)
 	}
 	// Makes all the 50 pushed nodes invalid
 	time.Sleep(time.Millisecond * 260)
-	tn = getNow()
+	tn = time.Now()
 	for i := 50; i < 100; i++ {
 		s.Push(nSlice[i], tn)
 	}
@@ -81,7 +81,7 @@ func BenchmarkWithStack(b *testing.B) {
 	stack := newStack()
 	b.ReportAllocs()
 	b.ResetTimer()
-	tn := getNow()
+	tn := time.Now()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100000; j++ {
 			n = stack.Pop()

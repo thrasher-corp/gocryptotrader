@@ -245,7 +245,10 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u)
 	}
-	o.updateByPrice(u)
+	err := o.updateByPrice(u)
+	if err != nil {
+		return err
+	}
 	if w.checksum != nil {
 		compare, err := o.ob.Retrieve()
 		if err != nil {
@@ -262,8 +265,8 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 
 // updateByPrice amends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
-func (o *orderbookHolder) updateByPrice(updts *orderbook.Update) {
-	o.ob.UpdateBidAskByPrice(updts)
+func (o *orderbookHolder) updateByPrice(updts *orderbook.Update) error {
+	return o.ob.UpdateBidAskByPrice(updts)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
@@ -328,11 +331,15 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	}
 
 	holder.updateID = book.LastUpdateID
-	holder.ob.LoadSnapshot(book.Bids,
+
+	err = holder.ob.LoadSnapshot(book.Bids,
 		book.Asks,
 		book.LastUpdateID,
 		book.LastUpdated,
 		false)
+	if err != nil {
+		return err
+	}
 
 	if holder.ob.VerifyOrderbook {
 		// This is used here so as to not retrieve book if verification is off.
