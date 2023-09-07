@@ -40,24 +40,16 @@ func newStack() *stack {
 	return s
 }
 
-// now defines a time which is now to ensure no other values get passed in
-type now time.Time
-
-// getNow returns the time at which it is called
-func getNow() now {
-	return now(time.Now())
-}
-
 // Push pushes a node pointer into the stack to be reused the time is passed in
 // to allow for inlining which sets the time at which the node is theoretically
 // pushed to a stack.
-func (s *stack) Push(n *Node, tn now) {
+func (s *stack) Push(n *Node, tn time.Time) {
 	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
 		// Stack is in use, for now we can dereference pointer
 		return
 	}
 	// Adds a time when its placed back on to stack.
-	n.shelved = time.Time(tn)
+	n.shelved = tn
 	n.Next = nil
 	n.Prev = nil
 	n.Value = Item{}
