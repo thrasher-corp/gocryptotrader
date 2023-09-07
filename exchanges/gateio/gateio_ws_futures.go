@@ -216,33 +216,30 @@ func (g *Gateio) wsFunnelFuturesConnectionData(ws stream.Connection) {
 }
 
 func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error {
-	var result WsResponse
-	var eventResponse WsEventResponse
-	err := json.Unmarshal(respRaw, &eventResponse)
-	if err == nil &&
-		(eventResponse.Result != nil || eventResponse.Error != nil) &&
-		(eventResponse.Event == "subscribe" || eventResponse.Event == "unsubscribe") {
-		if !g.Websocket.Match.IncomingWithData(eventResponse.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", eventResponse.ID)
-		}
-		return nil
-	}
-	err = json.Unmarshal(respRaw, &result)
+	var push WsResponse
+	err := json.Unmarshal(respRaw, &push)
 	if err != nil {
 		return err
 	}
-	switch result.Channel {
-	// Futures push datas.
+
+	if push.Event == "subscribe" || push.Event == "unsubscribe" {
+		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
+			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
+		}
+		return nil
+	}
+
+	switch push.Channel {
 	case futuresTickersChannel:
 		return g.processFuturesTickers(respRaw, assetType)
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw, assetType)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(result.Event, respRaw, assetType)
+		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, assetType, push.Time)
 	case futuresOrderbookTickerChannel:
-		return g.processFuturesOrderbookTicker(respRaw)
+		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(respRaw, assetType)
+		return g.processFuturesAndOptionsOrderbookUpdate(push.Result, assetType)
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, assetType)
 	case futuresOrdersChannel:
@@ -426,10 +423,6 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 	}
 	tickerPriceDatas := make([]ticker.Price, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		tickerPriceDatas[x] = ticker.Price{
 			ExchangeName: g.Name,
 			Volume:       resp.Result[x].Volume24HBase,
@@ -438,7 +431,7 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 			Low:          resp.Result[x].Low24H,
 			Last:         resp.Result[x].Last,
 			AssetType:    assetType,
-			Pair:         currencyPair,
+			Pair:         resp.Result[x].Contract,
 			LastUpdated:  time.Unix(resp.Time, 0),
 		}
 	}
@@ -447,6 +440,11 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 }
 
 func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
+	saveTradeData := g.IsSaveTradeDataEnabled()
+	if !saveTradeData && !g.IsTradeFeedEnabled() {
+		return nil
+	}
+
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -457,15 +455,12 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	if err != nil {
 		return err
 	}
+
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    assetType,
 			Exchange:     g.Name,
 			Price:        resp.Result[x].Price,
@@ -473,7 +468,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
-	return trade.AddTradesToBuffer(g.Name, trades...)
+	return g.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
 func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) error {
@@ -514,37 +509,29 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 	return nil
 }
 
-func (g *Gateio) processFuturesOrderbookTicker(data []byte) error {
-	var response WsResponse
-	orderbookTicker := &WsFuturesOrderbookTicker{}
-	response.Result = orderbookTicker
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processFuturesOrderbookTicker(incoming []byte) error {
+	var data WsFuturesOrderbookTicker
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- response
+	g.Websocket.DataHandler <- data
 	return nil
 }
 
-func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte, assetType asset.Item) error {
-	var response WsResponse
-	update := &WsFuturesAndOptionsOrderbookUpdate{}
-	response.Result = update
-	err := json.Unmarshal(data, &response)
+func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetType asset.Item) error {
+	var data WsFuturesAndOptionsOrderbookUpdate
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(update.ContractName)
-	if err != nil {
-		return err
-	}
-	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[update.ContractName]) ||
-		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName]) {
-		orderbooks, err := g.FetchOrderbook(context.Background(), pair, assetType)
+	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()]) ||
+		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()]) {
+		orderbooks, err := g.FetchOrderbook(context.Background(), data.ContractName, assetType)
 		if err != nil {
 			return err
 		}
-		if orderbooks.LastUpdateID < update.FirstUpdatedID || orderbooks.LastUpdateID > update.LastUpdatedID {
+		if orderbooks.LastUpdateID < data.FirstUpdatedID || orderbooks.LastUpdateID > data.LastUpdatedID {
 			return nil
 		}
 		err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
@@ -552,29 +539,25 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte, assetType 
 			return err
 		}
 		if assetType == asset.Options {
-			fetchedOptionsCurrencyPairSnapshotOrderbook[update.ContractName] = true
+			fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
 		} else {
-			fetchedFuturesCurrencyPairSnapshotOrderbook[update.ContractName] = true
+			fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
 		}
 	}
 	updates := orderbook.Update{
-		UpdateTime: time.UnixMilli(update.TimestampInMs),
-		Pair:       pair,
+		UpdateTime: time.UnixMilli(data.TimestampInMs),
+		Pair:       data.ContractName,
 		Asset:      assetType,
 	}
-	updates.Bids = make([]orderbook.Item, len(update.Bids))
-	updates.Asks = make([]orderbook.Item, len(update.Asks))
-	for x := range updates.Asks {
-		updates.Asks[x] = orderbook.Item{
-			Amount: update.Asks[x].Size,
-			Price:  update.Asks[x].Price,
-		}
+	updates.Asks = make([]orderbook.Item, len(data.Asks))
+	for x := range data.Asks {
+		updates.Asks[x].Amount = data.Asks[x].Size
+		updates.Asks[x].Price = data.Asks[x].Price
 	}
-	for x := range updates.Bids {
-		updates.Bids[x] = orderbook.Item{
-			Amount: update.Bids[x].Size,
-			Price:  update.Bids[x].Price,
-		}
+	updates.Bids = make([]orderbook.Item, len(data.Bids))
+	for x := range data.Bids {
+		updates.Bids[x].Amount = data.Bids[x].Size
+		updates.Bids[x].Price = data.Bids[x].Price
 	}
 	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
 		return errors.New("malformed orderbook data")
@@ -582,71 +565,56 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(data []byte, assetType 
 	return g.Websocket.Orderbook.Update(&updates)
 }
 
-func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, pushTime int64) error {
 	if event == "all" {
-		var response WsResponse
-		snapshot := &WsFuturesOrderbookSnapshot{}
-		response.Result = snapshot
-		err := json.Unmarshal(data, &response)
-		if err != nil {
-			return err
-		}
-		pair, err := currency.NewPairFromString(snapshot.Contract)
+		var data WsFuturesOrderbookSnapshot
+		err := json.Unmarshal(incoming, &data)
 		if err != nil {
 			return err
 		}
 		base := orderbook.Base{
 			Asset:           assetType,
 			Exchange:        g.Name,
-			Pair:            pair,
-			LastUpdated:     snapshot.TimestampInMs.Time(),
+			Pair:            data.Contract,
+			LastUpdated:     data.TimestampInMs.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
-		base.Bids = make([]orderbook.Item, len(snapshot.Bids))
-		base.Asks = make([]orderbook.Item, len(snapshot.Asks))
-		for x := range base.Asks {
-			base.Asks[x] = orderbook.Item{
-				Amount: snapshot.Asks[x].Size,
-				Price:  snapshot.Asks[x].Price,
-			}
+		base.Asks = make([]orderbook.Item, len(data.Asks))
+		for x := range data.Asks {
+			base.Asks[x].Amount = data.Asks[x].Size
+			base.Asks[x].Price = data.Asks[x].Price
 		}
-		for x := range base.Bids {
-			base.Bids[x] = orderbook.Item{
-				Amount: snapshot.Bids[x].Size,
-				Price:  snapshot.Bids[x].Price,
-			}
+		base.Bids = make([]orderbook.Item, len(data.Bids))
+		for x := range data.Bids {
+			base.Bids[x].Amount = data.Bids[x].Size
+			base.Bids[x].Price = data.Bids[x].Price
 		}
 		return g.Websocket.Orderbook.LoadSnapshot(&base)
 	}
-	resp := struct {
-		Time    int64                           `json:"time"`
-		Channel string                          `json:"channel"`
-		Event   string                          `json:"event"`
-		Result  []WsFuturesOrderbookUpdateEvent `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
+	var data []WsFuturesOrderbookUpdateEvent
+	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
 	dataMap := map[string][2][]orderbook.Item{}
-	for x := range resp.Result {
-		ab, ok := dataMap[resp.Result[x].CurrencyPair]
+	for x := range data {
+		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
 			ab = [2][]orderbook.Item{}
 		}
-		if resp.Result[x].Amount > 0 {
+		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Item{
-				Price:  resp.Result[x].Price,
-				Amount: resp.Result[x].Amount,
+				Price:  data[x].Price,
+				Amount: data[x].Amount,
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Item{
-				Price:  resp.Result[x].Price,
-				Amount: -resp.Result[x].Amount,
+				Price:  data[x].Price,
+				Amount: -data[x].Amount,
 			})
 		}
 		if !ok {
-			dataMap[resp.Result[x].CurrencyPair] = ab
+			dataMap[data[x].CurrencyPair] = ab
 		}
 	}
 	if len(dataMap) == 0 {
@@ -663,7 +631,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, data []byte, asse
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     time.Unix(resp.Time, 0),
+			LastUpdated:     time.Unix(pushTime, 0),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
@@ -686,10 +654,6 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		status, err := order.StringToOrderStatus(func() string {
 			if resp.Result[x].Status == "finished" {
 				return "cancelled"
@@ -704,7 +668,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			Exchange:       g.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
-			Pair:           currencyPair,
+			Pair:           resp.Result[x].Contract,
 			LastUpdated:    resp.Result[x].FinishTimeMs.Time(),
 			Date:           resp.Result[x].CreateTimeMs.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
@@ -719,6 +683,10 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 }
 
 func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
+	if !g.IsFillsFeedEnabled() {
+		return nil
+	}
+
 	resp := struct {
 		Time    int64                `json:"time"`
 		Channel string               `json:"channel"`
@@ -731,14 +699,10 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
-		currencyPair, err := currency.NewPairFromString(resp.Result[x].Contract)
-		if err != nil {
-			return err
-		}
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			Exchange:     g.Name,
-			CurrencyPair: currencyPair,
+			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price,

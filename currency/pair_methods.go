@@ -45,13 +45,8 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 		return nil
 	}
 
-	newPair, err := NewPairFromString(pair)
-	if err != nil {
-		return err
-	}
-
-	*p = newPair
-	return nil
+	*p, err = NewPairFromString(pair)
+	return err
 }
 
 // MarshalJSON conforms type to the marshaler interface

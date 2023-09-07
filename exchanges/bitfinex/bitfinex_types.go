@@ -221,17 +221,6 @@ type Lends struct {
 	Timestamp  int64   `json:"timestamp"`
 }
 
-// SymbolDetails holds currency pair information
-type SymbolDetails struct {
-	Pair             string  `json:"pair"`
-	PricePrecision   int     `json:"price_precision"`
-	InitialMargin    float64 `json:"initial_margin,string"`
-	MinimumMargin    float64 `json:"minimum_margin,string"`
-	MaximumOrderSize float64 `json:"maximum_order_size,string"`
-	MinimumOrderSize float64 `json:"minimum_order_size,string"`
-	Expiration       string  `json:"expiration"`
-}
-
 // AccountInfoFull adds the error message to Account info
 type AccountInfoFull struct {
 	Info    []AccountInfo
@@ -486,12 +475,6 @@ type Fee struct {
 	MakerFees float64
 }
 
-// WebsocketChanInfo holds websocket channel information
-type WebsocketChanInfo struct {
-	Channel string
-	Pair    string
-}
-
 // WebsocketBook holds booking information
 type WebsocketBook struct {
 	ID     int64
@@ -630,6 +613,7 @@ const (
 	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
 	pong                                   = "pong"
 	wsHeartbeat                            = "hb"
+	wsChecksum                             = "cs"
 	wsPositionSnapshot                     = "ps"
 	wsPositionNew                          = "pn"
 	wsPositionUpdate                       = "pu"

@@ -1978,7 +1978,7 @@
    ]
   },
   {
-   "name": "OKCOIN International",
+   "name": "Okcoin",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
@@ -1998,8 +1998,7 @@
     },
     "useGlobalFormat": true,
     "assetTypes": [
-     "spot",
-     "margin"
+     "spot"
     ],
     "pairs": {
      "spot": {

@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -110,34 +111,52 @@ func (f fExchange) GetFuturesPositions(_ context.Context, req *order.PositionsRe
 	return resp, nil
 }
 
-func (f fExchange) GetFundingRates(_ context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+func (f fExchange) GetLatestFundingRate(_ context.Context, request *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
 	leet := decimal.NewFromInt(1337)
-	return []order.FundingRates{
-		{
-			Exchange:  f.GetName(),
-			Asset:     request.Asset,
-			Pair:      request.Pairs[0],
-			StartDate: request.StartDate,
-			EndDate:   request.EndDate,
-			LatestRate: order.FundingRate{
-				Time:    request.EndDate,
-				Rate:    leet,
-				Payment: leet,
-			},
-			PredictedUpcomingRate: order.FundingRate{
-				Time:    request.EndDate,
-				Rate:    leet,
-				Payment: leet,
-			},
-			FundingRates: []order.FundingRate{
-				{
-					Time:    request.EndDate,
-					Rate:    leet,
-					Payment: leet,
-				},
-			},
-			PaymentSum: leet,
+	return &fundingrate.LatestRateResponse{
+		Exchange: f.GetName(),
+		Asset:    request.Asset,
+		Pair:     request.Pair,
+		LatestRate: fundingrate.Rate{
+			Time:    time.Now(),
+			Rate:    leet,
+			Payment: leet,
 		},
+		PredictedUpcomingRate: fundingrate.Rate{
+			Time:    time.Now(),
+			Rate:    leet,
+			Payment: leet,
+		},
+		TimeOfNextRate: time.Now(),
+	}, nil
+}
+
+func (f fExchange) GetFundingRates(_ context.Context, request *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+	leet := decimal.NewFromInt(1337)
+	return &fundingrate.Rates{
+		Exchange:  f.GetName(),
+		Asset:     request.Asset,
+		Pair:      request.Pair,
+		StartDate: request.StartDate,
+		EndDate:   request.EndDate,
+		LatestRate: fundingrate.Rate{
+			Time:    request.EndDate,
+			Rate:    leet,
+			Payment: leet,
+		},
+		PredictedUpcomingRate: fundingrate.Rate{
+			Time:    request.EndDate,
+			Rate:    leet,
+			Payment: leet,
+		},
+		FundingRates: []fundingrate.Rate{
+			{
+				Time:    request.EndDate,
+				Rate:    leet,
+				Payment: leet,
+			},
+		},
+		PaymentSum: leet,
 	}, nil
 }
 
@@ -2977,7 +2996,7 @@ func TestGetFundingRates(t *testing.T) {
 	request := &gctrpc.GetFundingRatesRequest{
 		Exchange:         "",
 		Asset:            "",
-		Pairs:            nil,
+		Pair:             nil,
 		StartDate:        "",
 		EndDate:          "",
 		IncludePredicted: false,
@@ -3000,10 +3019,110 @@ func TestGetFundingRates(t *testing.T) {
 	}
 
 	request.Asset = asset.Futures.String()
-	request.Pairs = []string{cp.String()}
+	request.Pair = &gctrpc.CurrencyPair{
+		Delimiter: cp.Delimiter,
+		Base:      cp.Base.String(),
+		Quote:     cp.Quote.String(),
+	}
 	request.IncludePredicted = true
 	request.IncludePayments = true
 	_, err = s.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetLatestFundingRate(t *testing.T) {
+	t.Parallel()
+
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-perp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		RequestFormat: &currency.PairFormat{Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	om.started = 1
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started:          1,
+				iExchangeManager: em,
+			},
+			OrderManager: om,
+		},
+	}
+
+	_, err = s.GetLatestFundingRate(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	request := &gctrpc.GetLatestFundingRateRequest{
+		Exchange:         "",
+		Asset:            "",
+		Pair:             nil,
+		IncludePredicted: false,
+	}
+	_, err = s.GetLatestFundingRate(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+	request.Exchange = exch.GetName()
+	_, err = s.GetLatestFundingRate(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetLatestFundingRate(context.Background(), request)
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received: '%v' but expected: '%v'", err, order.ErrNotFuturesAsset)
+	}
+
+	request.Asset = asset.Futures.String()
+	request.Pair = &gctrpc.CurrencyPair{
+		Delimiter: cp.Delimiter,
+		Base:      cp.Base.String(),
+		Quote:     cp.Quote.String(),
+	}
+	request.IncludePredicted = true
+	_, err = s.GetLatestFundingRate(context.Background(), request)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -3342,7 +3461,10 @@ func TestGetOrderbookMovement(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = s.GetOrderbookMovement(context.Background(), req)
 	if err.Error() != "quote amount invalid" {
@@ -3452,7 +3574,10 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	nominal, err := s.GetOrderbookAmountByNominal(context.Background(), req)
 	if !errors.Is(err, nil) {
@@ -3555,7 +3680,10 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req.ImpactPercentage = 9.090909090909092
 	impact, err := s.GetOrderbookAmountByImpact(context.Background(), req)

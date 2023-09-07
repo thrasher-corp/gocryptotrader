@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -18,6 +20,9 @@ var (
 	ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
 	// ErrInvalidAction defines and error when an action is invalid
 	ErrInvalidAction = errors.New("invalid action")
+
+	errLastUpdatedNotSet = errors.New("last updated not set")
+	errInvalidBookDepth  = errors.New("invalid book depth")
 )
 
 // Outbound restricts outbound usage of depth. NOTE: Type assert to
@@ -73,8 +78,8 @@ func (d *Depth) Retrieve() (*Base, error) {
 		return nil, d.validationError
 	}
 	return &Base{
-		Bids:             d.bids.retrieve(),
-		Asks:             d.asks.retrieve(),
+		Bids:             d.bids.retrieve(0),
+		Asks:             d.asks.retrieve(0),
 		Exchange:         d.exchange,
 		Asset:            d.asset,
 		Pair:             d.pair,
@@ -83,20 +88,29 @@ func (d *Depth) Retrieve() (*Base, error) {
 		PriceDuplication: d.priceDuplication,
 		IsFundingRate:    d.isFundingRate,
 		VerifyOrderbook:  d.VerifyOrderbook,
+		MaxDepth:         d.maxDepth,
 	}, nil
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) {
+func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) error {
+	if lastUpdated.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
 	d.restSnapshot = updateByREST
-	d.bids.load(bids, d.stack)
-	d.asks.load(asks, d.stack)
+	d.bids.load(bids, d.stack, lastUpdated)
+	d.asks.load(asks, d.stack, lastUpdated)
 	d.validationError = nil
 	d.Alert()
 	d.m.Unlock()
+	return nil
 }
 
 // invalidate flushes all values back to zero so as to not allow strategy
@@ -104,14 +118,14 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
-	d.bids.load(nil, d.stack)
-	d.asks.load(nil, d.stack)
-	d.validationError = fmt.Errorf("%s %s %s %w Reason: [%v]",
+	tn := time.Now()
+	d.bids.load(nil, d.stack, tn)
+	d.asks.load(nil, d.stack, tn)
+	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]",
 		d.exchange,
 		d.pair,
 		d.asset,
-		ErrOrderbookInvalid,
-		withReason)
+		common.AppendError(ErrOrderbookInvalid, withReason))
 	d.Alert()
 	return d.validationError
 }
@@ -134,21 +148,35 @@ func (d *Depth) IsValid() bool {
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
-func (d *Depth) UpdateBidAskByPrice(update *Update) {
-	tn := getNow()
+func (d *Depth) UpdateBidAskByPrice(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	if len(update.Bids) != 0 {
-		d.bids.updateInsertByPrice(update.Bids, d.stack, update.MaxDepth, tn)
+		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, update.UpdateTime)
 	}
 	if len(update.Asks) != 0 {
-		d.asks.updateInsertByPrice(update.Asks, d.stack, update.MaxDepth, tn)
+		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, update.UpdateTime)
 	}
 	d.updateAndAlert(update)
 	d.m.Unlock()
+	return nil
 }
 
 // UpdateBidAskByID amends details by ID
 func (d *Depth) UpdateBidAskByID(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
@@ -169,16 +197,23 @@ func (d *Depth) UpdateBidAskByID(update *Update) error {
 
 // DeleteBidAskByID deletes a price level by ID
 func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
-		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr)
+		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr, update.UpdateTime)
 		if err != nil {
 			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
-		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr)
+		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr, update.UpdateTime)
 		if err != nil {
 			return d.invalidate(err)
 		}
@@ -189,6 +224,13 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 
 // InsertBidAskByID inserts new updates
 func (d *Depth) InsertBidAskByID(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
@@ -209,6 +251,13 @@ func (d *Depth) InsertBidAskByID(update *Update) error {
 
 // UpdateInsertByID updates or inserts by ID at current price level.
 func (d *Depth) UpdateInsertByID(update *Update) error {
+	if update.UpdateTime.IsZero() {
+		return fmt.Errorf("%s %s %s %w",
+			d.exchange,
+			d.pair,
+			d.asset,
+			errLastUpdatedNotSet)
+	}
 	d.m.Lock()
 	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
@@ -241,6 +290,7 @@ func (d *Depth) AssignOptions(b *Base) {
 		VerifyOrderbook:  b.VerifyOrderbook,
 		restSnapshot:     b.RestSnapshot,
 		idAligned:        b.IDAlignment,
+		maxDepth:         b.MaxDepth,
 	}
 	d.m.Unlock()
 }
@@ -708,4 +758,30 @@ func (d *Depth) GetImbalance() (float64, error) {
 		return 0, err
 	}
 	return (bidVolume - askVolume) / (bidVolume + askVolume), nil
+}
+
+// GetTranches returns the desired tranche for the required depth count. If
+// count is 0, it will return the entire orderbook. Count == 1 will retrieve the
+// best bid and ask. If the required count exceeds the orderbook depth, it will
+// return the entire orderbook.
+func (d *Depth) GetTranches(count int) (ask, bid []Item, err error) {
+	if count < 0 {
+		return nil, nil, errInvalidBookDepth
+	}
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, nil, d.validationError
+	}
+	return d.asks.retrieve(count), d.bids.retrieve(count), nil
+}
+
+// GetPair returns the pair associated with the depth
+func (d *Depth) GetPair() (currency.Pair, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.pair.IsEmpty() {
+		return currency.Pair{}, currency.ErrCurrencyPairEmpty
+	}
+	return d.pair, nil
 }

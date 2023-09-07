@@ -1,6 +1,6 @@
 {{define "exchanges okcoin" -}}
 {{template "header" .}}
-## OKCoin Exchange
+## Okcoin Exchange
 
 ### Current Features
 
@@ -31,8 +31,8 @@ main.go
 var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "OKCoin" {
-		y = bot.Exchanges[i]
+	if bot.Exchanges[i].GetName() == "Okcoin" {
+		o = bot.Exchanges[i]
 	}
 }
 

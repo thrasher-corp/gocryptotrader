@@ -947,10 +947,10 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	}
 
 	var sideType string
-	switch s.Side {
-	case order.Buy:
+	switch {
+	case s.Side.IsLong():
 		sideType = sideBuy
-	case order.Sell:
+	case s.Side.IsShort():
 		sideType = sideSell
 	default:
 		return nil, errInvalidSide
@@ -2126,7 +2126,8 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			var pair currency.Pair
 			pair, err = avail.DeriveFrom(pairsData[x].Name)
 			if err != nil {
-				return err
+				log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, pairsData[x].Name)
+				continue
 			}
 
 			limits = append(limits, order.MinMaxLevel{

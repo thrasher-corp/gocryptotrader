@@ -220,7 +220,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
-			err := m.syncer.Update(exchName,
+			err := m.syncer.WebsocketUpdate(exchName,
 				d.Pair,
 				d.AssetType,
 				SyncItemTicker,
@@ -237,7 +237,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 	case []ticker.Price:
 		for x := range d {
 			if m.syncer.IsRunning() {
-				err := m.syncer.Update(exchName,
+				err := m.syncer.WebsocketUpdate(exchName,
 					d[x].Pair,
 					d[x].AssetType,
 					SyncItemTicker,
@@ -276,7 +276,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			return err
 		}
 		if m.syncer.IsRunning() {
-			err := m.syncer.Update(exchName,
+			err := m.syncer.WebsocketUpdate(exchName,
 				base.Pair,
 				base.Asset,
 				SyncItemOrderbook,
@@ -307,7 +307,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			if err != nil {
 				return err
 			}
-			m.printOrderSummary(d, true)
+			m.printOrderSummary(od, true)
 		}
 	case []order.Detail:
 		for x := range d {
@@ -330,7 +330,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				if err != nil {
 					return err
 				}
-				m.printOrderSummary(&d[x], true)
+				m.printOrderSummary(od, true)
 			}
 		}
 	case order.ClassificationError:

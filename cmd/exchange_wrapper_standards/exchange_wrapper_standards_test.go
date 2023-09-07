@@ -33,6 +33,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// singleExchangeOverride enter an exchange name to only test that exchange
+var singleExchangeOverride = ""
+
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
@@ -46,6 +49,9 @@ func TestAllExchangeWrappers(t *testing.T) {
 			t.Parallel()
 			if common.StringDataContains(unsupportedExchangeNames, name) {
 				t.Skipf("skipping unsupported exchange %v", name)
+			}
+			if singleExchangeOverride != "" && name != singleExchangeOverride {
+				t.Skip("skipping ", name, " due to override")
 			}
 			ctx := context.Background()
 			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
@@ -158,7 +164,6 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
-
 	for x := 0; x < iExchange.NumMethod(); x++ {
 		methodName := iExchange.Method(x).Name
 		if _, ok := excludedMethodNames[methodName]; ok {
@@ -472,51 +477,53 @@ type assetPair struct {
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
 var excludedMethodNames = map[string]struct{}{
-	"Setup":                            {}, // Is run via test setup
-	"Start":                            {}, // Is run via test setup
-	"SetDefaults":                      {}, // Is run via test setup
-	"UpdateTradablePairs":              {}, // Is run via test setup
-	"GetDefaultConfig":                 {}, // Is run via test setup
-	"FetchTradablePairs":               {}, // Is run via test setup
-	"GetCollateralCurrencyForContract": {}, // Not widely supported/implemented futures endpoint
-	"GetCurrencyForRealisedPNL":        {}, // Not widely supported/implemented futures endpoint
-	"GetFuturesPositions":              {}, // Not widely supported/implemented futures endpoint
-	"GetFundingRates":                  {}, // Not widely supported/implemented futures endpoint
-	"IsPerpetualFutureCurrency":        {}, // Not widely supported/implemented futures endpoint
-	"GetMarginRatesHistory":            {}, // Not widely supported/implemented futures endpoint
-	"CalculatePNL":                     {}, // Not widely supported/implemented futures endpoint
-	"CalculateTotalCollateral":         {}, // Not widely supported/implemented futures endpoint
-	"ScaleCollateral":                  {}, // Not widely supported/implemented futures endpoint
-	"GetPositionSummary":               {}, // Not widely supported/implemented futures endpoint
-	"AuthenticateWebsocket":            {}, // Unnecessary websocket test
-	"FlushWebsocketChannels":           {}, // Unnecessary websocket test
-	"UnsubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
-	"SubscribeToWebsocketChannels":     {}, // Unnecessary websocket test
-	"GetOrderExecutionLimits":          {}, // Not widely supported/implemented feature
-	"UpdateCurrencyStates":             {}, // Not widely supported/implemented feature
-	"CheckOrderExecutionLimits":        {}, // Not widely supported/implemented feature
-	"UpdateOrderExecutionLimits":       {}, // Not widely supported/implemented feature
-	"CanTradePair":                     {}, // Not widely supported/implemented feature
-	"CanTrade":                         {}, // Not widely supported/implemented feature
-	"CanWithdraw":                      {}, // Not widely supported/implemented feature
-	"CanDeposit":                       {}, // Not widely supported/implemented feature
-	"GetCurrencyStateSnapshot":         {}, // Not widely supported/implemented feature
-	"SetHTTPClientUserAgent":           {}, // standard base implementation
-	"SetClientProxyAddress":            {}, // standard base implementation
+	"Setup":                          {}, // Is run via test setup
+	"Start":                          {}, // Is run via test setup
+	"SetDefaults":                    {}, // Is run via test setup
+	"UpdateTradablePairs":            {}, // Is run via test setup
+	"GetDefaultConfig":               {}, // Is run via test setup
+	"FetchTradablePairs":             {}, // Is run via test setup
+	"AuthenticateWebsocket":          {}, // Unnecessary websocket test
+	"FlushWebsocketChannels":         {}, // Unnecessary websocket test
+	"UnsubscribeToWebsocketChannels": {}, // Unnecessary websocket test
+	"SubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
+	"GetOrderExecutionLimits":        {}, // Not widely supported/implemented feature
+	"UpdateCurrencyStates":           {}, // Not widely supported/implemented feature
+	"UpdateOrderExecutionLimits":     {}, // Not widely supported/implemented feature
+	"CheckOrderExecutionLimits":      {}, // Not widely supported/implemented feature
+	"CanTradePair":                   {}, // Not widely supported/implemented feature
+	"CanTrade":                       {}, // Not widely supported/implemented feature
+	"CanWithdraw":                    {}, // Not widely supported/implemented feature
+	"CanDeposit":                     {}, // Not widely supported/implemented feature
+	"GetCurrencyStateSnapshot":       {}, // Not widely supported/implemented feature
+	"SetHTTPClientUserAgent":         {}, // standard base implementation
+	"SetClientProxyAddress":          {}, // standard base implementation
+	// Not widely supported/implemented futures endpoints
+	"GetCollateralCurrencyForContract": {},
+	"GetCurrencyForRealisedPNL":        {},
+	"GetFuturesPositions":              {},
+	"GetFundingRates":                  {},
+	"IsPerpetualFutureCurrency":        {},
+	"GetMarginRatesHistory":            {},
+	"CalculatePNL":                     {},
+	"CalculateTotalCollateral":         {},
+	"ScaleCollateral":                  {},
+	"GetPositionSummary":               {},
+	"GetLatestFundingRate":             {},
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
 var blockedCIExchanges = []string{
 	"binance", // binance API is banned from executing within the US where github Actions is ran
+	"bybit",   // bybit API is banned from executing within the US where github Actions is ran
 }
 
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"alphapoint",
-	"bitflyer",             // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"bittrex",              // the api is about to expire in March, and we haven't updated it yet
-	"itbit",                // itbit has no way of retrieving pair data
-	"okcoin international", // TODO add support for v5 and remove this entry
+	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
+	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
+	"itbit",    // itbit has no way of retrieving pair data
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
@@ -552,10 +559,22 @@ var warningErrors = []error{
 // likelihood of returning data from API endpoints
 func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 	t.Helper()
+	pFmt, err := p.GetFormatting()
+	if err != nil {
+		return currency.Pair{}, err
+	}
+	goodEth := currency.NewPair(currency.ETH, currency.USDT).Format(pFmt)
+	if p.Contains(goodEth, true) {
+		return goodEth, nil
+	}
 	for i := range p {
 		if p[i].Base.Equal(currency.ETH) {
 			return p[i], nil
 		}
+	}
+	goodBtc := currency.NewPair(currency.BTC, currency.USDT).Format(pFmt)
+	if p.Contains(goodBtc, true) {
+		return goodBtc, nil
 	}
 	for i := range p {
 		if p[i].Base.Equal(currency.BTC) {
