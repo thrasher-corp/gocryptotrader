@@ -1078,8 +1078,8 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 			remainingAmount = orderAmount - response.Data[x].AccumulatedFillSize.Float64()
 		}
 		ok.Websocket.DataHandler <- &order.Detail{
-			Price:                response.Data[x].Price,
-			Amount:               orderAmount,
+			Price:                response.Data[x].Price.Float64(),
+			Amount:               response.Data[x].Size.Float64(),
 			QuoteAmount:          quoteAmount,
 			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
 			RemainingAmount:      remainingAmount,

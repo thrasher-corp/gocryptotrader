@@ -717,42 +717,42 @@ type OrderHistoryRequestParams struct {
 
 // PendingOrderItem represents a pending order Item in pending orders list.
 type PendingOrderItem struct {
-	AccumulatedFillSize        okxNumericalValue `json:"accFillSz"`
-	AveragePrice               okxNumericalValue `json:"avgPx"`
-	CreationTime               time.Time         `json:"cTime"`
-	Category                   string            `json:"category"`
-	Currency                   string            `json:"ccy"`
-	ClientOrderID              string            `json:"clOrdId"`
-	TransactionFee             string            `json:"fee"`
-	FeeCurrency                string            `json:"feeCcy"`
-	LastFilledPrice            string            `json:"fillPx"`
-	LastFilledSize             okxNumericalValue `json:"fillSz"`
-	FillTime                   string            `json:"fillTime"`
-	InstrumentID               string            `json:"instId"`
-	InstrumentType             string            `json:"instType"`
-	Leverage                   okxNumericalValue `json:"lever"`
-	OrderID                    string            `json:"ordId"`
-	OrderType                  string            `json:"ordType"`
-	ProfitAndLose              string            `json:"pnl"`
-	PositionSide               string            `json:"posSide"`
-	RebateAmount               string            `json:"rebate"`
-	RebateCurrency             string            `json:"rebateCcy"`
-	Side                       order.Side        `json:"side"`
-	StopLossOrdPrice           string            `json:"slOrdPx"`
-	StopLossTriggerPrice       string            `json:"slTriggerPx"`
-	StopLossTriggerPriceType   string            `json:"slTriggerPxType"`
-	State                      string            `json:"state"`
-	Price                      float64           `json:"px,string"`
-	Size                       float64           `json:"sz,string"`
-	Tag                        string            `json:"tag"`
-	QuantityType               string            `json:"tgtCcy"`
-	TradeMode                  string            `json:"tdMode"`
-	Source                     string            `json:"source"`
-	TakeProfitOrdPrice         string            `json:"tpOrdPx"`
-	TakeProfitTriggerPrice     string            `json:"tpTriggerPx"`
-	TakeProfitTriggerPriceType string            `json:"tpTriggerPxType"`
-	TradeID                    string            `json:"tradeId"`
-	UpdateTime                 time.Time         `json:"uTime"`
+	AccumulatedFillSize        convert.StringToFloat64 `json:"accFillSz"`
+	AveragePrice               convert.StringToFloat64 `json:"avgPx"`
+	CreationTime               time.Time               `json:"cTime"`
+	Category                   string                  `json:"category"`
+	Currency                   string                  `json:"ccy"`
+	ClientOrderID              string                  `json:"clOrdId"`
+	TransactionFee             string                  `json:"fee"`
+	FeeCurrency                string                  `json:"feeCcy"`
+	LastFilledPrice            string                  `json:"fillPx"`
+	LastFilledSize             convert.StringToFloat64 `json:"fillSz"`
+	FillTime                   string                  `json:"fillTime"`
+	InstrumentID               string                  `json:"instId"`
+	InstrumentType             string                  `json:"instType"`
+	Leverage                   convert.StringToFloat64 `json:"lever"`
+	OrderID                    string                  `json:"ordId"`
+	OrderType                  string                  `json:"ordType"`
+	ProfitAndLose              string                  `json:"pnl"`
+	PositionSide               string                  `json:"posSide"`
+	RebateAmount               string                  `json:"rebate"`
+	RebateCurrency             string                  `json:"rebateCcy"`
+	Side                       order.Side              `json:"side"`
+	StopLossOrdPrice           string                  `json:"slOrdPx"`
+	StopLossTriggerPrice       string                  `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string                  `json:"slTriggerPxType"`
+	State                      string                  `json:"state"`
+	Price                      convert.StringToFloat64 `json:"px"`
+	Size                       convert.StringToFloat64 `json:"sz"`
+	Tag                        string                  `json:"tag"`
+	QuantityType               string                  `json:"tgtCcy"`
+	TradeMode                  string                  `json:"tdMode"`
+	Source                     string                  `json:"source"`
+	TakeProfitOrdPrice         string                  `json:"tpOrdPx"`
+	TakeProfitTriggerPrice     string                  `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string                  `json:"tpTriggerPxType"`
+	TradeID                    string                  `json:"tradeId"`
+	UpdateTime                 time.Time               `json:"uTime"`
 }
 
 // TransactionDetailRequestParams retrieve recently-filled transaction details in the last 3 day.
@@ -2500,16 +2500,16 @@ type WsBalanceAndPosition struct {
 // WsOrder represents a websocket order.
 type WsOrder struct {
 	PendingOrderItem
-	AmendResult     string  `json:"amendResult"`
-	Code            string  `json:"code"`
-	ExecType        string  `json:"execType"`
-	FillFee         string  `json:"fillFee"`
-	FillFeeCurrency string  `json:"fillFeeCcy"`
-	FillNationalUsd float64 `json:"fillNationalUsd,string"`
-	Msg             string  `json:"msg"`
-	NationalUSD     string  `json:"nationalUsd"`
-	ReduceOnly      bool    `json:"reduceOnly"`
-	RequestID       string  `json:"reqId"`
+	AmendResult     string                  `json:"amendResult"`
+	Code            string                  `json:"code"`
+	ExecType        string                  `json:"execType"`
+	FillFee         string                  `json:"fillFee"`
+	FillFeeCurrency string                  `json:"fillFeeCcy"`
+	FillNotionalUsd convert.StringToFloat64 `json:"fillNotionalUsd"`
+	Msg             string                  `json:"msg"`
+	NotionalUSD     convert.StringToFloat64 `json:"notionalUsd"`
+	ReduceOnly      bool                    `json:"reduceOnly"`
+	RequestID       string                  `json:"reqId"`
 }
 
 // WsOrderResponse holds order list push data through the websocket connection
