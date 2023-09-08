@@ -660,7 +660,8 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	assert.Nil(t, err, "Derive Detail should not error")
 
 	d.ClientOrderID = "SecretSquirrelSauce"
-	assert.Nil(t, m.orderStore.add(d), "Adding an order should not error")
+	err = m.orderStore.add(d)
+	assert.Nil(t, err, "Adding an order should not error")
 
 	resp, err := m.SubmitFakeOrder(submitReq, submitResp, false)
 
