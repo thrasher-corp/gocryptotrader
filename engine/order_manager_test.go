@@ -3,8 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -30,16 +28,7 @@ type omfExchange struct {
 	exchange.IBotExchange
 }
 
-var btcusdPair currency.Pair
-
-func TestMain(m *testing.M) {
-	var err error
-	btcusdPair, err = currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		log.Fatal(err)
-	}
-	os.Exit(m.Run())
-}
+var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
 
 // CancelOrder overrides testExchange's cancel order function
 // to do the bare minimum required with no API calls or credentials required

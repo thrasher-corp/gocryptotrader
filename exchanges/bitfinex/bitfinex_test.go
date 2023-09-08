@@ -35,7 +35,7 @@ const (
 
 var b = &Bitfinex{}
 var wsAuthExecuted bool
-var btcusdPair currency.Pair
+var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -64,11 +64,6 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = true
 	}
 	b.WebsocketSubdChannels = make(map[int]*stream.ChannelSubscription)
-
-	btcusdPair, err = currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	os.Exit(m.Run())
 }
