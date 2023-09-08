@@ -1683,3 +1683,24 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }
+
+// TestGetByDetail tests orderstore.getByDetail
+func TestGetByDetail(t *testing.T) {
+	t.Parallel()
+	m := OrdersSetup(t)
+	assert.Nil(t, m.orderStore.getByDetail(nil), "Fetching a nil order should return nil")
+	od := &order.Detail{
+		Exchange:      testExchange,
+		AssetType:     asset.Spot,
+		OrderID:       "AdmiralHarold",
+		ClientOrderID: "DuskyLeafMonkey",
+	}
+	concise := &order.Detail{
+		Exchange: od.Exchange,
+		OrderID:  od.OrderID,
+	}
+	assert.Nil(t, m.orderStore.getByDetail(od), "Fetching a non-stored order should return nil")
+	assert.Nil(t, m.orderStore.add(od), "Adding the details should not error")
+	assert.Same(t, m.orderStore.getByDetail(od), od, "Retrieve by full details should return the same pointer")
+	assert.Same(t, m.orderStore.getByDetail(concise), od, "Retrieve by other details should return the original pointer")
+}
