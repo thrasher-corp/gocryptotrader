@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -277,7 +276,6 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 		if strings.EqualFold(resp[x].State, "PAUSE") {
 			continue
 		}
-
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(resp[x].Symbol)
 		if err != nil {
@@ -808,70 +806,16 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
-	/*depositAddrs*/ _, err := p.GetDepositAddresses(ctx, cryptocurrency)
+	depositAddrs, err := p.GetDepositAddresses(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
-
-	// Some coins use a main address, so we must use this in conjunction with the returned
-	// deposit address to produce the full deposit address and tag
-	// currencies, err := p.GetCurrencies(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// coinParams, ok := currencies[cryptocurrency.Upper().String()]
-	// if !ok {
-	// 	return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
-	// }
-
-	// // Handle coins with payment ID's like XRP
-	// var address, tag string
-	// if coinParams.CurrencyType == "address-payment-id" && coinParams.DepositAddress != "" {
-	// 	address = coinParams.DepositAddress
-	// 	tag, ok = depositAddrs[cryptocurrency.Upper().String()]
-	// 	if !ok {
-	// 		newAddr, err := p.GenerateNewAddress(ctx, cryptocurrency.Upper().String())
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		tag = newAddr
-	// 	}
-	// 	return &deposit.Address{
-	// 		Address: address,
-	// 		Tag:     tag,
-	// 	}, nil
-	// }
-	// // Handle coins like BTC or multichain coins
-	// targetCurrency := cryptocurrency.String()
-	// if chain != "" && !strings.EqualFold(chain, cryptocurrency.String()) {
-	// 	targetCurrency = chain
-	// }
-	// address, ok = depositAddrs[strings.ToUpper(targetCurrency)]
-	// if !ok {
-	// 	if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, targetCurrency) {
-	// 		// rather than assume, return an error
-	// 		return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
-	// 			cryptocurrency,
-	// 			coinParams.ChildChains)
-	// 	}
-	// }
-
-	// 	coinParams, ok = currencies[strings.ToUpper(targetCurrency)]
-	// 	if !ok {
-	// 		return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
-	// 	}
-	// 	if coinParams.WithdrawalDepositDisabled == 1 {
-	// 		return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", targetCurrency)
-	// 	}
-
-	// 	newAddr, err := p.GenerateNewAddress(ctx, targetCurrency)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	address = newAddr
-	// }
-	return &deposit.Address{Address: "" /*address*/}, nil
+	return &deposit.Address{
+		Address: (*depositAddrs)[cryptocurrency.String()],
+		// Tag:
+		// Chain:
+	}, nil
+	// return &deposit.Address{Address: address}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -885,7 +829,8 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		Status: strconv.FormatInt(v.WithdrawRequestID, 10),
+		Name: p.Name,
+		ID:   strconv.FormatInt(v.WithdrawRequestID, 10),
 	}, err
 }
 
@@ -919,53 +864,65 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	if err != nil {
 		return nil, err
 	}
+	var samplePair currency.Pair
+	if len(req.Pairs) == 1 {
+		samplePair = req.Pairs[0]
+	}
+	resp, err := p.GetOpenOrders(ctx, samplePair, orderSideString(req.Side), "", req.FromOrderID, 0)
+	if err != nil {
+		return nil, err
+	}
+	var orders []order.Detail
+	for a := range resp {
+		var symbol currency.Pair
+		symbol, err = currency.NewPairFromString(resp[a].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		if len(req.Pairs) != 0 && req.Pairs.Contains(symbol, true) {
+			continue
+		}
+		var orderSide order.Side
+		orderSide, err = order.StringToOrderSide(resp[a].Side)
+		if err != nil {
+			return nil, err
+		}
+		oType, err := order.StringToOrderType(resp[a].Type)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, order.Detail{
+			Type:     oType,
+			OrderID:  resp[a].ID,
+			Side:     orderSide,
+			Amount:   resp[a].Amount.Float64(),
+			Date:     resp[a].CreateTime.Time(),
+			Price:    resp[a].Price.Float64(),
+			Pair:     symbol,
+			Exchange: p.Name,
+		})
+	}
+	return req.Filter(p.Name, orders), nil
+}
 
-	// resp, err := p.GetOpenOrdersForAllCurrencies(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
+func accountTypeString(assetType asset.Item) string {
+	switch assetType {
+	case asset.Spot:
+		return "SPOT"
+	case asset.Futures:
+		return "FUTURE"
+	default:
+		return ""
+	}
+}
 
-	// format, err := p.GetPairFormat(asset.Spot, false)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// var orders []order.Detail
-	// for key := range resp.Data {
-	// 	var symbol currency.Pair
-	// 	symbol, err = currency.NewPairDelimiter(key, format.Delimiter)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	for i := range resp.Data[key] {
-	// 		var orderSide order.Side
-	// 		orderSide, err = order.StringToOrderSide(resp.Data[key][i].Type)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		var orderDate time.Time
-	// 		orderDate, err = time.Parse(time.DateTime, resp.Data[key][i].Date)
-	// 		if err != nil {
-	// 			log.Errorf(log.ExchangeSys,
-	// 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-	// 				p.Name,
-	// 				"GetActiveOrders",
-	// 				resp.Data[key][i].OrderNumber,
-	// 				resp.Data[key][i].Date)
-	// 		}
-
-	// 		orders = append(orders, order.Detail{
-	// 			OrderID:  strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
-	// 			Side:     orderSide,
-	// 			Amount:   resp.Data[key][i].Amount,
-	// 			Date:     orderDate,
-	// 			Price:    resp.Data[key][i].Rate,
-	// 			Pair:     symbol,
-	// 			Exchange: p.Name,
-	// 		})
-	// 	}
-	// }
-	return req.Filter(p.Name, nil /*orders*/), nil
+func orderSideString(oSide order.Side) string {
+	switch oSide {
+	case order.Buy, order.Sell:
+		return oSide.String()
+	default:
+		return ""
+	}
 }
 
 // GetOrderHistory retrieves account order information
@@ -975,61 +932,57 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if err != nil {
 		return nil, err
 	}
+	resp, err := p.GetOrdersHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType), orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
+	if err != nil {
+		return nil, err
+	}
 
-	// resp, err := p.GetOrdersHistory(ctx,
-	// 	req.StartTime.Unix(),
-	// 	req.EndTime.Unix(),
-	// 	10000)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	var orders []order.Detail
+	for i := range resp {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(resp[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
+			continue
+		}
+		orderSide, err := order.StringToOrderSide(resp[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		orderType, err := order.StringToOrderType(resp[i].Type)
+		if err != nil {
+			return nil, err
+		}
 
-	// format, err := p.GetPairFormat(asset.Spot, false)
-	// if err != nil {
-	// 	return nil, err
-	// }
+		assetType, err := asset.New(resp[i].AccountType)
+		if err != nil {
+			return nil, err
+		}
 
-	// var orders []order.Detail
-	// for key := range resp.Data {
-	// 	var pair currency.Pair
-	// 	pair, err = currency.NewPairDelimiter(key, format.Delimiter)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	for i := range resp.Data[key] {
-	// 		orderSide, err := order.StringToOrderSide(resp.Data[key][i].Type)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		orderDate, err := time.Parse(time.DateTime,
-	// 			resp.Data[key][i].Date)
-	// 		if err != nil {
-	// 			log.Errorf(log.ExchangeSys,
-	// 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-	// 				p.Name,
-	// 				"GetActiveOrders",
-	// 				resp.Data[key][i].OrderNumber,
-	// 				resp.Data[key][i].Date)
-	// 		}
-
-	// 		detail := order.Detail{
-	// 			OrderID:              resp.Data[key][i].GlobalTradeID,
-	// 			Side:                 orderSide,
-	// 			Amount:               resp.Data[key][i].Amount,
-	// 			ExecutedAmount:       resp.Data[key][i].Amount,
-	// 			Date:                 orderDate,
-	// 			Price:                resp.Data[key][i].Rate,
-	// 			AverageExecutedPrice: resp.Data[key][i].Rate,
-	// 			Pair:                 pair,
-	// 			Status:               order.Filled,
-	// 			Exchange:             p.Name,
-	// 		}
-	// 		detail.InferCostsAndTimes()
-	// 		orders = append(orders, detail)
-	// 	}
-	// }
-	return req.Filter(p.Name, nil /*orders*/), nil
+		detail := order.Detail{
+			Side:                 orderSide,
+			Amount:               resp[i].Amount.Float64(),
+			ExecutedAmount:       resp[i].FilledAmount.Float64(),
+			Price:                resp[i].Price.Float64(),
+			AverageExecutedPrice: resp[i].AvgPrice.Float64(),
+			Pair:                 pair,
+			Type:                 orderType,
+			Exchange:             p.Name,
+			QuoteAmount:          resp[i].Amount.Float64() * resp[i].AvgPrice.Float64(),
+			RemainingAmount:      resp[i].Quantity.Float64() - resp[i].FilledQuantity.Float64(),
+			OrderID:              resp[i].ID,
+			ClientOrderID:        resp[i].ClientOrderID,
+			Status:               order.Filled,
+			AssetType:            assetType,
+			Date:                 resp[i].CreateTime.Time(),
+			LastUpdated:          resp[i].UpdateTime.Time(),
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
+	}
+	return req.Filter(p.Name, orders), nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
@@ -1045,18 +998,10 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-
-	resp, err := p.GetCandlesticks(ctx,
-		req.RequestFormatted,
-		req.ExchangeInterval,
-		req.Start,
-		req.End,
-		req.RequestLimit,
-	)
+	resp, err := p.GetCandlesticks(ctx, req.RequestFormatted, req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
 	if err != nil {
 		return nil, err
 	}
-
 	timeSeries := make([]kline.Candle, len(resp))
 	for x := range resp {
 		timeSeries[x] = kline.Candle{
@@ -1108,20 +1053,28 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
 func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	currencies, err := p.GetCurrencyInformation(ctx, cryptocurrency)
+	if cryptocurrency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	currencies, err := p.GetCurrencyInformations(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	curr, ok := currencies[cryptocurrency.Upper().String()]
-	if !ok {
-		return nil, errors.New("unable to locate currency in map")
+	for a := range currencies {
+		curr, ok := currencies[a][cryptocurrency.Upper().String()]
+		if !ok {
+			continue
+		}
+		return curr.ChildChains, nil
 	}
-
-	return curr.ChildChains, nil
+	return nil, fmt.Errorf("%w for currency %v", errChainsNotFound, cryptocurrency)
 }
 
 // GetServerTime returns the current exchange server time.
 func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	return p.GetSystemTimestamp(ctx)
+	sysServerTime, err := p.GetSystemTimestamp(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return sysServerTime.ServerTime.Time(), nil
 }

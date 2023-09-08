@@ -673,7 +673,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.20165715"
+        "withdrawalFee": "0.20017846"
        }
       },
       {
@@ -743,7 +743,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "277.20870198"
+        "withdrawalFee": "207.85273826"
        }
       },
       {
@@ -906,7 +906,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1333.24185429"
+        "withdrawalFee": "1071.43137857"
        }
       },
       {
@@ -925,7 +925,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "23.59123605"
+        "withdrawalFee": "23.68427258"
        }
       },
       {
@@ -944,7 +944,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.75855181"
+        "withdrawalFee": "5.06377920"
        }
       },
       {
@@ -982,7 +982,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.95144184"
+        "withdrawalFee": "0.93054102"
        }
       },
       {
@@ -1003,6 +1003,25 @@
        }
       },
       {
+       "AITECH": {
+        "blockchain": "BSC",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1070,
+        "minConf": 15,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
+        "withdrawalFee": "1000.00000000"
+       }
+      },
+      {
        "AKITA": {
         "blockchain": "ETH",
         "delisted": false,
@@ -1018,7 +1037,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "31108976.55555556"
+        "withdrawalFee": "33750088.37500000"
        }
       },
       {
@@ -1037,7 +1056,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "302.13754245"
+        "withdrawalFee": "308.90173213"
        }
       },
       {
@@ -1056,7 +1075,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "266.80082847"
+        "withdrawalFee": "329.42985286"
        }
       },
       {
@@ -1075,7 +1094,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.67428857"
+        "withdrawalFee": "3.39623531"
        }
       },
       {
@@ -1113,7 +1132,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "33.77331592"
+        "withdrawalFee": "32.14294131"
        }
       },
       {
@@ -1170,7 +1189,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3828.79712308"
+        "withdrawalFee": "3991.14127494"
        }
       },
       {
@@ -1189,7 +1208,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.00473052"
+        "withdrawalFee": "3.31126695"
        }
       },
       {
@@ -1242,7 +1261,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.04591807"
+        "withdrawalFee": "2.26986723"
        }
       },
       {
@@ -1449,7 +1468,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "16.60621524"
+        "withdrawalFee": "18.85479797"
        }
       },
       {
@@ -1485,7 +1504,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.56475904"
+        "withdrawalFee": "0.64239829"
        }
       },
       {
@@ -1523,7 +1542,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.44654033"
+        "withdrawalFee": "0.99338009"
        }
       },
       {
@@ -1559,7 +1578,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.58087301"
+        "withdrawalFee": "0.59602805"
        }
       },
       {
@@ -1633,7 +1652,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "51848294.33333333"
+        "withdrawalFee": "56250147.37500000"
        }
       },
       {
@@ -1652,7 +1671,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.65319402"
+        "withdrawalFee": "3.51197590"
        }
       },
       {
@@ -1671,7 +1690,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.85333980"
+        "withdrawalFee": "0.73629863"
        }
       },
       {
@@ -1707,7 +1726,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "466634649.00000000"
+        "withdrawalFee": "531393060.00000000"
        }
       },
       {
@@ -1726,7 +1745,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.76530169"
+        "withdrawalFee": "5.49039448"
        }
       },
       {
@@ -1798,7 +1817,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "15.99890223"
+        "withdrawalFee": "16.34386846"
        }
       },
       {
@@ -1918,9 +1937,9 @@
         "supportCollateral": false,
         "tradingState": "NORMAL",
         "type": "address",
-        "walletDepositState": "DISABLED",
-        "walletState": "DISABLED",
-        "walletWithdrawalState": "DISABLED",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
         "withdrawalFee": "0.00100000"
        }
       },
@@ -2025,7 +2044,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "108881418.00000000"
+        "withdrawalFee": "105000275.00000000"
        }
       },
       {
@@ -2044,7 +2063,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2356.74065152"
+        "withdrawalFee": "5844.17115584"
        }
       },
       {
@@ -2082,7 +2101,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "31108976.60000000"
+        "withdrawalFee": "34615475.30769231"
        }
       },
       {
@@ -2120,7 +2139,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "22.01106835"
+        "withdrawalFee": "21.22647071"
        }
       },
       {
@@ -2156,7 +2175,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "667574.60515021"
+        "withdrawalFee": "731709.23414634"
        }
       },
       {
@@ -2175,7 +2194,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "8332761.58928571"
+        "withdrawalFee": "10975638.51219512"
        }
       },
       {
@@ -2351,7 +2370,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "23.84438677"
+        "withdrawalFee": "22.78486982"
        }
       },
       {
@@ -2370,7 +2389,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "771.72213065"
+        "withdrawalFee": "308.39601028"
        }
       },
       {
@@ -2444,7 +2463,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "6.72061423"
+        "withdrawalFee": "6.33655731"
        }
       },
       {
@@ -2482,7 +2501,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1350784.51052632"
+        "withdrawalFee": "1316492.81117021"
        }
       },
       {
@@ -2501,7 +2520,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "27.63877483"
+        "withdrawalFee": "22.68913504"
        }
       },
       {
@@ -2539,7 +2558,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.39990395"
+        "withdrawalFee": "1.14893918"
        }
       },
       {
@@ -2558,7 +2577,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.89439678"
+        "withdrawalFee": "4.05406468"
        }
       },
       {
@@ -2649,7 +2668,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "146740.45566038"
+        "withdrawalFee": "216346.72067308"
        }
       },
       {
@@ -2759,7 +2778,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "72.34645721"
+        "withdrawalFee": "91.64993462"
        }
       },
       {
@@ -2846,7 +2865,26 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1505.27306129"
+        "withdrawalFee": "1153.84917692"
+       }
+      },
+      {
+       "BTP": {
+        "blockchain": "BSC",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1068,
+        "minConf": 15,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
+        "withdrawalFee": "2.00000000"
        }
       },
       {
@@ -2882,7 +2920,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "10.48617187"
+        "withdrawalFee": "8.97012316"
        }
       },
       {
@@ -3153,7 +3191,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "790906.18474576"
+        "withdrawalFee": "1071431.37857143"
        }
       },
       {
@@ -3191,7 +3229,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "77772441.50000000"
+        "withdrawalFee": "64285882.71428571"
        }
       },
       {
@@ -3244,7 +3282,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "71.90056225"
+        "withdrawalFee": "140.62536844"
        }
       },
       {
@@ -3263,26 +3301,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "37.42058132"
-       }
-      },
-      {
-       "CETUS": {
-        "blockchain": "SUI",
-        "delisted": false,
-        "depositAddress": null,
-        "description": "Sweep to Main Account",
-        "id": 954,
-        "minConf": 10,
-        "name": "",
-        "supportBorrow": false,
-        "supportCollateral": false,
-        "tradingState": "OFFLINE",
-        "type": "address",
-        "walletDepositState": "ENABLED",
-        "walletState": "ENABLED",
-        "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4.00000000"
+        "withdrawalFee": "30.71680403"
        }
       },
       {
@@ -3354,7 +3373,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4761578.05102041"
+        "withdrawalFee": "4545466.45454545"
        }
       },
       {
@@ -3373,7 +3392,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "31.42320864"
+        "withdrawalFee": "30.89252941"
        }
       },
       {
@@ -3392,7 +3411,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "45.02746687"
+        "withdrawalFee": "45.43171917"
        }
       },
       {
@@ -3481,7 +3500,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5444070.90000000"
+        "withdrawalFee": "5526330.26315789"
        }
       },
       {
@@ -3500,7 +3519,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "90.60866958"
+        "withdrawalFee": "85.71451016"
        }
       },
       {
@@ -3625,7 +3644,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.10956437"
+        "withdrawalFee": "0.11467920"
        }
       },
       {
@@ -3678,7 +3697,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "21703.93713178"
+        "withdrawalFee": "28125.07364583"
        }
       },
       {
@@ -3803,7 +3822,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.19444878"
+        "withdrawalFee": "5.68302898"
        }
       },
       {
@@ -3839,7 +3858,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "29.42210902"
+        "withdrawalFee": "30.36445202"
        }
       },
       {
@@ -3858,7 +3877,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "24.07401453"
+        "withdrawalFee": "20.96278781"
        }
       },
       {
@@ -3877,7 +3896,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "727.03398857"
+        "withdrawalFee": "873.50600776"
        }
       },
       {
@@ -3896,7 +3915,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3733077.19111111"
+        "withdrawalFee": "3951229.86341463"
        }
       },
       {
@@ -3932,7 +3951,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "627.35772279"
+        "withdrawalFee": "604.99518246"
        }
       },
       {
@@ -3951,7 +3970,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "39.37845134"
+        "withdrawalFee": "40.78560529"
        }
       },
       {
@@ -3970,7 +3989,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "17.94748650"
+        "withdrawalFee": "17.30773765"
        }
       },
       {
@@ -3989,7 +4008,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.01076097"
+        "withdrawalFee": "1.07913952"
        }
       },
       {
@@ -4025,7 +4044,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.81325525"
+        "withdrawalFee": "2.70574325"
        }
       },
       {
@@ -4082,7 +4101,7 @@
         "walletDepositState": "DISABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "6107.78336387"
+        "withdrawalFee": "5882.36835294"
        }
       },
       {
@@ -4137,7 +4156,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1571.16043434"
+        "withdrawalFee": "980.39472549"
        }
       },
       {
@@ -4156,7 +4175,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.79069577"
+        "withdrawalFee": "3.84945405"
        }
       },
       {
@@ -4211,7 +4230,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "27.97010879"
+        "withdrawalFee": "33.33342062"
        }
       },
       {
@@ -4230,7 +4249,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "13.40904162"
+        "withdrawalFee": "12.64640314"
        }
       },
       {
@@ -4338,6 +4357,25 @@
        }
       },
       {
+       "DOBO": {
+        "blockchain": "ETH",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1069,
+        "minConf": 64,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
+        "withdrawalFee": "950.37207814"
+       }
+      },
+      {
        "DOGC": {
         "blockchain": "ETH",
         "delisted": false,
@@ -4426,10 +4464,29 @@
         "supportCollateral": false,
         "tradingState": "NORMAL",
         "type": "address",
-        "walletDepositState": "ENABLED",
-        "walletState": "ENABLED",
-        "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.86653859"
+        "walletDepositState": "DISABLED",
+        "walletState": "DISABLED",
+        "walletWithdrawalState": "DISABLED",
+        "withdrawalFee": "2.58900397"
+       }
+      },
+      {
+       "DORKL": {
+        "blockchain": "ETH",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1079,
+        "minConf": 64,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "DISABLED",
+        "walletState": "DISABLED",
+        "walletWithdrawalState": "DISABLED",
+        "withdrawalFee": "686.08433971"
        }
       },
       {
@@ -4537,7 +4594,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "35894973.00000000"
+        "withdrawalFee": "56250147.37500000"
        }
       },
       {
@@ -4556,7 +4613,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "48.35592218"
+        "withdrawalFee": "43.52042350"
        }
       },
       {
@@ -4592,7 +4649,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.21865404"
+        "withdrawalFee": "5.50460157"
        }
       },
       {
@@ -4611,7 +4668,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "23.10072517"
+        "withdrawalFee": "19.24452651"
        }
       },
       {
@@ -4681,7 +4738,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "68.62274240"
+        "withdrawalFee": "45.45466448"
        }
       },
       {
@@ -4717,7 +4774,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "21536983.76923077"
+        "withdrawalFee": "19285764.78571429"
        }
       },
       {
@@ -4787,7 +4844,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "10.94958111"
+        "withdrawalFee": "10.14277637"
        }
       },
       {
@@ -4806,7 +4863,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.70507983"
+        "withdrawalFee": "0.63624845"
        }
       },
       {
@@ -4863,7 +4920,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.78184172"
+        "withdrawalFee": "1.77561954"
        }
       },
       {
@@ -4882,7 +4939,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4612.53359143"
+        "withdrawalFee": "4485.06157807"
        }
       },
       {
@@ -4939,7 +4996,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.00195354"
+        "withdrawalFee": "0.00191211"
        }
       },
       {
@@ -4976,6 +5033,25 @@
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
         "withdrawalFee": "0.00200000"
+       }
+      },
+      {
+       "ETHPEPE2": {
+        "blockchain": "ETH",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1074,
+        "minConf": 64,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
+        "withdrawalFee": "300000.78600000"
        }
       },
       {
@@ -5083,7 +5159,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "139.62736355"
+        "withdrawalFee": "146.10427890"
        }
       },
       {
@@ -5102,7 +5178,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "42459.93166515"
+        "withdrawalFee": "49669.00430464"
        }
       },
       {
@@ -5121,7 +5197,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.13028422"
+        "withdrawalFee": "0.12085976"
        }
       },
       {
@@ -5174,7 +5250,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "123.50049975"
+        "withdrawalFee": "99.12670216"
        }
       },
       {
@@ -5193,7 +5269,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "38.20959253"
+        "withdrawalFee": "40.00010478"
        }
       },
       {
@@ -5212,7 +5288,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "22.59731956"
+        "withdrawalFee": "18.71106773"
        }
       },
       {
@@ -5447,7 +5523,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "93326929.66666667"
+        "withdrawalFee": "90000235.66666667"
        }
       },
       {
@@ -5466,7 +5542,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1845447.76271186"
+        "withdrawalFee": "2058828.92156863"
        }
       },
       {
@@ -5536,7 +5612,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.12728985"
+        "withdrawalFee": "4.83872235"
        }
       },
       {
@@ -5625,7 +5701,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "18.66538593"
+        "withdrawalFee": "16.88559769"
        }
       },
       {
@@ -5716,7 +5792,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.64382237"
+        "withdrawalFee": "2.59117761"
        }
       },
       {
@@ -5735,7 +5811,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.00018371"
+        "withdrawalFee": "0.00026471"
        }
       },
       {
@@ -5773,7 +5849,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "91496.99000000"
+        "withdrawalFee": "88235.52529412"
        }
       },
       {
@@ -5826,7 +5902,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.09483578"
+        "withdrawalFee": "1.16043774"
        }
       },
       {
@@ -5879,7 +5955,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4.72302276"
+        "withdrawalFee": "3.75313744"
        }
       },
       {
@@ -5898,7 +5974,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "191.53808055"
+        "withdrawalFee": "231.06607381"
        }
       },
       {
@@ -6023,7 +6099,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "55.99615780"
+        "withdrawalFee": "51.13649754"
        }
       },
       {
@@ -6059,7 +6135,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "778839517.00000000"
+        "withdrawalFee": "450001179.00000000"
        }
       },
       {
@@ -6169,7 +6245,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "9.49344872"
+        "withdrawalFee": "9.16374923"
        }
       },
       {
@@ -6222,7 +6298,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "16.50830124"
+        "withdrawalFee": "15.20274251"
        }
       },
       {
@@ -6404,7 +6480,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "17.83317127"
+        "withdrawalFee": "16.97050327"
        }
       },
       {
@@ -6457,7 +6533,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "443.99110276"
+        "withdrawalFee": "292.39842690"
        }
       },
       {
@@ -6580,7 +6656,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "31.38798083"
+        "withdrawalFee": "31.17791074"
        }
       },
       {
@@ -6599,7 +6675,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.92722995"
+        "withdrawalFee": "4.65664437"
        }
       },
       {
@@ -6671,7 +6747,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "44.91190077"
+        "withdrawalFee": "63.64938883"
        }
       },
       {
@@ -6690,7 +6766,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "37.03302637"
+        "withdrawalFee": "45.71034232"
        }
       },
       {
@@ -6726,7 +6802,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3888622.07500000"
+        "withdrawalFee": "10975638.51219512"
        }
       },
       {
@@ -6745,7 +6821,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "729.11663802"
+        "withdrawalFee": "710.52817632"
        }
       },
       {
@@ -6764,7 +6840,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "14.11478067"
+        "withdrawalFee": "11.82657501"
        }
       },
       {
@@ -6800,7 +6876,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.68927854"
+        "withdrawalFee": "2.11301226"
        }
       },
       {
@@ -6836,7 +6912,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "232.15654179"
+        "withdrawalFee": "203.62044299"
        }
       },
       {
@@ -6891,7 +6967,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.15455995"
+        "withdrawalFee": "1.21951539"
        }
       },
       {
@@ -6944,7 +7020,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "18.34255696"
+        "withdrawalFee": "25.00006550"
        }
       },
       {
@@ -7122,7 +7198,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.07064106"
+        "withdrawalFee": "0.06936816"
        }
       },
       {
@@ -7141,7 +7217,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "202.97287908"
+        "withdrawalFee": "237.34239399"
        }
       },
       {
@@ -7160,7 +7236,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4.85235336"
+        "withdrawalFee": "4.91178292"
        }
       },
       {
@@ -7196,7 +7272,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.40067660"
+        "withdrawalFee": "0.37636531"
        }
       },
       {
@@ -7215,7 +7291,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "373307719.00000000"
+        "withdrawalFee": "258539568.00000000"
        }
       },
       {
@@ -7302,7 +7378,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2898351.85714286"
+        "withdrawalFee": "9183697.53061224"
        }
       },
       {
@@ -7321,7 +7397,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4666.34649000"
+        "withdrawalFee": "5625.01473750"
        }
       },
       {
@@ -7340,7 +7416,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "186653859.50000000"
+        "withdrawalFee": "360000943.00000000"
        }
       },
       {
@@ -7465,7 +7541,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.62217953"
+        "withdrawalFee": "0.79646226"
        }
       },
       {
@@ -7501,7 +7577,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "877.68272571"
+        "withdrawalFee": "904.37349690"
        }
       },
       {
@@ -7611,7 +7687,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.25588115"
+        "withdrawalFee": "4.99816192"
        }
       },
       {
@@ -7649,7 +7725,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.05888134"
+        "withdrawalFee": "0.05818981"
        }
       },
       {
@@ -7704,7 +7780,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.91143880"
+        "withdrawalFee": "4.13984525"
        }
       },
       {
@@ -7742,7 +7818,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5127853.28571429"
+        "withdrawalFee": "5000013.10000000"
        }
       },
       {
@@ -7761,7 +7837,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "155544883.00000000"
+        "withdrawalFee": "112500294.75000000"
        }
       },
       {
@@ -7780,7 +7856,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1166586.62083333"
+        "withdrawalFee": "1285717.65238095"
        }
       },
       {
@@ -7835,7 +7911,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.73307719"
+        "withdrawalFee": "3.21659170"
        }
       },
       {
@@ -7888,7 +7964,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4.53318421"
+        "withdrawalFee": "4.44171429"
        }
       },
       {
@@ -7977,7 +8053,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.46553289"
+        "withdrawalFee": "0.43309600"
        }
       },
       {
@@ -8015,7 +8091,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4666.34649000"
+        "withdrawalFee": "4500.01179000"
        }
       },
       {
@@ -8034,7 +8110,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "23.06646807"
+        "withdrawalFee": "24.20662609"
        }
       },
       {
@@ -8070,7 +8146,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "7.03822999"
+        "withdrawalFee": "5.81271705"
        }
       },
       {
@@ -8089,7 +8165,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "78.03255000"
+        "withdrawalFee": "78.12520469"
        }
       },
       {
@@ -8108,7 +8184,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "74.88119524"
+        "withdrawalFee": "72.38624853"
        }
       },
       {
@@ -8127,7 +8203,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "11.66100748"
+        "withdrawalFee": "15.33659230"
        }
       },
       {
@@ -8163,7 +8239,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "233317324.50000000"
+        "withdrawalFee": "225000589.50000000"
        }
       },
       {
@@ -8182,7 +8258,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.36126553"
+        "withdrawalFee": "0.38961141"
        }
       },
       {
@@ -8235,7 +8311,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.28731700"
+        "withdrawalFee": "3.20095681"
        }
       },
       {
@@ -8254,7 +8330,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "13.86730010"
+        "withdrawalFee": "15.06700374"
        }
       },
       {
@@ -8438,7 +8514,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "14.03647005"
+        "withdrawalFee": "13.84145800"
        }
       },
       {
@@ -8457,7 +8533,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.74117406"
+        "withdrawalFee": "1.94133382"
        }
       },
       {
@@ -8493,7 +8569,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.04542617"
+        "withdrawalFee": "4.98064392"
        }
       },
       {
@@ -8512,7 +8588,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "85.35999665"
+        "withdrawalFee": "82.56902355"
        }
       },
       {
@@ -8531,7 +8607,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "21.78499762"
+        "withdrawalFee": "19.07592959"
        }
       },
       {
@@ -8603,7 +8679,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "71.86365221"
+        "withdrawalFee": "51.58592033"
        }
       },
       {
@@ -8656,7 +8732,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1505273.06129032"
+        "withdrawalFee": "2142862.75714286"
        }
       },
       {
@@ -8692,7 +8768,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3010.54612366"
+        "withdrawalFee": "7500.01965278"
        }
       },
       {
@@ -8866,7 +8942,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.00262137"
+        "withdrawalFee": "0.00236913"
        }
       },
       {
@@ -8885,7 +8961,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.15597816"
+        "withdrawalFee": "0.19354889"
        }
       },
       {
@@ -8938,7 +9014,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "6.72287349"
+        "withdrawalFee": "6.82750992"
        }
       },
       {
@@ -8991,7 +9067,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "93326929.83333333"
+        "withdrawalFee": "180000471.66666667"
        }
       },
       {
@@ -9027,7 +9103,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "466634649.00000000"
+        "withdrawalFee": "450001179.00000000"
        }
       },
       {
@@ -9046,7 +9122,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1575.13805485"
+        "withdrawalFee": "2662.72886834"
        }
       },
       {
@@ -9099,7 +9175,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "84.84266345"
+        "withdrawalFee": "52.14382144"
        }
       },
       {
@@ -9186,7 +9262,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "21.70393714"
+        "withdrawalFee": "10.44778856"
        }
       },
       {
@@ -9205,7 +9281,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1420.19240870"
+        "withdrawalFee": "1443.63347846"
        }
       },
       {
@@ -9360,7 +9436,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "493.79327937"
+        "withdrawalFee": "561.79922472"
        }
       },
       {
@@ -9453,7 +9529,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4.74946207"
+        "withdrawalFee": "4.74351207"
        }
       },
       {
@@ -9472,7 +9548,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2272727.27272727"
+        "withdrawalFee": "2419354.83870968"
        }
       },
       {
@@ -9542,7 +9618,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.25110385"
+        "withdrawalFee": "0.19823840"
        }
       },
       {
@@ -9578,7 +9654,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.66757461"
+        "withdrawalFee": "0.94737090"
        }
       },
       {
@@ -9718,7 +9794,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "116.68783421"
+        "withdrawalFee": "133.25471691"
        }
       },
       {
@@ -9788,7 +9864,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "34.08580343"
+        "withdrawalFee": "39.75275433"
        }
       },
       {
@@ -9807,7 +9883,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "16.04056606"
+        "withdrawalFee": "15.09610543"
        }
       },
       {
@@ -9881,7 +9957,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "37.78418205"
+        "withdrawalFee": "25.42379539"
        }
       },
       {
@@ -9900,7 +9976,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.07696613"
+        "withdrawalFee": "0.07875021"
        }
       },
       {
@@ -9919,7 +9995,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "202.44453308"
+        "withdrawalFee": "205.71482457"
        }
       },
       {
@@ -9938,7 +10014,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.97866302"
+        "withdrawalFee": "5.94322490"
        }
       },
       {
@@ -9974,7 +10050,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "13.32607277"
+        "withdrawalFee": "11.85253323"
        }
       },
       {
@@ -9993,7 +10069,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2443.11334555"
+        "withdrawalFee": "2486.19435912"
        }
       },
       {
@@ -10012,7 +10088,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1435.06298821"
+        "withdrawalFee": "1427.81970915"
        }
       },
       {
@@ -10115,8 +10191,8 @@
         "supportCollateral": false,
         "tradingState": "NORMAL",
         "type": "address",
-        "walletDepositState": "DISABLED",
-        "walletState": "DISABLED",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
         "walletWithdrawalState": "DISABLED",
         "withdrawalFee": "1.00000000"
        }
@@ -10156,7 +10232,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "94.63286331"
+        "withdrawalFee": "151.66874924"
        }
       },
       {
@@ -10172,8 +10248,8 @@
         "supportCollateral": false,
         "tradingState": "OFFLINE",
         "type": "address",
-        "walletDepositState": "DISABLED",
-        "walletState": "DISABLED",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
         "walletWithdrawalState": "DISABLED",
         "withdrawalFee": "100.00000000"
        }
@@ -10230,7 +10306,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "14357989.19230769"
+        "withdrawalFee": "18000047.15000000"
        }
       },
       {
@@ -10266,7 +10342,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "359226.05773672"
+        "withdrawalFee": "567466.80832282"
        }
       },
       {
@@ -10321,7 +10397,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "7.97666067"
+        "withdrawalFee": "7.53266118"
        }
       },
       {
@@ -10340,7 +10416,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "300.73124490"
+        "withdrawalFee": "299.33559534"
        }
       },
       {
@@ -10359,7 +10435,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5243085.94382022"
+        "withdrawalFee": "5769245.88461538"
        }
       },
       {
@@ -10378,7 +10454,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "559961579.00000000"
+        "withdrawalFee": "540001415.00000000"
        }
       },
       {
@@ -10435,7 +10511,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "377.23092078"
+        "withdrawalFee": "360.57786779"
        }
       },
       {
@@ -10454,7 +10530,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "6.31440661"
+        "withdrawalFee": "2.41072060"
        }
       },
       {
@@ -10543,7 +10619,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "20.42164763"
+        "withdrawalFee": "18.18186579"
        }
       },
       {
@@ -10562,7 +10638,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "91461.12289298"
+        "withdrawalFee": "91222.61889317"
        }
       },
       {
@@ -10651,7 +10727,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2666483.70714286"
+        "withdrawalFee": "2105268.67251462"
        }
       },
       {
@@ -10725,7 +10801,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "10.96673674"
+        "withdrawalFee": "9.52047627"
        }
       },
       {
@@ -10744,7 +10820,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "21.70393713"
+        "withdrawalFee": "23.41723391"
        }
       },
       {
@@ -10801,7 +10877,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.57758163"
+        "withdrawalFee": "3.90474959"
        }
       },
       {
@@ -10820,7 +10896,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "31126.26898277"
+        "withdrawalFee": "48993.05158773"
        }
       },
       {
@@ -10945,7 +11021,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "39.99725557"
+        "withdrawalFee": "40.78560529"
        }
       },
       {
@@ -11019,7 +11095,7 @@
         "walletDepositState": "DISABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "115.40840437"
+        "withdrawalFee": "121.02228014"
        }
       },
       {
@@ -11038,7 +11114,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "10369.65886667"
+        "withdrawalFee": "7575.77742424"
        }
       },
       {
@@ -11091,7 +11167,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.46740456"
+        "withdrawalFee": "1.23490993"
        }
       },
       {
@@ -11324,7 +11400,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.94716620"
+        "withdrawalFee": "2.94118417"
        }
       },
       {
@@ -11343,7 +11419,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "8888279.02380952"
+        "withdrawalFee": "18000047.15000000"
        }
       },
       {
@@ -11362,7 +11438,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "16.85615828"
+        "withdrawalFee": "14.43854048"
        }
       },
       {
@@ -11470,7 +11546,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2234.48355148"
+        "withdrawalFee": "1851.85670096"
        }
       },
       {
@@ -11508,7 +11584,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "59.82495491"
+        "withdrawalFee": "57.56944712"
        }
       },
       {
@@ -11527,7 +11603,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.11089766"
+        "withdrawalFee": "3.23741855"
        }
       },
       {
@@ -11546,7 +11622,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "46.58582180"
+        "withdrawalFee": "45.37827008"
        }
       },
       {
@@ -11565,7 +11641,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "910506.63170732"
+        "withdrawalFee": "829495.26036866"
        }
       },
       {
@@ -11601,7 +11677,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "335306714.00000000"
+        "withdrawalFee": "525423710.00000000"
        }
       },
       {
@@ -11656,7 +11732,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2000.27099816"
+        "withdrawalFee": "1870.55121734"
        }
       },
       {
@@ -11675,7 +11751,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "13.85847493"
+        "withdrawalFee": "13.91961224"
        }
       },
       {
@@ -11713,7 +11789,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.50542093"
+        "withdrawalFee": "2.44388764"
        }
       },
       {
@@ -11732,7 +11808,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "293.94308583"
+        "withdrawalFee": "294.11841748"
        }
       },
       {
@@ -11768,7 +11844,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.90062310"
+        "withdrawalFee": "1.85008022"
        }
       },
       {
@@ -11806,7 +11882,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "8.48426633"
+        "withdrawalFee": "8.18183961"
        }
       },
       {
@@ -11825,7 +11901,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.19426921"
+        "withdrawalFee": "0.19132703"
        }
       },
       {
@@ -11844,7 +11920,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3721.16945242"
+        "withdrawalFee": "3698.63982466"
        }
       },
       {
@@ -11863,7 +11939,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "8332761.58928571"
+        "withdrawalFee": "11250029.47500000"
        }
       },
       {
@@ -11882,7 +11958,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.96678011"
+        "withdrawalFee": "1.75357103"
        }
       },
       {
@@ -11992,7 +12068,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "8.62275297"
+        "withdrawalFee": "8.90797450"
        }
       },
       {
@@ -12083,7 +12159,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "6572.31900000"
+        "withdrawalFee": "15000.03930000"
        }
       },
       {
@@ -12102,7 +12178,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "15.50796441"
+        "withdrawalFee": "11.68834231"
        }
       },
       {
@@ -12135,7 +12211,7 @@
         "supportCollateral": false,
         "tradingState": "OFFLINE",
         "type": "address",
-        "walletDepositState": "ENABLED",
+        "walletDepositState": "DISABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
         "withdrawalFee": "0.20000000"
@@ -12157,7 +12233,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "46.74136711"
+        "withdrawalFee": "57.56944712"
        }
       },
       {
@@ -12178,6 +12254,25 @@
        }
       },
       {
+       "SG": {
+        "blockchain": "ETH",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1072,
+        "minConf": 64,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
+        "withdrawalFee": "266.27288698"
+       }
+      },
+      {
        "SHARES": {
         "blockchain": "ETH",
         "delisted": false,
@@ -12193,7 +12288,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.57467321"
+        "withdrawalFee": "1.26404826"
        }
       },
       {
@@ -12216,6 +12311,25 @@
        }
       },
       {
+       "SHEPE": {
+        "blockchain": "ETH",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1078,
+        "minConf": 64,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
+        "withdrawalFee": "450001179.00000000"
+       }
+      },
+      {
        "SHIA": {
         "blockchain": "ETH",
         "delisted": false,
@@ -12231,7 +12345,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "7.42339563"
+        "withdrawalFee": "28.51718498"
        }
       },
       {
@@ -12250,7 +12364,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "345655.29506173"
+        "withdrawalFee": "358566.67596282"
        }
       },
       {
@@ -12269,7 +12383,26 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2065608182.00000000"
+        "withdrawalFee": "943688635.00000000"
+       }
+      },
+      {
+       "SHIB42069": {
+        "blockchain": "ETH",
+        "delisted": false,
+        "depositAddress": null,
+        "description": "Sweep to Main Account",
+        "id": 1076,
+        "minConf": 64,
+        "name": "",
+        "supportBorrow": false,
+        "supportCollateral": false,
+        "tradingState": "NORMAL",
+        "type": "address",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
+        "walletWithdrawalState": "ENABLED",
+        "withdrawalFee": "4314.48877277"
        }
       },
       {
@@ -12356,7 +12489,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1747.69531461"
+        "withdrawalFee": "833.33551667"
        }
       },
       {
@@ -12428,7 +12561,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1867.78378252"
+        "withdrawalFee": "1801.20551701"
        }
       },
       {
@@ -12500,7 +12633,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "233.02604203"
+        "withdrawalFee": "253.52179108"
        }
       },
       {
@@ -12519,7 +12652,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.86820352"
+        "withdrawalFee": "2.66515504"
        }
       },
       {
@@ -12593,7 +12726,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "69995197.25000000"
+        "withdrawalFee": "67500176.75000000"
        }
       },
       {
@@ -12612,7 +12745,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "466634649.00000000"
+        "withdrawalFee": "669213347.00000000"
        }
       },
       {
@@ -12667,7 +12800,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "7253.38831606"
+        "withdrawalFee": "6521.75620773"
        }
       },
       {
@@ -12703,7 +12836,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "46201.45039604"
+        "withdrawalFee": "46391.87412371"
        }
       },
       {
@@ -12722,7 +12855,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "93326929.80000000"
+        "withdrawalFee": "225000589.50000000"
        }
       },
       {
@@ -12809,7 +12942,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "68.62274240"
+        "withdrawalFee": "82.56902355"
        }
       },
       {
@@ -12862,7 +12995,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.32093167"
+        "withdrawalFee": "0.28607831"
        }
       },
       {
@@ -12934,7 +13067,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "8.61267348"
+        "withdrawalFee": "7.75864102"
        }
       },
       {
@@ -12953,7 +13086,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "12.02666619"
+        "withdrawalFee": "10.38863821"
        }
       },
       {
@@ -12972,7 +13105,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "60.52330069"
+        "withdrawalFee": "84.19105301"
        }
       },
       {
@@ -13046,7 +13179,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "25.49916115"
+        "withdrawalFee": "12.19515390"
        }
       },
       {
@@ -13084,7 +13217,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "116.30973305"
+        "withdrawalFee": "117.49378042"
        }
       },
       {
@@ -13139,7 +13272,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "39.10346215"
+        "withdrawalFee": "32.41305006"
        }
       },
       {
@@ -13158,7 +13291,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4.71824720"
+        "withdrawalFee": "4.51506199"
        }
       },
       {
@@ -13177,7 +13310,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "27.54167403"
+        "withdrawalFee": "35.19562291"
        }
       },
       {
@@ -13213,7 +13346,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2669.02563394"
+        "withdrawalFee": "2518.66331157"
        }
       },
       {
@@ -13232,7 +13365,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "198.01980198"
+        "withdrawalFee": "174.11491584"
        }
       },
       {
@@ -13372,7 +13505,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "14582.33278125"
+        "withdrawalFee": "37500.09825000"
        }
       },
       {
@@ -13408,7 +13541,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "206.47550841"
+        "withdrawalFee": "252.80965112"
        }
       },
       {
@@ -13446,7 +13579,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "313.17761633"
+        "withdrawalFee": "288.15443650"
        }
       },
       {
@@ -13465,7 +13598,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4.19560015"
+        "withdrawalFee": "5.24171437"
        }
       },
       {
@@ -13484,7 +13617,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "6.33440699"
+        "withdrawalFee": "6.15035779"
        }
       },
       {
@@ -13503,7 +13636,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1.50188172"
+        "withdrawalFee": "1.31926467"
        }
       },
       {
@@ -13522,7 +13655,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.22328279"
+        "withdrawalFee": "2.49556998"
        }
       },
       {
@@ -13558,7 +13691,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.92402901"
+        "withdrawalFee": "0.90301240"
        }
       },
       {
@@ -13613,7 +13746,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.48065372"
+        "withdrawalFee": "0.25399878"
        }
       },
       {
@@ -13649,7 +13782,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "23.01211967"
+        "withdrawalFee": "16.35046673"
        }
       },
       {
@@ -13704,7 +13837,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "104.35918658"
+        "withdrawalFee": "97.34265297"
        }
       },
       {
@@ -13776,7 +13909,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "356.02847101"
+        "withdrawalFee": "168.03628778"
        }
       },
       {
@@ -13795,7 +13928,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "48862.26691099"
+        "withdrawalFee": "52325.71848837"
        }
       },
       {
@@ -13814,7 +13947,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "3.73718810"
+        "withdrawalFee": "3.60419029"
        }
       },
       {
@@ -13884,7 +14017,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "6.58696756"
+        "withdrawalFee": "6.25001637"
        }
       },
       {
@@ -13903,7 +14036,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1462.80454232"
+        "withdrawalFee": "1679.10887687"
        }
       },
       {
@@ -13922,7 +14055,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.89833408"
+        "withdrawalFee": "0.92616127"
        }
       },
       {
@@ -13941,7 +14074,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.03069965"
+        "withdrawalFee": "0.06000016"
        }
       },
       {
@@ -13977,7 +14110,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "65.58463089"
+        "withdrawalFee": "63.90927445"
        }
       },
       {
@@ -14013,7 +14146,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5.13298114"
+        "withdrawalFee": "4.95001297"
        }
       },
       {
@@ -14142,7 +14275,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "200.55930487"
+        "withdrawalFee": "246.35101022"
        }
       },
       {
@@ -14267,7 +14400,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "37.12288377"
+        "withdrawalFee": "31.75731680"
        }
       },
       {
@@ -14319,8 +14452,8 @@
         "supportCollateral": false,
         "tradingState": "NORMAL",
         "type": "address",
-        "walletDepositState": "DISABLED",
-        "walletState": "DISABLED",
+        "walletDepositState": "ENABLED",
+        "walletState": "ENABLED",
         "walletWithdrawalState": "DISABLED",
         "withdrawalFee": "100.00000000"
        }
@@ -14341,7 +14474,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "18665385.96000000"
+        "withdrawalFee": "18750049.12500000"
        }
       },
       {
@@ -14377,7 +14510,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "7.26279609"
+        "withdrawalFee": "8.83741514"
        }
       },
       {
@@ -14432,7 +14565,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1050.03296355"
+        "withdrawalFee": "1047.24500582"
        }
       },
       {
@@ -14521,7 +14654,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "17282764.77777778"
+        "withdrawalFee": "18000047.16000000"
        }
       },
       {
@@ -14612,7 +14745,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5832933.10416667"
+        "withdrawalFee": "7941197.26470588"
        }
       },
       {
@@ -14762,7 +14895,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "44.37096498"
+        "withdrawalFee": "43.83128360"
        }
       },
       {
@@ -14781,7 +14914,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.10686290"
+        "withdrawalFee": "0.09121646"
        }
       },
       {
@@ -14800,7 +14933,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "55884.38910180"
+        "withdrawalFee": "50167.35551839"
        }
       },
       {
@@ -14836,7 +14969,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "16.27795285"
+        "withdrawalFee": "17.00256341"
        }
       },
       {
@@ -14872,7 +15005,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "7618.52487755"
+        "withdrawalFee": "12413.82562069"
        }
       },
       {
@@ -14891,7 +15024,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.86259542"
+        "withdrawalFee": "2.79329609"
        }
       },
       {
@@ -14910,7 +15043,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "4277484.28333333"
+        "withdrawalFee": "3535723.55000000"
        }
       },
       {
@@ -14929,7 +15062,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "466634649.00000000"
+        "withdrawalFee": "450001179.00000000"
        }
       },
       {
@@ -15088,7 +15221,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "2.12347963"
+        "withdrawalFee": "2.41784460"
        }
       },
       {
@@ -15124,7 +15257,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5832.71438571"
+        "withdrawalFee": "5964.94186185"
        }
       },
       {
@@ -15283,7 +15416,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "5832933.11250000"
+        "withdrawalFee": "6338044.77464789"
        }
       },
       {
@@ -15372,7 +15505,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "1303.44874022"
+        "withdrawalFee": "1541.09992808"
        }
       },
       {
@@ -15514,7 +15647,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "14.10283635"
+        "withdrawalFee": "17.30773765"
        }
       },
       {
@@ -15779,7 +15912,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.00049044"
+        "withdrawalFee": "0.00049115"
        }
       },
       {
@@ -15798,7 +15931,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "0.00673743"
+        "withdrawalFee": "0.00593408"
        }
       },
       {
@@ -15868,7 +16001,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "12.87267995"
+        "withdrawalFee": "11.94693394"
        }
       },
       {
@@ -15959,7 +16092,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "73.52436686"
+        "withdrawalFee": "79.69324292"
        }
       },
       {
@@ -16014,7 +16147,7 @@
         "walletDepositState": "ENABLED",
         "walletState": "ENABLED",
         "walletWithdrawalState": "ENABLED",
-        "withdrawalFee": "17.87872216"
+        "withdrawalFee": "15.54408215"
        }
       },
       {
@@ -16092,13 +16225,13 @@
        "1500"
       ],
       "Signature": [
-       "ttIo+z858lV89tTYMoXPVHfmHBckMCY5m8jHxvvsbAU="
+       "YKbhe98WwVP8W4xI013g2+W1JCmPpG6he4qnLtfnqik="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1693670624641"
+       "1694196527168"
       ]
      }
     }
@@ -31890,6 +32023,19 @@
     }
    ]
   },
+  "/markets/BTC_LTC/candles": {
+   "GET": [
+    {
+     "data": {
+      "code": 24101,
+      "message": "Invalid symbol!"
+     },
+     "queryString": "endTime=1588745100000\u0026interval=MINUTE_5\u0026limit=500\u0026startTime=1588741200000",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/markets/BTC_USDT/candles": {
    "GET": [
     {
@@ -33505,6 +33651,237 @@
       ]
      ],
      "queryString": "interval=MINUTE_5",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      [
+       "8998.24",
+       "9020.99",
+       "8998.24",
+       "9013.55",
+       "44147.64",
+       "4.898801",
+       "0",
+       "0",
+       0,
+       0,
+       "9011.92",
+       "MINUTE_5",
+       1588741200000,
+       1588741499999
+      ],
+      [
+       "9006.47",
+       "9026.85",
+       "9012.45",
+       "9024.12",
+       "36969.76",
+       "4.100516",
+       "0",
+       "0",
+       0,
+       0,
+       "9015.87",
+       "MINUTE_5",
+       1588741500000,
+       1588741799999
+      ],
+      [
+       "9021",
+       "9027",
+       "9024.37",
+       "9022.2",
+       "28343.99",
+       "3.140664",
+       "0",
+       "0",
+       0,
+       0,
+       "9024.83",
+       "MINUTE_5",
+       1588741800000,
+       1588742099999
+      ],
+      [
+       "9021.74",
+       "9037.66",
+       "9022.47",
+       "9030.94",
+       "26175.5",
+       "2.898437",
+       "0",
+       "0",
+       0,
+       0,
+       "9030.9",
+       "MINUTE_5",
+       1588742100000,
+       1588742399999
+      ],
+      [
+       "9015.86",
+       "9032.82",
+       "9030.7",
+       "9024.69",
+       "29059.71",
+       "3.219305",
+       "0",
+       "0",
+       0,
+       0,
+       "9026.7",
+       "MINUTE_5",
+       1588742400000,
+       1588742699999
+      ],
+      [
+       "9022",
+       "9028.34",
+       "9027",
+       "9025.47",
+       "35790.73",
+       "3.965642",
+       "0",
+       "0",
+       0,
+       0,
+       "9025.2",
+       "MINUTE_5",
+       1588742700000,
+       1588742999999
+      ],
+      [
+       "9000",
+       "9025.59",
+       "9024.74",
+       "9000",
+       "80197.03",
+       "8.901281",
+       "0",
+       "0",
+       0,
+       0,
+       "9009.6",
+       "MINUTE_5",
+       1588743000000,
+       1588743299999
+      ],
+      [
+       "9000",
+       "9019.83",
+       "9001.45",
+       "9015.92",
+       "23013.8",
+       "2.555238",
+       "0",
+       "0",
+       0,
+       0,
+       "9006.51",
+       "MINUTE_5",
+       1588743300000,
+       1588743599999
+      ],
+      [
+       "9007.49",
+       "9020.2",
+       "9015",
+       "9010.19",
+       "16907.72",
+       "1.875533",
+       "0",
+       "0",
+       0,
+       0,
+       "9014.88",
+       "MINUTE_5",
+       1588743600000,
+       1588743899999
+      ],
+      [
+       "8983.69",
+       "9010.19",
+       "9009.74",
+       "8988.87",
+       "94756.01",
+       "10.536864",
+       "0",
+       "0",
+       0,
+       0,
+       "8992.8",
+       "MINUTE_5",
+       1588743900000,
+       1588744199999
+      ],
+      [
+       "8988.87",
+       "9008.79",
+       "8988.87",
+       "9002.62",
+       "20643.27",
+       "2.293628",
+       "0",
+       "0",
+       0,
+       0,
+       "9000.26",
+       "MINUTE_5",
+       1588744200000,
+       1588744499999
+      ],
+      [
+       "9000",
+       "9007.64",
+       "9005.5",
+       "9005.99",
+       "26355.34",
+       "2.926922",
+       "0",
+       "0",
+       0,
+       0,
+       "9004.45",
+       "MINUTE_5",
+       1588744500000,
+       1588744799999
+      ],
+      [
+       "9005.99",
+       "9028.26",
+       "9005.99",
+       "9028.26",
+       "53700.66",
+       "5.955889",
+       "0",
+       "0",
+       0,
+       0,
+       "9016.39",
+       "MINUTE_5",
+       1588744800000,
+       1588745099999
+      ],
+      [
+       "9027",
+       "9042",
+       "9028.26",
+       "9027",
+       "86328.28",
+       "9.55446",
+       "0",
+       "0",
+       0,
+       0,
+       "9035.38",
+       "MINUTE_5",
+       1588745100000,
+       1588745399999
+      ]
+     ],
+     "queryString": "endTime=1588745100000\u0026interval=MINUTE_5\u0026limit=500\u0026startTime=1588741200000",
      "bodyParams": "",
      "headers": {}
     }
@@ -76423,13 +76800,13 @@
        "1500"
       ],
       "Signature": [
-       "KIcFOEInkWlpSIdlmL0PJNPWiprj0KgHsbynLrRryMA="
+       "vBOrpO5kv/WGcaVG4JB2lxXwb0oTS+OVrl3LTS59dLE="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1694025260157"
+       "1694196126708"
       ]
      }
     }
@@ -76857,6 +77234,59 @@
       ],
       "Signtimestamp": [
        "1694109347175"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 601,
+      "message": "Limit value greater than max value"
+     },
+     "queryString": "accountType=SPOT\u0026limit=10000",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "OTpQbDsJe68PBA+n+ULXe+EpfJJFMdk+jC9DWLwDxXM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694191711284"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "accountType=SPOT\u0026limit=100",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "/s8asJaxnhuES5p+W9nY2EsEcSGeID47STcMf5iDedQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694191734649"
       ]
      }
     }
@@ -94905,7 +95335,7 @@
    "GET": [
     {
      "data": {
-      "serverTime": 1693159689228
+      "serverTime": 1694187385515
      },
      "queryString": "",
      "bodyParams": "",
@@ -118908,7 +119338,9 @@
   "/wallets/addresses": {
    "GET": [
     {
-     "data": null,
+     "data": {
+      "BTC": "1HeLjPNpqG6jRjhZsfti5ABckumer1eqDU"
+     },
      "queryString": "",
      "bodyParams": "",
      "headers": {
@@ -118922,13 +119354,13 @@
        "1500"
       ],
       "Signature": [
-       "Rypq/Puayd0L7BW8hwywDjHwqwXIdwV6rKqedBjrzTc="
+       "RWS53X9WFta//sDhpm2yZTd5+BOjLuzQsqYTcItRh9w="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1693739566890"
+       "1694204629732"
       ]
      }
     }
@@ -118961,6 +119393,34 @@
       ],
       "Signtimestamp": [
        "1693752310477"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 400,
+      "message": "balance not enough."
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"LTC\",\"amount\":\"1\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "EoFBYa5ImIb2pstp1mfwUxLlGZ6PBafasSnm7+D7sM0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694203461792"
       ]
      }
     }

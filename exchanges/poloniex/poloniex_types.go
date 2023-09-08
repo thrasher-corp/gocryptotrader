@@ -565,6 +565,11 @@ type CurrencyV2Information struct {
 	SupportBorrow     bool `json:"supportBorrow,omitempty"`
 }
 
+// ServerSystemTime represents a server time.
+type ServerSystemTime struct {
+	ServerTime convert.ExchangeTime `json:"serverTime"`
+}
+
 // MarketPrice represents ticker information.
 type MarketPrice struct {
 	Symbol        string                  `json:"symbol"`

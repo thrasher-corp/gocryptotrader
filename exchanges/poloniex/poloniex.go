@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -36,6 +35,7 @@ var (
 	errInvalidWithdrawalChain          = errors.New("invalid withdrawal chain")
 	errClientOrderIDOROrderIDsRequired = errors.New("either client order IDs or order IDs or both are required")
 	errInvalidTimeout                  = errors.New("timeout must not be empty")
+	errChainsNotFound                  = errors.New("err chains not found")
 )
 
 // Poloniex is the overarching type across the poloniex package
@@ -92,11 +92,9 @@ func (p *Poloniex) GetV2CurrencyInformation(ctx context.Context, ccy currency.Co
 }
 
 // GetSystemTimestamp retrieves current server time.
-func (p *Poloniex) GetSystemTimestamp(ctx context.Context) (time.Time, error) {
-	resp := &struct {
-		ServerTime convert.ExchangeTime `json:"serverTime"`
-	}{}
-	return resp.ServerTime.Time(), p.SendHTTPRequest(ctx, exchange.RestSpot, "/timestamp", &resp)
+func (p *Poloniex) GetSystemTimestamp(ctx context.Context) (*ServerSystemTime, error) {
+	var resp ServerSystemTime
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/timestamp", &resp)
 }
 
 // Marker Data endpoints.
@@ -704,7 +702,7 @@ func (p *Poloniex) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 }
 
 // GetOpenOrders retrieves a list of active orders for an account.
-func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side, direction string, fromOrderID, limit int64) ([]TradeOrder, error) {
+func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side, direction, fromOrderID string, limit int64) ([]TradeOrder, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
@@ -712,8 +710,8 @@ func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 	if side != "" {
 		params.Set("side", side)
 	}
-	if fromOrderID != 0 {
-		params.Set("from", strconv.FormatInt(fromOrderID, 10))
+	if fromOrderID != "" {
+		params.Set("from", fromOrderID)
 	}
 	if direction != "" {
 		params.Set("direction", direction)
@@ -814,6 +812,8 @@ func orderTypeString(oType order.Type) string {
 	switch oType {
 	case order.StopLimit:
 		return "STOP_LIMIT"
+	case order.AnyType, order.UnknownType:
+		return ""
 	default:
 		return oType.String()
 	}
@@ -1071,9 +1071,6 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 				signatureStrings = fmt.Sprintf("%s\n%s\n%s", method, endpoint, values.Encode())
 			}
 		}
-
-		// println("Signature string: ", signatureStrings)
-
 		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(signatureStrings),
 			[]byte(creds.Secret))
@@ -1107,14 +1104,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	errorResp := &errorResponse{}
 	err = json.Unmarshal(*rawResponse, errorResp)
 	if err == nil && errorResp.Code != 0 {
-		// if errorResp.Message != "" {
 		return fmt.Errorf("error code: %d message: %s", errorResp.Code, errorResp.Message)
-		// }
-		// err, okay := ErrorCodes[strconv.FormatInt(errorResp.Code, 10)]
-		// if okay {
-		// 	return err
-		// }
-		// return fmt.Errorf("error code: %d", errorResp.Code)
 	}
 	return json.Unmarshal(*rawResponse, result)
 }
