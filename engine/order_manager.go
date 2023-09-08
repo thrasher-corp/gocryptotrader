@@ -589,7 +589,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		return nil, err
 	}
 
-	if err := m.orderStore.add(detail.CopyToPointer()); err == ErrOrdersAlreadyExists {
+	if err := m.orderStore.add(detail.CopyToPointer()); errors.Is(err, ErrOrdersAlreadyExists) {
 		// Streamed by ws before we got here. Details from ws supecede since they are more recent.
 		detail = m.orderStore.getByDetail(detail)
 	} else if err != nil {
