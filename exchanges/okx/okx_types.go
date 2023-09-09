@@ -723,9 +723,9 @@ type PendingOrderItem struct {
 	Category                   string                  `json:"category"`
 	Currency                   string                  `json:"ccy"`
 	ClientOrderID              string                  `json:"clOrdId"`
-	TransactionFee             string                  `json:"fee"`
+	TransactionFee             convert.StringToFloat64 `json:"fee"`
 	FeeCurrency                string                  `json:"feeCcy"`
-	LastFilledPrice            string                  `json:"fillPx"`
+	LastFilledPrice            convert.StringToFloat64 `json:"fillPx"`
 	LastFilledSize             convert.StringToFloat64 `json:"fillSz"`
 	FillTime                   string                  `json:"fillTime"`
 	InstrumentID               string                  `json:"instId"`
@@ -733,13 +733,13 @@ type PendingOrderItem struct {
 	Leverage                   convert.StringToFloat64 `json:"lever"`
 	OrderID                    string                  `json:"ordId"`
 	OrderType                  string                  `json:"ordType"`
-	ProfitAndLose              string                  `json:"pnl"`
+	ProfitAndLoss              string                  `json:"pnl"`
 	PositionSide               string                  `json:"posSide"`
-	RebateAmount               string                  `json:"rebate"`
+	RebateAmount               convert.StringToFloat64 `json:"rebate"`
 	RebateCurrency             string                  `json:"rebateCcy"`
 	Side                       order.Side              `json:"side"`
-	StopLossOrdPrice           string                  `json:"slOrdPx"`
-	StopLossTriggerPrice       string                  `json:"slTriggerPx"`
+	StopLossOrdPrice           convert.StringToFloat64 `json:"slOrdPx"`
+	StopLossTriggerPrice       convert.StringToFloat64 `json:"slTriggerPx"`
 	StopLossTriggerPriceType   string                  `json:"slTriggerPxType"`
 	State                      string                  `json:"state"`
 	Price                      convert.StringToFloat64 `json:"px"`
@@ -748,8 +748,8 @@ type PendingOrderItem struct {
 	QuantityType               string                  `json:"tgtCcy"`
 	TradeMode                  string                  `json:"tdMode"`
 	Source                     string                  `json:"source"`
-	TakeProfitOrdPrice         string                  `json:"tpOrdPx"`
-	TakeProfitTriggerPrice     string                  `json:"tpTriggerPx"`
+	TakeProfitOrdPrice         convert.StringToFloat64 `json:"tpOrdPx"`
+	TakeProfitTriggerPrice     convert.StringToFloat64 `json:"tpTriggerPx"`
 	TakeProfitTriggerPriceType string                  `json:"tpTriggerPxType"`
 	TradeID                    string                  `json:"tradeId"`
 	UpdateTime                 time.Time               `json:"uTime"`
@@ -2503,7 +2503,7 @@ type WsOrder struct {
 	AmendResult     string                  `json:"amendResult"`
 	Code            string                  `json:"code"`
 	ExecType        string                  `json:"execType"`
-	FillFee         string                  `json:"fillFee"`
+	FillFee         convert.StringToFloat64 `json:"fillFee"`
 	FillFeeCurrency string                  `json:"fillFeeCcy"`
 	FillNotionalUsd convert.StringToFloat64 `json:"fillNotionalUsd"`
 	Msg             string                  `json:"msg"`

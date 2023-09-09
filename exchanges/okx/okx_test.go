@@ -2490,13 +2490,46 @@ func TestBalanceAndPosition(t *testing.T) {
 	}
 }
 
-const orderPushDataJSON = `{"arg":{"channel":"orders","instType":"SPOT","uid":"111122223333444455"},"data":[{"accFillSz":"0","algoClOrdId":"","algoId":"","amendResult":"","amendSource":"","attachAlgoClOrdId":"","avgPx":"0","cTime":"1694153250532","cancelSource":"","category":"normal","ccy":"","clOrdId":"","code":"0","execType":"","fee":"0","feeCcy":"USDT","fillFee":"0","fillFeeCcy":"","fillFwdPx":"","fillMarkPx":"","fillMarkVol":"","fillNotionalUsd":"","fillPnl":"0","fillPx":"","fillPxUsd":"","fillPxVol":"","fillSz":"0","fillTime":"","instId":"BTC-USDT","instType":"SPOT","lever":"0","msg":"","notionalUsd":"10.000599999999999","ordId":"112233445566008725","ordType":"market","pnl":"0","posSide":"","px":"","pxType":"","pxUsd":"","pxVol":"","quickMgnType":"","rebate":"0","rebateCcy":"BTC","reduceOnly":"false","reqId":"","side":"sell","slOrdPx":"","slTriggerPx":"","slTriggerPxType":"","source":"","state":"live","stpId":"","stpMode":"","sz":"10","tag":"","tdMode":"cash","tgtCcy":"quote_ccy","tpOrdPx":"","tpTriggerPx":"","tpTriggerPxType":"","tradeId":"","uTime":"1694153250532"}]}`
-
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(orderPushDataJSON)); err != nil {
-		t.Error("Okx Order Push Data error", err)
+	n := new(Okx)
+	sharedtestvalues.TestFixtureToDataHandler(t, ok, n, "testdata/wsOrders.json", n.WsHandleData)
+	seen := 0
+	for reading := true; reading; {
+		select {
+		default:
+			reading = false
+		case resp := <-n.GetBase().Websocket.DataHandler:
+			seen++
+			switch v := resp.(type) {
+			case *order.Detail:
+				switch seen {
+				case 1:
+					assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
+					assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
+					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+					assert.Equal(t, order.Sell, v.Side, "Side")
+					assert.Equal(t, order.Filled, v.Status, "Status")
+					assert.Equal(t, order.Limit, v.Type, "Type")
+					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
+					assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
+					assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
+					assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
+					assert.Equal(t, 0.001, v.Amount, "Amount")
+					assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
+					assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
+					assert.Equal(t, 31527.1, v.Price, "Price")
+					assert.Equal(t, 0.02522168, v.Fee, "Fee")
+					assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
+				}
+			case error:
+				t.Error(v)
+			default:
+				t.Errorf("Got unexpected data: %T %v", v, v)
+			}
+		}
 	}
+	assert.Equal(t, 4, seen, "Saw 4 records")
 }
 
 const algoOrdersPushDataJSON = `{"arg": {"channel": "orders-algo","uid": "77982378738415879","instType": "FUTURES","instId": "BTC-USD-200329"},"data": [{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","px": "999","sz": "3","tdMode": "cross","tgtCcy": "","notionalUsd": "","ordType": "trigger","side": "buy","posSide": "long","state": "live","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","tag": "adadadadad","actualSide": "","triggerTime": "1597026383085","cTime": "1597026383000"}]}`
