@@ -473,9 +473,9 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 	addresses := &DepositAddressesResponse{}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
+		params.Set("currency", ccy.String())
 	}
-	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/wallets/addresses", url.Values{}, params, addresses)
+	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/wallets/addresses", params, nil, addresses)
 }
 
 // WalletActivity returns the wallet activity between set start and end time
@@ -501,7 +501,7 @@ func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, act
 // In these cases, use /currencies to look up the mainAccount for the currency to find
 // the deposit address and use the address returned here as the paymentID.
 // Note: currencies will only include a mainAccount property for currencies which require a paymentID.
-func (p *Poloniex) NewCurrencyDepoditAddress(ctx context.Context, ccy currency.Code) (string, error) {
+func (p *Poloniex) NewCurrencyDepositAddress(ctx context.Context, ccy currency.Code) (string, error) {
 	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
@@ -1001,8 +1001,8 @@ func (p *Poloniex) GetTradeHistory(ctx context.Context, symbols currency.Pairs, 
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/trades", params, nil, &resp)
 }
 
-// GetTradeOrderID get a list of all trades for an order specified by its orderId.
-func (p *Poloniex) GetTradeOrderID(ctx context.Context, orderID string) ([]TradeHistoryItem, error) {
+// GetTradesByOrderID get a list of all trades for an order specified by its orderId.
+func (p *Poloniex) GetTradesByOrderID(ctx context.Context, orderID string) ([]TradeHistoryItem, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}

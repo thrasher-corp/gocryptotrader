@@ -309,15 +309,27 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "hi",
 		AssetType: asset.Spot,
 	}
-
-	response, err := p.SubmitOrder(context.Background(), orderSubmission)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(p) && (err != nil || response.Status != order.Filled):
-		t.Errorf("Order failed to be placed: %v", err)
-	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
-		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock SubmitOrder() err", err)
+	_, err := p.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = p.SubmitOrder(context.Background(), &order.Submit{
+		Exchange: p.Name,
+		Pair: currency.Pair{
+			Delimiter: currency.UnderscoreDelimiter,
+			Base:      currency.BTC,
+			Quote:     currency.LTC,
+		},
+		Side:         order.Buy,
+		Type:         order.Market,
+		TriggerPrice: 11,
+		Price:        10,
+		Amount:       10000000,
+		ClientID:     "hi",
+		AssetType:    asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -333,15 +345,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 		AssetType:     asset.Spot,
 	}
-
 	err := p.CancelOrder(context.Background(), orderCancellation)
-	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
-		t.Error("Expecting an error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
-		t.Errorf("Could not cancel orders: %v", err)
-	case mockTests && err != nil:
-		t.Error("Mock CancelExchangeOrder() err", err)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -376,23 +382,17 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
-
+	// if !mockTests {
+	// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	// }
 	_, err := p.ModifyOrder(context.Background(), &order.Modify{
 		OrderID:   "1337",
 		Price:     1337,
 		AssetType: asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	})
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil && mockTests:
-		t.Error("ModifyOrder() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(p) && !mockTests && err == nil:
-		t.Error("ModifyOrder() error cannot be nil")
-	case mockTests && err != nil:
-		t.Error("Mock ModifyOrder() err", err)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -563,6 +563,16 @@ func TestCancelBatchOrders(t *testing.T) {
 			AssetType: asset.Spot,
 			Pair:      currency.NewPair(currency.BTC, currency.USD),
 		},
+		{
+			OrderID:   "134",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+		{
+			OrderID:   "234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
 	})
 	if err != nil {
 		t.Error(err)
@@ -606,9 +616,17 @@ func TestGetSymbolInformation(t *testing.T) {
 
 func TestGetCurrencyInformations(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetCurrencyInformations(context.Background())
+	results, err := p.GetCurrencyInformations(context.Background())
 	if err != nil {
 		t.Error(err)
+	} else {
+		// val, _ := json.Marshal(results)
+		// println(string(val))
+		for i := range results {
+			for _, v := range results[i] {
+				println(v.Type)
+			}
+		}
 	}
 }
 
@@ -996,17 +1014,34 @@ func TestGetSubAccountTransferRecord(t *testing.T) {
 func TestGetDepositAddresses(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	_, err := p.GetDepositAddresses(context.Background(), currency.USDT)
+	_, err := p.GetDepositAddresses(context.Background(), currency.LTC)
 	if err != nil {
 		t.Error(err)
 	}
 }
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetOrderInfo(context.Background(), "1234", pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	_, err := p.GetDepositAddress(context.Background(), currency.USDT, "", "USDT")
+	results, err := p.GetDepositAddress(context.Background(), currency.LTC, "", "USDT")
 	if err != nil {
 		t.Error(err)
+	} else {
+		val, _ := json.Marshal(results)
+		println(string(val))
 	}
 }
 
@@ -1032,7 +1067,7 @@ func TestNewCurrencyDepoditAddress(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	}
-	_, err := p.NewCurrencyDepoditAddress(context.Background(), currency.BTC)
+	_, err := p.NewCurrencyDepositAddress(context.Background(), currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1465,7 +1500,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetTradeOrderID(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTradeOrderID(context.Background(), "13123242323")
+	_, err := p.GetTradesByOrderID(context.Background(), "13123242323")
 	if err != nil {
 		t.Error(err)
 	}

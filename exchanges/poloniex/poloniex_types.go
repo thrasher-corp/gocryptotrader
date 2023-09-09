@@ -1085,6 +1085,24 @@ type TradeOrder struct {
 	CancelReason   int64                   `json:"cancelReason"`
 }
 
+// SmartOrderItem represents a smart order detail.
+type SmartOrderItem struct {
+	ID            string                  `json:"id"`
+	ClientOrderID string                  `json:"clientOrderId"`
+	Symbol        string                  `json:"symbol"`
+	State         string                  `json:"state"`
+	AccountType   string                  `json:"accountType"`
+	Side          string                  `json:"side"`
+	Type          string                  `json:"type"`
+	TimeInForce   string                  `json:"timeInForce"`
+	Quantity      convert.StringToFloat64 `json:"quantity"`
+	Price         convert.StringToFloat64 `json:"price"`
+	Amount        convert.StringToFloat64 `json:"amount"`
+	StopPrice     convert.StringToFloat64 `json:"stopPrice"`
+	CreateTime    convert.ExchangeTime    `json:"createTime"`
+	UpdateTime    convert.ExchangeTime    `json:"updateTime"`
+}
+
 // CancelOrderResponse represents a cancel order response instance.
 type CancelOrderResponse struct {
 	OrderID       string `json:"orderId"`
@@ -1141,24 +1159,6 @@ type CancelReplaceSmartOrderResponse struct {
 	Quantity  convert.ExchangeTime    `json:"quantity"`
 	Code      int64                   `json:"code"`
 	Message   string                  `json:"message"`
-}
-
-// SmartOrderItem represents a smart order detail.
-type SmartOrderItem struct {
-	ID            string                  `json:"id"`
-	ClientOrderID string                  `json:"clientOrderId"`
-	Symbol        string                  `json:"symbol"`
-	State         string                  `json:"state"`
-	AccountType   string                  `json:"accountType"`
-	Side          string                  `json:"side"`
-	Type          string                  `json:"type"`
-	TimeInForce   string                  `json:"timeInForce"`
-	Quantity      convert.StringToFloat64 `json:"quantity"`
-	Price         convert.StringToFloat64 `json:"price"`
-	Amount        convert.StringToFloat64 `json:"amount"`
-	StopPrice     convert.StringToFloat64 `json:"stopPrice"`
-	CreateTime    convert.ExchangeTime    `json:"createTime"`
-	UpdateTime    convert.ExchangeTime    `json:"updateTime"`
 }
 
 // SmartOrderDetail represents a smart order information and trigger detailed information.

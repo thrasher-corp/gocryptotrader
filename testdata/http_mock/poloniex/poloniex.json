@@ -16202,6 +16202,62 @@
     }
    ]
   },
+  "/currencies/LTC": {
+   "GET": [
+    {
+     "data": {
+      "LTC": {
+       "blockchain": "LTC",
+       "delisted": false,
+       "depositAddress": null,
+       "description": "BTC Clone",
+       "id": 125,
+       "minConf": 4,
+       "name": "",
+       "supportBorrow": true,
+       "supportCollateral": true,
+       "tradingState": "NORMAL",
+       "type": "address",
+       "walletDepositState": "ENABLED",
+       "walletState": "ENABLED",
+       "walletWithdrawalState": "ENABLED",
+       "withdrawalFee": "0.00100000"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/currencies/USDT": {
+   "GET": [
+    {
+     "data": {
+      "USDT": {
+       "blockchain": "OMNI",
+       "delisted": false,
+       "depositAddress": null,
+       "description": "Sweep to Main Account",
+       "id": 214,
+       "minConf": 2,
+       "name": "",
+       "supportBorrow": true,
+       "supportCollateral": true,
+       "tradingState": "NORMAL",
+       "type": "address",
+       "walletDepositState": "DISABLED",
+       "walletState": "DISABLED",
+       "walletWithdrawalState": "DISABLED",
+       "withdrawalFee": "0.00000000"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/feeinfo": {
    "GET": [
     {
@@ -31713,6 +31769,75 @@
        "visibleStartTime": 1689751500000
       },
       {
+       "baseCurrencyName": "SG",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "SG/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "SG_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 4,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "0.0001",
+        "priceScale": 4,
+        "quantityScale": 4,
+        "symbol": "SG_USDT"
+       },
+       "tradableStartTime": 1693315800000,
+       "visibleStartTime": 1693238400000
+      },
+      {
+       "baseCurrencyName": "BTP",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "BTP/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "BTP_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 4,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "0.0001",
+        "priceScale": 4,
+        "quantityScale": 4,
+        "symbol": "BTP_USDT"
+       },
+       "tradableStartTime": 1693384200000,
+       "visibleStartTime": 1693296000000
+      },
+      {
+       "baseCurrencyName": "AITECH",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "AITECH/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "AITECH_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 3,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "0.001",
+        "priceScale": 5,
+        "quantityScale": 5,
+        "symbol": "AITECH_USDT"
+       },
+       "tradableStartTime": 1693224000000,
+       "visibleStartTime": 1693152000000
+      },
+      {
        "baseCurrencyName": "SHIA",
        "crossMargin": {
         "maxLeverage": 1,
@@ -31987,6 +32112,121 @@
        },
        "tradableStartTime": 1692010800000,
        "visibleStartTime": 1692006240000
+      },
+      {
+       "baseCurrencyName": "DOBO",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "DOBO/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "DOBO_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 2,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "0.01",
+        "priceScale": 6,
+        "quantityScale": 2,
+        "symbol": "DOBO_USDT"
+       },
+       "tradableStartTime": 1694167200000,
+       "visibleStartTime": 1694016000000
+      },
+      {
+       "baseCurrencyName": "DORKL",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "DORKL/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "DORKL_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 6,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "0.01",
+        "priceScale": 6,
+        "quantityScale": 2,
+        "symbol": "DORKL_USDT"
+       },
+       "tradableStartTime": 1693996200000,
+       "visibleStartTime": 1693929600000
+      },
+      {
+       "baseCurrencyName": "SHEPE",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "SHEPE/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "SHEPE_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 8,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "1000",
+        "priceScale": 11,
+        "quantityScale": 0,
+        "symbol": "SHEPE_USDT"
+       },
+       "tradableStartTime": 1693981800000,
+       "visibleStartTime": 1693929600000
+      },
+      {
+       "baseCurrencyName": "SHIB42069",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "SHIB42069/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "SHIB42069_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 6,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "0.01",
+        "priceScale": 6,
+        "quantityScale": 2,
+        "symbol": "SHIB42069_USDT"
+       },
+       "tradableStartTime": 1693554000000,
+       "visibleStartTime": 1693497600000
+      },
+      {
+       "baseCurrencyName": "ETHPEPE2",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "ETHPEPE2/USDT",
+       "quoteCurrencyName": "USDT",
+       "state": "NORMAL",
+       "symbol": "ETHPEPE2_USDT",
+       "symbolTradeLimit": {
+        "amountScale": 2,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "minAmount": "1",
+        "minQuantity": "0.01",
+        "priceScale": 6,
+        "quantityScale": 6,
+        "symbol": "ETHPEPE2_USDT"
+       },
+       "tradableStartTime": 1693407600000,
+       "visibleStartTime": 1693402320000
       }
      ],
      "queryString": "",
@@ -76926,6 +77166,99 @@
     }
    ]
   },
+  "/orders/1": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Order not exists"
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "RGorEtgxjujB29AGC9u1tLVadjkYdOrmOehTN51ADW0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694285967219"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/1234": {
+   "GET": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Order not exists"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "PI0uOoyQ3X4JIOKckfpzYAKAJXXe8ImUHMc5BIVRy30="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694283068061"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/1234/trades": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "SFO4rKJFhqq1AbeOsWpf5FoQjAJjMGqnYI0QKS7AuqY="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694283067531"
+      ]
+     }
+    }
+   ]
+  },
   "/orders/12345536545645": {
    "DELETE": [
     {
@@ -77012,6 +77345,38 @@
       ],
       "Signtimestamp": [
        "1694112117578"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/1337": {
+   "PUT": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Couldn't locate order"
+     },
+     "queryString": "",
+     "bodyParams": "{\"clientOrderId\":\"\",\"price\":\"1337\",\"type\":\"\\\"UNKNOWN\\\"\",\"timeInForce\":\"\",\"allowBorrow\":false}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "ODs21uBbVUvrrz3NcxGae4Kcz0F1pd1EAOah4qRnNok="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694287300458"
       ]
      }
     }
@@ -95012,6 +95377,35 @@
       ],
       "Signtimestamp": [
        "1694103675540"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/1234": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "5f/Ooo1VD3VdMq6InE1jTNKf5sjdo1aOE3jodZgZCQw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694283068276"
       ]
      }
     }
@@ -119332,6 +119726,33 @@
        "1693749754921"
       ]
      }
+    },
+    {
+     "data": {
+      "address": "LVaQBuCqHJQw2EQNFr4Lhc1ykCva5XMsMK"
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"LTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "lG+BBf6jidk8Wm7QkbU7qw5d7Q7zqvu7abULHQtjHEc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694277263966"
+      ]
+     }
     }
    ]
   },
@@ -119354,13 +119775,65 @@
        "1500"
       ],
       "Signature": [
-       "RWS53X9WFta//sDhpm2yZTd5+BOjLuzQsqYTcItRh9w="
+       "q0aDDXTTF+XcoBCgi31BWml+J2VzdxtaP7CPI7vG1TE="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1694204629732"
+       "1694276021266"
+      ]
+     }
+    },
+    {
+     "data": {
+      "BTC": "1HeLjPNpqG6jRjhZsfti5ABckumer1eqDU"
+     },
+     "queryString": "ccy=LTC",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "csAjmkt5rMfpmFVKI8kg8rhT/rdYnyTyo7GDl/uDpbc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694276113320"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "currency=LTC",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "FrSEztMQwyhy/uaihNuFJOG/9t2o0LG2wcBhYGc7WRQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1694277263286"
       ]
      }
     }

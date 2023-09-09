@@ -302,40 +302,41 @@ func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) e
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	// ticks, err := p.GetTickers(ctx)
+	ticks, err := p.GetTickers(ctx)
+	if err != nil {
+		return err
+	}
+	enabledPairs, err := p.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
+	// fPair, err := p.FormatExchangeCurrency(enabledPairs, a)
 	// if err != nil {
 	// 	return err
 	// }
 
-	// enabledPairs, err := p.GetEnabledPairs(a)
-	// if err != nil {
-	// 	return err
-	// }
-	// for i := range ticks {
-	// 	fPair, err := p.FormatExchangeCurrency(enabledPairs[i], a)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	curr := fPair.String()
-	// 	if _, ok := ticks[curr]; !ok {
-	// 		continue
-	// 	}
+	for i := range ticks {
+		// pair, err := currency.NewPairFromString(ticks)
+		// if _, ok := ticks[i]; !ok {
+		// 	continue
+		// }
 
-	// 	err = ticker.ProcessTicker(&ticker.Price{
-	// 		Pair: enabledPairs[i],
-	// 		Ask:  ticks[i].Low.Float64(),
-	// 		Bid:  ticks[i].Bid.Float64(),
-	// 		High: ticks[i].High.Float64(),
-	// 		// Last:         ticks[i]..Float64(),
-	// 		Low:          ticks[i].Low.Float64(),
-	// 		Volume:       ticks[i].Quantity.Float64(),
-	// 		QuoteVolume:  ticks[i].Amount.Float64(),
-	// 		ExchangeName: p.Name,
-	// 		AssetType:    a})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
+		err = ticker.ProcessTicker(&ticker.Price{
+			AssetType:    a,
+			ExchangeName: p.Name,
+			Pair:         enabledPairs[i],
+			Ask:          ticks[i].Low.Float64(),
+			Bid:          ticks[i].Bid.Float64(),
+			High:         ticks[i].High.Float64(),
+			Low:          ticks[i].Low.Float64(),
+			QuoteVolume:  ticks[i].Amount.Float64(),
+			Volume:       ticks[i].Quantity.Float64(),
+		})
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -619,6 +620,30 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
+	var smartOrder bool
+	switch s.Type {
+	case order.Stop, order.StopLimit:
+		smartOrder = true
+	case order.Limit, order.Market, order.LimitMaker:
+	default:
+		return nil, fmt.Errorf("%v order type %v is not supported", order.ErrTypeIsInvalid, s.Type)
+	}
+	if smartOrder {
+		smartOrder, err := p.CreateSmartOrder(ctx, &SmartOrderRequestParam{
+			Symbol:        fPair,
+			Side:          orderSideString(s.Side),
+			Type:          orderTypeString(s.Type),
+			AccountType:   accountTypeString(s.AssetType),
+			Price:         s.Price,
+			StopPrice:     s.TriggerPrice,
+			Quantity:      s.Amount,
+			ClientOrderID: s.ClientOrderID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return s.DeriveSubmitResponse(smartOrder.ID)
+	}
 	response, err := p.PlaceOrder(ctx, &PlaceOrderParams{
 		Symbol:      fPair,
 		Price:       s.Price,
@@ -636,32 +661,44 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	// if err := action.Validate(); err != nil {
-	// 	return nil, err
-	// }
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
 
-	// oID, err := strconv.ParseInt(action.OrderID, 10, 64)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// resp, err := p.MoveOrder(ctx,
-	// 	oID,
-	// 	action.Price,
-	// 	action.Amount,
-	// 	action.PostOnly,
-	// 	action.ImmediateOrCancel)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// modResp, err := action.DeriveModifyResponse()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// modResp.OrderID = strconv.FormatInt(resp.OrderNumber, 10)
-	// return modResp, nil
-	return nil, nil
+	var orderID string
+	resp, err := p.CancelReplaceOrder(ctx, &CancelReplaceOrderParam{
+		ID:            action.OrderID,
+		ClientOrderID: action.ClientOrderID,
+		Price:         action.Price,
+		Quantity:      action.Amount,
+		AmendedType:   action.Type.String(),
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "Couldn't locate order") {
+			smartOResponse, err := p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
+				ID:            action.OrderID,
+				ClientOrderID: action.ClientOrderID,
+				Price:         action.Price,
+				StopPrice:     action.TriggerPrice,
+				Quantity:      action.Amount,
+				AmendedType:   orderTypeString(action.Type),
+			})
+			if err != nil {
+				return nil, err
+			}
+			orderID = smartOResponse.ID
+		} else {
+			return nil, err
+		}
+	} else {
+		orderID = resp.ID
+	}
+	modResp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	modResp.OrderID = orderID
+	return modResp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -669,14 +706,8 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-
-	// orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// return p.CancelExistingOrder(ctx, orderIDInt)
-	return nil
+	_, err := p.CancelOrderByID(ctx, o.OrderID)
+	return err
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -714,25 +745,28 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (p *Poloniex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	// openOrders, err := p.GetOpenOrdersForAllCurrencies(ctx)
-	// if err != nil {
-	// 	return cancelAllOrdersResponse, err
-	// }
-
-	// for key := range openOrders.Data {
-	// 	for i := range openOrders.Data[key] {
-	// 		err = p.CancelExistingOrder(ctx, openOrders.Data[key][i].OrderNumber)
-	// 		if err != nil {
-	// 			id := strconv.FormatInt(openOrders.Data[key][i].OrderNumber, 10)
-	// 			cancelAllOrdersResponse.Status[id] = err.Error()
-	// 		}
-	// 	}
-	// }
-
+	var pairs currency.Pairs
+	if !cancelOrd.Pair.IsEmpty() {
+		pairs = append(pairs, cancelOrd.Pair)
+	}
+	resp, err := p.CancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+	for x := range resp {
+		cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+	}
+	resp, err = p.CancelAllSmartOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+	for x := range resp {
+		cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+	}
 	return cancelAllOrdersResponse, nil
 }
 
@@ -741,67 +775,127 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-
-	orderInfo := order.Detail{
-		Exchange: p.Name,
-		Pair:     pair,
+	trades, err := p.GetTradesByOrderID(ctx, orderID)
+	if err != nil && !strings.Contains(err.Error(), "Order not found") {
+		return nil, err
+	}
+	orderTrades := make([]order.TradeHistory, len(trades))
+	for i := range trades {
+		oType, err := order.StringToOrderType(trades[i].Type)
+		if err != nil {
+			return nil, err
+		}
+		oSide, err := order.StringToOrderSide(trades[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		orderTrades = append(orderTrades, order.TradeHistory{
+			Price:     trades[i].Price.Float64(),
+			Amount:    trades[i].Quantity.Float64(),
+			Fee:       trades[i].FeeAmount.Float64(),
+			Exchange:  p.Name,
+			TID:       trades[i].ID,
+			Type:      oType,
+			Side:      oSide,
+			Timestamp: trades[i].CreateTime.Time(),
+			FeeAsset:  trades[i].FeeCurrency,
+			Total:     trades[i].Amount.Float64(),
+		})
+	}
+	var smartOrders []SmartOrderDetail
+	var smartOrder bool
+	resp, err := p.GetOrderDetail(ctx, orderID, "")
+	if err != nil {
+		// if len(orderTrades) > 0 { // on closed orders return trades only
+		// if strings.Contains(err.Error(), "Order not found") {
+		// 	orderInfo.Status = order.Closed
+		// }
+		// return &orderInfo, nil
+		// }
+		smartOrders, err = p.GetSmartOrderDetail(ctx, orderID, "")
+		if err != nil {
+			return nil, err
+		} else if len(smartOrders) == 0 {
+			return nil, order.ErrOrderNotFound
+		}
+		smartOrder = true
+		return nil, err
 	}
 
-	// trades, err := p.GetAuthenticatedOrderTrades(ctx, orderID)
-	// if err != nil && !strings.Contains(err.Error(), "Order not found") {
-	// 	return nil, err
-	// }
-
-	// for i := range trades {
-	// 	var tradeHistory order.TradeHistory
-	// 	tradeHistory.Exchange = p.Name
-	// 	tradeHistory.Side, err = order.StringToOrderSide(trades[i].Type)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	tradeHistory.TID = trades[i].GlobalTradeID
-	// 	tradeHistory.Timestamp, err = time.Parse(time.DateTime, trades[i].Date)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	tradeHistory.Price = trades[i].Rate
-	// 	tradeHistory.Amount = trades[i].Amount
-	// 	tradeHistory.Total = trades[i].Total
-	// 	tradeHistory.Fee = trades[i].Fee
-	// 	orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
-	// }
-
-	// resp, err := p.GetAuthenticatedOrderStatus(ctx, orderID)
-	// if err != nil {
-	// 	if len(orderInfo.Trades) > 0 { // on closed orders return trades only
-	// 		if strings.Contains(err.Error(), "Order not found") {
-	// 			orderInfo.Status = order.Closed
-	// 		}
-	// 		return &orderInfo, nil
-	// 	}
-	// 	return nil, err
-	// }
-
-	// if orderInfo.Status, err = order.StringToOrderStatus(resp.Status); err != nil {
-	// 	log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
-	// }
-	// orderInfo.Price = resp.Rate
-	// orderInfo.Amount = resp.Amount
-	// orderInfo.Cost = resp.Total
-	// orderInfo.Fee = resp.Fee
-	// orderInfo.QuoteAmount = resp.StartingAmount
-
-	// orderInfo.Side, err = order.StringToOrderSide(resp.Type)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// orderInfo.Date, err = time.Parse(time.DateTime, resp.Date)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return &orderInfo, nil
+	if smartOrder {
+		dPair, err := currency.NewPairFromString(smartOrders[0].Symbol)
+		if err != nil {
+			return nil, err
+		} else if !pair.IsEmpty() && !dPair.Equal(pair) {
+			return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, dPair)
+		}
+		oType, err := order.StringToOrderType(smartOrders[0].Type)
+		if err != nil {
+			return nil, err
+		}
+		oStatus, err := order.StringToOrderStatus(smartOrders[0].State)
+		if err != nil {
+			return nil, err
+		}
+		oSide, err := order.StringToOrderSide(smartOrders[0].Side)
+		if err != nil {
+			return nil, err
+		}
+		return &order.Detail{
+			Price:         smartOrders[0].Price.Float64(),
+			Amount:        smartOrders[0].Quantity.Float64(),
+			QuoteAmount:   smartOrders[0].Amount.Float64(),
+			Exchange:      p.Name,
+			OrderID:       smartOrders[0].ID,
+			ClientOrderID: smartOrders[0].ClientOrderID,
+			Type:          oType,
+			Side:          oSide,
+			Status:        oStatus,
+			AssetType:     stringToAccountType(smartOrders[0].AccountType),
+			Date:          smartOrders[0].CreateTime.Time(),
+			LastUpdated:   smartOrders[0].UpdateTime.Time(),
+			Pair:          dPair,
+			Trades:        orderTrades,
+		}, nil
+	}
+	dPair, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return nil, err
+	} else if !pair.IsEmpty() && !dPair.Equal(pair) {
+		return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, dPair)
+	}
+	oType, err := order.StringToOrderType(resp.Type)
+	if err != nil {
+		return nil, err
+	}
+	oStatus, err := order.StringToOrderStatus(resp.State)
+	if err != nil {
+		return nil, err
+	}
+	oSide, err := order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return nil, err
+	}
+	return &order.Detail{
+		Price:                resp.Price.Float64(),
+		Amount:               resp.Quantity.Float64(),
+		AverageExecutedPrice: resp.AvgPrice.Float64(),
+		QuoteAmount:          resp.Amount.Float64(),
+		ExecutedAmount:       resp.FilledQuantity.Float64(),
+		RemainingAmount:      resp.Quantity.Float64() - resp.FilledAmount.Float64(),
+		Cost:                 resp.Quantity.Float64() * resp.AvgPrice.Float64(),
+		Exchange:             p.Name,
+		OrderID:              resp.ID,
+		ClientOrderID:        resp.ClientOrderID,
+		Type:                 oType,
+		Side:                 oSide,
+		Status:               oStatus,
+		AssetType:            stringToAccountType(resp.AccountType),
+		Date:                 resp.CreateTime.Time(),
+		LastUpdated:          resp.UpdateTime.Time(),
+		Pair:                 dPair,
+		Trades:               orderTrades,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -810,12 +904,60 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 	if err != nil {
 		return nil, err
 	}
+	// Some coins use a main address, so we must use this in conjunction with the returned
+	// deposit address to produce the full deposit address and payment-id
+	currencies, err := p.GetCurrencyInformation(ctx, cryptocurrency)
+	if err != nil {
+		return nil, err
+	}
+
+	coinParams, ok := currencies[cryptocurrency.Upper().String()]
+	if !ok {
+		return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
+	}
+
+	var address, paymentID string
+	if coinParams.Type == "address-payment-id" && coinParams.DepositAddress != "" {
+		paymentID, ok = (*depositAddrs)[cryptocurrency.Upper().String()]
+		if !ok {
+			newAddr, err := p.NewCurrencyDepositAddress(ctx, cryptocurrency)
+			if err != nil {
+				return nil, err
+			}
+			paymentID = newAddr
+		}
+		return &deposit.Address{
+			Address: coinParams.DepositAddress,
+			Tag:     paymentID,
+			Chain:   coinParams.ParentChain,
+		}, nil
+	}
+
+	address, ok = (*depositAddrs)[cryptocurrency.Upper().String()]
+	if !ok {
+		if len(coinParams.ChildChains) > 1 && chain != "" && !common.StringDataCompare(coinParams.ChildChains, chain) {
+			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
+				cryptocurrency,
+				coinParams.ChildChains)
+		}
+
+		coinParams, ok = currencies[cryptocurrency.Upper().String()]
+		if !ok {
+			return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
+		}
+		if coinParams.WalletDepositState != "ENABLED" {
+			return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", cryptocurrency.Upper().String())
+		}
+
+		newAddr, err := p.NewCurrencyDepositAddress(ctx, cryptocurrency)
+		if err != nil {
+			return nil, err
+		}
+		address = newAddr
+	}
 	return &deposit.Address{
-		Address: (*depositAddrs)[cryptocurrency.String()],
-		// Tag:
-		// Chain:
+		Address: address,
 	}, nil
-	// return &deposit.Address{Address: address}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -913,6 +1055,17 @@ func accountTypeString(assetType asset.Item) string {
 		return "FUTURE"
 	default:
 		return ""
+	}
+}
+
+func stringToAccountType(assetType string) asset.Item {
+	switch assetType {
+	case "SPOT":
+		return asset.Spot
+	case "FUTURE":
+		return asset.Futures
+	default:
+		return asset.Empty
 	}
 }
 
