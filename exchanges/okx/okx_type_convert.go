@@ -170,35 +170,21 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
+func (o *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	type Alias PendingOrderItem
-	chil := &struct {
+	a := &struct {
 		*Alias
-		Side         string `json:"side"`
-		UpdateTime   string `json:"uTime"`
-		CreationTime string `json:"cTime"`
+		UpdateTime   okxUnixMilliTime `json:"uTime"`
+		CreationTime okxUnixMilliTime `json:"cTime"`
+		FillTime     okxUnixMilliTime `json:"fillTime"`
 	}{
-		Alias: (*Alias)(a),
+		Alias: (*Alias)(o),
 	}
-	err := json.Unmarshal(data, chil)
-	if err != nil {
-		return err
-	}
-	uTime, err := strconv.ParseInt(chil.UpdateTime, 10, 64)
-	if err != nil {
-		return err
-	}
-	cTime, err := strconv.ParseInt(chil.CreationTime, 10, 64)
-	if err != nil {
-		return err
-	}
-	a.Side, err = order.StringToOrderSide(chil.Side)
-	if err != nil {
-		return err
-	}
-	a.CreationTime = time.UnixMilli(cTime)
-	a.UpdateTime = time.UnixMilli(uTime)
-	return nil
+	err := json.Unmarshal(data, a)
+	o.CreationTime = a.CreationTime.Time()
+	o.UpdateTime = a.UpdateTime.Time()
+	o.FillTime = a.FillTime.Time()
+	return err
 }
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
