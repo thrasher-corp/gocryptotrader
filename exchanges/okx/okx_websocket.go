@@ -1009,18 +1009,13 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 		if err != nil {
 			return err
 		}
-		var side order.Side
-		side, err = order.StringToOrderSide(response.Data[i].Side)
-		if err != nil {
-			return err
-		}
 		for j := range assets {
 			trades = append(trades, trade.Data{
 				Amount:       response.Data[i].Quantity,
 				AssetType:    assets[j],
 				CurrencyPair: pair,
 				Exchange:     ok.Name,
-				Side:         side,
+				Side:         response.Data[i].Side,
 				Timestamp:    response.Data[i].Timestamp.Time(),
 				TID:          response.Data[i].TradeID,
 				Price:        response.Data[i].Price,
@@ -1078,21 +1073,21 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 			remainingAmount = orderAmount - response.Data[x].AccumulatedFillSize.Float64()
 		}
 		d := &order.Detail{
-			Price:                response.Data[x].Price.Float64(),
 			Amount:               response.Data[x].Size.Float64(),
-			QuoteAmount:          quoteAmount,
-			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
-			RemainingAmount:      remainingAmount,
+			AssetType:            a,
 			AverageExecutedPrice: avgPrice,
-			Exchange:             ok.Name,
-			OrderID:              response.Data[x].OrderID,
 			ClientOrderID:        response.Data[x].ClientOrderID,
-			Type:                 orderType,
+			Date:                 response.Data[x].CreationTime,
+			Exchange:             ok.Name,
+			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
+			OrderID:              response.Data[x].OrderID,
+			Pair:                 pair,
+			Price:                response.Data[x].Price.Float64(),
+			QuoteAmount:          quoteAmount,
+			RemainingAmount:      remainingAmount,
 			Side:                 response.Data[x].Side,
 			Status:               orderStatus,
-			AssetType:            a,
-			Date:                 response.Data[x].CreationTime,
-			Pair:                 pair,
+			Type:                 orderType,
 		}
 		if orderStatus == order.Filled {
 			d.CloseTime = response.Data[x].FillTime.Time()

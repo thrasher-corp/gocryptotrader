@@ -139,7 +139,6 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	type Alias OrderDetail
 	chil := &struct {
 		*Alias
-		Side         string `json:"side"`
 		UpdateTime   int64  `json:"uTime,string"`
 		CreationTime int64  `json:"cTime,string"`
 		FillTime     string `json:"fillTime"`
@@ -152,7 +151,6 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 	var err error
 	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	a.Side, err = order.StringToOrderSide(chil.Side)
 	if chil.FillTime == "" {
 		a.FillTime = time.Time{}
 	} else {
@@ -220,29 +218,6 @@ func (a *BlockTicker) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *BlockTrade) UnmarshalJSON(data []byte) error {
-	type Alias BlockTrade
-	chil := &struct {
-		*Alias
-		Side string `json:"side"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	switch {
-	case strings.EqualFold(chil.Side, "buy"):
-		a.Side = order.Buy
-	case strings.EqualFold(chil.Side, "sell"):
-		a.Side = order.Sell
-	default:
-		a.Side = order.UnknownSide
-	}
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
 func (a *UnitConvertResponse) UnmarshalJSON(data []byte) error {
 	type Alias UnitConvertResponse
 	chil := &struct {
@@ -259,27 +234,6 @@ func (a *UnitConvertResponse) UnmarshalJSON(data []byte) error {
 		a.ConvertType = 1
 	case 2:
 		a.ConvertType = 2
-	}
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *QuoteLeg) UnmarshalJSON(data []byte) error {
-	type Alias QuoteLeg
-	chil := &struct {
-		*Alias
-		Side string `json:"side"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	chil.Side = strings.ToLower(chil.Side)
-	if chil.Side == "buy" {
-		a.Side = order.Buy
-	} else {
-		a.Side = order.Sell
 	}
 	return nil
 }

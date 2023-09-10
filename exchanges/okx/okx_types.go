@@ -230,7 +230,7 @@ type TradeResponse struct {
 	TradeID      string           `json:"tradeId"`
 	Price        float64          `json:"px,string"`
 	Quantity     float64          `json:"sz,string"`
-	Side         string           `json:"side"`
+	Side         order.Side       `json:"side"`
 	Timestamp    okxUnixMilliTime `json:"ts"`
 }
 
@@ -433,7 +433,7 @@ type LiquidationOrderDetailItem struct {
 	BankruptcyPx          string           `json:"bkPx"`
 	Currency              string           `json:"ccy"`
 	PosSide               string           `json:"posSide"`
-	Side                  string           `json:"side"`
+	Side                  string           `json:"side"` // May be empty
 	QuantityOfLiquidation float64          `json:"sz,string"`
 	Timestamp             okxUnixMilliTime `json:"ts"`
 }
@@ -780,7 +780,7 @@ type TransactionDetail struct {
 	Tag            string           `json:"tag"`
 	FillPrice      float64          `json:"fillPx,string"`
 	FillSize       float64          `json:"fillSz,string"`
-	Side           string           `json:"side"`
+	Side           order.Side       `json:"side"`
 	PositionSide   string           `json:"posSide"`
 	ExecType       string           `json:"execType"`
 	FeeCurrency    string           `json:"feeCcy"`
@@ -862,7 +862,7 @@ type AlgoOrderResponse struct {
 	AlgoOrderID                string           `json:"algoId"`
 	Quantity                   string           `json:"sz"`
 	OrderType                  string           `json:"ordType"`
-	Side                       string           `json:"side"`
+	Side                       order.Side       `json:"side"`
 	PositionSide               string           `json:"posSide"`
 	TradeMode                  string           `json:"tdMode"`
 	QuantityType               string           `json:"tgtCcy"`
@@ -1175,7 +1175,7 @@ type EstimateQuoteResponse struct {
 	QuoteTime       okxUnixMilliTime `json:"quoteTime"`
 	RfqSize         string           `json:"rfqSz"`
 	RfqSizeCurrency string           `json:"rfqSzCcy"`
-	Side            string           `json:"side"`
+	Side            order.Side       `json:"side"`
 	TTLMs           string           `json:"ttlMs"` // Validity period of quotation in milliseconds
 }
 
@@ -1201,7 +1201,7 @@ type ConvertTradeResponse struct {
 	InstrumentID  string           `json:"instId"`
 	QuoteCurrency string           `json:"quoteCcy"`
 	QuoteID       string           `json:"quoteId"`
-	Side          string           `json:"side"`
+	Side          order.Side       `json:"side"`
 	State         string           `json:"state"`
 	TradeID       string           `json:"tradeId"`
 	Timestamp     okxUnixMilliTime `json:"ts"`
@@ -1210,7 +1210,7 @@ type ConvertTradeResponse struct {
 // ConvertHistory holds convert trade history response
 type ConvertHistory struct {
 	InstrumentID  string           `json:"instId"`
-	Side          string           `json:"side"`
+	Side          order.Side       `json:"side"`
 	FillPrice     float64          `json:"fillPx,string"`
 	BaseCurrency  string           `json:"baseCcy"`
 	QuoteCurrency string           `json:"quoteCcy"`
@@ -1482,12 +1482,12 @@ type LeverageResponse struct {
 
 // MaximumLoanInstrument represents maximum loan of an instrument id.
 type MaximumLoanInstrument struct {
-	InstrumentID string `json:"instId"`
-	MgnMode      string `json:"mgnMode"`
-	MgnCcy       string `json:"mgnCcy"`
-	MaxLoan      string `json:"maxLoan"`
-	Ccy          string `json:"ccy"`
-	Side         string `json:"side"`
+	InstrumentID string     `json:"instId"`
+	MgnMode      string     `json:"mgnMode"`
+	MgnCcy       string     `json:"mgnCcy"`
+	MaxLoan      string     `json:"maxLoan"`
+	Ccy          string     `json:"ccy"`
+	Side         order.Side `json:"side"`
 }
 
 // TradeFeeRate holds trade fee rate information for a given instrument type.
@@ -1564,7 +1564,7 @@ type LoanBorrowAndReplay struct {
 	Currency      string `json:"ccy"`
 	LoanQuota     string `json:"loanQuota"`
 	PosLoan       string `json:"posLoan"`
-	Side          string `json:"side"`
+	Side          string `json:"side"` // borrow or repay
 	UsedLoan      string `json:"usedLoan"`
 }
 
@@ -2374,7 +2374,7 @@ type WSTradeData struct {
 	TradeID      string           `json:"tradeId"`
 	Price        float64          `json:"px,string"`
 	Size         float64          `json:"sz,string"`
-	Side         string           `json:"side"`
+	Side         order.Side       `json:"side"`
 	Timestamp    okxUnixMilliTime `json:"ts"`
 }
 
@@ -2537,7 +2537,7 @@ type WsAlgoOrderDetail struct {
 	TargetCurrency             string           `json:"tgtCcy"`
 	NotionalUsd                string           `json:"notionalUsd"`
 	OrderType                  string           `json:"ordType"`
-	Side                       string           `json:"side"`
+	Side                       order.Side       `json:"side"`
 	PositionSide               string           `json:"posSide"`
 	State                      string           `json:"state"`
 	Leverage                   string           `json:"lever"`
@@ -2581,7 +2581,7 @@ type WsAdvancedAlgoOrderDetail struct {
 	PriceLimit             string           `json:"pxLimit"`
 	PriceSpread            string           `json:"pxSpread"`
 	PriceVariation         string           `json:"pxVar"`
-	Side                   string           `json:"side"`
+	Side                   order.Side       `json:"side"`
 	StopLossOrderPrice     string           `json:"slOrdPx"`
 	StopLossTriggerPrice   string           `json:"slTriggerPx"`
 	State                  string           `json:"state"`
@@ -2839,7 +2839,7 @@ type GridSubOrderData struct {
 	ProfitAdLoss        string           `json:"pnl"`
 	PositionSide        string           `json:"posSide"`
 	Price               string           `json:"px"`
-	Side                string           `json:"side"`
+	Side                order.Side       `json:"side"`
 	State               string           `json:"state"`
 	Size                string           `json:"sz"`
 	Tag                 string           `json:"tag"`
