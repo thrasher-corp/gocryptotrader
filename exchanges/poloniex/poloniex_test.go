@@ -1527,3 +1527,31 @@ func TestGetTradeOrderID(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := p.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second * 23)
+}
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	_, err := p.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHandlePayloads(t *testing.T) {
+	t.Parallel()
+	subscriptions, err := p.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = p.handleSubscriptions("subscribe", subscriptions)
+	if err != nil {
+		t.Error(err)
+	}
+}

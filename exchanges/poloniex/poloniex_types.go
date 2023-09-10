@@ -362,29 +362,6 @@ type WsCommand struct {
 	Sign    string      `json:"sign,omitempty"`
 }
 
-// WsTicker defines the websocket ticker response
-type WsTicker struct {
-	LastPrice              float64
-	LowestAsk              float64
-	HighestBid             float64
-	PercentageChange       float64
-	BaseCurrencyVolume24H  float64
-	QuoteCurrencyVolume24H float64
-	IsFrozen               bool
-	HighestTradeIn24H      float64
-	LowestTradePrice24H    float64
-}
-
-// WsTrade defines the websocket trade response
-type WsTrade struct {
-	Symbol    string
-	TradeID   int64
-	Side      string
-	Volume    float64
-	Price     float64
-	Timestamp int64
-}
-
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
 var WithdrawalFees = map[currency.Code]float64{
@@ -1223,4 +1200,147 @@ type TradeHistoryItem struct {
 	FeeAmount     convert.StringToFloat64 `json:"feeAmount"`
 	PageID        string                  `json:"pageId"`
 	CreateTime    convert.ExchangeTime    `json:"createTime"`
+}
+
+// SubscriptionPayload represents a subscriptions request instance structure.
+type SubscriptionPayload struct {
+	Event      string   `json:"event"`
+	Channel    []string `json:"channel"`
+	Symbols    []string `json:"symbols,omitempty"`
+	Currencies []string `json:"currencies,omitempty"`
+	Depth      int64    `json:"depth,omitempty"`
+}
+
+// SubscriptionResponse represents a subscription response instance.
+type SubscriptionResponse struct {
+	Event   string          `json:"event"`
+	Channel string          `json:"channel"`
+	Action  string          `json:"action"`
+	Data    json.RawMessage `json:"data"`
+
+	Currencies []string `json:"currencies"`
+	Symbols    []string `json:"symbols"`
+}
+
+func (a *SubscriptionResponse) GetWsResponse() *WsResponse {
+	return &WsResponse{
+		Event:   a.Event,
+		Channel: a.Channel,
+		Action:  a.Action,
+		Data:    a.Data,
+	}
+}
+
+// WsResponse represents a websocket push data instance.
+type WsResponse struct {
+	Event   string      `json:"event"`
+	Channel string      `json:"channel"`
+	Action  string      `json:"action"`
+	Data    interface{} `json:"data"`
+}
+
+// WsSymbol represents a subscription
+type WsSymbol struct {
+	Symbol            string               `json:"symbol"`
+	BaseCurrencyName  string               `json:"baseCurrencyName"`
+	QuoteCurrencyName string               `json:"quoteCurrencyName"`
+	DisplayName       string               `json:"displayName"`
+	State             string               `json:"state"`
+	VisibleStartTime  convert.ExchangeTime `json:"visibleStartTime"`
+	TradableStartTime convert.ExchangeTime `json:"tradableStartTime"`
+	CrossMargin       struct {
+		SupportCrossMargin bool   `json:"supportCrossMargin"`
+		MaxLeverage        string `json:"maxLeverage"`
+	} `json:"crossMargin"`
+	SymbolTradeLimit struct {
+		Symbol        string                  `json:"symbol"`
+		PriceScale    float64                 `json:"priceScale"`
+		QuantityScale float64                 `json:"quantityScale"`
+		AmountScale   float64                 `json:"amountScale"`
+		MinQuantity   convert.StringToFloat64 `json:"minQuantity"`
+		MinAmount     convert.StringToFloat64 `json:"minAmount"`
+		HighestBid    convert.StringToFloat64 `json:"highestBid"`
+		LowestAsk     convert.StringToFloat64 `json:"lowestAsk"`
+	} `json:"symbolTradeLimit"`
+}
+
+// WsCurrency represents a currency instance from websocket stream.
+type WsCurrency struct {
+	Currency          string   `json:"currency"`
+	ID                int      `json:"id"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
+	Type              string   `json:"type"`
+	WithdrawalFee     string   `json:"withdrawalFee"`
+	MinConf           int      `json:"minConf"`
+	DepositAddress    any      `json:"depositAddress"`
+	Blockchain        string   `json:"blockchain"`
+	Delisted          bool     `json:"delisted"`
+	TradingState      string   `json:"tradingState"`
+	WalletState       string   `json:"walletState"`
+	ParentChain       any      `json:"parentChain"`
+	IsMultiChain      bool     `json:"isMultiChain"`
+	IsChildChain      bool     `json:"isChildChain"`
+	SupportCollateral bool     `json:"supportCollateral"`
+	SupportBorrow     bool     `json:"supportBorrow"`
+	ChildChains       []string `json:"childChains"`
+}
+
+type WsExchangeStatus []struct {
+	Mm  string `json:"MM"`
+	Pom string `json:"POM"`
+}
+
+// WsCandles represents a candlestick data instance.
+type WsCandles struct {
+	Symbol     string                  `json:"symbol"`
+	Open       convert.StringToFloat64 `json:"open"`
+	High       convert.StringToFloat64 `json:"high"`
+	Low        convert.StringToFloat64 `json:"low"`
+	Close      convert.StringToFloat64 `json:"close"`
+	Quantity   convert.StringToFloat64 `json:"quantity"`
+	Amount     convert.StringToFloat64 `json:"amount"`
+	TradeCount int64                   `json:"tradeCount"`
+	StartTime  convert.ExchangeTime    `json:"startTime"`
+	CloseTime  convert.ExchangeTime    `json:"closeTime"`
+	Timestamp  convert.ExchangeTime    `json:"ts"`
+}
+
+// WsTrade represents websocket trade data
+type WsTrade struct {
+	ID         string                  `json:"id"`
+	Symbol     string                  `json:"symbol"`
+	Amount     convert.StringToFloat64 `json:"amount"`
+	Quantity   convert.StringToFloat64 `json:"quantity"`
+	TakerSide  string                  `json:"takerSide"`
+	Price      convert.StringToFloat64 `json:"price"`
+	CreateTime convert.ExchangeTime    `json:"createTime"`
+	Timestamp  convert.ExchangeTime    `json:"ts"`
+}
+
+// WsTicker represents a websocket ticker information.
+type WsTicker struct {
+	Symbol      string                  `json:"symbol"`
+	StartTime   convert.ExchangeTime    `json:"startTime"`
+	Open        convert.StringToFloat64 `json:"open"`
+	High        convert.StringToFloat64 `json:"high"`
+	Low         convert.StringToFloat64 `json:"low"`
+	Close       convert.StringToFloat64 `json:"close"`
+	Quantity    convert.StringToFloat64 `json:"quantity"`
+	Amount      convert.StringToFloat64 `json:"amount"`
+	TradeCount  int64                   `json:"tradeCount"`
+	DailyChange convert.StringToFloat64 `json:"dailyChange"`
+	MarkPrice   convert.StringToFloat64 `json:"markPrice"`
+	CloseTime   convert.ExchangeTime    `json:"closeTime"`
+	Timestamp   convert.ExchangeTime    `json:"ts"`
+}
+
+// WsBook represents an orderbook.
+type WsBook struct {
+	Symbol     string               `json:"symbol"`
+	Asks       [][]string           `json:"asks"`
+	Bids       [][]string           `json:"bids"`
+	ID         int64                `json:"id"`
+	Timestamp  convert.ExchangeTime `json:"ts"`
+	CreateTime convert.ExchangeTime `json:"createTime"`
 }

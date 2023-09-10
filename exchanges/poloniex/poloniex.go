@@ -36,6 +36,7 @@ var (
 	errClientOrderIDOROrderIDsRequired = errors.New("either client order IDs or order IDs or both are required")
 	errInvalidTimeout                  = errors.New("timeout must not be empty")
 	errChainsNotFound                  = errors.New("err chains not found")
+	errChannelNotSupported             = errors.New("channel not supported")
 )
 
 // Poloniex is the overarching type across the poloniex package
