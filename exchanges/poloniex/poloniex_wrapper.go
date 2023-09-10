@@ -306,30 +306,30 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
+
 	enabledPairs, err := p.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
 
-	// fPair, err := p.FormatExchangeCurrency(enabledPairs, a)
-	// if err != nil {
-	// 	return err
-	// }
-
 	for i := range ticks {
-		// pair, err := currency.NewPairFromString(ticks)
-		// if _, ok := ticks[i]; !ok {
-		// 	continue
-		// }
+		pair, err := currency.NewPairFromString(ticks[i].Symbol)
+		if err != nil {
+			return err
+		}
+
+		if !enabledPairs.Contains(pair, true) {
+			continue
+		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
 			AssetType:    a,
+			Pair:         pair,
 			ExchangeName: p.Name,
-			Pair:         enabledPairs[i],
+			Low:          ticks[i].Low.Float64(),
 			Ask:          ticks[i].Low.Float64(),
 			Bid:          ticks[i].Bid.Float64(),
 			High:         ticks[i].High.Float64(),
-			Low:          ticks[i].Low.Float64(),
 			QuoteVolume:  ticks[i].Amount.Float64(),
 			Volume:       ticks[i].Quantity.Float64(),
 		})
@@ -368,104 +368,98 @@ func (p *Poloniex) FetchOrderbook(ctx context.Context, currencyPair currency.Pai
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	// if pair.IsEmpty() {
-	// 	return nil, currency.ErrCurrencyPairEmpty
-	// }
-	// if err := p.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-	// 	return nil, err
-	// }
-	// callingBook := &orderbook.Base{
-	// 	Exchange:        p.Name,
-	// 	Pair:            pair,
-	// 	Asset:           assetType,
-	// 	VerifyOrderbook: p.CanVerifyOrderbook,
-	// }
-	// orderbookNew, err := p.GetOrderbook(ctx, pair)
-	// if err != nil {
-	// 	return callingBook, err
-	// }
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	err := p.CurrencyPairs.IsAssetEnabled(assetType)
+	if err != nil {
+		return nil, err
+	}
+	pair, err = p.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	orderbookNew, err := p.GetOrderbook(ctx, pair)
+	if err != nil {
+		return nil, err
+	}
 
-	// enabledPairs, err := p.GetEnabledPairs(assetType)
-	// if err != nil {
-	// 	return callingBook, err
-	// }
-	// for i := range enabledPairs {
-	// 	pFmt, err := p.GetPairFormat(assetType, true)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	fP := enabledPairs[i].Format(pFmt)
-	// 	data, ok := orderbookNew.Data[fP.Base.String()+fP.Delimiter+fP.Quote.String()]
-	// 	if !ok {
-	// 		data, ok = orderbookNew.Data[fP.Quote.String()+fP.Delimiter+fP.Base.String()]
-	// 		if !ok {
-	// 			continue
-	// 		}
-	// 	}
-	// 	book := &orderbook.Base{
-	// 		Exchange:        p.Name,
-	// 		Pair:            enabledPairs[i],
-	// 		Asset:           assetType,
-	// 		VerifyOrderbook: p.CanVerifyOrderbook,
-	// 	}
+	book := &orderbook.Base{
+		Exchange:        p.Name,
+		Pair:            pair,
+		Asset:           assetType,
+		VerifyOrderbook: p.CanVerifyOrderbook,
+	}
 
-	// 	book.Bids = make(orderbook.Items, len(data.Bids))
-	// 	for y := range data.Bids {
-	// 		book.Bids[y] = orderbook.Item{
-	// 			Amount: data.Bids[y].Amount,
-	// 			Price:  data.Bids[y].Price,
-	// 		}
-	// 	}
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids)/2)
+	for y := range book.Bids {
+		book.Bids[y].Price, err = strconv.ParseFloat(orderbookNew.Bids[y*2], 64)
+		if err != nil {
+			return nil, err
+		}
+		book.Bids[y].Amount, err = strconv.ParseFloat(orderbookNew.Bids[y*2+1], 64)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	// 	book.Asks = make(orderbook.Items, len(data.Asks))
-	// 	for y := range data.Asks {
-	// 		book.Asks[y] = orderbook.Item{
-	// 			Amount: data.Asks[y].Amount,
-	// 			Price:  data.Asks[y].Price,
-	// 		}
-	// 	}
-	// 	err = book.Process()
-	// 	if err != nil {
-	// 		return book, err
-	// 	}
-	// }
-	// return orderbook.Get(p.Name, pair, assetType)
-	return nil, nil
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks)/2)
+	for y := range book.Asks {
+		book.Asks[y].Price, err = strconv.ParseFloat(orderbookNew.Asks[y*2], 64)
+		if err != nil {
+			return nil, err
+		}
+		book.Asks[y].Amount, err = strconv.ParseFloat(orderbookNew.Asks[y*2+1], 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = book.Process()
+	if err != nil {
+		return book, err
+	}
+	return orderbook.Get(p.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
 func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
-	// response.Exchange = p.Name
-	// accountBalance, err := p.GetBalances(ctx)
-	// if err != nil {
-	// 	return response, err
-	// }
+	accountBalance, err := p.GetSubAccountBalances(ctx)
+	if err != nil {
+		return response, err
+	}
 
-	// currencies := make([]account.Balance, 0, len(accountBalance.Currency))
-	// for x, y := range accountBalance.Currency {
-	// 	currencies = append(currencies, account.Balance{
-	// 		Currency: currency.NewCode(x),
-	// 		Total:    y,
-	// 	})
-	// }
-
-	// response.Accounts = append(response.Accounts, account.SubAccount{
-	// 	AssetType:  assetType,
-	// 	Currencies: currencies,
-	// })
-
-	// creds, err := p.GetCredentials(ctx)
-	// if err != nil {
-	// 	return account.Holdings{}, err
-	// }
-	// err = account.Process(&response, creds)
-	// if err != nil {
-	// 	return account.Holdings{}, err
-	// }
-
-	// return response, nil
+	subAccounts := make([]account.SubAccount, len(accountBalance))
+	for i := range accountBalance {
+		subAccount := account.SubAccount{
+			ID:        accountBalance[i].AccountID,
+			AssetType: stringToAccountType(accountBalance[i].AccountType),
+		}
+		currencyBalances := make([]account.Balance, len(accountBalance[i].Balances))
+		for x := range accountBalance[i].Balances {
+			currencyBalances = append(currencyBalances, account.Balance{
+				Currency:               currency.NewCode(accountBalance[i].Balances[x].Currency),
+				Total:                  accountBalance[i].Balances[x].AvailableBalance.Float64(),
+				Hold:                   accountBalance[i].Balances[x].Hold.Float64(),
+				Free:                   accountBalance[i].Balances[x].Available.Float64(),
+				AvailableWithoutBorrow: accountBalance[i].Balances[x].AvailableBalance.Float64(),
+			})
+		}
+		subAccounts = append(subAccounts, subAccount)
+	}
+	response = account.Holdings{
+		Exchange: p.Name,
+		Accounts: subAccounts,
+	}
+	creds, err := p.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 	return response, nil
 }
 
@@ -563,8 +557,7 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 allTrades:
 	for {
 		var tradeData []TradeHistoryItem
-		tradeData, err = p.GetTradeHistory(ctx,
-			currency.Pairs{pair}, "", 0, 0, ts, timestampEnd)
+		tradeData, err = p.GetTradeHistory(ctx, currency.Pairs{pair}, "", 0, 0, ts, timestampEnd)
 		if err != nil {
 			return nil, err
 		}
@@ -605,10 +598,11 @@ allTrades:
 		return nil, err
 	}
 	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
-
 	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
+
+// --------------------------------------------------------------------------------------------------------------------
 
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
@@ -806,12 +800,6 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	var smartOrder bool
 	resp, err := p.GetOrderDetail(ctx, orderID, "")
 	if err != nil {
-		// if len(orderTrades) > 0 { // on closed orders return trades only
-		// if strings.Contains(err.Error(), "Order not found") {
-		// 	orderInfo.Status = order.Closed
-		// }
-		// return &orderInfo, nil
-		// }
 		smartOrders, err = p.GetSmartOrderDetail(ctx, orderID, "")
 		if err != nil {
 			return nil, err
@@ -966,7 +954,10 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := p.WithdrawCurrency(ctx, &WithdrawCurrencyParam{Currency: withdrawRequest.Currency, Address: withdrawRequest.Crypto.Address, Amount: withdrawRequest.Amount})
+	v, err := p.WithdrawCurrency(ctx, &WithdrawCurrencyParam{
+		Currency: withdrawRequest.Currency,
+		Address:  withdrawRequest.Crypto.Address,
+		Amount:   withdrawRequest.Amount})
 	if err != nil {
 		return nil, err
 	}
@@ -1108,12 +1099,10 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-
 		assetType, err := asset.New(resp[i].AccountType)
 		if err != nil {
 			return nil, err
 		}
-
 		detail := order.Detail{
 			Side:                 orderSide,
 			Amount:               resp[i].Amount.Float64(),
@@ -1131,6 +1120,50 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			AssetType:            assetType,
 			Date:                 resp[i].CreateTime.Time(),
 			LastUpdated:          resp[i].UpdateTime.Time(),
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
+	}
+	smartOrders, err := p.GetSmartOrderHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType),
+		orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
+	if err != nil {
+		return nil, err
+	}
+	for i := range smartOrders {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(smartOrders[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
+			continue
+		}
+		orderSide, err := order.StringToOrderSide(smartOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		orderType, err := order.StringToOrderType(smartOrders[i].Type)
+		if err != nil {
+			return nil, err
+		}
+		assetType, err := asset.New(smartOrders[i].AccountType)
+		if err != nil {
+			return nil, err
+		}
+		detail := order.Detail{
+			Side:          orderSide,
+			Amount:        smartOrders[i].Amount.Float64(),
+			Price:         smartOrders[i].Price.Float64(),
+			TriggerPrice:  smartOrders[i].StopPrice.Float64(),
+			Pair:          pair,
+			Type:          orderType,
+			Exchange:      p.Name,
+			OrderID:       smartOrders[i].ID,
+			ClientOrderID: smartOrders[i].ClientOrderID,
+			Status:        order.Filled,
+			AssetType:     assetType,
+			Date:          smartOrders[i].CreateTime.Time(),
+			LastUpdated:   smartOrders[i].UpdateTime.Time(),
 		}
 		detail.InferCostsAndTimes()
 		orders = append(orders, detail)
@@ -1199,7 +1232,6 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			})
 		}
 	}
-
 	return req.ProcessResponse(timeSeries)
 }
 

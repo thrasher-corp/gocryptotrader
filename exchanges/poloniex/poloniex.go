@@ -495,7 +495,6 @@ func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, act
 }
 
 // NewCurrencyDepoditAddress create a new address for a currency.
-
 // Some currencies use a common deposit address for everyone on the exchange and designate the account
 // for which this payment is destined by populating paymentID field.
 // In these cases, use /currencies to look up the mainAccount for the currency to find

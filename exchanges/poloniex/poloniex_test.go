@@ -172,18 +172,14 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	results, err := p.GetOrderHistory(context.Background(), &getOrdersRequest)
+	_, err := p.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(results)
-		println(string(val))
 	}
 }
 
 // func TestGetOrderStatus(t *testing.T) {
 // 	t.Parallel()
-
 // 	tests := []struct {
 // 		name           string
 // 		mock           bool
@@ -234,7 +230,7 @@ func TestGetOrderHistory(t *testing.T) {
 // 				}
 // 			}
 // 		})
-// 	}
+// 	  }
 // }
 
 // func TestGetOrderTrades(t *testing.T) {
@@ -413,6 +409,17 @@ func TestWithdraw(t *testing.T) {
 		TradePassword: "Password",
 	}
 	_, err := p.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
+	// if mockTests {
+	// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	// }
+	_, err := p.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -724,6 +731,21 @@ func TestGetOrderbook(t *testing.T) {
 	_, err = p.GetOrderbook(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := p.UpdateOrderbook(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	} else {
+		val, _ := json.Marshal(results)
+		println(string(val))
 	}
 }
 
