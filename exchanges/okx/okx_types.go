@@ -727,7 +727,7 @@ type PendingOrderItem struct {
 	FeeCurrency                string                  `json:"feeCcy"`
 	LastFilledPrice            convert.StringToFloat64 `json:"fillPx"`
 	LastFilledSize             convert.StringToFloat64 `json:"fillSz"`
-	FillTime                   string                  `json:"fillTime"`
+	FillTime                   okxUnixMilliTime        `json:"fillTime"`
 	InstrumentID               string                  `json:"instId"`
 	InstrumentType             string                  `json:"instType"`
 	Leverage                   convert.StringToFloat64 `json:"lever"`
