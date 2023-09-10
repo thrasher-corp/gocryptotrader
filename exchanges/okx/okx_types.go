@@ -723,8 +723,8 @@ type PendingOrderItem struct {
 	Category                   string                  `json:"category"`
 	Currency                   string                  `json:"ccy"`
 	ClientOrderID              string                  `json:"clOrdId"`
-	TransactionFee             convert.StringToFloat64 `json:"fee"`
-	FeeCurrency                string                  `json:"feeCcy"`
+	Fee                        convert.StringToFloat64 `json:"fee"`
+	FeeCurrency                currency.Code           `json:"feeCcy"`
 	LastFilledPrice            convert.StringToFloat64 `json:"fillPx"`
 	LastFilledSize             convert.StringToFloat64 `json:"fillSz"`
 	FillTime                   okxUnixMilliTime        `json:"fillTime"`

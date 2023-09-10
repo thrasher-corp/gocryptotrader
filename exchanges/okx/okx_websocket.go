@@ -1080,6 +1080,8 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 			Date:                 response.Data[x].CreationTime,
 			Exchange:             ok.Name,
 			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
+			Fee:                  0.0 - response.Data[x].Fee.Float64(),
+			FeeAsset:             response.Data[x].FeeCurrency,
 			OrderID:              response.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                response.Data[x].Price.Float64(),

@@ -181,7 +181,7 @@ func (o *PendingOrderItem) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, a)
 	o.CreationTime = a.CreationTime.Time()
 	o.UpdateTime = a.UpdateTime.Time()
-	o.FillTime = a.FillTime.Time()
+	o.FillTime = a.FillTime
 	return err
 }
 
