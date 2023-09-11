@@ -679,6 +679,7 @@ func getOrderbookStream(c *cli.Context) error {
 }
 
 func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, assetType string, maxLen, askLen, bidLen int64) {
+	maxLen-- // ensure we get the 0 index at the correct max length
 	upperBase := strings.ToUpper(resp.Pair.Base)
 	upperQuote := strings.ToUpper(resp.Pair.Quote)
 	printFmt := "%s%.8f\t\t%.8f\n"
@@ -687,7 +688,7 @@ func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, 
 
 	fmt.Printf("%sPrice(%v)\t\tAmount(%s)\n",
 		grayText, upperQuote, upperBase)
-	for i := maxLen; i > 0; i-- {
+	for i := maxLen; i >= 0; i-- {
 		var askAmount, askPrice float64
 		if i <= askLen {
 			askAmount = resp.Asks[i].Amount
@@ -696,7 +697,7 @@ func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, 
 		fmt.Printf(printFmt, redText, askPrice, askAmount)
 	}
 	fmt.Println()
-	for i := int64(0); i < maxLen; i++ {
+	for i := int64(0); i <= maxLen; i++ {
 		var bidAmount, bidPrice float64
 		if i <= bidLen {
 			bidAmount = resp.Bids[i].Amount
