@@ -1063,6 +1063,8 @@ func StringToOrderSide(side string) (Side, error) {
 	}
 }
 
+// UnmarshalJSON parses the JSON-encoded order side and stores the result
+// It expects a quoted string input, and uses StringToOrderSide to parse it
 func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	if !bytes.HasPrefix(data, []byte(`"`)) {
 		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
