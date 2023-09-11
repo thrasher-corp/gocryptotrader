@@ -1343,4 +1343,64 @@ type WsBook struct {
 	ID         int64                `json:"id"`
 	Timestamp  convert.ExchangeTime `json:"ts"`
 	CreateTime convert.ExchangeTime `json:"createTime"`
+
+	LastID int64 `json:"lastId"`
+}
+
+// AuthParams represents websocket authenticaten parameters
+type AuthParams struct {
+	Key              string `json:"key"`
+	SignTimestamp    int64  `json:"signTimestamp"`
+	SignatureMethod  string `json:"signatureMethod,omitempty"`
+	SignatureVersion string `json:"signatureVersion,omitempty"`
+	Signature        string `json:"signature"`
+}
+
+// WebsocketAuthenticationResponse represents websocket authentication response.
+type WebsocketAuthenticationResponse struct {
+	Success   bool                 `json:"success"`
+	Message   string               `json:"message"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+}
+
+// WebsocketTradeOrder represents a websocket trade order.
+type WebsocketTradeOrder struct {
+	Symbol         string                  `json:"symbol"`
+	Type           string                  `json:"type"`
+	Quantity       convert.StringToFloat64 `json:"quantity"`
+	OrderID        string                  `json:"orderId"`
+	TradeFee       convert.StringToFloat64 `json:"tradeFee"`
+	ClientOrderID  string                  `json:"clientOrderId"`
+	AccountType    string                  `json:"accountType"`
+	FeeCurrency    string                  `json:"feeCurrency"`
+	EventType      string                  `json:"eventType"`
+	Source         string                  `json:"source"`
+	Side           string                  `json:"side"`
+	FilledQuantity convert.StringToFloat64 `json:"filledQuantity"`
+	FilledAmount   convert.StringToFloat64 `json:"filledAmount"`
+	MatchRole      string                  `json:"matchRole"`
+	State          string                  `json:"state"`
+	TradeTime      convert.ExchangeTime    `json:"tradeTime"`
+	TradeAmount    convert.StringToFloat64 `json:"tradeAmount"`
+	OrderAmount    convert.StringToFloat64 `json:"orderAmount"`
+	CreateTime     convert.ExchangeTime    `json:"createTime"`
+	Price          convert.StringToFloat64 `json:"price"`
+	TradeQty       convert.StringToFloat64 `json:"tradeQty"`
+	TradePrice     convert.StringToFloat64 `json:"tradePrice"`
+	TradeID        string                  `json:"tradeId"`
+	Timestamp      convert.ExchangeTime    `json:"ts"`
+}
+
+// WsTradeBalance represents a balance information through the websocket channel
+type WsTradeBalance []struct {
+	ID          int64                   `json:"id"`
+	UserID      int64                   `json:"userId"`
+	ChangeTime  convert.ExchangeTime    `json:"changeTime"`
+	AccountID   string                  `json:"accountId"`
+	AccountType string                  `json:"accountType"`
+	EventType   string                  `json:"eventType"`
+	Available   convert.StringToFloat64 `json:"available"`
+	Currency    string                  `json:"currency"`
+	Hold        convert.StringToFloat64 `json:"hold"`
+	Timestamp   convert.ExchangeTime    `json:"ts"`
 }

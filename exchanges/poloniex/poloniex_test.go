@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -623,17 +622,9 @@ func TestGetSymbolInformation(t *testing.T) {
 
 func TestGetCurrencyInformations(t *testing.T) {
 	t.Parallel()
-	results, err := p.GetCurrencyInformations(context.Background())
+	_, err := p.GetCurrencyInformations(context.Background())
 	if err != nil {
 		t.Error(err)
-	} else {
-		// val, _ := json.Marshal(results)
-		// println(string(val))
-		for i := range results {
-			for _, v := range results[i] {
-				println(v.Type)
-			}
-		}
 	}
 }
 
@@ -740,12 +731,9 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	results, err := p.UpdateOrderbook(context.Background(), pair, asset.Spot)
+	_, err = p.UpdateOrderbook(context.Background(), pair, asset.Spot)
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(results)
-		println(string(val))
 	}
 }
 
@@ -833,12 +821,9 @@ func TestGetAllBalances(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	results, err := p.GetAllBalances(context.Background(), "SPOT")
+	_, err = p.GetAllBalances(context.Background(), "SPOT")
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(results)
-		println(string(val))
 	}
 }
 
@@ -903,24 +888,18 @@ func TestAccountsTransfer(t *testing.T) {
 func TestGetAccountTransferRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	result, err := p.GetAccountTransferRecords(context.Background(), time.Time{}, time.Time{}, "", currency.BTC, 0, 0)
+	_, err := p.GetAccountTransferRecords(context.Background(), time.Time{}, time.Time{}, "", currency.BTC, 0, 0)
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(result)
-		println(string(val))
 	}
 }
 
 func TestGetAccountTransferRecord(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	result, err := p.GetAccountTransferRecord(context.Background(), "23123123120")
+	_, err := p.GetAccountTransferRecord(context.Background(), "23123123120")
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(result)
-		println(string(val))
 	}
 }
 
@@ -1058,12 +1037,9 @@ func TestGetOrderInfo(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	results, err := p.GetDepositAddress(context.Background(), currency.LTC, "", "USDT")
+	_, err := p.GetDepositAddress(context.Background(), currency.LTC, "", "USDT")
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(results)
-		println(string(val))
 	}
 }
 
@@ -1250,7 +1226,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 		}
 		return pair
 	}
-	result, err := p.PlaceBatchOrders(context.Background(), []PlaceOrderParams{
+	_, err = p.PlaceBatchOrders(context.Background(), []PlaceOrderParams{
 		{
 			Symbol:        pair,
 			Side:          order.Buy.String(),
@@ -1291,9 +1267,6 @@ func TestPlaceBatchOrders(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
-	} else {
-		val, _ := json.Marshal(result)
-		println(string(val))
 	}
 }
 
@@ -1534,7 +1507,7 @@ func TestWsConnect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second * 23)
+	// time.Sleep(time.Second * 23)
 }
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
@@ -1553,5 +1526,26 @@ func TestHandlePayloads(t *testing.T) {
 	_, err = p.handleSubscriptions("subscribe", subscriptions)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+var pushMessages = map[string]string{
+	"AccountBalance": `{ "channel": "balances", "data": [{ "changeTime": 1657312008411, "accountId": "1234", "accountType": "SPOT", "eventType": "place_order", "available": "9999999983.668", "currency": "BTC", "id": 60018450912695040, "userId": 12345, "hold": "16.332", "ts": 1657312008443 }] }`,
+	"Orders":         `{ "channel": "orders", "data": [ { "symbol": "BTC_USDT", "type": "LIMIT", "quantity": "1", "orderId": "32471407854219264", "tradeFee": "0", "clientOrderId": "", "accountType": "SPOT", "feeCurrency": "", "eventType": "place", "source": "API", "side": "BUY", "filledQuantity": "0", "filledAmount": "0", "matchRole": "MAKER", "state": "NEW", "tradeTime": 0, "tradeAmount": "0", "orderAmount": "0", "createTime": 1648708186922, "price": "47112.1", "tradeQty": "0", "tradePrice": "0", "tradeId": "0", "ts": 1648708187469 } ] }`,
+}
+
+const dummyPush = `{ "channel": "abebe", "data": [] }`
+
+func TestWsPushData(t *testing.T) {
+	t.Parallel()
+	err := p.wsHandleData([]byte(dummyPush))
+	if err == nil {
+		t.Fatal("expected unhandled message error")
+	}
+	for key, value := range pushMessages {
+		err = p.wsHandleData([]byte(value))
+		if err != nil {
+			t.Fatalf("%s error %s: %v", p.Name, key, err)
+		}
 	}
 }

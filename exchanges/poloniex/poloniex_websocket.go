@@ -1,17 +1,22 @@
 package poloniex
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -24,6 +29,7 @@ const (
 	poloniexPrivateWebsocketAddress = "wss://ws.poloniex.com/ws/private"
 
 	cnlExchange = "exchange"
+	cnlAuth     = "auth"
 
 	cnlSymbols    = "symbols"
 	cnlCurrencies = "currencies"
@@ -36,15 +42,14 @@ const (
 	// Authenticated channels
 	cnlOrders   = "orders"
 	cnlBalances = "balances"
-
-	// Websocket Trade Orders
 )
 
 var defaultSubscriptions = []string{
 	cnlCandles,
-	cnlTrades,
-	cnlTicker,
-	cnlBooks,
+	// cnlTrades,
+	// cnlTicker,
+	// cnlBooks,
+	// cnlBookLevel2,
 }
 
 var (
@@ -80,7 +85,8 @@ func (p *Poloniex) WsConnect() error {
 		Message:           pingPayload,
 		Delay:             30,
 	})
-	if p.Websocket.CanUseAuthenticatedEndpoints() {
+	p.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	if true || p.Websocket.CanUseAuthenticatedEndpoints() {
 		err := p.wsAuthConn()
 		if err != nil {
 			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -88,17 +94,17 @@ func (p *Poloniex) WsConnect() error {
 	}
 	p.Websocket.Wg.Add(1)
 	go p.wsReadData(p.Websocket.Conn)
-	// return nil
-	subscriptions, err := p.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return p.Subscribe(subscriptions)
+	return nil
 }
 
 func (p *Poloniex) wsAuthConn() error {
+	creds, err := p.GetCredentials(context.Background())
+	if err != nil {
+		return err
+	}
+
 	var dialer websocket.Dialer
-	err := p.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = p.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -120,7 +126,28 @@ func (p *Poloniex) wsAuthConn() error {
 	})
 	p.Websocket.Wg.Add(1)
 	go p.wsReadData(p.Websocket.AuthConn)
-	return nil
+	timestamp := time.Now()
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(fmt.Sprintf("GET\n/ws\nsignTimestamp=%d", timestamp.UnixMilli())),
+		[]byte(creds.Secret))
+	if err != nil {
+		return err
+	}
+	auth := &struct {
+		Event   string     `json:"event"`
+		Channel []string   `json:"channel"`
+		Params  AuthParams `json:"params"`
+	}{
+		Event:   "subscribe",
+		Channel: []string{cnlAuth},
+		Params: AuthParams{
+			Key:             creds.Key,
+			SignatureMethod: "hmacSHA256",
+			SignTimestamp:   timestamp.UnixMilli(),
+			Signature:       crypto.Base64Encode(hmac),
+		},
+	}
+	return p.Websocket.AuthConn.SendJSONMessage(auth)
 }
 
 // wsReadData handles data from the websocket connection
@@ -148,7 +175,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		log.Debugf(log.ExchangeSys, string(respRaw))
 		return nil
 	}
-	println(string(respRaw))
 	switch result.Channel {
 	case cnlSymbols:
 		var response [][]WsSymbol
@@ -163,22 +189,116 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		return p.processTrades(&result)
 	case cnlTicker:
 		return p.processTicker(&result)
-	case cnlBooks:
+	case cnlBooks,
+		cnlBookLevel2:
 		return p.processBooks(&result)
-	case cnlBookLevel2:
-		return p.processResponse(&result, nil)
 	case cnlOrders:
-		return p.processResponse(&result, nil)
+		return p.processOrders(&result)
 	case cnlBalances:
-		return p.processResponse(&result, nil)
+		return p.processBalance(&result)
+	case cnlAuth:
+		resp := &WebsocketAuthenticationResponse{}
+		err = json.Unmarshal(result.Data, &resp)
+		if err != nil {
+			return err
+		}
+		if !resp.Success {
+			log.Errorf(log.ExchangeSys, "%s Websocket: %s", p.Name, resp.Message)
+			return nil
+		}
+		if p.Verbose {
+			log.Debugf(log.ExchangeSys, "%s Websocket: connection authenticated\n", p.Name)
+		}
 	default:
 		if strings.HasPrefix(result.Channel, cnlCandles) {
 			return p.processCandlestickData(&result)
 		}
 		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
-		return errors.New("sfkajdfkjasldfkjaslkdfjlaskdjflkasdj")
-		// return nil
+		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
 	}
+	return nil
+}
+
+func (p *Poloniex) processBalance(result *SubscriptionResponse) error {
+	var resp WsTradeBalance
+	err := json.Unmarshal(result.Data, &resp)
+	if err != nil {
+		return err
+	}
+	accountChanges := make([]account.Change, len(resp))
+	for x := range resp {
+		accountChanges[x] = account.Change{
+			Exchange: p.Name,
+			Currency: currency.NewCode(resp[x].Currency),
+			Asset:    stringToAccountType(resp[x].AccountType),
+			Amount:   resp[x].Available.Float64(),
+			Account:  resp[x].AccountType,
+		}
+	}
+	p.Websocket.DataHandler <- accountChanges
+	return nil
+}
+
+func (p *Poloniex) processOrders(result *SubscriptionResponse) error {
+	response := []WebsocketTradeOrder{}
+	err := json.Unmarshal(result.Data, &response)
+	if err != nil {
+		return err
+	}
+	orderDetails := make([]order.Detail, len(response))
+	for x := range response {
+		pair, err := currency.NewPairFromString(response[x].Symbol)
+		if err != nil {
+			return err
+		}
+		oType, err := order.StringToOrderType(response[x].Type)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(response[x].Side)
+		if err != nil {
+			return err
+		}
+		oStatus, err := order.StringToOrderStatus(response[x].State)
+		if err != nil {
+			return err
+		}
+		orderDetails[x] = order.Detail{
+			Price:           response[x].Price.Float64(),
+			Amount:          response[x].Quantity.Float64(),
+			QuoteAmount:     response[x].OrderAmount.Float64(),
+			ExecutedAmount:  response[x].FilledAmount.Float64(),
+			RemainingAmount: response[x].OrderAmount.Float64() - response[x].FilledAmount.Float64(),
+			Fee:             response[x].TradeFee.Float64(),
+			FeeAsset:        currency.NewCode(response[x].FeeCurrency),
+			Exchange:        p.Name,
+			OrderID:         response[x].OrderID,
+			ClientOrderID:   response[x].ClientOrderID,
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       stringToAccountType(response[x].AccountType),
+			Date:            response[x].CreateTime.Time(),
+			LastUpdated:     response[x].TradeTime.Time(),
+			Pair:            pair,
+			Trades: []order.TradeHistory{
+				{
+					Price:     response[x].TradePrice.Float64(),
+					Amount:    response[x].TradeQty.Float64(),
+					Fee:       response[x].TradeFee.Float64(),
+					Exchange:  p.Name,
+					TID:       response[x].TradeID,
+					Type:      oType,
+					Side:      oSide,
+					Timestamp: response[x].Timestamp.Time(),
+					FeeAsset:  response[x].FeeCurrency,
+					Total:     response[x].Quantity.Float64(),
+				},
+			},
+		}
+	}
+	p.Websocket.DataHandler <- orderDetails
+	return nil
 }
 
 func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
@@ -222,6 +342,7 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 				return err
 			}
 		}
+		update.UpdateID = resp[x].LastID
 		err = p.Websocket.Orderbook.Update(&update)
 		if err != nil {
 			return err
@@ -339,8 +460,8 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	if err != nil {
 		return nil, err
 	}
-	channels := defaultSubscriptions
-	if p.IsWebsocketAuthenticationSupported() && p.IsWebsocketAuthenticationSupported() {
+	channels := []string{} // defaultSubscriptions
+	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{
 			cnlOrders,
 			cnlBalances}...)
@@ -348,7 +469,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	subscriptions := make([]stream.ChannelSubscription, 0, 6*len(enabledCurrencies))
 	for i := range channels {
 		switch channels[i] {
-		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2, cnlOrders: // symbols
+		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2: // symbols
 			for x := range enabledCurrencies {
 				var params map[string]interface{}
 				if channels[i] == cnlBooks {
@@ -392,7 +513,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					},
 				})
 			}
-		case cnlBalances, cnlExchange: // None
+		case cnlOrders, cnlBalances, cnlExchange: // None
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[i],
 			})
@@ -407,7 +528,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.Channel
 	payloads := []SubscriptionPayload{}
 	for x := range subscs {
 		switch subscs[x].Channel {
-		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2, cnlOrders:
+		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
 			sp, okay := pairsMap[subscs[x].Channel]
 			if !okay {
 				sp = &SubscriptionPayload{
@@ -460,6 +581,12 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.Channel
 				pairsMap[channelName] = sp
 			}
 			sp.Symbols = append(sp.Symbols, subscs[x].Currency.String())
+		case cnlOrders:
+			payloads = append(payloads, SubscriptionPayload{
+				Event:   operation,
+				Channel: []string{subscs[x].Channel},
+				Symbols: []string{"all"},
+			})
 		case cnlBalances, cnlExchange:
 			payloads = append(payloads, SubscriptionPayload{
 				Event:   operation,
@@ -478,7 +605,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.Channel
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(subs []stream.ChannelSubscription) error {
 	var canUseAuthenticate bool
-	if p.IsWebsocketAuthenticationSupported() && p.Websocket.CanUseAuthenticatedEndpoints() {
+	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		canUseAuthenticate = true
 	}
 	payloads, err := p.handleSubscriptions("subscribe", subs)
