@@ -73,7 +73,7 @@ func TestLoad(t *testing.T) {
 		{Price: 7, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
-	}, stack)
+	}, stack, time.Now())
 
 	if stack.getCount() != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
@@ -85,7 +85,7 @@ func TestLoad(t *testing.T) {
 		{Price: 1, Amount: 1},
 		{Price: 3, Amount: 1},
 		{Price: 5, Amount: 1},
-	}, stack)
+	}, stack, time.Now())
 
 	if stack.getCount() != 3 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.getCount())
@@ -98,7 +98,7 @@ func TestLoad(t *testing.T) {
 		{Price: 3, Amount: 1},
 		{Price: 5, Amount: 1},
 		{Price: 7, Amount: 1},
-	}, stack)
+	}, stack, time.Now())
 
 	if stack.getCount() != 2 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.getCount())
@@ -107,7 +107,7 @@ func TestLoad(t *testing.T) {
 	Check(t, list, 4, 16, 4)
 
 	// purge entire list
-	list.load(nil, stack)
+	list.load(nil, stack, time.Now())
 
 	if stack.getCount() != 6 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 6, stack.getCount())
@@ -122,7 +122,7 @@ func BenchmarkLoad(b *testing.B) {
 	ll := linkedList{}
 	s := newStack()
 	for i := 0; i < b.N; i++ {
-		ll.load(ask, s)
+		ll.load(ask, s, time.Now())
 	}
 }
 
@@ -137,12 +137,12 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
 	}
-	a.load(asksSnapshot, stack)
+	a.load(asksSnapshot, stack, time.Now())
 
 	// Update one instance with matching price
 	a.updateInsertByPrice(Items{
 		{Price: 1, Amount: 2},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, a, 7, 37, 6)
 
@@ -153,7 +153,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at head
 	a.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 2},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, a, 9, 38, 7)
 
@@ -164,7 +164,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at tail
 	a.updateInsertByPrice(Items{
 		{Price: 12, Amount: 2},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, a, 11, 62, 8)
 
@@ -177,7 +177,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 11.5, Amount: 2},
 		{Price: 10.5, Amount: 2},
 		{Price: 13, Amount: 2},
-	}, stack, 10, getNow())
+	}, stack, 10, time.Now())
 
 	Check(t, a, 15, 106, 10)
 
@@ -188,7 +188,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at tail
 	a.updateInsertByPrice(Items{
 		{Price: 12, Amount: 0},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, a, 13, 82, 9)
 
@@ -199,7 +199,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at mid
 	a.updateInsertByPrice(Items{
 		{Price: 7, Amount: 0},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, a, 12, 75, 8)
 
@@ -210,7 +210,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at head
 	a.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 0},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, a, 10, 74, 7)
 
@@ -219,7 +219,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	}
 
 	// purge if liquidity plunges to zero
-	a.load(nil, stack)
+	a.load(nil, stack, time.Now())
 
 	// rebuild everything again
 	a.updateInsertByPrice(Items{
@@ -229,7 +229,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 7, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, a, 6, 36, 6)
 
@@ -246,12 +246,12 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 3, Amount: 1},
 		{Price: 1, Amount: 1},
 	}
-	b.load(bidsSnapshot, stack)
+	b.load(bidsSnapshot, stack, time.Now())
 
 	// Update one instance with matching price
 	b.updateInsertByPrice(Items{
 		{Price: 11, Amount: 2},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, b, 7, 47, 6)
 
@@ -262,7 +262,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at head
 	b.updateInsertByPrice(Items{
 		{Price: 12, Amount: 2},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, b, 9, 71, 7)
 
@@ -273,7 +273,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert at tail
 	b.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 2},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, b, 11, 72, 8)
 
@@ -286,7 +286,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 11.5, Amount: 2},
 		{Price: 10.5, Amount: 2},
 		{Price: 13, Amount: 2},
-	}, stack, 10, getNow())
+	}, stack, 10, time.Now())
 
 	Check(t, b, 15, 141, 10)
 
@@ -297,7 +297,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert between price and up to and beyond max allowable depth level
 	b.updateInsertByPrice(Items{
 		{Price: 1, Amount: 0},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, b, 14, 140, 9)
 
@@ -308,7 +308,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at mid
 	b.updateInsertByPrice(Items{
 		{Price: 10.5, Amount: 0},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, b, 12, 119, 8)
 
@@ -319,7 +319,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// delete at head
 	b.updateInsertByPrice(Items{
 		{Price: 13, Amount: 0},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, b, 10, 93, 7)
 
@@ -328,7 +328,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	}
 
 	// purge if liquidity plunges to zero
-	b.load(nil, stack)
+	b.load(nil, stack, time.Now())
 
 	// rebuild everything again
 	b.updateInsertByPrice(Items{
@@ -338,7 +338,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 7, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
-	}, stack, 0, getNow())
+	}, stack, 0, time.Now())
 
 	Check(t, b, 6, 36, 6)
 
@@ -358,17 +358,17 @@ func TestCleanup(t *testing.T) {
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
 	}
-	a.load(asksSnapshot, stack)
+	a.load(asksSnapshot, stack, time.Now())
 
-	a.cleanup(6, stack)
+	a.cleanup(6, stack, time.Now())
 	Check(t, a, 6, 36, 6)
-	a.cleanup(5, stack)
+	a.cleanup(5, stack, time.Now())
 	Check(t, a, 5, 25, 5)
-	a.cleanup(1, stack)
+	a.cleanup(1, stack, time.Now())
 	Check(t, a, 1, 1, 1)
-	a.cleanup(10, stack)
+	a.cleanup(10, stack, time.Now())
 	Check(t, a, 1, 1, 1)
-	a.cleanup(0, stack) // will purge, underlying checks are done elseware to prevent this
+	a.cleanup(0, stack, time.Now()) // will purge, underlying checks are done elseware to prevent this
 	Check(t, a, 0, 0, 0)
 }
 
@@ -378,7 +378,7 @@ func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 	a := asks{}
 	stack := newStack()
 
-	a.load(ask, stack)
+	a.load(ask, stack, time.Now())
 
 	updates := Items{
 		{
@@ -392,7 +392,7 @@ func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		a.updateInsertByPrice(updates, stack, 0, getNow())
+		a.updateInsertByPrice(updates, stack, 0, time.Now())
 	}
 }
 
@@ -401,7 +401,7 @@ func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
 	a := asks{}
 	stack := newStack()
 
-	a.load(ask, stack)
+	a.load(ask, stack, time.Now())
 
 	updates := Items{
 		{
@@ -415,7 +415,7 @@ func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		a.updateInsertByPrice(updates, stack, 0, getNow())
+		a.updateInsertByPrice(updates, stack, 0, time.Now())
 	}
 }
 
@@ -430,7 +430,7 @@ func TestUpdateByID(t *testing.T) {
 		{Price: 9, Amount: 1, ID: 9},
 		{Price: 11, Amount: 1, ID: 11},
 	}
-	a.load(asksSnapshot, s)
+	a.load(asksSnapshot, s, time.Now())
 
 	err := a.updateByID(Items{
 		{Price: 1, Amount: 1, ID: 1},
@@ -460,11 +460,15 @@ func TestUpdateByID(t *testing.T) {
 		t.Fatalf("expecting %v but received %v", nil, err)
 	}
 
-	if a.retrieve()[1].Price == 0 {
+	if got := a.retrieve(2); len(got) != 2 || got[1].Price == 0 {
 		t.Fatal("price should not be replaced with zero")
 	}
 
-	if a.retrieve()[1].Amount != 1337 {
+	if got := a.retrieve(3); len(got) != 3 || got[1].Amount != 1337 {
+		t.Fatal("unexpected value for update")
+	}
+
+	if got := a.retrieve(1000); len(got) != 6 {
 		t.Fatal("unexpected value for update")
 	}
 }
@@ -481,7 +485,7 @@ func BenchmarkUpdateByID(b *testing.B) {
 		{Price: 9, Amount: 1, ID: 9},
 		{Price: 11, Amount: 1, ID: 11},
 	}
-	asks.load(asksSnapshot, s)
+	asks.load(asksSnapshot, s, time.Now())
 
 	for i := 0; i < b.N; i++ {
 		err := asks.updateByID(Items{
@@ -509,12 +513,12 @@ func TestDeleteByID(t *testing.T) {
 		{Price: 9, Amount: 1, ID: 9},
 		{Price: 11, Amount: 1, ID: 11},
 	}
-	a.load(asksSnapshot, s)
+	a.load(asksSnapshot, s, time.Now())
 
 	// Delete at head
 	err := a.deleteByID(Items{
 		{Price: 1, Amount: 1, ID: 1},
-	}, s, false)
+	}, s, false, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -524,7 +528,7 @@ func TestDeleteByID(t *testing.T) {
 	// Delete at tail
 	err = a.deleteByID(Items{
 		{Price: 1, Amount: 1, ID: 11},
-	}, s, false)
+	}, s, false, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,7 +538,7 @@ func TestDeleteByID(t *testing.T) {
 	// Delete in middle
 	err = a.deleteByID(Items{
 		{Price: 1, Amount: 1, ID: 5},
-	}, s, false)
+	}, s, false, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +548,7 @@ func TestDeleteByID(t *testing.T) {
 	// Intentional error
 	err = a.deleteByID(Items{
 		{Price: 11, Amount: 1, ID: 1337},
-	}, s, false)
+	}, s, false, time.Now())
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
 	}
@@ -552,7 +556,7 @@ func TestDeleteByID(t *testing.T) {
 	// Error bypass
 	err = a.deleteByID(Items{
 		{Price: 11, Amount: 1, ID: 1337},
-	}, s, true)
+	}, s, true, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +573,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 9, Amount: 1, ID: 9},
 		{Price: 11, Amount: 1, ID: 11},
 	}
-	a.load(asksSnapshot, s)
+	a.load(asksSnapshot, s, time.Now())
 
 	// Update one instance with matching ID
 	err := a.updateInsertByID(Items{
@@ -582,7 +586,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	Check(t, a, 7, 37, 6)
 
 	// Reset
-	a.load(asksSnapshot, s)
+	a.load(asksSnapshot, s, time.Now())
 
 	// Update all instances with matching ID in order
 	err = a.updateInsertByID(Items{
@@ -660,7 +664,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	Check(t, a, 12, 63, 6)
 
 	// Reset
-	a.load(asksSnapshot, s)
+	a.load(asksSnapshot, s, time.Now())
 
 	// Update all instances move one after ID
 	err = a.updateInsertByID(Items{
@@ -678,7 +682,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	Check(t, a, 12, 78, 6)
 
 	// Reset
-	a.load(asksSnapshot, s)
+	a.load(asksSnapshot, s, time.Now())
 
 	// Update all instances move one after ID to tail
 	err = a.updateInsertByID(Items{
@@ -712,7 +716,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	Check(t, a, 14, 106, 7)
 
 	// Reset
-	a.load(asksSnapshot, s)
+	a.load(asksSnapshot, s, time.Now())
 
 	// Update all instances pop at head
 	err = a.updateInsertByID(Items{
@@ -811,7 +815,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	Check(t, a, 19, 213, 9)
 
 	// purge
-	a.load(nil, s)
+	a.load(nil, s, time.Now())
 
 	// insert with no liquidity and jumbled
 	err = a.updateInsertByID(Items{
@@ -841,7 +845,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 3, Amount: 1, ID: 3},
 		{Price: 1, Amount: 1, ID: 1},
 	}
-	b.load(bidsSnapshot, s)
+	b.load(bidsSnapshot, s, time.Now())
 
 	// Update one instance with matching ID
 	err := b.updateInsertByID(Items{
@@ -854,7 +858,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 7, 37, 6)
 
 	// Reset
-	b.load(bidsSnapshot, s)
+	b.load(bidsSnapshot, s, time.Now())
 
 	// Update all instances with matching ID in order
 	err = b.updateInsertByID(Items{
@@ -932,7 +936,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 12, 63, 6)
 
 	// Reset
-	b.load(bidsSnapshot, s)
+	b.load(bidsSnapshot, s, time.Now())
 
 	// Update all instances move one after ID
 	err = b.updateInsertByID(Items{
@@ -950,7 +954,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 12, 78, 6)
 
 	// Reset
-	b.load(bidsSnapshot, s)
+	b.load(bidsSnapshot, s, time.Now())
 
 	// Update all instances move one after ID to tail
 	err = b.updateInsertByID(Items{
@@ -984,7 +988,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 14, 106, 7)
 
 	// Reset
-	b.load(bidsSnapshot, s)
+	b.load(bidsSnapshot, s, time.Now())
 
 	// Update all instances pop at tail
 	err = b.updateInsertByID(Items{
@@ -1080,7 +1084,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 19, 157.7, 9)
 
 	// purge
-	b.load(nil, s)
+	b.load(nil, s, time.Now())
 
 	// insert with no liquidity and jumbled
 	err = b.updateInsertByID(Items{
@@ -1110,7 +1114,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 		{Price: 3, Amount: 1, ID: 3},
 		{Price: 1, Amount: 1, ID: 1},
 	}
-	b.load(bidsSnapshot, s)
+	b.load(bidsSnapshot, s, time.Now())
 
 	err := b.insertUpdates(Items{
 		{Price: 11, Amount: 1, ID: 11},
@@ -1157,7 +1161,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 	Check(t, b, 9, 54, 9)
 
 	// purge
-	b.load(nil, s)
+	b.load(nil, s, time.Now())
 
 	// Add one at head
 	err = b.insertUpdates(Items{
@@ -1181,7 +1185,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 		{Price: 9, Amount: 1, ID: 9},
 		{Price: 11, Amount: 1, ID: 11},
 	}
-	a.load(askSnapshot, s)
+	a.load(askSnapshot, s, time.Now())
 
 	err := a.insertUpdates(Items{
 		{Price: 11, Amount: 1, ID: 11},
@@ -1228,7 +1232,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 	Check(t, a, 9, 54, 9)
 
 	// purge
-	a.load(nil, s)
+	a.load(nil, s, time.Now())
 
 	// Add one at head
 	err = a.insertUpdates(Items{
@@ -1349,7 +1353,7 @@ func TestAmount(t *testing.T) {
 		{Price: 9, Amount: 1, ID: 9},
 		{Price: 11, Amount: 1, ID: 11},
 	}
-	a.load(askSnapshot, s)
+	a.load(askSnapshot, s, time.Now())
 
 	liquidity, value := a.amount()
 	if liquidity != 6 {
@@ -1541,7 +1545,10 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			movement, err := depth.bids.getMovementByBase(tt.BaseAmount, tt.ReferencePrice, false)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
@@ -1662,7 +1669,10 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			base, err := depth.bids.hitBidsByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'",
@@ -1771,7 +1781,10 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			base, err := depth.bids.hitBidsByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
@@ -1854,7 +1867,10 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
+			if err != nil {
+				t.Fatal(err)
+			}
 			movement, err := depth.asks.getMovementByQuotation(tt.QuoteAmount, tt.ReferencePrice, false)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
@@ -1984,7 +2000,10 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
+			if err != nil {
+				t.Fatalf("failed to load snapshot: %s", err)
+			}
 			quote, err := depth.asks.liftAsksByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
@@ -2073,7 +2092,10 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Time{}, true)
+			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
+			if err != nil {
+				t.Fatalf("failed to load snapshot: %s", err)
+			}
 			quote, err := depth.asks.liftAsksByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
 			if !errors.Is(err, tt.ExpectedError) {
 				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
@@ -2095,7 +2117,10 @@ func TestGetHeadPrice(t *testing.T) {
 	if _, err := depth.asks.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err := depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatalf("failed to load snapshot: %s", err)
+	}
 
 	val, err := depth.bids.getHeadPriceNoLock()
 	if !errors.Is(err, nil) {

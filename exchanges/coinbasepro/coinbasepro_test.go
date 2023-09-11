@@ -852,7 +852,8 @@ func TestWsOrderbook(t *testing.T) {
     "type": "snapshot",
     "product_id": "BTC-USD",
     "bids": [["10101.10", "0.45054140"]],
-    "asks": [["10102.55", "0.57753524"]]
+    "asks": [["10102.55", "0.57753524"]],
+	"time":"2023-08-15T06:46:55.376250Z"
 }`)
 	err := c.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -862,7 +863,7 @@ func TestWsOrderbook(t *testing.T) {
 	pressXToJSON = []byte(`{
   "type": "l2update",
   "product_id": "BTC-USD",
-  "time": "2019-08-14T20:42:27.265Z",
+  "time": "2023-08-15T06:46:57.933713Z",
   "changes": [
     [
       "buy",
