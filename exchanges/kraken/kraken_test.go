@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -2241,5 +2242,66 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = k.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
+	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := k.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.USDTMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USD),
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = k.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+	})
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	cp := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	cp.Delimiter = "_"
+	err = k.CurrencyPairs.EnablePair(asset.Futures, cp)
+	if !errors.Is(err, nil) {
+		t.Fatal(err)
+	}
+	_, err = k.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.Futures,
+		Pair:                 cp,
+		IncludePredictedRate: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	is, err := k.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+	if is {
+		t.Error("expected false")
+	}
+
+	is, err = k.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+	if is {
+		t.Error("expected false")
+	}
+
+	is, err = k.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.PF, currency.NewCode("XBTUSD")))
+	if err != nil {
+		t.Error(err)
+	}
+	if !is {
+		t.Error("expected true")
 	}
 }

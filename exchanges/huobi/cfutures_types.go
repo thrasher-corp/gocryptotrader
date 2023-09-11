@@ -550,8 +550,8 @@ type FundingRatesData struct {
 	ContractCode    string  `json:"contractCode"`
 	Symbol          string  `json:"symbol"`
 	FeeAsset        string  `json:"fee_asset"`
-	FundingTime     string  `json:"fundingTime"`
-	NextFundingTime string  `json:"next_funding_time"`
+	FundingTime     int64   `json:"fundingTime,string"`
+	NextFundingTime int64   `json:"next_funding_time,string"`
 }
 
 // HistoricalFundingRateData stores historical funding rates for perpetuals

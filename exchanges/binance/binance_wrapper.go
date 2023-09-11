@@ -149,6 +149,7 @@ func (b *Binance) SetDefaults() {
 				MultiChainDeposits:             true,
 				MultiChainWithdrawals:          true,
 				HasAssetTypeAccountSegregation: true,
+				FundingRateFetching:            true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:          true,
@@ -161,6 +162,7 @@ func (b *Binance) SetDefaults() {
 				GetOrders:              true,
 				Subscribe:              true,
 				Unsubscribe:            true,
+				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -174,6 +176,9 @@ func (b *Binance) SetDefaults() {
 				CollateralMode:       true,
 				FundingRates:         true,
 				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRateBatching: map[asset.Item]bool{
+					asset.USDTMarginedFutures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -2072,57 +2077,84 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
 
-// GetLatestFundingRate returns the latest funding rate for a given asset and currency
-func (b *Binance) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+// GetLatestFundingRates returns the latest funding rates data
+func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
 	if r.IncludePredictedRate {
 		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
-	format, err := b.GetPairFormat(r.Asset, true)
-	if err != nil {
-		return nil, err
-	}
-	fPair := r.Pair.Format(format)
-	pairRate := fundingrate.LatestRateResponse{
-		Exchange: b.Name,
-		Asset:    r.Asset,
-		Pair:     fPair,
-	}
-	switch r.Asset {
-	case asset.USDTMarginedFutures:
-		var mp []UMarkPrice
-		mp, err = b.UGetMarkPrice(ctx, r.Pair)
+	fPair := r.Pair
+	var err error
+	if !fPair.IsEmpty() {
+		var format currency.PairFormat
+		format, err = b.GetPairFormat(r.Asset, true)
 		if err != nil {
 			return nil, err
 		}
-		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
-		pairRate.LatestRate = fundingrate.Rate{
-			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
-			Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
+		fPair = r.Pair.Format(format)
+	}
+
+	switch r.Asset {
+	case asset.USDTMarginedFutures:
+		var mp []UMarkPrice
+		mp, err = b.UGetMarkPrice(ctx, fPair)
+		if err != nil {
+			return nil, err
 		}
+		resp := make([]fundingrate.LatestRateResponse, len(mp))
+		for i := range mp {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(mp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			resp[i] = fundingrate.LatestRateResponse{
+				Exchange: b.Name,
+				Asset:    r.Asset,
+				Pair:     cp,
+				LatestRate: fundingrate.Rate{
+					Time: time.UnixMilli(mp[i].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
+					Rate: decimal.NewFromFloat(mp[i].LastFundingRate),
+				},
+				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
+			}
+		}
+		return resp, nil
 	case asset.CoinMarginedFutures:
 		var mp []IndexMarkPrice
 		mp, err = b.GetIndexAndMarkPrice(ctx, fPair.String(), "")
 		if err != nil {
 			return nil, err
 		}
-		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
-		pairRate.LatestRate = fundingrate.Rate{
-			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
-			Rate: mp[len(mp)-1].LastFundingRate.Decimal(),
+		resp := make([]fundingrate.LatestRateResponse, len(mp))
+		for i := range mp {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(mp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			resp[i] = fundingrate.LatestRateResponse{
+				Exchange: b.Name,
+				Asset:    r.Asset,
+				Pair:     cp,
+				LatestRate: fundingrate.Rate{
+					Time: time.UnixMilli(mp[i].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
+					Rate: mp[i].LastFundingRate.Decimal(),
+				},
+				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
+			}
 		}
-	default:
-		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
+		return resp, nil
 	}
-	return &pairRate, nil
+	return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 }
 
-// GetFundingRates returns funding rates for a given asset and currency for a time period
-func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
-		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
 	if r.IncludePredictedRate {
 		return nil, fmt.Errorf("%w GetFundingRates IncludePredictedRate", common.ErrFunctionNotSupported)
@@ -2138,7 +2170,7 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.RatesReque
 		return nil, err
 	}
 	fPair := r.Pair.Format(format)
-	pairRate := fundingrate.Rates{
+	pairRate := fundingrate.HistoricalRates{
 		Exchange:  b.Name,
 		Asset:     r.Asset,
 		Pair:      fPair,
@@ -2259,14 +2291,10 @@ func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.RatesReque
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
 	if a == asset.CoinMarginedFutures {
-		if cp.Quote.Equal(currency.PERP) {
-			return true, nil
-		}
+		return cp.Quote.Equal(currency.PERP), nil
 	}
 	if a == asset.USDTMarginedFutures {
-		if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
-			return true, nil
-		}
+		return cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD), nil
 	}
 	return false, nil
 }
@@ -2884,7 +2912,6 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			if err != nil {
 				return nil, err
 			}
-
 			var ct futures.ContractType
 			var ed time.Time
 			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {

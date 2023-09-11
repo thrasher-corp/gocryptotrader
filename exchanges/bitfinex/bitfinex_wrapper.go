@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -126,6 +127,7 @@ func (b *Bitfinex) SetDefaults() {
 				MultiChainDeposits:                true,
 				MultiChainWithdrawals:             true,
 				MultiChainDepositRequiresChainSet: true,
+				FundingRateFetching:               true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				AccountBalance:         true,
@@ -150,6 +152,13 @@ func (b *Bitfinex) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates:         true,
+				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Margin: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1296,5 +1305,11 @@ func (b *Bitfinex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, er
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (b *Bitfinex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (b *Bitfinex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	// TODO: Add futures support for Bitfinex
 	return nil, common.ErrFunctionNotSupported
 }

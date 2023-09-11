@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -131,20 +133,23 @@ func (k *Kraken) SetDefaults() {
 				MultiChainDeposits:             true,
 				MultiChainWithdrawals:          true,
 				HasAssetTypeAccountSegregation: true,
+				FundingRateFetching:            true,
+				PredictedFundingRate:           true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:     true,
-				TradeFetching:      true,
-				KlineFetching:      true,
-				OrderbookFetching:  true,
-				Subscribe:          true,
-				Unsubscribe:        true,
-				MessageCorrelation: true,
-				SubmitOrder:        true,
-				CancelOrder:        true,
-				CancelOrders:       true,
-				GetOrders:          true,
-				GetOrder:           true,
+				TickerFetching:      true,
+				TradeFetching:       true,
+				KlineFetching:       true,
+				OrderbookFetching:   true,
+				Subscribe:           true,
+				Unsubscribe:         true,
+				MessageCorrelation:  true,
+				SubmitOrder:         true,
+				CancelOrder:         true,
+				CancelOrders:        true,
+				GetOrders:           true,
+				GetOrder:            true,
+				FundingRateFetching: false, // has capability but is not supported // TODO when multi-websocket support added
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawCryptoWith2FA |
@@ -153,6 +158,13 @@ func (k *Kraken) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates:         true,
+				FundingRateFrequency: kline.FourHour.Duration(),
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Futures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1775,4 +1787,56 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 	}
 	return resp, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	if !r.Pair.IsEmpty() {
+		err := k.CurrencyPairs.IsAssetPairEnabled(r.Asset, r.Pair)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	t, err := k.GetFuturesTickers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]fundingrate.LatestRateResponse, 0, len(t.Tickers))
+	for i := range t.Tickers {
+		pair, err := currency.NewPairFromString(t.Tickers[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		if !r.Pair.IsEmpty() && !r.Pair.Equal(pair) {
+			continue
+		}
+		rate := fundingrate.LatestRateResponse{
+			Exchange: k.Name,
+			Asset:    r.Asset,
+			Pair:     pair,
+			LatestRate: fundingrate.Rate{
+				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
+			},
+			TimeChecked: time.Now(),
+		}
+		if r.IncludePredictedRate {
+			rate.PredictedUpcomingRate = fundingrate.Rate{
+				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRatePrediction),
+			}
+		}
+		resp = append(resp, rate)
+	}
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	return cp.Base.Equal(currency.NewCode("pf")) && a == asset.Futures, nil
 }

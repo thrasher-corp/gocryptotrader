@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1253,5 +1254,54 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
 	if !errors.Is(err, nil) {
 		t.Error(err)
+	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.USDTMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, futures.ErrNotPerpetualFuture) {
+		t.Error(err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.PerpetualContract,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp, err := currency.NewPairFromString("ETHUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.PerpetualContract,
+		Pair:  cp,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	isPerp, err := b.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.BTC, currency.USD))
+	if err != nil {
+		t.Error(err)
+	}
+	if isPerp {
+		t.Error("expected false")
+	}
+
+	isPerp, err = b.IsPerpetualFutureCurrency(asset.PerpetualContract, currency.NewPair(currency.BTC, currency.USD))
+	if err != nil {
+		t.Error(err)
+	}
+	if !isPerp {
+		t.Error("expected true")
 	}
 }

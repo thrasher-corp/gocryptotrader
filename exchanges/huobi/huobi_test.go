@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -975,7 +976,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetHistoricalFundingRates(context.Background(), cp, 0, 0)
+	_, err = h.GetHistoricalFundingRatesForPair(context.Background(), cp, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2778,5 +2779,51 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = h.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
+	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.USDTMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USD),
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = h.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.CoinMarginedFutures,
+	})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Error(err)
+	}
+	_, err = h.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.CoinMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USD),
+		IncludePredictedRate: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	is, err := h.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+	if is {
+		t.Error("expected false")
+	}
+
+	is, err = h.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+	if !is {
+		t.Error("expected true")
 	}
 }

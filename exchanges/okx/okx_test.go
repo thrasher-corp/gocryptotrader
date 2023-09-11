@@ -3233,7 +3233,7 @@ func TestGetLatestFundingRate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetLatestFundingRate(contextGenerate(), &fundingrate.LatestRateRequest{
+	_, err = ok.GetLatestFundingRates(contextGenerate(), &fundingrate.LatestRateRequest{
 		Asset:                asset.PerpetualSwap,
 		Pair:                 cp,
 		IncludePredictedRate: true,
@@ -3249,7 +3249,7 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r := &fundingrate.RatesRequest{
+	r := &fundingrate.HistoricalRatesRequest{
 		Asset:                asset.PerpetualSwap,
 		Pair:                 cp,
 		PaymentCurrency:      currency.USDT,
@@ -3260,19 +3260,19 @@ func TestGetFundingRates(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(ok) {
 		r.IncludePayments = true
 	}
-	_, err = ok.GetFundingRates(contextGenerate(), r)
+	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
 	if err != nil {
 		t.Error(err)
 	}
 
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
-	_, err = ok.GetFundingRates(contextGenerate(), r)
+	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
 	if !errors.Is(err, fundingrate.ErrFundingRateOutsideLimits) {
 		t.Error(err)
 	}
 
 	r.RespectHistoryLimits = true
-	_, err = ok.GetFundingRates(contextGenerate(), r)
+	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
 	if err != nil {
 		t.Error(err)
 	}

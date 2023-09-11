@@ -155,7 +155,7 @@ type PositionTracker struct {
 	shortPositions     []order.Detail
 	longPositions      []order.Detail
 	pnlHistory         []PNLResult
-	fundingRateDetails *fundingrate.Rates
+	fundingRateDetails *fundingrate.HistoricalRates
 }
 
 // PositionTrackerSetup contains all required fields to
@@ -263,7 +263,7 @@ type Position struct {
 	CloseDate          time.Time
 	Orders             []order.Detail
 	PNLHistory         []PNLResult
-	FundingRates       fundingrate.Rates
+	FundingRates       fundingrate.HistoricalRates
 }
 
 // PositionSummaryRequest is used to request a summary of an open position

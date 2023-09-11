@@ -198,7 +198,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
 					cfg.NumWorkers = bot.Settings.SyncWorkersCount
 				}
-				bot.currencyPairSyncer, err = setupSyncManager(
+				bot.currencyPairSyncer, err = SetupSyncManager(
 					&cfg,
 					bot.ExchangeManager,
 					&bot.Config.RemoteControl,

@@ -39,8 +39,8 @@ var (
 	errCouldNotSyncNewData = errors.New("could not sync new data")
 )
 
-// setupSyncManager starts a new CurrencyPairSyncer
-func setupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
+// SetupSyncManager creates a new CurrencyPairSyncer
+func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*SyncManager, error) {
 	if c == nil {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}
@@ -79,14 +79,14 @@ func setupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		return nil, fmt.Errorf("%T %w", c.PairFormatDisplay, common.ErrNilPointer)
 	}
 
-	s := &syncManager{
+	s := &SyncManager{
 		config:                         *c,
 		remoteConfig:                   remoteConfig,
 		exchangeManager:                exchangeManager,
 		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		format:                         *c.PairFormatDisplay,
-		tickerBatchLastRequested:       make(map[string]time.Time),
+		tickerBatchLastRequested:       make(map[string]map[asset.Item]time.Time),
 		currencyPairs:                  make(map[currencyPairKey]*currencyPairSyncAgent),
 	}
 
@@ -102,12 +102,12 @@ func setupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *syncManager) IsRunning() bool {
+func (m *SyncManager) IsRunning() bool {
 	return m != nil && atomic.LoadInt32(&m.started) == 1
 }
 
 // Start runs the subsystem
-func (m *syncManager) Start() error {
+func (m *SyncManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -235,7 +235,7 @@ func (m *syncManager) Start() error {
 }
 
 // Stop shuts down the exchange currency pair syncer
-func (m *syncManager) Stop() error {
+func (m *SyncManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -248,7 +248,7 @@ func (m *syncManager) Stop() error {
 	return nil
 }
 
-func (m *syncManager) get(k currencyPairKey) *currencyPairSyncAgent {
+func (m *SyncManager) get(k currencyPairKey) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -263,7 +263,7 @@ func newCurrencyPairSyncAgent(k currencyPairKey) *currencyPairSyncAgent {
 		trackers:        make([]*syncBase, SyncItemTrade+1),
 	}
 }
-func (m *syncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent {
+func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -332,9 +332,9 @@ func (m *syncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 	return c
 }
 
-// WebsocketUpdate notifies the syncManager to change the last updated time for a exchange asset pair
+// WebsocketUpdate notifies the SyncManager to change the last updated time for a exchange asset pair
 // And set IsUsingWebsocket to true. It should be used externally only from websocket updaters
-func (m *syncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a asset.Item, syncType syncItemType, err error) error {
+func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a asset.Item, syncType syncItemType, err error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -398,8 +398,8 @@ func (m *syncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 	return m.update(c, syncType, err)
 }
 
-// update notifies the syncManager to change the last updated time for a exchange asset pair
-func (m *syncManager) update(c *currencyPairSyncAgent, syncType syncItemType, err error) error {
+// update notifies the SyncManager to change the last updated time for a exchange asset pair
+func (m *SyncManager) update(c *currencyPairSyncAgent, syncType syncItemType, err error) error {
 	if syncType < SyncItemTicker || syncType > SyncItemTrade {
 		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
@@ -428,7 +428,7 @@ func (m *syncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 	return nil
 }
 
-func (m *syncManager) worker() {
+func (m *SyncManager) worker() {
 	cleanup := func() {
 		log.Debugln(log.SyncMgr,
 			"Exchange CurrencyPairSyncer worker shutting down.")
@@ -521,7 +521,7 @@ func (m *syncManager) worker() {
 	}
 }
 
-func (m *syncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchange) {
+func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchange) {
 	if !c.locks[SyncItemTicker].TryLock() {
 		return
 	}
@@ -555,9 +555,12 @@ func (m *syncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 
 		if e.SupportsRESTTickerBatchUpdates() {
 			m.mux.Lock()
-			batchLastDone, ok := m.tickerBatchLastRequested[e.GetName()]
+			batchLastDone, ok := m.tickerBatchLastRequested[e.GetName()][c.AssetType]
 			if !ok {
-				m.tickerBatchLastRequested[exchangeName] = time.Time{}
+				if _, ok = m.tickerBatchLastRequested[exchangeName]; !ok {
+					m.tickerBatchLastRequested[exchangeName] = make(map[asset.Item]time.Time)
+				}
+				m.tickerBatchLastRequested[exchangeName][c.AssetType] = time.Time{}
 			}
 			m.mux.Unlock()
 
@@ -570,7 +573,7 @@ func (m *syncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				if err == nil {
 					result, err = e.FetchTicker(context.TODO(), c.Pair, c.AssetType)
 				}
-				m.tickerBatchLastRequested[exchangeName] = time.Now()
+				m.tickerBatchLastRequested[exchangeName][c.AssetType] = time.Now()
 				m.mux.Unlock()
 			} else {
 				if m.config.Verbose {
@@ -598,7 +601,7 @@ func (m *syncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 	}
 }
 
-func (m *syncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExchange) {
+func (m *SyncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExchange) {
 	if !c.locks[SyncItemOrderbook].TryLock() {
 		return
 	}
@@ -641,7 +644,7 @@ func (m *syncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExc
 	}
 }
 
-func (m *syncManager) syncTrades(c *currencyPairSyncAgent) {
+func (m *SyncManager) syncTrades(c *currencyPairSyncAgent) {
 	if !c.locks[SyncItemTrade].TryLock() {
 		return
 	}
@@ -697,7 +700,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 }
 
 // PrintTickerSummary outputs the ticker results
-func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
+func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -771,7 +774,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
+func (m *SyncManager) FormatCurrency(p currency.Pair) currency.Pair {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return p
 	}
@@ -783,7 +786,7 @@ const (
 )
 
 // PrintOrderbookSummary outputs orderbook results
-func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -857,7 +860,7 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 // WaitForInitialSync allows for a routine to wait for an initial sync to be
 // completed without exposing the underlying type. This needs to be called in a
 // separate routine.
-func (m *syncManager) WaitForInitialSync() error {
+func (m *SyncManager) WaitForInitialSync() error {
 	if m == nil {
 		return fmt.Errorf("sync manager %w", ErrNilSubsystem)
 	}

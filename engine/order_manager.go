@@ -805,7 +805,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if !isPerp {
 		return nil
 	}
-	frp, err := exch.GetFundingRates(context.TODO(), &fundingrate.RatesRequest{
+	frp, err := exch.GetHistoricalFundingRates(context.TODO(), &fundingrate.HistoricalRatesRequest{
 		Asset:                position.Asset,
 		Pair:                 position.Pair,
 		StartDate:            position.Orders[0].Date,

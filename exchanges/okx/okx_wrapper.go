@@ -111,6 +111,8 @@ func (ok *Okx) SetDefaults() {
 				DepositHistory:        true,
 				WithdrawalHistory:     true,
 				ModifyOrder:           true,
+				FundingRateFetching:   true,
+				PredictedFundingRate:  true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -1577,10 +1579,13 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
-// GetLatestFundingRate returns the latest funding rate for a given asset and currency
-func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+// GetLatestFundingRates returns the latest funding rates data
+func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.PerpetualSwap {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
 	}
 	format, err := ok.GetPairFormat(r.Asset, true)
 	if err != nil {
@@ -1607,13 +1612,13 @@ func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRa
 			Rate: fr.NextFundingRate.Decimal(),
 		}
 	}
-	return &pairRate, nil
+	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
 
-// GetFundingRates returns funding rates for a given asset and currency for a time period
-func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
-		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
 	requestLimit := 100
 	sd := r.StartDate
@@ -1634,7 +1639,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 		return nil, err
 	}
 	fPair := r.Pair.Format(format)
-	pairRate := fundingrate.Rates{
+	pairRate := fundingrate.HistoricalRates{
 		Exchange:  ok.Name,
 		Asset:     r.Asset,
 		Pair:      fPair,

@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -272,15 +273,16 @@ var (
 	int64Param           = reflect.TypeOf((*int64)(nil)).Elem()
 	float64Param         = reflect.TypeOf((*float64)(nil)).Elem()
 	// types with asset in params
-	assetParam                  = reflect.TypeOf((*asset.Item)(nil)).Elem()
-	orderSubmitParam            = reflect.TypeOf((**order.Submit)(nil)).Elem()
-	orderModifyParam            = reflect.TypeOf((**order.Modify)(nil)).Elem()
-	orderCancelParam            = reflect.TypeOf((**order.Cancel)(nil)).Elem()
-	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
+	assetParam            = reflect.TypeOf((*asset.Item)(nil)).Elem()
+	orderSubmitParam      = reflect.TypeOf((**order.Submit)(nil)).Elem()
+	orderModifyParam      = reflect.TypeOf((**order.Modify)(nil)).Elem()
+	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
+	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
+	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
 	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
 	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
 	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
+	latestRateRequest     = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -503,6 +505,12 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 		input = reflect.ValueOf(1337)
 	case argGenerator.MethodInputType.AssignableTo(float64Param):
 		input = reflect.ValueOf(13.37)
+	case argGenerator.MethodInputType.AssignableTo(latestRateRequest):
+		input = reflect.ValueOf(&fundingrate.LatestRateRequest{
+			Asset:                argGenerator.AssetParams.Asset,
+			Pair:                 argGenerator.AssetParams.Pair,
+			IncludePredictedRate: true,
+		})
 	default:
 		input = reflect.Zero(argGenerator.MethodInputType)
 	}
@@ -546,7 +554,7 @@ var excludedMethodNames = map[string]struct{}{
 	"GetCollateralCurrencyForContract": {},
 	"GetCurrencyForRealisedPNL":        {},
 	"GetFuturesPositions":              {},
-	"GetFundingRates":                  {},
+	"GetHistoricalFundingRates":        {},
 	"IsPerpetualFutureCurrency":        {},
 	"GetMarginRatesHistory":            {},
 	"CalculatePNL":                     {},
@@ -561,7 +569,6 @@ var excludedMethodNames = map[string]struct{}{
 	"GetLeverage":                      {},
 	"SetMarginType":                    {},
 	"ChangePositionMargin":             {},
-	"GetLatestFundingRate":             {},
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -602,6 +609,7 @@ var acceptableErrors = []error{
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
 	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
+	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

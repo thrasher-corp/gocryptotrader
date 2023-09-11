@@ -33,8 +33,8 @@ type currencyPairSyncAgent struct {
 	locks    []sync.Mutex
 }
 
-// syncManager stores the exchange currency pair syncer object
-type syncManager struct {
+// SyncManager stores the exchange currency pair syncer object
+type SyncManager struct {
 	initSyncCompleted              int32
 	initSyncStarted                int32
 	started                        int32
@@ -48,7 +48,7 @@ type syncManager struct {
 	inService                      sync.WaitGroup
 
 	currencyPairs            map[currencyPairKey]*currencyPairSyncAgent
-	tickerBatchLastRequested map[string]time.Time
+	tickerBatchLastRequested map[string]map[asset.Item]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
 	config          config.SyncManagerConfig

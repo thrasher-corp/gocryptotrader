@@ -540,7 +540,7 @@ func TestGetStats(t *testing.T) {
 	}
 
 	p.exchange = testExchange
-	p.fundingRateDetails = &fundingrate.Rates{
+	p.fundingRateDetails = &fundingrate.HistoricalRates{
 		FundingRates: []fundingrate.Rate{
 			{},
 		},
@@ -1266,7 +1266,7 @@ func TestPCTrackFundingDetails(t *testing.T) {
 	}
 
 	p := currency.NewPair(currency.BTC, currency.PERP)
-	rates := &fundingrate.Rates{
+	rates := &fundingrate.HistoricalRates{
 		Asset: asset.Futures,
 		Pair:  p,
 	}
@@ -1325,7 +1325,7 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.PERP)
-	rates := &fundingrate.Rates{
+	rates := &fundingrate.HistoricalRates{
 		Asset: asset.Futures,
 		Pair:  cp,
 	}
@@ -1335,7 +1335,7 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 	}
 
 	mpt.exchange = testExchange
-	rates = &fundingrate.Rates{
+	rates = &fundingrate.HistoricalRates{
 		Exchange: testExchange,
 		Asset:    asset.Futures,
 		Pair:     cp,
@@ -1394,7 +1394,7 @@ func TestPTTrackFundingDetails(t *testing.T) {
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.PERP)
-	rates := &fundingrate.Rates{
+	rates := &fundingrate.HistoricalRates{
 		Exchange: testExchange,
 		Asset:    asset.Futures,
 		Pair:     cp,

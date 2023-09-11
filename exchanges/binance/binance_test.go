@@ -2819,7 +2819,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	s, e := getTime()
-	_, err := b.GetFundingRates(context.Background(), &fundingrate.RatesRequest{
+	_, err := b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		StartDate:            s,
@@ -2831,7 +2831,7 @@ func TestGetFundingRates(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetFundingRates(context.Background(), &fundingrate.RatesRequest{
+	_, err = b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewPair(currency.BTC, currency.USDT),
 		StartDate:       s,
@@ -2842,7 +2842,7 @@ func TestGetFundingRates(t *testing.T) {
 		t.Error(err)
 	}
 
-	r := &fundingrate.RatesRequest{
+	r := &fundingrate.HistoricalRatesRequest{
 		Asset:     asset.USDTMarginedFutures,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		StartDate: s,
@@ -2851,7 +2851,7 @@ func TestGetFundingRates(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(b) {
 		r.IncludePayments = true
 	}
-	_, err = b.GetFundingRates(context.Background(), r)
+	_, err = b.GetHistoricalFundingRates(context.Background(), r)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2861,15 +2861,15 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetFundingRates(context.Background(), r)
+	_, err = b.GetHistoricalFundingRates(context.Background(), r)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetLatestFundingRate(t *testing.T) {
+func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		IncludePredictedRate: true,
@@ -2877,21 +2877,15 @@ func TestGetLatestFundingRate(t *testing.T) {
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Error(err)
 	}
-	_, err = b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  currency.NewPair(currency.BTC, currency.USDT),
 	})
 	if err != nil {
 		t.Error(err)
 	}
-
-	cp, err := currency.NewPairFromString("BTCUSD_PERP")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
-		Pair:  cp,
 	})
 	if err != nil {
 		t.Error(err)

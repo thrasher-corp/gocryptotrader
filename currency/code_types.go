@@ -230,6 +230,7 @@ var (
 	SSC              = NewCode("SSC")
 	SHOW             = NewCode("SHOW")
 	SPF              = NewCode("SPF")
+	PF               = NewCode("PF")
 	SNC              = NewCode("SNC")
 	SWFTC            = NewCode("SWFTC")
 	TRA              = NewCode("TRA")

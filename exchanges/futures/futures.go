@@ -128,7 +128,7 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 }
 
 // TrackFundingDetails applies funding rate details to a tracked position
-func (c *PositionController) TrackFundingDetails(d *fundingrate.Rates) error {
+func (c *PositionController) TrackFundingDetails(d *fundingrate.HistoricalRates) error {
 	if c == nil {
 		return fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
@@ -434,7 +434,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *order.Detail) error {
 }
 
 // TrackFundingDetails applies funding rate details to a tracked position
-func (m *MultiPositionTracker) TrackFundingDetails(d *fundingrate.Rates) error {
+func (m *MultiPositionTracker) TrackFundingDetails(d *fundingrate.HistoricalRates) error {
 	if m == nil {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
@@ -554,7 +554,7 @@ func (p *PositionTracker) GetStats() *Position {
 	if p.fundingRateDetails != nil {
 		frs := make([]fundingrate.Rate, len(p.fundingRateDetails.FundingRates))
 		copy(frs, p.fundingRateDetails.FundingRates)
-		pos.FundingRates = fundingrate.Rates{
+		pos.FundingRates = fundingrate.HistoricalRates{
 			Exchange:              p.fundingRateDetails.Exchange,
 			Asset:                 p.fundingRateDetails.Asset,
 			Pair:                  p.fundingRateDetails.Pair,
@@ -662,7 +662,7 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 }
 
 // TrackFundingDetails sets funding rates to a position
-func (p *PositionTracker) TrackFundingDetails(d *fundingrate.Rates) error {
+func (p *PositionTracker) TrackFundingDetails(d *fundingrate.HistoricalRates) error {
 	if p == nil {
 		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
@@ -690,7 +690,7 @@ func (p *PositionTracker) TrackFundingDetails(d *fundingrate.Rates) error {
 		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
 	if p.fundingRateDetails == nil {
-		p.fundingRateDetails = &fundingrate.Rates{
+		p.fundingRateDetails = &fundingrate.HistoricalRates{
 			Exchange:              d.Exchange,
 			Asset:                 d.Asset,
 			Pair:                  d.Pair,
