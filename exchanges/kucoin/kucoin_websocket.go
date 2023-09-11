@@ -237,7 +237,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processOrderbook(resp.Data)
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
-		return ku.processOrderbookWithDepth(resp.Data, topicInfo[1])
+		return ku.processOrderbookWithDepth(respData, topicInfo[1])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
@@ -798,9 +798,9 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	response := WsLevel2Orderbook{}
+	response := WsOrderbookDepth{}
 	result := struct {
-		Result *WsLevel2Orderbook `json:"data"`
+		Result *WsOrderbookDepth `json:"data"`
 	}{
 		Result: &response,
 	}
@@ -1022,7 +1022,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		channels = append(channels,
 			marketTickerChannel,
 			marketMatchChannel,
-			marketOrderbookLevel2to5Channel)
+			marketOrderbokLevel2To50Channel)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		channels = append(channels,
@@ -1031,7 +1031,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
 		channels = append(channels,
 			futuresTickerV2Channel,
-			futuresOrderbookLevel2Depth5Channel)
+			futuresOrderbookLevel2Depth50Channel)
 	}
 	var subscriptions []stream.ChannelSubscription
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
@@ -1422,7 +1422,7 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 			return err
 		}
 		var sequence int64
-		if ws.Changes.Bids[i][2] != "" {
+		if len(ws.Changes.Bids[i]) > 2 && ws.Changes.Bids[i][2] != "" {
 			sequence, err = strconv.ParseInt(ws.Changes.Bids[i][2], 10, 64)
 			if err != nil {
 				return err
@@ -1442,7 +1442,7 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 			return err
 		}
 		var sequence int64
-		if ws.Changes.Asks[i][2] != "" {
+		if len(ws.Changes.Asks[i]) > 2 && ws.Changes.Asks[i][2] != "" {
 			sequence, err = strconv.ParseInt(ws.Changes.Asks[i][2], 10, 64)
 			if err != nil {
 				return err
@@ -1567,6 +1567,7 @@ func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderboo
 		Pair:            p,
 		Asset:           assetType,
 		Exchange:        ku.Name,
+		LastUpdated:     time.Now(),
 		LastUpdateID:    orderbookNew.Sequence,
 		VerifyOrderbook: ku.CanVerifyOrderbook,
 		Bids:            make(orderbook.Items, len(orderbookNew.Bids)),

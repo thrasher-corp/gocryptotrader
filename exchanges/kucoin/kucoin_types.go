@@ -858,14 +858,14 @@ type WsOrderbook struct {
 
 // OrderbookChanges represents orderbook ask and bid changes.
 type OrderbookChanges struct {
-	Asks [][3]string `json:"asks"`
-	Bids [][3]string `json:"bids"`
+	Asks [][]string `json:"asks"`
+	Bids [][]string `json:"bids"`
 }
 
-// WsLevel2Orderbook represents orderbook information.
-type WsLevel2Orderbook struct {
-	Asks   [][3]string          `json:"asks"`
-	Bids   [][3]string          `json:"bids"`
+// WsOrderbookDepth represents orderbook information.
+type WsOrderbookDepth struct {
+	Asks   [][]string           `json:"asks"`
+	Bids   [][]string           `json:"bids"`
 	Symbol string               `json:"symbol"`
 	TimeMS convert.ExchangeTime `json:"timestamp"`
 }

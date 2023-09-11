@@ -2571,3 +2571,15 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestSeedLocalCache(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("ETH-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	err = ku.SeedLocalCache(context.Background(), pair, asset.Margin)
+	if err != nil {
+		t.Error(err)
+	}
+}
