@@ -2277,11 +2277,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		resp := make([]futures.Contract, 0, len(ei.Symbols))
 		for i := range ei.Symbols {
 			var cp currency.Pair
-			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
-			if len(splitter) != 2 {
-				return nil, fmt.Errorf("%w expected to split %v with %v", errors.New("unexpected pair format"), ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
-			}
-			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, ei.Symbols[i].Symbol[len(ei.Symbols[i].BaseAsset):])
 			if err != nil {
 				return nil, err
 			}

@@ -1166,12 +1166,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				continue
 			}
 			var cp, underlying currency.Pair
-			splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
-			if len(splitter) != 2 {
-				log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
-				continue
-			}
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, splitter[1])
+			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].Symbol[len(marketInfo[x].RootSymbol):])
 			if err != nil {
 				return nil, err
 			}
