@@ -39,13 +39,19 @@ func TestGetLiquidity(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 2}}, nil, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 2}}, nil, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, _, err = unsafe.GetLiquidity()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 2}}, []Item{{Price: 2}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 2}}, []Item{{Price: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	aN, bN, err := unsafe.GetLiquidity()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -69,7 +75,10 @@ func TestCheckBidLiquidity(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 2}}, nil, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 2}}, nil, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = unsafe.CheckBidLiquidity()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -85,7 +94,10 @@ func TestCheckAskLiquidity(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot(nil, []Item{{Price: 2}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot(nil, []Item{{Price: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = unsafe.CheckAskLiquidity()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -100,7 +112,10 @@ func TestGetBestBid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 2}}, nil, 0, time.Time{}, false)
+	err := d.LoadSnapshot([]Item{{Price: 2}}, nil, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	bestBid, err := unsafe.GetBestBid()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -119,7 +134,10 @@ func TestGetBestAsk(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot(nil, []Item{{Price: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(nil, []Item{{Price: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	bestAsk, err := unsafe.GetBestAsk()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -138,7 +156,10 @@ func TestGetMidPrice(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 1}}, []Item{{Price: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot([]Item{{Price: 1}}, []Item{{Price: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mid, err := unsafe.GetMidPrice()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -157,7 +178,10 @@ func TestGetSpread(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 1}}, []Item{{Price: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot([]Item{{Price: 1}}, []Item{{Price: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	spread, err := unsafe.GetSpread()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -178,14 +202,20 @@ func TestGetImbalance(t *testing.T) {
 	}
 
 	// unlikely event zero amounts
-	d.LoadSnapshot([]Item{{Price: 1, Amount: 0}}, []Item{{Price: 2, Amount: 0}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 1, Amount: 0}}, []Item{{Price: 2, Amount: 0}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = unsafe.GetImbalance()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
 	// balance skewed to asks
-	d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1000}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1000}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	imbalance, err := unsafe.GetImbalance()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -196,7 +226,10 @@ func TestGetImbalance(t *testing.T) {
 	}
 
 	// balance skewed to bids
-	d.LoadSnapshot([]Item{{Price: 1, Amount: 1000}}, []Item{{Price: 2, Amount: 1}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 1, Amount: 1000}}, []Item{{Price: 2, Amount: 1}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	imbalance, err = unsafe.GetImbalance()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -207,7 +240,10 @@ func TestGetImbalance(t *testing.T) {
 	}
 
 	// in balance
-	d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	imbalance, err = unsafe.GetImbalance()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -225,12 +261,18 @@ func TestIsStreaming(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", unsafe.IsStreaming(), true)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1}}, 0, time.Time{}, true)
+	err := d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1}}, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if unsafe.IsStreaming() {
 		t.Fatalf("received: '%v' but expected: '%v'", unsafe.IsStreaming(), false)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot([]Item{{Price: 1, Amount: 1}}, []Item{{Price: 2, Amount: 1}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !unsafe.IsStreaming() {
 		t.Fatalf("received: '%v' but expected: '%v'", unsafe.IsStreaming(), true)
 	}
