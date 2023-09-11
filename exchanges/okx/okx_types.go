@@ -745,7 +745,7 @@ type PendingOrderItem struct {
 	Price                      convert.StringToFloat64 `json:"px"`
 	Size                       convert.StringToFloat64 `json:"sz"`
 	Tag                        string                  `json:"tag"`
-	QuantityType               string                  `json:"tgtCcy"`
+	SizeType                   string                  `json:"tgtCcy"`
 	TradeMode                  string                  `json:"tdMode"`
 	Source                     string                  `json:"source"`
 	TakeProfitOrdPrice         convert.StringToFloat64 `json:"tpOrdPx"`

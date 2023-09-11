@@ -2521,6 +2521,30 @@ func TestOrderPushData(t *testing.T) {
 					assert.Equal(t, 31527.1, v.Price, "Price")
 					assert.Equal(t, 0.02522168, v.Fee, "Fee")
 					assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
+				case 2:
+					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+					assert.Equal(t, order.Market, v.Type, "Type")
+					assert.Equal(t, order.Sell, v.Side, "Side")
+					assert.Equal(t, order.Active, v.Status, "Status")
+					assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
+					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				case 3:
+					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+					assert.Equal(t, 0.0, v.Amount, "Amount")
+					assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+					assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+					assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
+				case 4:
+					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+					assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+					assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+					assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
+					assert.Equal(t, order.Filled, v.Status, "Status")
 				}
 			case error:
 				t.Error(v)

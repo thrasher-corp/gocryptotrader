@@ -1058,7 +1058,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		avgPrice := response.Data[x].AveragePrice.Float64()
 		orderAmount := response.Data[x].Size.Float64()
 		var quoteAmount float64
-		if response.Data[x].QuantityType == "quote_ccy" {
+		if response.Data[x].SizeType == "quote_ccy" {
 			// Size is quote amount.
 			quoteAmount = orderAmount
 			if avgPrice > 0 {
@@ -1069,17 +1069,19 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 			}
 		}
 		var remainingAmount float64
-		if orderStatus != order.Filled {
-			remainingAmount = orderAmount - response.Data[x].AccumulatedFillSize.Float64()
+		execAmount := response.Data[x].AccumulatedFillSize.Float64()
+		if orderAmount > 0 {
+			remainingAmount = orderAmount - execAmount
 		}
+
 		d := &order.Detail{
-			Amount:               response.Data[x].Size.Float64(),
+			Amount:               orderAmount,
 			AssetType:            a,
 			AverageExecutedPrice: avgPrice,
 			ClientOrderID:        response.Data[x].ClientOrderID,
 			Date:                 response.Data[x].CreationTime,
 			Exchange:             ok.Name,
-			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
+			ExecutedAmount:       execAmount,
 			Fee:                  0.0 - response.Data[x].Fee.Float64(),
 			FeeAsset:             response.Data[x].FeeCurrency,
 			OrderID:              response.Data[x].OrderID,
@@ -1093,6 +1095,9 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		}
 		if orderStatus == order.Filled {
 			d.CloseTime = response.Data[x].FillTime.Time()
+			if d.Amount == 0 {
+				d.Amount = d.ExecutedAmount
+			}
 		}
 		ok.Websocket.DataHandler <- d
 	}
