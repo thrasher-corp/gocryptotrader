@@ -439,20 +439,16 @@ func ensureOrderFitsWithinHLV(price, amount, high, low, volume decimal.Decimal) 
 	if adjustedPrice.GreaterThan(high) {
 		adjustedPrice = high
 	}
-	orderVolume := amount.Mul(adjustedPrice)
-	if volume.LessThanOrEqual(decimal.Zero) || orderVolume.LessThanOrEqual(volume) {
+	if volume.LessThanOrEqual(decimal.Zero) || amount.LessThanOrEqual(volume) {
 		return adjustedPrice, amount
 	}
-	if orderVolume.GreaterThan(volume) {
+	if amount.GreaterThan(volume) {
 		// reduce the volume to not exceed the total volume of the candle
 		// it is slightly less than the total to still allow for the illusion
 		// that open high low close values are valid with the remaining volume
 		// this is very opinionated
-		orderVolume = volume.Mul(decimal.NewFromFloat(0.99999999))
+		adjustedAmount = volume.Mul(decimal.NewFromFloat(0.99999999))
 	}
-	// extract the amount from the adjusted volume
-	adjustedAmount = orderVolume.Div(adjustedPrice)
-
 	return adjustedPrice, adjustedAmount
 }
 
