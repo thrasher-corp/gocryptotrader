@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
@@ -352,7 +354,7 @@ func getMovement(c *cli.Context) error {
 var getOrderbookCommand = &cli.Command{
 	Name:      "getorderbook",
 	Usage:     "gets the orderbook for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <pair> <asset>",
+	ArgsUsage: "<exchange> <pair> <asset> <exchangestyle> <depthlimit>",
 	Action:    getOrderbook,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -367,6 +369,14 @@ var getOrderbookCommand = &cli.Command{
 			Name:  "asset",
 			Usage: "the asset type of the currency pair to get the orderbook for",
 		},
+		&cli.BoolFlag{
+			Name:  "exchangestyle",
+			Usage: "renders the books like on an exchange website",
+		},
+		&cli.Int64Flag{
+			Name:  "depthlimit",
+			Usage: "limit how deep the book rendering is, max 100 - only works if exchangestyle is true",
+		},
 	},
 }
 
@@ -375,9 +385,12 @@ func getOrderbook(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var currencyPair string
-	var assetType string
+	var (
+		exchangeName, pair, assetType string
+		depthLimit                    int64
+		exchangeStyle                 bool
+		err                           error
+	)
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -386,12 +399,12 @@ func getOrderbook(c *cli.Context) error {
 	}
 
 	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+		pair = c.String("pair")
 	} else {
-		currencyPair = c.Args().Get(1)
+		pair = c.Args().Get(1)
 	}
 
-	if !validPair(currencyPair) {
+	if !validPair(pair) {
 		return errInvalidPair
 	}
 
@@ -401,12 +414,30 @@ func getOrderbook(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
+	if c.IsSet("exchangestyle") {
+		exchangeStyle = c.Bool("exchangestyle")
+	} else {
+		exchangeStyle, err = strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("depthlimit") {
+		depthLimit = c.Int64("depthlimit")
+	} else {
+		depthLimit, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
 	assetType = strings.ToLower(assetType)
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -434,7 +465,25 @@ func getOrderbook(c *cli.Context) error {
 		return err
 	}
 
-	jsonOutput(result)
+	if exchangeStyle {
+		var maxLen, bidLen, askLen int64
+		bidLen = int64(len(result.Bids) - 1)
+		askLen = int64(len(result.Asks) - 1)
+		if bidLen >= askLen {
+			maxLen = bidLen
+		} else {
+			maxLen = askLen
+		}
+		if depthLimit > 0 && depthLimit < maxLen {
+			maxLen = depthLimit
+		}
+		if maxLen > 100 {
+			maxLen = 100
+		}
+		renderOrderbookExchangeStyle(result, exchangeName, assetType, maxLen, askLen, bidLen)
+	} else {
+		jsonOutput(result)
+	}
 	return nil
 }
 
@@ -464,9 +513,17 @@ func getOrderbooks(c *cli.Context) error {
 var getOrderbookStreamCommand = &cli.Command{
 	Name:      "getorderbookstream",
 	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <pair> <asset>",
+	ArgsUsage: "<exchange> <pair> <asset> <exchangestyle> <depthlimit>",
 	Action:    getOrderbookStream,
-	Flags:     orderbookCommonFlags,
+	Flags: append(orderbookCommonFlags,
+		&cli.BoolFlag{
+			Name:  "exchangestyle",
+			Usage: "renders the books like on an exchange website",
+		},
+		&cli.Int64Flag{
+			Name:  "depthlimit",
+			Usage: "limit how deep the book rendering is, max 50",
+		}),
 }
 
 func getOrderbookStream(c *cli.Context) error {
@@ -474,9 +531,12 @@ func getOrderbookStream(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var pair string
-	var assetType string
+	var (
+		exchangeName, pair, assetType string
+		depthLimit                    int64
+		exchangeStyle                 bool
+		err                           error
+	)
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -498,6 +558,24 @@ func getOrderbookStream(c *cli.Context) error {
 		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(2)
+	}
+
+	if c.IsSet("exchangestyle") {
+		exchangeStyle = c.Bool("exchangestyle")
+	} else {
+		exchangeStyle, err = strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("depthlimit") {
+		depthLimit = c.Int64("depthlimit")
+	} else {
+		depthLimit, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
+		if err != nil {
+			return err
+		}
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -545,54 +623,88 @@ func getOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
 		if resp.Error != "" {
 			fmt.Printf("%s\n", resp.Error)
 			continue
 		}
 
-		fmt.Println("\t\tBids\t\t\t\tAsks")
-		fmt.Println()
+		bidLen := int64(len(resp.Bids) - 1)
+		askLen := int64(len(resp.Asks) - 1)
 
-		bidLen := len(resp.Bids) - 1
-		askLen := len(resp.Asks) - 1
-
-		var maxLen int
+		var maxLen int64
 		if bidLen >= askLen {
 			maxLen = bidLen
 		} else {
 			maxLen = askLen
 		}
+		if depthLimit > 0 && depthLimit < maxLen {
+			maxLen = depthLimit
+		}
+		if maxLen > 50 {
+			maxLen = 50
+		}
 
-		for i := 0; i < maxLen; i++ {
-			var bidAmount, bidPrice float64
-			if i <= bidLen {
-				bidAmount = resp.Bids[i].Amount
-				bidPrice = resp.Bids[i].Price
-			}
+		if exchangeStyle {
+			renderOrderbookExchangeStyle(resp, exchangeName, assetType, maxLen, askLen, bidLen)
+		} else {
+			fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
+			fmt.Println("\t\tBids\t\t\t\tAsks")
+			fmt.Println()
 
-			var askAmount, askPrice float64
-			if i <= askLen {
-				askAmount = resp.Asks[i].Amount
-				askPrice = resp.Asks[i].Price
-			}
+			for i := int64(0); i < maxLen; i++ {
+				var bidAmount, bidPrice float64
+				if i <= bidLen {
+					bidAmount = resp.Bids[i].Amount
+					bidPrice = resp.Bids[i].Price
+				}
 
-			fmt.Printf("%.8f %s @ %.8f %s\t\t%.8f %s @ %.8f %s\n",
-				bidAmount,
-				resp.Pair.Base,
-				bidPrice,
-				resp.Pair.Quote,
-				askAmount,
-				resp.Pair.Base,
-				askPrice,
-				resp.Pair.Quote)
+				var askAmount, askPrice float64
+				if i <= askLen {
+					askAmount = resp.Asks[i].Amount
+					askPrice = resp.Asks[i].Price
+				}
 
-			if i >= 49 {
-				// limits orderbook display output
-				break
+				fmt.Printf("%.8f %s @ %.8f %s\t\t%.8f %s @ %.8f %s\n",
+					bidAmount,
+					resp.Pair.Base,
+					bidPrice,
+					resp.Pair.Quote,
+					askAmount,
+					resp.Pair.Base,
+					askPrice,
+					resp.Pair.Quote)
 			}
 		}
 	}
+}
+
+func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, assetType string, maxLen, askLen, bidLen int64) {
+	upperBase := strings.ToUpper(resp.Pair.Base)
+	upperQuote := strings.ToUpper(resp.Pair.Quote)
+	printFmt := "%s%.8f\t\t%.8f\n"
+	fmt.Printf("%sOrderbook stream for %v %v %v - Last updated %v\n",
+		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+
+	fmt.Printf("%sPrice(%v)\t\tAmount(%s)\n",
+		grayText, upperQuote, upperBase)
+	for i := maxLen; i > 0; i-- {
+		var askAmount, askPrice float64
+		if i <= askLen {
+			askAmount = resp.Asks[i].Amount
+			askPrice = resp.Asks[i].Price
+		}
+		fmt.Printf(printFmt, redText, askPrice, askAmount)
+	}
+	fmt.Println()
+	for i := int64(0); i < maxLen; i++ {
+		var bidAmount, bidPrice float64
+		if i <= bidLen {
+			bidAmount = resp.Bids[i].Amount
+			bidPrice = resp.Bids[i].Price
+		}
+		fmt.Printf(printFmt, greenText, bidPrice, bidAmount)
+	}
+	fmt.Println(defaultText)
 }
 
 var getExchangeOrderbookStreamCommand = &cli.Command{
@@ -647,7 +759,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook streamed for %s %s", exchangeName, resp.Pair)
+		fmt.Printf("Orderbook streamed for %s %s at %s", exchangeName, resp.Pair, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
 		if resp.Error != "" {
 			fmt.Printf("%s\n", resp.Error)
 		}
