@@ -1062,7 +1062,7 @@ func (s *store) getByDetail(det *order.Detail) *order.Detail {
 	exchangeOrders := s.Orders[strings.ToLower(det.Exchange)]
 	for _, o := range exchangeOrders {
 		if o.OrderID == det.OrderID {
-			return o
+			return o.CopyToPointer()
 		}
 	}
 	return nil
