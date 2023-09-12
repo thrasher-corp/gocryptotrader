@@ -15,19 +15,16 @@ import (
 
 var orderbookCommonFlags = []cli.Flag{
 	&cli.StringFlag{
-		Name:     "exchange",
-		Usage:    "the exchange to get the orderbook for",
-		Required: true,
+		Name:  "exchange",
+		Usage: "the exchange to get the orderbook for",
 	},
 	&cli.StringFlag{
-		Name:     "pair",
-		Usage:    "the currency pair to get the orderbook for",
-		Required: true,
+		Name:  "pair",
+		Usage: "the currency pair to get the orderbook for",
 	},
 	&cli.StringFlag{
-		Name:     "asset",
-		Usage:    "the asset type of the currency pair to get the orderbook for",
-		Required: true,
+		Name:  "asset",
+		Usage: "the asset type of the currency pair to get the orderbook for",
 	},
 }
 
