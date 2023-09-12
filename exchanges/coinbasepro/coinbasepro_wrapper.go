@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -284,24 +285,24 @@ func (c *CoinbasePro) Run(ctx context.Context) {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
-	products, err := c.GetProducts(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// products, err := c.GetProducts(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	pairs := make([]currency.Pair, 0, len(products))
-	for x := range products {
-		if products[x].TradingDisabled {
-			continue
-		}
-		var pair currency.Pair
-		pair, err = currency.NewPairDelimiter(products[x].ID, currency.DashDelimiter)
-		if err != nil {
-			return nil, err
-		}
-		pairs = append(pairs, pair)
-	}
-	return pairs, nil
+	// pairs := make([]currency.Pair, 0, len(products))
+	// for x := range products {
+	// 	if products[x].TradingDisabled {
+	// 		continue
+	// 	}
+	// 	var pair currency.Pair
+	// 	pair, err = currency.NewPairDelimiter(products[x].ID, currency.DashDelimiter)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	pairs = append(pairs, pair)
+	// }
+	return nil, errors.New("function not properly implemented")
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -333,12 +334,12 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		profileID := accountBalance[i].ProfileID
 		currencies := accountCurrencies[profileID]
 		accountCurrencies[profileID] = append(currencies, account.Balance{
-			Currency:               currency.NewCode(accountBalance[i].Currency),
-			Total:                  accountBalance[i].Balance,
-			Hold:                   accountBalance[i].Hold,
-			Free:                   accountBalance[i].Available,
-			AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
-			Borrowed:               accountBalance[i].FundedAmount,
+			Currency: currency.NewCode(accountBalance[i].Currency),
+			Total:    accountBalance[i].Balance,
+			Hold:     accountBalance[i].Hold,
+			Free:     accountBalance[i].Available, /*
+				AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
+				Borrowed:               accountBalance[i].FundedAmount,*/
 		})
 	}
 
@@ -439,46 +440,46 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        c.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: c.CanVerifyOrderbook,
-	}
-	fPair, err := c.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return book, err
-	}
+	// book := &orderbook.Base{
+	// 	Exchange:        c.Name,
+	// 	Pair:            p,
+	// 	Asset:           assetType,
+	// 	VerifyOrderbook: c.CanVerifyOrderbook,
+	// }
+	// fPair, err := c.FormatExchangeCurrency(p, assetType)
+	// if err != nil {
+	// 	return book, err
+	// }
 
-	orderbookNew, err := c.GetOrderbook(ctx, fPair.String(), 2)
-	if err != nil {
-		return book, err
-	}
+	// orderbookNew, err := c.GetOrderbook(ctx, fPair.String(), 2)
+	// if err != nil {
+	// 	return book, err
+	// }
 
-	obNew, ok := orderbookNew.(OrderbookL1L2)
-	if !ok {
-		return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
-	}
+	// obNew, ok := orderbookNew.(OrderbookL1L2)
+	// if !ok {
+	// 	return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
+	// }
 
-	book.Bids = make(orderbook.Items, len(obNew.Bids))
-	for x := range obNew.Bids {
-		book.Bids[x] = orderbook.Item{
-			Amount: obNew.Bids[x].Amount,
-			Price:  obNew.Bids[x].Price,
-		}
-	}
+	// book.Bids = make(orderbook.Items, len(obNew.Bids))
+	// for x := range obNew.Bids {
+	// 	book.Bids[x] = orderbook.Item{
+	// 		Amount: obNew.Bids[x].Amount,
+	// 		Price:  obNew.Bids[x].Price,
+	// 	}
+	// }
 
-	book.Asks = make(orderbook.Items, len(obNew.Asks))
-	for x := range obNew.Asks {
-		book.Asks[x] = orderbook.Item{
-			Amount: obNew.Asks[x].Amount,
-			Price:  obNew.Asks[x].Price,
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
+	// book.Asks = make(orderbook.Items, len(obNew.Asks))
+	// for x := range obNew.Asks {
+	// 	book.Asks[x] = orderbook.Item{
+	// 		Amount: obNew.Asks[x].Amount,
+	// 		Price:  obNew.Asks[x].Price,
+	// 	}
+	// }
+	// err = book.Process()
+	// if err != nil {
+	// 	return book, err
+	// }
 	return orderbook.Get(c.Name, p, assetType)
 }
 
@@ -546,42 +547,42 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		return nil, err
 	}
 
-	fPair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
+	// fPair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	var orderID string
 	switch s.Type {
 	case order.Market:
-		orderID, err = c.PlaceMarketOrder(ctx,
-			"",
-			s.Amount,
-			s.QuoteAmount,
-			s.Side.Lower(),
-			fPair.String(),
-			"")
+		// orderID, err = c.PlaceMarketOrder(ctx,
+		// 	"",
+		// 	s.Amount,
+		// 	s.QuoteAmount,
+		// 	s.Side.Lower(),
+		// 	fPair.String(),
+		// 	"")
 	case order.Limit:
-		timeInForce := CoinbaseRequestParamsTimeGTC
-		if s.ImmediateOrCancel {
-			timeInForce = CoinbaseRequestParamsTimeIOC
-		}
-		orderID, err = c.PlaceLimitOrder(ctx,
-			"",
-			s.Price,
-			s.Amount,
-			s.Side.Lower(),
-			timeInForce,
-			"",
-			fPair.String(),
-			"",
-			false)
+		// timeInForce := CoinbaseRequestParamsTimeGTC
+		// if s.ImmediateOrCancel {
+		// 	timeInForce = CoinbaseRequestParamsTimeIOC
+		// }
+		// orderID, err = c.PlaceLimitOrder(ctx,
+		// 	"",
+		// 	s.Price,
+		// 	s.Amount,
+		// 	s.Side.Lower(),
+		// 	timeInForce,
+		// 	"",
+		// 	fPair.String(),
+		// 	"",
+		// 	false)
 	default:
-		err = fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
+		// err = fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return s.DeriveSubmitResponse(orderID)
 }
 
@@ -596,7 +597,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return c.CancelExistingOrder(ctx, o.OrderID)
+	return errors.New("function not properly implemented")
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -606,70 +607,71 @@ func (c *CoinbasePro) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*o
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *CoinbasePro) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures
-	_, err := c.CancelAllExistingOrders(ctx, "")
+	// 	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures
+	// 	_, err := c.CancelAllExistingOrders(ctx, "")
+	err := errors.New("function not properly implemented")
 	return order.CancelAllResponse{}, err
 }
 
 // GetOrderInfo returns order information based on order ID
 func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
-	genOrderDetail, err := c.GetOrder(ctx, orderID)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving order %s : %w", orderID, err)
-	}
-	orderStatus, err := order.StringToOrderStatus(genOrderDetail.Status)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order status: %w", err)
-	}
-	orderType, err := order.StringToOrderType(genOrderDetail.Type)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order type: %w", err)
-	}
-	orderSide, err := order.StringToOrderSide(genOrderDetail.Side)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order side: %w", err)
-	}
-	pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order pair: %w", err)
-	}
+	// genOrderDetail, err := c.GetOrder(ctx, orderID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error retrieving order %s : %w", orderID, err)
+	// }
+	// orderStatus, err := order.StringToOrderStatus(genOrderDetail.Status)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error parsing order status: %w", err)
+	// }
+	// orderType, err := order.StringToOrderType(genOrderDetail.Type)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error parsing order type: %w", err)
+	// }
+	// orderSide, err := order.StringToOrderSide(genOrderDetail.Side)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error parsing order side: %w", err)
+	// }
+	// pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error parsing order pair: %w", err)
+	// }
 
-	response := order.Detail{
-		Exchange:        c.GetName(),
-		OrderID:         genOrderDetail.ID,
-		Pair:            pair,
-		Side:            orderSide,
-		Type:            orderType,
-		Date:            genOrderDetail.DoneAt,
-		Status:          orderStatus,
-		Price:           genOrderDetail.Price,
-		Amount:          genOrderDetail.Size,
-		ExecutedAmount:  genOrderDetail.FilledSize,
-		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
-		Fee:             genOrderDetail.FillFees,
-	}
-	fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving the order fills: %w", err)
-	}
-	for i := range fillResponse {
-		var fillSide order.Side
-		fillSide, err = order.StringToOrderSide(fillResponse[i].Side)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing order Side: %w", err)
-		}
-		response.Trades = append(response.Trades, order.TradeHistory{
-			Timestamp: fillResponse[i].CreatedAt,
-			TID:       strconv.FormatInt(fillResponse[i].TradeID, 10),
-			Price:     fillResponse[i].Price,
-			Amount:    fillResponse[i].Size,
-			Exchange:  c.GetName(),
-			Type:      orderType,
-			Side:      fillSide,
-			Fee:       fillResponse[i].Fee,
-		})
-	}
-	return &response, nil
+	// response := order.Detail{
+	// 	Exchange:        c.GetName(),
+	// 	OrderID:         genOrderDetail.ID,
+	// 	Pair:            pair,
+	// 	Side:            orderSide,
+	// 	Type:            orderType,
+	// 	Date:            genOrderDetail.DoneAt,
+	// 	Status:          orderStatus,
+	// 	Price:           genOrderDetail.Price,
+	// 	Amount:          genOrderDetail.Size,
+	// 	ExecutedAmount:  genOrderDetail.FilledSize,
+	// 	RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
+	// 	Fee:             genOrderDetail.FillFees,
+	// }
+	// fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error retrieving the order fills: %w", err)
+	// }
+	// for i := range fillResponse {
+	// 	var fillSide order.Side
+	// 	fillSide, err = order.StringToOrderSide(fillResponse[i].Side)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("error parsing order Side: %w", err)
+	// 	}
+	// 	response.Trades = append(response.Trades, order.TradeHistory{
+	// 		Timestamp: fillResponse[i].CreatedAt,
+	// 		TID:       strconv.FormatInt(fillResponse[i].TradeID, 10),
+	// 		Price:     fillResponse[i].Price,
+	// 		Amount:    fillResponse[i].Size,
+	// 		Exchange:  c.GetName(),
+	// 		Type:      orderType,
+	// 		Side:      fillSide,
+	// 		Fee:       fillResponse[i].Fee,
+	// 	})
+	// }
+	return nil, errors.New("function not properly implemented")
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -683,16 +685,17 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawR
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := c.WithdrawCrypto(ctx,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency.String(),
-		withdrawRequest.Crypto.Address)
-	if err != nil {
-		return nil, err
-	}
-	return &withdraw.ExchangeResponse{
-		ID: resp.ID,
-	}, err
+	// resp, err := c.WithdrawCrypto(ctx,
+	// 	withdrawRequest.Amount,
+	// 	withdrawRequest.Currency.String(),
+	// 	withdrawRequest.Crypto.Address)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return &withdraw.ExchangeResponse{
+	// 	ID: resp.ID,
+	// }, err
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -717,17 +720,17 @@ func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wi
 		return nil, fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.Fiat.Bank.BankName)
 	}
 
-	resp, err := c.WithdrawViaPaymentMethod(ctx,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency.String(),
-		selectedWithdrawalMethod.ID)
-	if err != nil {
-		return nil, err
-	}
+	// resp, err := c.WithdrawViaPaymentMethod(ctx,
+	// 	withdrawRequest.Amount,
+	// 	withdrawRequest.Currency.String(),
+	// 	selectedWithdrawalMethod.ID)
+	// if err != nil {
+	return nil, err
+	// }
 
-	return &withdraw.ExchangeResponse{
-		Status: resp.ID,
-	}, nil
+	// return &withdraw.ExchangeResponse{
+	// 	Status: resp.ID,
+	// }, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
@@ -765,22 +768,22 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 		return nil, err
 	}
 	var respOrders []GeneralizedOrderResponse
-	var fPair currency.Pair
-	for i := range req.Pairs {
-		fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
-		if err != nil {
-			return nil, err
-		}
+	// var fPair currency.Pair
+	// for i := range req.Pairs {
+	// 	// fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
 
-		var resp []GeneralizedOrderResponse
-		resp, err = c.GetOrders(ctx,
-			[]string{"open", "pending", "active"},
-			fPair.String())
-		if err != nil {
-			return nil, err
-		}
-		respOrders = append(respOrders, resp...)
-	}
+	// 	var resp []GeneralizedOrderResponse
+	// 	// resp, err = c.GetOrders(ctx,
+	// 	// 	[]string{"open", "pending", "active"},
+	// 	// 	fPair.String())
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	respOrders = append(respOrders, resp...)
+	// }
 
 	format, err := c.GetPairFormat(asset.Spot, false)
 	if err != nil {
@@ -827,26 +830,26 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 		return nil, err
 	}
 	var respOrders []GeneralizedOrderResponse
-	if len(req.Pairs) > 0 {
-		var fPair currency.Pair
-		var resp []GeneralizedOrderResponse
-		for i := range req.Pairs {
-			fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
-			if err != nil {
-				return nil, err
-			}
-			resp, err = c.GetOrders(ctx, []string{"done"}, fPair.String())
-			if err != nil {
-				return nil, err
-			}
-			respOrders = append(respOrders, resp...)
-		}
-	} else {
-		respOrders, err = c.GetOrders(ctx, []string{"done"}, "")
-		if err != nil {
-			return nil, err
-		}
-	}
+	// if len(req.Pairs) > 0 {
+	// var fPair currency.Pair
+	// var resp []GeneralizedOrderResponse
+	// for i := range req.Pairs {
+	// fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// resp, err = c.GetOrders(ctx, []string{"done"}, fPair.String())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// respOrders = append(respOrders, resp...)
+	// }
+	// } else {
+	// respOrders, err = c.GetOrders(ctx, []string{"done"}, "")
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// }
 
 	format, err := c.GetPairFormat(asset.Spot, false)
 	if err != nil {
