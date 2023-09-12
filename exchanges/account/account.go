@@ -105,7 +105,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 			errNoCredentialBalances)
 	}
 
-	var currencyBalances = make([]Balance, len(subAccountHoldings))
+	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
 	accountsHoldings := make([]SubAccount, 0, len(subAccountHoldings))
 	for mapKey, assetHoldings := range subAccountHoldings {
 		if mapKey.Asset != assetType {
