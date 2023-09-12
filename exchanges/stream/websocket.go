@@ -982,7 +982,7 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	return w.canUseAuthenticatedEndpoints
 }
 
-// isDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error
+// IsDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error
 func IsDisconnectionError(err error) bool {
 	if websocket.IsUnexpectedCloseError(err) {
 		return true
