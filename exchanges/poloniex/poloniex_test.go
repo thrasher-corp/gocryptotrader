@@ -177,113 +177,6 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-// func TestGetOrderStatus(t *testing.T) {
-// 	t.Parallel()
-// 	tests := []struct {
-// 		name           string
-// 		mock           bool
-// 		orderID        string
-// 		errExpected    bool
-// 		errMsgExpected string
-// 	}{
-// 		{
-// 			name:           "correct order ID",
-// 			mock:           true,
-// 			orderID:        "96238912841",
-// 			errExpected:    false,
-// 			errMsgExpected: "",
-// 		},
-// 		{
-// 			name:           "wrong order ID",
-// 			mock:           true,
-// 			orderID:        "96238912842",
-// 			errExpected:    true,
-// 			errMsgExpected: "Order not found",
-// 		},
-// 	}
-
-// 	for _, tt := range tests {
-// 		tt := tt
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			t.Parallel()
-// 			if tt.mock != mockTests {
-// 				t.Skip("mock mismatch, skipping")
-// 			}
-
-// 			_, err := p.GetAuthenticatedOrderStatus(context.Background(),
-// 				tt.orderID)
-// 			switch {
-// 			case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
-// 				t.Errorf("Could not get order status: %s", err)
-// 			case !sharedtestvalues.AreAPICredentialsSet(p) && err == nil && !mockTests:
-// 				t.Error("Expecting an error when no keys are set")
-// 			case mockTests && err != nil:
-// 				if !tt.errExpected {
-// 					t.Errorf("Could not mock get order status: %s", err.Error())
-// 				} else if !(strings.Contains(err.Error(), tt.errMsgExpected)) {
-// 					t.Errorf("Could not mock get order status: %s", err.Error())
-// 				}
-// 			case mockTests:
-// 				if tt.errExpected {
-// 					t.Errorf("Mock get order status expect an error '%s', get no error", tt.errMsgExpected)
-// 				}
-// 			}
-// 		})
-// 	  }
-// }
-
-// func TestGetOrderTrades(t *testing.T) {
-// 	t.Parallel()
-
-// 	tests := []struct {
-// 		name           string
-// 		mock           bool
-// 		orderID        string
-// 		errExpected    bool
-// 		errMsgExpected string
-// 	}{
-// 		{
-// 			name:           "correct order ID",
-// 			mock:           true,
-// 			orderID:        "96238912841",
-// 			errExpected:    false,
-// 			errMsgExpected: "",
-// 		},
-// 		{
-// 			name:           "wrong order ID",
-// 			mock:           true,
-// 			orderID:        "96238912842",
-// 			errExpected:    true,
-// 			errMsgExpected: "Order not found",
-// 		},
-// 	}
-
-// 	for _, tt := range tests {
-// 		tt := tt
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			t.Parallel()
-// 			if tt.mock != mockTests {
-// 				t.Skip("mock mismatch, skipping")
-// 			}
-
-// 			_, err := p.GetAuthenticatedOrderTrades(context.Background(), tt.orderID)
-// 			switch {
-// 			case sharedtestvalues.AreAPICredentialsSet(p) && err != nil:
-// 				t.Errorf("Could not get order trades: %s", err)
-// 			case !sharedtestvalues.AreAPICredentialsSet(p) && err == nil && !mockTests:
-// 				t.Error("Expecting an error when no keys are set")
-// 			case mockTests && err != nil:
-// 				if !(tt.errExpected && strings.Contains(err.Error(), tt.errMsgExpected)) {
-// 					t.Errorf("Could not mock get order trades: %s", err)
-// 				}
-// 			}
-// 		})
-// 	}
-// }
-
-// // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// // ----------------------------------------------------------------------------------------------------------------------------
-
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -1501,15 +1394,6 @@ func TestGetTradeOrderID(t *testing.T) {
 	}
 }
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := p.WsConnect()
-	if err != nil {
-		t.Error(err)
-	}
-	// time.Sleep(time.Second * 23)
-}
-
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	_, err := p.GenerateDefaultSubscriptions()
 	if err != nil {
@@ -1532,6 +1416,13 @@ func TestHandlePayloads(t *testing.T) {
 var pushMessages = map[string]string{
 	"AccountBalance": `{ "channel": "balances", "data": [{ "changeTime": 1657312008411, "accountId": "1234", "accountType": "SPOT", "eventType": "place_order", "available": "9999999983.668", "currency": "BTC", "id": 60018450912695040, "userId": 12345, "hold": "16.332", "ts": 1657312008443 }] }`,
 	"Orders":         `{ "channel": "orders", "data": [ { "symbol": "BTC_USDT", "type": "LIMIT", "quantity": "1", "orderId": "32471407854219264", "tradeFee": "0", "clientOrderId": "", "accountType": "SPOT", "feeCurrency": "", "eventType": "place", "source": "API", "side": "BUY", "filledQuantity": "0", "filledAmount": "0", "matchRole": "MAKER", "state": "NEW", "tradeTime": 0, "tradeAmount": "0", "orderAmount": "0", "createTime": 1648708186922, "price": "47112.1", "tradeQty": "0", "tradePrice": "0", "tradeId": "0", "ts": 1648708187469 } ] }`,
+	"Candles":        `{"channel":"candles_minute_5","data":[{"symbol":"BTC_USDT","open":"25143.19","high":"25148.58","low":"25138.76","close":"25144.55","quantity":"0.860454","amount":"21635.20983974","tradeCount":20,"startTime":1694469000000,"closeTime":1694469299999,"ts":1694469049867}]}`,
+	"BooksLV2":       `{"channel":"book_lv2","data":[{"symbol":"BTC_USDT","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}],"action":"update"}`,
+	"Books":          `{"channel":"book","data":[{"symbol":"BTC_USDT","createTime":1694469187686,"asks":[["25157.24","0.444294"],["25157.25","0.024357"],["25157.26","0.003204"],["25163.39","0.039476"],["25163.4","0.110047"]],"bids":[["25148.8","0.00692"],["25148.61","0.021581"],["25148.6","0.034504"],["25148.59","0.065405"],["25145.52","0.79537"]],"id":598273384,"ts":1694469187733}]}`,
+	"Tickers":        `{"channel":"ticker","data":[{"symbol":"BTC_USDT","startTime":1694382780000,"open":"25866.3","high":"26008.47","low":"24923.65","close":"25153.02","quantity":"1626.444884","amount":"41496808.63699303","tradeCount":37124,"dailyChange":"-0.0276","markPrice":"25154.9","closeTime":1694469183664,"ts":1694469187081}]}`,
+	"Trades":         `{"channel":"trades","data":[{"symbol":"BTC_USDT","amount":"52.821342","quantity":"0.0021","takerSide":"sell","createTime":1694469183664,"price":"25153.02","id":"71076055","ts":1694469183673}]}`,
+	"Currencies":     `{"channel":"currencies","data":[[{"currency":"BTC","id":28,"name":"Bitcoin","description":"BTC Clone","type":"address","withdrawalFee":"0.0008","minConf":2,"depositAddress":null,"blockchain":"BTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["BTCTRON"]},{"currency":"XRP","id":243,"name":"XRP","description":"Payment ID","type":"address-payment-id","withdrawalFee":"0.2","minConf":2,"depositAddress":"rwU8rAiE2eyEPz3sikfbHuqCuiAtdXqa2v","blockchain":"XRP","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":[]},{"currency":"ETH","id":267,"name":"Ethereum","description":"Sweep to Main Account","type":"address","withdrawalFee":"0.00197556","minConf":64,"depositAddress":null,"blockchain":"ETH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["ETHTRON"]},{"currency":"USDT","id":214,"name":"Tether USD","description":"Sweep to Main Account","type":"address","withdrawalFee":"0","minConf":2,"depositAddress":null,"blockchain":"OMNI","delisted":false,"tradingState":"NORMAL","walletState":"DISABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["USDTETH","USDTTRON"]},{"currency":"DOGE","id":59,"name":"Dogecoin","description":"BTC Clone","type":"address","withdrawalFee":"20","minConf":6,"depositAddress":null,"blockchain":"DOGE","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["DOGETRON"]},{"currency":"LTC","id":125,"name":"Litecoin","description":"BTC Clone","type":"address","withdrawalFee":"0.001","minConf":4,"depositAddress":null,"blockchain":"LTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["LTCTRON"]},{"currency":"DASH","id":60,"name":"Dash","description":"BTC Clone","type":"address","withdrawalFee":"0.01","minConf":20,"depositAddress":null,"blockchain":"DASH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":false,"supportBorrow":false,"childChains":[]}]],"action":"snapshot"}`,
+	"Symbols":        `{"channel":"symbols","data":[[{"symbol":"BTC_USDT","baseCurrencyName":"BTC","quoteCurrencyName":"USDT","displayName":"BTC/USDT","state":"NORMAL","visibleStartTime":1659018819512,"tradableStartTime":1659018819512,"crossMargin":{"supportCrossMargin":true,"maxLeverage":"3"},"symbolTradeLimit":{"symbol":"BTC_USDT","priceScale":2,"quantityScale":6,"amountScale":2,"minQuantity":"0.000001","minAmount":"1","highestBid":"0","lowestAsk":"0"}}]],"action":"snapshot"}`,
 }
 
 const dummyPush = `{ "channel": "abebe", "data": [] }`

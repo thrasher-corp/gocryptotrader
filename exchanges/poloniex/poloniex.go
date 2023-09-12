@@ -37,12 +37,13 @@ var (
 	errInvalidTimeout                  = errors.New("timeout must not be empty")
 	errChainsNotFound                  = errors.New("err chains not found")
 	errChannelNotSupported             = errors.New("channel not supported")
+	errAccountIDRequired               = errors.New("missing account ID")
+	errAccountTypeRequired             = errors.New("account type required")
 )
 
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
-	details CurrencyDetails
 }
 
 // Reference data endpoints.

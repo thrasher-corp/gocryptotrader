@@ -46,10 +46,9 @@ const (
 
 var defaultSubscriptions = []string{
 	cnlCandles,
-	// cnlTrades,
-	// cnlTicker,
-	// cnlBooks,
-	// cnlBookLevel2,
+	cnlTrades,
+	cnlTicker,
+	cnlBooks,
 }
 
 var (
@@ -58,6 +57,8 @@ var (
 	errIDNotFoundInPairMap  = errors.New("id not associated with currency pair map")
 	errIDNotFoundInCodeMap  = errors.New("id not associated with currency code map")
 )
+
+var onceOrderbook map[string]struct{}
 
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
@@ -92,6 +93,7 @@ func (p *Poloniex) WsConnect() error {
 			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
+	onceOrderbook = make(map[string]struct{})
 	p.Websocket.Wg.Add(1)
 	go p.wsReadData(p.Websocket.Conn)
 	return nil
@@ -312,11 +314,27 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 		if err != nil {
 			return err
 		}
+		_, okay := onceOrderbook[resp[x].Symbol]
+		if !okay {
+			if onceOrderbook == nil {
+				onceOrderbook = make(map[string]struct{})
+			}
+			orderbooks, err := p.UpdateOrderbook(context.Background(), pair, asset.Spot)
+			if err != nil {
+				return err
+			}
+			err = p.Websocket.Orderbook.LoadSnapshot(orderbooks)
+			if err != nil {
+				return err
+			}
+			onceOrderbook[resp[x].Symbol] = struct{}{}
+		}
 		update := orderbook.Update{
 			Pair:       pair,
 			UpdateTime: resp[x].Timestamp.Time(),
 			UpdateID:   resp[x].ID,
 			Action:     orderbook.UpdateInsert,
+			Asset:      asset.Spot,
 		}
 		update.Asks = make([]orderbook.Item, len(resp[x].Asks))
 		for i := range resp[x].Asks {
@@ -371,6 +389,7 @@ func (p *Poloniex) processTicker(result *SubscriptionResponse) error {
 			Open:         resp[x].Open.Float64(),
 			Close:        resp[x].Close.Float64(),
 			Pair:         pair,
+			AssetType:    asset.Spot,
 			ExchangeName: p.Name,
 			LastUpdated:  resp[x].Timestamp.Time(),
 		}
@@ -460,7 +479,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	if err != nil {
 		return nil, err
 	}
-	channels := []string{} // defaultSubscriptions
+	channels := defaultSubscriptions
 	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{
 			cnlOrders,

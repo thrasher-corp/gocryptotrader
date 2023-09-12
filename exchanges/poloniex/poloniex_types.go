@@ -2,18 +2,12 @@ package poloniex
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-)
-
-var (
-	errAccountIDRequired   = errors.New("missing account ID")
-	errAccountTypeRequired = errors.New("account type required")
 )
 
 // Ticker holds ticker data
