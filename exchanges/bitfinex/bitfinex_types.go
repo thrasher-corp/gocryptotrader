@@ -12,9 +12,9 @@ import (
 
 var (
 	errSetCannotBeEmpty = errors.New("set cannot be empty")
-	errSubNotFound      = errors.New("could not find matching subscription")
 	errTypeAssert       = errors.New("type assertion failed")
 	errNoSeqNo          = errors.New("no sequence number")
+	errUnknownError     = errors.New("unknown error")
 )
 
 // AccountV2Data stores account v2 data
@@ -659,6 +659,10 @@ const (
 	wsTicker                               = "ticker"
 	wsTrades                               = "trades"
 	wsError                                = "error"
+	wsEventSubscribed                      = "subscribed"
+	wsEventUnsubscribed                    = "unsubscribed"
+	wsEventAuth                            = "auth"
+	wsEventError                           = "error"
 )
 
 // WsAuthRequest container for WS auth request

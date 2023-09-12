@@ -3,6 +3,7 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.20
 
 require (
+	github.com/buger/jsonparser v1.1.1
 	github.com/d5/tengo/v2 v2.16.1
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/gorilla/mux v1.8.0

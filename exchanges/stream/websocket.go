@@ -53,7 +53,6 @@ var (
 	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
 	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
 	errSubscriptionNotFound                 = errors.New("subscription not found in list")
-	errKeyCannotBeNil                       = errors.New("key cannot be nil")
 )
 
 var globalReporter Reporter
