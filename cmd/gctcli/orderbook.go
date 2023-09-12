@@ -15,16 +15,19 @@ import (
 
 var orderbookCommonFlags = []cli.Flag{
 	&cli.StringFlag{
-		Name:  "exchange",
-		Usage: "the exchange to get the orderbook for",
+		Name:     "exchange",
+		Usage:    "the exchange to get the orderbook for",
+		Required: true,
 	},
 	&cli.StringFlag{
-		Name:  "pair",
-		Usage: "the currency pair to get the orderbook for",
+		Name:     "pair",
+		Usage:    "the currency pair to get the orderbook for",
+		Required: true,
 	},
 	&cli.StringFlag{
-		Name:  "asset",
-		Usage: "the asset type of the currency pair to get the orderbook for",
+		Name:     "asset",
+		Usage:    "the asset type of the currency pair to get the orderbook for",
+		Required: true,
 	},
 }
 
@@ -356,28 +359,15 @@ var getOrderbookCommand = &cli.Command{
 	Usage:     "gets the orderbook for a specific currency pair and exchange",
 	ArgsUsage: "<exchange> <pair> <asset> <exchangestyle> <depthlimit>",
 	Action:    getOrderbook,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the orderbook for",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair to get the orderbook for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair to get the orderbook for",
-		},
+	Flags: append(orderbookCommonFlags,
 		&cli.BoolFlag{
 			Name:  "exchangestyle",
-			Usage: "renders the books like on an exchange website",
+			Usage: "optional - renders the books like on an exchange website",
 		},
 		&cli.Int64Flag{
 			Name:  "depthlimit",
-			Usage: "limit how deep the book rendering is, max 100 - only works if exchangestyle is true",
-		},
-	},
+			Usage: "optional - limit how deep the book rendering is, max 100 - only works if exchangestyle is true",
+		}),
 }
 
 func getOrderbook(c *cli.Context) error {
@@ -416,7 +406,7 @@ func getOrderbook(c *cli.Context) error {
 
 	if c.IsSet("exchangestyle") {
 		exchangeStyle = c.Bool("exchangestyle")
-	} else {
+	} else if c.Args().Get(3) != "" {
 		exchangeStyle, err = strconv.ParseBool(c.Args().Get(3))
 		if err != nil {
 			return err
@@ -425,7 +415,7 @@ func getOrderbook(c *cli.Context) error {
 
 	if c.IsSet("depthlimit") {
 		depthLimit = c.Int64("depthlimit")
-	} else {
+	} else if c.Args().Get(4) != "" {
 		depthLimit, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
 		if err != nil {
 			return err
@@ -518,11 +508,11 @@ var getOrderbookStreamCommand = &cli.Command{
 	Flags: append(orderbookCommonFlags,
 		&cli.BoolFlag{
 			Name:  "exchangestyle",
-			Usage: "renders the books like on an exchange website",
+			Usage: "optional - renders the books like on an exchange website",
 		},
 		&cli.Int64Flag{
 			Name:  "depthlimit",
-			Usage: "limit how deep the book rendering is, max 50",
+			Usage: "optional - limit how deep the book rendering is, max 50",
 		}),
 }
 
@@ -562,7 +552,7 @@ func getOrderbookStream(c *cli.Context) error {
 
 	if c.IsSet("exchangestyle") {
 		exchangeStyle = c.Bool("exchangestyle")
-	} else {
+	} else if c.Args().Get(3) != "" {
 		exchangeStyle, err = strconv.ParseBool(c.Args().Get(3))
 		if err != nil {
 			return err
@@ -571,7 +561,7 @@ func getOrderbookStream(c *cli.Context) error {
 
 	if c.IsSet("depthlimit") {
 		depthLimit = c.Int64("depthlimit")
-	} else {
+	} else if c.Args().Get(4) != "" {
 		depthLimit, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
 		if err != nil {
 			return err
