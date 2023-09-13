@@ -1073,19 +1073,24 @@ func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errNilOrder
 	}
+
 	name := strings.ToLower(det.Exchange)
-	_, err := s.exchangeManager.GetExchangeByName(name)
-	if err != nil {
+	if _, err := s.exchangeManager.GetExchangeByName(name); err != nil {
 		return err
 	}
-	if s.exists(det) {
-		return ErrOrdersAlreadyExists
+
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	// Inline copy of getByDetail to avoid possible lock races
+	for _, o := range s.Orders[name] {
+		if o.OrderID == det.OrderID {
+			return ErrOrdersAlreadyExists
+		}
 	}
 
 	// Untracked websocket orders will not have internalIDs yet
 	det.GenerateInternalOrderID()
-	s.m.Lock()
-	defer s.m.Unlock()
 	s.Orders[name] = append(s.Orders[name], det)
 	if !det.AssetType.IsFutures() {
 		return nil
