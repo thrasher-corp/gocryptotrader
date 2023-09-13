@@ -2508,7 +2508,7 @@ type WsOrder struct {
 	FillNotionalUsd convert.StringToFloat64 `json:"fillNotionalUsd"`
 	Msg             string                  `json:"msg"`
 	NotionalUSD     convert.StringToFloat64 `json:"notionalUsd"`
-	ReduceOnly      bool                    `json:"reduceOnly"`
+	ReduceOnly      bool                    `json:"reduceOnly,string"`
 	RequestID       string                  `json:"reqId"`
 }
 
