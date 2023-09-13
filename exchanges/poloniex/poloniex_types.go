@@ -968,37 +968,14 @@ type PlaceOrderParams struct {
 	SlippageTolerance string `json:"slippageTolerance,omitempty"` // Used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
 }
 
-// PlaceOrder places a new order on the exchange
-// func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
-// 	result := OrderResponse{}
-// 	values := url.Values{}
-
-// 	var orderType string
-// 	if buy {
-// 		orderType = order.Buy.Lower()
-// 	} else {
-// 		orderType = order.Sell.Lower()
-// 	}
-
-// 	values.Set("currencyPair", currency)
-// 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-// 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-
-// 	if immediate {
-// 		values.Set("immediateOrCancel", "1")
-// 	}
-
-// 	if fillOrKill {
-// 		values.Set("fillOrKill", "1")
-// 	}
-
-// 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orderType, values, nil, &result)
-// }
-
 // PlaceOrderResponse represents a response structure for placing order.
 type PlaceOrderResponse struct {
 	ID            string `json:"id"`
 	ClientOrderID string `json:"clientOrderId"`
+
+	// Websocket response status code and message.
+	Message string `json:"message,omitempty"`
+	Code    int64  `json:"code,omitempty"`
 }
 
 // PlaceBatchOrderRespItem represents a single batch order response item.
@@ -1081,6 +1058,12 @@ type CancelOrderResponse struct {
 	State         string `json:"state"`
 	Code          int64  `json:"code"`
 	Message       string `json:"message"`
+}
+
+// WsCancelOrderResponse represents a websocket cancel orders instance.
+type WsCancelOrderResponse struct {
+	OrderID int64 `json:"orderId"`
+	CancelOrderResponse
 }
 
 // OrderCancellationParams represents an order cancellation parameters.
@@ -1207,6 +1190,8 @@ type SubscriptionPayload struct {
 
 // SubscriptionResponse represents a subscription response instance.
 type SubscriptionResponse struct {
+	ID string `json:"id"`
+
 	Event   string          `json:"event"`
 	Channel string          `json:"channel"`
 	Action  string          `json:"action"`
@@ -1397,4 +1382,10 @@ type WsTradeBalance []struct {
 	Currency    string                  `json:"currency"`
 	Hold        convert.StringToFloat64 `json:"hold"`
 	Timestamp   convert.ExchangeTime    `json:"ts"`
+}
+
+// WebsocketResponse represents a websocket responses.
+type WebsocketResponse struct {
+	ID   string      `json:"id"`
+	Data interface{} `json:"data"`
 }

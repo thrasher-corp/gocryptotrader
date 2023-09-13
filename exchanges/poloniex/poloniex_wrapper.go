@@ -650,14 +650,27 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		return s.DeriveSubmitResponse(smartOrder.ID)
 	}
-	response, err := p.PlaceOrder(ctx, &PlaceOrderParams{
-		Symbol:      fPair,
-		Price:       s.Price,
-		Amount:      s.Amount,
-		AllowBorrow: false,
-		Type:        s.Type.String(),
-		Side:        s.Side.String(),
-	})
+	var response *PlaceOrderResponse
+
+	if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		response, err = p.WsCreateOrder(&PlaceOrderParams{
+			Symbol:      fPair,
+			Price:       s.Price,
+			Amount:      s.Amount,
+			AllowBorrow: false,
+			Type:        s.Type.String(),
+			Side:        s.Side.String(),
+		})
+	} else {
+		response, err = p.PlaceOrder(ctx, &PlaceOrderParams{
+			Symbol:      fPair,
+			Price:       s.Price,
+			Amount:      s.Amount,
+			AllowBorrow: false,
+			Type:        s.Type.String(),
+			Side:        s.Side.String(),
+		})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -733,19 +746,34 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, &OrderCancellationParams{OrderIds: orderIDs, ClientOrderIds: clientOrderIDs})
-	if err != nil {
-		return nil, err
-	}
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
-	for i := range cancelledOrders {
-		if cancelledOrders[i].ClientOrderID != "" {
-			resp.Status[cancelledOrders[i].ClientOrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
-			continue
+	if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		wsCancelledOrders, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIds: orderIDs, ClientOrderIds: clientOrderIDs})
+		if err != nil {
+			return nil, err
 		}
-		resp.Status[cancelledOrders[i].OrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+		for i := range wsCancelledOrders {
+			if wsCancelledOrders[i].ClientOrderID != "" {
+				resp.Status[wsCancelledOrders[i].ClientOrderID] = wsCancelledOrders[i].State + " " + wsCancelledOrders[i].Message
+				continue
+			}
+			orderID := strconv.FormatInt(wsCancelledOrders[i].OrderID, 10)
+			resp.Status[orderID] = wsCancelledOrders[i].State + " " + wsCancelledOrders[i].Message
+		}
+	} else {
+		cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, &OrderCancellationParams{OrderIds: orderIDs, ClientOrderIds: clientOrderIDs})
+		if err != nil {
+			return nil, err
+		}
+		for i := range cancelledOrders {
+			if cancelledOrders[i].ClientOrderID != "" {
+				resp.Status[cancelledOrders[i].ClientOrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+				continue
+			}
+			resp.Status[cancelledOrders[i].OrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
+		}
 	}
 	return resp, nil
 }
@@ -755,16 +783,29 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
+	var err error
 	var pairs currency.Pairs
 	if !cancelOrd.Pair.IsEmpty() {
 		pairs = append(pairs, cancelOrd.Pair)
 	}
-	resp, err := p.CancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
-	if err != nil {
-		return cancelAllOrdersResponse, err
-	}
-	for x := range resp {
-		cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+	var resp []CancelOrderResponse
+	if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		var wsResponse []WsCancelOrderResponse
+		wsResponse, err = p.WsCancelAllTradeOrders(pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+		for x := range wsResponse {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(wsResponse[x].OrderID, 10)] = wsResponse[x].State
+		}
+	} else {
+		resp, err = p.CancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+		for x := range resp {
+			cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+		}
 	}
 	resp, err = p.CancelAllSmartOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
 	if err != nil {

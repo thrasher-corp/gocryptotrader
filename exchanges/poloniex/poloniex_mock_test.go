@@ -56,5 +56,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 	log.Printf(sharedtestvalues.MockTesting, p.Name)
+	setupWS()
 	os.Exit(m.Run())
 }

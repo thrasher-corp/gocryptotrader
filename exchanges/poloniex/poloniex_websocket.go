@@ -173,6 +173,12 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	if result.ID != "" {
+		if !p.Websocket.Match.IncomingWithData(result.ID, respRaw) {
+			return fmt.Errorf("could not match trade response with ID: %s Event: %s ", result.ID, result.Event)
+		}
+		return nil
+	}
 	if result.Event != "" {
 		log.Debugf(log.ExchangeSys, string(respRaw))
 		return nil
@@ -462,16 +468,6 @@ func (p *Poloniex) processResponse(result *SubscriptionResponse, instance interf
 	p.Websocket.DataHandler <- fullResp
 	return nil
 }
-
-// -----------------------------------------------------------------------------------------------
-
-//
-//
-//
-//
-//
-
-// ------------------------------------------------------------------------------------------------
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {

@@ -39,6 +39,7 @@ var (
 	errChannelNotSupported             = errors.New("channel not supported")
 	errAccountIDRequired               = errors.New("missing account ID")
 	errAccountTypeRequired             = errors.New("account type required")
+	errInvalidResponse                 = errors.New("err: invalid response data")
 )
 
 // Poloniex is the overarching type across the poloniex package
