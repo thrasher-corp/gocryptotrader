@@ -719,7 +719,7 @@ type OrderHistoryRequestParams struct {
 type PendingOrderItem struct {
 	AccumulatedFillSize        convert.StringToFloat64 `json:"accFillSz"`
 	AveragePrice               convert.StringToFloat64 `json:"avgPx"`
-	CreationTime               time.Time               `json:"cTime"`
+	CreationTime               okxUnixMilliTime        `json:"cTime"`
 	Category                   string                  `json:"category"`
 	Currency                   string                  `json:"ccy"`
 	ClientOrderID              string                  `json:"clOrdId"`
@@ -752,7 +752,7 @@ type PendingOrderItem struct {
 	TakeProfitTriggerPrice     convert.StringToFloat64 `json:"tpTriggerPx"`
 	TakeProfitTriggerPriceType string                  `json:"tpTriggerPxType"`
 	TradeID                    string                  `json:"tradeId"`
-	UpdateTime                 time.Time               `json:"uTime"`
+	UpdateTime                 okxUnixMilliTime        `json:"uTime"`
 }
 
 // TransactionDetailRequestParams retrieve recently-filled transaction details in the last 3 day.

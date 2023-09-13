@@ -168,24 +168,6 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserializes JSON, and timestamp information.
-func (o *PendingOrderItem) UnmarshalJSON(data []byte) error {
-	type Alias PendingOrderItem
-	a := &struct {
-		*Alias
-		UpdateTime   okxUnixMilliTime `json:"uTime"`
-		CreationTime okxUnixMilliTime `json:"cTime"`
-		FillTime     okxUnixMilliTime `json:"fillTime"`
-	}{
-		Alias: (*Alias)(o),
-	}
-	err := json.Unmarshal(data, a)
-	o.CreationTime = a.CreationTime.Time()
-	o.UpdateTime = a.UpdateTime.Time()
-	o.FillTime = a.FillTime
-	return err
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
 func (a *RfqTradeResponse) UnmarshalJSON(data []byte) error {
 	type Alias RfqTradeResponse
 	chil := &struct {

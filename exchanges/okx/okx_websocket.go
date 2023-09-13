@@ -1079,7 +1079,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 			AssetType:            a,
 			AverageExecutedPrice: avgPrice,
 			ClientOrderID:        response.Data[x].ClientOrderID,
-			Date:                 response.Data[x].CreationTime,
+			Date:                 response.Data[x].CreationTime.Time(),
 			Exchange:             ok.Name,
 			ExecutedAmount:       execAmount,
 			Fee:                  0.0 - response.Data[x].Fee.Float64(),
