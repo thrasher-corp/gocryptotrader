@@ -375,7 +375,10 @@ instruments:
 			if tick[j].Typ != futuresID {
 				continue instruments
 			}
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+			pair, err = b.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
+			if err != nil {
+				return err
+			}
 		case asset.Index:
 			switch tick[j].Typ {
 			case bitMEXBasketIndexID,
@@ -390,23 +393,29 @@ instruments:
 			// contain an underscore. Calling DeriveFrom will then error and
 			// the instruments will be missed.
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+			pair, err = b.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
+			if err != nil {
+				return err
+			}
 		case asset.PerpetualContract:
 			if tick[j].Typ != perpetualContractID {
 				continue instruments
 			}
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+			pair, err = b.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
+			if err != nil {
+				return err
+			}
 		case asset.Spot:
 			if tick[j].Typ != spotID {
 				continue instruments
 			}
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
-		}
-		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
+			pair, err = b.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
+			if err != nil {
 				return err
 			}
+		}
+		if !enabled.Contains(pair, true) {
 			continue
 		}
 

@@ -205,11 +205,6 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
-	avail, err := e.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
-
 	enabled, err := e.GetEnabledPairs(a)
 	if err != nil {
 		return err
@@ -222,7 +217,7 @@ func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for symbol, tick := range result {
 		var pair currency.Pair
-		pair, err = avail.DeriveFrom(strings.Replace(symbol, "_", "", 1))
+		pair, err = e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
 			return err
 		}

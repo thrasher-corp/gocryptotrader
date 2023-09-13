@@ -416,11 +416,6 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	avail, err := by.GetAvailablePairs(assetType)
-	if err != nil {
-		return err
-	}
-
 	enabled, err := by.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
@@ -434,7 +429,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 		}
 
 		for x := range ticks.List {
-			pair, err := avail.DeriveFrom(ticks.List[x].Symbol)
+			pair, err := by.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, false)
 			if err != nil {
 				// These symbols below do not have a spot market but are in fact
 				// perpetuals.
@@ -480,7 +475,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				if tick[y].Symbol != formattedPair.String() {
 					continue
 				}
-				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
+				cp, err := by.MatchSymbolWithAvailablePairs(tick[y].Symbol, assetType, false)
 				if err != nil {
 					return err
 				}
@@ -512,7 +507,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				return err
 			}
 
-			cp, err := by.extractCurrencyPair(tick.Symbol, assetType)
+			cp, err := by.MatchSymbolWithAvailablePairs(tick.Symbol, assetType, false)
 			if err != nil {
 				return err
 			}
@@ -551,7 +546,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 		for y := range tick {
-			cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
+			cp, err := by.MatchSymbolWithAvailablePairs(tick[y].Symbol, assetType, false)
 			if err != nil {
 				return nil, err
 			}
@@ -580,7 +575,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 		for y := range tick {
-			cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
+			cp, err := by.MatchSymbolWithAvailablePairs(tick[y].Symbol, assetType, false)
 			if err != nil {
 				return nil, err
 			}
@@ -606,7 +601,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 			return nil, err
 		}
 
-		cp, err := by.extractCurrencyPair(tick.Symbol, assetType)
+		cp, err := by.MatchSymbolWithAvailablePairs(tick.Symbol, assetType, false)
 		if err != nil {
 			return nil, err
 		}
@@ -2097,26 +2092,12 @@ func (by *Bybit) GetServerTime(ctx context.Context, a asset.Item) (time.Time, er
 	return time.Time{}, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 }
 
-func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
-	pairs, err := by.CurrencyPairs.GetPairs(item, true)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	return pairs.DeriveFrom(symbol)
-}
-
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	avail, err := by.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
-
 	var limits []order.MinMaxLevel
 	switch a {
 	case asset.Spot:
-		var pairsData []PairData
-		pairsData, err = by.GetAllSpotPairs(ctx)
+		pairsData, err := by.GetAllSpotPairs(ctx)
 		if err != nil {
 			return err
 		}
@@ -2124,7 +2105,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		limits = make([]order.MinMaxLevel, 0, len(pairsData))
 		for x := range pairsData {
 			var pair currency.Pair
-			pair, err = avail.DeriveFrom(pairsData[x].Name)
+			pair, err = by.MatchSymbolWithAvailablePairs(pairsData[x].Name, a, false)
 			if err != nil {
 				return err
 			}

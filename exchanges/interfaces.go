@@ -92,6 +92,8 @@ type IBotExchange interface {
 	OrderManagement
 	CurrencyStateManagement
 	FuturesManagement
+
+	MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDelimiter bool) (currency.Pair, error)
 }
 
 // OrderManagement defines functionality for order management

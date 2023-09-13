@@ -360,9 +360,12 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for key, val := range tickerNew {
-		pair, err := enabled.DeriveFrom(strings.Replace(key, ":", "", 1)[1:])
+		pair, err := b.MatchSymbolWithAvailablePairs(key[1:], a, true)
 		if err != nil {
-			// GetTickerBatch returns all pairs in call across all asset types.
+			return err
+		}
+
+		if !enabled.Contains(pair, true) {
 			continue
 		}
 

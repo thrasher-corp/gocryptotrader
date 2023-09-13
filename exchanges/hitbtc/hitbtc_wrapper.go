@@ -322,10 +322,6 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	avail, err := h.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
 
 	enabled, err := h.GetEnabledPairs(a)
 	if err != nil {
@@ -333,7 +329,7 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for x := range tick {
-		pair, err := avail.DeriveFrom(tick[x].Symbol)
+		pair, err := h.MatchSymbolWithAvailablePairs(tick[x].Symbol, a, false)
 		if err != nil {
 			return err
 		}

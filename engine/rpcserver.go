@@ -78,6 +78,7 @@ var (
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
 	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
+	errPairNotEnabled          = errors.New("pair is not enabled")
 )
 
 // RPCServer struct
@@ -4680,13 +4681,18 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		return nil, err
 	}
 
+	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, a, false)
+	if err != nil {
+		return nil, err
+	}
+
 	pairs, err := exch.GetEnabledPairs(a)
 	if err != nil {
 		return nil, err
 	}
-	cp, err := pairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
-	if err != nil {
-		return nil, err
+
+	if !pairs.Contains(cp, true) {
+		return nil, fmt.Errorf("%w %v", errPairNotEnabled, cp)
 	}
 
 	funding, err := exch.GetFundingRates(ctx, &fundingrate.RatesRequest{
@@ -4773,14 +4779,20 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
 	}
 
+	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, a, false)
+	if err != nil {
+		return nil, err
+	}
+
 	pairs, err := exch.GetEnabledPairs(a)
 	if err != nil {
 		return nil, err
 	}
-	cp, err := pairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
-	if err != nil {
-		return nil, err
+
+	if !pairs.Contains(cp, true) {
+		return nil, fmt.Errorf("%w %v", errPairNotEnabled, cp)
 	}
+
 	funding, err := exch.GetLatestFundingRate(ctx, &fundingrate.LatestRateRequest{
 		Asset:                a,
 		Pair:                 cp,
