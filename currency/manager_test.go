@@ -108,8 +108,8 @@ func TestPairsManagerMatch(t *testing.T) {
 	p = initTest(t)
 
 	_, err = p.Match("sillyBilly", 1337)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
 	}
 
 	_, err = p.Match("sillyBilly", asset.Spot)

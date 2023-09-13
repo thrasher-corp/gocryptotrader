@@ -65,16 +65,13 @@ func (p *PairsManager) Match(symbol string, a asset.Item) (Pair, error) {
 	if symbol == "" {
 		return EMPTYPAIR, errSymbolStringEmpty
 	}
+	symbol = strings.ToLower(symbol)
 	p.m.RLock()
 	defer p.m.RUnlock()
 	if p.matcher == nil {
 		return EMPTYPAIR, errPairMatcherIsNil
 	}
-	assets, ok := p.matcher[a]
-	if !ok {
-		return EMPTYPAIR, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
-	}
-	pair, ok := assets[strings.ToLower(symbol)]
+	pair, ok := p.matcher[key{symbol, a}]
 	if !ok {
 		return EMPTYPAIR, ErrPairNotFound
 	}
@@ -90,19 +87,19 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 	if err != nil {
 		return err
 	}
-	matcher := make(map[string]*Pair)
-	for x := range cpy.Available {
-		matcher[cpy.Available[x].Base.Lower().String()+cpy.Available[x].Quote.Lower().String()] = &cpy.Available[x]
-	}
 	p.m.Lock()
 	if p.Pairs == nil {
 		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 	p.Pairs[a] = cpy
 	if p.matcher == nil {
-		p.matcher = make(map[asset.Item]map[string]*Pair)
+		p.matcher = make(map[key]*Pair)
 	}
-	p.matcher[a] = matcher
+	for x := range cpy.Available {
+		p.matcher[key{
+			Symbol: cpy.Available[x].Base.Lower().String() + cpy.Available[x].Quote.Lower().String(),
+			Asset:  a}] = &cpy.Available[x]
+	}
 	p.m.Unlock()
 	return nil
 }
@@ -110,8 +107,15 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 // Delete deletes a map entry based on the supplied asset type
 func (p *PairsManager) Delete(a asset.Item) {
 	p.m.Lock()
+	vals, ok := p.Pairs[a]
+	if !ok {
+		p.m.Unlock()
+		return
+	}
+	for x := range vals.Available {
+		delete(p.matcher, key{Symbol: vals.Available[x].Base.Lower().String() + vals.Available[x].Quote.Lower().String(), Asset: a})
+	}
 	delete(p.Pairs, a)
-	delete(p.matcher, a)
 	p.m.Unlock()
 }
 
@@ -214,15 +218,14 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	} else {
 		pairStore.Available = cpy
 
-		matcher := make(map[string]*Pair)
-		for x := range pairStore.Available {
-			matcher[pairStore.Available[x].Base.Lower().String()+pairStore.Available[x].Quote.Lower().String()] = &pairStore.Available[x]
-		}
-
 		if p.matcher == nil {
-			p.matcher = make(map[asset.Item]map[string]*Pair)
+			p.matcher = make(map[key]*Pair)
 		}
-		p.matcher[a] = matcher
+		for x := range pairStore.Available {
+			p.matcher[key{
+				Symbol: pairStore.Available[x].Base.Lower().String() + pairStore.Available[x].Quote.Lower().String(),
+				Asset:  a}] = &pairStore.Available[x]
+		}
 	}
 
 	return nil
