@@ -90,19 +90,36 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 // GetTradingFee returns a trading fee based on a currency
 func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var resp TradingFees
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPITradingFees+"/"+strings.ToLower(feeBuilder.Pair.String()), true, nil, &resp)
+	fees, err := b.GetAccountTradingFee(ctx, feeBuilder.Pair)
 	if err != nil {
 		return 0, err
 	}
-	if len(resp.Fees) != 1 {
+	if len(fees) != 1 {
 		return 0, errors.New("did not receive exactly one fee from api")
 	}
-	fee := resp.Fees[0].Taker
+	fee := fees[0].Taker
 	if feeBuilder.IsMaker {
-		fee = resp.Fees[0].Maker
+		fee = fees[0].Maker
 	}
 	return fee / 100 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
+}
+
+// GetAccountTradingFee returns a TradingFee for a pair
+func (b *Bitstamp) GetAccountTradingFee(ctx context.Context, pair currency.Pair) ([]MakerTakerFees, error) {
+	path := bitstampAPITradingFees + "/" + strings.ToLower(pair.String())
+
+	var resp TradingFees
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+	return resp.Fees, err
+}
+
+// GetAccountTradingFees returns a slice of TradingFee
+func (b *Bitstamp) GetAccountTradingFees(ctx context.Context) ([]TradingFees, error) {
+	path := bitstampAPITradingFees + "/"
+
+	var resp []TradingFees
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+	return resp, err
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee

@@ -77,11 +77,12 @@ type EURUSDConversionRate struct {
 
 // TradingFees holds trading fee information
 type TradingFees struct {
-	Fees []TradingFee
+	Symbol string `json:"currency_pair"`
+	Fees   []MakerTakerFees
 }
 
-// TradingFee holds maker and taker fee information
-type TradingFee struct {
+// MakerTakerFees holds maker and taker fee information
+type MakerTakerFees struct {
 	Maker float64 `json:"maker,string"`
 	Taker float64 `json:"taker,string"`
 }
