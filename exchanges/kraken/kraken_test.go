@@ -2200,7 +2200,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	}
 
 	_, err = k.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
+	if err.Error() != "USD index is not found" {
 		t.Error(err)
 	}
 }
