@@ -435,7 +435,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (p *Poloniex) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	accountBalance, err := p.GetSubAccountBalances(ctx)
 	if err != nil {
@@ -450,15 +450,15 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		}
 		currencyBalances := make([]account.Balance, len(accountBalance[i].Balances))
 		for x := range accountBalance[i].Balances {
-			currencyBalances = append(currencyBalances, account.Balance{
+			currencyBalances[x] = account.Balance{
 				Currency:               currency.NewCode(accountBalance[i].Balances[x].Currency),
 				Total:                  accountBalance[i].Balances[x].AvailableBalance.Float64(),
 				Hold:                   accountBalance[i].Balances[x].Hold.Float64(),
 				Free:                   accountBalance[i].Balances[x].Available.Float64(),
 				AvailableWithoutBorrow: accountBalance[i].Balances[x].AvailableBalance.Float64(),
-			})
+			}
 		}
-		subAccounts = append(subAccounts, subAccount)
+		subAccounts[i] = subAccount
 	}
 	response = account.Holdings{
 		Exchange: p.Name,
@@ -635,7 +635,8 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, fmt.Errorf("%v order type %v is not supported", order.ErrTypeIsInvalid, s.Type)
 	}
 	if smartOrder {
-		smartOrder, err := p.CreateSmartOrder(ctx, &SmartOrderRequestParam{
+		var sOrder *PlaceOrderResponse
+		sOrder, err = p.CreateSmartOrder(ctx, &SmartOrderRequestParam{
 			Symbol:        fPair,
 			Side:          orderSideString(s.Side),
 			Type:          orderTypeString(s.Type),
@@ -648,7 +649,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		return s.DeriveSubmitResponse(smartOrder.ID)
+		return s.DeriveSubmitResponse(sOrder.ID)
 	}
 	var response *PlaceOrderResponse
 
@@ -694,7 +695,8 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Couldn't locate order") {
-			smartOResponse, err := p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
+			var smartOResponse *CancelReplaceSmartOrderResponse
+			smartOResponse, err = p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
 				ID:            action.OrderID,
 				ClientOrderID: action.ClientOrderID,
 				Price:         action.Price,
@@ -827,16 +829,18 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	orderTrades := make([]order.TradeHistory, len(trades))
+	var oType order.Type
+	var oSide order.Side
 	for i := range trades {
-		oType, err := order.StringToOrderType(trades[i].Type)
+		oType, err = order.StringToOrderType(trades[i].Type)
 		if err != nil {
 			return nil, err
 		}
-		oSide, err := order.StringToOrderSide(trades[i].Side)
+		oSide, err = order.StringToOrderSide(trades[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		orderTrades = append(orderTrades, order.TradeHistory{
+		orderTrades[i] = order.TradeHistory{
 			Price:     trades[i].Price.Float64(),
 			Amount:    trades[i].Quantity.Float64(),
 			Fee:       trades[i].FeeAmount.Float64(),
@@ -847,7 +851,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Timestamp: trades[i].CreateTime.Time(),
 			FeeAsset:  trades[i].FeeCurrency,
 			Total:     trades[i].Amount.Float64(),
-		})
+		}
 	}
 	var smartOrders []SmartOrderDetail
 	var smartOrder bool
@@ -860,25 +864,26 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, order.ErrOrderNotFound
 		}
 		smartOrder = true
-		return nil, err
 	}
 
+	var dPair currency.Pair
+	var oStatus order.Status
 	if smartOrder {
-		dPair, err := currency.NewPairFromString(smartOrders[0].Symbol)
+		dPair, err = currency.NewPairFromString(smartOrders[0].Symbol)
 		if err != nil {
 			return nil, err
 		} else if !pair.IsEmpty() && !dPair.Equal(pair) {
 			return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, dPair)
 		}
-		oType, err := order.StringToOrderType(smartOrders[0].Type)
+		oType, err = order.StringToOrderType(smartOrders[0].Type)
 		if err != nil {
 			return nil, err
 		}
-		oStatus, err := order.StringToOrderStatus(smartOrders[0].State)
+		oStatus, err = order.StringToOrderStatus(smartOrders[0].State)
 		if err != nil {
 			return nil, err
 		}
-		oSide, err := order.StringToOrderSide(smartOrders[0].Side)
+		oSide, err = order.StringToOrderSide(smartOrders[0].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -899,21 +904,21 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Trades:        orderTrades,
 		}, nil
 	}
-	dPair, err := currency.NewPairFromString(resp.Symbol)
+	dPair, err = currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return nil, err
 	} else if !pair.IsEmpty() && !dPair.Equal(pair) {
 		return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, dPair)
 	}
-	oType, err := order.StringToOrderType(resp.Type)
+	oType, err = order.StringToOrderType(resp.Type)
 	if err != nil {
 		return nil, err
 	}
-	oStatus, err := order.StringToOrderStatus(resp.State)
+	oStatus, err = order.StringToOrderStatus(resp.State)
 	if err != nil {
 		return nil, err
 	}
-	oSide, err := order.StringToOrderSide(resp.Side)
+	oSide, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
 		return nil, err
 	}
@@ -1058,7 +1063,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	if err != nil {
 		return nil, err
 	}
-	var orders []order.Detail
+	orders := make([]order.Detail, 0, len(resp))
 	for a := range resp {
 		var symbol currency.Pair
 		symbol, err = currency.NewPairFromString(resp[a].Symbol)
@@ -1134,7 +1139,9 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 
-	var orders []order.Detail
+	var oSide order.Side
+	var oType order.Type
+	orders := make([]order.Detail, 0, len(resp))
 	for i := range resp {
 		var pair currency.Pair
 		pair, err = currency.NewPairFromString(resp[i].Symbol)
@@ -1144,26 +1151,27 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
 			continue
 		}
-		orderSide, err := order.StringToOrderSide(resp[i].Side)
+		oSide, err = order.StringToOrderSide(resp[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		orderType, err := order.StringToOrderType(resp[i].Type)
+		oType, err = order.StringToOrderType(resp[i].Type)
 		if err != nil {
 			return nil, err
 		}
-		assetType, err := asset.New(resp[i].AccountType)
+		var assetType asset.Item
+		assetType, err = asset.New(resp[i].AccountType)
 		if err != nil {
 			return nil, err
 		}
 		detail := order.Detail{
-			Side:                 orderSide,
+			Side:                 oSide,
 			Amount:               resp[i].Amount.Float64(),
 			ExecutedAmount:       resp[i].FilledAmount.Float64(),
 			Price:                resp[i].Price.Float64(),
 			AverageExecutedPrice: resp[i].AvgPrice.Float64(),
 			Pair:                 pair,
-			Type:                 orderType,
+			Type:                 oType,
 			Exchange:             p.Name,
 			QuoteAmount:          resp[i].Amount.Float64() * resp[i].AvgPrice.Float64(),
 			RemainingAmount:      resp[i].Quantity.Float64() - resp[i].FilledQuantity.Float64(),
@@ -1191,11 +1199,11 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) != 0 && !req.Pairs.Contains(pair, true) {
 			continue
 		}
-		orderSide, err := order.StringToOrderSide(smartOrders[i].Side)
+		oSide, err = order.StringToOrderSide(smartOrders[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		orderType, err := order.StringToOrderType(smartOrders[i].Type)
+		oType, err = order.StringToOrderType(smartOrders[i].Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1204,12 +1212,12 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			return nil, err
 		}
 		detail := order.Detail{
-			Side:          orderSide,
+			Side:          oSide,
 			Amount:        smartOrders[i].Amount.Float64(),
 			Price:         smartOrders[i].Price.Float64(),
 			TriggerPrice:  smartOrders[i].StopPrice.Float64(),
 			Pair:          pair,
-			Type:          orderType,
+			Type:          oType,
 			Exchange:      p.Name,
 			OrderID:       smartOrders[i].ID,
 			ClientOrderID: smartOrders[i].ClientOrderID,

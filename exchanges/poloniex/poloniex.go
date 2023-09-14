@@ -40,6 +40,7 @@ var (
 	errAccountIDRequired               = errors.New("missing account ID")
 	errAccountTypeRequired             = errors.New("account type required")
 	errInvalidResponse                 = errors.New("err: invalid response data")
+	errUnexpectedIncomingDataType      = errors.New("unexpected imcoming data type")
 )
 
 // Poloniex is the overarching type across the poloniex package
@@ -83,7 +84,7 @@ func (p *Poloniex) GetV2CurrencyInformations(ctx context.Context) ([]CurrencyV2I
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/v2/currencies", &resp)
 }
 
-// GetV2CurrencyInformations retrieves currency details for V2 API.
+// GetV2CurrencyInformation retrieves currency details for V2 API.
 func (p *Poloniex) GetV2CurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyV2Information, error) {
 	var resp CurrencyV2Information
 	path := "/v2/currencies"
@@ -195,7 +196,7 @@ func (p *Poloniex) GetTrades(ctx context.Context, symbol currency.Pair, limit in
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf("/markets/%s/trades", symbol.String()), params), &resp)
 }
 
-// GetTicker retrieve ticker in last 24 hours for all symbols.
+// GetTickers retrieve ticker in last 24 hours for all symbols.
 func (p *Poloniex) GetTickers(ctx context.Context) ([]TickerData, error) {
 	var resp []TickerData
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/ticker24h", &resp)
@@ -262,7 +263,7 @@ func (p *Poloniex) GetAllBalance(ctx context.Context, accountID, accountType str
 }
 
 // GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
-// Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERAL_REBATE: 204, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
+// Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERRAL_REBATE: 204, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
 func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time,
 	activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
 	params := url.Values{}
@@ -497,7 +498,7 @@ func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, act
 	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/wallets/activity", values, nil, &resp)
 }
 
-// NewCurrencyDepoditAddress create a new address for a currency.
+// NewCurrencyDepositAddress create a new address for a currency.
 // Some currencies use a common deposit address for everyone on the exchange and designate the account
 // for which this payment is destined by populating paymentID field.
 // In these cases, use /currencies to look up the mainAccount for the currency to find
@@ -728,11 +729,12 @@ func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 // GetOrderDetail get an order’s status. Either by specifying orderId or clientOrderId. If id is a clientOrderId, prefix with cid: e.g. cid:myId-1
 func (p *Poloniex) GetOrderDetail(ctx context.Context, id, clientOrderID string) (*TradeOrder, error) {
 	var path string
-	if id != "" {
+	switch {
+	case id != "":
 		path = fmt.Sprintf("/orders/%s", id)
-	} else if clientOrderID != "" {
+	case clientOrderID != "":
 		path = fmt.Sprintf("/orders/cid:%s", id)
-	} else {
+	default:
 		return nil, fmt.Errorf("%w, orderid or client order id is required", order.ErrOrderIDNotSet)
 	}
 	var resp TradeOrder
@@ -830,11 +832,12 @@ func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 		return nil, errNilArgument
 	}
 	var path string
-	if arg.ID != "" {
+	switch {
+	case arg.ID != "":
 		path = fmt.Sprintf("/smartorders/%s", arg.ID)
-	} else if arg.ClientOrderID != "" {
+	case arg.ClientOrderID != "":
 		path = fmt.Sprintf("/smartorders/cid:%s", arg.ClientOrderID)
-	} else {
+	default:
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp CancelReplaceSmartOrderResponse
@@ -855,11 +858,12 @@ func (p *Poloniex) GetSmartOpenOrders(ctx context.Context, limit int64) ([]Smart
 // If smart order’s state is TRIGGERED, the response will include the triggered order’s data
 func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, id, clientSuppliedID string) ([]SmartOrderDetail, error) {
 	var path string
-	if id != "" {
+	switch {
+	case id != "":
 		path = fmt.Sprintf("/smartorders/%s", id)
-	} else if clientSuppliedID != "" {
+	case clientSuppliedID != "":
 		path = fmt.Sprintf("/smartorders/cid:%s", clientSuppliedID)
-	} else {
+	default:
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp []SmartOrderDetail
@@ -869,11 +873,12 @@ func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, id, clientSuppliedID
 // CancelSmartOrderByID cancel a smart order by its id.
 func (p *Poloniex) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedID string) (*CancelSmartOrderResponse, error) {
 	var path string
-	if id != "" {
+	switch {
+	case id != "":
 		path = fmt.Sprintf("/smartorders/%s", id)
-	} else if clientSuppliedID != "" {
+	case clientSuppliedID != "":
 		path = fmt.Sprintf("/smartorders/cid:%s", clientSuppliedID)
-	} else {
+	default:
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp CancelSmartOrderResponse
@@ -1034,7 +1039,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, body interface{}, result interface{}) error {
+func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, body, result interface{}) error {
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1073,7 +1078,8 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 				signatureStrings = fmt.Sprintf("%s\n%s\n%s", method, endpoint, values.Encode())
 			}
 		}
-		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(signatureStrings),
 			[]byte(creds.Secret))
 		if err != nil {

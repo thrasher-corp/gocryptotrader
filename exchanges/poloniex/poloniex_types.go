@@ -10,351 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// Ticker holds ticker data
-type Ticker struct {
-	ID            float64 `json:"id"`
-	Last          float64 `json:"last,string"`
-	LowestAsk     float64 `json:"lowestAsk,string"`
-	HighestBid    float64 `json:"highestBid,string"`
-	PercentChange float64 `json:"percentChange,string"`
-	BaseVolume    float64 `json:"baseVolume,string"`
-	QuoteVolume   float64 `json:"quoteVolume,string"`
-	High24Hr      float64 `json:"high24hr,string"`
-	Low24Hr       float64 `json:"low24hr,string"`
-	IsFrozen      uint8   `json:"isFrozen,string"`
-	PostOnly      uint8   `json:"postOnly,string"`
-}
-
-// OrderbookResponseAll holds the full response type orderbook
-type OrderbookResponseAll struct {
-	Data map[string]OrderbookResponse
-}
-
-// CompleteBalances holds the full balance data
-type CompleteBalances map[string]CompleteBalance
-
-// OrderbookResponse is a sub-type for orderbooks
-type OrderbookResponse struct {
-	Asks     [][]interface{} `json:"asks"`
-	Bids     [][]interface{} `json:"bids"`
-	IsFrozen string          `json:"isFrozen"`
-	Error    string          `json:"error"`
-	Seq      int64           `json:"seq"`
-}
-
-// OrderbookItem holds data on an individual item
-type OrderbookItem struct {
-	Price  float64
-	Amount float64
-}
-
-// OrderbookAll contains the full range of orderbooks
-type OrderbookAll struct {
-	Data map[string]Orderbook
-}
-
-// Orderbook is a generic type golding orderbook information
-type Orderbook struct {
-	Asks []OrderbookItem `json:"asks"`
-	Bids []OrderbookItem `json:"bids"`
-}
-
-// TradeHistory holds trade history data
-type TradeHistory struct {
-	GlobalTradeID string  `json:"globalTradeID"`
-	TradeID       string  `json:"tradeID"`
-	Date          string  `json:"date"`
-	Type          string  `json:"type"`
-	Rate          float64 `json:"rate,string"`
-	Amount        float64 `json:"amount,string"`
-	Total         float64 `json:"total,string"`
-}
-
-// OrderStatus holds order status data
-type OrderStatus struct {
-	Result  json.RawMessage `json:"result"`
-	Success int64           `json:"success"`
-}
-
-// OrderStatusData defines order status details
-type OrderStatusData struct {
-	Pair           string  `json:"currencyPair"`
-	Rate           float64 `json:"rate,string"`
-	Amount         float64 `json:"amount,string"`
-	Total          float64 `json:"total,string"`
-	StartingAmount float64 `json:"startingAmount,string"`
-	Type           string  `json:"type"`
-	Status         string  `json:"status"`
-	Date           string  `json:"date"`
-	Fee            float64 `json:"fee,string"`
-}
-
-// OrderTrade holds order trade data
-type OrderTrade struct {
-	Status        string  `json:"status"`
-	GlobalTradeID string  `json:"globalTradeID"`
-	TradeID       string  `json:"tradeID"`
-	CurrencyPair  string  `json:"currencyPair"`
-	Type          string  `json:"type"`
-	Rate          float64 `json:"rate,string"`
-	Amount        float64 `json:"amount,string"`
-	Total         float64 `json:"total,string"`
-	Fee           float64 `json:"fee,string"`
-	Date          string  `json:"date"`
-}
-
-// ChartData holds kline data
-type ChartData struct {
-	Date            int64   `json:"date,string"`
-	High            float64 `json:"high,string"`
-	Low             float64 `json:"low,string"`
-	Open            float64 `json:"open,string"`
-	Close           float64 `json:"close,string"`
-	Volume          float64 `json:"volume,string"`
-	QuoteVolume     float64 `json:"quoteVolume,string"`
-	WeightedAverage float64 `json:"weightedAverage,string"`
-	Error           string  `json:"error"`
-}
-
-// Currencies contains currency information
-type Currencies struct {
-	ID                        float64  `json:"id"`
-	Name                      string   `json:"name"`
-	HumanType                 string   `json:"humanType"`
-	CurrencyType              string   `json:"currencyType"`
-	TxFee                     float64  `json:"txFee,string"`
-	MinConfirmations          int64    `json:"minConf"`
-	DepositAddress            string   `json:"depositAddress"`
-	WithdrawalDepositDisabled uint8    `json:"disabled"`
-	Frozen                    uint8    `json:"frozen"`
-	HexColour                 string   `json:"hexColor"`
-	Blockchain                string   `json:"blockchain"`
-	Delisted                  uint8    `json:"delisted"`
-	ParentChain               string   `json:"parentChain"`
-	IsMultiChain              uint8    `json:"isMultiChain"`
-	IsChildChain              uint8    `json:"isChildChain"`
-	ChildChains               []string `json:"childChains"`
-	IsGeofenced               uint8    `json:"isGeofenced"`
-}
-
-// LoanOrder holds loan order information
-type LoanOrder struct {
-	Rate     float64 `json:"rate,string"`
-	Amount   float64 `json:"amount,string"`
-	RangeMin int64   `json:"rangeMin"`
-	RangeMax int64   `json:"rangeMax"`
-}
-
-// LoanOrders holds loan order information range
-type LoanOrders struct {
-	Offers  []LoanOrder `json:"offers"`
-	Demands []LoanOrder `json:"demands"`
-}
-
-// Balance holds data for a range of currencies
-type Balance struct {
-	Currency map[string]float64
-}
-
-// CompleteBalance contains the complete balance with a btcvalue
-type CompleteBalance struct {
-	Available float64 `json:"available,string"`
-	OnOrders  float64 `json:"onOrders,string"`
-	BTCValue  float64 `json:"btcValue,string"`
-}
-
 // DepositAddressesResponse holds the full address per crypto-currency
 type DepositAddressesResponse map[string]string
-
-// DepositsWithdrawals holds withdrawal information
-type DepositsWithdrawals struct {
-	Deposits []struct {
-		Currency      string  `json:"currency"`
-		Address       string  `json:"address"`
-		Amount        float64 `json:"amount,string"`
-		Confirmations int64   `json:"confirmations"`
-		TransactionID string  `json:"txid"`
-		Timestamp     int64   `json:"timestamp"`
-		Status        string  `json:"status"`
-	} `json:"deposits"`
-	Withdrawals []struct {
-		WithdrawalNumber int64   `json:"withdrawalNumber"`
-		Currency         string  `json:"currency"`
-		Address          string  `json:"address"`
-		Amount           float64 `json:"amount,string"`
-		Confirmations    int64   `json:"confirmations"`
-		TransactionID    string  `json:"txid"`
-		Timestamp        int64   `json:"timestamp"`
-		Status           string  `json:"status"`
-		IPAddress        string  `json:"ipAddress"`
-	} `json:"withdrawals"`
-}
-
-// Order hold order information
-type Order struct {
-	OrderNumber int64   `json:"orderNumber,string"`
-	Type        string  `json:"type"`
-	Rate        float64 `json:"rate,string"`
-	Amount      float64 `json:"amount,string"`
-	Total       float64 `json:"total,string"`
-	Date        string  `json:"date"`
-	Margin      float64 `json:"margin"`
-}
-
-// OpenOrdersResponseAll holds all open order responses
-type OpenOrdersResponseAll struct {
-	Data map[string][]Order
-}
-
-// OpenOrdersResponse holds open response orders
-type OpenOrdersResponse struct {
-	Data []Order
-}
-
-// AuthenticatedTradeHistory holds client trade history information
-type AuthenticatedTradeHistory struct {
-	GlobalTradeID string  `json:"globalTradeID"`
-	TradeID       string  `json:"tradeID"`
-	Date          string  `json:"date"`
-	Rate          float64 `json:"rate,string"`
-	Amount        float64 `json:"amount,string"`
-	Total         float64 `json:"total,string"`
-	Fee           float64 `json:"fee,string"`
-	OrderNumber   int64   `json:"orderNumber,string"`
-	Type          string  `json:"type"`
-	Category      string  `json:"category"`
-}
-
-// AuthenticatedTradeHistoryAll holds the full client trade history
-type AuthenticatedTradeHistoryAll struct {
-	Data map[string][]AuthenticatedTradeHistory
-}
-
-// AuthenticatedTradeHistoryResponse is a response type for trade history
-type AuthenticatedTradeHistoryResponse struct {
-	Data []AuthenticatedTradeHistory
-}
-
-// ResultingTrades holds resultant trade information
-type ResultingTrades struct {
-	Amount  float64 `json:"amount,string"`
-	Date    string  `json:"date"`
-	Rate    float64 `json:"rate,string"`
-	Total   float64 `json:"total,string"`
-	TradeID int64   `json:"tradeID,string"`
-	Type    string  `json:"type"`
-}
-
-// OrderResponse is a response type of trades
-type OrderResponse struct {
-	OrderNumber int64             `json:"orderNumber,string"`
-	Trades      []ResultingTrades `json:"resultingTrades"`
-}
-
-// GenericResponse is a response type for exchange generic responses
-type GenericResponse struct {
-	Success int64  `json:"success"`
-	Error   string `json:"error"`
-}
-
-// MoveOrderResponse is a response type for move order trades
-type MoveOrderResponse struct {
-	Success     int64                        `json:"success"`
-	Error       string                       `json:"error"`
-	OrderNumber int64                        `json:"orderNumber,string"`
-	Trades      map[string][]ResultingTrades `json:"resultingTrades"`
-}
-
-// Fee holds fees for specific trades
-type Fee struct {
-	MakerFee        float64 `json:"makerFee,string"`
-	TakerFee        float64 `json:"takerFee,string"`
-	ThirtyDayVolume float64 `json:"thirtyDayVolume,string"`
-}
-
-// Margin holds margin information
-type Margin struct {
-	TotalValue    float64 `json:"totalValue,string"`
-	ProfitLoss    float64 `json:"pl,string"`
-	LendingFees   float64 `json:"lendingFees,string"`
-	NetValue      float64 `json:"netValue,string"`
-	BorrowedValue float64 `json:"totalBorrowedValue,string"`
-	CurrentMargin float64 `json:"currentMargin,string"`
-}
-
-// MarginPosition holds margin positional information
-type MarginPosition struct {
-	Amount           float64 `json:"amount,string"`
-	Total            float64 `json:"total,string"`
-	BasePrice        float64 `json:"basePrice,string"`
-	LiquidationPrice float64 `json:"liquidationPrice"`
-	ProfitLoss       float64 `json:"pl,string"`
-	LendingFees      float64 `json:"lendingFees,string"`
-	Type             string  `json:"type"`
-}
-
-// LoanOffer holds loan offer information
-type LoanOffer struct {
-	ID        int64   `json:"id"`
-	Rate      float64 `json:"rate,string"`
-	Amount    float64 `json:"amount,string"`
-	Duration  int64   `json:"duration"`
-	AutoRenew bool    `json:"autoRenew"`
-	Date      string  `json:"date"`
-}
-
-// ActiveLoans shows the full active loans on the exchange
-type ActiveLoans struct {
-	Provided []LoanOffer `json:"provided"`
-	Used     []LoanOffer `json:"used"`
-}
-
-// LendingHistory holds the full lending history data
-type LendingHistory struct {
-	ID       int64   `json:"id"`
-	Currency string  `json:"currency"`
-	Rate     float64 `json:"rate,string"`
-	Amount   float64 `json:"amount,string"`
-	Duration float64 `json:"duration,string"`
-	Interest float64 `json:"interest,string"`
-	Fee      float64 `json:"fee,string"`
-	Earned   float64 `json:"earned,string"`
-	Open     string  `json:"open"`
-	Close    string  `json:"close"`
-}
-
-// WebsocketTicker holds ticker data for the websocket
-type WebsocketTicker struct {
-	CurrencyPair  string
-	Last          float64
-	LowestAsk     float64
-	HighestBid    float64
-	PercentChange float64
-	BaseVolume    float64
-	QuoteVolume   float64
-	IsFrozen      bool
-	High          float64
-	Low           float64
-}
-
-// WebsocketTrollboxMessage holds trollbox messages and information for
-// websocket
-type WebsocketTrollboxMessage struct {
-	MessageNumber float64
-	Username      string
-	Message       string
-	Reputation    float64
-}
-
-// WsCommand defines the request params after a websocket connection has been
-// established
-type WsCommand struct {
-	Command string      `json:"command"`
-	Channel interface{} `json:"channel"`
-	APIKey  string      `json:"key,omitempty"`
-	Payload string      `json:"payload,omitempty"`
-	Sign    string      `json:"sign,omitempty"`
-}
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
@@ -421,49 +78,7 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.ZEC:   0.001,
 }
 
-// WsOrderUpdateResponse Authenticated Ws Account data
-type WsOrderUpdateResponse struct {
-	OrderNumber float64
-	NewAmount   string
-}
-
-// WsTradeNotificationResponse Authenticated Ws Account data
-type WsTradeNotificationResponse struct {
-	TradeID       float64
-	Rate          float64
-	Amount        float64
-	FeeMultiplier float64
-	FundingType   float64
-	OrderNumber   float64
-	TotalFee      float64
-	Date          time.Time
-}
-
-// WsAuthorisationRequest Authenticated Ws Account data request
-type WsAuthorisationRequest struct {
-	Command string `json:"command"`
-	Channel int64  `json:"channel"`
-	Sign    string `json:"sign"`
-	Key     string `json:"key"`
-	Payload string `json:"payload"`
-}
-
-// CancelOrdersResponse holds cancelled order info
-type CancelOrdersResponse struct {
-	OrderID       string `json:"orderId"`
-	ClientOrderID string `json:"clientOrderId"`
-	State         string `json:"state"`
-	Code          int64  `json:"code"`
-	Message       string `json:"message"`
-}
-
-// TimeStampResponse returns the time
-type TimeStampResponse struct {
-	ServerTime int64 `json:"serverTime"`
-}
-
-//  ---------------------------------------------------------------- New ----------------------------------------------------------------
-
+// SymbolDetail represents a symbol(currency pair) detailed information.
 type SymbolDetail struct {
 	Symbol            string               `json:"symbol"`
 	BaseCurrencyName  string               `json:"baseCurrencyName"`
@@ -606,7 +221,7 @@ func processCandlestickData(candlestickData []CandlestickArrayData) ([]Candlesti
 	var err error
 	var candle *CandlestickData
 	for i := range candlestickData {
-		candle, err = getCandlestickData(candlestickData[i])
+		candle, err = getCandlestickData(&candlestickData[i])
 		if err != nil {
 			return nil, err
 		}
@@ -615,7 +230,7 @@ func processCandlestickData(candlestickData []CandlestickArrayData) ([]Candlesti
 	return candles, nil
 }
 
-func getCandlestickData(candlestickData CandlestickArrayData) (*CandlestickData, error) {
+func getCandlestickData(candlestickData *CandlestickArrayData) (*CandlestickData, error) {
 	candle := &CandlestickData{}
 	var err error
 	candle.Low, err = strconv.ParseFloat(candlestickData[0].(string), 64)
@@ -646,22 +261,49 @@ func getCandlestickData(candlestickData CandlestickArrayData) (*CandlestickData,
 	if err != nil {
 		return nil, err
 	}
-	candle.BuyTakerQuantity, err = strconv.ParseFloat(candlestickData[7].(string), 64)
+	buyTakerQuantity, okay := candlestickData[7].(string)
+	if !okay {
+		return nil, errUnexpectedIncomingDataType
+	}
+	candle.BuyTakerQuantity, err = strconv.ParseFloat(buyTakerQuantity, 64)
 	if err != nil {
 		return nil, err
 	}
-	candle.TradeCount = candlestickData[8].(float64)
-	candle.PushTimestamp = time.UnixMilli(int64(candlestickData[9].(float64)))
-	candle.WeightedAverage, err = strconv.ParseFloat(candlestickData[10].(string), 64)
+	candle.TradeCount, okay = candlestickData[8].(float64)
+	if !okay {
+		return nil, errUnexpectedIncomingDataType
+	}
+	puchTime, okay := candlestickData[9].(float64)
+	if !okay {
+		return nil, errUnexpectedIncomingDataType
+	}
+	candle.PushTimestamp = time.UnixMilli(int64(puchTime))
+	weightedAverage, okay := candlestickData[10].(string)
+	if !okay {
+		return nil, errUnexpectedIncomingDataType
+	}
+	candle.WeightedAverage, err = strconv.ParseFloat(weightedAverage, 64)
 	if err != nil {
 		return nil, err
 	}
-	candle.Interval, err = stringToInterval(candlestickData[11].(string))
+	intervalString, okay := candlestickData[11].(string)
+	if !okay {
+		return nil, errUnexpectedIncomingDataType
+	}
+	candle.Interval, err = stringToInterval(intervalString)
 	if err != nil {
 		return nil, err
 	}
-	candle.StartTime = time.UnixMilli(int64(candlestickData[12].(float64)))
-	candle.EndTime = time.UnixMilli(int64(candlestickData[13].(float64)))
+	timestamp, okay := candlestickData[12].(float64)
+	if !okay {
+		return nil, errUnexpectedIncomingDataType
+	}
+	candle.StartTime = time.UnixMilli(int64(timestamp))
+	timestamp, okay = candlestickData[13].(float64)
+	if !okay {
+		return nil, errUnexpectedIncomingDataType
+	}
+	candle.EndTime = time.UnixMilli(int64(timestamp))
 	return candle, nil
 }
 
@@ -1201,6 +843,7 @@ type SubscriptionResponse struct {
 	Symbols    []string `json:"symbols"`
 }
 
+// GetWsResponse returns a *WsResponse instance from *SubscriptionResponse
 func (a *SubscriptionResponse) GetWsResponse() *WsResponse {
 	return &WsResponse{
 		Event:   a.Event,
@@ -1265,6 +908,7 @@ type WsCurrency struct {
 	ChildChains       []string `json:"childChains"`
 }
 
+// WsExchangeStatus represents websocket exchange status.
 type WsExchangeStatus []struct {
 	Mm  string `json:"MM"`
 	Pom string `json:"POM"`

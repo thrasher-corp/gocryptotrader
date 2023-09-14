@@ -50,7 +50,7 @@ func DeriveURLValsFromJSONMap(payload []byte) ([]url.Values, error) {
 	err := json.Unmarshal(payload, &intermediary[0])
 	if err != nil {
 		if strings.EqualFold(err.Error(), "json: cannot unmarshal array into Go value of type map[string]interface {}") {
-			err := json.Unmarshal(payload, &intermediary)
+			err = json.Unmarshal(payload, &intermediary)
 			if err != nil {
 				return nil, err
 			}

@@ -368,7 +368,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		end = time.Unix(1588745003, 0)
 	} else {
 		start = time.Now().Add(-time.Hour)
-		start = time.Now()
+		end = time.Now()
 	}
 	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
 	if !errors.Is(err, nil) {
@@ -1170,7 +1170,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 		t.Errorf("expected %v, got %v", order.ErrSideIsInvalid, err)
 	}
 	getPairFromString := func(pairString string) currency.Pair {
-		pair, err := currency.NewPairFromString(pairString)
+		pair, err = currency.NewPairFromString(pairString)
 		if err != nil {
 			return currency.EMPTYPAIR
 		}

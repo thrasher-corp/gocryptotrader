@@ -51,13 +51,6 @@ var defaultSubscriptions = []string{
 	cnlBooks,
 }
 
-var (
-	errNotEnoughData        = errors.New("element length not adequate to process")
-	errTypeAssertionFailure = errors.New("type assertion failure")
-	errIDNotFoundInPairMap  = errors.New("id not associated with currency pair map")
-	errIDNotFoundInCodeMap  = errors.New("id not associated with currency code map")
-)
-
 var onceOrderbook map[string]struct{}
 
 // WsConnect initiates a websocket connection
@@ -325,7 +318,8 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 			if onceOrderbook == nil {
 				onceOrderbook = make(map[string]struct{})
 			}
-			orderbooks, err := p.UpdateOrderbook(context.Background(), pair, asset.Spot)
+			var orderbooks *orderbook.Base
+			orderbooks, err = p.UpdateOrderbook(context.Background(), pair, asset.Spot)
 			if err != nil {
 				return err
 			}

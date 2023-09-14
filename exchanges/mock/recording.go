@@ -181,7 +181,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 						if jErr != nil {
 							return jErr
 						}
-						found := true
+						found = true
 						for i := range reqVals {
 							found = found && MatchURLVals(reqVals[i], mockVals[i])
 						}
