@@ -66,8 +66,8 @@ func TestProcessorQueueFunction(t *testing.T) {
 	}
 
 	err = proc.QueueFunction(Key{Type: 3, Asset: asset.Spot}, nil)
-	if !errors.Is(err, errdUpdateTypeNotYetSupported) {
-		t.Fatalf("received: %v, expected: %v", err, errdUpdateTypeNotYetSupported)
+	if !errors.Is(err, errUpdateTypeNotYetSupported) {
+		t.Fatalf("received: %v, expected: %v", err, errUpdateTypeNotYetSupported)
 	}
 
 	err = proc.QueueFunction(Key{Type: Book, Asset: asset.Spot}, nil)
