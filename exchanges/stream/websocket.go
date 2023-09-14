@@ -868,7 +868,7 @@ func (w *Websocket) GetChannelDifference(genSubs []ChannelSubscription) (sub, un
 	w.subscriptionMutex.RLock()
 	unsubMap := make(map[any]ChannelSubscription, len(w.subscriptions))
 	for k, c := range w.subscriptions {
-		unsubMap[k] = c
+		unsubMap[k] = *c
 	}
 	w.subscriptionMutex.RUnlock()
 
