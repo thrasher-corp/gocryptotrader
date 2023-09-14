@@ -388,8 +388,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	}
 
 	holder.ob.Publish()
-	if !holder.InitialUpdateCompleted {
-		holder.InitialUpdateCompleted = true
+	if !holder.initialUpdateCompleted {
+		holder.initialUpdateCompleted = true
 		select {
 		case w.dataHandler <- holder.ob:
 			return nil

@@ -63,9 +63,9 @@ type orderbookHolder struct {
 	ticker   *time.Ticker
 	updateID int64
 
-	// InitialUpdateCompleted determines initial sync state, the very first
+	// initialUpdateCompleted determines initial sync state, the very first
 	// update from any pair is critical for initial sync.
-	InitialUpdateCompleted bool
+	initialUpdateCompleted bool
 
 	// Protect indv holder. TODO: Expose orderbook.Depth mutex to use that
 	// instead. This is temporary.
