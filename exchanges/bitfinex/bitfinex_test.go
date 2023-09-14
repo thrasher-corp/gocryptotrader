@@ -1871,10 +1871,4 @@ func TestChanForSub(t *testing.T) {
 	s, err = b.chanForSub(wsBook, asset.Spot, p)
 	assert.Nil(t, err, "No error returned when sub found")
 	assert.EqualValues(t, want, *s, "Correct Sub found")
-
-	dup := stream.ChannelSubscription{Asset: asset.Spot, Currency: p, Channel: wsBook, Params: map[string]interface{}{"muffins": "yummy"}}
-	b.Websocket.AddSuccessfulSubscriptions(dup)
-	s, err = b.chanForSub(wsBook, asset.Spot, p)
-	assert.ErrorIs(t, err, errTooManyMatchingSubs, "Correct error returns when too many subs found")
-	assert.Nil(t, s, "No stream returned when too many subs found")
 }

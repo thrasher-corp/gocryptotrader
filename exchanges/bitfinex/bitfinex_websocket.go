@@ -1553,7 +1553,6 @@ func (b *Bitfinex) resubOrderbook(p currency.Pair, assetType asset.Item) error {
 
 // chanForSub returns an existing channel subscription for a given channel/asset/pair
 func (b *Bitfinex) chanForSub(cName string, assetType asset.Item, pair currency.Pair) (*stream.ChannelSubscription, error) {
-	var c *stream.ChannelSubscription
 	want := &stream.ChannelSubscription{
 		Channel:  cName,
 		Currency: pair,
@@ -1562,17 +1561,10 @@ func (b *Bitfinex) chanForSub(cName string, assetType asset.Item, pair currency.
 	subs := b.Websocket.GetSubscriptions()
 	for i := range subs {
 		if subs[i].Equal(want) {
-			if c != nil {
-				return nil, errTooManyMatchingSubs
-			}
-			c = &subs[i]
+			return &subs[i], nil
 		}
 	}
-	if c == nil {
-		return nil, errSubNotFound
-	}
-
-	return c, nil
+	return nil, errSubNotFound
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
