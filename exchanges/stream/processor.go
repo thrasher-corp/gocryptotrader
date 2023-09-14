@@ -17,13 +17,13 @@ const (
 )
 
 var (
-	errMaxChanBufferSizeInvalid   = errors.New("max channel buffer must be greater than 0")
-	errDataHandlerMustNotBeNil    = errors.New("data handler cannot be nil")
-	errChannelFull                = errors.New("channel full")
-	errKeyEmpty                   = errors.New("key is empty")
-	errNoFunctionalityToProcess   = errors.New("no functionality to process")
-	errUpdateTypeUnset            = errors.New("update type unset")
-	errdUpdateTypeNotYetSupported = errors.New("update type not yet supported")
+	errMaxChanBufferSizeInvalid  = errors.New("max channel buffer must be greater than 0")
+	errDataHandlerMustNotBeNil   = errors.New("data handler cannot be nil")
+	errChannelFull               = errors.New("channel full")
+	errKeyEmpty                  = errors.New("key is empty")
+	errNoFunctionalityToProcess  = errors.New("no functionality to process")
+	errUpdateTypeUnset           = errors.New("update type unset")
+	errUpdateTypeNotYetSupported = errors.New("update type not yet supported")
 )
 
 // Processor is a stream processor that handles incoming data from a stream,
@@ -80,7 +80,7 @@ func (w *Processor) QueueFunction(key Key, fn func() error) error {
 		return fmt.Errorf("%w for %+v", errUpdateTypeUnset, key)
 	case Book:
 	default:
-		return fmt.Errorf("%w for %+v", errdUpdateTypeNotYetSupported, key)
+		return fmt.Errorf("%w for %+v", errUpdateTypeNotYetSupported, key)
 	}
 	if fn == nil {
 		return fmt.Errorf("%w for %+v", errNoFunctionalityToProcess, key)
