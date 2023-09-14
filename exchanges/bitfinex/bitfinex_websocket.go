@@ -1525,13 +1525,46 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 				err)
 		}
 
-		err = validateCRC32(ob, checkme.Token)
-		if err != nil {
+		if err = validateCRC32(ob, checkme.Token); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s websocket orderbook update error, will resubscribe orderbook: %v", b.Name, err)
+			if suberr := b.resubOrderbook(p, assetType); suberr != nil {
+				log.Errorf(log.ExchangeSys, "%s error resubscribing orderbook: %v", b.Name, suberr)
+			}
 			return err
 		}
 	}
 
 	return b.Websocket.Orderbook.Update(&orderbookUpdate)
+}
+
+// resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,
+// which forces a fresh snapshot. If we don't do this the orderbook will keep erroring and drifting.
+func (b *Bitfinex) resubOrderbook(p currency.Pair, assetType asset.Item) error {
+	if err := b.Websocket.Orderbook.FlushOrderbook(p, assetType); err != nil {
+		return err
+	}
+
+	c, err := b.chanForSub(wsBook, assetType, p)
+	if err != nil {
+		return err
+	}
+	return b.Websocket.ResubscribeToChannel(c)
+}
+
+// chanForSub returns an existing channel subscription for a given channel/asset/pair
+func (b *Bitfinex) chanForSub(cName string, assetType asset.Item, pair currency.Pair) (*stream.ChannelSubscription, error) {
+	want := &stream.ChannelSubscription{
+		Channel:  cName,
+		Currency: pair,
+		Asset:    assetType,
+	}
+	subs := b.Websocket.GetSubscriptions()
+	for i := range subs {
+		if subs[i].Equal(want) {
+			return &subs[i], nil
+		}
+	}
+	return nil, errSubNotFound
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
