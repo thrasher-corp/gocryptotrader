@@ -151,7 +151,12 @@ func (ku *Kucoin) WsConnect() error {
 	})
 
 	ku.setupOrderbookManager()
-	return nil
+	// return nil
+	subscriptions, err := ku.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return ku.Subscribe(subscriptions)
 }
 
 // GetInstanceServers retrieves the server list and temporary public token
@@ -234,10 +239,10 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		strings.HasPrefix(marketTickerSnapshotForCurrencyChannel, topicInfo[0]):
 		return ku.processMarketSnapshot(resp.Data, topicInfo[1])
 	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]):
-		return ku.processOrderbook(resp.Data)
+		return ku.processOrderbookWithDepth(respData, topicInfo[1])
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
-		return ku.processOrderbookWithDepth(respData, topicInfo[1])
+		return ku.processOrderbook(resp.Data, topicInfo[1])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
@@ -798,9 +803,9 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	response := WsOrderbookDepth{}
+	response := WsOrderbook{}
 	result := struct {
-		Result *WsOrderbookDepth `json:"data"`
+		Result *WsOrderbook `json:"data"`
 	}{
 		Result: &response,
 	}
@@ -811,15 +816,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	var init bool
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		init, err = ku.UpdateLocalBuffer(&WsOrderbook{
-			Changes: OrderbookChanges{
-				Asks: response.Asks,
-				Bids: response.Bids,
-			},
-			Symbol:      instrument,
-			TimeMS:      response.TimeMS,
-			SequenceEnd: response.TimeMS.Time().UnixMilli(),
-		}, asset.Spot)
+		init, err = ku.UpdateLocalBuffer(&response, asset.Spot)
 		if err != nil {
 			if init {
 				return nil
@@ -831,15 +828,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 		}
 	}
 	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		init, err = ku.UpdateLocalBuffer(&WsOrderbook{
-			Changes: OrderbookChanges{
-				Asks: response.Asks,
-				Bids: response.Bids,
-			},
-			Symbol:      instrument,
-			TimeMS:      response.TimeMS,
-			SequenceEnd: response.TimeMS.Time().UnixMilli(),
-		}, asset.Margin)
+		init, err = ku.UpdateLocalBuffer(&response, asset.Margin)
 		if err != nil {
 			if init {
 				return nil
@@ -889,21 +878,22 @@ func (ku *Kucoin) UpdateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bo
 	return false, err
 }
 
-func (ku *Kucoin) processOrderbook(respData []byte) error {
-	var response WsOrderbook
+func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
+	response := &WsOrderbook{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
 		return err
 	}
+	response.Symbol = symbol
 	var pair currency.Pair
-	pair, err = currency.NewPairFromString(response.Symbol)
+	pair, err = currency.NewPairFromString(symbol)
 	if err != nil {
 		return err
 	}
 	var init bool
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		init, err = ku.UpdateLocalBuffer(&response, asset.Spot)
+		init, err = ku.UpdateLocalBuffer(response, asset.Spot)
 		if err != nil {
 			if init {
 				return nil
@@ -915,7 +905,7 @@ func (ku *Kucoin) processOrderbook(respData []byte) error {
 		}
 	}
 	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		init, err = ku.UpdateLocalBuffer(&response, asset.Margin)
+		init, err = ku.UpdateLocalBuffer(response, asset.Margin)
 		if err != nil {
 			if init {
 				return nil
@@ -1022,7 +1012,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		channels = append(channels,
 			marketTickerChannel,
 			marketMatchChannel,
-			marketOrderbokLevel2To50Channel)
+			marketOrderbookLevel2Channels)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		channels = append(channels,
