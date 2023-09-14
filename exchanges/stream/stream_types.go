@@ -31,8 +31,16 @@ type Response struct {
 	Raw  []byte
 }
 
+// DefaultChannelKey is the fallback key for AddSuccessfulSubscriptions
+type DefaultChannelKey struct {
+	Channel  string
+	Currency currency.Pair
+	Asset    asset.Item
+}
+
 // ChannelSubscription container for streaming subscriptions
 type ChannelSubscription struct {
+	Key      any
 	Channel  string
 	Currency currency.Pair
 	Asset    asset.Item
