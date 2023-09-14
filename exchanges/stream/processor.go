@@ -11,16 +11,19 @@ import (
 
 const (
 	// Book is a key type for websocket orderbook data processing
-	Book                     UpdateType = iota
-	defaultChannelBufferSize            = 10
+	Unset UpdateType = iota
+	Book
+	defaultChannelBufferSize = 10
 )
 
 var (
-	errMaxChanBufferSizeInvalid = errors.New("max channel buffer must be greater than 0")
-	errDataHandlerMustNotBeNil  = errors.New("data handler cannot be nil")
-	errChannelFull              = errors.New("channel full")
-	errKeyEmpty                 = errors.New("key is empty")
-	errNoFunctionalityToProcess = errors.New("no functionality to process")
+	errMaxChanBufferSizeInvalid   = errors.New("max channel buffer must be greater than 0")
+	errDataHandlerMustNotBeNil    = errors.New("data handler cannot be nil")
+	errChannelFull                = errors.New("channel full")
+	errKeyEmpty                   = errors.New("key is empty")
+	errNoFunctionalityToProcess   = errors.New("no functionality to process")
+	errUpdateTypeUnset            = errors.New("update type unset")
+	errdUpdateTypeNotYetSupported = errors.New("update type not yet supported")
 )
 
 // Processor is a stream processor that handles incoming data from a stream,
@@ -64,16 +67,23 @@ func NewProcessor(maxChanBuffer int, dataHandler chan interface{}) (*Processor, 
 	}, nil
 }
 
-// Process spawns a new worker for a key if one does not already exist. It
+// QueueFunction spawns a new worker for a key if one does not already exist. It
 // will then queue the function to be processed. If the channel is full, it
 // will block until a slot is available. This tries to alleviate websocket
 // reader blocking issues.
-func (w *Processor) Process(key Key, fn func() error) error {
+func (w *Processor) QueueFunction(key Key, fn func() error) error {
 	if key == (Key{}) {
 		return errKeyEmpty
 	}
+	switch key.Type {
+	case Unset:
+		return fmt.Errorf("%w for %+v", errUpdateTypeUnset, key)
+	case Book:
+	default:
+		return fmt.Errorf("%w for %+v", errdUpdateTypeNotYetSupported, key)
+	}
 	if fn == nil {
-		return fmt.Errorf("%w for %v", errNoFunctionalityToProcess, key)
+		return fmt.Errorf("%w for %+v", errNoFunctionalityToProcess, key)
 	}
 
 	w.mtx.RLock()
