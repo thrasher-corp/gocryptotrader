@@ -779,59 +779,59 @@ func TestGetCounterparties(t *testing.T) {
 	}
 }
 
-const createRFQInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trader2"],"clRfqId":"rfq01","legs":[{"sz":"25","side":"buy","instId":"BTCUSD-221208-100000-C"},{"sz":"150","side":"buy","instId":"ETH-USDT","tgtCcy":"base_ccy"}]}`
+const createRfqInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trader2"],"clRfqId":"rfq01","legs":[{"sz":"25","side":"buy","instId":"BTCUSD-221208-100000-C"},{"sz":"150","side":"buy","instId":"ETH-USDT","tgtCcy":"base_ccy"}]}`
 
-func TestCreateRFQ(t *testing.T) {
+func TestCreateRfq(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	var input CreateRFQInput
-	if err := json.Unmarshal([]byte(createRFQInputJSON), &input); err != nil {
-		t.Error("Okx Decerializing to CreateRFQInput", err)
+	var input CreateRfqInput
+	if err := json.Unmarshal([]byte(createRfqInputJSON), &input); err != nil {
+		t.Error("Okx Decerializing to CreateRfqInput", err)
 	}
-	if _, err := ok.CreateRFQ(contextGenerate(), input); err != nil {
-		t.Error("Okx CreateRFQ() error", err)
+	if _, err := ok.CreateRfq(contextGenerate(), input); err != nil {
+		t.Error("Okx CreateRfq() error", err)
 	}
 }
 
-func TestCancelRFQ(t *testing.T) {
+func TestCancelRfq(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	_, err := ok.CancelRFQ(contextGenerate(), CancelRFQRequestParam{})
-	if err != nil && !errors.Is(err, errMissingRFQIDANDClientRFQID) {
-		t.Errorf("Okx CancelRFQ() expecting %v, but found %v", errMissingRFQIDANDClientRFQID, err)
+	_, err := ok.CancelRfq(contextGenerate(), CancelRfqRequestParam{})
+	if err != nil && !errors.Is(err, errMissingRfqAndClientRfqID) {
+		t.Errorf("Okx CancelRfq() expecting %v, but found %v", errMissingRfqAndClientRfqID, err)
 	}
-	_, err = ok.CancelRFQ(contextGenerate(), CancelRFQRequestParam{
-		ClientRFQID: "somersdjskfjsdkfjxvxv",
+	_, err = ok.CancelRfq(context.Background(), CancelRfqRequestParam{
+		ClientRfqID: "somersdjskfjsdkfjxvxv",
 	})
 	if err != nil {
-		t.Error("Okx CancelRFQ() error", err)
+		t.Error("Okx CancelRfq() error", err)
 	}
 }
 
-func TestMultipleCancelRFQ(t *testing.T) {
+func TestMultipleCancelRfq(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	_, err := ok.CancelMultipleRFQs(contextGenerate(), CancelRFQRequestsParam{})
-	if err != nil && !errors.Is(err, errMissingRFQIDANDClientRFQID) {
-		t.Errorf("Okx CancelMultipleRFQs() expecting %v, but found %v", errMissingRFQIDANDClientRFQID, err)
+	_, err := ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{})
+	if err != nil && !errors.Is(err, errMissingRfqAndClientRfqID) {
+		t.Errorf("Okx CancelMultipleRfqs() expecting %v, but found %v", errMissingRfqAndClientRfqID, err)
 	}
-	_, err = ok.CancelMultipleRFQs(contextGenerate(), CancelRFQRequestsParam{
-		ClientRFQID: []string{"somersdjskfjsdkfjxvxv"},
+	_, err = ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{
+		ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"},
 	})
 	if err != nil {
-		t.Error("Okx CancelMultipleRFQs() error", err)
+		t.Error("Okx CancelMultipleRfqs() error", err)
 	}
 }
 
-func TestCancelAllRFQs(t *testing.T) {
+func TestCancelAllRfqs(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.CancelAllRFQs(contextGenerate()); err != nil {
-		t.Errorf("%s CancelAllRFQs() error %v", ok.Name, err)
+	if _, err := ok.CancelAllRfqs(contextGenerate()); err != nil {
+		t.Errorf("%s CancelAllRfqs() error %v", ok.Name, err)
 	}
 }
 
@@ -958,7 +958,7 @@ func TestCancelAllQuotes(t *testing.T) {
 	}
 }
 
-func TestGetRFQs(t *testing.T) {
+func TestGetRfqs(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
@@ -980,14 +980,14 @@ func TestGetQuotes(t *testing.T) {
 	}
 }
 
-func TestGetRFQTrades(t *testing.T) {
+func TestGetRfqTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetRFQTrades(contextGenerate(), &RFQTradesRequestParams{
+	if _, err := ok.GetRfqTrades(contextGenerate(), &RfqTradesRequestParams{
 		Limit: 1,
 	}); err != nil {
-		t.Error("Okx GetRFQTrades() error", err)
+		t.Error("Okx GetRfqTrades() error", err)
 	}
 }
 
@@ -1227,8 +1227,8 @@ func TestEstimateQuote(t *testing.T) {
 		BaseCurrency:  "BTC",
 		QuoteCurrency: "USDT",
 		Side:          "sell",
-		RFQAmount:     30,
-		RFQSzCurrency: "USDT",
+		RfqAmount:     30,
+		RfqSzCurrency: "USDT",
 	}); err != nil {
 		t.Error("Okx EstimateQuote() error", err)
 	}
@@ -2552,7 +2552,7 @@ const rfqsPushDataJSON = `{"arg": {"channel": "account-greeks","ccy": "BTC"},"da
 func TestRfqs(t *testing.T) {
 	t.Parallel()
 	if err := ok.WsHandleData([]byte(rfqsPushDataJSON)); err != nil {
-		t.Error("Okx RFQS Push Data error", err)
+		t.Error("Okx Rfqs Push Data error", err)
 	}
 }
 

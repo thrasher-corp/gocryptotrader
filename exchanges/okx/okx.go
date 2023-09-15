@@ -181,7 +181,7 @@ const (
 
 	// Block Trading
 	rfqCounterparties       = "rfq/counterparties"
-	rfqCreateRFQ            = "rfq/create-rfq"
+	rfqCreateRfq            = "rfq/create-rfq"
 	rfqCancelRfq            = "rfq/cancel-rfq"
 	rfqCancelRfqs           = "rfq/cancel-batch-rfqs"
 	rfqCancelAllRfqs        = "rfq/cancel-all-rfqs"
@@ -287,8 +287,8 @@ var (
 	errOrderSideRequired                       = errors.New("order side required")
 	errInvalidCounterParties                   = errors.New("missing counter parties")
 	errInvalidLegs                             = errors.New("no legs are provided")
-	errMissingRFQIDANDClientRFQID              = errors.New("missing rfq id or client rfq id")
-	errMissingRfqIDOrQuoteID                   = errors.New("either RFQ ID or Quote ID is missing")
+	errMissingRfqAndClientRfqID                = errors.New("missing rfq id or client rfq id")
+	errMissingRfqIDOrQuoteID                   = errors.New("either Rfq ID or Quote ID is missing")
 	errMissingRfqID                            = errors.New("error missing rfq id")
 	errMissingLegs                             = errors.New("missing legs")
 	errMissingSizeOfQuote                      = errors.New("missing size of quote leg")
@@ -318,7 +318,7 @@ var (
 	errMissingValidChannelInformation          = errors.New("missing channel information")
 	errNilArgument                             = errors.New("nil argument is not acceptable")
 	errNoOrderParameterPassed                  = errors.New("no order parameter was passed")
-	errMaxRFQOrdersToCancel                    = errors.New("no more than 100 RFQ cancel order parameter is allowed")
+	errMaxRfqOrdersToCancel                    = errors.New("no more than 100 Rfq cancel order parameter is allowed")
 	errMalformedData                           = errors.New("malformed data")
 	errInvalidUnderlying                       = errors.New("invalid underlying")
 	errMissingRequiredParameter                = errors.New("missing required parameter")
@@ -1065,16 +1065,16 @@ func (ok *Okx) GetCounterparties(ctx context.Context) ([]CounterpartiesResponse,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCounterpartiesEPL, http.MethodGet, rfqCounterparties, nil, &resp, true)
 }
 
-// CreateRFQ Creates a new RFQ
-func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse, error) {
+// CreateRfq Creates a new Rfq
+func (ok *Okx) CreateRfq(ctx context.Context, arg CreateRfqInput) (*RfqResponse, error) {
 	if len(arg.CounterParties) == 0 {
 		return nil, errInvalidCounterParties
 	}
 	if len(arg.Legs) == 0 {
 		return nil, errInvalidLegs
 	}
-	var resp []RFQResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRFQ, &arg, &resp, true)
+	var resp []RfqResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRfq, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1084,12 +1084,12 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse,
 	return nil, errNoValidResponseFromServer
 }
 
-// CancelRFQ Cancel an existing active RFQ that you has previously created.
-func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*CancelRFQResponse, error) {
-	if arg.RfqID == "" && arg.ClientRFQID == "" {
-		return nil, errMissingRFQIDANDClientRFQID
+// CancelRfq Cancel an existing active Rfq that you has previously created.
+func (ok *Okx) CancelRfq(ctx context.Context, arg CancelRfqRequestParam) (*CancelRfqResponse, error) {
+	if arg.RfqID == "" && arg.ClientRfqID == "" {
+		return nil, errMissingRfqAndClientRfqID
 	}
-	var resp []CancelRFQResponse
+	var resp []CancelRfqResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -1100,19 +1100,19 @@ func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*Cance
 	return nil, errNoValidResponseFromServer
 }
 
-// CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be canceled at a time.
-func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg CancelRFQRequestsParam) ([]CancelRFQResponse, error) {
-	if len(arg.RfqID) == 0 && len(arg.ClientRFQID) == 0 {
-		return nil, errMissingRFQIDANDClientRFQID
-	} else if len(arg.RfqID)+len(arg.ClientRFQID) > 100 {
-		return nil, errMaxRFQOrdersToCancel
+// CancelMultipleRfqs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time.
+func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg CancelRfqRequestsParam) ([]CancelRfqResponse, error) {
+	if len(arg.RfqID) == 0 && len(arg.ClientRfqIDs) == 0 {
+		return nil, errMissingRfqAndClientRfqID
+	} else if len(arg.RfqID)+len(arg.ClientRfqIDs) > 100 {
+		return nil, errMaxRfqOrdersToCancel
 	}
-	var resp []CancelRFQResponse
+	var resp []CancelRfqResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRfqEPL, http.MethodPost, rfqCancelRfqs, &arg, &resp, true)
 }
 
-// CancelAllRFQs cancels all active RFQs.
-func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
+// CancelAllRfqs cancels all active Rfqs.
+func (ok *Okx) CancelAllRfqs(ctx context.Context) (time.Time, error) {
 	var resp []TimestampResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, rfqCancelAllRfqs, nil, &resp, true)
 	if err != nil {
@@ -1124,7 +1124,7 @@ func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
 	return time.Time{}, errNoValidResponseFromServer
 }
 
-// ExecuteQuote executes a Quote. It is only used by the creator of the RFQ
+// ExecuteQuote executes a Quote. It is only used by the creator of the Rfq
 func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*ExecuteQuoteResponse, error) {
 	if arg.RfqID == "" || arg.QuoteID == "" {
 		return nil, errMissingRfqIDOrQuoteID
@@ -1140,7 +1140,7 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*Execu
 	return nil, errNoValidResponseFromServer
 }
 
-// SetQuoteProducts customize the products which makers want to quote and receive RFQs for, and the corresponding price and size limit.
+// SetQuoteProducts customize the products which makers want to quote and receive Rfqs for, and the corresponding price and size limit.
 func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam) (*SetQuoteProductsResult, error) {
 	if len(args) == 0 {
 		return nil, errEmptyArgument
@@ -1189,8 +1189,8 @@ func (ok *Okx) ResetMMPStatus(ctx context.Context) (time.Time, error) {
 	return time.Time{}, errNoValidResponseFromServer
 }
 
-// CreateQuote allows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
-// the entire RFQ and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
+// CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
+// the entire Rfq and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
 func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteResponse, error) {
 	switch {
 	case arg.RfqID == "":
@@ -1223,7 +1223,7 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 	return nil, errNoValidResponseFromServer
 }
 
-// CancelQuote cancels an existing active quote you have created in response to an RFQ.
+// CancelQuote cancels an existing active quote you have created in response to an Rfq.
 // rfqCancelQuote = "rfq/cancel-quote"
 func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*CancelQuoteResponse, error) {
 	var resp []CancelQuoteResponse
@@ -1262,8 +1262,8 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
 	return time.Time{}, errMissingResponseBody
 }
 
-// GetRfqs retrieves details of RFQs that the user is a counterparty to (either as the creator or the receiver of the RFQ).
-func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQResponse, error) {
+// GetRfqs retrieves details of Rfqs that the user is a counterparty to (either as the creator or the receiver of the Rfq).
+func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1286,7 +1286,7 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQRespons
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	var resp []RFQResponse
+	var resp []RfqResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRfqsEPL, http.MethodGet, common.EncodeURLValues(rfqRfqs, params), nil, &resp, true)
 }
 
@@ -1324,8 +1324,8 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues(rfqQuotes, params), nil, &resp, true)
 }
 
-// GetRFQTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
-func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([]RfqTradeResponse, error) {
+// GetRfqTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
+func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([]RfqTradeResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1787,10 +1787,10 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 		return nil, errInvalidOrderSide
 	}
-	if arg.RFQAmount <= 0 {
+	if arg.RfqAmount <= 0 {
 		return nil, errors.New("missing rfq amount")
 	}
-	if arg.RFQSzCurrency == "" {
+	if arg.RfqSzCurrency == "" {
 		return nil, errors.New("missing rfq currency")
 	}
 	var resp []EstimateQuoteResponse
@@ -1821,7 +1821,7 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 		return nil, errInvalidOrderSide
 	}
 	if arg.Size <= 0 {
-		return nil, errors.New("quote amount should be more than 0 and RFQ amount")
+		return nil, errors.New("quote amount should be more than 0 and Rfq amount")
 	}
 	if arg.SizeCurrency == "" {
 		return nil, errors.New("missing size currency")

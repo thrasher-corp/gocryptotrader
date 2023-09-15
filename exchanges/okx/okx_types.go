@@ -1156,8 +1156,8 @@ type EstimateQuoteRequestInput struct {
 	BaseCurrency         string  `json:"baseCcy,omitempty"`
 	QuoteCurrency        string  `json:"quoteCcy,omitempty"`
 	Side                 string  `json:"side,omitempty"`
-	RFQAmount            float64 `json:"rfqSz,omitempty"`
-	RFQSzCurrency        string  `json:"rfqSzCcy,omitempty"`
+	RfqAmount            float64 `json:"rfqSz,omitempty"`
+	RfqSzCurrency        string  `json:"rfqSzCcy,omitempty"`
 	ClientRequestOrderID string  `json:"clQReqId,string,omitempty"`
 	Tag                  string  `json:"tag,omitempty"`
 }
@@ -1173,8 +1173,8 @@ type EstimateQuoteResponse struct {
 	QuoteID         string           `json:"quoteId"`
 	QuoteSize       string           `json:"quoteSz"`
 	QuoteTime       okxUnixMilliTime `json:"quoteTime"`
-	RFQSize         string           `json:"rfqSz"`
-	RFQSizeCurrency string           `json:"rfqSzCcy"`
+	RfqSize         string           `json:"rfqSz"`
+	RfqSizeCurrency string           `json:"rfqSzCcy"`
 	Side            string           `json:"side"`
 	TTLMs           string           `json:"ttlMs"` // Validity period of quotation in milliseconds
 }
@@ -1660,36 +1660,36 @@ type CounterpartiesResponse struct {
 	Type       string `json:"type"`
 }
 
-// RFQOrderLeg represents Rfq Order responses leg.
-type RFQOrderLeg struct {
+// RfqOrderLeg represents Rfq Order responses leg.
+type RfqOrderLeg struct {
 	Size         string `json:"sz"`
 	Side         string `json:"side"`
 	InstrumentID string `json:"instId"`
 	TgtCurrency  string `json:"tgtCcy,omitempty"`
 }
 
-// CreateRFQInput RFQ create method input.
-type CreateRFQInput struct {
+// CreateRfqInput Rfq create method input.
+type CreateRfqInput struct {
 	Anonymous      bool          `json:"anonymous"`
 	CounterParties []string      `json:"counterparties"`
-	ClientRFQID    string        `json:"clRfqId"`
-	Legs           []RFQOrderLeg `json:"legs"`
+	ClientRfqID    string        `json:"clRfqId"`
+	Legs           []RfqOrderLeg `json:"legs"`
 }
 
-// CancelRFQRequestParam represents cancel RFQ order request params
-type CancelRFQRequestParam struct {
+// CancelRfqRequestParam represents cancel Rfq order request params
+type CancelRfqRequestParam struct {
 	RfqID       string `json:"rfqId"`
-	ClientRFQID string `json:"clRfqId"`
+	ClientRfqID string `json:"clRfqId"`
 }
 
-// CancelRFQRequestsParam represents cancel multiple RFQ orders request params
-type CancelRFQRequestsParam struct {
-	RfqID       []string `json:"rfqIds"`
-	ClientRFQID []string `json:"clRfqIds"`
+// CancelRfqRequestsParam represents cancel multiple Rfq orders request params
+type CancelRfqRequestsParam struct {
+	RfqID        []string `json:"rfqIds"`
+	ClientRfqIDs []string `json:"clRfqIds"`
 }
 
-// CancelRFQResponse represents cancel RFQ orders response
-type CancelRFQResponse struct {
+// CancelRfqResponse represents cancel Rfq orders response
+type CancelRfqResponse struct {
 	RfqID       string `json:"rfqId"`
 	ClientRfqID string `json:"clRfqId"`
 	StatusCode  string `json:"sCode"`
@@ -1788,7 +1788,7 @@ type CancelQuoteResponse struct {
 	SMsg          string `json:"sMsg"`
 }
 
-// RfqRequestParams represents get RFQ orders param
+// RfqRequestParams represents get Rfq orders param
 type RfqRequestParams struct {
 	RfqID       string
 	ClientRfqID string
@@ -1798,14 +1798,14 @@ type RfqRequestParams struct {
 	Limit       int64
 }
 
-// RFQResponse RFQ response detail.
-type RFQResponse struct {
+// RfqResponse Rfq response detail.
+type RfqResponse struct {
 	CreateTime     okxUnixMilliTime `json:"cTime"`
 	UpdateTime     okxUnixMilliTime `json:"uTime"`
 	ValidUntil     okxUnixMilliTime `json:"validUntil"`
 	TraderCode     string           `json:"traderCode"`
-	RFQID          string           `json:"rfqId"`
-	ClientRFQID    string           `json:"clRfqId"`
+	RfqID          string           `json:"rfqId"`
+	ClientRfqID    string           `json:"clRfqId"`
 	State          string           `json:"state"`
 	Counterparties []string         `json:"counterparties"`
 	Legs           []struct {
@@ -1828,8 +1828,8 @@ type QuoteRequestParams struct {
 	Limit         int64
 }
 
-// RFQTradesRequestParams represents RFQ trades request param
-type RFQTradesRequestParams struct {
+// RfqTradesRequestParams represents Rfq trades request param
+type RfqTradesRequestParams struct {
 	RfqID         string
 	ClientRfqID   string
 	QuoteID       string
@@ -1841,21 +1841,21 @@ type RFQTradesRequestParams struct {
 	Limit         int64
 }
 
-// RfqTradeResponse RFQ trade response
+// RfqTradeResponse Rfq trade response
 type RfqTradeResponse struct {
 	RfqID           string        `json:"rfqId"`
 	ClientRfqID     string        `json:"clRfqId"`
 	QuoteID         string        `json:"quoteId"`
 	ClientQuoteID   string        `json:"clQuoteId"`
 	BlockTradeID    string        `json:"blockTdId"`
-	Legs            []RFQTradeLeg `json:"legs"`
+	Legs            []RfqTradeLeg `json:"legs"`
 	CreationTime    time.Time     `json:"cTime"`
 	TakerTraderCode string        `json:"tTraderCode"`
 	MakerTraderCode string        `json:"mTraderCode"`
 }
 
-// RFQTradeLeg RFQ trade response leg.
-type RFQTradeLeg struct {
+// RfqTradeLeg Rfq trade response leg.
+type RfqTradeLeg struct {
 	InstrumentID string  `json:"instId"`
 	Side         string  `json:"side"`
 	Size         string  `json:"sz"`
@@ -1870,7 +1870,7 @@ type RFQTradeLeg struct {
 type PublicTradesResponse struct {
 	BlockTradeID string           `json:"blockTdId"`
 	CreationTime okxUnixMilliTime `json:"cTime"`
-	Legs         []RFQTradeLeg    `json:"legs"`
+	Legs         []RfqTradeLeg    `json:"legs"`
 }
 
 // SubaccountInfo represents subaccount information detail.
@@ -2622,8 +2622,8 @@ type WsGreekData struct {
 	Timestamp okxUnixMilliTime `json:"ts"`
 }
 
-// WsRFQ represents websocket push data for "rfqs" subscription
-type WsRFQ struct {
+// WsRfq represents websocket push data for "rfqs" subscription
+type WsRfq struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Data     []WsRfqData      `json:"data"`
 }
@@ -2638,7 +2638,7 @@ type WsRfqData struct {
 	State          string        `json:"state"`
 	ValidUntil     string        `json:"validUntil"`
 	Counterparties []string      `json:"counterparties"`
-	Legs           []RFQOrderLeg `json:"legs"`
+	Legs           []RfqOrderLeg `json:"legs"`
 }
 
 // WsQuote represents websocket push data for "quotes" subscription

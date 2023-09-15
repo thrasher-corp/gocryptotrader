@@ -87,7 +87,7 @@ const (
 	okxChannelAlgoAdvance          = "algo-advance"
 	okxChannelLiquidationWarning   = "liquidation-warning"
 	okxChannelAccountGreeks        = "account-greeks"
-	okxChannelRFQs                 = "rfqs"
+	okxChannelRfqs                 = "rfqs"
 	okxChannelQuotes               = "quotes"
 	okxChannelStructureBlockTrades = "struc-block-trades"
 	okxChannelSpotGridOrder        = "grid-orders-spot"
@@ -395,7 +395,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			okxChannelAlgoAdvance,
 			okxChannelLiquidationWarning,
 			okxChannelAccountGreeks,
-			okxChannelRFQs,
+			okxChannelRfqs,
 			okxChannelQuotes,
 			okxChannelStructureBlockTrades,
 			okxChannelSpotGridOrder,
@@ -614,8 +614,8 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	case okxChannelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelRFQs:
-		var response WsRFQ
+	case okxChannelRfqs:
+		var response WsRfq
 		return ok.wsProcessPushData(respRaw, &response)
 	case okxChannelQuotes:
 		var response WsQuote
@@ -1887,9 +1887,9 @@ func (ok *Okx) AccountGreeksSubscription(operation string, pair currency.Pair) e
 	return ok.wsAuthChannelSubscription(operation, okxChannelAccountGreeks, asset.Empty, pair, "", "", wsSubscriptionParameters{Currency: true})
 }
 
-// RfqSubscription subscription to retrieve Rfq updates on RFQ orders.
+// RfqSubscription subscription to retrieve Rfq updates on Rfq orders.
 func (ok *Okx) RfqSubscription(operation, uid string) error {
-	return ok.wsAuthChannelSubscription(operation, okxChannelRFQs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(operation, okxChannelRfqs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
 }
 
 // QuotesSubscription subscription to retrieve Quote subscription
