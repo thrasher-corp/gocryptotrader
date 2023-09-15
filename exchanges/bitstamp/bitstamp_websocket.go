@@ -125,8 +125,11 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "order_created", "order_deleted", "order_changed":
-		if err := b.handleWSOrder(wsResponse, respRaw); err != nil {
-			return err
+		// Only process MyOrders, not orders from the LiveOrder channel
+		if wsResponse.channelType == bitstampAPIWSMyOrders {
+			if err := b.handleWSOrder(wsResponse, respRaw); err != nil {
+				return err
+			}
 		}
 	default:
 		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
@@ -179,10 +182,6 @@ func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 }
 
 func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
-	if wsResp.channelType != bitstampAPIWSMyOrders {
-		return nil
-	}
-
 	r := &websocketOrderResponse{}
 	if err := json.Unmarshal(msg, &r); err != nil {
 		return err
