@@ -145,12 +145,12 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 683 |
-| [shazbert](https://github.com/shazbert) | 300 |
-| [gloriousCode](https://github.com/gloriousCode) | 218 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 204 |
+| [shazbert](https://github.com/shazbert) | 301 |
+| [gloriousCode](https://github.com/gloriousCode) | 219 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 207 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
-| [gbjk](https://github.com/gbjk) | 30 |
+| [gbjk](https://github.com/gbjk) | 35 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
@@ -167,8 +167,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
+| [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
-| [yangrq1018](https://github.com/yangrq1018) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
