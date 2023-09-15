@@ -103,24 +103,3 @@ func (s *orderSide) UnmarshalJSON(data []byte) error {
 func (s *orderSide) Side() order.Side {
 	return order.Side(*s)
 }
-
-func (o *websocketOrderData) UnmarshalJSON(data []byte) error {
-	type Alias websocketOrderData
-	a := &struct {
-		*Alias
-		Side           orderSide      `json:"order_type"`
-		Datetime       datetime       `json:"datetime"`
-		Microtimestamp microTimestamp `json:"microtimestamp"`
-	}{
-		Alias: (*Alias)(o),
-	}
-	if err := json.Unmarshal(data, a); err != nil {
-		return err
-	}
-
-	o.Datetime = a.Datetime.Time()
-	o.Microtimestamp = a.Microtimestamp.Time()
-	o.Side = a.Side.Side()
-
-	return nil
-}

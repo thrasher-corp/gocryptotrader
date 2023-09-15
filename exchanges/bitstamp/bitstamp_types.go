@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Transaction types
@@ -264,14 +263,14 @@ type websocketOrderResponse struct {
 }
 
 type websocketOrderData struct {
-	ID              int64      `json:"id"`
-	IDStr           string     `json:"id_str"`
-	ClientOrderID   string     `json:"client_order_id"`
-	RemainingAmount float64    `json:"amount"`
-	ExecutedAmount  float64    `json:"amount_traded,string"` // Not Cumulative; Partial fill amount
-	Amount          float64    `json:"amount_at_create,string"`
-	Price           float64    `json:"price"`
-	Side            order.Side `json:"order_type"`
-	Datetime        time.Time  `json:"datetime"`
-	Microtimestamp  time.Time  `json:"microtimestamp"`
+	ID              int64          `json:"id"`
+	IDStr           string         `json:"id_str"`
+	ClientOrderID   string         `json:"client_order_id"`
+	RemainingAmount float64        `json:"amount"`
+	ExecutedAmount  float64        `json:"amount_traded,string"` // Not Cumulative; Partial fill amount
+	Amount          float64        `json:"amount_at_create,string"`
+	Price           float64        `json:"price"`
+	Side            orderSide      `json:"order_type"`
+	Datetime        datetime       `json:"datetime"`
+	Microtimestamp  microTimestamp `json:"microtimestamp"`
 }

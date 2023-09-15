@@ -220,10 +220,10 @@ func (b *Bitstamp) handleWSOrder(_ context.Context, wsResp *websocketResponse, m
 		Exchange:        b.Name,
 		OrderID:         o.IDStr,
 		ClientOrderID:   o.ClientOrderID,
-		Side:            o.Side,
+		Side:            o.Side.Side(),
 		Status:          status,
 		AssetType:       asset.Spot,
-		Date:            o.Microtimestamp,
+		Date:            o.Microtimestamp.Time(),
 		Pair:            wsResp.pair,
 	}
 
