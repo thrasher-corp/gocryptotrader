@@ -1481,8 +1481,8 @@ func (ku *Kucoin) GetDepositAddressesV2(ctx context.Context, ccy string) ([]Depo
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinGetDepositAddressesV2, params), nil, &resp)
 }
 
-// GetDepositAddressesV1 get a deposit address for the currency you intend to deposit
-func (ku *Kucoin) GetDepositAddressesV1(ctx context.Context, ccy, chain string) (*DepositAddress, error) {
+// GetDepositAddressV1 get a deposit address for the currency you intend to deposit
+func (ku *Kucoin) GetDepositAddressV1(ctx context.Context, ccy, chain string) (*DepositAddress, error) {
 	if ccy == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}

@@ -151,12 +151,7 @@ func (ku *Kucoin) WsConnect() error {
 	})
 
 	ku.setupOrderbookManager()
-	// return nil
-	subscriptions, err := ku.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return ku.Subscribe(subscriptions)
+	return nil
 }
 
 // GetInstanceServers retrieves the server list and temporary public token
@@ -803,12 +798,9 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	response := WsOrderbook{}
 	result := struct {
 		Result *WsOrderbook `json:"data"`
-	}{
-		Result: &response,
-	}
+	}{}
 	err = json.Unmarshal(respData, &result)
 	if err != nil {
 		return err
@@ -816,7 +808,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	var init bool
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		init, err = ku.UpdateLocalBuffer(&response, asset.Spot)
+		init, err = ku.UpdateLocalBuffer(result.Result, asset.Spot)
 		if err != nil {
 			if init {
 				return nil
@@ -828,7 +820,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 		}
 	}
 	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		init, err = ku.UpdateLocalBuffer(&response, asset.Margin)
+		init, err = ku.UpdateLocalBuffer(result.Result, asset.Margin)
 		if err != nil {
 			if init {
 				return nil

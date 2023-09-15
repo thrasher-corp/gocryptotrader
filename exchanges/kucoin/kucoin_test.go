@@ -989,9 +989,9 @@ func TestGetDepositAddressV2(t *testing.T) {
 func TestGetDepositAddressesV1(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetDepositAddressesV1(context.Background(), "BTC", "")
+	_, err := ku.GetDepositAddressV1(context.Background(), "BTC", "")
 	if err != nil {
-		t.Error("GetDepositAddressesV1() error", err)
+		t.Error("GetDepositAddressV1() error", err)
 	}
 }
 
