@@ -59,8 +59,6 @@ const (
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
-
-	wsAuthToken websocketAuthResponse
 }
 
 // GetFee returns an estimate of fee based on type of transaction
