@@ -1684,7 +1684,7 @@ type CancelRfqRequestParam struct {
 
 // CancelRfqRequestsParam represents cancel multiple Rfq orders request params
 type CancelRfqRequestsParam struct {
-	RfqID        []string `json:"rfqIds"`
+	RfqIDs       []string `json:"rfqIds"`
 	ClientRfqIDs []string `json:"clRfqIds"`
 }
 

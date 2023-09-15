@@ -799,8 +799,8 @@ func TestCancelRfq(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	_, err := ok.CancelRfq(contextGenerate(), CancelRfqRequestParam{})
-	if err != nil && !errors.Is(err, errMissingRfqAndClientRfqID) {
-		t.Errorf("Okx CancelRfq() expecting %v, but found %v", errMissingRfqAndClientRfqID, err)
+	if err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID) {
+		t.Errorf("Okx CancelRfq() expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
 	}
 	_, err = ok.CancelRfq(context.Background(), CancelRfqRequestParam{
 		ClientRfqID: "somersdjskfjsdkfjxvxv",
@@ -815,8 +815,8 @@ func TestMultipleCancelRfq(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	_, err := ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{})
-	if err != nil && !errors.Is(err, errMissingRfqAndClientRfqID) {
-		t.Errorf("Okx CancelMultipleRfqs() expecting %v, but found %v", errMissingRfqAndClientRfqID, err)
+	if err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID) {
+		t.Errorf("Okx CancelMultipleRfqs() expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
 	}
 	_, err = ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{
 		ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"},

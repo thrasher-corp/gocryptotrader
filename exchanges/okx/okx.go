@@ -287,7 +287,7 @@ var (
 	errOrderSideRequired                       = errors.New("order side required")
 	errInvalidCounterParties                   = errors.New("missing counter parties")
 	errInvalidLegs                             = errors.New("no legs are provided")
-	errMissingRfqAndClientRfqID                = errors.New("missing rfq id or client rfq id")
+	errMissingRfqIDAndClientRfqID              = errors.New("missing rfq id or client rfq id")
 	errMissingRfqIDOrQuoteID                   = errors.New("either Rfq ID or Quote ID is missing")
 	errMissingRfqID                            = errors.New("error missing rfq id")
 	errMissingLegs                             = errors.New("missing legs")
@@ -1087,7 +1087,7 @@ func (ok *Okx) CreateRfq(ctx context.Context, arg CreateRfqInput) (*RfqResponse,
 // CancelRfq Cancel an existing active Rfq that you has previously created.
 func (ok *Okx) CancelRfq(ctx context.Context, arg CancelRfqRequestParam) (*CancelRfqResponse, error) {
 	if arg.RfqID == "" && arg.ClientRfqID == "" {
-		return nil, errMissingRfqAndClientRfqID
+		return nil, errMissingRfqIDAndClientRfqID
 	}
 	var resp []CancelRfqResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
@@ -1102,9 +1102,9 @@ func (ok *Okx) CancelRfq(ctx context.Context, arg CancelRfqRequestParam) (*Cance
 
 // CancelMultipleRfqs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time.
 func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg CancelRfqRequestsParam) ([]CancelRfqResponse, error) {
-	if len(arg.RfqID) == 0 && len(arg.ClientRfqIDs) == 0 {
-		return nil, errMissingRfqAndClientRfqID
-	} else if len(arg.RfqID)+len(arg.ClientRfqIDs) > 100 {
+	if len(arg.RfqIDs) == 0 && len(arg.ClientRfqIDs) == 0 {
+		return nil, errMissingRfqIDAndClientRfqID
+	} else if len(arg.RfqIDs)+len(arg.ClientRfqIDs) > 100 {
 		return nil, errMaxRfqOrdersToCancel
 	}
 	var resp []CancelRfqResponse
