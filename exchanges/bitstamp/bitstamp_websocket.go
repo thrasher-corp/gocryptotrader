@@ -117,15 +117,15 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			}
 		}() // Connection monitor will reconnect
 	case "data":
-		if err := b.handleWSOrderbook(context.TODO(), wsResponse, respRaw); err != nil {
+		if err := b.handleWSOrderbook(wsResponse, respRaw); err != nil {
 			return err
 		}
 	case "trade":
-		if err := b.handleWSTrade(context.TODO(), wsResponse, respRaw); err != nil {
+		if err := b.handleWSTrade(wsResponse, respRaw); err != nil {
 			return err
 		}
 	case "order_created", "order_deleted", "order_changed":
-		if err := b.handleWSOrder(context.TODO(), wsResponse, respRaw); err != nil {
+		if err := b.handleWSOrder(wsResponse, respRaw); err != nil {
 			return err
 		}
 	default:
@@ -134,7 +134,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) handleWSOrderbook(_ context.Context, wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSOrderbook(wsResp *websocketResponse, msg []byte) error {
 	if wsResp.pair.IsEmpty() {
 		return errWSPairParsingError
 	}
@@ -148,7 +148,7 @@ func (b *Bitstamp) handleWSOrderbook(_ context.Context, wsResp *websocketRespons
 	return b.wsUpdateOrderbook(&wsOrderBookTemp.Data, wsResp.pair, asset.Spot)
 }
 
-func (b *Bitstamp) handleWSTrade(_ context.Context, wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -178,7 +178,7 @@ func (b *Bitstamp) handleWSTrade(_ context.Context, wsResp *websocketResponse, m
 	})
 }
 
-func (b *Bitstamp) handleWSOrder(_ context.Context, wsResp *websocketResponse, msg []byte) error {
+func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 	if wsResp.channelType != bitstampAPIWSMyOrders {
 		return nil
 	}
