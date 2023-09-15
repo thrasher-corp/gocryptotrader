@@ -1754,6 +1754,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			}
 		}
 		resp[i] = futures.Contract{
+			Exchange:             ok.Name,
 			Name:                 cp,
 			Underlying:           underlying,
 			SettlementCurrencies: currency.Currencies{settleCurr},

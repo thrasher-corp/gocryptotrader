@@ -1761,6 +1761,7 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 
 		resp[i] = futures.Contract{
+			Exchange:   k.Name,
 			Name:       cp,
 			Underlying: underlying,
 			Asset:      item,

@@ -2124,6 +2124,7 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 			}
 
 			resp = append(resp, futures.Contract{
+				Exchange:             h.Name,
 				Name:                 cp,
 				Underlying:           underlying,
 				Asset:                item,
@@ -2178,6 +2179,7 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 			}
 
 			resp = append(resp, futures.Contract{
+				Exchange:             h.Name,
 				Name:                 cp,
 				Underlying:           underlying,
 				Asset:                item,

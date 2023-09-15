@@ -1186,6 +1186,7 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		}
 
 		c := futures.Contract{
+			Exchange:             b.Name,
 			Name:                 cp,
 			Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
 			Asset:                item,

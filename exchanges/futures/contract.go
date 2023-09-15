@@ -10,6 +10,7 @@ import (
 
 // Contract holds details on futures contracts
 type Contract struct {
+	Exchange   string
 	Name       currency.Pair
 	Underlying currency.Pair
 	Asset      asset.Item
