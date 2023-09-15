@@ -187,8 +187,7 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 		return err
 	}
 
-	o := r.Order
-	if o.ID == 0 && o.ClientOrderID == "" {
+	if r.Order.ID == 0 && r.Order.ClientOrderID == "" {
 		return fmt.Errorf("unable to parse an order id from order msg: %s", msg)
 	}
 
@@ -197,32 +196,32 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 	case "order_created":
 		status = order.New
 	case "order_changed":
-		if o.ExecutedAmount > 0 {
+		if r.Order.ExecutedAmount > 0 {
 			status = order.PartiallyFilled
 		}
 	case "order_deleted":
-		if o.RemainingAmount == 0 && o.Amount > 0 {
+		if r.Order.RemainingAmount == 0 && r.Order.Amount > 0 {
 			status = order.Filled
 		} else {
 			status = order.Cancelled
 		}
 	}
 
-	// o.ExecutedAmount is an atomic partial fill amount; We want total
-	executedAmount := o.Amount - o.RemainingAmount
+	// r.Order.ExecutedAmount is an atomic partial fill amount; We want total
+	executedAmount := r.Order.Amount - r.Order.RemainingAmount
 
 	d := &order.Detail{
-		Price:           o.Price,
-		Amount:          o.Amount,
-		RemainingAmount: o.RemainingAmount,
+		Price:           r.Order.Price,
+		Amount:          r.Order.Amount,
+		RemainingAmount: r.Order.RemainingAmount,
 		ExecutedAmount:  executedAmount,
 		Exchange:        b.Name,
-		OrderID:         o.IDStr,
-		ClientOrderID:   o.ClientOrderID,
-		Side:            o.Side.Side(),
+		OrderID:         r.Order.IDStr,
+		ClientOrderID:   r.Order.ClientOrderID,
+		Side:            r.Order.Side.Side(),
 		Status:          status,
 		AssetType:       asset.Spot,
-		Date:            o.Microtimestamp.Time(),
+		Date:            r.Order.Microtimestamp.Time(),
 		Pair:            wsResp.pair,
 	}
 
