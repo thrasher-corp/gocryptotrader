@@ -56,6 +56,10 @@ func TestMain(m *testing.M) {
 		}
 	}
 	log.Printf(sharedtestvalues.MockTesting, p.Name)
+	err = p.Websocket.Enable()
+	if err != nil {
+		log.Fatal(err)
+	}
 	setupWS()
 	os.Exit(m.Run())
 }

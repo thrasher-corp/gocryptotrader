@@ -339,7 +339,7 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Pair:         pair,
 			ExchangeName: p.Name,
 			Low:          ticks[i].Low.Float64(),
-			Ask:          ticks[i].Low.Float64(),
+			Ask:          ticks[i].Ask.Float64(),
 			Bid:          ticks[i].Bid.Float64(),
 			High:         ticks[i].High.Float64(),
 			QuoteVolume:  ticks[i].Amount.Float64(),
@@ -618,6 +618,9 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s == nil {
+		return nil, common.ErrNilPointer
+	}
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -681,6 +684,9 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if action == nil {
+		return nil, common.ErrNilPointer
+	}
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
@@ -784,6 +790,9 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
+	}
+	if cancelOrd == nil {
+		return cancelAllOrdersResponse, common.ErrNilPointer
 	}
 	var err error
 	var pairs currency.Pairs
@@ -1009,6 +1018,9 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if withdrawRequest == nil {
+		return nil, common.ErrNilPointer
+	}
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -1040,6 +1052,9 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wi
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
+		return 0, common.ErrNilPointer
+	}
+	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
 	if (!p.AreCredentialsValid(ctx) || p.SkipAuthCheck) && // Todo check connection status
@@ -1051,6 +1066,9 @@ func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // GetActiveOrders retrieves any orders that are active/open
 func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1130,6 +1148,9 @@ func orderSideString(oSide order.Side) string {
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
 	err := req.Validate()
 	if err != nil {
 		return nil, err
