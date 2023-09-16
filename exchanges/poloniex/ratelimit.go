@@ -9,23 +9,40 @@ import (
 )
 
 const (
-	poloniexRateInterval = time.Second
-	poloniexAuthRate     = 6
-	poloniexUnauthRate   = 6
+	rateInterval                 = time.Second
+	unauthRate                   = 200
+	authNonResourceIntensiveRate = 50
+	authResourceIntensiveRate    = 10
+	referenceDataRate            = 10
+)
+
+const (
+	authNonResourceIntensiveEPL request.EndpointLimit = iota
+	authResourceIntensiveEPL
+	unauthEPL
+	referenceDataEPL
 )
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	Auth   *rate.Limiter
-	UnAuth *rate.Limiter
+	AuthNonResourceIntensive *rate.Limiter
+	AuthResourceIntensive    *rate.Limiter
+	Unauth                   *rate.Limiter
+	ReferenceData            *rate.Limiter
 }
 
 // Limit limits outbound calls
 func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	if f == request.Auth {
-		return r.Auth.Wait(ctx)
+	switch f {
+	case authNonResourceIntensiveEPL:
+		return r.AuthNonResourceIntensive.Wait(ctx)
+	case authResourceIntensiveEPL:
+		return r.AuthResourceIntensive.Wait(ctx)
+	case referenceDataEPL:
+		return r.ReferenceData.Wait(ctx)
+	default:
+		return r.Unauth.Wait(ctx)
 	}
-	return r.UnAuth.Wait(ctx)
 }
 
 // SetRateLimit returns the rate limit for the exchange
@@ -35,7 +52,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 // As per https://docs.poloniex.com/#http-api
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		Auth:   request.NewRateLimit(poloniexRateInterval, poloniexAuthRate),
-		UnAuth: request.NewRateLimit(poloniexRateInterval, poloniexUnauthRate),
+		AuthNonResourceIntensive: request.NewRateLimit(rateInterval, authNonResourceIntensiveRate),
+		AuthResourceIntensive:    request.NewRateLimit(rateInterval, authResourceIntensiveRate),
+		Unauth:                   request.NewRateLimit(rateInterval, unauthRate),
+		ReferenceData:            request.NewRateLimit(rateInterval, referenceDataRate),
 	}
 }

@@ -40,7 +40,7 @@ var (
 	errAccountIDRequired               = errors.New("missing account ID")
 	errAccountTypeRequired             = errors.New("account type required")
 	errInvalidResponse                 = errors.New("err: invalid response data")
-	errUnexpectedIncomingDataType      = errors.New("unexpected imcoming data type")
+	errUnexpectedIncomingDataType      = errors.New("unexpected incoming data type")
 )
 
 // Poloniex is the overarching type across the poloniex package
@@ -57,14 +57,14 @@ func (p *Poloniex) GetSymbolInformation(ctx context.Context, symbol currency.Pai
 	if !symbol.IsEmpty() {
 		path = fmt.Sprintf("%s/%s", path, symbol)
 	}
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
 }
 
 // GetCurrencyInformations retrieves list of currencies and theiir detailed information.
 func (p *Poloniex) GetCurrencyInformations(ctx context.Context) ([]CurrencyDetail, error) {
 	var resp []CurrencyDetail
 	path := "/currencies"
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, path, &resp)
 }
 
 // GetCurrencyInformation retrieves currency and their detailed information.
@@ -75,13 +75,13 @@ func (p *Poloniex) GetCurrencyInformation(ctx context.Context, ccy currency.Code
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	path = fmt.Sprintf("%s/%s", path, ccy.String())
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, path, &resp)
 }
 
 // GetV2CurrencyInformations retrieves list of currency details for V2 API.
 func (p *Poloniex) GetV2CurrencyInformations(ctx context.Context) ([]CurrencyV2Information, error) {
 	var resp []CurrencyV2Information
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/v2/currencies", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
 // GetV2CurrencyInformation retrieves currency details for V2 API.
@@ -92,13 +92,13 @@ func (p *Poloniex) GetV2CurrencyInformation(ctx context.Context, ccy currency.Co
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	path = fmt.Sprintf("%s/%s", path, ccy.String())
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, path, &resp)
 }
 
 // GetSystemTimestamp retrieves current server time.
 func (p *Poloniex) GetSystemTimestamp(ctx context.Context) (*ServerSystemTime, error) {
 	var resp ServerSystemTime
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/timestamp", &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/timestamp", &resp)
 }
 
 // Marker Data endpoints.
@@ -106,7 +106,7 @@ func (p *Poloniex) GetSystemTimestamp(ctx context.Context) (*ServerSystemTime, e
 // GetMarketPrices retrieves latest trade price for all symbols.
 func (p *Poloniex) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
 	var resp []MarketPrice
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/price", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/price", &resp)
 }
 
 // GetMarketPrice retrieves latest trade price for all symbols.
@@ -115,13 +115,13 @@ func (p *Poloniex) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*M
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp MarketPrice
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/price", symbol.String()), &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, fmt.Sprintf("/markets/%s/price", symbol.String()), &resp)
 }
 
 // GetMarkPrices retrieves latest mark price for a single cross margin
 func (p *Poloniex) GetMarkPrices(ctx context.Context) ([]MarkPrice, error) {
 	var resp []MarkPrice
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/markPrice", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/markPrice", &resp)
 }
 
 // GetMarkPrice retrieves latest mark price for all cross margin symbol.
@@ -130,7 +130,7 @@ func (p *Poloniex) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/markPrice", symbol.String()), &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, fmt.Sprintf("/markets/%s/markPrice", symbol.String()), &resp)
 }
 
 // MarkPriceComponents retrieves components of the mark price for a given symbol.
@@ -139,7 +139,7 @@ func (p *Poloniex) MarkPriceComponents(ctx context.Context, symbol currency.Pair
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp MarkPriceComponent
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/markPriceComponents", symbol.String()), &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, fmt.Sprintf("/markets/%s/markPriceComponents", symbol.String()), &resp)
 }
 
 // GetOrderbook retrieves the order book for a given symbol. Scale and limit values are optional.
@@ -150,7 +150,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, symbol currency.Pair) (*Ord
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp OrderbookData
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/orderBook", symbol.String()), &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, fmt.Sprintf("/markets/%s/orderBook", symbol.String()), &resp)
 }
 
 // GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
@@ -176,7 +176,7 @@ func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []CandlestickArrayData
-	err = p.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf("/markets/%s/candles", symbol.String()), params), &resp)
+	err = p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(fmt.Sprintf("/markets/%s/candles", symbol.String()), params), &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -193,13 +193,13 @@ func (p *Poloniex) GetTrades(ctx context.Context, symbol currency.Pair, limit in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []Trade
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(fmt.Sprintf("/markets/%s/trades", symbol.String()), params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues(fmt.Sprintf("/markets/%s/trades", symbol.String()), params), &resp)
 }
 
 // GetTickers retrieve ticker in last 24 hours for all symbols.
 func (p *Poloniex) GetTickers(ctx context.Context) ([]TickerData, error) {
 	var resp []TickerData
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/ticker24h", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/ticker24h", &resp)
 }
 
 // GetTicker retrieve ticker in last 24 hours for provided symbols.
@@ -208,7 +208,7 @@ func (p *Poloniex) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp TickerData
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/ticker24h", symbol.String()), &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, fmt.Sprintf("/markets/%s/ticker24h", symbol.String()), &resp)
 }
 
 // Margin endpoints.
@@ -216,19 +216,19 @@ func (p *Poloniex) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 // GetCollateralInfos retrieves collateral information for all currencies.
 func (p *Poloniex) GetCollateralInfos(ctx context.Context) ([]CollateralInfo, error) {
 	var resp []CollateralInfo
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/collateralInfo", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/collateralInfo", &resp)
 }
 
 // GetCollateralInfo retrieves collateral information for all currencies.
 func (p *Poloniex) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*CollateralInfo, error) {
 	var resp CollateralInfo
-	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf("/markets/%s/collateralInfo", ccy.String()), &resp)
+	return &resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, fmt.Sprintf("/markets/%s/collateralInfo", ccy.String()), &resp)
 }
 
 // GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.
 func (p *Poloniex) GetBorrowRateInfo(ctx context.Context) ([]BorrowRateinfo, error) {
 	var resp []BorrowRateinfo
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, "/markets/borrowRatesInfo", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/borrowRatesInfo", &resp)
 }
 
 // ---------------- Authenticated endpoints ----------------------------------
@@ -236,7 +236,7 @@ func (p *Poloniex) GetBorrowRateInfo(ctx context.Context) ([]BorrowRateinfo, err
 // GetAccountInformation retrieves all accounts of a user.
 func (p *Poloniex) GetAccountInformation(ctx context.Context) ([]AccountInformation, error) {
 	var resp []AccountInformation
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts", nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts", nil, nil, &resp)
 }
 
 // GetAllBalances get a list of all accounts of a user with each account’s id, type and balances (assets).
@@ -246,7 +246,7 @@ func (p *Poloniex) GetAllBalances(ctx context.Context, accountType string) ([]Ac
 		params.Set("accountType", accountType)
 	}
 	var resp []AccountBalance
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/balances", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
 }
 
 // GetAllBalance get an accounts of a user with each account’s id, type and balances (assets).
@@ -259,7 +259,7 @@ func (p *Poloniex) GetAllBalance(ctx context.Context, accountID, accountType str
 		params.Set("accountType", accountType)
 	}
 	var resp []AccountBalance
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/accounts/%s/balances", accountID), params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, fmt.Sprintf("/accounts/%s/balances", accountID), params, nil, &resp)
 }
 
 // GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
@@ -289,7 +289,7 @@ func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTi
 		params.Set("currency", ccy.String())
 	}
 	var resp []AccountActivity
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/activity", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
 }
 
 // AccountsTransfer transfer amount of currency from an account to another account for a user.
@@ -310,7 +310,7 @@ func (p *Poloniex) AccountsTransfer(ctx context.Context, arg *AccountTransferPar
 		return nil, fmt.Errorf("%w, toAccount=''", errAddressRequired)
 	}
 	var resp AccountTransferResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
 }
 
 // GetAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
@@ -335,19 +335,19 @@ func (p *Poloniex) GetAccountTransferRecords(ctx context.Context, startTime, end
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AccountTransferRecord
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/transfer", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
 }
 
 // GetAccountTransferRecord gets a transfer records of a user.
 func (p *Poloniex) GetAccountTransferRecord(ctx context.Context, accountID string) ([]AccountTransferRecord, error) {
 	var resp []AccountTransferRecord
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/accounts/transfer/%s", accountID), nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, fmt.Sprintf("/accounts/transfer/%s", accountID), nil, nil, &resp)
 }
 
 // GetFeeInfo retrieves fee rate for an account
 func (p *Poloniex) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 	var resp FeeInfo
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/feeinfo", nil, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/feeinfo", nil, nil, &resp)
 }
 
 // GetInterestHistory get a list of interest collection records of a user.
@@ -371,7 +371,7 @@ func (p *Poloniex) GetInterestHistory(ctx context.Context, startTime, endTime ti
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []InterestHistory
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
 }
 
 // ------------------------------------  Sub-Accounts endpoints ----------------------------
@@ -379,7 +379,7 @@ func (p *Poloniex) GetInterestHistory(ctx context.Context, startTime, endTime ti
 // GetSubAccountInformations get a list of all the accounts within an Account Group for a user.
 func (p *Poloniex) GetSubAccountInformations(ctx context.Context) ([]SubAccount, error) {
 	var resp []SubAccount
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/subaccounts", nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
 }
 
 // GetSubAccountBalances get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
@@ -387,13 +387,13 @@ func (p *Poloniex) GetSubAccountInformations(ctx context.Context) ([]SubAccount,
 // A subaccount user can call /accounts/balances for SPOT account type and the futures API overview for its FUTURES balances.
 func (p *Poloniex) GetSubAccountBalances(ctx context.Context) ([]SubAccountBalance, error) {
 	var resp []SubAccountBalance
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
 // GetSubAccountBalance get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
 func (p *Poloniex) GetSubAccountBalance(ctx context.Context, id string) ([]SubAccountBalance, error) {
 	var resp []SubAccountBalance
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/subaccounts/%s/balances", id), nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, fmt.Sprintf("/subaccounts/%s/balances", id), nil, nil, &resp)
 }
 
 // SubAccountTransfer transfer amount of currency from an account and account type to another account and account type among the accounts in the account group.
@@ -422,7 +422,7 @@ func (p *Poloniex) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 		return nil, fmt.Errorf("%w, toAccountType=''", errAccountTypeRequired)
 	}
 	var resp AccountTransferResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
 }
 
 // GetSubAccountTransferRecords get a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
@@ -461,13 +461,13 @@ func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currenc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SubAccountTransfer
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
 }
 
 // GetSubAccountTransferRecord retrieves a subaccount transfer record.
 func (p *Poloniex) GetSubAccountTransferRecord(ctx context.Context, id string) ([]SubAccountTransfer, error) {
 	var resp []SubAccountTransfer
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/subaccounts/transfer/%s", id), nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, fmt.Sprintf("/subaccounts/transfer/%s", id), nil, nil, &resp)
 }
 
 // -------------------------------------  Wallet sub-accounts  ---------------------------------------
@@ -479,7 +479,7 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/wallets/addresses", params, nil, addresses)
+	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, addresses)
 }
 
 // WalletActivity returns the wallet activity between set start and end time
@@ -495,7 +495,7 @@ func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, act
 		values.Set("activityType", activityType)
 	}
 	var resp WalletActivityResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/wallets/activity", values, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/activity", values, nil, &resp)
 }
 
 // NewCurrencyDepositAddress create a new address for a currency.
@@ -511,7 +511,7 @@ func (p *Poloniex) NewCurrencyDepositAddress(ctx context.Context, ccy currency.C
 	resp := &struct {
 		Address string `json:"address"`
 	}{}
-	return resp.Address, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
+	return resp.Address, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
 }
 
 // func (p *Poloniex) WithdrawCurrency(ctx context.Context, )
@@ -593,7 +593,7 @@ func (p *Poloniex) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyPa
 		return nil, errAddressRequired
 	}
 	result := &Withdraw{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/wallets/withdraw", nil, arg, &result)
+	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/withdraw", nil, arg, &result)
 }
 
 // WithdrawCurrencyV2 withdraws a currency to a specific delegated address.
@@ -616,7 +616,7 @@ func (p *Poloniex) WithdrawCurrencyV2(ctx context.Context, arg *WithdrawCurrency
 		return nil, errAddressRequired
 	}
 	var resp Withdraw
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v2/wallets/withdraw", nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/v2/wallets/withdraw", nil, arg, &resp)
 }
 
 // ---------------------------------------------------------------- Margin endpoints ------------------------------------------------
@@ -628,7 +628,7 @@ func (p *Poloniex) GetAccountMarginInformation(ctx context.Context, accountType 
 		params.Set("accountType", accountType)
 	}
 	var resp AccountMargin
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
 }
 
 // GetBorrowStatus retrieves borrow status of currencies
@@ -638,7 +638,7 @@ func (p *Poloniex) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]Bo
 		params.Set("currency", ccy.String())
 	}
 	var resp []BorroweStatus
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
 }
 
 // MaximumBuySellAmount get maximum and available buy/sell amount for a given symbol.
@@ -649,7 +649,7 @@ func (p *Poloniex) MaximumBuySellAmount(ctx context.Context, symbol currency.Pai
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	var resp MaxBuySellAmount
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/maxSize", params, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/maxSize", params, nil, &resp)
 }
 
 // ---------------------------------------------- Orders endpoint ------------------------------------------------------------
@@ -666,7 +666,7 @@ func (p *Poloniex) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*Plac
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp PlaceOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/orders", nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp)
 }
 
 // PlaceBatchOrders places a batch of order for an account.
@@ -683,15 +683,15 @@ func (p *Poloniex) PlaceBatchOrders(ctx context.Context, args []PlaceOrderParams
 		}
 	}
 	var resp []PlaceBatchOrderRespItem
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/orders/batch", nil, args, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
 }
 
 // CancelReplaceOrder cancel an existing active order, new or partially filled, and place a new order on the same
 // symbol with details from existing order unless amended by new parameters.
 // The replacement order can amend price, quantity, amount, type, timeInForce, and allowBorrow fields.
 // Specify the existing order id in the path; if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.
-// The proceedOnFailure flag is intended to specify whether to continue with new order placement in case cancelation of the existing order fails.
-// Please note that since the new order placement does not wait for funds to clear from the existing order cancelation,
+// The proceedOnFailure flag is intended to specify whether to continue with new order placement in case cancellation of the existing order fails.
+// Please note that since the new order placement does not wait for funds to clear from the existing order cancellation,
 // it is possible that the new order will fail due to low available balance.
 func (p *Poloniex) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrderParam) (*CancelReplaceOrderResponse, error) {
 	if arg == nil || (*arg) == (CancelReplaceOrderParam{}) {
@@ -701,7 +701,7 @@ func (p *Poloniex) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp CancelReplaceOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, fmt.Sprintf("/orders/%s", arg.ID), nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, fmt.Sprintf("/orders/%s", arg.ID), nil, arg, &resp)
 }
 
 // GetOpenOrders retrieves a list of active orders for an account.
@@ -723,7 +723,7 @@ func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []TradeOrder
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/orders", nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders", nil, nil, &resp)
 }
 
 // GetOrderDetail get an order’s status. Either by specifying orderId or clientOrderId. If id is a clientOrderId, prefix with cid: e.g. cid:myId-1
@@ -738,7 +738,7 @@ func (p *Poloniex) GetOrderDetail(ctx context.Context, id, clientOrderID string)
 		return nil, fmt.Errorf("%w, orderid or client order id is required", order.ErrOrderIDNotSet)
 	}
 	var resp TradeOrder
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
 }
 
 // CancelOrderByID cancel an active order.
@@ -747,7 +747,7 @@ func (p *Poloniex) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
 	}
 	var resp CancelOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, fmt.Sprintf("/orders/%s", id), nil, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, fmt.Sprintf("/orders/%s", id), nil, nil, &resp)
 }
 
 // CancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs.
@@ -759,7 +759,7 @@ func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, args *OrderCan
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp []CancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
 }
 
 // CancelAllTradeOrders batch cancel all orders in an account.
@@ -772,7 +772,7 @@ func (p *Poloniex) CancelAllTradeOrders(ctx context.Context, symbols, accountTyp
 		args["accountTypes"] = accountTypes
 	}
 	var resp []CancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/orders", nil, args, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders", nil, args, &resp)
 }
 
 // KillSwitch set a timer that cancels all regular and smartorders after the timeout has expired.
@@ -784,7 +784,7 @@ func (p *Poloniex) KillSwitch(ctx context.Context, timeout string) (*KillSwitchS
 		return nil, errInvalidTimeout
 	}
 	var resp *KillSwitchStatus
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/orders/killSwitch", nil, map[string]string{"timeout": timeout}, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]string{"timeout": timeout}, &resp)
 }
 
 // GetKillSwitchStatus get status of kill switch.
@@ -792,7 +792,7 @@ func (p *Poloniex) KillSwitch(ctx context.Context, timeout string) (*KillSwitchS
 // If no active kill switch then an error message with code is returned
 func (p *Poloniex) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, error) {
 	var resp KillSwitchStatus
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/orders/killSwitchStatus", nil, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/orders/killSwitchStatus", nil, nil, &resp)
 }
 
 // ---------------------------------------------- Smart Orders -----------------------------------------
@@ -809,7 +809,7 @@ func (p *Poloniex) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestP
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp PlaceOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/smartorders", nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
 }
 
 func orderTypeString(oType order.Type) string {
@@ -826,7 +826,7 @@ func orderTypeString(oType order.Type) string {
 // CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters.
 // The replacement smart order can amend price, stopPrice, quantity, amount, type, and timeInForce fields. Specify the existing smart order id in the path;
 // if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.
-// The proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancelation of the existing smart order fails.
+// The proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderParam) (*CancelReplaceSmartOrderResponse, error) {
 	if arg == nil || (*arg) == (CancelReplaceSmartOrderParam{}) {
 		return nil, errNilArgument
@@ -841,7 +841,7 @@ func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp CancelReplaceSmartOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, arg, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp)
 }
 
 // GetSmartOpenOrders get a list of (pending) smart orders for an account.
@@ -851,7 +851,7 @@ func (p *Poloniex) GetSmartOpenOrders(ctx context.Context, limit int64) ([]Smart
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SmartOrderItem
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/smartorders", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders", params, nil, &resp)
 }
 
 // GetSmartOrderDetail get a smart order’s status. {id} can be smart order’s id or its clientOrderId (prefix with cid: ).
@@ -867,7 +867,7 @@ func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, id, clientSuppliedID
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp []SmartOrderDetail
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
 }
 
 // CancelSmartOrderByID cancel a smart order by its id.
@@ -882,7 +882,7 @@ func (p *Poloniex) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp CancelSmartOrderResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, &resp)
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodDelete, path, nil, nil, &resp)
 }
 
 // CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
@@ -894,7 +894,7 @@ func (p *Poloniex) CancelMultipleSmartOrders(ctx context.Context, args *OrderCan
 		return nil, errClientOrderIDOROrderIDsRequired
 	}
 	var resp []CancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
 }
 
 // CancelAllSmartOrders batch cancel all smart orders in an account.
@@ -907,7 +907,7 @@ func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTyp
 		args["accountTypes"] = accountTypes
 	}
 	var resp []CancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/smartorders", nil, args, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
 }
 
 // ---------------------------------------------------------------- Order History ----------------------------------------------------------------
@@ -963,7 +963,7 @@ func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
 	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]TradeOrder, error) {
 	params := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
 	var resp []TradeOrder
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/orders/history", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders/history", params, nil, &resp)
 }
 
 // GetSmartOrderHistory get a list of historical smart orders in an account.
@@ -975,7 +975,7 @@ func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pai
 	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]SmartOrderItem, error) {
 	params := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
 	var resp []SmartOrderItem
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/smartorders/history", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
 }
 
 // ------------------------------------------- Trade endpoints --------------------------------
@@ -1005,7 +1005,7 @@ func (p *Poloniex) GetTradeHistory(ctx context.Context, symbols currency.Pairs, 
 		params.Set("direction", direction)
 	}
 	var resp []TradeHistoryItem
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/trades", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/trades", params, nil, &resp)
 }
 
 // GetTradesByOrderID get a list of all trades for an order specified by its orderId.
@@ -1014,11 +1014,11 @@ func (p *Poloniex) GetTradesByOrderID(ctx context.Context, orderID string) ([]Tr
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []TradeHistoryItem
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf("/orders/%s/trades", orderID), nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, fmt.Sprintf("/orders/%s/trades", orderID), nil, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1033,13 +1033,13 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		HTTPRecording: p.HTTPRecording,
 	}
 
-	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return p.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, body, result interface{}) error {
+func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, values url.Values, body, result interface{}) error {
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1105,7 +1105,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 		return req, nil
 	}
-	err = p.SendPayload(ctx, request.Unset, requestFunc, request.AuthenticatedRequest)
+	err = p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
