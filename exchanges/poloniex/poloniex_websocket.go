@@ -382,6 +382,7 @@ func (p *Poloniex) processTicker(result *SubscriptionResponse) error {
 			return err
 		}
 		tickerData[x] = ticker.Price{
+			Last:         resp[x].MarkPrice.Float64(),
 			High:         resp[x].High.Float64(),
 			Low:          resp[x].Low.Float64(),
 			Volume:       resp[x].Quantity.Float64(),

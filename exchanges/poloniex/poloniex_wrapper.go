@@ -338,6 +338,7 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			AssetType:    a,
 			Pair:         pair,
 			ExchangeName: p.Name,
+			Last:         ticks[i].MarkPrice.Float64(),
 			Low:          ticks[i].Low.Float64(),
 			Ask:          ticks[i].Ask.Float64(),
 			Bid:          ticks[i].Bid.Float64(),
