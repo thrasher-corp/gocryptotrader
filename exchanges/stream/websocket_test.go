@@ -230,11 +230,11 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 func TestIsDisconnectionError(t *testing.T) {
 	t.Parallel()
-	isADisconnectionError := isDisconnectionError(errors.New("errorText"))
+	isADisconnectionError := IsDisconnectionError(errors.New("errorText"))
 	if isADisconnectionError {
 		t.Error("Its not")
 	}
-	isADisconnectionError = isDisconnectionError(&websocket.CloseError{
+	isADisconnectionError = IsDisconnectionError(&websocket.CloseError{
 		Code: 1006,
 		Text: "errorText",
 	})
@@ -242,14 +242,14 @@ func TestIsDisconnectionError(t *testing.T) {
 		t.Error("It is")
 	}
 
-	isADisconnectionError = isDisconnectionError(&net.OpError{
+	isADisconnectionError = IsDisconnectionError(&net.OpError{
 		Err: errClosedConnection,
 	})
 	if isADisconnectionError {
 		t.Error("It's not")
 	}
 
-	isADisconnectionError = isDisconnectionError(&net.OpError{
+	isADisconnectionError = IsDisconnectionError(&net.OpError{
 		Err: errors.New("errText"),
 	})
 	if !isADisconnectionError {
@@ -321,8 +321,10 @@ func TestConnectionMessageErrors(t *testing.T) {
 outer:
 	for {
 		select {
-		case <-ws.ToRoutine:
-			t.Fatal("Error is a disconnection error")
+		case err := <-ws.ToRoutine:
+			if _, ok := err.(*websocket.CloseError); !ok {
+				t.Errorf("Error is not a disconnection error: %v", err)
+			}
 		case <-timer.C:
 			break outer
 		}
