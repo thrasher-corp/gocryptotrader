@@ -179,6 +179,12 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("currencystatemanager", &b.Settings.EnableCurrencyStateManager, b.Config.CurrencyStateManager.Enabled != nil && *b.Config.CurrencyStateManager.Enabled)
 	flagSet.WithBool("gctscriptmanager", &b.Settings.EnableGCTScriptManager, b.Config.GCTScript.Enabled)
 
+	flagSet.WithBool("tickersync", &b.Settings.EnableTickerSyncing, b.Config.SyncManagerConfig.SynchronizeTicker)
+	flagSet.WithBool("orderbooksync", &b.Settings.EnableOrderbookSyncing, b.Config.SyncManagerConfig.SynchronizeOrderbook)
+	flagSet.WithBool("tradesync", &b.Settings.EnableTradeSyncing, b.Config.SyncManagerConfig.SynchronizeTrades)
+	flagSet.WithBool("synccontinuously", &b.Settings.SyncContinuously, b.Config.SyncManagerConfig.SynchronizeContinuously)
+	flagSet.WithBool("syncmanager", &b.Settings.EnableExchangeSyncManager, b.Config.SyncManagerConfig.Enabled)
+
 	if b.Settings.EnablePortfolioManager &&
 		b.Settings.PortfolioManagerDelay <= 0 {
 		b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
@@ -491,21 +497,27 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := &SyncManagerConfig{
-			SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
-			SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
-			SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
-			SynchronizeContinuously: bot.Settings.SyncContinuously,
-			TimeoutREST:             bot.Settings.SyncTimeoutREST,
-			TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
-			NumWorkers:              bot.Settings.SyncWorkersCount,
-			Verbose:                 bot.Settings.Verbose,
-			FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
-			PairFormatDisplay:       bot.Config.Currency.CurrencyPairFormat,
-		}
+		cfg := bot.Config.SyncManagerConfig
+		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing
+		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing
+		cfg.SynchronizeContinuously = bot.Settings.SyncContinuously
+		cfg.SynchronizeTrades = bot.Settings.EnableTradeSyncing
+		cfg.Verbose = bot.Settings.Verbose || cfg.Verbose
 
+		if cfg.TimeoutREST != bot.Settings.SyncTimeoutREST &&
+			bot.Settings.SyncTimeoutREST != config.DefaultSyncerTimeoutREST {
+			cfg.TimeoutREST = bot.Settings.SyncTimeoutREST
+		}
+		if cfg.TimeoutWebsocket != bot.Settings.SyncTimeoutWebsocket &&
+			bot.Settings.SyncTimeoutWebsocket != config.DefaultSyncerTimeoutWebsocket {
+			cfg.TimeoutWebsocket = bot.Settings.SyncTimeoutWebsocket
+		}
+		if cfg.NumWorkers != bot.Settings.SyncWorkersCount &&
+			bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
+			cfg.NumWorkers = bot.Settings.SyncWorkersCount
+		}
 		if s, err := setupSyncManager(
-			exchangeSyncCfg,
+			&cfg,
 			bot.ExchangeManager,
 			&bot.Config.RemoteControl,
 			bot.Settings.EnableWebsocketRoutine,

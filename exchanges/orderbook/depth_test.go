@@ -3,7 +3,6 @@ package orderbook
 import (
 	"errors"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -26,7 +25,10 @@ func TestGetLength(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.LoadSnapshot([]Item{{Price: 1337}}, nil, 0, time.Time{}, true)
+	err = d.LoadSnapshot([]Item{{Price: 1337}}, nil, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	askLen, err := d.GetAskLength()
 	if !errors.Is(err, nil) {
@@ -37,7 +39,7 @@ func TestGetLength(t *testing.T) {
 		t.Errorf("expected len %v, but received %v", 0, askLen)
 	}
 
-	d.asks.load([]Item{{Price: 1337}}, d.stack)
+	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	askLen, err = d.GetAskLength()
 	if !errors.Is(err, nil) {
@@ -58,7 +60,10 @@ func TestGetLength(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.LoadSnapshot(nil, []Item{{Price: 1337}}, 0, time.Time{}, true)
+	err = d.LoadSnapshot(nil, []Item{{Price: 1337}}, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	bidLen, err := d.GetBidLength()
 	if !errors.Is(err, nil) {
@@ -69,7 +74,7 @@ func TestGetLength(t *testing.T) {
 		t.Errorf("expected len %v, but received %v", 0, bidLen)
 	}
 
-	d.bids.load([]Item{{Price: 1337}}, d.stack)
+	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	bidLen, err = d.GetBidLength()
 	if !errors.Is(err, nil) {
@@ -84,8 +89,8 @@ func TestGetLength(t *testing.T) {
 func TestRetrieve(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.asks.load([]Item{{Price: 1337}}, d.stack)
-	d.bids.load([]Item{{Price: 1337}}, d.stack)
+	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
+	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 	d.options = options{
 		exchange:         "THE BIG ONE!!!!!!",
 		pair:             currency.NewPair(currency.THETA, currency.USD),
@@ -181,8 +186,8 @@ func TestTotalAmounts(t *testing.T) {
 			value)
 	}
 
-	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack)
-	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack)
+	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack, time.Now())
+	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack, time.Now())
 
 	liquidity, value, err = d.TotalBidAmounts()
 	if !errors.Is(err, nil) {
@@ -214,7 +219,15 @@ func TestTotalAmounts(t *testing.T) {
 func TestLoadSnapshot(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ob, err := d.Retrieve()
 	if !errors.Is(err, nil) {
@@ -232,7 +245,10 @@ func TestInvalidate(t *testing.T) {
 	d.exchange = "testexchange"
 	d.pair = currency.NewPair(currency.BTC, currency.WABI)
 	d.asset = asset.Spot
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ob, err := d.Retrieve()
 	if !errors.Is(err, nil) {
@@ -243,18 +259,16 @@ func TestInvalidate(t *testing.T) {
 		t.Fatalf("unexpected value")
 	}
 
-	err = d.Invalidate(errors.New("random reason"))
+	testReason := errors.New("random reason")
+
+	err = d.Invalidate(testReason)
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	if err.Error() != "testexchange BTCWABI spot orderbook data integrity compromised Reason: [random reason]" {
-		t.Fatal("unexpected string return")
+	if !errors.Is(err, ErrOrderbookInvalid) && !errors.Is(err, testReason) {
+		t.Fatalf("received: '%v' but expected: '%v' && '%v'", err, ErrOrderbookInvalid, testReason)
 	}
 
 	d.validationError = nil
@@ -272,17 +286,31 @@ func TestInvalidate(t *testing.T) {
 func TestUpdateBidAskByPrice(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = d.UpdateBidAskByPrice(&Update{})
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
 
 	// empty
-	d.UpdateBidAskByPrice(&Update{})
+	err = d.UpdateBidAskByPrice(&Update{UpdateTime: time.Now()})
+	if err != nil {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
 	updates := &Update{
-		Bids:     Items{{Price: 1337, Amount: 2, ID: 1}},
-		Asks:     Items{{Price: 1337, Amount: 2, ID: 2}},
-		UpdateID: 1,
+		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
+		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
+		UpdateID:   1,
+		UpdateTime: time.Now(),
 	}
-	d.UpdateBidAskByPrice(updates)
+	err = d.UpdateBidAskByPrice(updates)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ob, err := d.Retrieve()
 	if !errors.Is(err, nil) {
@@ -294,11 +322,15 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 	}
 
 	updates = &Update{
-		Bids:     Items{{Price: 1337, Amount: 0, ID: 1}},
-		Asks:     Items{{Price: 1337, Amount: 0, ID: 2}},
-		UpdateID: 2,
+		Bids:       Items{{Price: 1337, Amount: 0, ID: 1}},
+		Asks:       Items{{Price: 1337, Amount: 0, ID: 2}},
+		UpdateID:   2,
+		UpdateTime: time.Now(),
 	}
-	d.UpdateBidAskByPrice(updates)
+	err = d.UpdateBidAskByPrice(updates)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	askLen, err := d.GetAskLength()
 	if !errors.Is(err, nil) {
@@ -318,13 +350,23 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 func TestDeleteBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates := &Update{
 		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
 		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
 	}
-	err := d.DeleteBidAskByID(updates, false)
+
+	err = d.DeleteBidAskByID(updates, false)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
+	updates.UpdateTime = time.Now()
+	err = d.DeleteBidAskByID(updates, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,23 +381,26 @@ func TestDeleteBidAskByID(t *testing.T) {
 	}
 
 	updates = &Update{
-		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
+		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
+		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
+	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
 	updates = &Update{
-		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
+		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
+		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
+	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
 	updates = &Update{
-		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
+		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
+		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, true)
 	if !errors.Is(err, nil) {
@@ -366,13 +411,23 @@ func TestDeleteBidAskByID(t *testing.T) {
 func TestUpdateBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates := &Update{
 		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
 		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
 	}
-	err := d.UpdateBidAskByID(updates)
+
+	err = d.UpdateBidAskByID(updates)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
+
+	updates.UpdateTime = time.Now()
+	err = d.UpdateBidAskByID(updates)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,19 +442,21 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 
 	updates = &Update{
-		Bids: Items{{Price: 1337, Amount: 2, ID: 666}},
+		Bids:       Items{{Price: 1337, Amount: 2, ID: 666}},
+		UpdateTime: time.Now(),
 	}
 	// random unmatching IDs
 	err = d.UpdateBidAskByID(updates)
-	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
+	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
 	updates = &Update{
-		Asks: Items{{Price: 1337, Amount: 2, ID: 69}},
+		Asks:       Items{{Price: 1337, Amount: 2, ID: 69}},
+		UpdateTime: time.Now(),
 	}
 	err = d.UpdateBidAskByID(updates)
-	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
+	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 }
@@ -407,32 +464,50 @@ func TestUpdateBidAskByID(t *testing.T) {
 func TestInsertBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates := &Update{
 		Asks: Items{{Price: 1337, Amount: 2, ID: 3}},
 	}
+	err = d.InsertBidAskByID(updates)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
+	}
 
-	err := d.InsertBidAskByID(updates)
-	if !strings.Contains(err.Error(), errCollisionDetected.Error()) {
+	updates.UpdateTime = time.Now()
+
+	err = d.InsertBidAskByID(updates)
+	if !errors.Is(err, errCollisionDetected) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
 	}
 
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates = &Update{
-		Bids: Items{{Price: 1337, Amount: 2, ID: 3}},
+		Bids:       Items{{Price: 1337, Amount: 2, ID: 3}},
+		UpdateTime: time.Now(),
 	}
 
 	err = d.InsertBidAskByID(updates)
-	if !strings.Contains(err.Error(), errCollisionDetected.Error()) {
+	if !errors.Is(err, errCollisionDetected) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
 	}
 
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	updates = &Update{
-		Bids: Items{{Price: 1338, Amount: 2, ID: 3}},
-		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
+		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
+		Asks:       Items{{Price: 1336, Amount: 2, ID: 4}},
+		UpdateTime: time.Now(),
 	}
 	err = d.InsertBidAskByID(updates)
 	if err != nil {
@@ -452,14 +527,23 @@ func TestInsertBidAskByID(t *testing.T) {
 func TestUpdateInsertByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates := &Update{
 		Bids: Items{{Price: 1338, Amount: 0, ID: 3}},
 		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
 	}
-	err := d.UpdateInsertByID(updates)
-	if !strings.Contains(err.Error(), errAmountCannotBeLessOrEqualToZero.Error()) {
+	err = d.UpdateInsertByID(updates)
+	if !errors.Is(err, errLastUpdatedNotSet) {
+		t.Fatalf("expected: %v but received: %v", errLastUpdatedNotSet, err)
+	}
+
+	updates.UpdateTime = time.Now()
+	err = d.UpdateInsertByID(updates)
+	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 
@@ -469,14 +553,18 @@ func TestUpdateInsertByID(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates = &Update{
-		Bids: Items{{Price: 1338, Amount: 2, ID: 3}},
-		Asks: Items{{Price: 1336, Amount: 0, ID: 4}},
+		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
+		Asks:       Items{{Price: 1336, Amount: 0, ID: 4}},
+		UpdateTime: time.Now(),
 	}
 	err = d.UpdateInsertByID(updates)
-	if !strings.Contains(err.Error(), errAmountCannotBeLessOrEqualToZero.Error()) {
+	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 
@@ -486,11 +574,15 @@ func TestUpdateInsertByID(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updates = &Update{
-		Bids: Items{{Price: 1338, Amount: 2, ID: 3}},
-		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
+		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
+		Asks:       Items{{Price: 1336, Amount: 2, ID: 4}},
+		UpdateTime: time.Now(),
 	}
 	err = d.UpdateInsertByID(updates)
 	if err != nil {
@@ -643,7 +735,10 @@ func TestHitTheBidsByNominalSlippage(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// First tranche
 	amt, err := depth.HitTheBidsByNominalSlippage(0, 1336)
@@ -765,7 +860,11 @@ func TestHitTheBidsByNominalSlippageFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// First price from mid point
 	amt, err := depth.HitTheBidsByNominalSlippageFromMid(0.03741114852226)
 	if !errors.Is(err, nil) {
@@ -802,7 +901,11 @@ func TestHitTheBidsByNominalSlippageFromBest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// First and second price from best bid
 	amt, err := depth.HitTheBidsByNominalSlippageFromBest(0.037425149700599)
 	if !errors.Is(err, nil) {
@@ -839,7 +942,10 @@ func TestLiftTheAsksByNominalSlippage(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// First and second price
 	amt, err := depth.LiftTheAsksByNominalSlippage(0.037397157816006, 1337)
@@ -876,7 +982,11 @@ func TestLiftTheAsksByNominalSlippageFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// First price from mid point
 	amt, err := depth.LiftTheAsksByNominalSlippageFromMid(0.074822297044519)
 	if !errors.Is(err, nil) {
@@ -913,7 +1023,11 @@ func TestLiftTheAsksByNominalSlippageFromBest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// First and second price from best bid
 	amt, err := depth.LiftTheAsksByNominalSlippageFromBest(0.037397157816006)
 	if !errors.Is(err, nil) {
@@ -944,7 +1058,10 @@ func TestHitTheBidsByImpactSlippage(t *testing.T) {
 	}
 
 	depth := NewDepth(id)
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// First and second price from best bid - price level target 1326 (which should be kept)
 	amt, err := depth.HitTheBidsByImpactSlippage(0.7485029940119761, 1336)
@@ -981,7 +1098,10 @@ func TestHitTheBidsByImpactSlippageFromMid(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// First and second price from mid - price level target 1326 (which should be kept)
 	amt, err := depth.HitTheBidsByImpactSlippageFromMid(0.7485029940119761)
@@ -1016,7 +1136,10 @@ func TestHitTheBidsByImpactSlippageFromBest(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// First and second price from mid - price level target 1326 (which should be kept)
 	amt, err := depth.HitTheBidsByImpactSlippageFromBest(0.7485029940119761)
@@ -1047,7 +1170,10 @@ func TestLiftTheAsksByImpactSlippage(t *testing.T) {
 	}
 
 	depth := NewDepth(id)
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// First and second price from best bid - price level target 1326 (which should be kept)
 	amt, err := depth.LiftTheAsksByImpactSlippage(0.7479431563201197, 1337)
@@ -1082,8 +1208,10 @@ func TestLiftTheAsksByImpactSlippageFromMid(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// First and second price from mid - price level target 1326 (which should be kept)
 	amt, err := depth.LiftTheAsksByImpactSlippageFromMid(0.7485029940119761)
 	if !errors.Is(err, nil) {
@@ -1117,8 +1245,10 @@ func TestLiftTheAsksByImpactSlippageFromBest(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// First and second price from mid - price level target 1326 (which should be kept)
 	amt, err := depth.LiftTheAsksByImpactSlippageFromBest(0.7479431563201197)
 	if !errors.Is(err, nil) {
@@ -1145,7 +1275,10 @@ func TestLiftTheAsksByImpactSlippageFromBest(t *testing.T) {
 func TestHitTheBids(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err := depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.HitTheBids(20.1, 1336, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1211,7 +1344,10 @@ func TestHitTheBids_QuotationRequired(t *testing.T) {
 	}
 
 	depth := NewDepth(id)
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.HitTheBids(26531, 1336, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1281,7 +1417,10 @@ func TestHitTheBidsFromMid(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.HitTheBidsFromMid(20.1, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1346,7 +1485,10 @@ func TestHitTheBidsFromMid_QuotationRequired(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.HitTheBidsFromMid(26531, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1411,7 +1553,10 @@ func TestHitTheBidsFromBest(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.HitTheBidsFromBest(20.1, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1480,7 +1625,10 @@ func TestHitTheBidsFromBest_QuotationRequired(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.HitTheBidsFromBest(26531, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1540,7 +1688,10 @@ func TestHitTheBidsFromBest_QuotationRequired(t *testing.T) {
 func TestLiftTheAsks(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err := depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.LiftTheAsks(26931, 1337, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1605,7 +1756,10 @@ func TestLiftTheAsks_BaseRequired(t *testing.T) {
 	}
 
 	depth := NewDepth(id)
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.LiftTheAsks(21, 1337, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1674,7 +1828,10 @@ func TestLiftTheAsksFromMid(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.LiftTheAsksFromMid(26931, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1743,7 +1900,10 @@ func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.LiftTheAsksFromMid(21, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1812,7 +1972,10 @@ func TestLiftTheAsksFromBest(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.LiftTheAsksFromBest(26931, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1881,7 +2044,10 @@ func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mov, err := depth.LiftTheAsksFromBest(21, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1949,7 +2115,10 @@ func TestGetMidPrice_Depth(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mid, err := depth.GetMidPrice()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1967,13 +2136,19 @@ func TestGetMidPriceNoLock_Depth(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, nil, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, nil, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = depth.getMidPriceNoLock()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mid, err := depth.getMidPriceNoLock()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2005,7 +2180,10 @@ func TestGetBestBidASk_Depth(t *testing.T) {
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mid, err := depth.GetBestBid()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2036,15 +2214,19 @@ func TestGetSpreadAmount(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = depth.GetSpreadAmount()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	spread, err := depth.GetSpreadAmount()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2069,15 +2251,19 @@ func TestGetSpreadPercentage(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = depth.GetSpreadPercentage()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	spread, err := depth.GetSpreadPercentage()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2102,15 +2288,19 @@ func TestGetImbalance_Depth(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(nil, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = depth.GetImbalance()
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
-
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	imbalance, err := depth.GetImbalance()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2148,7 +2338,10 @@ func TestGetTranches(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(bidT), 0)
 	}
 
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	askT, bidT, err = depth.GetTranches(0)
 	if !errors.Is(err, nil) {
