@@ -53,6 +53,7 @@ type iCommsManager interface {
 
 // iOrderManager defines a limited scoped order manager
 type iOrderManager interface {
+	IsRunning() bool
 	Exists(*order.Detail) bool
 	Add(*order.Detail) error
 	Cancel(context.Context, *order.Cancel) error
