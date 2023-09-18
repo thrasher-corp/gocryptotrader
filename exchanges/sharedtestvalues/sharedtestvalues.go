@@ -157,12 +157,7 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	b := e.GetBase()
 	seedBase := seed.GetBase()
 
-	seedBase.CurrencyPairs.Mutex.RLock()
-	b.CurrencyPairs.RequestFormat = seedBase.CurrencyPairs.RequestFormat
-	b.CurrencyPairs.ConfigFormat = seedBase.CurrencyPairs.ConfigFormat
-	b.CurrencyPairs.UseGlobalFormat = seedBase.CurrencyPairs.UseGlobalFormat
-	b.CurrencyPairs.Pairs = seedBase.CurrencyPairs.Pairs
-	seedBase.CurrencyPairs.Mutex.RUnlock()
+	assert.NoError(t, b.CurrencyPairs.Load(&seedBase.CurrencyPairs), "Loading currency pairs should not error")
 
 	b.Name = "fixture"
 	b.Websocket = &stream.Websocket{

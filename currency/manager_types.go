@@ -14,7 +14,7 @@ type PairsManager struct {
 	UseGlobalFormat            bool         `json:"useGlobalFormat,omitempty"`
 	LastUpdated                int64        `json:"lastUpdated,omitempty"`
 	Pairs                      FullStore    `json:"pairs"`
-	Mutex                      sync.RWMutex `json:"-"`
+	mutex                      sync.RWMutex `json:"-"`
 }
 
 // FullStore holds all supported asset types with the enabled and available

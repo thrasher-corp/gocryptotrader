@@ -33,8 +33,8 @@ var (
 
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
-	p.Mutex.RLock()
-	defer p.Mutex.RUnlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 	assetTypes := make(asset.Items, 0, len(p.Pairs))
 	for k, ps := range p.Pairs {
 		if enabled && (ps.AssetEnabled == nil || !*ps.AssetEnabled) {
@@ -51,8 +51,8 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	p.Mutex.RLock()
-	defer p.Mutex.RUnlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 	c, ok := p.Pairs[a]
 	if !ok {
 		return nil,
@@ -70,20 +70,20 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 	if err != nil {
 		return err
 	}
-	p.Mutex.Lock()
+	p.mutex.Lock()
 	if p.Pairs == nil {
 		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 	p.Pairs[a] = cpy
-	p.Mutex.Unlock()
+	p.mutex.Unlock()
 	return nil
 }
 
 // Delete deletes a map entry based on the supplied asset type
 func (p *PairsManager) Delete(a asset.Item) {
-	p.Mutex.Lock()
+	p.mutex.Lock()
 	delete(p.Pairs, a)
-	p.Mutex.Unlock()
+	p.mutex.Unlock()
 }
 
 // GetPairs gets a list of stored pairs based on the asset type and whether
@@ -93,8 +93,8 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	p.Mutex.RLock()
-	defer p.Mutex.RUnlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 	pairStore, ok := p.Pairs[a]
 	if !ok {
 		return nil, nil
@@ -134,8 +134,8 @@ func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) 
 
 	cpy := *pFmt
 
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	if p.Pairs == nil {
 		p.Pairs = make(map[asset.Item]*PairStore)
@@ -167,8 +167,8 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	cpy := make(Pairs, len(pairs))
 	copy(cpy, pairs)
 
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	if p.Pairs == nil {
 		p.Pairs = make(map[asset.Item]*PairStore)
@@ -197,8 +197,8 @@ func (p *PairsManager) EnsureOnePairEnabled() (Pair, asset.Item, error) {
 	if p == nil {
 		return EMPTYPAIR, asset.Empty, common.ErrNilPointer
 	}
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	for _, v := range p.Pairs {
 		if v.AssetEnabled == nil ||
 			!*v.AssetEnabled ||
@@ -235,8 +235,8 @@ func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 		return ErrCurrencyPairEmpty
 	}
 
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
@@ -262,8 +262,8 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 		return ErrCurrencyPairEmpty
 	}
 
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
@@ -292,8 +292,8 @@ func (p *PairsManager) IsAssetPairEnabled(a asset.Item, pair Pair) error {
 		return ErrCurrencyPairEmpty
 	}
 
-	p.Mutex.RLock()
-	defer p.Mutex.RUnlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
@@ -319,8 +319,8 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	p.Mutex.RLock()
-	defer p.Mutex.RUnlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
@@ -343,8 +343,8 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
@@ -363,6 +363,37 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	}
 
 	*pairStore.AssetEnabled = enabled
+	return nil
+}
+
+// Load sets the pair manager from a seed without copying mutexes
+func (p *PairsManager) Load(seed *PairsManager) error {
+	if seed == nil {
+		return fmt.Errorf("%w PairsManager", common.ErrNilPointer)
+	}
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	seed.mutex.RLock()
+	defer seed.mutex.RUnlock()
+
+	var pN PairsManager
+	j, err := json.Marshal(seed)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(j, &pN)
+	if err != nil {
+		return err
+	}
+	p.BypassConfigFormatUpgrades = pN.BypassConfigFormatUpgrades
+	if pN.UseGlobalFormat {
+		p.UseGlobalFormat = pN.UseGlobalFormat
+		p.RequestFormat = pN.RequestFormat
+		p.ConfigFormat = pN.ConfigFormat
+	}
+	p.LastUpdated = pN.LastUpdated
+	p.Pairs = pN.Pairs
+
 	return nil
 }
 
