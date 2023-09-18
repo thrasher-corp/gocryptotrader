@@ -167,13 +167,13 @@ func (g *Gateio) processTicker(incoming []byte, pushTime int64) error {
 	}
 	tickerPrice := ticker.Price{
 		ExchangeName: g.Name,
-		Volume:       data.BaseVolume,
-		QuoteVolume:  data.QuoteVolume,
-		High:         data.High24H,
-		Low:          data.Low24H,
-		Last:         data.Last,
-		Bid:          data.HighestBid,
-		Ask:          data.LowestAsk,
+		Volume:       data.BaseVolume.Float64(),
+		QuoteVolume:  data.QuoteVolume.Float64(),
+		High:         data.High24H.Float64(),
+		Low:          data.Low24H.Float64(),
+		Last:         data.Last.Float64(),
+		Bid:          data.HighestBid.Float64(),
+		Ask:          data.LowestAsk.Float64(),
 		AssetType:    asset.Spot,
 		Pair:         data.CurrencyPair,
 		LastUpdated:  time.Unix(pushTime, 0),
@@ -216,8 +216,8 @@ func (g *Gateio) processTrades(incoming []byte) error {
 		CurrencyPair: data.CurrencyPair,
 		AssetType:    asset.Spot,
 		Exchange:     g.Name,
-		Price:        data.Price,
-		Amount:       data.Amount,
+		Price:        data.Price.Float64(),
+		Amount:       data.Amount.Float64(),
 		Side:         side,
 		TID:          strconv.FormatInt(data.ID, 10),
 	}
@@ -254,11 +254,11 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 		Exchange:   g.Name,
 		StartTime:  time.Unix(data.Timestamp, 0),
 		Interval:   icp[0],
-		OpenPrice:  data.OpenPrice,
-		ClosePrice: data.ClosePrice,
-		HighPrice:  data.HighestPrice,
-		LowPrice:   data.LowestPrice,
-		Volume:     data.TotalVolume,
+		OpenPrice:  data.OpenPrice.Float64(),
+		ClosePrice: data.ClosePrice.Float64(),
+		HighPrice:  data.HighestPrice.Float64(),
+		LowPrice:   data.LowestPrice.Float64(),
+		Volume:     data.TotalVolume.Float64(),
 	}
 	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(currencyPair)
 	if assetPairEnabled[asset.Spot] {
@@ -289,8 +289,8 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 		Pair:        data.CurrencyPair,
 		Asset:       asset.Spot,
 		LastUpdated: time.UnixMilli(data.UpdateTimeMS),
-		Bids:        []orderbook.Item{{Price: data.BestBidPrice, Amount: data.BestBidAmount}},
-		Asks:        []orderbook.Item{{Price: data.BestAskPrice, Amount: data.BestAskAmount}},
+		Bids:        []orderbook.Item{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:        []orderbook.Item{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
@@ -464,16 +464,16 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			return err
 		}
 		details[x] = order.Detail{
-			Amount:         resp.Result[x].Amount,
+			Amount:         resp.Result[x].Amount.Float64(),
 			Exchange:       g.Name,
 			OrderID:        resp.Result[x].ID,
 			Side:           side,
 			Type:           orderType,
 			Pair:           resp.Result[x].CurrencyPair,
-			Cost:           resp.Result[x].Fee,
+			Cost:           resp.Result[x].Fee.Float64(),
 			AssetType:      a,
-			Price:          resp.Result[x].Price,
-			ExecutedAmount: resp.Result[x].Amount - resp.Result[x].Left.Float64(),
+			Price:          resp.Result[x].Price.Float64(),
+			ExecutedAmount: resp.Result[x].Amount.Float64() - resp.Result[x].Left.Float64(),
 			Date:           resp.Result[x].CreateTimeMs.Time(),
 			LastUpdated:    resp.Result[x].UpdateTimeMs.Time(),
 		}
@@ -510,8 +510,8 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      strconv.FormatInt(resp.Result[x].ID, 10),
-			Price:        resp.Result[x].Price,
-			Amount:       resp.Result[x].Amount,
+			Price:        resp.Result[x].Price.Float64(),
+			Amount:       resp.Result[x].Amount.Float64(),
 		}
 	}
 	return g.Websocket.Fills.Update(fills...)
@@ -535,7 +535,7 @@ func (g *Gateio) processSpotBalances(data []byte) error {
 			Exchange: g.Name,
 			Currency: code,
 			Asset:    asset.Spot,
-			Amount:   resp.Result[x].Available,
+			Amount:   resp.Result[x].Available.Float64(),
 		}
 	}
 	g.Websocket.DataHandler <- accountChanges
@@ -560,7 +560,7 @@ func (g *Gateio) processMarginBalances(data []byte) error {
 			Exchange: g.Name,
 			Currency: code,
 			Asset:    asset.Margin,
-			Amount:   resp.Result[x].Available,
+			Amount:   resp.Result[x].Available.Float64(),
 		}
 	}
 	g.Websocket.DataHandler <- accountChange
@@ -600,7 +600,7 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 			Exchange: g.Name,
 			Currency: code,
 			Asset:    asset.Margin,
-			Amount:   resp.Result[x].Available,
+			Amount:   resp.Result[x].Available.Float64(),
 			Account:  resp.Result[x].User,
 		}
 	}
