@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	// Book is a key type for websocket orderbook data processing
+	// Unset is an unset key type for data processing
 	Unset UpdateType = iota
+	// Book is a key type for websocket orderbook data processing
 	Book
 	defaultChannelBufferSize = 10
 )
