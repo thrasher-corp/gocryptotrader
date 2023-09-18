@@ -65,6 +65,9 @@ func (ku *Kucoin) SetDefaults() {
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 	}
+	// Futures assets use a currency pair with an empty string delimiter, which can cause issues since configuration formats cannot accommodate an empty delimiter.
+	// To circumvent this error, we have opted to use an underscore delimiter "_" instead.
+	// Note: Outgoing requests must still adhere to the currency pair format with an empty string "" as the delimiter.
 	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
