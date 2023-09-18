@@ -2142,8 +2142,9 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		base, err := depth.Retrieve()
 		if err != nil {
 			resp.Error = err.Error()
-			resp.LastUpdated = time.Now().Unix()
+			resp.LastUpdated = time.Now().UnixMicro()
 		} else {
+			resp.LastUpdated = base.LastUpdated.UnixMicro()
 			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
 			for i := range base.Bids {
 				resp.Bids[i] = &gctrpc.OrderbookItem{
@@ -2205,8 +2206,9 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		ob, err := d.Retrieve()
 		if err != nil {
 			resp.Error = err.Error()
-			resp.LastUpdated = time.Now().Unix()
+			resp.LastUpdated = time.Now().UnixMicro()
 		} else {
+			resp.LastUpdated = ob.LastUpdated.UnixMicro()
 			resp.Pair = &gctrpc.CurrencyPair{
 				Base:  ob.Pair.Base.String(),
 				Quote: ob.Pair.Quote.String(),
