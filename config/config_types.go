@@ -26,10 +26,7 @@ const (
 	fileEncryptionDisabled               = -1
 	pairsLastUpdatedWarningThreshold     = 30 // 30 days
 	defaultHTTPTimeout                   = time.Second * 15
-	defaultWebsocketResponseCheckTimeout = time.Millisecond * 30
-	defaultWebsocketResponseMaxLimit     = time.Second * 7
 	defaultWebsocketOrderbookBufferLimit = 5
-	defaultWebsocketTrafficTimeout       = time.Second * 30
 	DefaultConnectionMonitorDelay        = time.Second * 2
 	maxAuthFailures                      = 3
 	defaultNTPAllowedDifference          = 50000000
@@ -47,6 +44,15 @@ const (
 	DefaultSyncerTimeoutREST = time.Second * 15
 	// DefaultSyncerTimeoutWebsocket the default time to switch from websocket to REST protocols without a response
 	DefaultSyncerTimeoutWebsocket = time.Minute
+	// DefaultWebsocketResponseCheckTimeout is the default timeout for
+	// websocket responses.
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	// DefaultWebsocketResponseMaxLimit is the default maximum time for
+	// websocket responses.
+	DefaultWebsocketResponseMaxLimit = time.Second * 7
+	// DefaultWebsocketTrafficTimeout is the default timeout for websocket
+	// traffic.
+	DefaultWebsocketTrafficTimeout = time.Second * 30
 )
 
 // Constants here hold some messages

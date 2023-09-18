@@ -117,6 +117,7 @@ func (k *Kraken) WsConnect() error {
 					k.Name,
 					err)
 			} else {
+				k.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 				err = k.wsAuthPingHandler()

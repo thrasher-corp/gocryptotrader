@@ -3045,3 +3045,47 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
 	}
 }
+
+func TestGetStandardConfig(t *testing.T) {
+	t.Parallel()
+
+	var b *Base
+	_, err := b.GetStandardConfig()
+	if !errors.Is(err, errExchangeIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
+	}
+
+	b = &Base{}
+	_, err = b.GetStandardConfig()
+	if !errors.Is(err, errSetDefaultsNotCalled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSetDefaultsNotCalled)
+	}
+
+	b.Name = "test"
+	b.Features.Supports.Websocket = true
+
+	cfg, err := b.GetStandardConfig()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if cfg.Name != "test" {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.Name, "test")
+	}
+
+	if cfg.HTTPTimeout != DefaultHTTPTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.HTTPTimeout, DefaultHTTPTimeout)
+	}
+
+	if cfg.WebsocketResponseCheckTimeout != config.DefaultWebsocketResponseCheckTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketResponseCheckTimeout, config.DefaultWebsocketResponseCheckTimeout)
+	}
+
+	if cfg.WebsocketResponseMaxLimit != config.DefaultWebsocketResponseMaxLimit {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketResponseMaxLimit, config.DefaultWebsocketResponseMaxLimit)
+	}
+
+	if cfg.WebsocketTrafficTimeout != config.DefaultWebsocketTrafficTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketTrafficTimeout, config.DefaultWebsocketTrafficTimeout)
+	}
+}

@@ -3438,7 +3438,10 @@ func TestGetOrderbookMovement(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = s.GetOrderbookMovement(context.Background(), req)
 	if err.Error() != "quote amount invalid" {
@@ -3548,7 +3551,10 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	nominal, err := s.GetOrderbookAmountByNominal(context.Background(), req)
 	if !errors.Is(err, nil) {
@@ -3651,7 +3657,10 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req.ImpactPercentage = 9.090909090909092
 	impact, err := s.GetOrderbookAmountByImpact(context.Background(), req)

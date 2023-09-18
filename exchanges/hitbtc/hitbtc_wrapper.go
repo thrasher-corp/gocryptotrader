@@ -33,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (h *HitBTC) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = h.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = h.BaseCurrencies
+	exchCfg, err := h.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := h.SetupDefaults(exchCfg)
+	err = h.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -173,15 +173,14 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             hitbtcWebsocketAddress,
-		RunningURL:             wsRunningURL,
-		Connector:              h.WsConnect,
-		Subscriber:             h.Subscribe,
-		Unsubscriber:           h.Unsubscribe,
-		GenerateSubscriptions:  h.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &h.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            hitbtcWebsocketAddress,
+		RunningURL:            wsRunningURL,
+		Connector:             h.WsConnect,
+		Subscriber:            h.Subscribe,
+		Unsubscriber:          h.Unsubscribe,
+		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		Features:              &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,

@@ -34,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	k.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = k.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = k.BaseCurrencies
+	exchCfg, err := k.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := k.SetupDefaults(exchCfg)
+	err = k.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -220,16 +220,15 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             krakenWSURL,
-		RunningURL:             wsRunningURL,
-		Connector:              k.WsConnect,
-		Subscriber:             k.Subscribe,
-		Unsubscriber:           k.Unsubscribe,
-		GenerateSubscriptions:  k.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig:  buffer.Config{SortBuffer: true},
+		ExchangeConfig:        exch,
+		DefaultURL:            krakenWSURL,
+		RunningURL:            wsRunningURL,
+		Connector:             k.WsConnect,
+		Subscriber:            k.Subscribe,
+		Unsubscriber:          k.Unsubscribe,
+		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+		Features:              &k.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
