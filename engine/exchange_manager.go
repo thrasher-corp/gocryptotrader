@@ -198,8 +198,8 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(kraken.Kraken)
 	case "lbank":
 		exch = new(lbank.Lbank)
-	case "okcoin international":
-		exch = new(okcoin.OKCoin)
+	case "okcoin":
+		exch = new(okcoin.Okcoin)
 	case "okx":
 		exch = new(okx.Okx)
 	case "poloniex":

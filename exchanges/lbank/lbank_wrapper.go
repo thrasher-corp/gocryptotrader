@@ -30,12 +30,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (l *Lbank) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	l.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = l.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = l.BaseCurrencies
+	exchCfg, err := l.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := l.SetupDefaults(exchCfg)
+	err = l.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +496,7 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		return nil, err
 	}
 
-	if s.Side != order.Buy && s.Side != order.Sell {
+	if !s.Side.IsLong() && !s.Side.IsShort() {
 		return nil,
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.Side)

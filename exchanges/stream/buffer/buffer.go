@@ -60,7 +60,7 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 	w.updateEntriesByID = c.UpdateEntriesByID
 	w.exchangeName = exchangeConfig.Name
 	w.dataHandler = dataHandler
-	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	w.ob = make(map[Key]*orderbookHolder)
 	w.verbose = exchangeConfig.Verbose
 
 	// set default publish period if missing
@@ -91,9 +91,9 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	if err := w.validate(u); err != nil {
 		return err
 	}
-	w.m.Lock()
-	defer w.m.Unlock()
-	book, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+	book, ok := w.ob[Key{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
 	if !ok {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
 			errDepthNotFound,
@@ -245,7 +245,10 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u)
 	}
-	o.updateByPrice(u)
+	err := o.updateByPrice(u)
+	if err != nil {
+		return err
+	}
 	if w.checksum != nil {
 		compare, err := o.ob.Retrieve()
 		if err != nil {
@@ -262,8 +265,8 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 
 // updateByPrice amends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
-func (o *orderbookHolder) updateByPrice(updts *orderbook.Update) {
-	o.ob.UpdateBidAskByPrice(updts)
+func (o *orderbookHolder) updateByPrice(updts *orderbook.Update) error {
+	return o.ob.UpdateBidAskByPrice(updts)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
@@ -306,19 +309,9 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		return err
 	}
 
-	w.m.Lock()
-	defer w.m.Unlock()
-	m1, ok := w.ob[book.Pair.Base]
-	if !ok {
-		m1 = make(map[currency.Code]map[asset.Item]*orderbookHolder)
-		w.ob[book.Pair.Base] = m1
-	}
-	m2, ok := m1[book.Pair.Quote]
-	if !ok {
-		m2 = make(map[asset.Item]*orderbookHolder)
-		m1[book.Pair.Quote] = m2
-	}
-	holder, ok := m2[book.Asset]
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+	holder, ok := w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
 	if !ok {
 		// Associate orderbook pointer with local exchange depth map
 		var depth *orderbook.Depth
@@ -333,21 +326,20 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		if w.publishPeriod != 0 {
 			ticker = time.NewTicker(w.publishPeriod)
 		}
-		holder = &orderbookHolder{
-			ob:     depth,
-			buffer: &buffer,
-			ticker: ticker,
-		}
-		m2[book.Asset] = holder
+		holder = &orderbookHolder{ob: depth, buffer: &buffer, ticker: ticker}
+		w.ob[Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
 	}
 
 	holder.updateID = book.LastUpdateID
 
-	holder.ob.LoadSnapshot(book.Bids,
+	err = holder.ob.LoadSnapshot(book.Bids,
 		book.Asks,
 		book.LastUpdateID,
 		book.LastUpdated,
 		false)
+	if err != nil {
+		return err
+	}
 
 	if holder.ob.VerifyOrderbook {
 		// This is used here so as to not retrieve book if verification is off.
@@ -370,15 +362,11 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 // GetOrderbook returns an orderbook copy as orderbook.Base
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
-	w.m.Lock()
-	defer w.m.Unlock()
-	book, ok := w.ob[p.Base][p.Quote][a]
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+	book, ok := w.ob[Key{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w",
-			w.exchangeName,
-			p,
-			a,
-			errDepthNotFound)
+		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, errDepthNotFound)
 	}
 	return book.ob.Retrieve()
 }
@@ -386,16 +374,16 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
-	w.m.Lock()
-	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
-	w.m.Unlock()
+	w.mtx.Lock()
+	w.ob = make(map[Key]*orderbookHolder)
+	w.mtx.Unlock()
 }
 
 // FlushOrderbook flushes independent orderbook
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
-	w.m.Lock()
-	defer w.m.Unlock()
-	book, ok := w.ob[p.Base][p.Quote][a]
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+	book, ok := w.ob[Key{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
 		return fmt.Errorf("cannot flush orderbook %s %s %s %w",
 			w.exchangeName,

@@ -2989,6 +2989,50 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	}
 }
 
+func TestGetStandardConfig(t *testing.T) {
+	t.Parallel()
+
+	var b *Base
+	_, err := b.GetStandardConfig()
+	if !errors.Is(err, errExchangeIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
+	}
+
+	b = &Base{}
+	_, err = b.GetStandardConfig()
+	if !errors.Is(err, errSetDefaultsNotCalled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSetDefaultsNotCalled)
+	}
+
+	b.Name = "test"
+	b.Features.Supports.Websocket = true
+
+	cfg, err := b.GetStandardConfig()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if cfg.Name != "test" {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.Name, "test")
+	}
+
+	if cfg.HTTPTimeout != DefaultHTTPTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.HTTPTimeout, DefaultHTTPTimeout)
+	}
+
+	if cfg.WebsocketResponseCheckTimeout != config.DefaultWebsocketResponseCheckTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketResponseCheckTimeout, config.DefaultWebsocketResponseCheckTimeout)
+	}
+
+	if cfg.WebsocketResponseMaxLimit != config.DefaultWebsocketResponseMaxLimit {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketResponseMaxLimit, config.DefaultWebsocketResponseMaxLimit)
+	}
+
+	if cfg.WebsocketTrafficTimeout != config.DefaultWebsocketTrafficTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketTrafficTimeout, config.DefaultWebsocketTrafficTimeout)
+	}
+}
+
 func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	b := Base{Name: "test"}
 	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
@@ -3000,8 +3044,8 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	}
 
 	_, err = b.MatchSymbolWithAvailablePairs("sillBillies", asset.Futures, false)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairNotFound)
 	}
 
 	whatIGot, err := b.MatchSymbolWithAvailablePairs("btcusdT", asset.Spot, false)

@@ -32,11 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (b *Bitstamp) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
-	err := b.SetupDefaults(exchCfg)
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -171,15 +172,14 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             bitstampWSURL,
-		RunningURL:             wsURL,
-		Connector:              b.WsConnect,
-		Subscriber:             b.Subscribe,
-		Unsubscriber:           b.Unsubscribe,
-		GenerateSubscriptions:  b.generateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            bitstampWSURL,
+		RunningURL:            wsURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -612,7 +612,7 @@ func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		s.Side == order.Buy,
+		s.Side.IsLong(),
 		s.Type == order.Market)
 	if err != nil {
 		return nil, err

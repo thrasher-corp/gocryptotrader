@@ -37,6 +37,25 @@
    }
   }
  },
+  "syncManager": {
+    "enabled": true,
+    "synchronizeTicker": true,
+    "synchronizeOrderbook": true,
+    "synchronizeTrades": true,
+    "synchronizeContinuously": true,
+    "timeoutREST": 15000000000,
+    "timeoutWebsocket": 60000000000,
+    "numWorkers": 15,
+    "fiatDisplayCurrency": "USD",
+    "pairFormatDisplay": {
+      "uppercase": true,
+      "delimiter": "-"
+    },
+    "verbose": false,
+    "logSyncUpdateEvents": true,
+    "logSwitchProtocolEvents": true,
+    "logInitialSyncEvents": true
+  },
  "connectionMonitor": {
   "preferredDNSList": [
    "8.8.8.8",
@@ -2055,7 +2074,7 @@
    ]
   },
   {
-   "name": "OKCOIN International",
+   "name": "Okcoin",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
@@ -2075,8 +2094,7 @@
     },
     "useGlobalFormat": true,
     "assetTypes": [
-     "spot",
-     "margin"
+     "spot"
     ],
     "pairs": {
      "spot": {

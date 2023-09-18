@@ -1343,6 +1343,15 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("exchange name should have been updated from GDAX to CoinbasePRo")
 	}
 
+	cfg.Exchanges[0].Name = "OKCOIN International"
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+	if cfg.Exchanges[0].Name != "Okcoin" {
+		t.Error("exchange name should have been updated from 'OKCOIN International' to 'Okcoin'")
+	}
+
 	// Test API settings migration
 	sptr := func(s string) *string { return &s }
 	int64ptr := func(i int64) *int64 { return &i }
@@ -2288,5 +2297,48 @@ func TestExchangeConfigValidate(t *testing.T) {
 	err = (&Exchange{}).Validate()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetDefaultSyncManagerConfig(t *testing.T) {
+	t.Parallel()
+	cfg := GetDefaultSyncManagerConfig()
+	if cfg == (SyncManagerConfig{}) {
+		t.Error("expected config")
+	}
+	if cfg.TimeoutREST != DefaultSyncerTimeoutREST {
+		t.Errorf("expected %v, received %v", DefaultSyncerTimeoutREST, cfg.TimeoutREST)
+	}
+}
+
+func TestCheckSyncManagerConfig(t *testing.T) {
+	t.Parallel()
+	c := Config{}
+	if c.SyncManagerConfig != (SyncManagerConfig{}) {
+		t.Error("expected empty config")
+	}
+	c.CheckSyncManagerConfig()
+	if c.SyncManagerConfig.TimeoutREST != DefaultSyncerTimeoutREST {
+		t.Error("expected default config")
+	}
+	c.SyncManagerConfig.TimeoutWebsocket = -1
+	c.SyncManagerConfig.PairFormatDisplay = nil
+	c.SyncManagerConfig.TimeoutREST = -1
+	c.SyncManagerConfig.NumWorkers = -1
+	c.CurrencyPairFormat = &currency.PairFormat{
+		Uppercase: true,
+	}
+	c.CheckSyncManagerConfig()
+	if c.SyncManagerConfig.TimeoutWebsocket != DefaultSyncerTimeoutWebsocket {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.TimeoutWebsocket, DefaultSyncerTimeoutWebsocket)
+	}
+	if c.SyncManagerConfig.PairFormatDisplay == nil {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.PairFormatDisplay, c.CurrencyPairFormat)
+	}
+	if c.SyncManagerConfig.TimeoutREST != DefaultSyncerTimeoutREST {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.TimeoutREST, DefaultSyncerTimeoutREST)
+	}
+	if c.SyncManagerConfig.NumWorkers != DefaultSyncerWorkers {
+		t.Errorf("received %v expected %v", c.SyncManagerConfig.NumWorkers, DefaultSyncerWorkers)
 	}
 }

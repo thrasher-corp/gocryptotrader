@@ -344,8 +344,8 @@ func TestContainsAll(t *testing.T) {
 	}
 
 	err := pairs.ContainsAll(nil, true)
-	if !errors.Is(err, errPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
+	if !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
 	}
 
 	err = pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true)
@@ -394,8 +394,8 @@ func TestContainsAll(t *testing.T) {
 func TestDeriveFrom(t *testing.T) {
 	t.Parallel()
 	_, err := Pairs{}.DeriveFrom("")
-	if !errors.Is(err, errPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
+	if !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
 	}
 	var testCases = Pairs{
 		NewPair(BTC, USDT),
@@ -781,5 +781,38 @@ func TestValidateAndConform(t *testing.T) {
 
 	if formatted.Join() != expected {
 		t.Fatalf("received: '%v' but expected '%v'", formatted.Join(), expected)
+	}
+}
+
+func TestPairs_GetFormatting(t *testing.T) {
+	t.Parallel()
+	p := Pairs{NewPair(BTC, USDT)}
+	pFmt, err := p.GetFormatting()
+	if err != nil {
+		t.Error(err)
+	}
+	if !pFmt.Uppercase || pFmt.Delimiter != "" {
+		t.Error("incorrect formatting")
+	}
+
+	p = Pairs{NewPairWithDelimiter("eth", "usdt", "/")}
+	pFmt, err = p.GetFormatting()
+	if err != nil {
+		t.Error(err)
+	}
+	if pFmt.Uppercase || pFmt.Delimiter != "/" {
+		t.Error("incorrect formatting")
+	}
+
+	p = Pairs{NewPair(BTC, USDT), NewPairWithDelimiter("eth", "usdt", "/")}
+	_, err = p.GetFormatting()
+	if !errors.Is(err, errPairFormattingInconsistent) {
+		t.Error(err)
+	}
+
+	p = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}
+	_, err = p.GetFormatting()
+	if !errors.Is(err, errPairFormattingInconsistent) {
+		t.Error(err)
 	}
 }

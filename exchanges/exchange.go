@@ -52,6 +52,8 @@ var (
 	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
 	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
+	errSetDefaultsNotCalled              = errors.New("set defaults not called")
+	errExchangeIsNil                     = errors.New("exchange is nil")
 )
 
 // SetRequester sets the instance of the requester
@@ -1659,6 +1661,33 @@ func (b *Base) Shutdown() error {
 		}
 	}
 	return b.Requester.Shutdown()
+}
+
+// GetStandardConfig returns a standard default exchange config. Set defaults
+// must populate base struct with exchange specific defaults before calling
+// this function.
+func (b *Base) GetStandardConfig() (*config.Exchange, error) {
+	if b == nil {
+		return nil, errExchangeIsNil
+	}
+
+	if b.Name == "" {
+		return nil, errSetDefaultsNotCalled
+	}
+
+	exchCfg := new(config.Exchange)
+	exchCfg.Name = b.Name
+	exchCfg.Enabled = b.Enabled
+	exchCfg.HTTPTimeout = DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = b.BaseCurrencies
+
+	if b.SupportsWebsocket() {
+		exchCfg.WebsocketResponseCheckTimeout = config.DefaultWebsocketResponseCheckTimeout
+		exchCfg.WebsocketResponseMaxLimit = config.DefaultWebsocketResponseMaxLimit
+		exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
+	}
+
+	return exchCfg, nil
 }
 
 // MatchSymbolWithAvailablePairs returns a currency pair based on the supplied

@@ -31,12 +31,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (e *EXMO) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	e.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = e.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = e.BaseCurrencies
+	exchCfg, err := e.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := e.SetupDefaults(exchCfg)
+	err = e.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +531,7 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	case order.Limit:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	case order.Market:
-		if s.Side == order.Sell {
+		if s.Side.IsShort() {
 			orderType = "market_sell"
 		} else {
 			orderType = "market_buy"
