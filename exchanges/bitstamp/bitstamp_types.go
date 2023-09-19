@@ -1,7 +1,6 @@
 package bitstamp
 
 import (
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -224,10 +223,11 @@ type websocketTradeData struct {
 	ID             int64   `json:"id"`
 }
 
-type websocketAuthResponse struct {
-	Token     string      `json:"token"`
-	UserID    json.Number `json:"user_id"`
-	ValidSecs int64       `json:"valid_sec"`
+// WebsocketAuthResponse holds the auth token for subscribing to auth channels
+type WebsocketAuthResponse struct {
+	Token     string `json:"token"`
+	UserID    int64  `json:"user_id"`
+	ValidSecs int64  `json:"valid_sec"`
 }
 
 type websocketOrderBookResponse struct {

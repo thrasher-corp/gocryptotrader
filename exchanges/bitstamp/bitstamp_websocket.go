@@ -267,12 +267,12 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
-	var auth *websocketAuthResponse
+	var auth *WebsocketAuthResponse
 
 	for i := range channelsToSubscribe {
 		if _, ok := channelsToSubscribe[i].Params["auth"]; ok {
 			var err error
-			auth, err = b.fetchWSAuth(context.TODO())
+			auth, err = b.FetchWSAuth(context.TODO())
 			if err != nil {
 				errs = common.AppendError(errs, err)
 			}
@@ -288,7 +288,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 			},
 		}
 		if _, ok := channelsToSubscribe[i].Params["auth"]; ok && auth != nil {
-			req.Data.Channel = "private-" + req.Data.Channel + "-" + string(auth.UserID)
+			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
 			req.Data.Auth = auth.Token
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
@@ -412,10 +412,10 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 	return nil
 }
 
-// fetchWSAuth Retrieves a userID and auth-token from REST for subscribing to a websocket channel
+// FetchWSAuth Retrieves a userID and auth-token from REST for subscribing to a websocket channel
 // The token life-expectancy is only about 60s; use it immediately and do not store it
-func (b *Bitstamp) fetchWSAuth(ctx context.Context) (*websocketAuthResponse, error) {
-	resp := &websocketAuthResponse{}
+func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, error) {
+	resp := &WebsocketAuthResponse{}
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWSAuthToken, true, nil, resp)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching auth token: %w", err)

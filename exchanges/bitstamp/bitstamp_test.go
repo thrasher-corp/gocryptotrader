@@ -956,3 +956,14 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestFetchWSAuth(t *testing.T) {
+	t.Parallel()
+	resp, err := b.FetchWSAuth(context.TODO())
+	if assert.NoError(t, err, "FetchWSAuth should not error") {
+		assert.NotNil(t, resp, "resp should not be nil")
+		assert.Positive(t, resp.UserID, "UserID should be positive")
+		assert.Len(t, resp.Token, 32, "Token should be 32 chars")
+		assert.Positive(t, resp.ValidSecs, "ValidSecs should be positive")
+	}
+}
