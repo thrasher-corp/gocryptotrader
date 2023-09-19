@@ -136,29 +136,24 @@ func (b *Bitfinex) GetPlatformStatus(ctx context.Context) (int, error) {
 
 func baseMarginInfo(data []interface{}) (MarginInfoV2, error) {
 	var resp MarginInfoV2
-	tempData, ok := data[1].([]interface{})
+	marginInfo, ok := data[1].([]any)
 	if !ok {
-		return resp, fmt.Errorf("%w", errTypeAssert)
+		return resp, common.GetTypeAssertError("[]any", data[1], "marginInfo")
 	}
-	resp.UserPNL, ok = tempData[0].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for UserPNL", errTypeAssert)
+	if resp.UserPNL, ok = marginInfo[0].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[0], "UserPNL")
 	}
-	resp.UserSwaps, ok = tempData[1].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for UserSwaps", errTypeAssert)
+	if resp.UserSwaps, ok = marginInfo[1].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[1], "UserSwaps")
 	}
-	resp.MarginBalance, ok = tempData[2].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for MarginBalance", errTypeAssert)
+	if resp.MarginBalance, ok = marginInfo[2].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[2], "MarginBalance")
 	}
-	resp.MarginNet, ok = tempData[3].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for MarginNet", errTypeAssert)
+	if resp.MarginNet, ok = marginInfo[3].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[3], "MarginNet")
 	}
-	resp.MarginMin, ok = tempData[4].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for MarginMin", errTypeAssert)
+	if resp.MarginMin, ok = marginInfo[4].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[4], "MarginMin")
 	}
 	return resp, nil
 }
@@ -167,37 +162,32 @@ func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
 	resp := make([]MarginInfoV2, len(data))
 	for x := range data {
 		var tempResp MarginInfoV2
-		tempData, ok := data[x].([]interface{})
+		marginInfo, ok := data[x].([]any)
 		if !ok {
-			return nil, fmt.Errorf("%w for all sym", errTypeAssert)
+			return nil, common.GetTypeAssertError("[]any", data[x], "marginInfo")
 		}
 		var check bool
-		tempResp.Symbol, check = tempData[1].(string)
-		if !check {
-			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
+		if tempResp.Symbol, check = marginInfo[1].(string); !check {
+			return nil, common.GetTypeAssertError("string", marginInfo[1], "Symbol")
 		}
-		tempFloatData, check := tempData[2].([]interface{})
+		tempFloatData, check := marginInfo[2].([]any)
 		if !check {
-			return nil, fmt.Errorf("%w for symbol data", errTypeAssert)
+			return nil, common.GetTypeAssertError("[]any", marginInfo[2], "tempFloatData")
 		}
 		if len(tempFloatData) < 4 {
 			return nil, errors.New("invalid data received")
 		}
-		tempResp.TradableBalance, ok = tempFloatData[0].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for TradableBalance", errTypeAssert)
+		if tempResp.TradableBalance, ok = tempFloatData[0].(float64); !ok {
+			return nil, common.GetTypeAssertError("float64", tempFloatData[0], "TradableBalance")
 		}
-		tempResp.GrossBalance, ok = tempFloatData[1].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for GrossBalance", errTypeAssert)
+		if tempResp.GrossBalance, ok = tempFloatData[1].(float64); !ok {
+			return nil, common.GetTypeAssertError("float64", tempFloatData[1], "GlossBalance")
 		}
-		tempResp.BestAskAmount, ok = tempFloatData[2].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
+		if tempResp.BestAskAmount, ok = tempFloatData[2].(float64); !ok {
+			return nil, common.GetTypeAssertError("float64", tempFloatData[2], "BestAskAmount")
 		}
-		tempResp.BestBidAmount, ok = tempFloatData[3].(float64)
-		if !ok {
-			return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
+		if tempResp.BestBidAmount, ok = tempFloatData[3].(float64); !ok {
+			return nil, common.GetTypeAssertError("float64", tempFloatData[3], "BestBidAmount")
 		}
 		resp[x] = tempResp
 	}
@@ -207,32 +197,27 @@ func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
 func defaultMarginV2Info(data []interface{}) (MarginInfoV2, error) {
 	var resp MarginInfoV2
 	var ok bool
-	resp.Symbol, ok = data[1].(string)
-	if !ok {
-		return resp, fmt.Errorf("%w for symbol", errTypeAssert)
+	if resp.Symbol, ok = data[1].(string); !ok {
+		return resp, common.GetTypeAssertError("string", data[1], "Symbol")
 	}
-	tempData, check := data[2].([]interface{})
+	marginInfo, check := data[2].([]any)
 	if !check {
-		return resp, fmt.Errorf("%w for symbol data", errTypeAssert)
+		return resp, common.GetTypeAssertError("[]any", data[2], "marginInfo")
 	}
-	if len(tempData) < 4 {
+	if len(marginInfo) < 4 {
 		return resp, errors.New("invalid data received")
 	}
-	resp.TradableBalance, ok = tempData[0].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for TradableBalance", errTypeAssert)
+	if resp.TradableBalance, ok = marginInfo[0].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[0], "TradableBalance")
 	}
-	resp.GrossBalance, ok = tempData[1].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for GrossBalance", errTypeAssert)
+	if resp.GrossBalance, ok = marginInfo[1].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[1], "GrossBalance")
 	}
-	resp.BestAskAmount, ok = tempData[2].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for BestAskAmount", errTypeAssert)
+	if resp.BestAskAmount, ok = marginInfo[2].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[2], "BestAskAmount")
 	}
-	resp.BestBidAmount, ok = tempData[3].(float64)
-	if !ok {
-		return resp, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
+	if resp.BestBidAmount, ok = marginInfo[3].(float64); !ok {
+		return resp, common.GetTypeAssertError("float64", marginInfo[3], "BestBidAmount")
 	}
 	return resp, nil
 }
@@ -291,11 +276,11 @@ func (b *Bitfinex) GetV2MarginFunding(ctx context.Context, symbol, amount string
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, fmt.Errorf("%v - %v: %w for rate", b.Name, symbol, errTypeAssert)
+		return response, common.GetTypeAssertError("float64", resp[0], "avgRate")
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, fmt.Errorf("%v - %v: %w for amount", b.Name, symbol, errTypeAssert)
+		return response, common.GetTypeAssertError("float64", resp[1], "avgAmount")
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -320,15 +305,15 @@ func (b *Bitfinex) GetV2FundingInfo(ctx context.Context, key string) (MarginFund
 	}
 	sym, ok := resp[0].(string)
 	if !ok {
-		return response, fmt.Errorf("%v GetV2FundingInfo: %w for sym", b.Name, errTypeAssert)
+		return response, common.GetTypeAssertError("string", resp[0], "sym")
 	}
 	symbol, ok := resp[1].(string)
 	if !ok {
-		return response, fmt.Errorf("%v GetV2FundingInfo: %w for symbol", b.Name, errTypeAssert)
+		return response, common.GetTypeAssertError("string", resp[1], "symbol")
 	}
-	fundingData, ok := resp[2].([]interface{})
+	fundingData, ok := resp[2].([]any)
 	if !ok {
-		return response, fmt.Errorf("%v GetV2FundingInfo: %w for fundingData", b.Name, errTypeAssert)
+		return response, common.GetTypeAssertError("[]any", resp[2], "fundingData")
 	}
 	response.Sym = sym
 	response.Symbol = symbol
@@ -369,27 +354,27 @@ func (b *Bitfinex) GetAccountInfoV2(ctx context.Context) (AccountV2Data, error) 
 	var tempString string
 	var tempFloat float64
 	if tempFloat, ok = data[0].(float64); !ok {
-		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for id", b.Name, errTypeAssert)
+		return resp, common.GetTypeAssertError("float64", data[0], "ID")
 	}
 	resp.ID = int64(tempFloat)
 	if tempString, ok = data[1].(string); !ok {
-		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for email", b.Name, errTypeAssert)
+		return resp, common.GetTypeAssertError("string", data[1], "Email")
 	}
 	resp.Email = tempString
 	if tempString, ok = data[2].(string); !ok {
-		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for username", b.Name, errTypeAssert)
+		return resp, common.GetTypeAssertError("string", data[2], "Username")
 	}
 	resp.Username = tempString
 	if tempFloat, ok = data[3].(float64); !ok {
-		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for accountcreate", b.Name, errTypeAssert)
+		return resp, common.GetTypeAssertError("float64", data[3], "MTSAccountCreate")
 	}
 	resp.MTSAccountCreate = int64(tempFloat)
 	if tempFloat, ok = data[4].(float64); !ok {
-		return resp, fmt.Errorf("%v GetAccountInfoV2: %w failed for verified", b.Name, errTypeAssert)
+		return resp, common.GetTypeAssertError("float64", data[4], "Verified")
 	}
 	resp.Verified = int64(tempFloat)
 	if tempString, ok = data[7].(string); !ok {
-		return resp, fmt.Errorf("%v GetAccountInfoV2: %w for timezone", b.Name, errTypeAssert)
+		return resp, common.GetTypeAssertError("string", data[7], "Timezone")
 	}
 	resp.Timezone = tempString
 	return resp, nil
@@ -409,26 +394,26 @@ func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 	}
 	resp := make([]WalletDataV2, len(data))
 	for x := range data {
-		wType, ok := data[x][0].(string)
+		walletType, ok := data[x][0].(string)
 		if !ok {
-			return resp, fmt.Errorf("%v GetV2Balances: %w for walletType", b.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("string", data[x][0], "walletType")
 		}
-		curr, ok := data[x][1].(string)
+		currency, ok := data[x][1].(string)
 		if !ok {
-			return resp, fmt.Errorf("%v GetV2Balances: %w for currency", b.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("string", data[x][1], "currency")
 		}
-		bal, ok := data[x][2].(float64)
+		balance, ok := data[x][2].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%v GetV2Balances: %w for balance", b.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("float64", data[x][2], "balance")
 		}
 		unsettledInterest, ok := data[x][3].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%v GetV2Balances: %w for unsettledInterest", b.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("float64", data[x][3], "unsettledInterest")
 		}
 		resp[x] = WalletDataV2{
-			WalletType:        wType,
-			Currency:          curr,
-			Balance:           bal,
+			WalletType:        walletType,
+			Currency:          currency,
+			Balance:           balance,
 			UnsettledInterest: unsettledInterest,
 		}
 	}
@@ -596,34 +581,34 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 		var response DerivativeDataResponse
 		var ok bool
 		if response.Key, ok = result[z][0].(string); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for Key", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("string", result[z][0], "Key")
 		}
 		if response.MTS, ok = result[z][1].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for MTS", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][1], "MTS")
 		}
 		if response.DerivPrice, ok = result[z][3].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for DerivPrice", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][3], "DerivPrice")
 		}
 		if response.SpotPrice, ok = result[z][4].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for SpotPrice", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][4], "SpotPrice")
 		}
 		if response.InsuranceFundBalance, ok = result[z][6].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for Insurance fund balance", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][6], "InsuranceFundBalance")
 		}
 		if response.NextFundingEventTS, ok = result[z][8].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingEventTS", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][8], "NextFundingEventTS")
 		}
 		if response.NextFundingAccrued, ok = result[z][9].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingAccrued", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][9], "NextFundingAccrued")
 		}
 		if response.NextFundingStep, ok = result[z][10].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for NextFundingStep", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][10], "NextFundingStep")
 		}
 		if response.CurrentFunding, ok = result[z][12].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for CurrentFunding", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][12], "CurrentFunding")
 		}
 		if response.MarkPrice, ok = result[z][15].(float64); !ok {
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for MarkPrice", b.Name, errTypeAssert)
+			return finalResp, common.GetTypeAssertError("float64", result[z][15], "MarkPrice")
 		}
 
 		switch t := result[z][18].(type) {
@@ -632,11 +617,7 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 		case nil:
 			break // OpenInterest will default to 0
 		default:
-			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: %w for OpenInterest. Type received: %v",
-				b.Name,
-				errTypeAssert,
-				t,
-			)
+			return finalResp, common.GetTypeAssertError("type", result[z][18], "OpenInterest")
 		}
 		finalResp[z] = response
 	}
@@ -1448,8 +1429,8 @@ func (b *Bitfinex) GetKeyPermissions(ctx context.Context) (KeyPermissions, error
 }
 
 // GetMarginInfo shows your trading wallet information for margin trading
-func (b *Bitfinex) GetMarginInfo(ctx context.Context) ([]MarginInfo, error) {
-	var response []MarginInfo
+func (b *Bitfinex) GetMarginInfo(ctx context.Context) ([]MarginInfoV2, error) {
+	var response []MarginInfoV2
 	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexMarginInfo,
 		nil,
