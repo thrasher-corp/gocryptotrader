@@ -119,7 +119,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if w.features.Unsubscribe && s.Unsubscriber == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketUnsubscriberUnset)
 	}
-	w.connectionMonitorDelay = s.ConnectionMonitorDelay
+	w.connectionMonitorDelay = s.ExchangeConfig.ConnectionMonitorDelay
 	if w.connectionMonitorDelay <= 0 {
 		w.connectionMonitorDelay = config.DefaultConnectionMonitorDelay
 	}

@@ -32,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (h *HUOBI) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = h.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = h.BaseCurrencies
+	exchCfg, err := h.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := h.SetupDefaults(exchCfg)
+	err = h.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -209,15 +209,14 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             wsMarketURL,
-		RunningURL:             wsRunningURL,
-		Connector:              h.WsConnect,
-		Subscriber:             h.Subscribe,
-		Unsubscriber:           h.Unsubscribe,
-		GenerateSubscriptions:  h.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &h.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsMarketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             h.WsConnect,
+		Subscriber:            h.Subscribe,
+		Unsubscriber:          h.Unsubscribe,
+		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+		Features:              &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
