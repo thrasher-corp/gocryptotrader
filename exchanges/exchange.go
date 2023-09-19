@@ -1704,3 +1704,23 @@ func (b *Base) MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDel
 	}
 	return b.CurrencyPairs.Match(symbol, a)
 }
+
+// MatchSymbolCheckEnabled returns a currency pair based on the supplied symbol
+// and asset type against the available pairs list. If the string is expected to
+// have a delimiter this will attempt to screen it out. It will also check if
+// the pair is enabled.
+func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error) {
+	pair, err = b.MatchSymbolWithAvailablePairs(symbol, a, hasDelimiter)
+	if err != nil {
+		return pair, false, err
+	}
+
+	enabled, err = b.IsPairEnabled(pair, a)
+	return
+}
+
+// IsPairEnabled checks if a pair is enabled for an enabled asset type.
+// TODO: Optimisation map for enabled pair matching, instead of linear traversal.
+func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
+	return b.CurrencyPairs.IsPairEnabled(pair, a)
+}

@@ -415,10 +415,6 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	enabled, err := by.GetEnabledPairs(assetType)
-	if err != nil {
-		return err
-	}
 
 	switch assetType {
 	case asset.Spot:
@@ -428,7 +424,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 		}
 
 		for x := range ticks.List {
-			pair, err := by.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, false)
+			pair, enabled, err := by.MatchSymbolCheckEnabled(ticks.List[x].Symbol, assetType, false)
 			if err != nil {
 				// These symbols below do not have a spot market but are in fact
 				// perpetuals.
@@ -438,7 +434,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				return err
 			}
 
-			if !enabled.Contains(pair, true) {
+			if !enabled {
 				continue
 			}
 
@@ -459,6 +455,11 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+		enabled, err := by.GetEnabledPairs(assetType)
+		if err != nil {
+			return err
+		}
+
 		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
@@ -474,6 +475,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				if tick[y].Symbol != formattedPair.String() {
 					continue
 				}
+				// Don't need to check if this pair is enabled due to call above.
 				cp, err := by.MatchSymbolWithAvailablePairs(tick[y].Symbol, assetType, false)
 				if err != nil {
 					return err
@@ -495,6 +497,11 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.USDCMarginedFutures:
+		enabled, err := by.GetEnabledPairs(assetType)
+		if err != nil {
+			return err
+		}
+
 		for x := range enabled {
 			formattedPair, err := by.FormatExchangeCurrency(enabled[x], assetType)
 			if err != nil {
@@ -506,6 +513,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				return err
 			}
 
+			// Don't need to check if this pair is enabled due to call above.
 			cp, err := by.MatchSymbolWithAvailablePairs(tick.Symbol, assetType, false)
 			if err != nil {
 				return err
@@ -545,9 +553,12 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 		for y := range tick {
-			cp, err := by.MatchSymbolWithAvailablePairs(tick[y].Symbol, assetType, false)
+			cp, enabled, err := by.MatchSymbolCheckEnabled(tick[y].Symbol, assetType, false)
 			if err != nil {
 				return nil, err
+			}
+			if !enabled {
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice.Float64(),
@@ -566,7 +577,6 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				return nil, err
 			}
 		}
-
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		tick, err := by.GetFuturesSymbolPriceTicker(ctx, formattedPair)
 		if err != nil {
@@ -574,9 +584,12 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 		for y := range tick {
-			cp, err := by.MatchSymbolWithAvailablePairs(tick[y].Symbol, assetType, false)
+			cp, enabled, err := by.MatchSymbolCheckEnabled(tick[y].Symbol, assetType, false)
 			if err != nil {
 				return nil, err
+			}
+			if !enabled {
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice.Float64(),
@@ -600,9 +613,12 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 			return nil, err
 		}
 
-		cp, err := by.MatchSymbolWithAvailablePairs(tick.Symbol, assetType, false)
+		cp, enabled, err := by.MatchSymbolCheckEnabled(tick.Symbol, assetType, false)
 		if err != nil {
 			return nil, err
+		}
+		if !enabled {
+			return nil, fmt.Errorf("%v %v not enabled", formattedPair, assetType)
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         tick.LastPrice.Float64(),
@@ -2104,9 +2120,13 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		limits = make([]order.MinMaxLevel, 0, len(pairsData))
 		for x := range pairsData {
 			var pair currency.Pair
-			pair, err = by.MatchSymbolWithAvailablePairs(pairsData[x].Name, a, false)
+			var enabled bool
+			pair, enabled, err = by.MatchSymbolCheckEnabled(pairsData[x].Name, a, false)
 			if err != nil {
 				log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, pairsData[x].Name)
+				continue
+			}
+			if !enabled {
 				continue
 			}
 

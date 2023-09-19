@@ -215,6 +215,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 	if wsType, ok := multiStreamData["type"].(string); ok {
 		switch topics[0] {
 		case wsOrder25, wsOrder200:
+			var enabled bool
 			switch wsType {
 			case wsOperationSnapshot:
 				var response WsFuturesOrderbook
@@ -224,9 +225,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 				var p currency.Pair
-				p, err = by.MatchSymbolWithAvailablePairs(response.OBData[0].Symbol, asset.CoinMarginedFutures, false)
+				p, enabled, err = by.MatchSymbolCheckEnabled(response.OBData[0].Symbol, asset.CoinMarginedFutures, false)
 				if err != nil {
 					return err
+				}
+
+				if !enabled {
+					return nil
 				}
 
 				err = by.processOrderbook(response.OBData,
@@ -236,7 +241,6 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-
 			case wsOperationDelta:
 				var response WsCoinDeltaOrderbook
 				err = json.Unmarshal(respRaw, &response)
@@ -246,9 +250,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Delete) > 0 {
 					var p currency.Pair
-					p, err = by.MatchSymbolWithAvailablePairs(response.OBData.Delete[0].Symbol, asset.CoinMarginedFutures, false)
+					p, enabled, err = by.MatchSymbolCheckEnabled(response.OBData.Delete[0].Symbol, asset.CoinMarginedFutures, false)
 					if err != nil {
 						return err
+					}
+
+					if !enabled {
+						return nil
 					}
 
 					err = by.processOrderbook(response.OBData.Delete,
@@ -262,9 +270,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Update) > 0 {
 					var p currency.Pair
-					p, err = by.MatchSymbolWithAvailablePairs(response.OBData.Update[0].Symbol, asset.CoinMarginedFutures, false)
+					p, enabled, err = by.MatchSymbolCheckEnabled(response.OBData.Update[0].Symbol, asset.CoinMarginedFutures, false)
 					if err != nil {
 						return err
+					}
+
+					if !enabled {
+						return nil
 					}
 
 					err = by.processOrderbook(response.OBData.Update,
@@ -278,9 +290,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Insert) > 0 {
 					var p currency.Pair
-					p, err = by.MatchSymbolWithAvailablePairs(response.OBData.Insert[0].Symbol, asset.CoinMarginedFutures, false)
+					p, enabled, err = by.MatchSymbolCheckEnabled(response.OBData.Insert[0].Symbol, asset.CoinMarginedFutures, false)
 					if err != nil {
 						return err
+					}
+
+					if !enabled {
+						return nil
 					}
 
 					err = by.processOrderbook(response.OBData.Insert,

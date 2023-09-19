@@ -8,13 +8,13 @@ import (
 
 // PairsManager manages asset pairs
 type PairsManager struct {
-	BypassConfigFormatUpgrades bool          `json:"bypassConfigFormatUpgrades"`
-	RequestFormat              *PairFormat   `json:"requestFormat,omitempty"`
-	ConfigFormat               *PairFormat   `json:"configFormat,omitempty"`
-	UseGlobalFormat            bool          `json:"useGlobalFormat,omitempty"`
-	LastUpdated                int64         `json:"lastUpdated,omitempty"`
-	Pairs                      FullStore     `json:"pairs"`
-	matcher                    map[key]*Pair `json:"-"`
+	BypassConfigFormatUpgrades bool        `json:"bypassConfigFormatUpgrades"`
+	RequestFormat              *PairFormat `json:"requestFormat,omitempty"`
+	ConfigFormat               *PairFormat `json:"configFormat,omitempty"`
+	UseGlobalFormat            bool        `json:"useGlobalFormat,omitempty"`
+	LastUpdated                int64       `json:"lastUpdated,omitempty"`
+	Pairs                      FullStore   `json:"pairs"`
+	matcher                    map[key]*Pair
 	m                          sync.RWMutex
 }
 
