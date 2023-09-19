@@ -415,7 +415,6 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-
 	switch assetType {
 	case asset.Spot:
 		ticks, err := by.GetTickersV5(ctx, "spot", "", "")
