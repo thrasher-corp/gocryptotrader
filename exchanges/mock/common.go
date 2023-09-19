@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 )
+
+var errUnsupportedType = errors.New("unsupported type")
 
 // MatchURLVals matches url.Value query strings
 func MatchURLVals(v1, v2 url.Values) bool {
@@ -45,18 +45,26 @@ func DeriveURLValsFromJSONMap(payload []byte) ([]url.Values, error) {
 	if len(payload) == 0 {
 		return vals, nil
 	}
-	intermediary := make([]map[string]interface{}, 1, 5)
-	intermediary[0] = make(map[string]interface{})
-	err := json.Unmarshal(payload, &intermediary[0])
+	var marshaledResult interface{}
+	var intermediary []map[string]interface{}
+	err := json.Unmarshal(payload, &marshaledResult)
 	if err != nil {
-		if strings.EqualFold(err.Error(), "json: cannot unmarshal array into Go value of type map[string]interface {}") {
-			err = json.Unmarshal(payload, &intermediary)
-			if err != nil {
-				return nil, err
+		return vals, err
+	}
+	switch value := marshaledResult.(type) {
+	case []interface{}:
+		intermediary = make([]map[string]interface{}, len(value))
+		var okay bool
+		for i := range value {
+			intermediary[i], okay = value[i].(map[string]interface{})
+			if !okay {
+				return nil, errUnsupportedType
 			}
-		} else {
-			return vals, err
 		}
+	case map[string]interface{}:
+		intermediary = []map[string]interface{}{value}
+	default:
+		return nil, errUnsupportedType
 	}
 	for x := range intermediary {
 		valsItem := url.Values{}
@@ -71,7 +79,6 @@ func DeriveURLValsFromJSONMap(payload []byte) ([]url.Values, error) {
 			case map[string]interface{}, []interface{}, nil:
 				valsItem.Add(k, fmt.Sprintf("%v", val))
 			default:
-				log.Println(reflect.TypeOf(val))
 				return vals, errors.New("unhandled conversion type, please add as needed")
 			}
 		}

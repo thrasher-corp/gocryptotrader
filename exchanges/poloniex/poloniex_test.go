@@ -608,7 +608,7 @@ func TestGetOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.GetOrderbook(context.Background(), pair)
+	_, err = p.GetOrderbook(context.Background(), pair, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1202,7 +1202,7 @@ func TestCancelReplaceOrder(t *testing.T) {
 		t.Errorf("expected %v, got %v", errNilArgument, err)
 	}
 	_, err = p.CancelReplaceOrder(context.Background(), &CancelReplaceOrderParam{
-		ID:            "29772698821328896",
+		orderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
 		Price:         18000,
 	})
@@ -1330,7 +1330,7 @@ func TestCancelReplaceSmartOrder(t *testing.T) {
 		t.Errorf("expected %v, got %v", errNilArgument, err)
 	}
 	_, err = p.CancelReplaceSmartOrder(context.Background(), &CancelReplaceSmartOrderParam{
-		ID:            "29772698821328896",
+		orderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
 		Price:         18000,
 	})

@@ -31,6 +31,7 @@ const (
 	cnlExchange = "exchange"
 	cnlAuth     = "auth"
 
+	// Public channels
 	cnlSymbols    = "symbols"
 	cnlCurrencies = "currencies"
 	cnlCandles    = "candles"
@@ -80,7 +81,7 @@ func (p *Poloniex) WsConnect() error {
 		Delay:             30,
 	})
 	p.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	if true || p.Websocket.CanUseAuthenticatedEndpoints() {
+	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		err := p.wsAuthConn()
 		if err != nil {
 			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -479,7 +480,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	subscriptions := make([]stream.ChannelSubscription, 0, 6*len(enabledCurrencies))
 	for i := range channels {
 		switch channels[i] {
-		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2: // symbols
+		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
 			for x := range enabledCurrencies {
 				var params map[string]interface{}
 				if channels[i] == cnlBooks {
@@ -493,7 +494,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					Params:   params,
 				})
 			}
-		case cnlCurrencies: // currencies
+		case cnlCurrencies:
 			currencyMaps := make(map[currency.Code]struct{})
 			for x := range enabledCurrencies {
 				_, okay := currencyMaps[enabledCurrencies[x].Base]
@@ -513,7 +514,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					currencyMaps[enabledCurrencies[x].Quote] = struct{}{}
 				}
 			}
-		case cnlCandles: // interval, symbols
+		case cnlCandles:
 			for x := range enabledCurrencies {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  channels[i],
@@ -523,7 +524,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					},
 				})
 			}
-		case cnlOrders, cnlBalances, cnlExchange: // None
+		case cnlOrders, cnlBalances, cnlExchange:
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[i],
 			})

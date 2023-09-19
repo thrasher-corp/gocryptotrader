@@ -150,9 +150,8 @@ func (p *Poloniex) SetDefaults() {
 	}
 	p.API.Endpoints = p.NewEndpoints()
 	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              poloniexAltAPIUrl,
-		exchange.RestSpotSupplementary: poloniexAPIURL,
-		exchange.WebsocketSpot:         poloniexWebsocketAddress,
+		exchange.RestSpot:      poloniexAPIURL,
+		exchange.WebsocketSpot: poloniexWebsocketAddress,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -392,7 +391,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	orderbookNew, err := p.GetOrderbook(ctx, pair)
+	orderbookNew, err := p.GetOrderbook(ctx, pair, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -615,8 +614,6 @@ allTrades:
 	return resp, nil
 }
 
-// --------------------------------------------------------------------------------------------------------------------
-
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if s == nil {
@@ -631,6 +628,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 	var smartOrder bool
+	var response *PlaceOrderResponse
 	switch s.Type {
 	case order.Stop, order.StopLimit:
 		smartOrder = true
@@ -655,8 +653,6 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		return s.DeriveSubmitResponse(sOrder.ID)
 	}
-	var response *PlaceOrderResponse
-
 	if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		response, err = p.WsCreateOrder(&PlaceOrderParams{
 			Symbol:      fPair,
@@ -694,7 +690,7 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 
 	var orderID string
 	resp, err := p.CancelReplaceOrder(ctx, &CancelReplaceOrderParam{
-		ID:            action.OrderID,
+		orderID:       action.OrderID,
 		ClientOrderID: action.ClientOrderID,
 		Price:         action.Price,
 		Quantity:      action.Amount,
@@ -704,7 +700,7 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if strings.Contains(err.Error(), "Couldn't locate order") {
 			var smartOResponse *CancelReplaceSmartOrderResponse
 			smartOResponse, err = p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
-				ID:            action.OrderID,
+				orderID:       action.OrderID,
 				ClientOrderID: action.ClientOrderID,
 				Price:         action.Price,
 				StopPrice:     action.TriggerPrice,
@@ -864,7 +860,6 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 	}
 	var smartOrders []SmartOrderDetail
-	var smartOrder bool
 	resp, err := p.GetOrderDetail(ctx, orderID, "")
 	if err != nil {
 		smartOrders, err = p.GetSmartOrderDetail(ctx, orderID, "")
@@ -873,12 +868,11 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		} else if len(smartOrders) == 0 {
 			return nil, order.ErrOrderNotFound
 		}
-		smartOrder = true
 	}
 
 	var dPair currency.Pair
 	var oStatus order.Status
-	if smartOrder {
+	if len(smartOrders) > 0 {
 		dPair, err = currency.NewPairFromString(smartOrders[0].Symbol)
 		if err != nil {
 			return nil, err
@@ -939,7 +933,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		QuoteAmount:          resp.Amount.Float64(),
 		ExecutedAmount:       resp.FilledQuantity.Float64(),
 		RemainingAmount:      resp.Quantity.Float64() - resp.FilledAmount.Float64(),
-		Cost:                 resp.Quantity.Float64() * resp.AvgPrice.Float64(),
+		Cost:                 resp.FilledQuantity.Float64() * resp.AvgPrice.Float64(),
 		Exchange:             p.Name,
 		OrderID:              resp.ID,
 		ClientOrderID:        resp.ClientOrderID,

@@ -303,7 +303,6 @@ func MatchBatchAndGetResponse(mockData []HTTPResponse, requestVals []url.Values)
 		data := mockData[i].BodyParams
 		var mockVals = []url.Values{}
 		var err error
-
 		if json.Valid([]byte(data)) {
 			something := make([]map[string]interface{}, 0, len(requestVals))
 			err = json.Unmarshal([]byte(data), &something)

@@ -218,10 +218,8 @@ type CandlestickData struct {
 
 func processCandlestickData(candlestickData []CandlestickArrayData) ([]CandlestickData, error) {
 	candles := make([]CandlestickData, len(candlestickData))
-	var err error
-	var candle *CandlestickData
 	for i := range candlestickData {
-		candle, err = getCandlestickData(&candlestickData[i])
+		candle, err := getCandlestickData(&candlestickData[i])
 		if err != nil {
 			return nil, err
 		}
@@ -231,8 +229,8 @@ func processCandlestickData(candlestickData []CandlestickArrayData) ([]Candlesti
 }
 
 func getCandlestickData(candlestickData *CandlestickArrayData) (*CandlestickData, error) {
-	candle := &CandlestickData{}
 	var err error
+	candle := &CandlestickData{}
 	candle.Low, err = strconv.ParseFloat(candlestickData[0].(string), 64)
 	if err != nil {
 		return nil, err
@@ -348,8 +346,8 @@ type CollateralInfo struct {
 	MaintenanceMarginRate convert.StringToFloat64 `json:"maintenanceMarginRate"`
 }
 
-// BorrowRateinfo represents borrow rates information
-type BorrowRateinfo struct {
+// BorrowRateInfo represents borrow rates information
+type BorrowRateInfo struct {
 	Tier  string `json:"tier"`
 	Rates []struct {
 		Currency         string `json:"currency"`
@@ -630,7 +628,7 @@ type PlaceBatchOrderRespItem struct {
 
 // CancelReplaceOrderParam represents a cancellation and order replacement request parameter.
 type CancelReplaceOrderParam struct {
-	ID                string  `json:"-"`
+	orderID           string  // orderID: used in order path parameter.
 	ClientOrderID     string  `json:"clientOrderId"`
 	Price             float64 `json:"price,omitempty,string"`
 	Quantity          float64 `json:"quantity,omitempty,string"`
@@ -736,7 +734,7 @@ type SmartOrderRequestParam struct {
 
 // CancelReplaceSmartOrderParam represents a cancellation and order replacement request parameter for smart orders.
 type CancelReplaceSmartOrderParam struct {
-	ID               string  `json:"-"`
+	orderID          string  // orderID: will be used in request path.
 	ClientOrderID    string  `json:"clientOrderId"`
 	Price            float64 `json:"price,omitempty,string"`
 	StopPrice        float64 `json:"stopPrice,omitempty,string"`
@@ -909,9 +907,10 @@ type WsCurrency struct {
 }
 
 // WsExchangeStatus represents websocket exchange status.
+// the values for MM and POM are ON and OFF
 type WsExchangeStatus []struct {
-	Mm  string `json:"MM"`
-	Pom string `json:"POM"`
+	MaintenanceMode string `json:"MM"`
+	PostOnlyMode    string `json:"POM"`
 }
 
 // WsCandles represents a candlestick data instance.
