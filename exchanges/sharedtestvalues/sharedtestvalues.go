@@ -157,7 +157,8 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	b := e.GetBase()
 	seedBase := seed.GetBase()
 
-	assert.NoError(t, b.CurrencyPairs.Load(&seedBase.CurrencyPairs), "Loading currency pairs should not error")
+	err := b.CurrencyPairs.Load(&seedBase.CurrencyPairs)
+	assert.NoError(t, err, "Loading currency pairs should not error")
 
 	b.Name = "fixture"
 	b.Websocket = &stream.Websocket{
@@ -167,11 +168,10 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	b.API.Endpoints = b.NewEndpoints()
 
 	fixture, err := os.Open(fixturePath)
-	if err != nil {
-		t.Errorf("Error opening test fixture '%v': %v", fixturePath, err)
-		return
-	}
-	defer func() { assert.Nil(t, fixture.Close()) }()
+	assert.NoError(t, err, "Opening fixture '%s' should not error", fixturePath)
+	defer func() {
+		assert.NoError(t, fixture.Close(), "Closing the fixture file should not error")
+	}()
 
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
@@ -180,5 +180,5 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 			t.Errorf("%v from message: %s", err, msg)
 		}
 	}
-	assert.Nil(t, s.Err())
+	assert.NoError(t, s.Err(), "Fixture Scanner should not error")
 }
