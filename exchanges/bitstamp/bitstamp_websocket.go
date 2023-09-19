@@ -442,7 +442,7 @@ func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
 
 	parts := strings.Split(chanName, "_")
 	if len(parts) != 3 {
-		return fmt.Errorf("%v: channel name does not contain exactly 2 underscores: %v", errWSPairParsingError, r.Channel)
+		return fmt.Errorf("%w: channel name does not contain exactly 2 underscores: %v", errWSPairParsingError, r.Channel)
 	}
 
 	r.channelType = parts[0] + "_" + parts[1]
