@@ -289,6 +289,8 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 				// Crypto Chain
 				input = reflect.ValueOf(cryptoChainPerExchange[exchName])
 			}
+		case "MatchSymbolWithAvailablePairs", "MatchSymbolCheckEnabled":
+			input = reflect.ValueOf(argGenerator.AssetParams.Pair.Base.Lower().String() + argGenerator.AssetParams.Pair.Quote.Lower().String())
 		default:
 			// OrderID
 			input = reflect.ValueOf("1337")
@@ -547,7 +549,7 @@ var acceptableErrors = []error{
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
-	currency.ErrPairNotFound,             // Is thrown when a pair is not found in a pair matching function
+	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

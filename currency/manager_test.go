@@ -96,8 +96,8 @@ func TestPairsManagerMatch(t *testing.T) {
 	p := &PairsManager{}
 
 	_, err := p.Match("", 1337)
-	if !errors.Is(err, errSymbolStringEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolStringEmpty)
+	if !errors.Is(err, ErrSymbolStringEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolStringEmpty)
 	}
 
 	_, err = p.Match("sillyBilly", 1337)
