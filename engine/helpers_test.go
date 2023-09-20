@@ -9,10 +9,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1376,12 +1379,32 @@ func TestGetDefaultExchangeByName(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
 	}
 
-	exch, err := GetDefaultExchangeByName(context.Background(), "binance")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ch := make(chan error, len(exchange.Exchanges))
+	wg := sync.WaitGroup{}
+	for x := range exchange.Exchanges {
+		wg.Add(1)
+		go func(x int) {
+			defer wg.Done()
+			exch, err := GetDefaultExchangeByName(context.Background(), exchange.Exchanges[x])
+			if err != nil {
+				ch <- err
+				return
+			}
 
-	if exch.GetName() != "Binance" {
-		t.Fatalf("received: '%v' but expected: '%v'", exch.GetName(), "Binance")
+			if !strings.EqualFold(exch.GetName(), exchange.Exchanges[x]) {
+				ch <- fmt.Errorf("received: '%v' but expected: '%v'", exch.GetName(), exchange.Exchanges[x])
+			}
+		}(x)
+	}
+	wg.Wait()
+
+outta:
+	for {
+		select {
+		case err := <-ch:
+			t.Error(err)
+		default:
+			break outta
+		}
 	}
 }
