@@ -436,7 +436,6 @@ func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 func (b *Bitfinex) GetPairs(ctx context.Context, a asset.Item) ([]string, error) {
 	switch a {
 	case asset.Spot:
-		ctx = request.WithVerbose(ctx)
 		list, err := b.GetSiteListConfigData(ctx, bitfinexSpotPairs)
 		if err != nil {
 			return nil, err
