@@ -2951,19 +2951,26 @@ func TestGetFundingRates(t *testing.T) {
 	}
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3051,19 +3058,25 @@ func TestGetLatestFundingRate(t *testing.T) {
 	}
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
