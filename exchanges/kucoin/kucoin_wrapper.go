@@ -181,15 +181,14 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	}
 	err = ku.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:         exch,
-			DefaultURL:             kucoinWebsocketURL,
-			RunningURL:             wsRunningEndpoint,
-			Connector:              ku.WsConnect,
-			Subscriber:             ku.Subscribe,
-			Unsubscriber:           ku.Unsubscribe,
-			GenerateSubscriptions:  ku.GenerateDefaultSubscriptions,
-			Features:               &ku.Features.Supports.WebsocketCapabilities,
-			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+			ExchangeConfig:        exch,
+			DefaultURL:            kucoinWebsocketURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             ku.WsConnect,
+			Subscriber:            ku.Subscribe,
+			Unsubscriber:          ku.Unsubscribe,
+			GenerateSubscriptions: ku.GenerateDefaultSubscriptions,
+			Features:              &ku.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
