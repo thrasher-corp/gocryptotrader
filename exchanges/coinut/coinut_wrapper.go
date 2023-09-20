@@ -33,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (c *COINUT) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = c.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = c.BaseCurrencies
+	exchCfg, err := c.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := c.SetupDefaults(exchCfg)
+	err = c.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -153,15 +153,14 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             coinutWebsocketURL,
-		RunningURL:             wsRunningURL,
-		Connector:              c.WsConnect,
-		Subscriber:             c.Subscribe,
-		Unsubscriber:           c.Unsubscribe,
-		GenerateSubscriptions:  c.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &c.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            coinutWebsocketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,

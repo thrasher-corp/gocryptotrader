@@ -557,6 +557,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = c.Name
+	newOrderBook.LastUpdated = time.Now() // No time sent
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -582,9 +583,10 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	}
 
 	bufferUpdate := &orderbook.Update{
-		Pair:     p,
-		UpdateID: update.TransID,
-		Asset:    asset.Spot,
+		Pair:       p,
+		UpdateID:   update.TransID,
+		Asset:      asset.Spot,
+		UpdateTime: time.Now(), // No time sent
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
 		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}

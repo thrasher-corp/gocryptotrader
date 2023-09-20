@@ -408,8 +408,8 @@ func (g *Gateio) processOptionsContractTickers(incoming []byte) error {
 	g.Websocket.DataHandler <- &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
-		Bid:          data.Bid1Price,
-		Ask:          data.Ask1Price,
+		Bid:          data.Bid1Price.Float64(),
+		Ask:          data.Ask1Price.Float64(),
 		AskSize:      data.Ask1Size,
 		BidSize:      data.Bid1Size,
 		ExchangeName: g.Name,
@@ -526,11 +526,11 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 			Exchange:   g.Name,
 			StartTime:  time.Unix(resp.Result[x].Timestamp, 0),
 			Interval:   icp[0],
-			OpenPrice:  resp.Result[x].OpenPrice,
-			ClosePrice: resp.Result[x].ClosePrice,
-			HighPrice:  resp.Result[x].HighestPrice,
-			LowPrice:   resp.Result[x].LowestPrice,
-			Volume:     resp.Result[x].Amount,
+			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
+			ClosePrice: resp.Result[x].ClosePrice.Float64(),
+			HighPrice:  resp.Result[x].HighestPrice.Float64(),
+			LowPrice:   resp.Result[x].LowestPrice.Float64(),
+			Volume:     resp.Result[x].Amount.Float64(),
 		}
 	}
 	g.Websocket.DataHandler <- klineDatas
@@ -564,12 +564,12 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 		base.Asks = make([]orderbook.Item, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
-			base.Asks[x].Price = data.Asks[x].Price
+			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
 		base.Bids = make([]orderbook.Item, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
-			base.Bids[x].Price = data.Bids[x].Price
+			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
 		return g.Websocket.Orderbook.LoadSnapshot(&base)
 	}
@@ -586,11 +586,11 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 		}
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Item{
-				Price: data[x].Price, Amount: data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: data[x].Amount,
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Item{
-				Price: data[x].Price, Amount: -data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: -data[x].Amount,
 			})
 		}
 		if !ok {
@@ -682,7 +682,7 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
-			Price:        resp.Result[x].Price,
+			Price:        resp.Result[x].Price.Float64(),
 			Amount:       resp.Result[x].Size,
 		}
 	}

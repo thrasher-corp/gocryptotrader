@@ -500,6 +500,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		book.Pair = p
 		book.Exchange = b.Name
 		book.VerifyOrderbook = b.CanVerifyOrderbook
+		book.LastUpdated = data[0].Timestamp
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
@@ -528,11 +529,12 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		}
 
 		err = b.Websocket.Orderbook.Update(&orderbook.Update{
-			Bids:   bids,
-			Asks:   asks,
-			Pair:   p,
-			Asset:  a,
-			Action: updateAction,
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       p,
+			Asset:      a,
+			Action:     updateAction,
+			UpdateTime: data[0].Timestamp,
 		})
 		if err != nil {
 			return err

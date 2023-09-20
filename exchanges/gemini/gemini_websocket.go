@@ -560,6 +560,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		newOrderBook.Pair = pair
 		newOrderBook.Exchange = g.Name
 		newOrderBook.VerifyOrderbook = g.CanVerifyOrderbook
+		newOrderBook.LastUpdated = time.Now() // No time is sent
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err
@@ -569,10 +570,11 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 			return nil
 		}
 		err := g.Websocket.Orderbook.Update(&orderbook.Update{
-			Asks:  asks,
-			Bids:  bids,
-			Pair:  pair,
-			Asset: asset.Spot,
+			Asks:       asks,
+			Bids:       bids,
+			Pair:       pair,
+			Asset:      asset.Spot,
+			UpdateTime: time.Now(), // No time is sent
 		})
 		if err != nil {
 			return err

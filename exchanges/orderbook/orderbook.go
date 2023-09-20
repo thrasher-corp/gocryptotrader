@@ -77,8 +77,11 @@ func (s *Service) Update(b *Base) error {
 		book.AssignOptions(b)
 		m3[b.Pair.Quote.Item] = book
 	}
-	book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
+	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
 	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 	return s.Mux.Publish(book, m1.ID)
 }
 

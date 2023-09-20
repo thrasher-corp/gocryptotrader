@@ -845,6 +845,7 @@ func (bi *Binanceus) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Order
 		VerifyOrderbook: bi.CanVerifyOrderbook,
 		Bids:            make(orderbook.Items, len(orderbookNew.Bids)),
 		Asks:            make(orderbook.Items, len(orderbookNew.Asks)),
+		LastUpdated:     time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Item{

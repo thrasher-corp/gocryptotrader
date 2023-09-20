@@ -108,16 +108,15 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	ExchangeConfig         *config.Exchange
-	DefaultURL             string
-	RunningURL             string
-	RunningURLAuth         string
-	Connector              func(context.Context) error
-	Subscriber             func(context.Context, []ChannelSubscription) error
-	Unsubscriber           func(context.Context, []ChannelSubscription) error
-	GenerateSubscriptions  func() ([]ChannelSubscription, error)
-	Features               *protocol.Features
-	ConnectionMonitorDelay time.Duration
+	ExchangeConfig        *config.Exchange
+	DefaultURL            string
+	RunningURL            string
+	RunningURLAuth        string
+	Connector             func(context.Context) error
+	Subscriber            func(context.Context, []ChannelSubscription) error
+	Unsubscriber          func(context.Context, []ChannelSubscription) error
+	GenerateSubscriptions func() ([]ChannelSubscription, error)
+	Features              *protocol.Features
 
 	// Local orderbook buffer config values
 	OrderbookBufferConfig buffer.Config

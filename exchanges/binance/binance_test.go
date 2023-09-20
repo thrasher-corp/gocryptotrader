@@ -2123,7 +2123,7 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
 	if err := b.SeedLocalCacheWithBook(p, &book); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	if err := b.wsHandleData(update1); err != nil {

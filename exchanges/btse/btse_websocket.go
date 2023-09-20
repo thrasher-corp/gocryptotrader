@@ -143,7 +143,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			log.Infof(log.WebsocketMgr, "%v subscribed to %v", b.Name, strings.Join(subscribe.Channel, ", "))
+			if b.Verbose {
+				log.Infof(log.WebsocketMgr, "%v subscribed to %v", b.Name, strings.Join(subscribe.Channel, ", "))
+			}
 		case "login":
 			var login WsLoginAcknowledgement
 			err = json.Unmarshal(respRaw, &login)
@@ -151,7 +153,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			b.Websocket.SetCanUseAuthenticatedEndpoints(login.Success)
-			log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", b.Name, login.Success)
+			if b.Verbose {
+				log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", b.Name, login.Success)
+			}
 		default:
 			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
 		}
@@ -265,7 +269,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			})
 		}
 		return trade.AddTradesToBuffer(b.Name, trades...)
-	case strings.Contains(topic, "orderBookL2Api"):
+	case strings.Contains(topic, "orderBookL2Api"): // TODO: Fix orderbook updates.
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -328,6 +332,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		newOB.Exchange = b.Name
 		newOB.Asks.Reverse() // Reverse asks for correct alignment
 		newOB.VerifyOrderbook = b.CanVerifyOrderbook
+		newOB.LastUpdated = time.Now() // NOTE: Temp to fix test.
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err
