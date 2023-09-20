@@ -34,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (b *Bitfinex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := b.SetupDefaults(exchCfg)
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = true
 	b.Verbose = true
-	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+	b.WebsocketSubdChannels = make(map[int]*stream.ChannelSubscription)
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
@@ -85,6 +85,13 @@ func (b *Bitfinex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+
+	// Margin WS Currently not fully implemented and causes subscription collisions with spot
+	err = b.DisableAssetWebsocketSupport(asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	// TODO: Implement Futures and Securities asset types.
 
 	b.Features = exchange.Features{
@@ -207,15 +214,14 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             publicBitfinexWebsocketEndpoint,
-		RunningURL:             wsEndpoint,
-		Connector:              b.WsConnect,
-		Subscriber:             b.Subscribe,
-		Unsubscriber:           b.Unsubscribe,
-		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            publicBitfinexWebsocketEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
@@ -264,8 +270,18 @@ func (b *Bitfinex) Run(ctx context.Context) {
 		b.PrintEnabledPairs()
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates {
-		return
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				b.Name,
+				err)
+		}
+	}
+	for _, a := range b.GetAssetTypes(true) {
+		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
+			log.Errorln(log.ExchangeSys, err.Error())
+		}
 	}
 
 	err := b.UpdateTradablePairs(ctx, false)
@@ -320,6 +336,21 @@ func (b *Bitfinex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 		}
 	}
 	return b.EnsureOnePairEnabled()
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	limits, err := b.GetSiteInfoConfigData(ctx, a)
+	if err != nil {
+		return err
+	}
+	if err := b.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
+	}
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -636,8 +667,7 @@ allTrades:
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
-	err := o.Validate()
-	if err != nil {
+	if err := o.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -649,13 +679,25 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
-			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
-			Type:     o.Type.String(),
-			Symbol:   fPair.String(),
-			Amount:   o.Amount,
-			Price:    o.Price,
-		})
+		symbolStr, err := b.fixCasing(fPair, o.AssetType) //nolint:govet // intentional shadow of err
+		if err != nil {
+			return nil, err
+		}
+		orderType := strings.ToUpper(o.Type.String())
+		if o.AssetType == asset.Spot {
+			orderType = "EXCHANGE " + orderType
+		}
+		req := &WsNewOrderRequest{
+			Type:   orderType,
+			Symbol: symbolStr,
+			Amount: o.Amount,
+			Price:  o.Price,
+		}
+		if o.Side.IsShort() && o.Amount > 0 {
+			// All v2 apis use negatives for Short side
+			req.Amount *= -1
+		}
+		orderID, err = b.WsNewOrder(req)
 		if err != nil {
 			return nil, err
 		}
@@ -671,7 +713,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			orderType,
 			o.Amount,
 			o.Price,
-			o.Side == order.Buy,
+			o.Side.IsLong(),
 			false)
 		if err != nil {
 			return nil, err
@@ -708,7 +750,7 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Price:   action.Price,
 			Amount:  action.Amount,
 		}
-		if action.Side == order.Sell && action.Amount > 0 {
+		if action.Side.IsShort() && action.Amount > 0 {
 			wsRequest.Amount *= -1
 		}
 		err = b.WsModifyOrder(&wsRequest)

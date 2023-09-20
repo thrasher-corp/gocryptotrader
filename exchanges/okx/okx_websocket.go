@@ -900,7 +900,8 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pa
 // orderbook
 func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	update := orderbook.Update{
-		Pair: pair,
+		Pair:       pair,
+		UpdateTime: data.Timestamp.Time(),
 	}
 	var err error
 	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)

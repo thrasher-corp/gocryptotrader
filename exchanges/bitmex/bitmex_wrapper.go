@@ -34,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (b *Bitmex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := b.SetupDefaults(exchCfg)
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -183,15 +183,14 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             bitmexWSURL,
-		RunningURL:             wsEndpoint,
-		Connector:              b.WsConnect,
-		Subscriber:             b.Subscribe,
-		Unsubscriber:           b.Unsubscribe,
-		GenerateSubscriptions:  b.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            bitmexWSURL,
+		RunningURL:            wsEndpoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
 		},
@@ -728,7 +727,7 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 
-	if math.Mod(s.Amount, 1) != 0 {
+	if math.Trunc(s.Amount) != s.Amount {
 		return nil,
 			errors.New("order contract amount can not have decimals")
 	}
@@ -763,7 +762,7 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		return nil, err
 	}
 
-	if math.Mod(action.Amount, 1) != 0 {
+	if math.Trunc(action.Amount) != action.Amount {
 		return nil, errors.New("contract amount can not have decimals")
 	}
 

@@ -343,8 +343,9 @@ type WsOrderbook struct {
 			Price float64 `json:"price,string"`
 			Size  float64 `json:"size,string"`
 		} `json:"bid"`
-		Symbol   string `json:"symbol"`
-		Sequence int64  `json:"sequence"`
+		Symbol    string    `json:"symbol"`
+		Sequence  int64     `json:"sequence"`
+		Timestamp time.Time `json:"timestamp"`
 	} `json:"params"`
 }
 

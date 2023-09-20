@@ -3796,11 +3796,11 @@ func (g *Gateio) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (f
 			return 0, err
 		}
 		if feeBuilder.IsMaker {
-			fee = calculateTradingFee(feePairs.MakerFee,
+			fee = calculateTradingFee(feePairs.MakerFee.Float64(),
 				feeBuilder.PurchasePrice,
 				feeBuilder.Amount)
 		} else {
-			fee = calculateTradingFee(feePairs.TakerFee,
+			fee = calculateTradingFee(feePairs.TakerFee.Float64(),
 				feeBuilder.PurchasePrice,
 				feeBuilder.Amount)
 		}

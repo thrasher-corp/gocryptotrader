@@ -34,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	k.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = k.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = k.BaseCurrencies
+	exchCfg, err := k.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := k.SetupDefaults(exchCfg)
+	err = k.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -220,16 +220,15 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             krakenWSURL,
-		RunningURL:             wsRunningURL,
-		Connector:              k.WsConnect,
-		Subscriber:             k.Subscribe,
-		Unsubscriber:           k.Unsubscribe,
-		GenerateSubscriptions:  k.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig:  buffer.Config{SortBuffer: true},
+		ExchangeConfig:        exch,
+		DefaultURL:            krakenWSURL,
+		RunningURL:            wsRunningURL,
+		Connector:             k.WsConnect,
+		Subscriber:            k.Subscribe,
+		Unsubscriber:          k.Unsubscribe,
+		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+		Features:              &k.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
@@ -824,11 +823,10 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			timeInForce = RequestParamsTimeIOC
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
-				Pair:        s.Pair.String(),
+				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
 				Price:       s.Price,
 				Volume:      s.Amount,
 				TimeInForce: timeInForce,
@@ -916,7 +914,10 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, o.AssetType)
 	}
+
 	return nil
 }
 
@@ -1069,6 +1070,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			Fee:             orderInfo.Fee,
 			Trades:          trades,
 			Cost:            orderInfo.Cost,
+			AssetType:       asset.Spot,
 		}
 	case asset.Futures:
 		orderInfo, err := k.FuturesGetFills(ctx, time.Time{})
@@ -1096,14 +1098,15 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 				return nil, err
 			}
 			orderDetail = order.Detail{
-				OrderID:  orderID,
-				Price:    orderInfo.Fills[y].Price,
-				Amount:   orderInfo.Fills[y].Size,
-				Side:     oSide,
-				Type:     fillOrderType,
-				Date:     timeVar,
-				Pair:     pair,
-				Exchange: k.Name,
+				OrderID:   orderID,
+				Price:     orderInfo.Fills[y].Price,
+				Amount:    orderInfo.Fills[y].Size,
+				Side:      oSide,
+				Type:      fillOrderType,
+				Date:      timeVar,
+				Pair:      pair,
+				Exchange:  k.Name,
+				AssetType: asset.Futures,
 			}
 		}
 	default:
@@ -1264,6 +1267,8 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Side:            side,
 				Type:            orderType,
 				Pair:            p,
+				AssetType:       asset.Spot,
+				Status:          order.Open,
 			})
 		}
 	case asset.Futures:
@@ -1303,14 +1308,16 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					return orders, err
 				}
 				orders = append(orders, order.Detail{
-					OrderID:  activeOrders.OpenOrders[a].OrderID,
-					Price:    activeOrders.OpenOrders[a].LimitPrice,
-					Amount:   activeOrders.OpenOrders[a].FilledSize,
-					Side:     oSide,
-					Type:     oType,
-					Date:     timeVar,
-					Pair:     fPair,
-					Exchange: k.Name,
+					OrderID:   activeOrders.OpenOrders[a].OrderID,
+					Price:     activeOrders.OpenOrders[a].LimitPrice,
+					Amount:    activeOrders.OpenOrders[a].FilledSize,
+					Side:      oSide,
+					Type:      oType,
+					Date:      timeVar,
+					Pair:      fPair,
+					Exchange:  k.Name,
+					AssetType: asset.Futures,
+					Status:    order.Open,
 				})
 			}
 		}

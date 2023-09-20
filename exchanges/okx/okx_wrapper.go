@@ -39,12 +39,12 @@ const (
 // GetDefaultConfig returns a default exchange config
 func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	ok.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = ok.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = ok.BaseCurrencies
+	exchCfg, err := ok.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := ok.SetupDefaults(exchCfg)
+	err = ok.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -205,15 +205,14 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             okxAPIWebsocketPublicURL,
-		RunningURL:             wsRunningEndpoint,
-		Connector:              ok.WsConnect,
-		Subscriber:             ok.Subscribe,
-		Unsubscriber:           ok.Unsubscribe,
-		GenerateSubscriptions:  ok.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            okxAPIWebsocketPublicURL,
+		RunningURL:            wsRunningEndpoint,
+		Connector:             ok.WsConnect,
+		Subscriber:            ok.Subscribe,
+		Unsubscriber:          ok.Unsubscribe,
+		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
+		Features:              &ok.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
@@ -854,7 +853,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, err
 	}
 	var err error
-	if math.Mod(action.Amount, 1) != 0 {
+	if math.Trunc(action.Amount) != action.Amount {
 		return nil, errors.New("okx contract amount can not be decimal")
 	}
 	format, err := ok.GetPairFormat(action.AssetType, false)

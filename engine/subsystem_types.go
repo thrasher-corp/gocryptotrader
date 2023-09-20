@@ -53,6 +53,7 @@ type iCommsManager interface {
 
 // iOrderManager defines a limited scoped order manager
 type iOrderManager interface {
+	IsRunning() bool
 	Exists(*order.Detail) bool
 	Add(*order.Detail) error
 	Cancel(context.Context, *order.Cancel) error
@@ -77,7 +78,7 @@ type iCurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Base, string, error)
-	Update(string, currency.Pair, asset.Item, syncItemType, error) error
+	WebsocketUpdate(string, currency.Pair, asset.Item, syncItemType, error) error
 }
 
 // iDatabaseConnectionManager defines a limited scoped databaseConnectionManager

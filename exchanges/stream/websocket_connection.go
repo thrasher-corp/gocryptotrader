@@ -216,7 +216,7 @@ func (w *WebsocketConnection) IsConnected() bool {
 func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		if isDisconnectionError(err) {
+		if IsDisconnectionError(err) {
 			if w.setConnectedStatus(false) {
 				// NOTE: When w.setConnectedStatus() returns true the underlying
 				// state was changed and this infers that the connection was

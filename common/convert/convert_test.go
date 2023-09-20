@@ -353,6 +353,24 @@ func TestStringToFloat64(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
+
+	data, err := json.Marshal(StringToFloat64(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != `""` {
+		t.Fatalf("expected empty string, got %v", string(data))
+	}
+
+	data, err = json.Marshal(StringToFloat64(1337.1337))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != `"1337.1337"` {
+		t.Fatalf("expected \"1337.1337\" string, got %v", string(data))
+	}
 }
 
 func TestStringToFloat64Decimal(t *testing.T) {
