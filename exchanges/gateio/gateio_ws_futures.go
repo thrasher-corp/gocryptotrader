@@ -425,11 +425,11 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 	for x := range resp.Result {
 		tickerPriceDatas[x] = ticker.Price{
 			ExchangeName: g.Name,
-			Volume:       resp.Result[x].Volume24HBase,
-			QuoteVolume:  resp.Result[x].Volume24HQuote,
-			High:         resp.Result[x].High24H,
-			Low:          resp.Result[x].Low24H,
-			Last:         resp.Result[x].Last,
+			Volume:       resp.Result[x].Volume24HBase.Float64(),
+			QuoteVolume:  resp.Result[x].Volume24HQuote.Float64(),
+			High:         resp.Result[x].High24H.Float64(),
+			Low:          resp.Result[x].Low24H.Float64(),
+			Last:         resp.Result[x].Last.Float64(),
 			AssetType:    assetType,
 			Pair:         resp.Result[x].Contract,
 			LastUpdated:  time.Unix(resp.Time, 0),
@@ -463,7 +463,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    assetType,
 			Exchange:     g.Name,
-			Price:        resp.Result[x].Price,
+			Price:        resp.Result[x].Price.Float64(),
 			Amount:       resp.Result[x].Size,
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
@@ -498,10 +498,10 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 			Exchange:   g.Name,
 			StartTime:  resp.Result[x].Timestamp.Time(),
 			Interval:   icp[0],
-			OpenPrice:  resp.Result[x].OpenPrice,
-			ClosePrice: resp.Result[x].ClosePrice,
-			HighPrice:  resp.Result[x].HighestPrice,
-			LowPrice:   resp.Result[x].LowestPrice,
+			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
+			ClosePrice: resp.Result[x].ClosePrice.Float64(),
+			HighPrice:  resp.Result[x].HighestPrice.Float64(),
+			LowPrice:   resp.Result[x].LowestPrice.Float64(),
 			Volume:     resp.Result[x].Volume,
 		}
 	}
@@ -552,12 +552,12 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 	updates.Asks = make([]orderbook.Item, len(data.Asks))
 	for x := range data.Asks {
 		updates.Asks[x].Amount = data.Asks[x].Size
-		updates.Asks[x].Price = data.Asks[x].Price
+		updates.Asks[x].Price = data.Asks[x].Price.Float64()
 	}
 	updates.Bids = make([]orderbook.Item, len(data.Bids))
 	for x := range data.Bids {
 		updates.Bids[x].Amount = data.Bids[x].Size
-		updates.Bids[x].Price = data.Bids[x].Price
+		updates.Bids[x].Price = data.Bids[x].Price.Float64()
 	}
 	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
 		return errors.New("malformed orderbook data")
@@ -582,12 +582,12 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 		base.Asks = make([]orderbook.Item, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
-			base.Asks[x].Price = data.Asks[x].Price
+			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
 		base.Bids = make([]orderbook.Item, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
-			base.Bids[x].Price = data.Bids[x].Price
+			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
 		return g.Websocket.Orderbook.LoadSnapshot(&base)
 	}
@@ -604,12 +604,12 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 		}
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Item{
-				Price:  data[x].Price,
+				Price:  data[x].Price.Float64(),
 				Amount: data[x].Amount,
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Item{
-				Price:  data[x].Price,
+				Price:  data[x].Price.Float64(),
 				Amount: -data[x].Amount,
 			})
 		}
@@ -705,7 +705,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
-			Price:        resp.Result[x].Price,
+			Price:        resp.Result[x].Price.Float64(),
 			Amount:       resp.Result[x].Size,
 			AssetType:    assetType,
 		}
