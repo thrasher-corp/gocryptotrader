@@ -538,7 +538,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 	assert.Nil(t, ws.GetSubscription(nil), "GetSubscription by nil should return nil")
 	assert.Nil(t, ws.GetSubscription(45), "GetSubscription by invalid key should return nil")
-	assert.ErrorIs(t, ws.SubscribeToChannels(subs), errChannelAlreadySubscribed, "Subscribe should error when already subscribed")
+	assert.ErrorIs(t, ws.SubscribeToChannels(subs), ErrSubscribedAlready, "Subscribe should error when already subscribed")
 	assert.ErrorIs(t, ws.SubscribeToChannels(nil), errNoSubscriptionsSupplied, "Subscribe to nil should error")
 	assert.NoError(t, ws.UnsubscribeChannels(subs), "Unsubscribing should not error")
 }
@@ -1475,8 +1475,8 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	ws.subscriptions = subscriptionMap{42: {Key: 42, Channel: "test"}}
 	err = ws.checkSubscriptions([]ChannelSubscription{{Key: 42, Channel: "test"}})
-	if !errors.Is(err, errChannelAlreadySubscribed) {
-		t.Fatalf("received: %v, but expected: %v", err, errChannelAlreadySubscribed)
+	if !errors.Is(err, ErrSubscribedAlready) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrSubscribedAlready)
 	}
 
 	err = ws.checkSubscriptions([]ChannelSubscription{{}})

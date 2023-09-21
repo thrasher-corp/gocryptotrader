@@ -35,12 +35,14 @@ var k = &Kraken{}
 var wsSetupRan, wsAuthSetupRan bool
 var comms = make(chan stream.Response)
 
-// Please add your own APIkeys to do correct due diligence testing.
+// Please add your own APIkeys here or in config/testdata.json to do correct due diligence testing
 const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
 )
+
+var btcusdPair = currency.NewPairWithDelimiter("XBT", "USD", "/")
 
 // TestSetup setup func
 func TestMain(m *testing.M) {
@@ -54,9 +56,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	krakenConfig.API.AuthenticatedSupport = true
-	krakenConfig.API.Credentials.Key = apiKey
-	krakenConfig.API.Credentials.Secret = apiSecret
+	if apiKey != "" {
+		krakenConfig.API.Credentials.Key = apiKey
+	}
+	if apiSecret != "" {
+		krakenConfig.API.Credentials.Secret = apiSecret
+	}
 	k.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {
@@ -1209,19 +1214,19 @@ func TestWithdrawCancel(t *testing.T) {
 
 // setupWsAuthTest will connect both websockets
 // and should be called directly from a auth ws test
-func setupWsAuthTest(t *testing.T) {
-	t.Helper()
-	setupWsTest(t)
-	setupAuthWs(t)
+func setupWsAuthTest(tb testing.TB) {
+	tb.Helper()
+	setupWsTest(tb)
+	setupAuthWs(tb)
 }
 
 // setupWsTest will just connect the non-authenticated websocket
 // and should be called directly from a non-auth ws test
-func setupWsTest(t *testing.T) {
-	t.Helper()
+func setupWsTest(tb testing.TB) {
+	tb.Helper()
 
 	if !k.Websocket.IsEnabled() {
-		t.Skip("Websocket not enabled")
+		tb.Skip("Websocket not enabled")
 	}
 
 	if wsSetupRan {
@@ -1231,26 +1236,23 @@ func setupWsTest(t *testing.T) {
 
 	var dialer websocket.Dialer
 	if err := k.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
-		t.Fatalf("Dialing the websocket should not error: %s", err)
+		tb.Fatalf("Dialing the websocket should not error: %s", err)
 	}
 
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
-
 	go k.wsReadData(comms)
-	go func() {
-		err := k.wsPingHandler()
-		assert.NoError(t, err, "wsPingHandler should not error")
-	}()
+	go k.wsPingHandler(k.Websocket.Conn)
 }
 
 // setupAuthWs will just connect the authenticated websocket and should not be called directly
-func setupAuthWs(t *testing.T) {
+func setupAuthWs(tb testing.TB) {
+	tb.Helper()
 	if !k.API.AuthenticatedWebsocketSupport {
-		t.Skip("Authenticated Websocket not Supported")
+		tb.Skip("Authenticated Websocket not Supported")
 	}
 
 	if !sharedtestvalues.AreAPICredentialsSet(k) {
-		t.Skip("Authenticated Websocket credentials not set")
+		tb.Skip("Authenticated Websocket credentials not set")
 	}
 
 	if wsAuthSetupRan {
@@ -1261,28 +1263,165 @@ func setupAuthWs(t *testing.T) {
 	var err error
 	var dialer websocket.Dialer
 	if err = k.Websocket.AuthConn.Dial(&dialer, http.Header{}); err != nil {
-		t.Fatalf("Dialing the auth websocket should not error: %s", err)
+		tb.Fatalf("Dialing the auth websocket should not error: %s", err)
 	}
 
 	authToken, err = k.GetWebsocketToken(context.Background())
-	assert.NoError(t, err, "GetWebsocketToken should not error")
+	assert.NoError(tb, err, "GetWebsocketToken should not error")
 
 	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 }
 
-// TestWebsocketSubscribe tests returning a message with an id
+// TestWsSubscribe tests unauthenticated websocket subscriptions
+// Specifically looking to ensure multiple errors are collected and returned and ws.Subscriptions Added/Removed in cases of:
+// single pass, single fail, mixed fail, multiple pass, all fail
+// No objection to this becoming a fixture test, so long as it integrates through Un/Subscribe roundtrip
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTest(t)
-	err := k.Subscribe([]stream.ChannelSubscription{
-		{
-			Channel:  defaultSubscribedChannels[0],
-			Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
-		},
+
+	err := k.Subscribe([]stream.ChannelSubscription{{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("XBT", "USD", "/")}})
+	assert.NoError(t, err, "Simple subscription should not error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should add 1 Subscription")
+
+	err = k.Subscribe([]stream.ChannelSubscription{{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("XBT", "USD", "/")}})
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Resubscribing to the same channel should error with SubFailure")
+	assert.ErrorIs(t, err, stream.ErrSubscribedAlready, "Resubscribing to the same channel should error with SubscribedAlready")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should not add a subscription on error")
+
+	err = k.Subscribe([]stream.ChannelSubscription{{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}})
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Simple error subscription should error")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/HOBBIT", "Subscribing to an invalid pair should yield the correct error")
+
+	err = k.Subscribe([]stream.ChannelSubscription{
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("ETH", "USD", "/")},
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")},
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("DWARF", "ELF", "/")},
 	})
-	assert.NotNil(t, err, "Blah")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Mixed error subscription should error")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/ELF", "Subscribing to an invalid pair should yield the correct error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
+
+	err = k.Subscribe([]stream.ChannelSubscription{
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")},
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/")},
+	})
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Only failing subscriptions should error")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/GOBLIN", "Subscribing to an invalid pair should yield the correct error")
+
+	err = k.Subscribe([]stream.ChannelSubscription{
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("ETH", "XBT", "/")},
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("LTC", "ETH", "/")},
+	})
+	assert.NoError(t, err, "Multiple successful subscriptions should not error")
+
+	subs := k.Websocket.GetSubscriptions()
+	assert.Len(t, subs, 4, "Should have correct number of subscriptions")
+
+	err = k.Unsubscribe(subs[:1])
+	assert.NoError(t, err, "Simple Unsubscribe should succeed")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 3, "Should have removed 1 channel")
+
+	err = k.Unsubscribe([]stream.ChannelSubscription{{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("DWARF", "WIZARD", "/"), Key: 1337}})
+	assert.ErrorIs(t, err, stream.ErrUnsubscribeFailure, "Simple failing Unsubscribe should error UnsubFail")
+	assert.ErrorIs(t, err, stream.ErrSubscriptionNotFound, "Simple failing Unsubscribe should error SubNotFound")
+	assert.ErrorContains(t, err, "DWARF/WIZARD", "Simple failing Unsubscribe should error containing pair")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 3, "Should not have removed any channels")
+
+	err = k.Unsubscribe([]stream.ChannelSubscription{
+		subs[1],
+		{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("DWARF", "EAGLE", "/"), Key: 1338},
+	})
+	assert.ErrorIs(t, err, stream.ErrUnsubscribeFailure, "Mixed failing Unsubscribe should error UnsubFail")
+	assert.ErrorIs(t, err, stream.ErrSubscriptionNotFound, "Simple failing Unsubscribe should error SubNotFound")
+	assert.ErrorContains(t, err, "DWARF/EAGLE", "Simple failing Unsubscribe should error containing pair")
+
+	subs = k.Websocket.GetSubscriptions()
+	assert.Len(t, subs, 2, "Should have removed only 1 more channel")
+
+	err = k.Unsubscribe(subs)
+	assert.NoError(t, err, "Unsubscribe multiple passing subscriptions should not error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 0, "Should have successfully removed all channels")
+}
+
+// TestWsOrderbookSub tests orderbook subscriptions for MaxDepth params
+func TestWsOrderbookSub(t *testing.T) {
+	setupWsTest(t)
+
+	err := k.Subscribe([]stream.ChannelSubscription{{
+		Channel:  krakenWsOrderbook,
+		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+		Params: map[string]any{
+			ChannelOrderbookDepthKey: 25,
+		}}})
+	assert.NoError(t, err, "Simple subscription should not error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should add 1 Subscription")
+
+	subs := k.Websocket.GetSubscriptions()
+	assert.Len(t, subs, 1, "Should have 1 subscription channel")
+	key, ok := subs[0].Key.(stream.DefaultChannelKey)
+	assert.True(t, ok, "Subscription key should be a DefaultChannelKey")
+	assert.Equal(t, "book-25", key.Channel, "Key Channel should be correct")
+
+	err = k.Unsubscribe(subs)
+	assert.NoError(t, err, "Unsubscribe should not error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 0, "Should have successfully removed all channels")
+
+	err = k.Subscribe([]stream.ChannelSubscription{{
+		Channel:  krakenWsOrderbook,
+		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+		Params: map[string]any{
+			ChannelOrderbookDepthKey: 42,
+		}}})
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Bad subscription should error")
+	assert.ErrorContains(t, err, "Subscription depth not supported", "Bad subscription should error about depth")
+}
+
+// TestWsCandlesSub tests candles subscription for Timeframe params
+func TestWsCandlesSub(t *testing.T) {
+	setupWsTest(t)
+
+	err := k.Subscribe([]stream.ChannelSubscription{{
+		Channel:  krakenWsOHLC,
+		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+		Params: map[string]any{
+			ChannelCandlesTimeframeKey: 60,
+		}}})
+	assert.NoError(t, err, "Simple subscription should not error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should add 1 Subscription")
+
+	subs := k.Websocket.GetSubscriptions()
+	assert.Len(t, subs, 1, "Should have 1 subscription channel")
+	key, ok := subs[0].Key.(stream.DefaultChannelKey)
+	assert.True(t, ok, "Subscription key should be a DefaultChannelKey")
+	assert.Equal(t, "ohlc-60", key.Channel, "Key Channel should be correct")
+
+	err = k.Unsubscribe(subs)
+	assert.NoError(t, err, "Unsubscribe should not error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 0, "Should have successfully removed all channels")
+
+	err = k.Subscribe([]stream.ChannelSubscription{{
+		Channel:  krakenWsOHLC,
+		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+		Params: map[string]any{
+			ChannelCandlesTimeframeKey: 127,
+		}}})
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Bad subscription should error")
+	assert.ErrorContains(t, err, "Subscription ohlc interval not supported", "Bad subscription should error about interval")
+}
+
+// TestWsOwnTradesSub tests the authenticated WS subscription channel for trades
+func TestWsOwnTradesSub(t *testing.T) {
+	setupWsAuthTest(t)
+
+	err := k.Subscribe([]stream.ChannelSubscription{{Channel: krakenWsOwnTrades}})
+	assert.NoError(t, err, "Subsrcibing to ownTrades should not error")
+
+	subs := k.Websocket.GetSubscriptions()
+	assert.Len(t, subs, 1, "Should add 1 Subscription")
+
+	err = k.Unsubscribe(subs)
+	assert.NoError(t, err, "Unsubscribing an auth channel should not error")
+	assert.Len(t, k.Websocket.GetSubscriptions(), 0, "Should have successfully removed channel")
 }
 
 func TestGetWSToken(t *testing.T) {
@@ -1353,6 +1492,7 @@ func TestWsSystemStatus(t *testing.T) {
 func TestWsSubscriptionStatus(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
+	  "reqID": 1007,
 	  "channelID": 10001,
 	  "channelName": "ticker",
 	  "event": "subscriptionStatus",
@@ -1368,6 +1508,7 @@ func TestWsSubscriptionStatus(t *testing.T) {
 	}
 
 	pressXToJSON = []byte(`{
+	  "reqID": 1008,
 	  "channelID": 10001,
 	  "channelName": "ohlc-5",
 	  "event": "subscriptionStatus",
@@ -1385,6 +1526,7 @@ func TestWsSubscriptionStatus(t *testing.T) {
 	}
 
 	pressXToJSON = []byte(`{
+	  "reqID": 1009,
 	  "channelName": "ownTrades",
 	  "event": "subscriptionStatus",
 	  "status": "subscribed",
@@ -1397,6 +1539,7 @@ func TestWsSubscriptionStatus(t *testing.T) {
 		t.Error(err)
 	}
 	pressXToJSON = []byte(`{
+	  "reqID": 1010,
 	  "errorMessage": "Subscription depth not supported",
 	  "event": "subscriptionStatus",
 	  "pair": "XBT/USD",
@@ -1414,366 +1557,76 @@ func TestWsSubscriptionStatus(t *testing.T) {
 
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-	  "channelID": 1337,
-	  "channelName": "ticker",
-	  "event": "subscriptionStatus",
-	  "pair": "XBT/EUR",
-	  "status": "subscribed",
-	  "subscription": {
-		"name": "ticker"
-	  }
-	}`)
+	k.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: krakenWsTicker})
+	pressXToJSON := []byte(`[2,{"a":["5525.40000",1,"1.000"],"b":["5525.10000",1,"1.000"],"c":["5525.10000","0.00398963"],"h":["5783.00000","5783.00000"],"l":["5505.00000","5505.00000"],"o":["5760.70000","5763.40000"],"p":["5631.44067","5653.78939"],"t":[11493,16267],"v":["2634.11501494","3591.17907851"]},"ticker","XBT/USD"]`)
 	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-	pressXToJSON = []byte(`[
-	  1337,
-	  {
-		"a": [
-		  "5525.40000",
-		  1,
-		  "1.000"
-		],
-		"b": [
-		  "5525.10000",
-		  1,
-		  "1.000"
-		],
-		"c": [
-		  "5525.10000",
-		  "0.00398963"
-		],
-		"h": [
-		  "5783.00000",
-		  "5783.00000"
-		],
-		"l": [
-		  "5505.00000",
-		  "5505.00000"
-		],
-		"o": [
-		  "5760.70000",
-		  "5763.40000"
-		],
-		"p": [
-		  "5631.44067",
-		  "5653.78939"
-		],
-		"t": [
-		  11493,
-		  16267
-		],
-		"v": [
-		  "2634.11501494",
-		  "3591.17907851"
-		]
-	  },
-	  "ticker",
-	  "XBT/USD"
-	]`)
-	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "handle WS Ticker should not error")
 }
 
 func TestWsOHLC(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-	  "channelID": 13337,
-	  "channelName": "ohlc",
-	  "event": "subscriptionStatus",
-	  "pair": "XBT/EUR",
-	  "status": "subscribed",
-	  "subscription": {
-		"name": "ohlc"
-	  }
-	}`)
+	k.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{
+		Key: stream.DefaultChannelKey{
+			Channel:  krakenWsOHLC + "-5",
+			Currency: btcusdPair,
+			Asset:    asset.Spot,
+		},
+		Channel:  krakenWsOHLC,
+		Currency: btcusdPair,
+		Asset:    asset.Spot,
+	})
+	pressXToJSON := []byte(`[2,["1542057314.748456","1542057360.435743","3586.70000","3586.70000","3586.60000","3586.60000","3586.68894","0.03373000",2],"ohlc-5","XBT/USD"]`)
 	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-	pressXToJSON = []byte(`[
-	  13337,
-	  [
-		"1542057314.748456",
-		"1542057360.435743",
-		"3586.70000",
-		"3586.70000",
-		"3586.60000",
-		"3586.60000",
-		"3586.68894",
-		"0.03373000",
-		2
-	  ],
-	  "ohlc-5",
-	  "XBT/USD"
-	]`)
-	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "handle WS Candles should not error")
 }
 
 func TestWsTrade(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-	  "channelID": 133337,
-	  "channelName": "trade",
-	  "event": "subscriptionStatus",
-	  "pair": "XBT/EUR",
-	  "status": "subscribed",
-	  "subscription": {
-		"name": "trade"
-	  }
-	}`)
+	k.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: krakenWsTrade})
+	pressXToJSON := []byte(`[2,[["5541.20000","0.15850568","1534614057.321597","s","l",""],["6060.00000","0.02455000","1534614057.324998","b","l",""]],"trade","XBT/USD"]`)
 	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-	pressXToJSON = []byte(`[
-	  133337,
-	  [
-		[
-		  "5541.20000",
-		  "0.15850568",
-		  "1534614057.321597",
-		  "s",
-		  "l",
-		  ""
-		],
-		[
-		  "6060.00000",
-		  "0.02455000",
-		  "1534614057.324998",
-		  "b",
-		  "l",
-		  ""
-		]
-	  ],
-	  "trade",
-	  "XBT/USD"
-	]`)
-	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "handle WS Trades should not error")
 }
 
 func TestWsSpread(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-	  "channelID": 1333337,
-	  "channelName": "spread",
-	  "event": "subscriptionStatus",
-	  "pair": "XBT/EUR",
-	  "status": "subscribed",
-	  "subscription": {
-		"name": "spread"
-	  }
-	}`)
+	k.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: krakenWsSpread})
+	pressXToJSON := []byte(`[2,["5698.40000","5700.00000","1542057299.545897","1.01234567","0.98765432"],"spread","XBT/USD"]`)
 	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-	pressXToJSON = []byte(`[
-	  1333337,
-	  [
-		"5698.40000",
-		"5700.00000",
-		"1542057299.545897",
-		"1.01234567",
-		"0.98765432"
-	  ],
-	  "spread",
-	  "XBT/USD"
-	]`)
-	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "handle WS Spread should not error")
 }
 
 func TestWsOrdrbook(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-	  "channelID": 13333337,
-	  "channelName": "book",
-	  "event": "subscriptionStatus",
-	  "pair": "XBT/USD",
-	  "status": "subscribed",
-	  "subscription": {
-		"name": "book"
-	  }
-	}`)
+	k.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{
+		Key: stream.DefaultChannelKey{
+			Channel:  krakenWsOrderbook + "-100",
+			Currency: btcusdPair,
+			Asset:    asset.Spot,
+		},
+		Channel:  krakenWsOrderbook,
+		Currency: btcusdPair,
+		Asset:    asset.Spot,
+		Params: map[string]any{
+			ChannelOrderbookDepthKey: 100,
+		},
+	})
+	pressXToJSON := []byte(`[2,{"as":[["5541.30000","2.50700000","1534614248.123678"],["5541.80000","0.33000000","1534614098.345543"],["5542.70000","0.64700000","1534614244.654432"],["5544.30000","2.50700000","1534614248.123678"],["5545.80000","0.33000000","1534614098.345543"],["5546.70000","0.64700000","1534614244.654432"],["5547.70000","0.64700000","1534614244.654432"],["5548.30000","2.50700000","1534614248.123678"],["5549.80000","0.33000000","1534614098.345543"],["5550.70000","0.64700000","1534614244.654432"]],"bs":[["5541.20000","1.52900000","1534614248.765567"],["5539.90000","0.30000000","1534614241.769870"],["5539.50000","5.00000000","1534613831.243486"],["5538.20000","1.52900000","1534614248.765567"],["5537.90000","0.30000000","1534614241.769870"],["5536.50000","5.00000000","1534613831.243486"],["5535.20000","1.52900000","1534614248.765567"],["5534.90000","0.30000000","1534614241.769870"],["5533.50000","5.00000000","1534613831.243486"],["5532.50000","5.00000000","1534613831.243486"]]},"book-100","XBT/USD"]`)
 	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-	pressXToJSON = []byte(`[
-	  13333337,
-	  {
-		"as": [
-		  [
-			"5541.30000",
-			"2.50700000",
-			"1534614248.123678"
-		  ],
-		  [
-			"5541.80000",
-			"0.33000000",
-			"1534614098.345543"
-		  ],
-		  [
-			"5542.70000",
-			"0.64700000",
-			"1534614244.654432"
-		  ],
-		  [
-			"5544.30000",
-			"2.50700000",
-			"1534614248.123678"
-		  ],
-		  [
-			"5545.80000",
-			"0.33000000",
-			"1534614098.345543"
-		  ],
-		  [
-			"5546.70000",
-			"0.64700000",
-			"1534614244.654432"
-		  ],
-		  [
-			"5547.70000",
-			"0.64700000",
-			"1534614244.654432"
-		  ],
-		  [
-			"5548.30000",
-			"2.50700000",
-			"1534614248.123678"
-		  ],
-		  [
-			"5549.80000",
-			"0.33000000",
-			"1534614098.345543"
-		  ],
-		  [
-			"5550.70000",
-			"0.64700000",
-			"1534614244.654432"
-		  ]
-		],
-		"bs": [
-		  [
-			"5541.20000",
-			"1.52900000",
-			"1534614248.765567"
-		  ],
-		  [
-			"5539.90000",
-			"0.30000000",
-			"1534614241.769870"
-		  ],
-		  [
-			"5539.50000",
-			"5.00000000",
-			"1534613831.243486"
-		  ],
-		  [
-			"5538.20000",
-			"1.52900000",
-			"1534614248.765567"
-		  ],
-		  [
-			"5537.90000",
-			"0.30000000",
-			"1534614241.769870"
-		  ],
-		  [
-			"5536.50000",
-			"5.00000000",
-			"1534613831.243486"
-		  ],
-		  [
-			"5535.20000",
-			"1.52900000",
-			"1534614248.765567"
-		  ],
-		  [
-			"5534.90000",
-			"0.30000000",
-			"1534614241.769870"
-		  ],
-		  [
-			"5533.50000",
-			"5.00000000",
-			"1534613831.243486"
-		  ],
-		  [
-			"5532.50000",
-			"5.00000000",
-			"1534613831.243486"
-		  ]
-		]
-	  },
-	  "book-100",
-	  "XBT/USD"
-	]`)
+	assert.NoError(t, err, "handle WS Orderbook full snapshot should not error")
+
+	pressXToJSON = []byte(`[2,{"a":[["5541.30000","2.50700000","1534614248.456738"],["5542.50000","0.40100000","1534614248.456738"]],"c":"4187525586"},"book-100","XBT/USD"]`)
 	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-	pressXToJSON = []byte(`[
-	  13333337,
-	  {
-		"a": [
-		  [
-			"5541.30000",
-			"2.50700000",
-			"1534614248.456738"
-		  ],
-		  [
-			"5542.50000",
-			"0.40100000",
-			"1534614248.456738"
-		  ]
-		],
-		"c": "4187525586"
-	  },
-	  "book-10",
-	  "XBT/USD"
-	]`)
+	assert.NoError(t, err, "handle WS Orderbook partial update should not error")
+
+	pressXToJSON = []byte(`[2,{"b":[["5541.30000","0.00000000","1534614335.345903"]],"c":"4187525586"},"book-100","XBT/USD"]`)
 	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-	pressXToJSON = []byte(`[
-	  13333337,
-	  {
-		"b": [
-		  [
-			"5541.30000",
-			"0.00000000",
-			"1534614335.345903"
-		  ]
-		],
-		"c": "4187525586"
-	  },
-	  "book-10",
-	  "XBT/USD"
-	]`)
-	err = k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "handle WS Orderbook partial update should not error")
 }
 
 func TestWsOwnTrades(t *testing.T) {
 	t.Parallel()
+	k.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Channel: krakenWsOwnTrades})
 	pressXToJSON := []byte(`[
 	  [
 		{
@@ -1837,7 +1690,10 @@ func TestWsOwnTrades(t *testing.T) {
 		  }
 		}
 	  ],
-	  "ownTrades"
+	  "ownTrades",
+	  {
+		"sequence": 4
+	  }
 	]`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -1848,6 +1704,8 @@ func TestWsOwnTrades(t *testing.T) {
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
 	n := new(Kraken)
+	n.Websocket = sharedtestvalues.NewTestWebsocket()
+	n.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Channel: krakenWsOpenOrders})
 	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
 	seen := 0
 	for reading := true; reading; {
@@ -1907,7 +1765,7 @@ func TestWsOpenOrders(t *testing.T) {
 					reading = false
 				}
 			default:
-				t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+				t.Errorf("Line %d: Unexpected type in DataHandler: %T (%s)", seen, v, v)
 			}
 		}
 	}
@@ -2153,7 +2011,6 @@ func TestGetFuturesTrades(t *testing.T) {
 }
 
 var websocketXDGUSDOrderbookUpdates = []string{
-	`{"channelID":2304,"channelName":"book-10","event":"subscriptionStatus","pair":"XDG/USD","reqid":163845014,"status":"subscribed","subscription":{"depth":10,"name":"book"}}`,
 	`[2304,{"as":[["0.074602700","278.39626342","1690246067.832139"],["0.074611000","555.65134028","1690246086.243668"],["0.074613300","524.87121572","1690245901.574881"],["0.074624600","77.57180740","1690246060.668500"],["0.074632500","620.64648404","1690246010.904883"],["0.074698400","409.57419037","1690246041.269821"],["0.074700000","61067.71115772","1690246089.485595"],["0.074723200","4394.01869240","1690246087.557913"],["0.074725200","4229.57885125","1690246082.911452"],["0.074738400","212.25501214","1690246089.421559"]],"bs":[["0.074597400","53591.43163675","1690246089.451762"],["0.074596700","33594.18269213","1690246089.514152"],["0.074596600","53598.60351469","1690246089.340781"],["0.074594800","5358.57247081","1690246089.347962"],["0.074594200","30168.21074680","1690246089.345112"],["0.074590900","7089.69894583","1690246088.212880"],["0.074586700","46925.20182082","1690246089.074618"],["0.074577200","5500.00000000","1690246087.568856"],["0.074569600","8132.49888631","1690246086.841219"],["0.074562900","8413.11098009","1690246087.024863"]]},"book-10","XDG/USD"]`,
 	`[2304,{"a":[["0.074700000","0.00000000","1690246089.516119"],["0.074738500","125000.00000000","1690246063.352141","r"]],"c":"2219685759"},"book-10","XDG/USD"]`,
 	`[2304,{"a":[["0.074678800","33476.70673703","1690246089.570183"]],"c":"1897176819"},"book-10","XDG/USD"]`,
@@ -2172,19 +2029,35 @@ var websocketXDGUSDOrderbookUpdates = []string{
 }
 
 var websocketLUNAEUROrderbookUpdates = []string{
-	`{"channelID":9536,"channelName":"book-10","event":"subscriptionStatus","pair":"LUNA/EUR","reqid":106845459,"status":"subscribed","subscription":{"depth":10,"name":"book"}}`,
 	`[9536,{"as":[["0.000074650000","147354.32016076","1690249755.076929"],["0.000074710000","5084881.40000000","1690250711.359411"],["0.000074760000","9700502.70476704","1690250743.279490"],["0.000074990000","2933380.23886300","1690249596.627969"],["0.000075000000","433333.33333333","1690245575.626780"],["0.000075020000","152914.84493416","1690243661.232520"],["0.000075070000","146529.90542161","1690249048.358424"],["0.000075250000","737072.85720004","1690211553.549248"],["0.000075400000","670061.64567140","1690250769.261196"],["0.000075460000","980226.63603417","1690250769.627523"]],"bs":[["0.000074590000","71029.87806720","1690250763.012724"],["0.000074580000","15935576.86404000","1690250763.012710"],["0.000074520000","33758611.79634000","1690250718.290955"],["0.000074350000","3156650.58590277","1690250766.499648"],["0.000074340000","301727260.79999999","1690250766.490238"],["0.000074320000","64611496.53837000","1690250742.680258"],["0.000074310000","104228596.60000000","1690250744.679121"],["0.000074300000","40366046.10582000","1690250762.685914"],["0.000074200000","3690216.57320475","1690250645.311465"],["0.000074060000","1337170.52532521","1690250742.012527"]]},"book-10","LUNA/EUR"]`,
 	`[9536,{"b":[["0.000074060000","0.00000000","1690250770.616604"],["0.000074050000","16742421.17790510","1690250710.867730","r"]],"c":"418307145"},"book-10","LUNA/EUR"]`,
 }
 
 var websocketGSTEUROrderbookUpdates = []string{
-	`{"channelID":8912,"channelName":"book-10","event":"subscriptionStatus","pair":"GST/EUR","reqid":157734759,"status":"subscribed","subscription":{"depth":10,"name":"book"}}`,
 	`[8912,{"as":[["0.01300","850.00000000","1690230914.230506"],["0.01400","323483.99590510","1690256356.615823"],["0.01500","100287.34442717","1690219133.193345"],["0.01600","67995.78441017","1690118389.451216"],["0.01700","41776.38397740","1689676303.381189"],["0.01800","11785.76177777","1688631951.812452"],["0.01900","23700.00000000","1686935422.319042"],["0.02000","3941.17000000","1689415829.176481"],["0.02100","16598.69173066","1689420942.541943"],["0.02200","17572.51572836","1689851425.907427"]],"bs":[["0.01200","14220.66466572","1690256540.842831"],["0.01100","160223.61546438","1690256401.072463"],["0.01000","63083.48958963","1690256604.037673"],["0.00900","6750.00000000","1690252470.633938"],["0.00800","213059.49706376","1690256360.386301"],["0.00700","1000.00000000","1689869458.464975"],["0.00600","4000.00000000","1690221333.528698"],["0.00100","245000.00000000","1690051368.753455"]]},"book-10","GST/EUR"]`,
 	`[8912,{"b":[["0.01000","60583.48958963","1690256620.206768"],["0.01000","63083.48958963","1690256620.206783"]],"c":"69619317"},"book-10","GST/EUR"]`,
 }
 
 func TestWsOrderbookMax10Depth(t *testing.T) {
 	t.Parallel()
+	for _, c := range []string{"XDG/USD", "LUNA/EUR", "GST/EUR"} {
+		p, err := currency.NewPairFromString(c)
+		assert.NoErrorf(t, err, "NewPairFromString %s should not error", c)
+		k.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{
+			Key: stream.DefaultChannelKey{
+				Channel:  krakenWsOrderbook + "-10",
+				Currency: p,
+				Asset:    asset.Spot,
+			},
+			Channel:  krakenWsOrderbook,
+			Currency: p,
+			Asset:    asset.Spot,
+			Params: map[string]any{
+				ChannelOrderbookDepthKey: 10,
+			},
+		})
+	}
+
 	for x := range websocketXDGUSDOrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
 		if err != nil {
