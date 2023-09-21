@@ -231,11 +231,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = k.SeedAssets(context.TODO())
-	if err != nil {
-		return err
-	}
-
 	wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -291,6 +286,11 @@ func (k *Kraken) Start(ctx context.Context, wg *sync.WaitGroup) error {
 func (k *Kraken) Run(ctx context.Context) {
 	if k.Verbose {
 		k.PrintEnabledPairs()
+	}
+
+	if err := k.SeedAssets(context.TODO()); err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to Seed Assets; err: %s", k.Name, err)
+		return
 	}
 
 	forceUpdate := false
@@ -368,6 +368,12 @@ func (k *Kraken) Run(ctx context.Context) {
 func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
+	}
+
+	if !assetTranslator.Seeded() {
+		if err := k.SeedAssets(ctx); err != nil {
+			return err
+		}
 	}
 
 	pairInfo, err := k.fetchSpotPairInfo(ctx)
@@ -662,6 +668,11 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var info account.Holdings
 	var balances []account.Balance
 	info.Exchange = k.Name
+	if !assetTranslator.Seeded() {
+		if err := k.SeedAssets(ctx); err != nil {
+			return info, err
+		}
+	}
 	switch assetType {
 	case asset.Spot:
 		bal, err := k.GetBalance(ctx)
