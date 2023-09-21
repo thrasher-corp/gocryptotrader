@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -168,6 +169,14 @@ func (k *Kraken) SetDefaults() {
 				GlobalResultLimit: 720,
 			},
 		},
+		Subscriptions: []*subscription.Subscription{
+			{Enabled: true, Channel: subscription.TickerChannel},
+			{Enabled: true, Channel: subscription.AllTradesChannel},
+			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+			{Enabled: true, Channel: subscription.OrderbookChannel, Levels: 1000},
+			{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+			{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
+		},
 	}
 
 	k.Requester, err = request.New(k.Name,
@@ -219,7 +228,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		Connector:             k.WsConnect,
 		Subscriber:            k.Subscribe,
 		Unsubscriber:          k.Unsubscribe,
-		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: k.generateSubscriptions,
 		Features:              &k.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})
@@ -819,8 +828,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
 func (k *Kraken) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
