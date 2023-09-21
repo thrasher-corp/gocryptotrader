@@ -100,8 +100,10 @@ updates:
 				// Only apply changes when zero values are not present, Bitmex
 				// for example sends 0 price values.
 				tip.Value.Price = updts[x].Price
+				tip.Value.StrPrice = updts[x].StrPrice
 			}
 			tip.Value.Amount = updts[x].Amount
+			tip.Value.StrAmount = updts[x].StrAmount
 			continue updates
 		}
 		return fmt.Errorf("update error: %w ID: %d not found",
@@ -198,6 +200,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 					stack.Push(deleteAtTip(ll, tip), tn)
 				} else { // Amend current amount value
 					(*tip).Value.Amount = updts[x].Amount
+					(*tip).Value.StrAmount = updts[x].StrAmount
 				}
 				break // Continue updates
 			}
@@ -255,7 +258,9 @@ updates:
 					if tip.Next == nil {
 						// no movement needed just a re-adjustment
 						tip.Value.Price = updts[x].Price
+						tip.Value.StrPrice = updts[x].StrPrice
 						tip.Value.Amount = updts[x].Amount
+						tip.Value.StrAmount = updts[x].StrAmount
 						continue updates
 					}
 					// bookmark tip to move this node to correct price level
@@ -264,6 +269,7 @@ updates:
 				}
 				// no price change, amend amount and continue update
 				tip.Value.Amount = updts[x].Amount
+				tip.Value.StrAmount = updts[x].StrAmount
 				continue updates // continue to next update
 			}
 

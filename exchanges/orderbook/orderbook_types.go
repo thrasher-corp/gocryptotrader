@@ -56,8 +56,16 @@ type Exchange struct {
 // Item stores the amount and price values
 type Item struct {
 	Amount float64
-	Price  float64
-	ID     int64
+	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
+	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
+	// potentially will round value which is not ideal.
+	StrAmount string
+	Price     float64
+	// StrPrice is a string representation of the price. e.g. 0.00000100 this
+	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
+	// potentially will round value which is not ideal.
+	StrPrice string
+	ID       int64
 
 	// Funding rate field
 	Period int64
