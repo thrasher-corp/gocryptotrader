@@ -897,23 +897,35 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if len(asks) < 3 {
 			return errors.New("unexpected asks length")
 		}
-		price, err := strconv.ParseFloat(asks[0].(string), 64)
+		priceStr, ok := asks[0].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", asks[0], "price")
+		}
+		price, err := strconv.ParseFloat(priceStr, 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(asks[1].(string), 64)
+		amountStr, ok := asks[1].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", asks[1], "amount")
+		}
+		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			return err
 		}
-		timeData, err := strconv.ParseFloat(asks[2].(string), 64)
+		tdStr, ok := asks[2].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", asks[2], "time")
+		}
+		timeData, err := strconv.ParseFloat(tdStr, 64)
 		if err != nil {
 			return err
 		}
 		base.Asks[i] = orderbook.Item{
 			Amount:    amount,
-			StrAmount: asks[1].(string),
+			StrAmount: amountStr,
 			Price:     price,
-			StrPrice:  asks[0].(string),
+			StrPrice:  priceStr,
 		}
 		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
@@ -929,24 +941,36 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if len(bids) < 3 {
 			return errors.New("unexpected bids length")
 		}
-		price, err := strconv.ParseFloat(bids[0].(string), 64)
+		priceStr, ok := bids[0].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", bids[0], "price")
+		}
+		price, err := strconv.ParseFloat(priceStr, 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(bids[1].(string), 64)
+		amountStr, ok := bids[1].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", bids[1], "amount")
+		}
+		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			return err
 		}
-		timeData, err := strconv.ParseFloat(bids[2].(string), 64)
+		tdStr, ok := bids[2].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", bids[2], "time")
+		}
+		timeData, err := strconv.ParseFloat(tdStr, 64)
 		if err != nil {
 			return err
 		}
 
 		base.Bids[i] = orderbook.Item{
 			Amount:    amount,
-			StrAmount: bids[1].(string),
+			StrAmount: amountStr,
 			Price:     price,
-			StrPrice:  bids[0].(string),
+			StrPrice:  priceStr,
 		}
 
 		bidUpdateTime := convert.TimeFromUnixTimestampDecimal(timeData)
