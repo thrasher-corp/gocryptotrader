@@ -62,11 +62,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = k.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		log.Fatal(err)
-	}
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	err := k.UpdateTradablePairs(context.Background(), true)
+	assert.NoError(t, err, "Update tradable Pairs should not error")
 }
 
 func TestStart(t *testing.T) {
