@@ -3,7 +3,6 @@ package kraken
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -33,7 +32,8 @@ import (
 )
 
 var k = &Kraken{}
-var wsSetupRan bool
+var wsSetupRan, wsAuthSetupRan bool
+var comms = make(chan stream.Response)
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
@@ -1207,51 +1207,79 @@ func TestWithdrawCancel(t *testing.T) {
 
 // ---------------------------- Websocket tests -----------------------------------------
 
-func setupWsTests(t *testing.T) {
+// setupWsAuthTest will connect both websockets
+// and should be called directly from a auth ws test
+func setupWsAuthTest(t *testing.T) {
 	t.Helper()
+	setupWsTest(t)
+	setupAuthWs(t)
+}
+
+// setupWsTest will just connect the non-authenticated websocket
+// and should be called directly from a non-auth ws test
+func setupWsTest(t *testing.T) {
+	t.Helper()
+
+	if !k.Websocket.IsEnabled() {
+		t.Skip("Websocket not enabled")
+	}
+
 	if wsSetupRan {
 		return
 	}
-	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(k) {
-		t.Skip(stream.WebsocketNotEnabled)
-	}
+	wsSetupRan = true
+
 	var dialer websocket.Dialer
-	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
+	if err := k.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
+		t.Fatalf("Dialing the websocket should not error: %s", err)
 	}
 
-	token, err := k.GetWebsocketToken(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-	authToken = token
-	comms := make(chan stream.Response)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
-	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
+
 	go k.wsReadData(comms)
 	go func() {
 		err := k.wsPingHandler()
-		if err != nil {
-			fmt.Println("error:", err)
-		}
+		assert.NoError(t, err, "wsPingHandler should not error")
 	}()
-	wsSetupRan = true
+}
+
+// setupAuthWs will just connect the authenticated websocket and should not be called directly
+func setupAuthWs(t *testing.T) {
+	if !k.API.AuthenticatedWebsocketSupport {
+		t.Skip("Authenticated Websocket not Supported")
+	}
+
+	if !sharedtestvalues.AreAPICredentialsSet(k) {
+		t.Skip("Authenticated Websocket credentials not set")
+	}
+
+	if wsAuthSetupRan {
+		return
+	}
+	wsAuthSetupRan = true
+
+	var err error
+	var dialer websocket.Dialer
+	if err = k.Websocket.AuthConn.Dial(&dialer, http.Header{}); err != nil {
+		t.Fatalf("Dialing the auth websocket should not error: %s", err)
+	}
+
+	authToken, err = k.GetWebsocketToken(context.Background())
+	assert.NoError(t, err, "GetWebsocketToken should not error")
+
+	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 }
 
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
-	setupWsTests(t)
+	setupWsTest(t)
 	err := k.Subscribe([]stream.ChannelSubscription{
 		{
 			Channel:  defaultSubscribedChannels[0],
 			Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
 		},
 	})
+	assert.NotNil(t, err, "Blah")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1259,9 +1287,7 @@ func TestWebsocketSubscribe(t *testing.T) {
 
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
-	if !sharedtestvalues.AreAPICredentialsSet(k) {
-		t.Skip("API keys required, skipping")
-	}
+	setupWsAuthTest(t)
 	resp, err := k.GetWebsocketToken(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -1272,7 +1298,7 @@ func TestGetWSToken(t *testing.T) {
 }
 
 func TestWsAddOrder(t *testing.T) {
-	setupWsTests(t)
+	setupWsAuthTest(t)
 	_, err := k.wsAddOrder(&WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
@@ -1285,14 +1311,14 @@ func TestWsAddOrder(t *testing.T) {
 }
 
 func TestWsCancelOrder(t *testing.T) {
-	setupWsTests(t)
+	setupWsAuthTest(t)
 	if err := k.wsCancelOrders([]string{"1337"}); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
-	setupWsTests(t)
+	setupWsAuthTest(t)
 	if _, err := k.wsCancelAllOrders(); err != nil {
 		t.Error(err)
 	}
