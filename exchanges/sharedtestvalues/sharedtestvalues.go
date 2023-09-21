@@ -160,9 +160,7 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	b.Name = "fixture"
 
 	if b.Websocket == nil {
-		b.Websocket = &stream.Websocket{
-			DataHandler: make(chan interface{}, 128),
-		}
+		b.Websocket = stream.NewWebsocket()
 	}
 
 	b.API.Endpoints = b.NewEndpoints()
