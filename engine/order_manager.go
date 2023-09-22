@@ -593,7 +593,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		// Streamed by ws before we got here. Details from ws supersede since they are more recent.
 		detail = m.orderStore.getByDetail(detail)
 	} else if err != nil {
-		// Non-fatal error. OrderStore doesn't mean it wasn't submitted and consumers shouldn't get an error
+		// Non-fatal error: Unable to store order, but error does not need to be returned to caller
 		log.Errorf(log.OrderMgr, "unable to add %v order %v to orderStore: %s", detail.Exchange, detail.OrderID, err)
 	}
 
