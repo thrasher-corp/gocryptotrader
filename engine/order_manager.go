@@ -590,7 +590,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 	}
 
 	if err := m.orderStore.add(detail.CopyToPointer()); errors.Is(err, ErrOrdersAlreadyExists) {
-		// Streamed by ws before we got here. Details from ws supecede since they are more recent.
+		// Streamed by ws before we got here. Details from ws supersede since they are more recent.
 		detail = m.orderStore.getByDetail(detail)
 	} else if err != nil {
 		// Non-fatal error. OrderStore doesn't mean it wasn't submitted and consumers shouldn't get an error
