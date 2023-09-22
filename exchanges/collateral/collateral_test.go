@@ -42,7 +42,7 @@ func TestUnmarshalJSONCollateralType(t *testing.T) {
 		t.Error(err)
 	}
 	if alien.M != SingleMode {
-		t.Errorf("received '%v' expected 'singl'", alien.M)
+		t.Errorf("received '%v' expected 'single'", alien.M)
 	}
 
 	jason = []byte(`{"collateral":"multi"}`)
