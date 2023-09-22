@@ -253,10 +253,10 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		}
 		pairs := make(currency.Pairs, 0, len(myPairs))
 		for x := range myPairs {
-			if !strings.EqualFold(myPairs[x].Status, "Open") {
+			if strings.ToLower(myPairs[x].Status) != "open" { //nolint:gocritic // strings.ToLower is faster
 				continue
 			}
-			cp, err = currency.NewPairFromString(myPairs[x].Symbol)
+			cp, err = currency.NewPairFromStrings(myPairs[x].BaseCurrency, myPairs[x].Symbol[len(myPairs[x].BaseCurrency):])
 			if err != nil {
 				return nil, err
 			}

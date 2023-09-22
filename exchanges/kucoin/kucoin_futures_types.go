@@ -77,11 +77,11 @@ type FuturesTicker struct {
 	Symbol       string               `json:"symbol"`
 	Side         string               `json:"side"`
 	Size         float64              `json:"size"`
-	Price        float64              `json:"price,string"`
+	Price        float64              `json:"price"`
 	BestBidSize  float64              `json:"bestBidSize"`
-	BestBidPrice float64              `json:"bestBidPrice,string"`
+	BestBidPrice float64              `json:"bestBidPrice"`
 	BestAskSize  float64              `json:"bestAskSize"`
-	BestAskPrice float64              `json:"bestAskPrice,string"`
+	BestAskPrice float64              `json:"bestAskPrice"`
 	TradeID      string               `json:"tradeId"`
 	FilledTime   convert.ExchangeTime `json:"time"`
 }
