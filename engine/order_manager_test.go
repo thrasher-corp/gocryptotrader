@@ -639,7 +639,7 @@ func TestSubmit(t *testing.T) {
 }
 
 // TestSubmitOrderAlreadyInStore ensures that if an order is submitted, but the WS sees the conf before processSubmittedOrder
-// then we don't error that it was there already, and we merge together the details
+// then we don't error that it was there already
 func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	m := OrdersSetup(t)
 	submitReq := &order.Submit{
