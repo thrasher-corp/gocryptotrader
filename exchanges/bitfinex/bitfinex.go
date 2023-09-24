@@ -100,6 +100,11 @@ const (
 
 	bitfinexChecksumFlag   = 131072
 	bitfinexWsSequenceFlag = 65536
+
+	// CandlesTimeframeKey configures the timeframe in stream.ChannelSubscription.Params
+	CandlesTimeframeKey = "_timeframe"
+	// CandlesPeriodKey configures the aggregated period in stream.ChannelSubscription.Params
+	CandlesPeriodKey = "_period"
 )
 
 // Bitfinex is the overarching type across the bitfinex package

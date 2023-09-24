@@ -1577,7 +1577,6 @@ func (b *Bitfinex) resubOrderbook(c *stream.ChannelSubscription) {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var wsPairFormat = currency.PairFormat{Uppercase: true}
 	var channels = []string{wsBook, wsTrades, wsTicker, wsCandles}
 
 	var subscriptions []stream.ChannelSubscription
@@ -1599,30 +1598,8 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					params["len"] = "100"
 				}
 
-				// TODO - Everything setting params here should not be in DefSubs; Move to Subscribe
-				prefix := "t"
-				if assets[i] == asset.MarginFunding {
-					prefix = "f"
-				}
-
-				needsDelimiter := enabledPairs[k].Len() > 6
-
-				var formattedPair string
-				if needsDelimiter {
-					formattedPair = enabledPairs[k].Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
-				} else {
-					formattedPair = wsPairFormat.Format(enabledPairs[k])
-				}
-
-				if channels[j] == wsCandles {
-					// TODO: Add ability to select timescale && funding period
-					fundingPeriod := ""
-					if assets[i] == asset.MarginFunding {
-						fundingPeriod = ":p30"
-					}
-					params["key"] = "trade:1m:" + prefix + formattedPair + fundingPeriod
-				} else {
-					params["symbol"] = prefix + formattedPair
+				if channels[j] == wsCandles && assets[i] == asset.MarginFunding {
+					params[CandlesPeriodKey] = "30"
 				}
 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -1690,10 +1667,49 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 	req["channel"] = c.Channel
 
 	for k, v := range c.Params {
-		// Resubscribing channels might already have this set
-		if k != "chanId" {
+		switch k {
+		case CandlesPeriodKey, CandlesTimeframeKey:
+			// Skip these internal Params
+		case "key", "symbol":
+			// Ensure user's Params aren't silently overwritten
+			return fmt.Errorf("subscribe to channel with key or symbol Param is not supported")
+		default:
 			req[k] = v
 		}
+	}
+
+	prefix := "t"
+	if c.Asset == asset.MarginFunding {
+		prefix = "f"
+	}
+
+	needsDelimiter := c.Currency.Len() > 6
+
+	var formattedPair string
+	if needsDelimiter {
+		formattedPair = c.Currency.Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
+	} else {
+		formattedPair = currency.PairFormat{Uppercase: true}.Format(c.Currency)
+	}
+
+	if c.Channel == wsCandles {
+		timeframe := "1m"
+		if t, ok := c.Params[CandlesTimeframeKey]; ok {
+			if timeframe, ok = t.(string); !ok {
+				return common.GetTypeAssertError("string", t, "Subscription.CandlesTimeframeKey")
+			}
+		}
+		fundingPeriod := ""
+		if p, ok := c.Params[CandlesPeriodKey]; ok {
+			s, cOk := p.(string)
+			if !cOk {
+				return common.GetTypeAssertError("string", p, "Subscription.CandlesPeriodKey")
+			}
+			fundingPeriod = ":p" + s
+		}
+		req["key"] = "trade:" + timeframe + ":" + prefix + formattedPair + fundingPeriod
+	} else {
+		req["symbol"] = prefix + formattedPair
 	}
 
 	// Although docs only mention this for wsBook, it works for all chans
