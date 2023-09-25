@@ -1210,13 +1210,13 @@ func TestWsSubscribedResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 	spotWebsocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: wsTicker, Params: map[string]interface{}{"chanId": 224555}})
-	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"symbol":"tBTCUSD","pair":"BTCUSD"}`)); err != nil {
+	if err = b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"symbol":"tBTCUSD","pair":"BTCUSD"}`)); err != nil {
 		t.Error(err)
 	}
 
 	// Spot Candles
 	spotWebsocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: wsCandles, Params: map[string]interface{}{"chanId": 224556}})
-	if err := b.wsHandleData([]byte(`{"event":"subscribed","channel":"candles","chanId":224556,"key":"trade:1m:tBTCUSD"}`)); err != nil {
+	if err = b.wsHandleData([]byte(`{"event":"subscribed","channel":"candles","chanId":224556,"key":"trade:1m:tBTCUSD"}`)); err != nil {
 		t.Error(err)
 	}
 

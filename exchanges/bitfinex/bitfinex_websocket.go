@@ -1524,7 +1524,7 @@ func (b *Bitfinex) resubOrderbook(p currency.Pair, assetType asset.Item) error {
 	if err != nil {
 		return err
 	}
-	if err := b.Websocket.Orderbook.FlushOrderbook(p, assetType); err != nil {
+	if err = b.Websocket.Orderbook.FlushOrderbook(p, assetType); err != nil {
 		return err
 	}
 
