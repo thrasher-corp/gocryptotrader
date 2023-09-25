@@ -1877,7 +1877,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		freeCollateral, totalCollateral, equityOfCurrency, frozenBalance,
 		availableEquity, cashBalance, discountEquity,
 		equityUSD, totalEquity, isolatedEquity, isolatedLiabilities,
-		isolatedUnrealisedProfit, marginRatio, notionalLeverage,
+		isolatedUnrealisedProfit, notionalLeverage,
 		strategyEquity decimal.Decimal
 	)
 
@@ -1897,7 +1897,6 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		isolatedEquity = acc[0].Details[i].IsoEquity.Decimal()
 		isolatedLiabilities = acc[0].Details[i].IsolatedLiabilities.Decimal()
 		isolatedUnrealisedProfit = acc[0].Details[i].IsoUpl.Decimal()
-		marginRatio = acc[0].Details[i].MarginRatio.Decimal()
 		notionalLeverage = acc[0].Details[i].NotionalLever.Decimal()
 		strategyEquity = acc[0].Details[i].StrategyEquity.Decimal()
 
