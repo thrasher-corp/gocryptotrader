@@ -1,10 +1,12 @@
 package bitfinex
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -1074,16 +1076,89 @@ func TestWsAuth(t *testing.T) {
 }
 
 // TestWsSubscribe tests Subscribe and Unsubscribe functionality
+// See also TestSubscribeReq which covers key and symbol conversion
 func TestWsSubscribe(t *testing.T) {
 	setupWs(t)
-	defSubs, err := b.GenerateDefaultSubscriptions()
-	assert.NoError(t, err)
-	err = b.Subscribe([]stream.ChannelSubscription{defSubs[0]})
-	assert.NoError(t, err)
-	s, err := b.GetSubscriptions()
-	assert.NoError(t, err)
-	err = b.Unsubscribe(s)
-	assert.NoError(t, err)
+	err := b.Subscribe([]stream.ChannelSubscription{{Channel: wsTicker, Currency: currency.NewPair(currency.BTC, currency.USD), Asset: asset.Spot}})
+	assert.NoError(t, err, "Subrcribe should not error")
+	catcher := func() (ok bool) {
+		i := <-b.Websocket.DataHandler
+		_, ok = i.(*ticker.Price)
+		return
+	}
+	assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Ticker response should arrive")
+
+	err = b.Subscribe([]stream.ChannelSubscription{{Channel: wsTicker, Currency: currency.NewPair(currency.BTC, currency.USD), Asset: asset.Spot}})
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Duplicate subscription should error correctly")
+	catcher = func() bool {
+		i := <-b.Websocket.DataHandler
+		if e, ok := i.(error); ok {
+			if assert.ErrorIs(t, e, stream.ErrSubscriptionFailure, "Error should go to DataHandler") {
+				assert.ErrorContains(t, e, "subscribe: dup (code: 10301)", "Error should contain message and code")
+				return true
+			}
+		}
+		return false
+	}
+	assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "error response should arrive")
+
+	subs, err := b.GetSubscriptions()
+	assert.NoError(t, err, "GetSubscriptions should not error")
+	err = b.Unsubscribe(subs)
+	assert.NoError(t, err, "Unsubscribing should not error")
+
+	chanID, ok := subs[0].Key.(int)
+	assert.True(t, ok, "sub.Key should be an int")
+
+	err = b.Unsubscribe(subs)
+	assert.ErrorIs(t, err, stream.ErrUnsubscribeFailure, "Unsubscribe should error")
+	assert.ErrorContains(t, err, strconv.Itoa(chanID), "Unsubscribe should contain correct chanId")
+	assert.ErrorContains(t, err, "unsubscribe: invalid (code: 10400)", "Unsubscribe should contain correct upstream error")
+
+	err = b.Subscribe([]stream.ChannelSubscription{{
+		Channel:  wsTicker,
+		Currency: currency.NewPair(currency.BTC, currency.USD),
+		Asset:    asset.Spot,
+		Params:   map[string]interface{}{"key": "tBTCUSD"},
+	}})
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Trying to use a 'key' param should error ErrSubscriptionFailure")
+	assert.ErrorIs(t, err, errParamNotAllowed, "Trying to use a 'key' param should error errParamNotAllowed")
+}
+
+// TestSubscribeReq tests the channel to request map marshalling
+func TestSubscribeReq(t *testing.T) {
+	c := &stream.ChannelSubscription{
+		Channel:  wsCandles,
+		Currency: currency.NewPair(currency.BTC, currency.USD),
+		Asset:    asset.MarginFunding,
+		Params: map[string]interface{}{
+			CandlesPeriodKey: "30",
+		},
+	}
+	r, err := subscribeReq(c)
+	assert.NoError(t, err, "subscribeReq should not error")
+	assert.Equal(t, "trade:1m:fBTCUSD:p30", r["key"], "key contain period and default timeframe")
+
+	c.Params = map[string]interface{}{
+		CandlesTimeframeKey: "15m",
+	}
+	r, err = subscribeReq(c)
+	assert.NoError(t, err, "subscribeReq should not error")
+	assert.Equal(t, "trade:15m:fBTCUSD", r["key"], "key should be contain specific timeframe and no period")
+
+	c = &stream.ChannelSubscription{
+		Channel:  wsBook,
+		Currency: currency.NewPair(currency.BTC, currency.DOGE),
+		Asset:    asset.Spot,
+	}
+	r, err = subscribeReq(c)
+	assert.NoError(t, err, "subscribeReq should not error")
+	assert.Equal(t, "tBTC:DOGE", r["symbol"], "symbol should use colon delimiter if a currency is > 3 chars")
+
+	c.Currency = currency.NewPair(currency.BTC, currency.LTC)
+	r, err = subscribeReq(c)
+	assert.NoError(t, err, "subscribeReq should not error")
+	assert.Equal(t, "tBTCLTC", r["symbol"], "symbol should not use colon delimiter if both currencies < 3 chars")
 }
 
 // TestWsPlaceOrder dials websocket, sends order request.
@@ -1796,6 +1871,75 @@ func TestCancelMultipleOrdersV2(t *testing.T) {
 	}
 }
 
+// TestGetErrResp unit tests the helper func getErrResp
+func TestGetErrResp(t *testing.T) {
+	t.Parallel()
+	fixture, err := os.Open("testdata/getErrResp.json")
+	if !assert.NoError(t, err, "Opening fixture should not error") {
+		t.FailNow()
+	}
+	s := bufio.NewScanner(fixture)
+	seen := 0
+	for s.Scan() {
+		testErr := b.getErrResp(s.Bytes())
+		seen++
+		switch seen {
+		case 1: // no event
+			assert.ErrorIs(t, testErr, errParsingWSField, "Message with no event Should get correct error type")
+			assert.ErrorContains(t, testErr, "'event'", "Message with no event error should contain missing field name")
+			assert.ErrorContains(t, testErr, "nightjar", "Message with no event error should contain the message")
+		case 2: // with {} for event
+			assert.NoError(t, testErr, "Message with '{}' for event field should not error")
+		case 3: // event != 'error'
+			assert.NoError(t, testErr, "Message with non-'error' event field should not error")
+		case 4: // event="error"
+			assert.ErrorIs(t, testErr, errUnknownError, "error without a message should throw unknown error")
+			assert.ErrorContains(t, testErr, "code: 0", "error without a code should throw code 0")
+		case 5: // Fully formatted
+			assert.ErrorContains(t, testErr, "redcoats", "message field should be in the error")
+			assert.ErrorContains(t, testErr, "code: 42", "code field should be in the error")
+		}
+	}
+	assert.NoError(t, s.Err(), "Fixture Scanner should not error")
+	assert.NoError(t, fixture.Close(), "Closing the fixture file should not error")
+}
+
+// TestParallelChanOp unit tests the helper func parallelChanOp
+func TestParallelChanOp(t *testing.T) {
+	t.Parallel()
+	c := []stream.ChannelSubscription{
+		{Channel: "red"},
+		{Channel: "blue"},
+		{Channel: "violent"},
+		{Channel: "spin"},
+		{Channel: "charm"},
+	}
+	var testErr error
+	run := make(chan struct{}, 5)
+	go func() {
+		testErr = b.parallelChanOp(c, func(c *stream.ChannelSubscription) error {
+			time.Sleep(300 * time.Millisecond)
+			run <- struct{}{}
+			switch c.Channel {
+			case "spin", "violent":
+				return errors.New(c.Channel)
+			}
+			return nil
+		})
+		close(run)
+	}()
+	f := func(c *assert.CollectT) {
+		assert.ErrorContains(c, testErr, "violent", "Should get a violent error")
+		assert.ErrorContains(c, testErr, "spin", "Should get a spin error")
+	}
+	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
+	got := 0
+	for range run {
+		got++
+	}
+	assert.Equal(t, got, 5, "Every channel was run to completion")
+}
+
 // setupWs is a helper function to connect both auth and normal websockets
 // It will skip the test if websockets are not enabled
 // It's up to the test to skip if it requires creds, though
@@ -1810,8 +1954,11 @@ func setupWs(tb testing.TB) {
 	if wsConnected {
 		return
 	}
-	wsConnected = true
 	// We don't use b.websocket.Connect() because it'd subscribe to channels
 	err := b.WsConnect()
-	assert.NoError(tb, err, "WsConnect should not error")
+	if !assert.NoError(tb, err, "WsConnect should not error") {
+		tb.FailNow()
+	}
+
+	wsConnected = true
 }

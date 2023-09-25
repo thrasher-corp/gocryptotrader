@@ -15,6 +15,8 @@ var (
 	errTypeAssert       = errors.New("type assertion failed")
 	errNoSeqNo          = errors.New("no sequence number")
 	errUnknownError     = errors.New("unknown error")
+	errParamNotAllowed  = errors.New("param not allowed")
+	errParsingWSField   = errors.New("error parsing WS field")
 )
 
 // AccountV2Data stores account v2 data

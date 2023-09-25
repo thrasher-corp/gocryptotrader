@@ -26,6 +26,8 @@ const (
 var (
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
+	// ErrUnsubscribeFailure defines an error when a unsubscribe fails
+	ErrUnsubscribeFailure = errors.New("unsubscribe failure")
 	// ErrAlreadyDisabled is returned when you double-disable the websocket
 	ErrAlreadyDisabled = errors.New("websocket already disabled")
 	// ErrNotConnected defines an error when websocket is not connected

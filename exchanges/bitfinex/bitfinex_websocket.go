@@ -426,13 +426,13 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
-		return fmt.Errorf("error parsing WS event name: %w from message: %s", err, respRaw)
+		return fmt.Errorf("%w 'event': %w from message: %s", errParsingWSField, err, respRaw)
 	}
 	switch event {
 	case wsEventSubscribed:
 		subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
 		if err != nil {
-			return fmt.Errorf("error parsing WS subscribed event subId: %w from message: %s", err, respRaw)
+			return fmt.Errorf("%w 'subId': %w from message: %s", errParsingWSField, err, respRaw)
 		}
 		if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
 			return fmt.Errorf("%v channel subscribe listener not found", subID)
@@ -440,7 +440,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventUnsubscribed:
 		chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId")
 		if err != nil {
-			return fmt.Errorf("error parsing WS unsubscribed event chanId: %w from message: %s", err, respRaw)
+			return fmt.Errorf("%w 'chanId': %w from message: %s", errParsingWSField, err, respRaw)
 		}
 		if !b.Websocket.Match.IncomingWithData("unsubscribe:"+chanID, respRaw) {
 			return fmt.Errorf("%v channel unsubscribe listener not found", chanID)
@@ -460,7 +460,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventAuth:
 		status, err := jsonparser.GetUnsafeString(respRaw, "status")
 		if err != nil {
-			return fmt.Errorf("error parsing WS auth event status: %w from message: %s", err, respRaw)
+			return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, respRaw)
 		}
 		if status == "OK" {
 			var glob map[string]interface{}
@@ -472,7 +472,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 		} else {
 			errCode, err := jsonparser.GetInt(respRaw, "code")
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s error parsing WS auth event error code: %s", b.Name, err)
+				log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, errParsingWSField, err, respRaw)
 			}
 			return fmt.Errorf("WS auth subscription error; Status: %s Error Code: %d", status, errCode)
 		}
@@ -482,7 +482,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventConf:
 		status, err := jsonparser.GetUnsafeString(respRaw, "status")
 		if err != nil {
-			return fmt.Errorf("error parsing WS configure channel event status: %w from message: %s", err, respRaw)
+			return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, respRaw)
 		}
 		if status != "OK" {
 			return fmt.Errorf("WS configure channel error; Status: %s", status)
@@ -1673,9 +1673,46 @@ func (b *Bitfinex) parallelChanOp(channels []stream.ChannelSubscription, m func(
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
 func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
-	req := make(map[string]interface{})
-	req["event"] = "subscribe"
-	req["channel"] = c.Channel
+	req, err := subscribeReq(c)
+	if err != nil {
+		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
+	}
+
+	// Although docs only mention this for wsBook, it works for all chans
+	subID := strconv.FormatInt(b.Websocket.Conn.GenerateMessageID(false), 10)
+	req["subId"] = subID
+
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
+	if err != nil {
+		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
+	}
+
+	if err = b.getErrResp(respRaw); err != nil {
+		wErr := fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
+		b.Websocket.DataHandler <- wErr
+		return wErr
+	}
+
+	chanID, err := jsonparser.GetInt(respRaw, "chanId")
+	if err != nil {
+		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, errParsingWSField, err, c.Channel, c.Currency)
+	}
+
+	c.Key = int(chanID)
+	b.Websocket.AddSuccessfulSubscriptions(*c)
+	if b.Verbose {
+		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Currency, chanID)
+	}
+
+	return nil
+}
+
+// subscribeReq returns a map of request params for subscriptions
+func subscribeReq(c *stream.ChannelSubscription) (map[string]interface{}, error) {
+	req := map[string]interface{}{
+		"event":   "subscribe",
+		"channel": c.Channel,
+	}
 
 	for k, v := range c.Params {
 		switch k {
@@ -1683,7 +1720,7 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 			// Skip these internal Params
 		case "key", "symbol":
 			// Ensure user's Params aren't silently overwritten
-			return fmt.Errorf("subscribe to channel with key or symbol Param is not supported")
+			return nil, fmt.Errorf("%s %w", k, errParamNotAllowed)
 		default:
 			req[k] = v
 		}
@@ -1707,14 +1744,14 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 		timeframe := "1m"
 		if t, ok := c.Params[CandlesTimeframeKey]; ok {
 			if timeframe, ok = t.(string); !ok {
-				return common.GetTypeAssertError("string", t, "Subscription.CandlesTimeframeKey")
+				return nil, common.GetTypeAssertError("string", t, "Subscription.CandlesTimeframeKey")
 			}
 		}
 		fundingPeriod := ""
 		if p, ok := c.Params[CandlesPeriodKey]; ok {
 			s, cOk := p.(string)
 			if !cOk {
-				return common.GetTypeAssertError("string", p, "Subscription.CandlesPeriodKey")
+				return nil, common.GetTypeAssertError("string", p, "Subscription.CandlesPeriodKey")
 			}
 			fundingPeriod = ":p" + s
 		}
@@ -1723,33 +1760,7 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 		req["symbol"] = prefix + formattedPair
 	}
 
-	// Although docs only mention this for wsBook, it works for all chans
-	subID := strconv.FormatInt(b.Websocket.Conn.GenerateMessageID(false), 10)
-	req["subId"] = subID
-
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
-	if err != nil {
-		return fmt.Errorf("error subscribing to Channel: %s Pair: %s Error: %w", c.Channel, c.Currency, err)
-	}
-
-	if err = b.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("error subscribing to Channel: %s Pair: %s; %w", c.Channel, c.Currency, err)
-		b.Websocket.DataHandler <- wErr
-		return wErr
-	}
-
-	chanID, err := jsonparser.GetInt(respRaw, "chanId")
-	if err != nil {
-		return fmt.Errorf("error parsing chanId in WS subscribe response: %w", err)
-	}
-
-	c.Key = int(chanID)
-	b.Websocket.AddSuccessfulSubscriptions(*c)
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Currency, chanID)
-	}
-
-	return nil
+	return req, nil
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
@@ -1770,7 +1781,7 @@ func (b *Bitfinex) unsubscribeFromChan(c *stream.ChannelSubscription) error {
 	}
 
 	if err := b.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("error unsubscribing from ChanId: %v; %w", chanID, err)
+		wErr := fmt.Errorf("%w from ChanId: %v; %w", stream.ErrUnsubscribeFailure, chanID, err)
 		b.Websocket.DataHandler <- wErr
 		return wErr
 	}
@@ -1787,20 +1798,19 @@ func (b *Bitfinex) unsubscribeFromChan(c *stream.ChannelSubscription) error {
 func (b *Bitfinex) getErrResp(resp []byte) error {
 	event, err := jsonparser.GetUnsafeString(resp, "event")
 	if err != nil {
-		return fmt.Errorf("error parsing WS event: %w from message: %s", err, resp)
+		return fmt.Errorf("%w 'event': %w from message: %s", errParsingWSField, err, resp)
 	}
-
 	if event != "error" {
 		return nil
 	}
 	errCode, err := jsonparser.GetInt(resp, "code")
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s error parsing WS error code: %s from message: %s", b.Name, err, resp)
+		log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, errParsingWSField, err, resp)
 	}
 
 	var apiErr error
 	if msg, e2 := jsonparser.GetString(resp, "msg"); e2 != nil {
-		log.Errorf(log.ExchangeSys, "%s error parsing WS error msg: %s from message: %s", b.Name, err, resp)
+		log.Errorf(log.ExchangeSys, "%s %s 'msg': %s from message: %s", b.Name, errParsingWSField, e2, resp)
 		apiErr = errUnknownError
 	} else {
 		apiErr = errors.New(msg)
