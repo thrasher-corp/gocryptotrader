@@ -334,7 +334,8 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			return err
 		}
 		for x := range ticks {
-			pair, err := pairs.DeriveFrom(ticks[x].Symbol)
+			var pair currency.Pair
+			pair, err = currency.NewPairFromStrings(ticks[x].BaseCurrency, ticks[x].Symbol[len(ticks[x].BaseCurrency):])
 			if err != nil {
 				return err
 			}

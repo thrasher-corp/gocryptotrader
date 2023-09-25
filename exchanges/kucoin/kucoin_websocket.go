@@ -602,12 +602,8 @@ func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	var pair currency.Pair
+	pair, err = currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return err
 	}
