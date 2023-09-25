@@ -334,7 +334,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			return err
 		}
 		for x := range ticks {
-			pair, err := currency.NewPairFromString(ticks[x].Symbol)
+			pair, err := pairs.DeriveFrom(ticks[x].Symbol)
 			if err != nil {
 				return err
 			}
@@ -873,7 +873,11 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
-		nPair, err := currency.NewPairFromString(orderDetail.Symbol)
+		enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+		if err != nil {
+			return nil, err
+		}
+		nPair, err := enabledPairs.DeriveFrom(orderDetail.Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -1045,11 +1049,16 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
+		var enabledPairs currency.Pairs
+		enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+		if err != nil {
+			return nil, err
+		}
 		for x := range futuresOrders.Items {
 			if !futuresOrders.Items[x].IsActive {
 				continue
 			}
-			dPair, err := currency.NewPairFromString(futuresOrders.Items[x].Symbol)
+			dPair, err := enabledPairs.DeriveFrom(futuresOrders.Items[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -1096,11 +1105,16 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
+		var enabledPairs currency.Pairs
+		enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+		if err != nil {
+			return nil, err
+		}
 		for x := range spotOrders.Items {
 			if !spotOrders.Items[x].IsActive {
 				continue
 			}
-			dPair, err := currency.NewPairFromString(spotOrders.Items[x].Symbol)
+			dPair, err := enabledPairs.DeriveFrom(spotOrders.Items[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -1183,13 +1197,18 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				}
 			}
 		}
+		var enabledPairs currency.Pairs
+		enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+		if err != nil {
+			return nil, err
+		}
 		orders = make(order.FilteredOrders, len(futuresOrders.Items))
 		for i := range orders {
 			orderSide, err = order.StringToOrderSide(futuresOrders.Items[i].Side)
 			if err != nil {
 				return nil, err
 			}
-			pair, err = currency.NewPairFromString(futuresOrders.Items[i].Symbol)
+			pair, err = enabledPairs.DeriveFrom(futuresOrders.Items[i].Symbol)
 			if err != nil {
 				return nil, err
 			}

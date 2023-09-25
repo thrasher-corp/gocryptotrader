@@ -279,11 +279,18 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	case strings.HasPrefix(futuresOrderbookLevel2Channel, topicInfo[0]):
 		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
 			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
-			cp, err := currency.NewPairFromString(topicInfo[1])
+			var enabledPairs currency.Pairs
+			enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
 			if err != nil {
 				return err
 			}
-			orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+			var cp currency.Pair
+			cp, err = enabledPairs.DeriveFrom(topicInfo[1])
+			if err != nil {
+				return err
+			}
+			var orderbooks *orderbook.Base
+			orderbooks, err = ku.FetchOrderbook(context.Background(), cp, asset.Futures)
 			if err != nil {
 				return err
 			}
@@ -300,7 +307,12 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		strings.HasPrefix(futuresOrderbookLevel2Depth50Channel, topicInfo[0]):
 		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
 			fetchedFuturesSnapshotOrderbook[topicInfo[1]] = true
-			cp, err := currency.NewPairFromString(topicInfo[1])
+			var enabledPairs currency.Pairs
+			enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+			if err != nil {
+				return err
+			}
+			cp, err := enabledPairs.DeriveFrom(topicInfo[1])
 			if err != nil {
 				return err
 			}
@@ -385,10 +397,16 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 
 func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 	resp := WsStopOrderLifecycleEvent{}
-	if err := json.Unmarshal(respData, &resp); err != nil {
+	err := json.Unmarshal(respData, &resp)
+	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(resp.Symbol)
+	var enabledPairs currency.Pairs
+	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
 	if err != nil {
 		return err
 	}
@@ -429,7 +447,12 @@ func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(resp.Symbol)
+	var enabledPairs currency.Pairs
+	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
 	if err != nil {
 		return err
 	}
@@ -500,7 +523,11 @@ func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument stri
 		return err
 	}
 	resp := response.ExtractOrderbookItems()
-	cp, err := currency.NewPairFromString(instrument)
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	cp, err := enabledPairs.DeriveFrom(instrument)
 	if err != nil {
 		return err
 	}
@@ -523,7 +550,11 @@ func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument stri
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(instrument)
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	pair, err := enabledPairs.DeriveFrom(instrument)
 	if err != nil {
 		return err
 	}
@@ -546,12 +577,9 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(resp.Symbol)
+	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
 	if err != nil {
 		return err
-	}
-	if !enabledPairs.Contains(pair, true) {
-		return errCurrencyPairNotEnabled
 	}
 	ku.Websocket.DataHandler <- &ticker.Price{
 		AssetType:    asset.Futures,
@@ -570,10 +598,16 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 
 func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 	resp := WsStopOrder{}
-	if err := json.Unmarshal(respData, &resp); err != nil {
+	err := json.Unmarshal(respData, &resp)
+	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(resp.Symbol)
+	var enabledPairs currency.Pairs
+	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
 	if err != nil {
 		return err
 	}
