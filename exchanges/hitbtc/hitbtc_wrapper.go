@@ -33,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (h *HitBTC) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	h.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = h.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = h.BaseCurrencies
+	exchCfg, err := h.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := h.SetupDefaults(exchCfg)
+	err = h.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

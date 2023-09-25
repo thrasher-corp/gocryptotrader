@@ -23,7 +23,10 @@ import (
 
 const (
 	bitstampWSURL = "wss://ws.bitstamp.net" //nolint // gosec false positive
+	hbInterval    = 8 * time.Second         // Connection monitor defaults to 10s inactivity
 )
+
+var hbMsg = []byte(`{"event":"bts:heartbeat"}`)
 
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
@@ -42,6 +45,11 @@ func (b *Bitstamp) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
+		MessageType: websocket.TextMessage,
+		Message:     hbMsg,
+		Delay:       hbInterval,
+	})
 	err = b.seedOrderBook(context.TODO())
 	if err != nil {
 		b.Websocket.DataHandler <- err
@@ -86,6 +94,8 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	}
 
 	switch wsResponse.Event {
+	case "bts:heartbeat":
+		return nil
 	case "bts:subscribe", "bts:subscription_succeeded":
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket subscription acknowledgement", b.Name)
@@ -276,7 +286,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		Bids:            make(orderbook.Items, len(update.Bids)),
 		Asks:            make(orderbook.Items, len(update.Asks)),
 		Pair:            p,
-		LastUpdated:     time.Unix(update.Timestamp, 0),
+		LastUpdated:     time.UnixMicro(update.Microtimestamp),
 		Asset:           assetType,
 		Exchange:        b.Name,
 		VerifyOrderbook: b.CanVerifyOrderbook,
@@ -331,6 +341,7 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			VerifyOrderbook: b.CanVerifyOrderbook,
 			Bids:            make(orderbook.Items, len(orderbookSeed.Bids)),
 			Asks:            make(orderbook.Items, len(orderbookSeed.Asks)),
+			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0),
 		}
 
 		for i := range orderbookSeed.Asks {

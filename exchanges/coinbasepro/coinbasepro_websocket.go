@@ -115,7 +115,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		}
 
 	case "snapshot":
-		snapshot := WebsocketOrderbookSnapshot{}
+		var snapshot WebsocketOrderbookSnapshot
 		err := json.Unmarshal(respRaw, &snapshot)
 		if err != nil {
 			return err
@@ -125,9 +125,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
 	case "l2update":
-		update := WebsocketL2Update{}
+		var update WebsocketL2Update
 		err := json.Unmarshal(respRaw, &update)
 		if err != nil {
 			return err
@@ -304,30 +303,30 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	}
 
 	for i := range snapshot.Bids {
-		price, err := strconv.ParseFloat(snapshot.Bids[i][0], 64)
+		var price float64
+		price, err = strconv.ParseFloat(snapshot.Bids[i][0], 64)
 		if err != nil {
 			return err
 		}
-
-		amount, err := strconv.ParseFloat(snapshot.Bids[i][1], 64)
+		var amount float64
+		amount, err = strconv.ParseFloat(snapshot.Bids[i][1], 64)
 		if err != nil {
 			return err
 		}
-
 		base.Bids[i] = orderbook.Item{Price: price, Amount: amount}
 	}
 
 	for i := range snapshot.Asks {
-		price, err := strconv.ParseFloat(snapshot.Asks[i][0], 64)
+		var price float64
+		price, err = strconv.ParseFloat(snapshot.Asks[i][0], 64)
 		if err != nil {
 			return err
 		}
-
-		amount, err := strconv.ParseFloat(snapshot.Asks[i][1], 64)
+		var amount float64
+		amount, err = strconv.ParseFloat(snapshot.Asks[i][1], 64)
 		if err != nil {
 			return err
 		}
-
 		base.Asks[i] = orderbook.Item{Price: price, Amount: amount}
 	}
 
@@ -335,7 +334,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	base.Pair = pair
 	base.Exchange = c.Name
 	base.VerifyOrderbook = c.CanVerifyOrderbook
-
+	base.LastUpdated = snapshot.Time
 	return c.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
@@ -346,11 +345,6 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 	}
 
 	p, err := currency.NewPairFromString(update.ProductID)
-	if err != nil {
-		return err
-	}
-
-	timestamp, err := time.Parse(time.RFC3339, update.Time)
 	if err != nil {
 		return err
 	}
@@ -378,14 +372,18 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       p,
-		UpdateTime: timestamp,
+		UpdateTime: update.Time,
 		Asset:      asset.Spot,
 	})
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"heartbeat", "level2", "ticker", "user", "matches"}
+	var channels = []string{"heartbeat",
+		"level2_batch", /*Other orderbook feeds require authentication. This is batched in 50ms lots.*/
+		"ticker",
+		"user",
+		"matches"}
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

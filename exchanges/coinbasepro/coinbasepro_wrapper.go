@@ -31,12 +31,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (c *CoinbasePro) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = c.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = c.BaseCurrencies
+	exchCfg, err := c.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := c.SetupDefaults(exchCfg)
+	err = c.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +179,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		Features: &c.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
+		fmt.Println("COINBASE ISSUE")
 		return err
 	}
 	spotWebsocket, err := c.Websocket.AddWebsocket(&stream.WebsocketSetup{

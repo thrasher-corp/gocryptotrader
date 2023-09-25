@@ -345,10 +345,12 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 		h.Websocket.DataHandler <- err
 		return err
 	}
+
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Pair = p
 	newOrderBook.Exchange = h.Name
 	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
+	newOrderBook.LastUpdated = ob.Params.Timestamp
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -466,11 +468,12 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 	}
 
 	return h.Websocket.Orderbook.Update(&orderbook.Update{
-		Asks:     asks,
-		Bids:     bids,
-		Pair:     p,
-		UpdateID: update.Params.Sequence,
-		Asset:    asset.Spot,
+		Asks:       asks,
+		Bids:       bids,
+		Pair:       p,
+		UpdateID:   update.Params.Sequence,
+		Asset:      asset.Spot,
+		UpdateTime: update.Params.Timestamp,
 	})
 }
 

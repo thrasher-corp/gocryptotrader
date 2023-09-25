@@ -5,19 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -35,53 +32,6 @@ var (
 	updateTPLock                                                                                                                             sync.Mutex
 	spotTradablePair, futuresTradablePair, coinMarginedFuturesTradablePair, usdtMarginedFuturesTradablePair, usdcMarginedFuturesTradablePair currency.Pair
 )
-
-func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg, err := cfg.GetExchangeConfig("Bybit")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	if apiKey != "" && apiSecret != "" {
-		exchCfg.API.AuthenticatedSupport = true
-		exchCfg.API.AuthenticatedWebsocketSupport = true
-		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	}
-	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
-	request.MaxRequestJobs = 200
-	err = b.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	b.Websocket.Wg.Add(1)
-	go updateTradablePairAndInitiateDefaultCurrencyPairs()
-
-	// Turn on all pairs for testing
-	supportedAssets := b.GetAssetTypes(false)
-	for x := range supportedAssets {
-		avail, err := b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	os.Exit(m.Run())
-}
 
 func TestStart(t *testing.T) {
 	t.Parallel()

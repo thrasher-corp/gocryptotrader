@@ -32,11 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (b *Bitstamp) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
-	err := b.SetupDefaults(exchCfg)
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

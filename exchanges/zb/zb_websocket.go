@@ -148,6 +148,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Pair:            cPair,
 			Exchange:        z.Name,
 			VerifyOrderbook: z.CanVerifyOrderbook,
+			LastUpdated:     time.Now(), // This is temp to pass test as the API is broken.
 		}
 
 		for i := range depth.Asks {

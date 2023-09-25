@@ -37,12 +37,12 @@ var (
 // GetDefaultConfig returns a default exchange config
 func (b *Bittrex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := b.SetupDefaults(exchCfg)
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,12 +36,12 @@ var spotWebsocket, futuresWebsocket, deliveryFuturesWebsocket, optionsWebsocket 
 // GetDefaultConfig returns a default exchange config
 func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	g.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = g.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = g.BaseCurrencies
+	exchCfg, err := g.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := g.SetupDefaults(exchCfg)
+	err = g.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -400,11 +401,11 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		}
 		tickerData = &ticker.Price{
 			Pair:         fPair,
-			Low:          tick.Low24H,
-			High:         tick.High24H,
-			Last:         tick.Last,
-			Volume:       tick.Volume24HBase,
-			QuoteVolume:  tick.Volume24HQuote,
+			Low:          tick.Low24H.Float64(),
+			High:         tick.High24H.Float64(),
+			Last:         tick.Last.Float64(),
+			Volume:       tick.Volume24HBase.Float64(),
+			QuoteVolume:  tick.Volume24HQuote.Float64(),
 			ExchangeName: g.Name,
 			AssetType:    a,
 		}
@@ -431,8 +432,8 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			tickerData = &ticker.Price{
 				Pair:         tickers[x].Name,
 				Last:         tickers[x].LastPrice.Float64(),
-				Bid:          tickers[x].Bid1Price,
-				Ask:          tickers[x].Ask1Price,
+				Bid:          tickers[x].Bid1Price.Float64(),
+				Ask:          tickers[x].Ask1Price.Float64(),
 				AskSize:      tickers[x].Ask1Size,
 				BidSize:      tickers[x].Bid1Size,
 				ExchangeName: g.Name,
@@ -459,11 +460,11 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			if tickers[x].Contract == fPair.Upper().String() {
 				tickerData = &ticker.Price{
 					Pair:         fPair,
-					Last:         tickers[x].Last,
-					High:         tickers[x].High24H,
-					Low:          tickers[x].Low24H,
-					Volume:       tickers[x].Volume24H,
-					QuoteVolume:  tickers[x].Volume24HQuote,
+					Last:         tickers[x].Last.Float64(),
+					High:         tickers[x].High24H.Float64(),
+					Low:          tickers[x].Low24H.Float64(),
+					Volume:       tickers[x].Volume24H.Float64(),
+					QuoteVolume:  tickers[x].Volume24HQuote.Float64(),
 					ExchangeName: g.Name,
 					AssetType:    a,
 				}
@@ -701,11 +702,11 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tickers[x].Last,
-				High:         tickers[x].High24H,
-				Low:          tickers[x].Low24H,
-				Volume:       tickers[x].Volume24H,
-				QuoteVolume:  tickers[x].Volume24HQuote,
+				Last:         tickers[x].Last.Float64(),
+				High:         tickers[x].High24H.Float64(),
+				Low:          tickers[x].Low24H.Float64(),
+				Volume:       tickers[x].Volume24H.Float64(),
+				QuoteVolume:  tickers[x].Volume24HQuote.Float64(),
 				ExchangeName: g.Name,
 				Pair:         currencyPair,
 				AssetType:    a,
@@ -731,9 +732,9 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 			for x := range tickers {
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tickers[x].LastPrice.Float64(),
-					Ask:          tickers[x].Ask1Price,
+					Ask:          tickers[x].Ask1Price.Float64(),
 					AskSize:      tickers[x].Ask1Size,
-					Bid:          tickers[x].Bid1Price,
+					Bid:          tickers[x].Bid1Price.Float64(),
 					BidSize:      tickers[x].Bid1Size,
 					Pair:         tickers[x].Name,
 					ExchangeName: g.Name,
@@ -844,9 +845,9 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 		for x := range balances {
 			currencies[x] = account.Balance{
 				Currency: currency.NewCode(balances[x].Currency),
-				Total:    balances[x].Available - balances[x].Locked,
-				Hold:     balances[x].Locked,
-				Free:     balances[x].Available,
+				Total:    balances[x].Available.Float64() - balances[x].Locked.Float64(),
+				Hold:     balances[x].Locked.Float64(),
+				Free:     balances[x].Available.Float64(),
 			}
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -863,14 +864,14 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 		for x := range balances {
 			currencies = append(currencies, account.Balance{
 				Currency: currency.NewCode(balances[x].Base.Currency),
-				Total:    balances[x].Base.Available + balances[x].Base.LockedAmount,
-				Hold:     balances[x].Base.LockedAmount,
-				Free:     balances[x].Base.Available,
+				Total:    balances[x].Base.Available.Float64() + balances[x].Base.LockedAmount.Float64(),
+				Hold:     balances[x].Base.LockedAmount.Float64(),
+				Free:     balances[x].Base.Available.Float64(),
 			}, account.Balance{
 				Currency: currency.NewCode(balances[x].Quote.Currency),
-				Total:    balances[x].Quote.Available + balances[x].Quote.LockedAmount,
-				Hold:     balances[x].Quote.LockedAmount,
-				Free:     balances[x].Quote.Available,
+				Total:    balances[x].Quote.Available.Float64() + balances[x].Quote.LockedAmount.Float64(),
+				Hold:     balances[x].Quote.LockedAmount.Float64(),
+				Free:     balances[x].Quote.Available.Float64(),
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -895,9 +896,9 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 			}
 			currencies[x] = account.Balance{
 				Currency: currency.NewCode(balance.Currency),
-				Total:    balance.Total,
-				Hold:     balance.Total - balance.Available,
-				Free:     balance.Available,
+				Total:    balance.Total.Float64(),
+				Hold:     balance.Total.Float64() - balance.Available.Float64(),
+				Free:     balance.Available.Float64(),
 			}
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -915,9 +916,9 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 			Currencies: []account.Balance{
 				{
 					Currency: currency.NewCode(balance.Currency),
-					Total:    balance.Total,
-					Hold:     balance.Total - balance.Available,
-					Free:     balance.Available,
+					Total:    balance.Total.Float64(),
+					Hold:     balance.Total.Float64() - balance.Available.Float64(),
+					Free:     balance.Available.Float64(),
 				},
 			},
 		})
@@ -966,7 +967,7 @@ func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 			Status:          records[x].Status,
 			TransferID:      records[x].ID,
 			Currency:        records[x].Currency,
-			Amount:          records[x].Amount,
+			Amount:          records[x].Amount.Float64(),
 			CryptoTxID:      records[x].TransactionID,
 			CryptoToAddress: records[x].WithdrawalAddress,
 			Timestamp:       records[x].Timestamp.Time(),
@@ -1005,8 +1006,8 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				CurrencyPair: p,
 				AssetType:    a,
 				Side:         side,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Amount,
+				Price:        tradeData[i].Price.Float64(),
+				Amount:       tradeData[i].Amount.Float64(),
 				Timestamp:    tradeData[i].CreateTimeMs.Time(),
 			}
 		}
@@ -1028,7 +1029,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Exchange:     g.Name,
 				CurrencyPair: p,
 				AssetType:    a,
-				Price:        futuresTrades[i].Price,
+				Price:        futuresTrades[i].Price.Float64(),
 				Amount:       futuresTrades[i].Size,
 				Timestamp:    futuresTrades[i].CreateTime.Time(),
 			}
@@ -1051,7 +1052,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Exchange:     g.Name,
 				CurrencyPair: p,
 				AssetType:    a,
-				Price:        deliveryTrades[i].Price,
+				Price:        deliveryTrades[i].Price.Float64(),
 				Amount:       deliveryTrades[i].Size,
 				Timestamp:    deliveryTrades[i].CreateTime.Time(),
 			}
@@ -1069,7 +1070,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Exchange:     g.Name,
 				CurrencyPair: p,
 				AssetType:    a,
-				Price:        trades[i].Price,
+				Price:        trades[i].Price.Float64(),
 				Amount:       trades[i].Size,
 				Timestamp:    trades[i].CreateTime.Time(),
 			}
@@ -1120,8 +1121,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Side:         orderTypeFormat,
 			Type:         s.Type.Lower(),
 			Account:      g.assetTypeToString(s.AssetType),
-			Amount:       s.Amount,
-			Price:        s.Price,
+			Amount:       convert.StringToFloat64(s.Amount),
+			Price:        convert.StringToFloat64(s.Price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
 		})
@@ -1142,7 +1143,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		response.Status = status
-		response.Fee = sOrder.FeeDeducted
+		response.Fee = sOrder.FeeDeducted.Float64()
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
 		response.Pair = s.Pair
 		response.Date = sOrder.CreateTime.Time()
@@ -1163,7 +1164,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		fOrder, err := g.PlaceFuturesOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
 			Size:        s.Amount,
-			Price:       s.Price,
+			Price:       convert.StringToFloat64(s.Price),
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: "gtc",
@@ -1200,7 +1201,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
 			Size:        s.Amount,
-			Price:       s.Price,
+			Price:       convert.StringToFloat64(s.Price),
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: "gtc",
@@ -1222,13 +1223,13 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Date = newOrder.CreateTime.Time()
 		response.ClientOrderID = newOrder.Text
 		response.Amount = newOrder.Size
-		response.Price = newOrder.OrderPrice
+		response.Price = newOrder.OrderPrice.Float64()
 		return response, nil
 	case asset.Options:
 		optionOrder, err := g.PlaceOptionOrder(ctx, OptionOrderParam{
 			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
-			Price:      s.Price,
+			Price:      convert.StringToFloat64(s.Price),
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
 		})
@@ -1497,17 +1498,17 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			return nil, err
 		}
 		return &order.Detail{
-			Amount:         spotOrder.Amount,
+			Amount:         spotOrder.Amount.Float64(),
 			Exchange:       g.Name,
 			OrderID:        spotOrder.OrderID,
 			Side:           side,
 			Type:           orderType,
 			Pair:           pair,
-			Cost:           spotOrder.FeeDeducted,
+			Cost:           spotOrder.FeeDeducted.Float64(),
 			AssetType:      a,
 			Status:         orderStatus,
-			Price:          spotOrder.Price,
-			ExecutedAmount: spotOrder.Amount - spotOrder.Left.Float64(),
+			Price:          spotOrder.Price.Float64(),
+			ExecutedAmount: spotOrder.Amount.Float64() - spotOrder.Left.Float64(),
 			Date:           spotOrder.CreateTimeMs.Time(),
 			LastUpdated:    spotOrder.UpdateTimeMs.Time(),
 		}, nil
@@ -1545,7 +1546,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Exchange:       g.Name,
 			OrderID:        orderID,
 			Status:         orderStatus,
-			Price:          fOrder.OrderPrice,
+			Price:          fOrder.OrderPrice.Float64(),
 			Date:           fOrder.CreateTime.Time(),
 			LastUpdated:    fOrder.FinishTime.Time(),
 			Pair:           pair,
@@ -1570,7 +1571,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Exchange:       g.Name,
 			OrderID:        orderID,
 			Status:         orderStatus,
-			Price:          optionOrder.Price,
+			Price:          optionOrder.Price.Float64(),
 			Date:           optionOrder.CreateTime.Time(),
 			LastUpdated:    optionOrder.FinishTime.Time(),
 			Pair:           pair,
@@ -1616,7 +1617,7 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	}
 	response, err := g.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   withdrawRequest.Amount,
+			Amount:   convert.StringToFloat64(withdrawRequest.Amount),
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,
@@ -1702,11 +1703,11 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Status:               status,
 					Pair:                 symbol,
 					OrderID:              spotOrders[x].Orders[y].OrderID,
-					Amount:               spotOrders[x].Orders[y].Amount,
-					ExecutedAmount:       spotOrders[x].Orders[y].Amount - spotOrders[x].Orders[y].Left.Float64(),
+					Amount:               spotOrders[x].Orders[y].Amount.Float64(),
+					ExecutedAmount:       spotOrders[x].Orders[y].Amount.Float64() - spotOrders[x].Orders[y].Left.Float64(),
 					RemainingAmount:      spotOrders[x].Orders[y].Left.Float64(),
-					Price:                spotOrders[x].Orders[y].Price,
-					AverageExecutedPrice: spotOrders[x].Orders[y].AverageFillPrice,
+					Price:                spotOrders[x].Orders[y].Price.Float64(),
+					AverageExecutedPrice: spotOrders[x].Orders[y].AverageFillPrice.Float64(),
 					Date:                 spotOrders[x].Orders[y].CreateTimeMs.Time(),
 					LastUpdated:          spotOrders[x].Orders[y].UpdateTimeMs.Time(),
 					Exchange:             g.Name,
@@ -1753,7 +1754,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Amount:          futuresOrders[x].Size,
 					Pair:            req.Pairs[x],
 					OrderID:         strconv.FormatInt(futuresOrders[x].ID, 10),
-					Price:           futuresOrders[x].OrderPrice,
+					Price:           futuresOrders[x].OrderPrice.Float64(),
 					ExecutedAmount:  futuresOrders[x].Size - futuresOrders[x].RemainingAmount,
 					RemainingAmount: futuresOrders[x].RemainingAmount,
 					LastUpdated:     futuresOrders[x].FinishTime.Time(),
@@ -1786,7 +1787,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Amount:          optionsOrders[x].Size,
 				Pair:            currencyPair,
 				OrderID:         strconv.FormatInt(optionsOrders[x].OptionOrderID, 10),
-				Price:           optionsOrders[x].Price,
+				Price:           optionsOrders[x].Price.Float64(),
 				ExecutedAmount:  optionsOrders[x].Size - optionsOrders[x].Left,
 				RemainingAmount: optionsOrders[x].Left,
 				LastUpdated:     optionsOrders[x].FinishTime.Time(),
@@ -1831,15 +1832,15 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				}
 				detail := order.Detail{
 					OrderID:        spotOrders[o].OrderID,
-					Amount:         spotOrders[o].Amount,
-					ExecutedAmount: spotOrders[o].Amount,
-					Price:          spotOrders[o].Price,
+					Amount:         spotOrders[o].Amount.Float64(),
+					ExecutedAmount: spotOrders[o].Amount.Float64(),
+					Price:          spotOrders[o].Price.Float64(),
 					Date:           spotOrders[o].CreateTime.Time(),
 					Side:           side,
 					Exchange:       g.Name,
 					Pair:           fPair,
 					AssetType:      req.AssetType,
-					Fee:            spotOrders[o].Fee,
+					Fee:            spotOrders[o].Fee.Float64(),
 					FeeAsset:       currency.NewCode(spotOrders[o].FeeCurrency),
 				}
 				detail.InferCostsAndTimes()
@@ -1874,7 +1875,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				detail := order.Detail{
 					OrderID:   strconv.FormatInt(futuresOrder[o].ID, 10),
 					Amount:    futuresOrder[o].Size,
-					Price:     futuresOrder[o].Price,
+					Price:     futuresOrder[o].Price.Float64(),
 					Date:      futuresOrder[o].CreateTime.Time(),
 					Exchange:  g.Name,
 					Pair:      fPair,
@@ -1896,7 +1897,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				detail := order.Detail{
 					OrderID:   strconv.FormatInt(optionOrders[o].OrderID, 10),
 					Amount:    optionOrders[o].Size,
-					Price:     optionOrders[o].Price,
+					Price:     optionOrders[o].Price.Float64(),
 					Date:      optionOrders[o].CreateTime.Time(),
 					Exchange:  g.Name,
 					Pair:      fPair,
@@ -1963,10 +1964,10 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		for x := range candles {
 			listCandlesticks[x] = kline.Candle{
 				Time:   candles[x].Timestamp.Time(),
-				Open:   candles[x].OpenPrice,
-				High:   candles[x].HighestPrice,
-				Low:    candles[x].LowestPrice,
-				Close:  candles[x].ClosePrice,
+				Open:   candles[x].OpenPrice.Float64(),
+				High:   candles[x].HighestPrice.Float64(),
+				Low:    candles[x].LowestPrice.Float64(),
+				Close:  candles[x].ClosePrice.Float64(),
 				Volume: candles[x].Volume,
 			}
 		}
@@ -2026,10 +2027,10 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			for x := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
 					Time:   candles[x].Timestamp.Time(),
-					Open:   candles[x].OpenPrice,
-					High:   candles[x].HighestPrice,
-					Low:    candles[x].LowestPrice,
-					Close:  candles[x].ClosePrice,
+					Open:   candles[x].OpenPrice.Float64(),
+					High:   candles[x].HighestPrice.Float64(),
+					Low:    candles[x].LowestPrice.Float64(),
+					Close:  candles[x].ClosePrice.Float64(),
 					Volume: candles[x].Volume,
 				})
 			}

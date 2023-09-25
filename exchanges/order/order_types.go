@@ -71,6 +71,8 @@ type Submit struct {
 	// RetrieveFeeDelay some exchanges take time to properly save order data
 	// and cannot retrieve fees data immediately
 	RetrieveFeeDelay time.Duration
+	// TradeMode specifies the trading mode for margin and non-margin orders: see okcoin_wrapper.go
+	TradeMode string
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -319,6 +321,8 @@ const (
 	Liquidation
 	Trigger
 	OptimalLimitIOC
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
 )
 
 // Side enforces a standard for order sides across the code base

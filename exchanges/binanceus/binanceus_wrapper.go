@@ -32,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (bi *Binanceus) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	bi.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = bi.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = bi.BaseCurrencies
+	exchCfg, err := bi.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := bi.SetupDefaults(exchCfg)
+	err = bi.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

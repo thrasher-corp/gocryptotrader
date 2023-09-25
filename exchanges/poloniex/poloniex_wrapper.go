@@ -33,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	p.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = p.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = p.BaseCurrencies
+	exchCfg, err := p.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := p.SetupDefaults(exchCfg)
+	err = p.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

@@ -505,6 +505,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = h.Name
 	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
+	newOrderBook.LastUpdated = time.UnixMilli(update.Timestamp)
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

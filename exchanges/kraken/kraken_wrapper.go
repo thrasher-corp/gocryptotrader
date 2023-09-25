@@ -34,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	k.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = k.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = k.BaseCurrencies
+	exchCfg, err := k.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := k.SetupDefaults(exchCfg)
+	err = k.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

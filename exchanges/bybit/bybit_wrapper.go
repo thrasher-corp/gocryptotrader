@@ -32,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	by.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = by.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = by.BaseCurrencies
+	exchCfg, err := by.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := by.SetupDefaults(exchCfg)
+	err = by.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -2186,7 +2186,8 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			var pair currency.Pair
 			pair, err = avail.DeriveFrom(pairsData[x].Name)
 			if err != nil {
-				return err
+				log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, pairsData[x].Name)
+				continue
 			}
 
 			limits = append(limits, order.MinMaxLevel{

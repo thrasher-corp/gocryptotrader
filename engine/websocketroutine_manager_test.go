@@ -21,12 +21,7 @@ func TestWebsocketRoutineManagerSetup(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	_, err = setupWebsocketRoutineManager(NewExchangeManager(), nil, nil, nil, false)
-	if !errors.Is(err, errNilOrderManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilOrderManager)
-	}
-
-	_, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, nil, nil, false)
+	_, err = setupWebsocketRoutineManager(NewExchangeManager(), (*OrderManager)(nil), nil, nil, false)
 	if !errors.Is(err, errNilCurrencyPairSyncer) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCurrencyPairSyncer)
 	}

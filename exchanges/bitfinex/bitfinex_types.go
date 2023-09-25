@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	errTypeAssert       = errors.New("type assertion failed")
 	errSetCannotBeEmpty = errors.New("set cannot be empty")
+	errSubNotFound      = errors.New("could not find matching subscription")
+	errTypeAssert       = errors.New("type assertion failed")
 )
 
 // AccountV2Data stores account v2 data
@@ -475,12 +476,6 @@ type Fee struct {
 	MakerFees float64
 }
 
-// WebsocketChanInfo holds websocket channel information
-type WebsocketChanInfo struct {
-	Channel string
-	Pair    string
-}
-
 // WebsocketBook holds booking information
 type WebsocketBook struct {
 	ID     int64
@@ -619,6 +614,7 @@ const (
 	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
 	pong                                   = "pong"
 	wsHeartbeat                            = "hb"
+	wsChecksum                             = "cs"
 	wsPositionSnapshot                     = "ps"
 	wsPositionNew                          = "pn"
 	wsPositionUpdate                       = "pu"

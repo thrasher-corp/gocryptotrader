@@ -39,12 +39,12 @@ const (
 // GetDefaultConfig returns a default exchange config
 func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	ok.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = ok.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = ok.BaseCurrencies
+	exchCfg, err := ok.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := ok.SetupDefaults(exchCfg)
+	err = ok.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

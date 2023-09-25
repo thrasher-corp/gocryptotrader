@@ -881,6 +881,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"trigger", Trigger, nil},
 		{"TRIGGER", Trigger, nil},
 		{"tRiGgEr", Trigger, nil},
+		{"conDitiOnal", ConditionalStop, nil},
+		{"oCo", OCO, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 	}
 	for i := range cases {

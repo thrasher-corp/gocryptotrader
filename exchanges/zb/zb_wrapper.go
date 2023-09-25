@@ -31,12 +31,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (z *ZB) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	z.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = z.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = z.BaseCurrencies
+	exchCfg, err := z.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := z.SetupDefaults(exchCfg)
+	err = z.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

@@ -222,6 +222,15 @@ func (f *StringToFloat64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON implements the json.Marshaler interface.
+func (f StringToFloat64) MarshalJSON() ([]byte, error) {
+	if f == 0 {
+		return []byte(jsonStringIdent + jsonStringIdent), nil
+	}
+	val := strconv.FormatFloat(float64(f), 'f', -1, 64)
+	return []byte(jsonStringIdent + val + jsonStringIdent), nil
+}
+
 // Float64 returns the float64 value of the FloatString.
 func (f *StringToFloat64) Float64() float64 {
 	return float64(*f)
@@ -230,11 +239,6 @@ func (f *StringToFloat64) Float64() float64 {
 // ToInt64 returns an int64 value from StringToFloat64 instance
 func (f *StringToFloat64) ToInt64() int64 {
 	return int64(*f)
-}
-
-// MarshalJSON constructs a string as []byte representation of the float64 StringToFloat64 instance.
-func (f *StringToFloat64) MarshalJSON() ([]byte, error) {
-	return append(append([]byte{'"'}, []byte(strconv.FormatFloat(float64(*f), 'f', -1, 64))...), '"'), nil
 }
 
 // Decimal returns the decimal value of the FloatString

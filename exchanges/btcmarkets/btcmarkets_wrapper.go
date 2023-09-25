@@ -36,12 +36,12 @@ var errFailedToConvertToCandle = errors.New("cannot convert time series data to 
 // GetDefaultConfig returns a default exchange config
 func (b *BTCMarkets) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := b.SetupDefaults(exchCfg)
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
