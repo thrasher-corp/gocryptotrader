@@ -330,7 +330,20 @@ type PositionSummary struct {
 	CollateralMode collateral.Mode
 	// The currency in which the values are quoted against. Isn't always pair.Quote
 	// eg BTC-USDC-230929's quote in GCT is 230929, but the currency should be USDC
-	Currency                     currency.Code
+	Currency currency.Code
+
+	AvailableEquity     decimal.Decimal
+	CashBalance         decimal.Decimal
+	DiscountEquity      decimal.Decimal
+	EquityUSD           decimal.Decimal
+	IsolatedEquity      decimal.Decimal
+	IsolatedLiabilities decimal.Decimal
+	IsolatedUPL         decimal.Decimal
+	MarginRatio         decimal.Decimal
+	NotionalLeverage    decimal.Decimal
+	TotalEquity         decimal.Decimal
+	StrategyEquity      decimal.Decimal
+
 	IsolatedMargin               decimal.Decimal
 	NotionalSize                 decimal.Decimal
 	Leverage                     decimal.Decimal
@@ -345,4 +358,6 @@ type PositionSummary struct {
 	MaintenanceMarginFraction    decimal.Decimal
 	FreeCollateral               decimal.Decimal
 	TotalCollateral              decimal.Decimal
+	FrozenBalance                decimal.Decimal
+	EquityOfCurrency             decimal.Decimal
 }

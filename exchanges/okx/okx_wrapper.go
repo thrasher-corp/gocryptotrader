@@ -1873,13 +1873,34 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 	if len(acc) != 1 {
 		return nil, fmt.Errorf("%w, received '%v'", errOnlyOneResponseExpected, len(acc))
 	}
-	var freeCollateral, totalCollateral decimal.Decimal
+	var (
+		freeCollateral, totalCollateral, equityOfCurrency, frozenBalance,
+		availableEquity, cashBalance, discountEquity,
+		equityUSD, totalEquity, isolatedEquity, isolatedLiabilities,
+		isolatedUnrealisedProfit, marginRatio, notionalLeverage,
+		strategyEquity decimal.Decimal
+	)
+
 	for i := range acc[0].Details {
 		if acc[0].Details[i].Currency != positionSummary.Currency {
 			continue
 		}
 		freeCollateral = acc[0].Details[i].AvailableBalance.Decimal()
-		totalCollateral = freeCollateral.Add(acc[0].Details[i].FrozenBalance.Decimal())
+		frozenBalance = acc[0].Details[i].FrozenBalance.Decimal()
+		totalCollateral = freeCollateral.Add(frozenBalance)
+		equityOfCurrency = acc[0].Details[i].EquityOfCurrency.Decimal()
+		availableEquity = acc[0].Details[i].AvailableEquity.Decimal()
+		cashBalance = acc[0].Details[i].CashBalance.Decimal()
+		discountEquity = acc[0].Details[i].DiscountEquity.Decimal()
+		equityUSD = acc[0].Details[i].EquityUsd.Decimal()
+		totalEquity = acc[0].Details[i].TotalEquity.Decimal()
+		isolatedEquity = acc[0].Details[i].IsoEquity.Decimal()
+		isolatedLiabilities = acc[0].Details[i].IsolatedLiabilities.Decimal()
+		isolatedUnrealisedProfit = acc[0].Details[i].IsoUpl.Decimal()
+		marginRatio = acc[0].Details[i].MarginRatio.Decimal()
+		notionalLeverage = acc[0].Details[i].NotionalLever.Decimal()
+		strategyEquity = acc[0].Details[i].StrategyEquity.Decimal()
+
 		break
 	}
 	collateralMode, err := ok.GetCollateralMode(ctx, req.Asset)
@@ -1892,20 +1913,33 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		MarginType:                   marginMode,
 		CollateralMode:               collateralMode,
 		Currency:                     currency.NewCode(positionSummary.Currency),
+		AvailableEquity:              availableEquity,
+		CashBalance:                  cashBalance,
+		DiscountEquity:               discountEquity,
+		EquityUSD:                    equityUSD,
+		IsolatedEquity:               isolatedEquity,
+		IsolatedLiabilities:          isolatedLiabilities,
+		IsolatedUPL:                  isolatedUnrealisedProfit,
+		MarginRatio:                  marginRatio,
+		NotionalLeverage:             notionalLeverage,
+		TotalEquity:                  totalEquity,
+		StrategyEquity:               strategyEquity,
 		IsolatedMargin:               positionSummary.Margin.Decimal(),
 		NotionalSize:                 positionSummary.NotionalUsd.Decimal(),
 		Leverage:                     positionSummary.Leverage.Decimal(),
 		MaintenanceMarginRequirement: positionSummary.MaintenanceMarginRequirement.Decimal(),
 		InitialMarginRequirement:     positionSummary.InitialMarginRequirement.Decimal(),
 		EstimatedLiquidationPrice:    positionSummary.LiquidationPrice.Decimal(),
-		CollateralUsed:               positionSummary.NotionalUsd.Decimal(),
+		CollateralUsed:               positionSummary.Margin.Decimal(),
 		MarkPrice:                    positionSummary.MarkPrice.Decimal(),
-		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal(),
+		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal(), // TODO: add field(s) for contract amount vs quote amount
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
 		PositionPNL:                  positionSummary.UPNL.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
 		FreeCollateral:               freeCollateral,
 		TotalCollateral:              totalCollateral,
+		FrozenBalance:                frozenBalance,
+		EquityOfCurrency:             equityOfCurrency,
 	}, nil
 }
 
@@ -1984,7 +2018,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
 				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
-				Amount:               orderAmount.Float64(),
+				Amount:               orderAmount.Float64(), // TODO: add field(s) for contract amount vs quote amount
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
 				Fee:                  positions[j].TransactionFee.Float64(),

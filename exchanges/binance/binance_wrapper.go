@@ -2555,6 +2555,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			marginType = margin.Isolated
 		}
 		collateralTotal = accountAsset.WalletBalance
+		frozenBalance := decimal.NewFromFloat(accountAsset.WalletBalance).Sub(decimal.NewFromFloat(accountAsset.AvailableBalance))
 		collateralAvailable = accountAsset.AvailableBalance
 		pnl = accountAsset.UnrealizedProfit
 		if marginType == margin.Multi {
@@ -2594,6 +2595,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			CollateralMode:               collateralMode,
 			Currency:                     currency.NewCode(accountAsset.Asset),
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
+			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
 			Leverage:                     decimal.NewFromFloat(leverage),
 			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
 			InitialMarginRequirement:     decimal.NewFromFloat(initialMargin),
@@ -2606,7 +2608,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			MaintenanceMarginFraction:    decimal.NewFromFloat(maintenanceMargin).Div(decimal.NewFromFloat(collateralTotal)).Mul(decimal.NewFromInt32(100)),
 			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
 			TotalCollateral:              decimal.NewFromFloat(collateralTotal),
-			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
+			FrozenBalance:                frozenBalance,
 		}, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)

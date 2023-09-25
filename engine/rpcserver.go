@@ -4470,6 +4470,45 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	if !stats.EstimatedLiquidationPrice.IsZero() {
 		positionStats.EstimatedLiquidationPrice = stats.EstimatedLiquidationPrice.String()
 	}
+	if !stats.FrozenBalance.IsZero() {
+		positionStats.FrozenBalance = stats.FrozenBalance.String()
+	}
+	if !stats.EquityOfCurrency.IsZero() {
+		positionStats.EquityOfCurrency = stats.EquityOfCurrency.String()
+	}
+	if !stats.AvailableEquity.IsZero() {
+		positionStats.AvailableEquity = stats.AvailableEquity.String()
+	}
+	if !stats.CashBalance.IsZero() {
+		positionStats.CashBalance = stats.CashBalance.String()
+	}
+	if !stats.DiscountEquity.IsZero() {
+		positionStats.DiscountEquity = stats.DiscountEquity.String()
+	}
+	if !stats.EquityUSD.IsZero() {
+		positionStats.EquityUsd = stats.EquityUSD.String()
+	}
+	if !stats.IsolatedEquity.IsZero() {
+		positionStats.IsolatedEquity = stats.IsolatedEquity.String()
+	}
+	if !stats.IsolatedLiabilities.IsZero() {
+		positionStats.IsolatedLiabilities = stats.IsolatedLiabilities.String()
+	}
+	if !stats.IsolatedUPL.IsZero() {
+		positionStats.IsolatedUpl = stats.IsolatedUPL.String()
+	}
+	if !stats.MarginRatio.IsZero() {
+		positionStats.MarginRatio = stats.MarginRatio.String()
+	}
+	if !stats.NotionalLeverage.IsZero() {
+		positionStats.NotionalLeverage = stats.NotionalLeverage.String()
+	}
+	if !stats.TotalEquity.IsZero() {
+		positionStats.TotalEquity = stats.TotalEquity.String()
+	}
+	if !stats.StrategyEquity.IsZero() {
+		positionStats.StrategyEquity = stats.StrategyEquity.String()
+	}
 	return &gctrpc.GetFuturesPositionsSummaryResponse{
 		Exchange: exch.GetName(),
 		Asset:    ai.String(),

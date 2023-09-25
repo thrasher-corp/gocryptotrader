@@ -5600,6 +5600,45 @@
         },
         "totalCollateral": {
           "type": "string"
+        },
+        "frozenBalance": {
+          "type": "string"
+        },
+        "equityOfCurrency": {
+          "type": "string"
+        },
+        "availableEquity": {
+          "type": "string"
+        },
+        "cashBalance": {
+          "type": "string"
+        },
+        "discountEquity": {
+          "type": "string"
+        },
+        "equityUsd": {
+          "type": "string"
+        },
+        "isolatedEquity": {
+          "type": "string"
+        },
+        "isolatedLiabilities": {
+          "type": "string"
+        },
+        "isolatedUpl": {
+          "type": "string"
+        },
+        "marginRatio": {
+          "type": "string"
+        },
+        "notionalLeverage": {
+          "type": "string"
+        },
+        "totalEquity": {
+          "type": "string"
+        },
+        "strategyEquity": {
+          "type": "string"
         }
       }
     },

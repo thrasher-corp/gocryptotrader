@@ -1064,6 +1064,19 @@ message FuturesPositionStats {
   string margin_fraction = 10;
   string free_collateral = 11;
   string total_collateral = 12;
+  string frozen_balance = 13;
+  string equity_of_currency = 14;
+  string available_equity = 15;
+  string cash_balance = 16;
+  string discount_equity = 17;
+  string equity_usd = 18;
+  string isolated_equity = 19;
+  string isolated_liabilities = 20;
+  string isolated_upl = 21;
+  string margin_ratio = 22;
+  string notional_leverage = 23;
+  string total_equity = 24;
+  string strategy_equity = 25;
 }
 
 message FuturePosition {

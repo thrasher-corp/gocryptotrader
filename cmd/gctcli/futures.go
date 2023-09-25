@@ -162,8 +162,8 @@ var futuresCommands = &cli.Command{
 				&cli.StringFlag{
 					Name:        "end",
 					Aliases:     []string{"ed"},
-					Usage:       "<end> rounded down to the nearest hour",
-					Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
+					Usage:       "<end>",
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 				&cli.StringFlag{
@@ -438,8 +438,8 @@ var futuresCommands = &cli.Command{
 				&cli.StringFlag{
 					Name:        "end",
 					Aliases:     []string{"ed"},
-					Usage:       "<end> rounded down to the nearest hour",
-					Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
+					Usage:       "<end>",
+					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
 				},
 				&cli.BoolFlag{
