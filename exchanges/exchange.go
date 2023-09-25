@@ -56,7 +56,6 @@ var (
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
-
 )
 
 // SetRequester sets the instance of the requester
