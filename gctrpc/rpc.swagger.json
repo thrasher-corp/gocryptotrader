@@ -5628,9 +5628,6 @@
         "isolatedUpl": {
           "type": "string"
         },
-        "marginRatio": {
-          "type": "string"
-        },
         "notionalLeverage": {
           "type": "string"
         },

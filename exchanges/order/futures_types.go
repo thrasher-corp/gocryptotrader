@@ -339,7 +339,6 @@ type PositionSummary struct {
 	IsolatedEquity      decimal.Decimal
 	IsolatedLiabilities decimal.Decimal
 	IsolatedUPL         decimal.Decimal
-	MarginRatio         decimal.Decimal
 	NotionalLeverage    decimal.Decimal
 	TotalEquity         decimal.Decimal
 	StrategyEquity      decimal.Decimal

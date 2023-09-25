@@ -1073,10 +1073,9 @@ message FuturesPositionStats {
   string isolated_equity = 19;
   string isolated_liabilities = 20;
   string isolated_upl = 21;
-  string margin_ratio = 22;
-  string notional_leverage = 23;
-  string total_equity = 24;
-  string strategy_equity = 25;
+  string notional_leverage = 22;
+  string total_equity = 23;
+  string strategy_equity = 24;
 }
 
 message FuturePosition {

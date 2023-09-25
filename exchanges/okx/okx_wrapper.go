@@ -1920,7 +1920,6 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		IsolatedEquity:               isolatedEquity,
 		IsolatedLiabilities:          isolatedLiabilities,
 		IsolatedUPL:                  isolatedUnrealisedProfit,
-		MarginRatio:                  marginRatio,
 		NotionalLeverage:             notionalLeverage,
 		TotalEquity:                  totalEquity,
 		StrategyEquity:               strategyEquity,

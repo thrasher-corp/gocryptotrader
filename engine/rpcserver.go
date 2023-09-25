@@ -4497,9 +4497,6 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	if !stats.IsolatedUPL.IsZero() {
 		positionStats.IsolatedUpl = stats.IsolatedUPL.String()
 	}
-	if !stats.MarginRatio.IsZero() {
-		positionStats.MarginRatio = stats.MarginRatio.String()
-	}
 	if !stats.NotionalLeverage.IsZero() {
 		positionStats.NotionalLeverage = stats.NotionalLeverage.String()
 	}
