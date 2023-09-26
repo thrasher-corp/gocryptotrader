@@ -2543,7 +2543,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			break
 		}
 		if accountAsset == nil {
-			return nil, fmt.Errorf("%w %v %v asset info", currency.ErrCurrencyNotFound, req.Asset, req.Pair)
+			return nil, fmt.Errorf("could not get asset info: %w %v %v, please verify underlying pair: '%v'", currency.ErrCurrencyNotFound, req.Asset, req.Pair, req.UnderlyingPair)
 		}
 
 		leverage = accountPosition.Leverage
@@ -2587,6 +2587,11 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		liquidationPrice = relevantPosition.LiquidationPrice
 		markPrice = relevantPosition.MarkPrice
 		positionSize = relevantPosition.PositionAmount
+		var mmf, tc decimal.Decimal
+		if collateralTotal != 0 {
+			tc = decimal.NewFromFloat(collateralTotal)
+			mmf = decimal.NewFromFloat(maintenanceMargin).Div(tc).Mul(decimal.NewFromInt(100))
+		}
 
 		return &order.PositionSummary{
 			Pair:                         req.Pair,
@@ -2605,9 +2610,9 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			CurrentSize:                  decimal.NewFromFloat(positionSize),
 			AverageOpenPrice:             decimal.NewFromFloat(openPrice),
 			PositionPNL:                  decimal.NewFromFloat(pnl),
-			MaintenanceMarginFraction:    decimal.NewFromFloat(maintenanceMargin).Div(decimal.NewFromFloat(collateralTotal)).Mul(decimal.NewFromInt32(100)),
+			MaintenanceMarginFraction:    mmf,
 			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
-			TotalCollateral:              decimal.NewFromFloat(collateralTotal),
+			TotalCollateral:              tc,
 			FrozenBalance:                frozenBalance,
 		}, nil
 	default:

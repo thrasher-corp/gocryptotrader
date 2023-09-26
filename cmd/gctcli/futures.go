@@ -402,7 +402,7 @@ var futuresCommands = &cli.Command{
 				&cli.StringFlag{
 					Name:    "underlyingpair",
 					Aliases: []string{"up"},
-					Usage:   "optional - the underlying currency pair eg if pair is BTCUSD-1984-C, the underlying pair could be BTC-USD",
+					Usage:   "optional - used to distinguish the underlying currency of a futures pair eg pair is BTCUSD-1337-C, the underlying pair could be BTC-USD, or if pair is LTCUSD-PERP the underlying pair could be LTC-USD",
 				},
 			},
 		},
