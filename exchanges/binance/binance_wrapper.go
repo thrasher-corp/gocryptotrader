@@ -2536,6 +2536,8 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		}
 		var accountAsset *FuturesAccountAsset
 		for i := range ai.Assets {
+			// TODO: utilise contract data to discern the underlying currency
+			// instead of having a user provide it
 			if ai.Assets[i].Asset != req.UnderlyingPair.Base.Upper().String() {
 				continue
 			}
