@@ -1237,72 +1237,72 @@ type Account struct {
 
 // AccountDetail account detail information.
 type AccountDetail struct {
-	AvailableBalance              okxNumericalValue `json:"availBal"`
-	AvailableEquity               okxNumericalValue `json:"availEq"`
-	CashBalance                   okxNumericalValue `json:"cashBal"` // Cash Balance
-	Currency                      string            `json:"ccy"`
-	CrossLiab                     okxNumericalValue `json:"crossLiab"`
-	DiscountEquity                okxNumericalValue `json:"disEq"`
-	EquityOfCurrency              okxNumericalValue `json:"eq"`
-	EquityUsd                     okxNumericalValue `json:"eqUsd"`
-	FrozenBalance                 okxNumericalValue `json:"frozenBal"`
-	Interest                      okxNumericalValue `json:"interest"`
-	IsoEquity                     okxNumericalValue `json:"isoEq"`
-	IsolatedLiabilities           okxNumericalValue `json:"isoLiab"`
-	IsoUpl                        okxNumericalValue `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
-	LiabilitiesOfCurrency         okxNumericalValue `json:"liab"`
-	MaxLoan                       okxNumericalValue `json:"maxLoan"`
-	MarginRatio                   okxNumericalValue `json:"mgnRatio"`      // Equity of the currency
-	NotionalLever                 okxNumericalValue `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
-	OpenOrdersMarginFrozen        okxNumericalValue `json:"ordFrozen"`
-	Twap                          okxNumericalValue `json:"twap"`
-	UpdateTime                    okxUnixMilliTime  `json:"uTime"`
-	UnrealizedProfit              okxNumericalValue `json:"upl"`
-	UnrealizedCurrencyLiabilities okxNumericalValue `json:"uplLiab"`
-	StrategyEquity                okxNumericalValue `json:"stgyEq"`  // strategy equity
-	TotalEquity                   okxNumericalValue `json:"totalEq"` // Total equity in USD level
+	AvailableBalance              convert.StringToFloat64 `json:"availBal"`
+	AvailableEquity               convert.StringToFloat64 `json:"availEq"`
+	CashBalance                   convert.StringToFloat64 `json:"cashBal"` // Cash Balance
+	Currency                      string                  `json:"ccy"`
+	CrossLiab                     convert.StringToFloat64 `json:"crossLiab"`
+	DiscountEquity                convert.StringToFloat64 `json:"disEq"`
+	EquityOfCurrency              convert.StringToFloat64 `json:"eq"`
+	EquityUsd                     convert.StringToFloat64 `json:"eqUsd"`
+	FrozenBalance                 convert.StringToFloat64 `json:"frozenBal"`
+	Interest                      convert.StringToFloat64 `json:"interest"`
+	IsoEquity                     convert.StringToFloat64 `json:"isoEq"`
+	IsolatedLiabilities           convert.StringToFloat64 `json:"isoLiab"`
+	IsoUpl                        convert.StringToFloat64 `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
+	LiabilitiesOfCurrency         convert.StringToFloat64 `json:"liab"`
+	MaxLoan                       convert.StringToFloat64 `json:"maxLoan"`
+	MarginRatio                   convert.StringToFloat64 `json:"mgnRatio"`      // Equity of the currency
+	NotionalLever                 convert.StringToFloat64 `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
+	OpenOrdersMarginFrozen        convert.StringToFloat64 `json:"ordFrozen"`
+	Twap                          convert.StringToFloat64 `json:"twap"`
+	UpdateTime                    okxUnixMilliTime        `json:"uTime"`
+	UnrealizedProfit              convert.StringToFloat64 `json:"upl"`
+	UnrealizedCurrencyLiabilities convert.StringToFloat64 `json:"uplLiab"`
+	StrategyEquity                convert.StringToFloat64 `json:"stgyEq"`  // strategy equity
+	TotalEquity                   convert.StringToFloat64 `json:"totalEq"` // Total equity in USD level. Appears unused
 }
 
 // AccountPosition account position.
 type AccountPosition struct {
-	AutoDeleveraging             string           `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
-	AvailablePosition            string           `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
-	AveragePrice                 string           `json:"avgPx"`
-	CreationTime                 okxUnixMilliTime `json:"cTime"`
-	Currency                     string           `json:"ccy"`
-	DeltaBS                      string           `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	DeltaPA                      string           `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
-	GammaBS                      string           `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
-	GammaPA                      string           `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
-	InitialMarginRequirement     string           `json:"imr"`     // Initial margin requirement, only applicable to cross.
-	InstrumentID                 string           `json:"instId"`
-	InstrumentType               string           `json:"instType"`
-	Interest                     string           `json:"interest"`
-	USDPrice                     string           `json:"usdPx"`
-	LastTradePrice               string           `json:"last"`
-	Leverage                     string           `json:"lever"`   // Leverage, not applicable to OPTION seller
-	Liabilities                  string           `json:"liab"`    // Liabilities, only applicable to MARGIN.
-	LiabilitiesCurrency          string           `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
-	LiquidationPrice             string           `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
-	MarkPx                       string           `json:"markPx"`
-	Margin                       string           `json:"margin"`
-	MgnMode                      string           `json:"mgnMode"`
-	MgnRatio                     string           `json:"mgnRatio"`
-	MaintenanceMarginRequirement string           `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
-	NotionalUsd                  string           `json:"notionalUsd"` // Quality of Positions -- usd
-	OptionValue                  string           `json:"optVal"`      // Option Value, only application to position.
-	QuantityOfPosition           string           `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
-	PositionCurrency             string           `json:"posCcy"`
-	PositionID                   string           `json:"posId"`
-	PositionSide                 string           `json:"posSide"`
-	ThetaBS                      string           `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	ThetaPA                      string           `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
-	TradeID                      string           `json:"tradeId"`
-	UpdatedTime                  okxUnixMilliTime `json:"uTime"`                     // Latest time position was adjusted,
-	Upl                          float64          `json:"upl,string,omitempty"`      // Unrealized profit and loss
-	UPLRatio                     float64          `json:"uplRatio,string,omitempty"` // Unrealized profit and loss ratio
-	VegaBS                       string           `json:"vegaBS"`                    // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
-	VegaPA                       string           `json:"vegaPA"`                    // vega：Greeks in coins,only applicable to OPTION
+	AutoDeleveraging             string                  `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
+	AvailablePosition            string                  `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
+	AveragePrice                 convert.StringToFloat64 `json:"avgPx"`
+	CreationTime                 okxUnixMilliTime        `json:"cTime"`
+	Currency                     string                  `json:"ccy"`
+	DeltaBS                      string                  `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	DeltaPA                      string                  `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
+	GammaBS                      string                  `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
+	GammaPA                      string                  `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
+	InitialMarginRequirement     convert.StringToFloat64 `json:"imr"`     // Initial margin requirement, only applicable to cross.
+	InstrumentID                 string                  `json:"instId"`
+	InstrumentType               asset.Item              `json:"instType"`
+	Interest                     convert.StringToFloat64 `json:"interest"`
+	USDPrice                     convert.StringToFloat64 `json:"usdPx"`
+	LastTradePrice               convert.StringToFloat64 `json:"last"`
+	Leverage                     convert.StringToFloat64 `json:"lever"`   // Leverage, not applicable to OPTION seller
+	Liabilities                  string                  `json:"liab"`    // Liabilities, only applicable to MARGIN.
+	LiabilitiesCurrency          string                  `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
+	LiquidationPrice             convert.StringToFloat64 `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
+	MarkPrice                    convert.StringToFloat64 `json:"markPx"`
+	Margin                       convert.StringToFloat64 `json:"margin"`
+	MarginMode                   string                  `json:"mgnMode"`
+	MarginRatio                  convert.StringToFloat64 `json:"mgnRatio"`
+	MaintenanceMarginRequirement convert.StringToFloat64 `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
+	NotionalUsd                  convert.StringToFloat64 `json:"notionalUsd"` // Quality of Positions -- usd
+	OptionValue                  convert.StringToFloat64 `json:"optVal"`      // Option Value, only application to position.
+	QuantityOfPosition           convert.StringToFloat64 `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
+	PositionCurrency             string                  `json:"posCcy"`
+	PositionID                   string                  `json:"posId"`
+	PositionSide                 string                  `json:"posSide"`
+	ThetaBS                      string                  `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	ThetaPA                      string                  `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
+	TradeID                      string                  `json:"tradeId"`
+	UpdatedTime                  okxUnixMilliTime        `json:"uTime"`    // Latest time position was adjusted,
+	UPNL                         convert.StringToFloat64 `json:"upl"`      // Unrealized profit and loss
+	UPLRatio                     convert.StringToFloat64 `json:"uplRatio"` // Unrealized profit and loss ratio
+	VegaBS                       string                  `json:"vegaBS"`   // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
+	VegaPA                       string                  `json:"vegaPA"`   // vega：Greeks in coins,only applicable to OPTION
 
 	// PushTime added feature in the websocket push data.
 
@@ -1421,19 +1421,19 @@ type PositionMode struct {
 
 // SetLeverageInput represents set leverage request input
 type SetLeverageInput struct {
-	Leverage     int    `json:"lever,string"`     // set leverage for isolated
-	MarginMode   string `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
-	InstrumentID string `json:"instId,omitempty"` // Optional:
-	Currency     string `json:"ccy,omitempty"`    // Optional:
-	PositionSide string `json:"posSide,omitempty"`
+	Leverage     float64 `json:"lever,string"`     // set leverage for isolated
+	MarginMode   string  `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
+	InstrumentID string  `json:"instId,omitempty"` // Optional:
+	Currency     string  `json:"ccy,omitempty"`    // Optional:
+	PositionSide string  `json:"posSide,omitempty"`
 }
 
 // SetLeverageResponse represents set leverage response
 type SetLeverageResponse struct {
-	Leverage     string `json:"lever"`
-	MarginMode   string `json:"mgnMode"` // Margin Mode "cross" and "isolated"
-	InstrumentID string `json:"instId"`
-	PositionSide string `json:"posSide"` // "long", "short", and "net"
+	Leverage     okxNumericalValue `json:"lever"`
+	MarginMode   string            `json:"mgnMode"` // Margin Mode "cross" and "isolated"
+	InstrumentID string            `json:"instId"`
+	PositionSide string            `json:"posSide"` // "long", "short", and "net"
 }
 
 // MaximumBuyAndSell get maximum buy , sell amount or open amount
@@ -1464,20 +1464,20 @@ type IncreaseDecreaseMarginInput struct {
 
 // IncreaseDecreaseMargin represents increase or decrease the margin of the isolated position response
 type IncreaseDecreaseMargin struct {
-	Amt          string `json:"amt"`
-	Ccy          string `json:"ccy"`
-	InstrumentID string `json:"instId"`
-	Leverage     string `json:"leverage"`
-	PosSide      string `json:"posSide"`
-	Type         string `json:"type"`
+	Amount       okxNumericalValue `json:"amt"`
+	Ccy          string            `json:"ccy"`
+	InstrumentID string            `json:"instId"`
+	Leverage     okxNumericalValue `json:"leverage"`
+	PosSide      string            `json:"posSide"`
+	Type         string            `json:"type"`
 }
 
 // LeverageResponse instrument id leverage response.
 type LeverageResponse struct {
-	InstrumentID string `json:"instId"`
-	MarginMode   string `json:"mgnMode"`
-	PositionSide string `json:"posSide"`
-	Leverage     uint   `json:"lever,string"`
+	InstrumentID string            `json:"instId"`
+	MarginMode   string            `json:"mgnMode"`
+	PositionSide string            `json:"posSide"`
+	Leverage     okxNumericalValue `json:"lever"`
 }
 
 // MaximumLoanInstrument represents maximum loan of an instrument id.
