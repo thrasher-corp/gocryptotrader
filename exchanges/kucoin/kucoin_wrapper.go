@@ -1061,6 +1061,9 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			}
 			dPair, err := enabledPairs.DeriveFrom(futuresOrders.Items[x].Symbol)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
 			}
 			for i := range getOrdersRequest.Pairs {
@@ -1117,6 +1120,9 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			}
 			dPair, err := enabledPairs.DeriveFrom(spotOrders.Items[x].Symbol)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
 			}
 			if len(getOrdersRequest.Pairs) > 0 && !getOrdersRequest.Pairs.Contains(dPair, true) {
@@ -1203,7 +1209,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		orders = make(order.FilteredOrders, len(futuresOrders.Items))
+		orders = make(order.FilteredOrders, 0, len(futuresOrders.Items))
 		for i := range orders {
 			orderSide, err = order.StringToOrderSide(futuresOrders.Items[i].Side)
 			if err != nil {
@@ -1211,13 +1217,16 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 			}
 			pair, err = enabledPairs.DeriveFrom(futuresOrders.Items[i].Symbol)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
 			}
 			oType, err = order.StringToOrderType(futuresOrders.Items[i].OrderType)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
 			}
-			orders[i] = order.Detail{
+			orders = append(orders, order.Detail{
 				Price:           futuresOrders.Items[i].Price,
 				Amount:          futuresOrders.Items[i].Size,
 				ExecutedAmount:  futuresOrders.Items[i].DealSize,
@@ -1229,7 +1238,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				Status:          orderStatus,
 				Type:            oType,
 				Pair:            pair,
-			}
+			})
 			orders[i].InferCostsAndTimes()
 		}
 	case asset.Spot, asset.Margin:
