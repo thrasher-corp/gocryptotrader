@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -1883,28 +1884,22 @@ func TestUpdateTradablePairs(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
-	type limitTest struct {
-		pair currency.Pair
-	}
-
-	tests := map[asset.Item][]limitTest{
+	tests := map[asset.Item][]currency.Pair{
 		asset.Spot: {
-			{currency.NewPair(currency.ETH, currency.USDT)},
-			{currency.NewPair(currency.BTC, currency.USDT)},
+			currency.NewPair(currency.ETH, currency.USDT),
+			currency.NewPair(currency.BTC, currency.USDT),
 		},
 		asset.Margin: {
-			{currency.NewPair(currency.ETH, currency.USDT)},
-			{currency.NewPair(currency.ETH, currency.BTC)},
+			currency.NewPair(currency.ETH, currency.USDT),
+			currency.NewPair(currency.ETH, currency.BTC),
 		},
 	}
 
 	for _, a := range []asset.Item{asset.PerpetualSwap, asset.Futures, asset.Options} {
 		pairs, err := ok.FetchTradablePairs(context.Background(), a)
-		if err != nil {
-			t.Errorf("Error fetching dated %s pairs for test: %v", a, err)
+		if assert.NoErrorf(t, err, "FetchTradablePairs should not error for %s", a) {
+			tests[a] = []currency.Pair{pairs[0]}
 		}
-
-		tests[a] = []limitTest{{pairs[0]}}
 	}
 
 	for _, a := range ok.GetAssetTypes(false) {
@@ -1913,19 +1908,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			continue
 		}
 
-		for _, tt := range tests[a] {
-			limits, err := ok.GetOrderExecutionLimits(a, tt.pair)
-			if err != nil {
-				t.Errorf("Okx GetOrderExecutionLimits() error during TestUpdateOrderExecutionLimits; Asset: %s Pair: %s Err: %v", a, tt.pair, err)
-				continue
-			}
-
-			if got := limits.PriceStepIncrementSize; got <= 0 {
-				t.Errorf("Okx UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Got: %v", a, tt.pair, got)
-			}
-
-			if got := limits.MinimumBaseAmount; got <= 0 {
-				t.Errorf("Okx UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Got: %v", tt.pair, got)
+		for _, p := range tests[a] {
+			limits, err := ok.GetOrderExecutionLimits(a, p)
+			if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
+				assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+				assert.Positivef(t, limits.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
 			}
 		}
 	}
