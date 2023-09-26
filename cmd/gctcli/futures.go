@@ -1400,8 +1400,8 @@ func getFuturesPositionSummary(c *cli.Context) error {
 			},
 			UnderlyingPair: &gctrpc.CurrencyPair{
 				Delimiter: underlying.Delimiter,
-				Base:      underlying.Base.String(),
-				Quote:     underlying.Quote.String(),
+				Base:      underlying.Base.Upper().String(),
+				Quote:     underlying.Quote.Upper().String(),
 			},
 		})
 	if err != nil {
@@ -1525,8 +1525,8 @@ func getFuturePositionOrders(c *cli.Context) error {
 			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
 			UnderlyingPair: &gctrpc.CurrencyPair{
 				Delimiter: underlying.Delimiter,
-				Base:      underlying.Base.String(),
-				Quote:     underlying.Quote.String(),
+				Base:      underlying.Base.Upper().String(),
+				Quote:     underlying.Quote.Upper().String(),
 			},
 			SyncWithOrderManager:      syncWithOrderManager,
 			RespectOrderHistoryLimits: respectOrderHistoryLimits,

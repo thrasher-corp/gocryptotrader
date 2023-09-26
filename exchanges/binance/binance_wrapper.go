@@ -2536,7 +2536,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 		}
 		var accountAsset *FuturesAccountAsset
 		for i := range ai.Assets {
-			if ai.Assets[i].Asset != req.UnderlyingPair.Base.String() {
+			if ai.Assets[i].Asset != req.UnderlyingPair.Base.Upper().String() {
 				continue
 			}
 			accountAsset = &ai.Assets[i]
