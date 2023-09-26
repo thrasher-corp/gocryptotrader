@@ -617,7 +617,7 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 		case nil:
 			break // OpenInterest will default to 0
 		default:
-			return finalResp, common.GetTypeAssertError("type", result[z][18], "DerivativesStatus.OpenInterest")
+			return finalResp, common.GetTypeAssertError(" float64|nil", t, "DerivativesStatus.OpenInterest")
 		}
 		finalResp[z] = response
 	}
@@ -726,7 +726,7 @@ func (b *Bitfinex) GetTickerBatch(ctx context.Context) (map[string]Ticker, error
 			return nil, common.GetTypeAssertError("float64", response[x][9], "Tickers.Symbol.DailyHigh")
 		}
 		if t.Low, ok = response[x][10].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", response[x][10], "Ticker.Symbol.DailyLow")
+			return nil, common.GetTypeAssertError("float64", response[x][10], "Tickers.Symbol.DailyLow")
 		}
 		tickers[symbol] = t
 	}
@@ -1429,8 +1429,8 @@ func (b *Bitfinex) GetKeyPermissions(ctx context.Context) (KeyPermissions, error
 }
 
 // GetMarginInfo shows your trading wallet information for margin trading
-func (b *Bitfinex) GetMarginInfo(ctx context.Context) ([]MarginInfoV2, error) {
-	var response []MarginInfoV2
+func (b *Bitfinex) GetMarginInfo(ctx context.Context) ([]MarginInfo, error) {
+	var response []MarginInfo
 	return response, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitfinexMarginInfo,
 		nil,
@@ -1775,7 +1775,7 @@ func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOr
 				case 19:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
-						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "CancelOrders..AuxiliaryLimitPrice")
+						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "CancelOrders.AuxiliaryLimitPrice")
 					}
 					cancelledOrder.AuxLimitPrice = f
 				}
