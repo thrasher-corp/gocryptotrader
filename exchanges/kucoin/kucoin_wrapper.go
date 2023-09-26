@@ -88,6 +88,7 @@ func (ku *Kucoin) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
+				TickerBatching:    true,
 				OrderbookFetching: true,
 				AutoPairUpdates:   true,
 				AccountInfo:       true,
