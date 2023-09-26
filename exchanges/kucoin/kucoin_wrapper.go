@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -744,7 +745,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		o, err := ku.PostMarginOrder(ctx,
 			&MarginOrderParam{ClientOrderID: s.ClientOrderID,
 				Side: sideString, Symbol: s.Pair,
-				OrderType: s.Type.Lower(), MarginModel: s.MarginMode,
+				OrderType: s.Type.Lower(), MarginMode: marginModeToString(s.MarginType),
 				Price: s.Price, Size: s.Amount,
 				VisibleSize: s.Amount, PostOnly: s.PostOnly,
 				Hidden: s.Hidden, AutoBorrow: s.AutoBorrow})
@@ -760,6 +761,17 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		return ret, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
+	}
+}
+
+func marginModeToString(mType margin.Type) string {
+	switch mType {
+	case margin.Isolated:
+		return mType.String()
+	case margin.Multi:
+		return "cross"
+	default:
+		return ""
 	}
 }
 
@@ -834,7 +846,7 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	var values []string
 	switch orderCancellation.AssetType {
 	case asset.Margin, asset.Spot:
-		tradeType := ku.accountToTradeTypeString(orderCancellation.AssetType, orderCancellation.MarginMode)
+		tradeType := ku.accountToTradeTypeString(orderCancellation.AssetType, marginModeToString(orderCancellation.MarginType))
 		values, err = ku.CancelAllOpenOrders(ctx, pairString, tradeType)
 		if err != nil {
 			return order.CancelAllResponse{}, err

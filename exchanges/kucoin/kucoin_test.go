@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -658,7 +659,7 @@ func TestPostMarginOrder(t *testing.T) {
 			ClientOrderID: "5bd6e9286d99522a52e458de",
 			Side:          "buy", Symbol: marginTradablePair,
 			OrderType: "market", Funds: 1234,
-			Remark: "remark", MarginModel: "cross", Price: 1000, PostOnly: true, AutoBorrow: true})
+			Remark: "remark", MarginMode: "cross", Price: 1000, PostOnly: true, AutoBorrow: true})
 	if err != nil {
 		t.Error("PostMarginOrder() error", err)
 	}
@@ -2067,7 +2068,7 @@ func TestSubmitOrder(t *testing.T) {
 	orderSubmission.Side = order.Buy
 	orderSubmission.Pair = spotTradablePair
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
-	if !errors.Is(err, order.ErrTypeIsInvalid) {
+	if err != order.ErrTypeIsInvalid {
 		t.Errorf("expected %v, but found %v", order.ErrTypeIsInvalid, err)
 	}
 	orderSubmission.AssetType = asset.Spot
@@ -2078,6 +2079,13 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	orderSubmission.AssetType = asset.Margin
 	orderSubmission.Pair = marginTradablePair
+	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	if err != nil {
+		t.Error(err)
+	}
+	orderSubmission.AssetType = asset.Margin
+	orderSubmission.Pair = marginTradablePair
+	orderSubmission.MarginType = margin.Isolated
 	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
 	if err != nil {
 		t.Error(err)
@@ -2125,19 +2133,19 @@ func TestCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	if _, err := ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType:  asset.Futures,
-		MarginMode: "isolated",
+		MarginType: margin.Isolated,
 	}); err != nil {
 		t.Error(err)
 	}
 	if _, err := ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType:  asset.Margin,
-		MarginMode: "isolated",
+		MarginType: margin.Isolated,
 	}); err != nil {
 		t.Error(err)
 	}
 	if _, err := ku.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType:  asset.Spot,
-		MarginMode: "isolated",
+		MarginType: margin.Isolated,
 	}); err != nil {
 		t.Error(err)
 	}
