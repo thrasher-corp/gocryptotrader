@@ -1060,10 +1060,18 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		avgPrice := response.Data[x].AveragePrice.Float64()
 		orderAmount := response.Data[x].Size
+		var quoteAmount float64
 		if response.Data[x].QuantityType == "quote_ccy" {
 			// Size is quote amount.
-			orderAmount /= response.Data[x].AveragePrice.Float64()
+			quoteAmount = orderAmount
+			if avgPrice > 0 {
+				orderAmount /= avgPrice
+			} else {
+				// Size not in Base, and we can't derive a sane value for it
+				orderAmount = 0
+			}
 		}
 		var remainingAmount float64
 		if orderStatus != order.Filled {
@@ -1072,9 +1080,10 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		ok.Websocket.DataHandler <- &order.Detail{
 			Price:                response.Data[x].Price,
 			Amount:               orderAmount,
+			QuoteAmount:          quoteAmount,
 			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
 			RemainingAmount:      remainingAmount,
-			AverageExecutedPrice: response.Data[x].AveragePrice.Float64(),
+			AverageExecutedPrice: avgPrice,
 			Exchange:             ok.Name,
 			OrderID:              response.Data[x].OrderID,
 			ClientOrderID:        response.Data[x].ClientOrderID,
