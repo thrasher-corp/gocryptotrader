@@ -1682,6 +1682,7 @@ func (b *Base) GetFuturesPositionOrders(context.Context, *futures.PositionsReque
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetHistoricalFundingRates returns historical funding rates for a future
 func (b *Base) GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	return nil, common.ErrNotYetImplemented
 }

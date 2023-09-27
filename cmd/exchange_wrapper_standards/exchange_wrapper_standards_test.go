@@ -273,16 +273,16 @@ var (
 	int64Param           = reflect.TypeOf((*int64)(nil)).Elem()
 	float64Param         = reflect.TypeOf((*float64)(nil)).Elem()
 	// types with asset in params
-	assetParam            = reflect.TypeOf((*asset.Item)(nil)).Elem()
-	orderSubmitParam      = reflect.TypeOf((**order.Submit)(nil)).Elem()
-	orderModifyParam      = reflect.TypeOf((**order.Modify)(nil)).Elem()
-	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
-	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
+	assetParam                  = reflect.TypeOf((*asset.Item)(nil)).Elem()
+	orderSubmitParam            = reflect.TypeOf((**order.Submit)(nil)).Elem()
+	orderModifyParam            = reflect.TypeOf((**order.Modify)(nil)).Elem()
+	orderCancelParam            = reflect.TypeOf((**order.Cancel)(nil)).Elem()
+	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
+	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
 	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
 	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
 	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
-	latestRateRequest     = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
+	latestRateRequest           = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
