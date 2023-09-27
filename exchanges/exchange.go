@@ -1682,13 +1682,7 @@ func (b *Base) GetFuturesPositionOrders(context.Context, *futures.PositionsReque
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetLatestFundingRate returns the latest funding rate based on request data
-func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (b *Base) GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

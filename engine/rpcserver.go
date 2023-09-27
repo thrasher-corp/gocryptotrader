@@ -4796,7 +4796,7 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 		return nil, err
 	}
 	if len(fundingRates) != 1 {
-		return nil, errUnexpectedResponseSize
+		return nil, fmt.Errorf("expected 1 funding rate, received %v", len(fundingRates))
 	}
 	var response gctrpc.GetLatestFundingRateResponse
 	fundingData := &gctrpc.FundingData{
