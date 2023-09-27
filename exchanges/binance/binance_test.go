@@ -3034,7 +3034,7 @@ func TestGetPositionSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	bb := currency.NewBTCUSDT()
-	_, err := b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err := b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
@@ -3043,7 +3043,7 @@ func TestGetPositionSummary(t *testing.T) {
 	}
 
 	bb.Quote = currency.BUSD
-	_, err = b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
@@ -3056,7 +3056,7 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	bb.Quote = currency.USD
-	_, err = b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset:          asset.CoinMarginedFutures,
 		Pair:           p,
 		UnderlyingPair: bb,
@@ -3065,7 +3065,7 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset:          asset.Spot,
 		Pair:           p,
 		UnderlyingPair: bb,
@@ -3078,7 +3078,7 @@ func TestGetPositionSummary(t *testing.T) {
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
+	_, err := b.GetFuturesPositionOrders(context.Background(), &futures.PositionsRequest{
 		Asset:                     asset.USDTMarginedFutures,
 		Pairs:                     []currency.Pair{currency.NewBTCUSDT()},
 		StartDate:                 time.Now().Add(-time.Hour * 24 * 70),
@@ -3092,7 +3092,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
+	_, err = b.GetFuturesPositionOrders(context.Background(), &futures.PositionsRequest{
 		Asset:                     asset.CoinMarginedFutures,
 		Pairs:                     []currency.Pair{p},
 		StartDate:                 time.Now().Add(time.Hour * 24 * -70),

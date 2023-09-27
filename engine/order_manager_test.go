@@ -1628,11 +1628,10 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
 	}
 
-	position := &futures.PositionDetails{
-		Exchange: b.Name,
-		Asset:    asset.Spot,
-		Pair:     cp,
-		Orders:   nil,
+	position := &futures.PositionResponse{
+		Asset:  asset.Spot,
+		Pair:   cp,
+		Orders: nil,
 	}
 	err = o.processFuturesPositions(fakeExchange, position)
 	if !errors.Is(err, errNilOrder) {

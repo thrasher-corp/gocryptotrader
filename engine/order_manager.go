@@ -725,10 +725,11 @@ func (m *OrderManager) processOrders() {
 				if sd.IsZero() {
 					sd = time.Now().Add(m.futuresPositionSeekDuration)
 				}
-				positions, err = exchanges[x].GetFuturesPositions(context.TODO(), &futures.PositionsRequest{
-					Asset:     enabledAssets[y],
-					Pairs:     pairs,
-					StartDate: sd,
+				positions, err = exchanges[x].GetFuturesPositionOrders(context.TODO(), &futures.PositionsRequest{
+					Asset:                     enabledAssets[y],
+					Pairs:                     pairs,
+					StartDate:                 sd,
+					RespectOrderHistoryLimits: m.respectOrderHistoryLimits,
 				})
 				if err != nil {
 					if !errors.Is(err, common.ErrNotYetImplemented) {
@@ -755,7 +756,7 @@ func (m *OrderManager) processOrders() {
 }
 
 // processFuturesPositions ensures any open position found is kept up to date in the order manager
-func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *futures.PositionDetails) error {
+func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, position *futures.PositionResponse) error {
 	if !m.activelyTrackFuturesPositions {
 		return errFuturesTrackingDisabled
 	}

@@ -279,8 +279,8 @@ var (
 	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
 	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
 	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
-	positionSummaryRequestParam = reflect.TypeOf((**order.PositionSummaryRequest)(nil)).Elem()
-	positionsRequestParam       = reflect.TypeOf((**order.PositionsRequest)(nil)).Elem()
+	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
+	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -484,13 +484,13 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			NewAllocatedMargin:      1338,
 		})
 	case argGenerator.MethodInputType.AssignableTo(positionSummaryRequestParam):
-		input = reflect.ValueOf(&order.PositionSummaryRequest{
+		input = reflect.ValueOf(&futures.PositionSummaryRequest{
 			Asset:     argGenerator.AssetParams.Asset,
 			Pair:      argGenerator.AssetParams.Pair,
 			Direction: order.Buy,
 		})
 	case argGenerator.MethodInputType.AssignableTo(positionsRequestParam):
-		input = reflect.ValueOf(&order.PositionsRequest{
+		input = reflect.ValueOf(&futures.PositionsRequest{
 			Asset:                     argGenerator.AssetParams.Asset,
 			Pairs:                     currency.Pairs{argGenerator.AssetParams.Pair},
 			StartDate:                 argGenerator.Start,
@@ -576,6 +576,8 @@ var unsupportedExchangeNames = []string{
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
 	"itbit",    // itbit has no way of retrieving pair data
+	"btse",     // 	something is going on there
+	"poloniex", // 	something is going on there
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange

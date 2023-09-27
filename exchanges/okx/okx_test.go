@@ -3453,7 +3453,7 @@ func TestGetPositionSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &futures.PositionSummaryRequest{
 		Asset:          asset.PerpetualSwap,
 		Pair:           pp[0],
 		UnderlyingPair: currency.EMPTYPAIR,
@@ -3466,7 +3466,7 @@ func TestGetPositionSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &futures.PositionSummaryRequest{
 		Asset:          asset.Futures,
 		Pair:           pp[0],
 		UnderlyingPair: currency.EMPTYPAIR,
@@ -3475,13 +3475,13 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &futures.PositionSummaryRequest{
 		Asset:          asset.Spot,
 		Pair:           pp[0],
 		UnderlyingPair: currency.NewBTCUSDT(),
 	})
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 }
 
@@ -3492,7 +3492,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRequest{
+	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &futures.PositionsRequest{
 		Asset:     asset.Futures,
 		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
@@ -3501,12 +3501,12 @@ func TestGetFuturesPositions(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRequest{
+	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &futures.PositionsRequest{
 		Asset:     asset.Spot,
 		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
 	})
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }

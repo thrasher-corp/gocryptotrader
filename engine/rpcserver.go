@@ -4392,9 +4392,6 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	if r.Pair == nil {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
-		return nil, err
-	}
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -4411,7 +4408,7 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 		return nil, err
 	}
 	if !ai.IsFutures() {
-		return nil, fmt.Errorf("%s %w", ai, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", ai, futures.ErrNotFuturesAsset)
 	}
 	enabledPairs, err := exch.GetEnabledPairs(ai)
 	if err != nil {

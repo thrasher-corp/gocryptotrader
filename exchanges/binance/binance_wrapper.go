@@ -2381,7 +2381,7 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 
 // GetFuturesPositionSummary returns the account's position summary for the asset type and pair
 // it can be used to calculate potential positions
-func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w GetFuturesPositionSummary", common.ErrNilPointer)
 	}
@@ -2489,10 +2489,10 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			relevantPosition = &positionsInfo[i]
 		}
 		if relevantPosition == nil {
-			return nil, fmt.Errorf("%w %v %v", order.ErrNoPositionsFound, req.Asset, req.Pair)
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
 		}
 
-		return &order.PositionSummary{
+		return &futures.PositionSummary{
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
@@ -2575,7 +2575,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			return nil, err
 		}
 		if len(positionsInfo) == 0 {
-			return nil, fmt.Errorf("%w %v", order.ErrNoPositionsFound, fPair)
+			return nil, fmt.Errorf("%w %v", futures.ErrNoPositionsFound, fPair)
 		}
 		var relevantPosition *FuturesPositionInformation
 		for i := range positionsInfo {
@@ -2585,7 +2585,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			relevantPosition = &positionsInfo[i]
 		}
 		if relevantPosition == nil {
-			return nil, fmt.Errorf("%w %v %v", order.ErrNoPositionsFound, req.Asset, req.Pair)
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
 		}
 		liquidationPrice = relevantPosition.LiquidationPrice
 		markPrice = relevantPosition.MarkPrice
@@ -2596,7 +2596,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			mmf = decimal.NewFromFloat(maintenanceMargin).Div(tc).Mul(decimal.NewFromInt(100))
 		}
 
-		return &order.PositionSummary{
+		return &futures.PositionSummary{
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
@@ -2624,7 +2624,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 }
 
 // GetFuturesPositionOrders returns the orders for futures positions
-func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w GetFuturesPositionOrders", common.ErrNilPointer)
 	}
@@ -2635,14 +2635,14 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 		if req.RespectOrderHistoryLimits {
 			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
 		}
 	}
 	if req.EndDate.IsZero() {
 		req.EndDate = time.Now()
 	}
 
-	var resp []order.PositionResponse
+	var resp []futures.PositionResponse
 	sd := req.StartDate
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
@@ -2657,7 +2657,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 				return nil, err
 			}
 			for y := range result {
-				currencyPosition := order.PositionResponse{
+				currencyPosition := futures.PositionResponse{
 					Asset: req.Asset,
 					Pair:  req.Pairs[x],
 				}
@@ -2723,7 +2723,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			if err != nil {
 				return nil, err
 			}
-			currencyPosition := order.PositionResponse{
+			currencyPosition := futures.PositionResponse{
 				Asset: req.Asset,
 				Pair:  req.Pairs[x],
 			}
@@ -2817,7 +2817,7 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currenc
 			return -1, err
 		}
 		if len(resp) == 0 {
-			return -1, fmt.Errorf("%w %v %v", order.ErrPositionNotFound, item, pair)
+			return -1, fmt.Errorf("%w %v %v", futures.ErrPositionNotFound, item, pair)
 		}
 		// leverage is the same across positions
 		return resp[0].Leverage, nil
@@ -2827,7 +2827,7 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currenc
 			return -1, err
 		}
 		if len(resp) == 0 {
-			return -1, fmt.Errorf("%w %v %v", order.ErrPositionNotFound, item, pair)
+			return -1, fmt.Errorf("%w %v %v", futures.ErrPositionNotFound, item, pair)
 		}
 		// leverage is the same across positions
 		return resp[0].Leverage, nil

@@ -970,7 +970,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			LockedCollateral:   decimal.NewFromInt(1337),
 			UnrealisedPNL:      decimal.NewFromInt(1337),
 		}
-		var scaleCollateralResponse *futures.CollateralByCurrency
+		var scaleCollateralResponse *collateral.ByCurrency
 		scaleCollateralResponse, err = e.ScaleCollateral(context.TODO(), collateralCalculator)
 		msg = ""
 		if err != nil {
@@ -1001,7 +1001,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculateTotalCollateralResponse}),
 		})
 
-		var futuresPositionsResponse []futures.PositionDetails
+		var futuresPositionsResponse []futures.PositionResponse
 		futuresPositionsRequest := &futures.PositionsRequest{
 			Asset:     assetTypes[i],
 			Pairs:     currency.Pairs{p},
@@ -1031,14 +1031,14 @@ func jsonifyInterface(params []interface{}) json.RawMessage {
 }
 
 func loadConfig() (Config, error) {
-	var config Config
+	var cfg Config
 	keys, err := os.ReadFile("wrapperconfig.json")
 	if err != nil {
-		return config, err
+		return cfg, err
 	}
 
-	err = json.Unmarshal(keys, &config)
-	return config, err
+	err = json.Unmarshal(keys, &cfg)
+	return cfg, err
 }
 
 func saveConfig(config *Config) {
@@ -1098,17 +1098,20 @@ func outputToHTML(exchangeResponses []ExchangeResponses) {
 	}
 
 	log.Printf("Outputting to: %v", filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
-	file, err := os.Create(filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
+	f, err := os.Create(filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
-	err = tmpl.Execute(file, exchangeResponses)
+	err = tmpl.Execute(f, exchangeResponses)
 	if err != nil {
 		log.Print(err)
 	}
-	file.Close()
+	err = f.Close()
+	if err != nil {
+		log.Print(err)
+	}
 }
 
 func outputToConsole(exchangeResponses []ExchangeResponses) {

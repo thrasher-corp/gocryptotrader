@@ -1832,7 +1832,7 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 }
 
 // GetFuturesPositionSummary returns position summary details for an active position
-func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
@@ -1907,7 +1907,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 	if err != nil {
 		return nil, err
 	}
-	return &order.PositionSummary{
+	return &futures.PositionSummary{
 		Pair:                         req.Pair,
 		Asset:                        req.Asset,
 		MarginType:                   marginMode,
@@ -1943,7 +1943,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 }
 
 // GetFuturesPositionOrders returns the orders for futures positions
-func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
@@ -1954,20 +1954,20 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 		if req.RespectOrderHistoryLimits {
 			req.StartDate = time.Now().Add(-ok.Features.Supports.MaximumOrderHistory)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-ok.Features.Supports.MaximumOrderHistory))
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-ok.Features.Supports.MaximumOrderHistory))
 		}
 	}
 	if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
 		return nil, err
 	}
-	resp := make([]order.PositionResponse, len(req.Pairs))
+	resp := make([]futures.PositionResponse, len(req.Pairs))
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
 		if err != nil {
 			return nil, err
 		}
 		instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
-		resp[i] = order.PositionResponse{
+		resp[i] = futures.PositionResponse{
 			Pair:  req.Pairs[i],
 			Asset: req.Asset,
 		}
@@ -2104,7 +2104,7 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 			return -1, err
 		}
 		if len(lev) == 0 {
-			return -1, fmt.Errorf("%w %v %v %s", order.ErrPositionNotFound, item, pair, marginType)
+			return -1, fmt.Errorf("%w %v %v %s", futures.ErrPositionNotFound, item, pair, marginType)
 		}
 		if inspectLeverage {
 			for i := range lev {

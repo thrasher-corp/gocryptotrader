@@ -107,15 +107,15 @@ func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (collatera
 	return collateral.SingleMode, nil
 }
 
-func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]order.PositionResponse, len(req.Pairs))
+	resp := make([]futures.PositionResponse, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
-		resp[i] = order.PositionResponse{
+		resp[i] = futures.PositionResponse{
 			Asset: req.Asset,
 			Pair:  req.Pairs[i],
 			Orders: []order.Detail{

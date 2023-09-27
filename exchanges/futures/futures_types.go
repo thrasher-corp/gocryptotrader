@@ -320,7 +320,7 @@ type PositionsRequest struct {
 type PositionResponse struct {
 	Pair   currency.Pair
 	Asset  asset.Item
-	Orders []Detail
+	Orders []order.Detail
 }
 
 // PositionSummary returns basic details on an open position
