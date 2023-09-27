@@ -33,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (ku *Kucoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	ku.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = ku.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = ku.BaseCurrencies
+	exchCfg, err := ku.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := ku.SetupDefaults(exchCfg)
+	err = ku.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
