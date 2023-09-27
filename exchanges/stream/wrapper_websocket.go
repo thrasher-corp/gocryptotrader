@@ -63,20 +63,23 @@ func (w *WrapperWebsocket) Connect() error {
 	if !w.IsDataMonitorRunning() {
 		w.dataMonitor()
 	}
+	// connectWg is added to manage the waiting and closing of asset websockets separately.
+	connectWg := sync.WaitGroup{}
 	for x := range w.AssetTypeWebsockets {
-		w.Wg.Add(1)
+		connectWg.Add(1)
 		w.connectedAssetTypesLocker.Lock()
 		w.connectedAssetTypesFlag |= x
 		w.connectedAssetTypesLocker.Unlock()
 		go func(assetType asset.Item) {
-			defer w.Wg.Done()
+			defer connectWg.Done()
 			err = w.AssetTypeWebsockets[assetType].Connect()
 			if err != nil {
-				log.Errorf(log.WebsocketMgr, "%v", err)
+				errs = common.AppendError(errs, err)
 				w.ShutdownC <- assetType
 			}
 		}(x)
 	}
+	connectWg.Wait()
 	if errs != nil {
 		return errs
 	}

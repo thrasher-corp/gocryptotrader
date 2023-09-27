@@ -174,9 +174,6 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	err = o.Websocket.Setup(&stream.WebsocketWrapperSetup{
 		ExchangeConfig:         exch,
 		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
@@ -191,6 +188,7 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		Connector:             o.WsConnect,
 		Subscriber:            o.Subscribe,
 		Unsubscriber:          o.Unsubscribe,
+		RunningURLAuth:        okcoinPrivateWebsocketURL,
 		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
 		AssetType:             asset.Spot,
 	})
@@ -198,9 +196,10 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            okcoinWsRateLimit,
+		URL:                  wsEndpoint,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            okcoinWsRateLimit,
 	})
 	if err != nil {
 		return err
