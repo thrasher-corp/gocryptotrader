@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -51,6 +52,8 @@ var (
 	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
 	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
+	errSetDefaultsNotCalled              = errors.New("set defaults not called")
+	errExchangeIsNil                     = errors.New("exchange is nil")
 )
 
 // SetRequester sets the instance of the requester
@@ -1456,79 +1459,15 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
-// CalculatePNL is an overridable function to allow PNL to be calculated on an
-// open position
-// It will also determine whether the position is considered to be liquidated
-// For live trading, an overriding function may wish to confirm the liquidation by
-// requesting the status of the asset
-func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// ScaleCollateral is an overridable function to determine how much
-// collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// CalculateTotalCollateral takes in n collateral calculators to determine an overall
-// standing in a singular currency
-func (b *Base) CalculateTotalCollateral(_ context.Context, _ *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (b *Base) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
-	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
-}
-
-// GetCurrencyForRealisedPNL returns where to put realised PNL
-// example 1: Bybit universal margin PNL is paid out in USD to your spot wallet
-// example 2: Binance coin margined futures pays returns using the same currency eg BTC
-func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
-	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
-}
-
 // HasAssetTypeAccountSegregation returns if the accounts are divided into asset
 // types instead of just being denoted as spot holdings.
 func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }
 
-// GetMarginRatesHistory returns the margin rate history for the supplied currency
-func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetPositionSummary returns stats for a future position
 func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
-}
-
-// GetFundingPaymentDetails returns funding payment details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetFuturesPositions returns futures positions for all currencies
-func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetLatestFundingRate returns the latest funding rate based on request data
-func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
-// differs by exchange
-func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
-	return false, common.ErrNotYetImplemented
 }
 
 // GetKlineRequest returns a helper for the fetching of candle/kline data for
@@ -1658,4 +1597,137 @@ func (b *Base) Shutdown() error {
 		}
 	}
 	return b.Requester.Shutdown()
+}
+
+// GetStandardConfig returns a standard default exchange config. Set defaults
+// must populate base struct with exchange specific defaults before calling
+// this function.
+func (b *Base) GetStandardConfig() (*config.Exchange, error) {
+	if b == nil {
+		return nil, errExchangeIsNil
+	}
+
+	if b.Name == "" {
+		return nil, errSetDefaultsNotCalled
+	}
+
+	exchCfg := new(config.Exchange)
+	exchCfg.Name = b.Name
+	exchCfg.Enabled = b.Enabled
+	exchCfg.HTTPTimeout = DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = b.BaseCurrencies
+
+	if b.SupportsWebsocket() {
+		exchCfg.WebsocketResponseCheckTimeout = config.DefaultWebsocketResponseCheckTimeout
+		exchCfg.WebsocketResponseMaxLimit = config.DefaultWebsocketResponseMaxLimit
+		exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
+	}
+
+	return exchCfg, nil
+}
+
+// Futures section
+
+// CalculatePNL is an overridable function to allow PNL to be calculated on an
+// open position
+// It will also determine whether the position is considered to be liquidated
+// For live trading, an overriding function may wish to confirm the liquidation by
+// requesting the status of the asset
+func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// ScaleCollateral is an overridable function to determine how much
+// collateral is usable in futures positions
+func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*collateral.ByCurrency, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// CalculateTotalCollateral takes in n collateral calculators to determine an overall
+// standing in a singular currency
+func (b *Base) CalculateTotalCollateral(_ context.Context, _ *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (b *Base) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+
+// GetCurrencyForRealisedPNL returns where to put realised PNL
+// example 1: Bybit universal margin PNL is paid out in USD to your spot wallet
+// example 2: Binance coin margined futures pays returns using the same currency eg BTC
+func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+
+// GetMarginRatesHistory returns the margin rate history for the supplied currency
+func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositionSummary returns stats for a future position
+func (b *Base) GetFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingPaymentDetails returns funding payment details for a future for a specific time period
+func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositions returns futures positions for all currencies
+func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositionOrders returns futures positions orders
+func (b *Base) GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetLatestFundingRate returns the latest funding rate based on request data
+func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingRates returns funding rates based on request data
+func (b *Base) GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+// differs by exchange
+func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
+	return false, common.ErrNotYetImplemented
+}
+
+// SetCollateralMode sets the account's collateral mode for the asset type
+func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
+	return common.ErrNotYetImplemented
+}
+
+// GetCollateralMode returns the account's collateral mode for the asset type
+func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
+	return 0, common.ErrNotYetImplemented
+}
+
+// SetMarginType sets the account's margin type for the asset type
+func (b *Base) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) error {
+	return common.ErrNotYetImplemented
+}
+
+// ChangePositionMargin changes the margin type for a position
+func (b *Base) ChangePositionMargin(_ context.Context, _ *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64, _ order.Side) error {
+	return common.ErrNotYetImplemented
+}
+
+// GetLeverage gets the account's initial leverage for the asset type and pair
+func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
+	return -1, common.ErrNotYetImplemented
 }

@@ -911,6 +911,9 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			return errors.New(errCap.Message)
 		}
 	}
+	if result == nil {
+		return nil
+	}
 	return json.Unmarshal(interim, result)
 }
 

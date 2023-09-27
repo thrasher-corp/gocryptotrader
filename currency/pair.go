@@ -8,6 +8,16 @@ import (
 
 var errCannotCreatePair = errors.New("cannot create currency pair")
 
+// NewBTCUSDT is a shortcut for NewPair(BTC, USDT)
+func NewBTCUSDT() Pair {
+	return NewPair(BTC, USDT)
+}
+
+// NewBTCUSD is a shortcut for NewPair(BTC, USD)
+func NewBTCUSD() Pair {
+	return NewPair(BTC, USD)
+}
+
 // NewPairDelimiter splits the desired currency string at delimiter, the returns
 // a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
