@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -32,6 +33,8 @@ type IBotExchange interface {
 	Shutdown() error
 	GetName() string
 	SetEnabled(bool)
+	GetEnabledFeatures() FeaturesEnabled
+	GetSupportedFeatures() FeaturesSupported
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
@@ -93,6 +96,7 @@ type IBotExchange interface {
 	OrderManagement
 	CurrencyStateManagement
 	FuturesManagement
+	MarginManagement
 }
 
 // OrderManagement defines functionality for order management
@@ -142,14 +146,27 @@ type FunctionalityChecker interface {
 
 // FuturesManagement manages futures orders, pnl and collateral calculations
 type FuturesManagement interface {
+	ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*collateral.ByCurrency, error)
 	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
-	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*futures.CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)
 	GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error)
 	GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error)
 	GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
+
+	GetFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
+	GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error)
+	SetCollateralMode(ctx context.Context, item asset.Item, mode collateral.Mode) error
+	GetCollateralMode(ctx context.Context, item asset.Item) (collateral.Mode, error)
+	SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, orderSide order.Side) error
+	GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error)
+}
+
+// MarginManagement manages margin positions and rates
+type MarginManagement interface {
+	SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error
+	ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	futures.PNLCalculation
 	GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error)

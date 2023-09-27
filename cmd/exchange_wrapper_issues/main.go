@@ -23,6 +23,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -929,7 +930,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			SentParams: jsonifyInterface([]interface{}{positionSummaryRequest}),
-			Function:   "GetPositionSummary",
+			Function:   "GetFuturesPositionSummary",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{positionSummaryResponse}),
 		})
@@ -1006,7 +1007,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Pairs:     currency.Pairs{p},
 			StartDate: time.Now().Add(-time.Hour),
 		}
-		futuresPositionsResponse, err = e.GetFuturesPositions(context.TODO(), futuresPositionsRequest)
+		futuresPositionsResponse, err = e.GetFuturesPositionOrders(context.TODO(), futuresPositionsRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -1014,7 +1015,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			SentParams: jsonifyInterface([]interface{}{futuresPositionsRequest}),
-			Function:   "GetFuturesPositions",
+			Function:   "GetFuturesPositionOrders",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{futuresPositionsResponse}),
 		})

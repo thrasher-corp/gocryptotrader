@@ -9,7 +9,9 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -36,6 +38,8 @@ var (
 	ErrNoPositionsFound = errors.New("no positions found")
 	// ErrGetFundingDataRequired is returned when requesting funding rate data without the prerequisite
 	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
+	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
+	ErrOrderHistoryTooLarge = errors.New("order history start date too long ago")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")
@@ -66,57 +70,12 @@ type TotalCollateralResponse struct {
 	TotalValueOfPositiveSpotBalances            decimal.Decimal
 	CollateralContributedByPositiveSpotBalances decimal.Decimal
 	UsedCollateral                              decimal.Decimal
-	UsedBreakdown                               *UsedCollateralBreakdown
+	UsedBreakdown                               *collateral.UsedBreakdown
 	AvailableCollateral                         decimal.Decimal
 	AvailableMaintenanceCollateral              decimal.Decimal
 	UnrealisedPNL                               decimal.Decimal
-	BreakdownByCurrency                         []CollateralByCurrency
-	BreakdownOfPositions                        []CollateralByPosition
-}
-
-// CollateralByPosition shows how much collateral is used
-// from positions
-type CollateralByPosition struct {
-	PositionCurrency currency.Pair
-	Size             decimal.Decimal
-	OpenOrderSize    decimal.Decimal
-	PositionSize     decimal.Decimal
-	MarkPrice        decimal.Decimal
-	RequiredMargin   decimal.Decimal
-	CollateralUsed   decimal.Decimal
-}
-
-// CollateralByCurrency individual collateral contribution
-// along with what the potentially scaled collateral
-// currency it is represented as
-// eg in Bybit ScaledCurrency is USDC
-type CollateralByCurrency struct {
-	Currency                    currency.Code
-	SkipContribution            bool
-	TotalFunds                  decimal.Decimal
-	AvailableForUseAsCollateral decimal.Decimal
-	CollateralContribution      decimal.Decimal
-	AdditionalCollateralUsed    decimal.Decimal
-	FairMarketValue             decimal.Decimal
-	Weighting                   decimal.Decimal
-	ScaledCurrency              currency.Code
-	UnrealisedPNL               decimal.Decimal
-	ScaledUsed                  decimal.Decimal
-	ScaledUsedBreakdown         *UsedCollateralBreakdown
-	Error                       error
-}
-
-// UsedCollateralBreakdown provides a detailed
-// breakdown of where collateral is currently being allocated
-type UsedCollateralBreakdown struct {
-	LockedInStakes                  decimal.Decimal
-	LockedInNFTBids                 decimal.Decimal
-	LockedInFeeVoucher              decimal.Decimal
-	LockedInSpotMarginFundingOffers decimal.Decimal
-	LockedInSpotOrders              decimal.Decimal
-	LockedAsCollateral              decimal.Decimal
-	UsedInPositions                 decimal.Decimal
-	UsedInSpotMarginBorrows         decimal.Decimal
+	BreakdownByCurrency                         []collateral.ByCurrency
+	BreakdownOfPositions                        []collateral.ByPosition
 }
 
 // PositionController manages all futures orders
@@ -311,38 +270,27 @@ type Position struct {
 type PositionSummaryRequest struct {
 	Asset asset.Item
 	Pair  currency.Pair
+	// UnderlyingPair is optional if the exchange requires it for a contract like BTCUSDT-13333337
+	UnderlyingPair currency.Pair
 
 	// offline calculation requirements below
 	CalculateOffline          bool
 	Direction                 order.Side
 	FreeCollateral            decimal.Decimal
 	TotalCollateral           decimal.Decimal
-	OpeningPrice              decimal.Decimal
 	CurrentPrice              decimal.Decimal
-	OpeningSize               decimal.Decimal
 	CurrentSize               decimal.Decimal
 	CollateralUsed            decimal.Decimal
 	NotionalPrice             decimal.Decimal
-	Leverage                  decimal.Decimal
 	MaxLeverageForAccount     decimal.Decimal
-	TotalAccountValue         decimal.Decimal
 	TotalOpenPositionNotional decimal.Decimal
-}
-
-// PositionSummary returns basic details on an open position
-type PositionSummary struct {
-	MaintenanceMarginRequirement decimal.Decimal
-	InitialMarginRequirement     decimal.Decimal
-	EstimatedLiquidationPrice    decimal.Decimal
-	CollateralUsed               decimal.Decimal
-	MarkPrice                    decimal.Decimal
-	CurrentSize                  decimal.Decimal
-	BreakEvenPrice               decimal.Decimal
-	AverageOpenPrice             decimal.Decimal
-	RecentPNL                    decimal.Decimal
-	MarginFraction               decimal.Decimal
-	FreeCollateral               decimal.Decimal
-	TotalCollateral              decimal.Decimal
+	// EstimatePosition if enabled, can be used to calculate a new position
+	EstimatePosition bool
+	// These fields are also used for offline calculation
+	OpeningPrice      decimal.Decimal
+	OpeningSize       decimal.Decimal
+	Leverage          decimal.Decimal
+	TotalAccountValue decimal.Decimal
 }
 
 // PositionDetails are used to track open positions
@@ -360,4 +308,56 @@ type PositionsRequest struct {
 	Asset     asset.Item
 	Pairs     currency.Pairs
 	StartDate time.Time
+	EndDate   time.Time
+	// RespectOrderHistoryLimits is designed for the order manager
+	// it allows for orders to be tracked if the start date in the config is
+	// beyond the allowable limits by the API, rather than returning an error
+	RespectOrderHistoryLimits bool
+}
+
+// PositionResponse are used to track open positions
+// in the order manager
+type PositionResponse struct {
+	Pair   currency.Pair
+	Asset  asset.Item
+	Orders []Detail
+}
+
+// PositionSummary returns basic details on an open position
+type PositionSummary struct {
+	Pair           currency.Pair
+	Asset          asset.Item
+	MarginType     margin.Type
+	CollateralMode collateral.Mode
+	// The currency in which the values are quoted against. Isn't always pair.Quote
+	// eg BTC-USDC-230929's quote in GCT is 230929, but the currency should be USDC
+	Currency currency.Code
+
+	AvailableEquity     decimal.Decimal
+	CashBalance         decimal.Decimal
+	DiscountEquity      decimal.Decimal
+	EquityUSD           decimal.Decimal
+	IsolatedEquity      decimal.Decimal
+	IsolatedLiabilities decimal.Decimal
+	IsolatedUPL         decimal.Decimal
+	NotionalLeverage    decimal.Decimal
+	TotalEquity         decimal.Decimal
+	StrategyEquity      decimal.Decimal
+
+	IsolatedMargin               decimal.Decimal
+	NotionalSize                 decimal.Decimal
+	Leverage                     decimal.Decimal
+	MaintenanceMarginRequirement decimal.Decimal
+	InitialMarginRequirement     decimal.Decimal
+	EstimatedLiquidationPrice    decimal.Decimal
+	CollateralUsed               decimal.Decimal
+	MarkPrice                    decimal.Decimal
+	CurrentSize                  decimal.Decimal
+	AverageOpenPrice             decimal.Decimal
+	PositionPNL                  decimal.Decimal
+	MaintenanceMarginFraction    decimal.Decimal
+	FreeCollateral               decimal.Decimal
+	TotalCollateral              decimal.Decimal
+	FrozenBalance                decimal.Decimal
+	EquityOfCurrency             decimal.Decimal
 }

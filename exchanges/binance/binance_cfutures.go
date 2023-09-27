@@ -1198,7 +1198,7 @@ func (b *Binance) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.P
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
-func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol currency.Pair, pair string, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
+func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
 	rateLimit := cFuturesPairOrdersRate
@@ -1210,8 +1210,8 @@ func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol currency.Pair,
 		}
 		params.Set("symbol", symbolValue)
 	}
-	if pair != "" {
-		params.Set("pair", pair)
+	if !pair.IsEmpty() {
+		params.Set("pair", pair.String())
 	}
 	if orderID != 0 {
 		params.Set("orderID", strconv.FormatInt(orderID, 10))
@@ -1242,7 +1242,7 @@ func (b *Binance) GetFuturesAccountInfo(ctx context.Context) (FuturesAccountInfo
 }
 
 // FuturesChangeInitialLeverage changes initial leverage for the account
-func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol currency.Pair, leverage int64) (FuturesLeverageData, error) {
+func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (FuturesLeverageData, error) {
 	var resp FuturesLeverageData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1253,7 +1253,7 @@ func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol curre
 	if leverage < 1 || leverage > 125 {
 		return resp, errors.New("invalid leverage")
 	}
-	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, cfuturesChangeInitialLeverage, params, cFuturesDefaultRate, &resp)
 }
 
@@ -1274,18 +1274,20 @@ func (b *Binance) FuturesChangeMarginType(ctx context.Context, symbol currency.P
 }
 
 // ModifyIsolatedPositionMargin changes margin for an isolated position
-func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (GenericAuthResponse, error) {
-	var resp GenericAuthResponse
+func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (FuturesMarginUpdatedResponse, error) {
+	var resp FuturesMarginUpdatedResponse
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !common.StringDataCompare(validPositionSide, positionSide) {
-		return resp, errors.New("invalid positionSide")
+	if positionSide != "" {
+		if !common.StringDataCompare(validPositionSide, positionSide) {
+			return resp, errors.New("invalid positionSide")
+		}
+		params.Set("positionSide", positionSide)
 	}
-	params.Set("positionSide", positionSide)
 	cType, ok := validMarginChange[changeType]
 	if !ok {
 		return resp, errors.New("invalid changeType")
@@ -1323,15 +1325,19 @@ func (b *Binance) FuturesMarginChangeHistory(ctx context.Context, symbol currenc
 }
 
 // FuturesPositionsInfo gets futures positions info
+// "pair" for coinmarginedfutures in GCT terms is the pair base
+// eg ADAUSD_PERP the "pair" parameter is ADAUSD
 func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair string) ([]FuturesPositionInformation, error) {
 	var resp []FuturesPositionInformation
 	params := url.Values{}
 	if marginAsset != "" {
 		params.Set("marginAsset", marginAsset)
 	}
+
 	if pair != "" {
 		params.Set("pair", pair)
 	}
+
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesPositionInfo, params, cFuturesDefaultRate, &resp)
 }
 

@@ -53,7 +53,7 @@ func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	a.Servertime = aux.Servertime.Time()
+	a.ServerTime = aux.Servertime.Time()
 	return nil
 }
 
@@ -440,8 +440,8 @@ func (a *wsListStatus) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *FuturesAccountInformationPositions) UnmarshalJSON(data []byte) error {
-	type Alias FuturesAccountInformationPositions
+func (a *FuturesAccountInformationPosition) UnmarshalJSON(data []byte) error {
+	type Alias FuturesAccountInformationPosition
 
 	aux := &struct {
 		UpdateTime binanceTime `json:"updateTime"`
