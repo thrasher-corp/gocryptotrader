@@ -67,6 +67,11 @@ type Submit struct {
 	TriggerPrice  float64
 	ClientID      string // TODO: Shift to credentials
 	ClientOrderID string
+
+	// The system will first borrow you funds at the optimal interest rate and then place an order for you.
+	// see kucoin_wrapper.go
+	AutoBorrow bool
+
 	// MarginType such as isolated or cross margin for when an exchange
 	// supports margin type definition when submitting an order eg okx
 	MarginType margin.Type
@@ -77,6 +82,9 @@ type Submit struct {
 	// RetrieveFeeDelay some exchanges take time to properly save order data
 	// and cannot retrieve fees data immediately
 	RetrieveFeeDelay time.Duration
+
+	// Hidden when enabled orders not displaying in order book.
+	Hidden bool
 	// TradeMode specifies the trading mode for margin and non-margin orders: see okcoin_wrapper.go
 	TradeMode string
 }
@@ -109,6 +117,9 @@ type SubmitResponse struct {
 	Fee         float64
 	FeeAsset    currency.Code
 	Cost        float64
+
+	BorrowSize  float64
+	LoanApplyID string
 	MarginType  margin.Type
 }
 
