@@ -1426,10 +1426,10 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (b *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, orderSide order.Side) error {
+func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, orderSide order.Side) error {
 	switch item {
 	case asset.Linear, asset.Inverse:
-		symbol, err := b.FormatSymbol(pair, item)
+		symbol, err := by.FormatSymbol(pair, item)
 		if err != nil {
 			return err
 		}
@@ -1447,7 +1447,7 @@ func (b *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency.
 		default:
 			return order.ErrSideIsInvalid
 		}
-		return b.SetLeverageLevel(ctx, params)
+		return by.SetLeverageLevel(ctx, params)
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
