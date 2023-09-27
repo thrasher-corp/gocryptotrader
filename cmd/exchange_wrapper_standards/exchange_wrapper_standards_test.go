@@ -16,8 +16,10 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -263,13 +265,21 @@ var (
 	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
 	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
 	credentialsParam     = reflect.TypeOf((**account.Credentials)(nil)).Elem()
+	orderSideParam       = reflect.TypeOf((*order.Side)(nil)).Elem()
+	collateralModeParam  = reflect.TypeOf((*collateral.Mode)(nil)).Elem()
+	marginTypeParam      = reflect.TypeOf((*margin.Type)(nil)).Elem()
+	int64Param           = reflect.TypeOf((*int64)(nil)).Elem()
+	float64Param         = reflect.TypeOf((*float64)(nil)).Elem()
 	// types with asset in params
-	assetParam            = reflect.TypeOf((*asset.Item)(nil)).Elem()
-	orderSubmitParam      = reflect.TypeOf((**order.Submit)(nil)).Elem()
-	orderModifyParam      = reflect.TypeOf((**order.Modify)(nil)).Elem()
-	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
-	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
+	assetParam                  = reflect.TypeOf((*asset.Item)(nil)).Elem()
+	orderSubmitParam            = reflect.TypeOf((**order.Submit)(nil)).Elem()
+	orderModifyParam            = reflect.TypeOf((**order.Modify)(nil)).Elem()
+	orderCancelParam            = reflect.TypeOf((**order.Cancel)(nil)).Elem()
+	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
+	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
+	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
+	positionSummaryRequestParam = reflect.TypeOf((**order.PositionSummaryRequest)(nil)).Elem()
+	positionsRequestParam       = reflect.TypeOf((**order.PositionsRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -459,6 +469,39 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			AssetType:   argGenerator.AssetParams.Asset,
 			Pairs:       currency.Pairs{argGenerator.AssetParams.Pair},
 		})
+	case argGenerator.MethodInputType.AssignableTo(marginTypeParam):
+		input = reflect.ValueOf(margin.Isolated)
+	case argGenerator.MethodInputType.AssignableTo(collateralModeParam):
+		input = reflect.ValueOf(collateral.SingleMode)
+	case argGenerator.MethodInputType.AssignableTo(positionChangeRequestParam):
+		input = reflect.ValueOf(&margin.PositionChangeRequest{
+			Exchange:                argGenerator.Exchange.GetName(),
+			Pair:                    argGenerator.AssetParams.Pair,
+			Asset:                   argGenerator.AssetParams.Asset,
+			MarginType:              margin.Isolated,
+			OriginalAllocatedMargin: 1337,
+			NewAllocatedMargin:      1338,
+		})
+	case argGenerator.MethodInputType.AssignableTo(positionSummaryRequestParam):
+		input = reflect.ValueOf(&order.PositionSummaryRequest{
+			Asset:     argGenerator.AssetParams.Asset,
+			Pair:      argGenerator.AssetParams.Pair,
+			Direction: order.Buy,
+		})
+	case argGenerator.MethodInputType.AssignableTo(positionsRequestParam):
+		input = reflect.ValueOf(&order.PositionsRequest{
+			Asset:                     argGenerator.AssetParams.Asset,
+			Pairs:                     currency.Pairs{argGenerator.AssetParams.Pair},
+			StartDate:                 argGenerator.Start,
+			EndDate:                   argGenerator.End,
+			RespectOrderHistoryLimits: true,
+		})
+	case argGenerator.MethodInputType.AssignableTo(orderSideParam):
+		input = reflect.ValueOf(order.Long)
+	case argGenerator.MethodInputType.AssignableTo(int64Param):
+		input = reflect.ValueOf(1337)
+	case argGenerator.MethodInputType.AssignableTo(float64Param):
+		input = reflect.ValueOf(13.37)
 	default:
 		input = reflect.Zero(argGenerator.MethodInputType)
 	}
@@ -509,6 +552,14 @@ var excludedMethodNames = map[string]struct{}{
 	"CalculateTotalCollateral":         {},
 	"ScaleCollateral":                  {},
 	"GetPositionSummary":               {},
+	"GetFuturesPositionSummary":        {},
+	"GetFuturesPositionOrders":         {},
+	"SetCollateralMode":                {},
+	"GetCollateralMode":                {},
+	"SetLeverage":                      {},
+	"GetLeverage":                      {},
+	"SetMarginType":                    {},
+	"ChangePositionMargin":             {},
 	"GetLatestFundingRate":             {},
 }
 

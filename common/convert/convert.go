@@ -232,13 +232,13 @@ func (f StringToFloat64) MarshalJSON() ([]byte, error) {
 }
 
 // Float64 returns the float64 value of the FloatString.
-func (f *StringToFloat64) Float64() float64 {
-	return float64(*f)
+func (f StringToFloat64) Float64() float64 {
+	return float64(f)
 }
 
 // Decimal returns the decimal value of the FloatString
 // Warning: this does not handle big numbers as the underlying
 // is still a float
-func (f *StringToFloat64) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(*f))
+func (f StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(f))
 }

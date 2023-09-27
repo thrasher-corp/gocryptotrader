@@ -1094,3 +1094,25 @@ func TestPair_GetFormatting(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestNewBTCUSD(t *testing.T) {
+	t.Parallel()
+	p := NewBTCUSD()
+	if !p.Base.Equal(BTC) {
+		t.Fatal("expected base BTC from function NewBTCUSD")
+	}
+	if !p.Quote.Equal(USD) {
+		t.Fatal("expected quote USD from function NewBTCUSD")
+	}
+}
+
+func TestNewBTCUSDT(t *testing.T) {
+	t.Parallel()
+	p := NewBTCUSDT()
+	if !p.Base.Equal(BTC) {
+		t.Fatal("expected base BTC from function NewBTCUSDT")
+	}
+	if !p.Quote.Equal(USDT) {
+		t.Fatal("expected quote USDT from function NewBTCUSDT")
+	}
+}
