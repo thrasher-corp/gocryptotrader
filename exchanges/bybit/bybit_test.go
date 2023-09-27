@@ -1870,7 +1870,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.SetLeverage(context.Background(), pair, 10, 10)
+	_, err = b.SetLeverageLevel(context.Background(), pair, 10, 10)
 	if err != nil {
 		t.Error(err)
 	}
