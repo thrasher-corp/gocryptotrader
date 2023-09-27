@@ -223,9 +223,25 @@ func (f *StringToFloat64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON implements the json.Marshaler interface.
+func (f StringToFloat64) MarshalJSON() ([]byte, error) {
+	if f == 0 {
+		return []byte(jsonStringIdent + jsonStringIdent), nil
+	}
+	val := strconv.FormatFloat(float64(f), 'f', -1, 64)
+	return []byte(jsonStringIdent + val + jsonStringIdent), nil
+}
+
 // Float64 returns the float64 value of the FloatString.
-func (f *StringToFloat64) Float64() float64 {
-	return float64(*f)
+func (f StringToFloat64) Float64() float64 {
+	return float64(f)
+}
+
+// Decimal returns the decimal value of the FloatString
+// Warning: this does not handle big numbers as the underlying
+// is still a float
+func (f StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(f))
 }
 
 // ExchangeTime provides timestamp to time conversion method.
@@ -244,18 +260,17 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 		if value == "" {
 			// Setting the time to zero value because some timestamp fields could return an empty string while there is no error
 			// So, in such cases, Time returns zero timestamp.
-			*k = ExchangeTime(time.Time{})
-			return nil
+			break
 		}
 		standard, err = strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return err
 		}
-	case uint64:
-		standard = int64(value)
+	case int64:
+		standard = value
 	case float64:
-		standard = int64(value)
-	case uint32:
+		// Warning: converting float64 to int64 instance may create loss of precision in the timestamp information.
+		// be aware or consider customizing this section if found necessary.
 		standard = int64(value)
 	case nil:
 		// for some exchange timestamp fields, if the timestamp information is not specified,
@@ -278,13 +293,6 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 }
 
 // Time returns a time.Time instance from ExchangeTime instance object.
-func (k *ExchangeTime) Time() time.Time {
-	return time.Time(*k)
-}
-
-// Decimal returns the decimal value of the FloatString
-// Warning: this does not handle big numbers as the underlying
-// is still a float
-func (f *StringToFloat64) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(*f))
+func (k ExchangeTime) Time() time.Time {
+	return time.Time(k)
 }

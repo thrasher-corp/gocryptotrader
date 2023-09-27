@@ -12,7 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -2505,7 +2508,7 @@ func TestGetMarginRateHistory(t *testing.T) {
 func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetPositionSummary(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositionSummary(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2513,7 +2516,7 @@ func TestGetPositionSummary(t *testing.T) {
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositions(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositionOrders(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2954,6 +2957,60 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 	}
 }
 
+func TestSetCollateralMode(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	err := b.SetCollateralMode(context.Background(), asset.Spot, collateral.SingleMode)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Error(err)
+	}
+}
+
+func TestGetCollateralMode(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.GetCollateralMode(context.Background(), asset.Spot)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Error(err)
+	}
+}
+
+func TestSetMarginType(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	err := b.SetMarginType(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Error(err)
+	}
+}
+
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.ChangePositionMargin(context.Background(), nil)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Error(err)
+	}
+}
+
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	err := b.SetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Error(err)
+	}
+}
+
+func TestGetLeverage(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Error(err)
+	}
+}
+
 func TestEnsureOnePairEnabled(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
@@ -2986,5 +3043,49 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	}
 	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
+	}
+}
+
+func TestGetStandardConfig(t *testing.T) {
+	t.Parallel()
+
+	var b *Base
+	_, err := b.GetStandardConfig()
+	if !errors.Is(err, errExchangeIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
+	}
+
+	b = &Base{}
+	_, err = b.GetStandardConfig()
+	if !errors.Is(err, errSetDefaultsNotCalled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSetDefaultsNotCalled)
+	}
+
+	b.Name = "test"
+	b.Features.Supports.Websocket = true
+
+	cfg, err := b.GetStandardConfig()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if cfg.Name != "test" {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.Name, "test")
+	}
+
+	if cfg.HTTPTimeout != DefaultHTTPTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.HTTPTimeout, DefaultHTTPTimeout)
+	}
+
+	if cfg.WebsocketResponseCheckTimeout != config.DefaultWebsocketResponseCheckTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketResponseCheckTimeout, config.DefaultWebsocketResponseCheckTimeout)
+	}
+
+	if cfg.WebsocketResponseMaxLimit != config.DefaultWebsocketResponseMaxLimit {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketResponseMaxLimit, config.DefaultWebsocketResponseMaxLimit)
+	}
+
+	if cfg.WebsocketTrafficTimeout != config.DefaultWebsocketTrafficTimeout {
+		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketTrafficTimeout, config.DefaultWebsocketTrafficTimeout)
 	}
 }

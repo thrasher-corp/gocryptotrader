@@ -43,7 +43,6 @@ func (b *Bitfinex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -54,7 +53,6 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData(b.Websocket.Conn)
-
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
 		if err != nil {
@@ -78,7 +76,7 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.Websocket.Wg.Add(1)
 	go b.WsDataHandler()
-	return nil
+	return b.ConfigureWS()
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -1631,14 +1629,6 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	checksum := make(map[string]interface{})
-	checksum["event"] = "conf"
-	checksum["flags"] = bitfinexChecksumFlag + bitfinexWsSequenceFlag
-	err := b.Websocket.Conn.SendJSONMessage(checksum)
-	if err != nil {
-		return err
-	}
-
 	var errs error
 	for i := range channelsToSubscribe {
 		req := make(map[string]interface{})
@@ -1660,6 +1650,14 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
+}
+
+// ConfigureWS to send checksums and sequence numbers
+func (b *Bitfinex) ConfigureWS() error {
+	return b.Websocket.Conn.SendJSONMessage(map[string]interface{}{
+		"event": "conf",
+		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
+	})
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel

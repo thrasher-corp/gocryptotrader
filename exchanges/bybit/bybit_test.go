@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -1182,33 +1183,33 @@ func TestGetPositionInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
-func TestSetLeverage(t *testing.T) {
+func TestSetLeverageLevel(t *testing.T) {
 	t.Parallel()
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	err := b.SetLeverage(context.Background(), nil)
+	err := b.SetLeverageLevel(context.Background(), nil)
 	if !errors.Is(err, errNilArgument) {
 		t.Errorf("expected %v, got %v", errNilArgument, err)
 	}
-	err = b.SetLeverage(context.Background(), &SetLeverageParams{})
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{})
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
 	}
-	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "spot"})
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "spot"})
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
-	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "linear"})
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "linear"})
 	if !errors.Is(err, errSymbolMissing) {
 		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
 	}
-	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT"})
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT"})
 	if !errors.Is(err, errInvalidLeverage) {
 		t.Fatalf("expected %v, got %v", errInvalidLeverage, err)
 	}
-	err = b.SetLeverage(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3})
+	err = b.SetLeverageLevel(context.Background(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3})
 	if err != nil {
 		t.Error(err)
 	}
@@ -3019,5 +3020,41 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	_, err = b.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	ctx := context.Background()
+	b.Verbose = true
+	err := b.SetLeverage(ctx, asset.Linear, linearTradablePair, margin.Multi, 5, order.Buy)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.SetLeverage(ctx, asset.Inverse, inverseTradablePair, margin.Isolated, 5, order.UnknownSide)
+	if !errors.Is(err, errOrderSideRequired) {
+		t.Errorf("received '%v', expected '%v'", err, errOrderSideRequired)
+	}
+
+	err = b.SetLeverage(ctx, asset.Linear, linearTradablePair, margin.Isolated, 5, order.Buy)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.SetLeverage(ctx, asset.Inverse, inverseTradablePair, margin.Isolated, 5, order.Sell)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.SetLeverage(ctx, asset.Linear, linearTradablePair, margin.Isolated, 5, order.CouldNotBuy)
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrSideIsInvalid)
+	}
+
+	err = b.SetLeverage(ctx, asset.Spot, inverseTradablePair, margin.Multi, 5, order.UnknownSide)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }

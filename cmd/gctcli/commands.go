@@ -13,6 +13,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
 )
@@ -1420,6 +1421,11 @@ var submitOrderCommand = &cli.Command{
 			Name:  "asset",
 			Usage: "required asset type",
 		},
+		&cli.StringFlag{
+			Name:     "margintype",
+			Usage:    "required asset type",
+			Required: false,
+		},
 	},
 }
 
@@ -1436,6 +1442,7 @@ func submitOrder(c *cli.Context) error {
 	var price float64
 	var clientID string
 	var assetType string
+	var marginType string
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -1510,9 +1517,20 @@ func submitOrder(c *cli.Context) error {
 		assetType = c.Args().Get(7)
 	}
 
+	if c.IsSet("margintype") {
+		marginType = c.String("margintype")
+	} else {
+		marginType = c.Args().Get(8)
+	}
+
 	assetType = strings.ToLower(assetType)
 	if !validAsset(assetType) {
 		return errInvalidAsset
+	}
+
+	marginType = strings.ToLower(marginType)
+	if !margin.IsValidString(marginType) {
+		return margin.ErrInvalidMarginType
 	}
 
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)

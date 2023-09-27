@@ -90,6 +90,7 @@ var (
 	errDisconnectTimeWindowNotSet              = errors.New("disconnect time window not set")
 	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
 	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
+	errOrderSideRequired                       = errors.New("order side is required")
 )
 
 var (
@@ -871,8 +872,8 @@ func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin
 	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/position/list", params, nil, &resp, getPositionListEPL)
 }
 
-// SetLeverage sets a leverage from 0 to max leverage of corresponding risk limit
-func (by *Bybit) SetLeverage(ctx context.Context, arg *SetLeverageParams) error {
+// SetLeverageLevel sets a leverage from 0 to max leverage of corresponding risk limit
+func (by *Bybit) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) error {
 	if arg == nil {
 		return errNilArgument
 	}

@@ -32,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (g *Gemini) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	g.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = g.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = g.BaseCurrencies
+	exchCfg, err := g.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := g.SetupDefaults(exchCfg)
+	err = g.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -160,15 +160,14 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 	}
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             geminiWebsocketEndpoint,
-		RunningURL:             wsRunningURL,
-		Connector:              g.WsConnect,
-		Subscriber:             g.Subscribe,
-		Unsubscriber:           g.Unsubscribe,
-		GenerateSubscriptions:  g.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &g.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            geminiWebsocketEndpoint,
+		RunningURL:            wsRunningURL,
+		Connector:             g.WsConnect,
+		Subscriber:            g.Subscribe,
+		Unsubscriber:          g.Unsubscribe,
+		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		Features:              &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

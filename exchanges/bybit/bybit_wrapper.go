@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -211,16 +212,15 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 	err = by.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:         exch,
-			DefaultURL:             spotPublic,
-			RunningURL:             wsRunningEndpoint,
-			RunningURLAuth:         websocketPrivate,
-			Connector:              by.WsConnect,
-			Subscriber:             by.Subscribe,
-			Unsubscriber:           by.Unsubscribe,
-			GenerateSubscriptions:  by.GenerateDefaultSubscriptions,
-			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-			Features:               &by.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:        exch,
+			DefaultURL:            spotPublic,
+			RunningURL:            wsRunningEndpoint,
+			RunningURLAuth:        websocketPrivate,
+			Connector:             by.WsConnect,
+			Subscriber:            by.Subscribe,
+			Unsubscriber:          by.Unsubscribe,
+			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+			Features:              &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
@@ -1423,4 +1423,32 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		})
 	}
 	return by.LoadLimits(limits)
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (b *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, orderSide order.Side) error {
+	switch item {
+	case asset.Linear, asset.Inverse:
+		symbol, err := b.FormatSymbol(pair, item)
+		if err != nil {
+			return err
+		}
+		params := &SetLeverageParams{
+			Category: getCategoryName(item),
+			Symbol:   symbol,
+		}
+		switch orderSide {
+		case order.Buy, order.Sell:
+			// Unified account: buyLeverage must be the same as sellLeverage all the time
+			// Classic account: under one-way mode, buyLeverage must be the same as sellLeverage
+			params.BuyLeverage, params.SellLeverage = amount, amount
+		case order.UnknownSide:
+			return errOrderSideRequired
+		default:
+			return order.ErrSideIsInvalid
+		}
+		return b.SetLeverageLevel(ctx, params)
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
 }
