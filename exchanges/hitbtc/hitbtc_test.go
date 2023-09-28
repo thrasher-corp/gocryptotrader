@@ -186,23 +186,18 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
-	avail, err := h.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = h.CurrencyPairs.StorePairs(asset.Spot, avail, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = h.UpdateTickers(context.Background(), asset.Spot)
+	err := h.UpdateTickers(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	for j := range avail {
-		_, err = h.FetchTicker(context.Background(), avail[j], asset.Spot)
+	enabled, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for j := range enabled {
+		_, err = h.FetchTicker(context.Background(), enabled[j], asset.Spot)
 		if err != nil {
 			t.Error(err)
 		}

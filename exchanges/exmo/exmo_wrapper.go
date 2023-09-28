@@ -205,23 +205,19 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
-	enabled, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-
 	result, err := e.GetTicker(ctx)
 	if err != nil {
 		return err
 	}
 
+	var enabled bool
 	for symbol, tick := range result {
 		var pair currency.Pair
-		pair, err = e.MatchSymbolWithAvailablePairs(symbol, a, true)
+		pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
-		if !enabled.Contains(pair, true) {
+		if !enabled {
 			continue
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
