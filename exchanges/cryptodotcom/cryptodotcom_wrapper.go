@@ -170,15 +170,14 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	}
 	err = cr.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:         exch,
-			DefaultURL:             cryptodotcomWebsocketUserAPI,
-			RunningURL:             wsRunningEndpoint,
-			Connector:              cr.WsConnect,
-			Subscriber:             cr.Subscribe,
-			Unsubscriber:           cr.Unsubscribe,
-			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-			GenerateSubscriptions:  cr.GenerateDefaultSubscriptions,
-			Features:               &cr.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:        exch,
+			DefaultURL:            cryptodotcomWebsocketUserAPI,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             cr.WsConnect,
+			Subscriber:            cr.Subscribe,
+			Unsubscriber:          cr.Unsubscribe,
+			GenerateSubscriptions: cr.GenerateDefaultSubscriptions,
+			Features:              &cr.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

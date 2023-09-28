@@ -17,8 +17,7 @@ func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	return service.Retrieve(exchange, p, a)
 }
 
-// GetDepth returns a Depth pointer allowing the caller to stream orderbook
-// changes
+// GetDepth returns a Depth pointer allowing the caller to stream orderbook changes
 func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	return service.GetDepth(exchange, p, a)
 }
@@ -78,8 +77,11 @@ func (s *Service) Update(b *Base) error {
 		book.AssignOptions(b)
 		m3[b.Pair.Quote.Item] = book
 	}
-	book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
+	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
 	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 	return s.Mux.Publish(book, m1.ID)
 }
 
@@ -200,6 +202,11 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			p.Quote)
 	}
 	return book.Retrieve()
+}
+
+// GetDepth returns the concrete book allowing the caller to stream orderbook changes
+func (b *Base) GetDepth() (*Depth, error) {
+	return service.GetDepth(b.Exchange, b.Pair, b.Asset)
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook

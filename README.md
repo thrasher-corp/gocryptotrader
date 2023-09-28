@@ -40,8 +40,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
+| Kucoin | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| OKCoin International | Yes | Yes | No |
+| Okcoin | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
@@ -144,12 +145,13 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 675 |
-| [shazbert](https://github.com/shazbert) | 276 |
-| [gloriousCode](https://github.com/gloriousCode) | 209 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 171 |
+| [thrasher-](https://github.com/thrasher-) | 683 |
+| [shazbert](https://github.com/shazbert) | 301 |
+| [gloriousCode](https://github.com/gloriousCode) | 219 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 207 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
+| [gbjk](https://github.com/gbjk) | 35 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
@@ -160,24 +162,25 @@ Binaries will be published once the codebase reaches a stable condition.
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [geseq](https://github.com/geseq) | 8 |
+| [Beadko](https://github.com/Beadko) | 6 |
+| [TaltaM](https://github.com/TaltaM) | 6 |
+| [samuael](https://github.com/samuael) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
-| [samuael](https://github.com/samuael) | 4 |
+| [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
-| [yangrq1018](https://github.com/yangrq1018) | 3 |
-| [TaltaM](https://github.com/TaltaM) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
-| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
-| [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
+| [gam-phon](https://github.com/gam-phon) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
+| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
 | [tk42](https://github.com/tk42) | 2 |

@@ -23,7 +23,9 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -512,13 +514,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{""}),
 			})
 
-			fundingRateRequest := &order.FundingRatesRequest{
+			fundingRateRequest := &fundingrate.RatesRequest{
 				Asset:     assetTypes[i],
-				Pairs:     currency.Pairs{p},
+				Pair:      p,
 				StartDate: time.Now().Add(-time.Hour),
 				EndDate:   time.Now(),
 			}
-			var fundingRateResponse []order.FundingRates
+			var fundingRateResponse *fundingrate.Rates
 			fundingRateResponse, err = e.GetFundingRates(context.TODO(), fundingRateRequest)
 			msg = ""
 			if err != nil {
@@ -919,7 +921,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Pair:  p,
 		}
 		var positionSummaryResponse *order.PositionSummary
-		positionSummaryResponse, err = e.GetPositionSummary(context.TODO(), positionSummaryRequest)
+		positionSummaryResponse, err = e.GetFuturesPositionSummary(context.TODO(), positionSummaryRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -927,7 +929,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			SentParams: jsonifyInterface([]interface{}{positionSummaryRequest}),
-			Function:   "GetPositionSummary",
+			Function:   "GetFuturesPositionSummary",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{positionSummaryResponse}),
 		})
@@ -967,7 +969,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			LockedCollateral:   decimal.NewFromInt(1337),
 			UnrealisedPNL:      decimal.NewFromInt(1337),
 		}
-		var scaleCollateralResponse *order.CollateralByCurrency
+		var scaleCollateralResponse *collateral.ByCurrency
 		scaleCollateralResponse, err = e.ScaleCollateral(context.TODO(), collateralCalculator)
 		msg = ""
 		if err != nil {
@@ -998,13 +1000,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculateTotalCollateralResponse}),
 		})
 
-		var futuresPositionsResponse []order.PositionDetails
+		var futuresPositionsResponse []order.PositionResponse
 		futuresPositionsRequest := &order.PositionsRequest{
 			Asset:     assetTypes[i],
 			Pairs:     currency.Pairs{p},
 			StartDate: time.Now().Add(-time.Hour),
 		}
-		futuresPositionsResponse, err = e.GetFuturesPositions(context.TODO(), futuresPositionsRequest)
+		futuresPositionsResponse, err = e.GetFuturesPositionOrders(context.TODO(), futuresPositionsRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -1012,7 +1014,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 			SentParams: jsonifyInterface([]interface{}{futuresPositionsRequest}),
-			Function:   "GetFuturesPositions",
+			Function:   "GetFuturesPositionOrders",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{futuresPositionsResponse}),
 		})

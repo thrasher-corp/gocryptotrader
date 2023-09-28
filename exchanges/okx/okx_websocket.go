@@ -27,8 +27,6 @@ import (
 
 var (
 	errInvalidChecksum = errors.New("invalid checksum")
-	// responseStream a channel thought which the data coming from the two websocket connection will go through.
-	responseStream = make(chan stream.Response)
 )
 
 var (
@@ -226,10 +224,8 @@ func (ok *Okx) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	ok.Websocket.Wg.Add(2)
-	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
-	go ok.WsReadData()
-	go ok.WsResponseMultiplexer.Run()
+	ok.Websocket.Wg.Add(1)
+	go ok.wsReadData(ok.Websocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -262,7 +258,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsFunnelConnectionData(ok.Websocket.AuthConn)
+	go ok.wsReadData(ok.Websocket.AuthConn)
 	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
@@ -335,16 +331,17 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	}
 }
 
-// wsFunnelConnectionData receives data from multiple connection and pass the data
-// to wsRead through a channel responseStream
-func (ok *Okx) wsFunnelConnectionData(ws stream.Connection) {
+// wsReadData sends msgs from public and auth websockets to data handler
+func (ok *Okx) wsReadData(ws stream.Connection) {
 	defer ok.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		responseStream <- stream.Response{Raw: resp.Raw}
+		if err := ok.WsHandleData(resp.Raw); err != nil {
+			ok.Websocket.DataHandler <- err
+		}
 	}
 }
 
@@ -529,34 +526,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		ok.Websocket.AddSuccessfulSubscriptions(channels...)
 	}
 	return nil
-}
-
-// WsReadData read coming messages thought the websocket connection and process the data.
-func (ok *Okx) WsReadData() {
-	defer ok.Websocket.Wg.Done()
-	for {
-		select {
-		case <-ok.Websocket.ShutdownC:
-			select {
-			case resp := <-responseStream:
-				err := ok.WsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case ok.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", ok.Name, err)
-					}
-				}
-			default:
-			}
-			return
-		case resp := <-responseStream:
-			err := ok.WsHandleData(resp.Raw)
-			if err != nil {
-				ok.Websocket.DataHandler <- err
-			}
-		}
-	}
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
@@ -861,7 +830,8 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pa
 // orderbook
 func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	update := orderbook.Update{
-		Pair: pair,
+		Pair:       pair,
+		UpdateTime: data.Timestamp.Time(),
 	}
 	var err error
 	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
@@ -1675,6 +1645,10 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 	tickerData := time.NewTicker(time.Second)
 	for {
 		select {
+		case <-m.shutdown:
+			// We've consumed the shutdown, so create a new chan for subsequent runs
+			m.shutdown = make(chan bool)
+			return
 		case <-tickerData.C:
 			for x, myChan := range m.WsResponseChannelsMap {
 				if myChan == nil {
@@ -1707,6 +1681,12 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 			}
 		}
 	}
+}
+
+// Shutdown causes the multiplexer to exit its Run loop
+// All channels are left open, but websocket shutdown first will ensure no more messages block on multiplexer reading
+func (m *wsRequestDataChannelsMultiplexer) Shutdown() {
+	close(m.shutdown)
 }
 
 // wsChannelSubscription sends a subscription or unsubscription request for different channels through the websocket stream.

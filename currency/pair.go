@@ -8,6 +8,16 @@ import (
 
 var errCannotCreatePair = errors.New("cannot create currency pair")
 
+// NewBTCUSDT is a shortcut for NewPair(BTC, USDT)
+func NewBTCUSDT() Pair {
+	return NewPair(BTC, USDT)
+}
+
+// NewBTCUSD is a shortcut for NewPair(BTC, USD)
+func NewBTCUSD() Pair {
+	return NewPair(BTC, USD)
+}
+
 // NewPairDelimiter splits the desired currency string at delimiter, the returns
 // a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
@@ -148,4 +158,15 @@ func MatchPairsWithNoDelimiter(currencyPair string, pairs Pairs, pairFmt PairFor
 		}
 	}
 	return EMPTYPAIR, fmt.Errorf("currency %v not found in supplied pairs", currencyPair)
+}
+
+// GetFormatting returns the formatting style of a pair
+func (p Pair) GetFormatting() (PairFormat, error) {
+	if p.Base.UpperCase != p.Quote.UpperCase {
+		return PairFormat{}, fmt.Errorf("%w casing mismatch", errPairFormattingInconsistent)
+	}
+	return PairFormat{
+		Uppercase: p.Base.UpperCase,
+		Delimiter: p.Delimiter,
+	}, nil
 }

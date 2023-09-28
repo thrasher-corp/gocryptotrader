@@ -55,7 +55,7 @@ type TradingPair struct {
 	URLSymbol       string `json:"url_symbol"`
 	BaseDecimals    int    `json:"base_decimals"`
 	CounterDecimals int    `json:"counter_decimals"`
-	MinimumOrder    string `json:"minimum_order"`
+	MinimumOrder    float64
 	Trading         string `json:"trading"`
 	Description     string `json:"description"`
 }
@@ -229,7 +229,7 @@ type websocketOrderBook struct {
 	Asks           [][2]string `json:"asks"`
 	Bids           [][2]string `json:"bids"`
 	Timestamp      int64       `json:"timestamp,string"`
-	Microtimestamp string      `json:"microtimestamp"`
+	Microtimestamp int64       `json:"microtimestamp,string"`
 }
 
 // OHLCResponse holds returned candle data

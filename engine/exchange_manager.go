@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
@@ -199,10 +200,12 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(itbit.ItBit)
 	case "kraken":
 		exch = new(kraken.Kraken)
+	case "kucoin":
+		exch = new(kucoin.Kucoin)
 	case "lbank":
 		exch = new(lbank.Lbank)
-	case "okcoin international":
-		exch = new(okcoin.OKCoin)
+	case "okcoin":
+		exch = new(okcoin.Okcoin)
 	case "okx":
 		exch = new(okx.Okx)
 	case "poloniex":

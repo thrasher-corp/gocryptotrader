@@ -820,7 +820,7 @@ func TestStringToOrderSide(t *testing.T) {
 		{"any", AnySide, nil},
 		{"ANY", AnySide, nil},
 		{"aNy", AnySide, nil},
-		{"woahMan", UnknownSide, errUnrecognisedOrderSide},
+		{"woahMan", UnknownSide, ErrSideIsInvalid},
 	}
 	for i := range cases {
 		testData := &cases[i]
@@ -881,6 +881,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"trigger", Trigger, nil},
 		{"TRIGGER", Trigger, nil},
 		{"tRiGgEr", Trigger, nil},
+		{"conDitiOnal", ConditionalStop, nil},
+		{"oCo", OCO, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 	}
 	for i := range cases {
@@ -1338,8 +1340,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	getOrders.AssetType = asset.Spot
 	err = getOrders.Validate()
-	if !errors.Is(err, errUnrecognisedOrderSide) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderSide)
+	if !errors.Is(err, ErrSideIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSideIsInvalid)
 	}
 
 	getOrders.Side = AnySide

@@ -35,7 +35,6 @@ var (
 	ErrOrderNotFound = errors.New("order not found")
 
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
-	errUnrecognisedOrderSide    = errors.New("unrecognised order side")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
 	errExchangeNameUnset        = errors.New("exchange name unset")
@@ -476,6 +475,7 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		TriggerPrice:      s.TriggerPrice,
 		ClientID:          s.ClientID,
 		ClientOrderID:     s.ClientOrderID,
+		MarginType:        s.MarginType,
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
@@ -666,6 +666,8 @@ func (t Type) String() string {
 		return "IMMEDIATE_OR_CANCEL"
 	case Stop:
 		return "STOP"
+	case ConditionalStop:
+		return "CONDITIONAL"
 	case StopLimit:
 		return "STOP LIMIT"
 	case StopMarket:
@@ -690,6 +692,8 @@ func (t Type) String() string {
 		return "TRIGGER"
 	case OptimalLimitIOC:
 		return "OPTIMAL_LIMIT_IOC"
+	case OCO:
+		return "OCO"
 	default:
 		return "UNKNOWN"
 	}
@@ -1056,7 +1060,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, fmt.Errorf("'%s' %w", side, errUnrecognisedOrderSide)
+		return UnknownSide, fmt.Errorf("'%s' %w", side, ErrSideIsInvalid)
 	}
 }
 
@@ -1095,6 +1099,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return TakeProfitLimit, nil
 	case StopLoss.String():
 		return StopLoss, nil
+	case OCO.String():
+		return OCO, nil
+	case ConditionalStop.String():
+		return ConditionalStop, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
@@ -1113,7 +1121,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Active, nil
 	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
-	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED":
+	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
 		return Filled, nil
 	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
@@ -1123,9 +1131,11 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Closed, nil
 	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
 		return Cancelled, nil
+	case Pending.String():
+		return Pending, nil
 	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION":
 		return PendingCancel, nil
-	case Rejected.String(), "FAILED":
+	case Rejected.String(), "FAILED", "ORDER_FAILED":
 		return Rejected, nil
 	case Expired.String():
 		return Expired, nil
@@ -1208,7 +1218,7 @@ func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	}
 
 	if g.Side == UnknownSide {
-		return errUnrecognisedOrderSide
+		return ErrSideIsInvalid
 	}
 
 	if g.Type == UnknownType {

@@ -68,7 +68,7 @@ func TestPairUnmarshalJSON(t *testing.T) {
 	}
 
 	if !unmarshalHere.Equal(configPair) {
-		t.Errorf("Pairs UnmarshalJSON() error expected %s but received %s",
+		t.Errorf("Pair UnmarshalJSON() error expected %s but received %s",
 			configPair, unmarshalHere)
 	}
 
@@ -1065,5 +1065,54 @@ func TestIsAssociated(t *testing.T) {
 				t.Fatalf("Test %d failed. Expected %v, received %v", x, testCases[x].expectedResult, testCases[x].Pair.IsAssociated(testCases[x].associate))
 			}
 		})
+	}
+}
+
+func TestPair_GetFormatting(t *testing.T) {
+	t.Parallel()
+	p := NewPair(BTC, USDT)
+	pFmt, err := p.GetFormatting()
+	if err != nil {
+		t.Error(err)
+	}
+	if !pFmt.Uppercase || pFmt.Delimiter != "" {
+		t.Error("incorrect formatting")
+	}
+
+	p = NewPairWithDelimiter("eth", "usdt", "/")
+	pFmt, err = p.GetFormatting()
+	if err != nil {
+		t.Error(err)
+	}
+	if pFmt.Uppercase || pFmt.Delimiter != "/" {
+		t.Error("incorrect formatting")
+	}
+
+	p = NewPairWithDelimiter("eth", "USDT", "/")
+	_, err = p.GetFormatting()
+	if !errors.Is(err, errPairFormattingInconsistent) {
+		t.Error(err)
+	}
+}
+
+func TestNewBTCUSD(t *testing.T) {
+	t.Parallel()
+	p := NewBTCUSD()
+	if !p.Base.Equal(BTC) {
+		t.Fatal("expected base BTC from function NewBTCUSD")
+	}
+	if !p.Quote.Equal(USD) {
+		t.Fatal("expected quote USD from function NewBTCUSD")
+	}
+}
+
+func TestNewBTCUSDT(t *testing.T) {
+	t.Parallel()
+	p := NewBTCUSDT()
+	if !p.Base.Equal(BTC) {
+		t.Fatal("expected base BTC from function NewBTCUSDT")
+	}
+	if !p.Quote.Equal(USDT) {
+		t.Fatal("expected quote USDT from function NewBTCUSDT")
 	}
 }

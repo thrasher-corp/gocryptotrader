@@ -391,6 +391,20 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 			errTypeAssertionFailure)
 	}
 
+	if len(data) < 3 {
+		return fmt.Errorf("%w for pair %v", errNotEnoughData, pair)
+	}
+
+	ts, ok := data[2].(string)
+	if !ok {
+		return common.GetTypeAssertError("string", data[2], "timestamp string")
+	}
+
+	tsMilli, err := strconv.ParseInt(ts, 10, 64)
+	if err != nil {
+		return err
+	}
+
 	oMap, ok := subDataMap["orderBook"]
 	if !ok {
 		return errors.New("could not find orderbook data in map")
@@ -421,7 +435,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	var book orderbook.Base
 	book.Asks = make(orderbook.Items, 0, len(askData))
 	for price, volume := range askData {
-		p, err := strconv.ParseFloat(price, 64)
+		var p float64
+		p, err = strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
@@ -430,7 +445,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 			return fmt.Errorf("%w ask volume data not string",
 				errTypeAssertionFailure)
 		}
-		a, err := strconv.ParseFloat(v, 64)
+		var a float64
+		a, err = strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
 		}
@@ -439,7 +455,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 
 	book.Bids = make(orderbook.Items, 0, len(bidData))
 	for price, volume := range bidData {
-		p, err := strconv.ParseFloat(price, 64)
+		var p float64
+		p, err = strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
@@ -448,7 +465,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 			return fmt.Errorf("%w bid volume data not string",
 				errTypeAssertionFailure)
 		}
-		a, err := strconv.ParseFloat(v, 64)
+		var a float64
+		a, err = strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
 		}
@@ -460,8 +478,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	book.Bids.SortBids()
 	book.Asset = asset.Spot
 	book.VerifyOrderbook = p.CanVerifyOrderbook
-
-	var err error
+	book.LastUpdated = time.UnixMilli(tsMilli)
 	book.Pair, err = currency.NewPairFromString(pair)
 	if err != nil {
 		return err
@@ -473,7 +490,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 
 // WsProcessOrderbookUpdate processes new orderbook updates
 func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []interface{}, pair currency.Pair) error {
-	if len(data) < 4 {
+	if len(data) < 5 {
 		return errNotEnoughData
 	}
 
@@ -497,10 +514,22 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 	if !ok {
 		return fmt.Errorf("%w buysell not float64", errTypeAssertionFailure)
 	}
+
+	ts, ok := data[4].(string)
+	if !ok {
+		return common.GetTypeAssertError("string", data[2], "timestamp string")
+	}
+
+	tsMilli, err := strconv.ParseInt(ts, 10, 64)
+	if err != nil {
+		return err
+	}
+
 	update := &orderbook.Update{
-		Pair:     pair,
-		Asset:    asset.Spot,
-		UpdateID: int64(sequenceNumber),
+		Pair:       pair,
+		Asset:      asset.Spot,
+		UpdateID:   int64(sequenceNumber),
+		UpdateTime: time.UnixMilli(tsMilli),
 	}
 	if bs == 1 {
 		update.Bids = []orderbook.Item{{Price: price, Amount: volume}}
