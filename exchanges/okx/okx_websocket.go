@@ -724,47 +724,47 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 		return err
 	}
 
+	if len(resp.Data) != 1 {
+		return fmt.Errorf("%s - no data returned", ok.Name)
+	}
+
 	assets, err := ok.GetAssetsFromInstrumentTypeOrID("", resp.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
 
-	for x := range assets {
-		pair, err := currency.NewPairFromString(resp.Argument.InstrumentID)
+	pair, err := ok.GetPairFromInstrumentID(resp.Argument.InstrumentID)
+	if err != nil {
+		return err
+	}
+
+	asks := make([]orderbook.Item, len(resp.Data[0].Asks))
+	for x := range resp.Data[0].Asks {
+		asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
 		if err != nil {
 			return err
 		}
 
-		if len(resp.Data) != 1 {
-			return fmt.Errorf("%s - no data returned", ok.Name)
+		asks[x].Amount, err = strconv.ParseFloat(resp.Data[0].Asks[x][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	bids := make([]orderbook.Item, len(resp.Data[0].Bids))
+	for x := range resp.Data[0].Bids {
+		bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
+		if err != nil {
+			return err
 		}
 
-		asks := make([]orderbook.Item, len(resp.Data[0].Asks))
-		for x := range resp.Data[0].Asks {
-			asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
-			if err != nil {
-				return err
-			}
-
-			asks[x].Amount, err = strconv.ParseFloat(resp.Data[0].Asks[x][1], 64)
-			if err != nil {
-				return err
-			}
+		bids[x].Amount, err = strconv.ParseFloat(resp.Data[0].Bids[x][1], 64)
+		if err != nil {
+			return err
 		}
+	}
 
-		bids := make([]orderbook.Item, len(resp.Data[0].Bids))
-		for x := range resp.Data[0].Bids {
-			bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
-			if err != nil {
-				return err
-			}
-
-			bids[x].Amount, err = strconv.ParseFloat(resp.Data[0].Bids[x][1], 64)
-			if err != nil {
-				return err
-			}
-		}
-
+	for x := range assets {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Asset:           assets[x],
 			Asks:            asks,

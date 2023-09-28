@@ -3579,3 +3579,42 @@ func TestSetLeverage(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
+
+func TestWsProcessOrderbook5(t *testing.T) {
+	t.Parallel()
+
+	var ob5payload = []byte(`{"arg":{"channel":"books5","instId":"OKB-USDT"},"data":[{"asks":[["0.0000007465","2290075956","0","4"],["0.0000007466","1747284705","0","4"],["0.0000007467","1338861655","0","3"],["0.0000007468","1661668387","0","6"],["0.0000007469","2715477116","0","5"]],"bids":[["0.0000007464","15693119","0","1"],["0.0000007463","2330835024","0","4"],["0.0000007462","1182926517","0","2"],["0.0000007461","3818684357","0","4"],["0.000000746","6021641435","0","7"]],"instId":"OKB-USDT","ts":"1695864901807","seqId":4826378794}]}`)
+	err := ok.wsProcessOrderbook5(ob5payload)
+	if err != nil {
+		t.Error(err)
+	}
+
+	required := currency.NewPairWithDelimiter("OKB", "USDT", "-")
+
+	got, err := orderbook.Get("okx", required, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got.Asks) != 5 {
+		t.Errorf("expected %v, received %v", 5, len(got.Asks))
+	}
+
+	if len(got.Bids) != 5 {
+		t.Errorf("expected %v, received %v", 5, len(got.Bids))
+	}
+
+	// Book replicated to margin
+	got, err = orderbook.Get("okx", required, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got.Asks) != 5 {
+		t.Errorf("expected %v, received %v", 5, len(got.Asks))
+	}
+
+	if len(got.Bids) != 5 {
+		t.Errorf("expected %v, received %v", 5, len(got.Bids))
+	}
+}
