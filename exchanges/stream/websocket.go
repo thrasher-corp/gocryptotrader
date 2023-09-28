@@ -287,6 +287,9 @@ func (w *Websocket) Connect() error {
 	if err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
+	if len(subs) == 0 {
+		return nil
+	}
 	err = w.checkSubscriptions(subs)
 	if err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
