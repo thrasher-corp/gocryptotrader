@@ -941,7 +941,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "attributes":{"id":"sorted","symbol":"grouped"},
       "action":"partial",
       "data":[
-        {"symbol":"ETHUSD","id":17999992000,"side":"Sell","size":100,"price":80},
+        {"symbol":"ETHUSD","id":17999992000,"side":"Sell","size":100,"price":80,"timestamp":"2017-04-04T22:16:38.461Z"},
         {"symbol":"ETHUSD","id":17999993000,"side":"Sell","size":20,"price":70},
         {"symbol":"ETHUSD","id":17999994000,"side":"Sell","size":10,"price":60},
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":10,"price":50},
@@ -958,7 +958,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "table":"orderBookL2_25",
       "action":"update",
       "data":[
-        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5}
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5,"timestamp":"2017-04-04T22:16:38.461Z"}
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
@@ -981,7 +981,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "table":"orderBookL2_25",
       "action":"delete",
       "data":[
-        {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
@@ -993,7 +993,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "table":"orderBookL2_25",
       "action":"delete",
       "data":[
-        {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)

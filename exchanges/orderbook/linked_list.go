@@ -3,6 +3,7 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
@@ -40,7 +41,7 @@ type comparison func(float64, float64) bool
 // load iterates across new items and refreshes linked list. It creates a linked
 // list exactly the same as the item slice that is supplied, if items is of nil
 // value it will flush entire list.
-func (ll *linkedList) load(items Items, stack *stack) {
+func (ll *linkedList) load(items Items, stack *stack, tn time.Time) {
 	// Tip sets up a pointer to a struct field variable pointer. This is used
 	// so when a node is popped from the stack we can reference that current
 	// nodes' struct 'next' field and set on next iteration without utilising
@@ -81,7 +82,7 @@ func (ll *linkedList) load(items Items, stack *stack) {
 	// Push unused pointers back on stack
 	for push != nil {
 		pending := push.Next
-		stack.Push(push, getNow())
+		stack.Push(push, tn)
 		ll.length--
 		push = pending
 	}
@@ -111,14 +112,14 @@ updates:
 }
 
 // deleteByID deletes reference by ID
-func (ll *linkedList) deleteByID(updts Items, stack *stack, bypassErr bool) error {
+func (ll *linkedList) deleteByID(updts Items, stack *stack, bypassErr bool, tn time.Time) error {
 updates:
 	for x := range updts {
 		for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
 			if updts[x].ID != (*tip).Value.ID {
 				continue
 			}
-			stack.Push(deleteAtTip(ll, tip), getNow())
+			stack.Push(deleteAtTip(ll, tip), tn)
 			continue updates
 		}
 		if !bypassErr {
@@ -133,7 +134,7 @@ updates:
 // cleanup reduces the max size of the depth length if exceeded. Is used after
 // updates have been applied instead of adhoc, reason being its easier to prune
 // at the end. (can't inline)
-func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
+func (ll *linkedList) cleanup(maxChainLength int, stack *stack, tn time.Time) {
 	// Reduces the max length of total linked list chain, occurs after updates
 	// have been implemented as updates can push length out of bounds, if
 	// cleaved after that update, new update might not applied correctly.
@@ -156,7 +157,7 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	for n != nil {
 		pruned++
 		pending := n.Next
-		stack.Push(n, getNow())
+		stack.Push(n, tn)
 		n = pending
 	}
 	ll.length -= pruned
@@ -172,17 +173,20 @@ func (ll *linkedList) amount() (liquidity, value float64) {
 }
 
 // retrieve returns a full slice of contents from the linked list
-func (ll *linkedList) retrieve() Items {
-	depth := make(Items, 0, ll.length)
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		depth = append(depth, tip.Value)
+func (ll *linkedList) retrieve(count int) Items {
+	if count == 0 || ll.length < count {
+		count = ll.length
+	}
+	depth := make(Items, count)
+	for i, tip := 0, ll.head; i < count && tip != nil; i, tip = i+1, tip.Next {
+		depth[i] = tip.Value
 	}
 	return depth
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(float64, float64) bool, tn now) {
+func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(float64, float64) bool, tn time.Time) {
 	for x := range updts {
 		for tip := &ll.head; ; tip = &(*tip).Next {
 			if *tip == nil {
@@ -221,7 +225,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 	}
 	// Reduces length of total linked list chain to a maxChainLength value
 	if maxChainLength != 0 && ll.length > maxChainLength {
-		ll.cleanup(maxChainLength, stack)
+		ll.cleanup(maxChainLength, stack, tn)
 	}
 }
 
@@ -479,7 +483,7 @@ func bidCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn now) {
+func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn time.Time) {
 	ll.linkedList.updateInsertByPrice(updts, stack, maxChainLength, bidCompare, tn)
 }
 
@@ -615,7 +619,7 @@ func askCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn now) {
+func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn time.Time) {
 	ll.linkedList.updateInsertByPrice(updts, stack, maxChainLength, askCompare, tn)
 }
 

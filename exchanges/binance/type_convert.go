@@ -2,6 +2,7 @@ package binance
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 )
@@ -10,11 +11,23 @@ import (
 type binanceTime time.Time
 
 func (t *binanceTime) UnmarshalJSON(data []byte) error {
-	var timestamp int64
-	if err := json.Unmarshal(data, &timestamp); err != nil {
+	var result interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
 		return err
 	}
-	*t = binanceTime(time.UnixMilli(timestamp))
+
+	switch v := result.(type) {
+	case string:
+		timestamp, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return err
+		}
+		*t = binanceTime(time.UnixMilli(timestamp))
+	case float64:
+		*t = binanceTime(time.UnixMilli(int64(v)))
+	default:
+		return errors.New("invalid time format received")
+	}
 	return nil
 }
 
@@ -40,7 +53,7 @@ func (a *ExchangeInfo) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	a.Servertime = aux.Servertime.Time()
+	a.ServerTime = aux.Servertime.Time()
 	return nil
 }
 
@@ -445,8 +458,8 @@ func (u *UFuturesSymbolInfo) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
-func (a *FuturesAccountInformationPositions) UnmarshalJSON(data []byte) error {
-	type Alias FuturesAccountInformationPositions
+func (a *FuturesAccountInformationPosition) UnmarshalJSON(data []byte) error {
+	type Alias FuturesAccountInformationPosition
 
 	aux := &struct {
 		UpdateTime binanceTime `json:"updateTime"`

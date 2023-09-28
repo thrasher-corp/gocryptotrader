@@ -284,6 +284,7 @@ var (
 	errMissingValidGreeksType                        = errors.New("missing valid greeks type")
 	errMissingIsolatedMarginTradingSetting           = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
 	errInvalidOrderSide                              = errors.New("invalid order side")
+	errOrderSideRequired                             = errors.New("order side required")
 	errInvalidCounterParties                         = errors.New("missing counter parties")
 	errInvalidLegs                                   = errors.New("no legs are provided")
 	errMissingRFQIDANDClientSuppliedRFQID            = errors.New("missing rfq id or client supplied rfq id")
@@ -338,6 +339,7 @@ var (
 	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 	errExceedLimit                                   = errors.New("limit exceeded")
 	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
+	errOnlyOneResponseExpected                       = errors.New("one response item expected")
 	errNoInstrumentFound                             = errors.New("no instrument found")
 )
 
@@ -1859,9 +1861,9 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 
 /********************************** Account endpoints ***************************************************/
 
-// GetNonZeroBalances retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
+// AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
 // Interest-free quota and discount rates are public data and not displayed on the account interface.
-func (ok *Okx) GetNonZeroBalances(ctx context.Context, currency string) ([]Account, error) {
+func (ok *Okx) AccountBalance(ctx context.Context, currency string) ([]Account, error) {
 	var resp []Account
 	params := url.Values{}
 	if currency != "" {
@@ -2010,26 +2012,12 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string
 	return "", errNoValidResponseFromServer
 }
 
-// SetLeverage sets a leverage setting for instrument id.
-func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
+// SetLeverageRate sets a leverage setting for instrument id.
+func (ok *Okx) SetLeverageRate(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
 	if arg.InstrumentID == "" && arg.Currency == "" {
 		return nil, errors.New("either instrument id or currency is required")
 	}
-	if arg.Leverage < 0 {
-		return nil, errors.New("missing leverage")
-	}
-	if arg.InstrumentID == "" && arg.MarginMode == TradeModeIsolated {
-		return nil, errors.New("only can be cross if ccy is passed")
-	}
-	if arg.MarginMode != TradeModeCross && arg.MarginMode != TradeModeIsolated {
-		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP allowed")
-	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
-	if arg.PositionSide != positionSideLong &&
-		arg.PositionSide != positionSideShort &&
-		arg.MarginMode == "isolated" {
-		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
-	}
 	var resp []SetLeverageResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
 	if err != nil {
@@ -2107,7 +2095,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 		return nil, errors.New("missing valid amount")
 	}
 	var resp []IncreaseDecreaseMargin
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodGet, accountPositionMarginBalance, &arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, accountPositionMarginBalance, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2117,8 +2105,8 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 	return nil, errNoValidResponseFromServer
 }
 
-// GetLeverage retrieves leverage data for different instrument id or margin mode.
-func (ok *Okx) GetLeverage(ctx context.Context, instrumentID, marginMode string) ([]LeverageResponse, error) {
+// GetLeverageRate retrieves leverage data for different instrument id or margin mode.
+func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode string) ([]LeverageResponse, error) {
 	params := url.Values{}
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -3430,8 +3418,8 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestEPL, http.MethodGet, common.EncodeURLValues(publicOpenInterestValues, params), nil, &resp, false)
 }
 
-// GetFundingRate  Retrieve funding rate.
-func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*FundingRateResponse, error) {
+// GetSingleFundingRate returns the latest funding rate
+func (ok *Okx) GetSingleFundingRate(ctx context.Context, instrumentID string) (*FundingRateResponse, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -3461,10 +3449,8 @@ func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, b
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	if limit > 0 && limit <= 100 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else if limit > 100 {
-		return nil, errLimitValueExceedsMaxOf100
 	}
 	var resp []FundingRateResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingRateHistoryEPL, http.MethodGet, common.EncodeURLValues(publicFundingRateHistory, params), nil, &resp, false)
@@ -4244,6 +4230,9 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
+		if _, okay := ctx.Value(testNetVal).(bool); okay {
+			headers["x-simulated-trading"] = "1"
+		}
 		if authenticated {
 			var creds *account.Credentials
 			creds, err = ok.GetCredentials(ctx)

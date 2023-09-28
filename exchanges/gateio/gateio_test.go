@@ -50,6 +50,8 @@ func TestMain(m *testing.M) {
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
+	gConf.Features.Enabled.FillsFeed = true
+	gConf.Features.Enabled.TradeFeed = true
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -2584,7 +2586,7 @@ func TestWsTickerPushData(t *testing.T) {
 	}
 }
 
-const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "GT_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
+const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "BTC_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
 
 func TestWsTradePushData(t *testing.T) {
 	t.Parallel()
@@ -3206,9 +3208,9 @@ func TestSettlement(t *testing.T) {
 func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	t.Parallel()
 	var timeWhenTesting int64 = 1684981731098
-	timeWhenTestingString := "1684981731098"
+	timeWhenTestingString := `"1684981731098"` // Normal string
 	integerJSON := `{"number": 1684981731098}`
-	float64JSON := `{"number": 1684981731098.234}`
+	float64JSON := `{"number": 1684981731.098}`
 
 	time := time.UnixMilli(timeWhenTesting)
 	var in gateioTime
@@ -3245,18 +3247,19 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 func TestParseGateioTimeUnmarshal(t *testing.T) {
 	t.Parallel()
 	var timeWhenTesting int64 = 1684981731
-	timeWhenTestingString := "1684981731"
+	timeWhenTestingString := `"1684981731"`
 	integerJSON := `{"number": 1684981731}`
 	float64JSON := `{"number": 1684981731.234}`
+	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
 
-	time := time.Unix(timeWhenTesting, 0)
+	whenTime := time.Unix(timeWhenTesting, 0)
 	var in gateioTime
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !in.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", in.Time(), time)
+	if !in.Time().Equal(whenTime) {
+		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
 	}
 	inInteger := struct {
 		Number gateioTime `json:"number"`
@@ -3265,8 +3268,8 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !inInteger.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), time)
+	if !inInteger.Number.Time().Equal(whenTime) {
+		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), whenTime)
 	}
 
 	inFloat64 := struct {
@@ -3276,8 +3279,18 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !inFloat64.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), time)
+	msTime := time.UnixMilli(1684981731234)
+	if !inFloat64.Number.Time().Equal(time.UnixMilli(1684981731234)) {
+		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
+	}
+
+	var microSeconds gateioTime
+	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !microSeconds.Time().Equal(time.UnixMicro(1691122380942173)) {
+		t.Fatalf("found %v, but expected %v", microSeconds.Time(), time.UnixMicro(1691122380942173))
 	}
 }
 
@@ -3317,5 +3330,70 @@ func TestGateioNumericalValue(t *testing.T) {
 		t.Fatal(err)
 	} else if in.Number != 0 {
 		t.Fatalf("found %f, but expected %d", in.Number, 0)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	err := g.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = g.UpdateOrderExecutionLimits(context.Background(), 1336)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received %v, expected %v", err, asset.ErrNotSupported)
+	}
+
+	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Options)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received %v, expected %v", err, common.ErrNotYetImplemented)
+	}
+
+	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	avail, err := g.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := range avail {
+		mm, err := g.GetOrderExecutionLimits(asset.Spot, avail[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if mm == (order.MinMaxLevel{}) {
+			t.Fatal("expected a value")
+		}
+
+		if mm.MinimumBaseAmount <= 0 {
+			t.Fatalf("MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
+		}
+
+		// 1INCH_TRY no minimum quote or base values are returned.
+
+		if mm.QuoteStepIncrementSize <= 0 {
+			t.Fatalf("QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
+		}
+
+		if mm.AmountStepIncrementSize <= 0 {
+			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
+		}
+	}
+}
+
+func TestForceFileStandard(t *testing.T) {
+	t.Parallel()
+	err := sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
+	if err != nil {
+		t.Error(err)
+	}
+	if t.Failed() {
+		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 	}
 }

@@ -94,6 +94,9 @@ type Request struct {
 	// Used exclusively in Binance.US
 	ClientOrderID string `json:"clientID"`
 
+	// Used exclusively in Okcoin to classify internal represented by '3' or on chain represented by '4'
+	InternalTransfer bool
+
 	TradePassword   string
 	OneTimePassword int64
 	PIN             int64

@@ -10,6 +10,15 @@ import (
 	"google.golang.org/grpc"
 )
 
+var (
+	// use these to change text colours in CMD output
+	redText     = "\033[38;5;203m"
+	greenText   = "\033[38;5;157m"
+	whiteText   = "\033[38;5;255m"
+	grayText    = "\033[38;5;243m"
+	defaultText = "\u001b[0m"
+)
+
 func clearScreen() error {
 	switch runtime.GOOS {
 	case "windows":

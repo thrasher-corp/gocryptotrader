@@ -699,6 +699,63 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 	return pairs.Format(pairFormat), nil
 }
 
+// GetDefaultSyncManagerConfig returns a config with default values
+func GetDefaultSyncManagerConfig() SyncManagerConfig {
+	return SyncManagerConfig{
+		Enabled:                 true,
+		SynchronizeTicker:       true,
+		SynchronizeOrderbook:    true,
+		SynchronizeTrades:       false,
+		SynchronizeContinuously: true,
+		TimeoutREST:             DefaultSyncerTimeoutREST,
+		TimeoutWebsocket:        DefaultSyncerTimeoutWebsocket,
+		NumWorkers:              DefaultSyncerWorkers,
+		FiatDisplayCurrency:     currency.USD,
+		PairFormatDisplay: &currency.PairFormat{
+			Delimiter: "-",
+			Uppercase: true,
+		},
+		Verbose:                 false,
+		LogSyncUpdateEvents:     true,
+		LogSwitchProtocolEvents: true,
+		LogInitialSyncEvents:    true,
+	}
+}
+
+// CheckSyncManagerConfig checks config for valid values
+// sets defaults if values are invalid
+func (c *Config) CheckSyncManagerConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.SyncManagerConfig == (SyncManagerConfig{}) {
+		c.SyncManagerConfig = GetDefaultSyncManagerConfig()
+		return
+	}
+	if c.SyncManagerConfig.TimeoutWebsocket <= 0 {
+		log.Warnf(log.ConfigMgr, "Invalid sync manager websocket timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutWebsocket, DefaultSyncerTimeoutWebsocket)
+		c.SyncManagerConfig.TimeoutWebsocket = DefaultSyncerTimeoutWebsocket
+	}
+	if c.SyncManagerConfig.PairFormatDisplay == nil {
+		log.Warnf(log.ConfigMgr, "Invalid sync manager pair format value %v, using default format eg BTC-USD\n", c.SyncManagerConfig.PairFormatDisplay)
+		c.SyncManagerConfig.PairFormatDisplay = &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		}
+	}
+	if c.SyncManagerConfig.TimeoutREST <= 0 {
+		log.Warnf(log.ConfigMgr, "Invalid sync manager REST timeout value %v, defaulting to %v\n", c.SyncManagerConfig.TimeoutREST, DefaultSyncerTimeoutREST)
+		c.SyncManagerConfig.TimeoutREST = DefaultSyncerTimeoutREST
+	}
+	if c.SyncManagerConfig.NumWorkers <= 0 {
+		log.Warnf(log.ConfigMgr, "Invalid sync manager worker count value %v, defaulting to %v\n", c.SyncManagerConfig.NumWorkers, DefaultSyncerWorkers)
+		c.SyncManagerConfig.NumWorkers = DefaultSyncerWorkers
+	}
+	if c.SyncManagerConfig.FiatDisplayCurrency.IsEmpty() {
+		log.Warnf(log.ConfigMgr, "Invalid sync manager fiat display currency value, defaulting to %v\n", currency.USD)
+		c.SyncManagerConfig.FiatDisplayCurrency = currency.USD
+	}
+}
+
 // GetEnabledPairs returns a list of currency pairs for a specific exchange
 func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currency.Pairs, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
@@ -805,6 +862,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
 			c.Exchanges[i].Name = "CoinbasePro"
+		} else if strings.EqualFold(c.Exchanges[i].Name, "OKCOIN International") {
+			c.Exchanges[i].Name = "Okcoin"
 		}
 
 		// Check to see if the old API storage format is used
@@ -992,23 +1051,23 @@ func (c *Config) CheckExchangeConfigValues() error {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response check timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
-					defaultWebsocketResponseCheckTimeout)
-				c.Exchanges[i].WebsocketResponseCheckTimeout = defaultWebsocketResponseCheckTimeout
+					DefaultWebsocketResponseCheckTimeout)
+				c.Exchanges[i].WebsocketResponseCheckTimeout = DefaultWebsocketResponseCheckTimeout
 			}
 
 			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response max limit value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
-					defaultWebsocketResponseMaxLimit)
-				c.Exchanges[i].WebsocketResponseMaxLimit = defaultWebsocketResponseMaxLimit
+					DefaultWebsocketResponseMaxLimit)
+				c.Exchanges[i].WebsocketResponseMaxLimit = DefaultWebsocketResponseMaxLimit
 			}
 			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
-					defaultWebsocketTrafficTimeout)
-				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
+					DefaultWebsocketTrafficTimeout)
+				c.Exchanges[i].WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].Orderbook.WebsocketBufferLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
@@ -1371,6 +1430,9 @@ func (c *Config) CheckOrderManagerConfig() {
 		c.OrderManager.Enabled = convert.BoolPtr(true)
 		c.OrderManager.ActivelyTrackFuturesPositions = true
 	}
+	if c.OrderManager.RespectOrderHistoryLimits == nil {
+		c.OrderManager.RespectOrderHistoryLimits = convert.BoolPtr(true)
+	}
 	if c.OrderManager.ActivelyTrackFuturesPositions && c.OrderManager.FuturesTrackingSeekDuration >= 0 {
 		// one isn't likely to have a perpetual futures order open
 		// for longer than a year
@@ -1731,6 +1793,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()
 	c.CheckRemoteControlConfig()
+	c.CheckSyncManagerConfig()
 
 	err = c.CheckCurrencyConfigValues()
 	if err != nil {

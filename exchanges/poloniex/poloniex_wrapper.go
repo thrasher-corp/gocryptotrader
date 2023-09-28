@@ -33,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	p.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = p.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = p.BaseCurrencies
+	exchCfg, err := p.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := p.SetupDefaults(exchCfg)
+	err = p.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -185,15 +185,14 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 	}
 
 	err = p.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             poloniexWebsocketAddress,
-		RunningURL:             wsRunningURL,
-		Connector:              p.WsConnect,
-		Subscriber:             p.Subscribe,
-		Unsubscriber:           p.Unsubscribe,
-		GenerateSubscriptions:  p.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &p.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            poloniexWebsocketAddress,
+		RunningURL:            wsRunningURL,
+		Connector:             p.WsConnect,
+		Subscriber:            p.Subscribe,
+		Unsubscriber:          p.Unsubscribe,
+		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
+		Features:              &p.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -633,7 +632,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		s.Amount,
 		false,
 		s.Type == order.Market,
-		s.Side == order.Buy)
+		s.Side.IsLong())
 	if err != nil {
 		return nil, err
 	}

@@ -32,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	by.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = by.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = by.BaseCurrencies
+	exchCfg, err := by.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := by.SetupDefaults(exchCfg)
+	err = by.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -204,16 +204,15 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 	err = by.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:         exch,
-			DefaultURL:             bybitWSBaseURL + wsSpotPublicTopicV2,
-			RunningURL:             wsRunningEndpoint,
-			RunningURLAuth:         bybitWSBaseURL + wsSpotPrivate,
-			Connector:              by.WsConnect,
-			Subscriber:             by.Subscribe,
-			Unsubscriber:           by.Unsubscribe,
-			GenerateSubscriptions:  by.GenerateDefaultSubscriptions,
-			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-			Features:               &by.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:        exch,
+			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
+			RunningURL:            wsRunningEndpoint,
+			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
+			Connector:             by.WsConnect,
+			Subscriber:            by.Subscribe,
+			Unsubscriber:          by.Unsubscribe,
+			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+			Features:              &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
@@ -947,10 +946,10 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	}
 
 	var sideType string
-	switch s.Side {
-	case order.Buy:
+	switch {
+	case s.Side.IsLong():
 		sideType = sideBuy
-	case order.Sell:
+	case s.Side.IsShort():
 		sideType = sideSell
 	default:
 		return nil, errInvalidSide
@@ -2126,7 +2125,8 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			var pair currency.Pair
 			pair, err = avail.DeriveFrom(pairsData[x].Name)
 			if err != nil {
-				return err
+				log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, pairsData[x].Name)
+				continue
 			}
 
 			limits = append(limits, order.MinMaxLevel{

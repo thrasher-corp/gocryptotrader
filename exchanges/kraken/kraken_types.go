@@ -18,7 +18,7 @@ const (
 	krakenDepth            = "Depth"
 	krakenTrades           = "Trades"
 	krakenSpread           = "Spread"
-	krakenBalance          = "Balance"
+	krakenBalance          = "BalanceEx"
 	krakenTradeBalance     = "TradeBalance"
 	krakenOpenOrders       = "OpenOrders"
 	krakenClosedOrders     = "ClosedOrders"
@@ -122,7 +122,8 @@ type AssetPairs struct {
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
 	MarginCall        int         `json:"margin_call"`
 	MarginStop        int         `json:"margin_stop"`
-	Ordermin          string      `json:"ordermin"`
+	OrderMinimum      float64     `json:"ordermin,string"`
+	TickSize          float64     `json:"tick_size,string"`
 	Status            string      `json:"status"`
 }
 
@@ -202,6 +203,12 @@ type Spread struct {
 	Time time.Time
 	Bid  float64
 	Ask  float64
+}
+
+// Balance represents account asset balances
+type Balance struct {
+	Total float64 `json:"balance,string"`
+	Hold  float64 `json:"hold_trade,string"`
 }
 
 // TradeBalanceOptions type
@@ -555,6 +562,7 @@ type WebsocketChannelData struct {
 	Subscription string
 	Pair         currency.Pair
 	ChannelID    *int64
+	MaxDepth     int
 }
 
 // WsTokenResponse holds the WS auth token
@@ -592,6 +600,7 @@ type wsSubscription struct {
 type WsOpenOrder struct {
 	UserReferenceID int64   `json:"userref"`
 	ExpireTime      float64 `json:"expiretm,string"`
+	LastUpdated     float64 `json:"lastupdated,string"`
 	OpenTime        float64 `json:"opentm,string"`
 	StartTime       float64 `json:"starttm,string"`
 	Fee             float64 `json:"fee,string"`
@@ -600,7 +609,7 @@ type WsOpenOrder struct {
 	Volume          float64 `json:"vol,string"`
 	ExecutedVolume  float64 `json:"vol_exec,string"`
 	Cost            float64 `json:"cost,string"`
-	Price           float64 `json:"price,string"`
+	AveragePrice    float64 `json:"avg_price,string"`
 	Misc            string  `json:"misc"`
 	OFlags          string  `json:"oflags"`
 	RefID           string  `json:"refid"`

@@ -10,8 +10,8 @@ import (
 var (
 	// ErrNotSupported is an error for an unsupported asset type
 	ErrNotSupported = errors.New("unsupported asset type")
-	// ErrNotEnabled returned when a supported asset type is disabled
-	ErrNotEnabled = errors.New("asset type disabled")
+	// ErrNotEnabled is an error for an asset not enabled
+	ErrNotEnabled = errors.New("asset type not enabled")
 )
 
 // Item stores the asset type
@@ -51,6 +51,7 @@ const (
 	binary                 = "binary"
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
+	swap                   = "swap"
 	futures                = "futures"
 	deliveryFutures        = "delivery"
 	upsideProfitContract   = "upsideprofitcontract"
@@ -190,7 +191,7 @@ func New(input string) (Item, error) {
 		return Binary, nil
 	case perpetualContract:
 		return PerpetualContract, nil
-	case perpetualSwap:
+	case perpetualSwap, swap:
 		return PerpetualSwap, nil
 	case futures:
 		return Futures, nil

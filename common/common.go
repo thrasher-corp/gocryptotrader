@@ -71,7 +71,7 @@ var (
 	ErrZeroValue = errors.New("zero value struct")
 	// ErrCannotCalculateOffline is returned when a request wishes to calculate
 	// something offline, but has an online requirement
-	ErrCannotCalculateOffline = errors.New("cannot calculate offline")
+	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
 	// ErrNoResponse is returned when a response has no entries/is empty
 	// when one is expected
 	ErrNoResponse = errors.New("no response")

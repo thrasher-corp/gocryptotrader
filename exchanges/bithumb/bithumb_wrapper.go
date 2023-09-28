@@ -38,12 +38,12 @@ var errNotEnoughPairs = errors.New("at least one currency is required to fetch o
 // GetDefaultConfig returns a default exchange config
 func (b *Bithumb) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := b.SetupDefaults(exchCfg)
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -179,14 +179,13 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             wsEndpoint,
-		RunningURL:             ePoint,
-		Connector:              b.WsConnect,
-		Subscriber:             b.Subscribe,
-		GenerateSubscriptions:  b.GenerateSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            ePoint,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		GenerateSubscriptions: b.GenerateSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -520,14 +519,14 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 
 	var orderID string
-	if s.Side == order.Buy {
+	if s.Side.IsLong() {
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(ctx, fPair, s.Amount)
 		if err != nil {
 			return nil, err
 		}
 		orderID = result.OrderID
-	} else if s.Side == order.Sell {
+	} else if s.Side.IsShort() {
 		var result MarketSell
 		result, err = b.MarketSellOrder(ctx, fPair, s.Amount)
 		if err != nil {
@@ -669,7 +668,7 @@ func (b *Bithumb) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdr
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	if math.Mod(withdrawRequest.Amount, 1) != 0 {
+	if math.Trunc(withdrawRequest.Amount) != withdrawRequest.Amount {
 		return nil, errors.New("currency KRW does not support decimal places")
 	}
 	if !withdrawRequest.Currency.Equal(currency.KRW) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -31,11 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (b *Bitstamp) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
-	err := b.SetupDefaults(exchCfg)
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -170,15 +172,14 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             bitstampWSURL,
-		RunningURL:             wsURL,
-		Connector:              b.WsConnect,
-		Subscriber:             b.Subscribe,
-		Unsubscriber:           b.Unsubscribe,
-		GenerateSubscriptions:  b.generateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            bitstampWSURL,
+		RunningURL:            wsURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -266,16 +267,19 @@ func (b *Bitstamp) Run(ctx context.Context) {
 		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
+	if b.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
+		if err := b.UpdateTradablePairs(ctx, forceUpdate); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				b.Name,
+				err)
+		}
 	}
 
-	err := b.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
+	for _, a := range b.GetAssetTypes(true) {
+		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
+			log.Errorln(log.ExchangeSys, err.Error())
+		}
 	}
 }
 
@@ -285,13 +289,12 @@ func (b *Bitstamp) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 	if err != nil {
 		return nil, err
 	}
-
+	var pair currency.Pair
 	pairs := make([]currency.Pair, 0, len(symbols))
 	for x := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
 		}
-		var pair currency.Pair
 		pair, err = currency.NewPairFromString(symbols[x].Name)
 		if err != nil {
 			return nil, err
@@ -313,6 +316,38 @@ func (b *Bitstamp) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 		return err
 	}
 	return b.EnsureOnePairEnabled()
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+	symbols, err := b.GetTradingPairs(ctx)
+	if err != nil {
+		return err
+	}
+	limits := make([]order.MinMaxLevel, 0, len(symbols))
+	for x, info := range symbols {
+		if symbols[x].Trading != "Enabled" {
+			continue
+		}
+		pair, err := currency.NewPairFromString(symbols[x].Name)
+		if err != nil {
+			return err
+		}
+		limits = append(limits, order.MinMaxLevel{
+			Asset:                   a,
+			Pair:                    pair,
+			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
+			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
+			MinimumQuoteAmount:      info.MinimumOrder,
+		})
+	}
+	if err := b.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
+	}
+	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -577,7 +612,7 @@ func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		s.Side == order.Buy,
+		s.Side.IsLong(),
 		s.Type == order.Market)
 	if err != nil {
 		return nil, err

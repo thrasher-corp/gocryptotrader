@@ -13,35 +13,24 @@ import (
 type syncBase struct {
 	IsUsingWebsocket bool
 	IsUsingREST      bool
-	IsProcessing     bool
 	LastUpdated      time.Time
 	HaveData         bool
 	NumErrors        int
 }
 
-// currencyPairSyncAgent stores the sync agent info
-type currencyPairSyncAgent struct {
-	Created   time.Time
+// currencyPairKey is the map key for the sync agents
+type currencyPairKey struct {
 	Exchange  string
 	AssetType asset.Item
 	Pair      currency.Pair
-	Ticker    syncBase
-	Orderbook syncBase
-	Trade     syncBase
 }
 
-// SyncManagerConfig stores the currency pair synchronization manager config
-type SyncManagerConfig struct {
-	SynchronizeTicker       bool
-	SynchronizeOrderbook    bool
-	SynchronizeTrades       bool
-	SynchronizeContinuously bool
-	TimeoutREST             time.Duration
-	TimeoutWebsocket        time.Duration
-	NumWorkers              int
-	FiatDisplayCurrency     currency.Code
-	PairFormatDisplay       *currency.PairFormat
-	Verbose                 bool
+// currencyPairSyncAgent stores the sync agent info
+type currencyPairSyncAgent struct {
+	currencyPairKey
+	Created  time.Time
+	trackers []*syncBase
+	locks    []sync.Mutex
 }
 
 // syncManager stores the exchange currency pair syncer object
@@ -49,6 +38,7 @@ type syncManager struct {
 	initSyncCompleted              int32
 	initSyncStarted                int32
 	started                        int32
+	shutdown                       chan bool
 	format                         currency.PairFormat
 	initSyncStartTime              time.Time
 	fiatDisplayCurrency            currency.Code
@@ -57,10 +47,10 @@ type syncManager struct {
 	initSyncWG                     sync.WaitGroup
 	inService                      sync.WaitGroup
 
-	currencyPairs            []currencyPairSyncAgent
+	currencyPairs            map[currencyPairKey]*currencyPairSyncAgent
 	tickerBatchLastRequested map[string]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
-	config          SyncManagerConfig
+	config          config.SyncManagerConfig
 	exchangeManager iExchangeManager
 }

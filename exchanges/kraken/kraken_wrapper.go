@@ -34,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	k.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = k.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = k.BaseCurrencies
+	exchCfg, err := k.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := k.SetupDefaults(exchCfg)
+	err = k.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -220,16 +220,15 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             krakenWSURL,
-		RunningURL:             wsRunningURL,
-		Connector:              k.WsConnect,
-		Subscriber:             k.Subscribe,
-		Unsubscriber:           k.Unsubscribe,
-		GenerateSubscriptions:  k.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig:  buffer.Config{SortBuffer: true},
+		ExchangeConfig:        exch,
+		DefaultURL:            krakenWSURL,
+		RunningURL:            wsRunningURL,
+		Connector:             k.WsConnect,
+		Subscriber:            k.Subscribe,
+		Unsubscriber:          k.Unsubscribe,
+		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+		Features:              &k.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
@@ -328,23 +327,92 @@ func (k *Kraken) Run(ctx context.Context) {
 		}
 	}
 
-	if !k.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
+	if k.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
+		if err := k.UpdateTradablePairs(ctx, forceUpdate); err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				k.Name,
+				err)
+		}
 	}
 
-	err := k.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			k.Name,
-			err)
+	for _, a := range k.GetAssetTypes(true) {
+		if err := k.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
+			log.Errorln(log.ExchangeSys, err.Error())
+		}
 	}
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	pairInfo, err := k.fetchSpotPairInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", k.Name, a, err)
+	}
+
+	limits := make([]order.MinMaxLevel, 0, len(pairInfo))
+
+	for pair, info := range pairInfo {
+		limits = append(limits, order.MinMaxLevel{
+			Asset:                  a,
+			Pair:                   pair,
+			PriceStepIncrementSize: info.TickSize,
+			MinimumBaseAmount:      info.OrderMinimum,
+		})
+	}
+
+	if err := k.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading %s exchange limits: %w", k.Name, a, err)
+	}
+
+	return nil
+}
+
+func (k *Kraken) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*AssetPairs, error) {
+	pairs := make(map[currency.Pair]*AssetPairs)
+
+	pairInfo, err := k.GetAssetPairs(ctx, nil, "")
+	if err != nil {
+		return pairs, err
+	}
+
+	for _, info := range pairInfo {
+		if info.Status != "online" {
+			continue
+		}
+		base := assetTranslator.LookupAltname(info.Base)
+		if base == "" {
+			log.Warnf(log.ExchangeSys,
+				"%s unable to lookup altname for base currency %s",
+				k.Name,
+				info.Base)
+			continue
+		}
+		quote := assetTranslator.LookupAltname(info.Quote)
+		if quote == "" {
+			log.Warnf(log.ExchangeSys,
+				"%s unable to lookup altname for quote currency %s",
+				k.Name,
+				info.Quote)
+			continue
+		}
+		pair, err := currency.NewPairFromStrings(base, quote)
+		if err != nil {
+			return pairs, err
+		}
+		pairs[pair] = info
+	}
+
+	return pairs, nil
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	var pairs []currency.Pair
-	var pair currency.Pair
+	pairs := currency.Pairs{}
 	switch a {
 	case asset.Spot:
 		if !assetTranslator.Seeded() {
@@ -352,36 +420,12 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				return nil, err
 			}
 		}
-		symbols, err := k.GetAssetPairs(ctx, nil, "")
+		pairInfo, err := k.fetchSpotPairInfo(ctx)
 		if err != nil {
-			return nil, err
+			return pairs, err
 		}
-
-		pairs = make([]currency.Pair, 0, len(symbols))
-		for _, info := range symbols {
-			if info.Status != "online" {
-				continue
-			}
-			base := assetTranslator.LookupAltname(info.Base)
-			if base == "" {
-				log.Warnf(log.ExchangeSys,
-					"%s unable to lookup altname for base currency %s",
-					k.Name,
-					info.Base)
-				continue
-			}
-			quote := assetTranslator.LookupAltname(info.Quote)
-			if quote == "" {
-				log.Warnf(log.ExchangeSys,
-					"%s unable to lookup altname for quote currency %s",
-					k.Name,
-					info.Quote)
-				continue
-			}
-			pair, err = currency.NewPairFromStrings(base, quote)
-			if err != nil {
-				return nil, err
-			}
+		pairs = make(currency.Pairs, 0, len(pairInfo))
+		for pair := range pairInfo {
 			pairs = append(pairs, pair)
 		}
 	case asset.Futures:
@@ -404,8 +448,7 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
+// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := k.GetAssetTypes(false)
 	for x := range assets {
@@ -613,7 +656,9 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			}
 			balances = append(balances, account.Balance{
 				Currency: currency.NewCode(translatedCurrency),
-				Total:    bal[key],
+				Total:    bal[key].Total,
+				Hold:     bal[key].Hold,
+				Free:     bal[key].Total - bal[key].Hold,
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -778,11 +823,10 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			timeInForce = RequestParamsTimeIOC
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
-				Pair:        s.Pair.String(),
+				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
 				Price:       s.Price,
 				Volume:      s.Amount,
 				TimeInForce: timeInForce,
@@ -870,7 +914,10 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, o.AssetType)
 	}
+
 	return nil
 }
 
@@ -1023,6 +1070,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			Fee:             orderInfo.Fee,
 			Trades:          trades,
 			Cost:            orderInfo.Cost,
+			AssetType:       asset.Spot,
 		}
 	case asset.Futures:
 		orderInfo, err := k.FuturesGetFills(ctx, time.Time{})
@@ -1050,14 +1098,15 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 				return nil, err
 			}
 			orderDetail = order.Detail{
-				OrderID:  orderID,
-				Price:    orderInfo.Fills[y].Price,
-				Amount:   orderInfo.Fills[y].Size,
-				Side:     oSide,
-				Type:     fillOrderType,
-				Date:     timeVar,
-				Pair:     pair,
-				Exchange: k.Name,
+				OrderID:   orderID,
+				Price:     orderInfo.Fills[y].Price,
+				Amount:    orderInfo.Fills[y].Size,
+				Side:      oSide,
+				Type:      fillOrderType,
+				Date:      timeVar,
+				Pair:      pair,
+				Exchange:  k.Name,
+				AssetType: asset.Futures,
 			}
 		}
 	default:
@@ -1218,6 +1267,8 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Side:            side,
 				Type:            orderType,
 				Pair:            p,
+				AssetType:       asset.Spot,
+				Status:          order.Open,
 			})
 		}
 	case asset.Futures:
@@ -1257,14 +1308,16 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					return orders, err
 				}
 				orders = append(orders, order.Detail{
-					OrderID:  activeOrders.OpenOrders[a].OrderID,
-					Price:    activeOrders.OpenOrders[a].LimitPrice,
-					Amount:   activeOrders.OpenOrders[a].FilledSize,
-					Side:     oSide,
-					Type:     oType,
-					Date:     timeVar,
-					Pair:     fPair,
-					Exchange: k.Name,
+					OrderID:   activeOrders.OpenOrders[a].OrderID,
+					Price:     activeOrders.OpenOrders[a].LimitPrice,
+					Amount:    activeOrders.OpenOrders[a].FilledSize,
+					Side:      oSide,
+					Type:      oType,
+					Date:      timeVar,
+					Pair:      fPair,
+					Exchange:  k.Name,
+					AssetType: asset.Futures,
+					Status:    order.Open,
 				})
 			}
 		}
