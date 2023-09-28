@@ -26,12 +26,15 @@ var (
 	// contained in the available pairs list and is not supported by the
 	// exchange for that asset type.
 	ErrPairNotContainedInAvailablePairs = errors.New("pair not contained in available pairs")
+	// ErrPairManagerNotInitialised is returned when a pairs manager is requested, but has not been setup
+	ErrPairManagerNotInitialised = errors.New("pair manager not initialised")
+	// ErrAssetNotFound is returned when an asset does not exist in the pairstore
+	ErrAssetNotFound = errors.New("asset type not found in pair store")
 	// ErrCurrencyPairEmpty is an error when a currency pair is empty
 	ErrSymbolStringEmpty = errors.New("symbol string is empty")
 
 	errPairStoreIsNil   = errors.New("pair store is nil")
 	errPairFormatIsNil  = errors.New("pair format is nil")
-	errAssetNotFound    = errors.New("asset type not found")
 	errPairMatcherIsNil = errors.New("pair matcher is nil")
 )
 
@@ -403,12 +406,12 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 
 func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error) {
 	if p.Pairs == nil {
-		return nil, errors.New("pair manager not initialised")
+		return nil, fmt.Errorf("%w when requesting %v pairs", ErrPairManagerNotInitialised, a)
 	}
 
 	pairStore, ok := p.Pairs[a]
 	if !ok {
-		return nil, fmt.Errorf("%w %v", errAssetNotFound, a)
+		return nil, fmt.Errorf("%w %v", ErrAssetNotFound, a)
 	}
 
 	if pairStore == nil {

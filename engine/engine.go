@@ -483,10 +483,7 @@ func (bot *Engine) Start() error {
 			bot.ExchangeManager,
 			bot.CommunicationsManager,
 			&bot.ServicesWG,
-			bot.Config.OrderManager.Verbose,
-			bot.Config.OrderManager.ActivelyTrackFuturesPositions,
-			bot.Config.OrderManager.FuturesTrackingSeekDuration,
-		); err != nil {
+			&bot.Config.OrderManager); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)
 		} else {
 			bot.OrderManager = o

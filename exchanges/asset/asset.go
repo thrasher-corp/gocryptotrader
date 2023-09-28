@@ -51,6 +51,7 @@ const (
 	binary                 = "binary"
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
+	swap                   = "swap"
 	futures                = "futures"
 	deliveryFutures        = "delivery"
 	upsideProfitContract   = "upsideprofitcontract"
@@ -190,7 +191,7 @@ func New(input string) (Item, error) {
 		return Binary, nil
 	case perpetualContract:
 		return PerpetualContract, nil
-	case perpetualSwap:
+	case perpetualSwap, swap:
 		return PerpetualSwap, nil
 	case futures:
 		return Futures, nil

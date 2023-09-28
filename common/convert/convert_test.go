@@ -353,6 +353,24 @@ func TestStringToFloat64(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
+
+	data, err := json.Marshal(StringToFloat64(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != `""` {
+		t.Fatalf("expected empty string, got %v", string(data))
+	}
+
+	data, err = json.Marshal(StringToFloat64(1337.1337))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != `"1337.1337"` {
+		t.Fatalf("expected \"1337.1337\" string, got %v", string(data))
+	}
 }
 
 func TestStringToFloat64Decimal(t *testing.T) {
@@ -379,6 +397,89 @@ func BenchmarkStringToFloat64(b *testing.B) {
 		err := json.Unmarshal([]byte(`{"data":"0.00000001"}`), &resp)
 		if err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func TestExchangeTimeUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	unmarshaledResult := &struct {
+		Timestamp ExchangeTime `json:"ts"`
+	}{}
+	data1 := `{"ts":""}`
+	result := time.Time{}
+	err := json.Unmarshal([]byte(data1), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data2 := `{"ts":"1685564775371"}`
+	result = time.UnixMilli(1685564775371)
+	err = json.Unmarshal([]byte(data2), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data3 := `{"ts":1685564775371}`
+	err = json.Unmarshal([]byte(data3), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data4 := `{"ts":"1685564775"}`
+	result = time.Unix(1685564775, 0)
+	err = json.Unmarshal([]byte(data4), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data5 := `{"ts":1685564775}`
+	err = json.Unmarshal([]byte(data5), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data6 := `{"ts":"1685564775371320000"}`
+	result = time.Unix(int64(1685564775371320000)/1e9, int64(1685564775371320000)%1e9)
+	err = json.Unmarshal([]byte(data6), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+	data7 := `{"ts":"abcdefg"}`
+	err = json.Unmarshal([]byte(data7), &unmarshaledResult)
+	if err == nil {
+		t.Fatal("expecting error but found nil")
+	}
+	data8 := `{"ts":0}`
+	result = time.Time{}
+	err = json.Unmarshal([]byte(data8), &unmarshaledResult)
+	if err != nil {
+		t.Fatal(err)
+	} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+		t.Errorf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
+	}
+}
+
+// 2239239               516.1 ns/op           424 B/op          9 allocs/op
+func BenchmarkExchangeTimeUnmarshaling(b *testing.B) {
+	unmarshaledResult := &struct {
+		Timestamp ExchangeTime `json:"ts"`
+	}{}
+	data5 := `{"ts":1685564775}`
+	result := time.Unix(1685564775, 0)
+	var err error
+	for i := 0; i < b.N; i++ {
+		if err = json.Unmarshal([]byte(data5), &unmarshaledResult); err != nil {
+			b.Fatal(err)
+		} else if !unmarshaledResult.Timestamp.Time().Equal(result) {
+			b.Fatalf("found %v, but expected %v", unmarshaledResult.Timestamp.Time(), result)
 		}
 	}
 }

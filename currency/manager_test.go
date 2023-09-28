@@ -613,8 +613,8 @@ func TestIsPairEnabled(t *testing.T) {
 	}
 
 	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
-	if !errors.Is(err, errAssetNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetNotFound)
+	if !errors.Is(err, ErrAssetNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetNotFound)
 	}
 
 	_, err = pm.IsPairEnabled(cp, asset.Item(1337))

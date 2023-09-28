@@ -125,6 +125,8 @@ type OrderManager struct {
 	Verbose                       bool          `json:"verbose"`
 	ActivelyTrackFuturesPositions bool          `json:"activelyTrackFuturesPositions"`
 	FuturesTrackingSeekDuration   time.Duration `json:"futuresTrackingSeekDuration"`
+	RespectOrderHistoryLimits     *bool         `json:"respectOrderHistoryLimits"`
+	CancelOrdersOnShutdown        bool          `json:"cancelOrdersOnShutdown"`
 }
 
 // DataHistoryManager holds all information required for the data history manager
