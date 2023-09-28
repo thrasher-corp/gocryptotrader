@@ -358,21 +358,8 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
-	if operationSubscribe == operation && len(subscriptions) > ok.Features.Supports.WebsocketMaxSubscriptionsPerConnectionSupported {
-		return fmt.Errorf("max amount of subscriptions per connection is %v, you tried to subscribe to %v channels",
-			ok.Features.Supports.WebsocketMaxSubscriptionsPerConnectionSupported,
-			len(subscriptions))
-	}
-
-	request := WSSubscriptionInformationList{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{},
-	}
-
-	authRequests := WSSubscriptionInformationList{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{},
-	}
+	request := WSSubscriptionInformationList{Operation: operation}
+	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
 	var channels []stream.ChannelSubscription

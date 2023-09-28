@@ -127,8 +127,7 @@ func (ok *Okx) SetDefaults() {
 				CancelOrders:           true,
 				ModifyOrder:            true,
 			},
-			WebsocketMaxSubscriptionsPerConnectionSupported: 240,
-			WithdrawPermissions:                             exchange.AutoWithdrawCrypto,
+			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			FuturesCapabilities: exchange.FuturesCapabilities{
 				Positions:                 true,
 				Leverage:                  true,
@@ -214,14 +213,15 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            okxAPIWebsocketPublicURL,
-		RunningURL:            wsRunningEndpoint,
-		Connector:             ok.WsConnect,
-		Subscriber:            ok.Subscribe,
-		Unsubscriber:          ok.Unsubscribe,
-		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		DefaultURL:                             okxAPIWebsocketPublicURL,
+		RunningURL:                             wsRunningEndpoint,
+		Connector:                              ok.WsConnect,
+		Subscriber:                             ok.Subscribe,
+		Unsubscriber:                           ok.Unsubscribe,
+		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
+		Features:                               &ok.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 240,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
