@@ -7,7 +7,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -136,7 +135,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 		}
 
 		wg.Add(1)
-		go func(exch exchange.IBotExchange) {
+		go func() {
 			defer wg.Done()
 			err = ws.Connect()
 			if err != nil {
@@ -147,7 +146,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 			if err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
-		}(exch)
+		}()
 	}
 	wg.Wait()
 }
