@@ -159,13 +159,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case OrderManagerName:
 		if enable {
 			if bot.OrderManager == nil {
-				bot.OrderManager, err = SetupOrderManager(
-					bot.ExchangeManager,
-					bot.CommunicationsManager,
-					&bot.ServicesWG,
-					bot.Config.OrderManager.Verbose,
-					bot.Config.OrderManager.ActivelyTrackFuturesPositions,
-					bot.Config.OrderManager.FuturesTrackingSeekDuration)
+				bot.OrderManager, err = SetupOrderManager(bot.ExchangeManager, bot.CommunicationsManager, &bot.ServicesWG, &bot.Config.OrderManager)
 				if err != nil {
 					return err
 				}

@@ -35,7 +35,6 @@ var (
 	ErrOrderNotFound = errors.New("order not found")
 
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
-	errUnrecognisedOrderSide    = errors.New("unrecognised order side")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
 	errExchangeNameUnset        = errors.New("exchange name unset")
@@ -476,6 +475,7 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		TriggerPrice:      s.TriggerPrice,
 		ClientID:          s.ClientID,
 		ClientOrderID:     s.ClientOrderID,
+		MarginType:        s.MarginType,
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
@@ -1056,7 +1056,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, fmt.Errorf("'%s' %w", side, errUnrecognisedOrderSide)
+		return UnknownSide, fmt.Errorf("'%s' %w", side, ErrSideIsInvalid)
 	}
 }
 
@@ -1210,7 +1210,7 @@ func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	}
 
 	if g.Side == UnknownSide {
-		return errUnrecognisedOrderSide
+		return ErrSideIsInvalid
 	}
 
 	if g.Type == UnknownType {
