@@ -371,7 +371,7 @@ func TestSetCredentials(t *testing.T) {
 		},
 	}
 
-	b.SetCredentials("RocketMan", "Digereedoo", "007", "", "", "", "")
+	b.SetCredentials("RocketMan", "Digereedoo", "007", "", "", "")
 	if b.API.credentials.Key != "RocketMan" &&
 		b.API.credentials.Secret != "Digereedoo" &&
 		b.API.credentials.ClientID != "007" {
@@ -381,7 +381,7 @@ func TestSetCredentials(t *testing.T) {
 	// Invalid secret
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
-	b.SetCredentials("RocketMan", "%%", "007", "", "", "", "")
+	b.SetCredentials("RocketMan", "%%", "007", "", "", "")
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		t.Error("invalid secret should disable authenticated API support")
 	}
@@ -389,7 +389,7 @@ func TestSetCredentials(t *testing.T) {
 	// valid secret
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
-	b.SetCredentials("RocketMan", "aGVsbG8gd29ybGQ=", "007", "", "", "", "")
+	b.SetCredentials("RocketMan", "aGVsbG8gd29ybGQ=", "007", "", "", "")
 	if !b.API.AuthenticatedSupport && b.API.credentials.Secret != "hello world" {
 		t.Error("invalid secret should disable authenticated API support")
 	}
@@ -400,7 +400,7 @@ func TestGetDefaultCredentials(t *testing.T) {
 	if b.GetDefaultCredentials() != nil {
 		t.Fatal("unexpected return")
 	}
-	b.SetCredentials("test", "", "", "", "", "", "")
+	b.SetCredentials("test", "", "", "", "", "")
 	if b.GetDefaultCredentials() == nil {
 		t.Fatal("unexpected return")
 	}

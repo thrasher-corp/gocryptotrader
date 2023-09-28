@@ -154,15 +154,14 @@ func (dy *DYDX) Setup(exch *config.Exchange) error {
 
 	err = dy.Websocket.Setup(
 		&stream.WebsocketSetup{
-			ExchangeConfig:         exch,
-			DefaultURL:             dydxWSAPIURL,
-			RunningURL:             wsRunningEndpoint,
-			Connector:              dy.WsConnect,
-			Subscriber:             dy.Subscribe,
-			Unsubscriber:           dy.Unsubscribe,
-			GenerateSubscriptions:  dy.GenerateDefaultSubscriptions,
-			Features:               &dy.Features.Supports.WebsocketCapabilities,
-			ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+			ExchangeConfig:        exch,
+			DefaultURL:            dydxWSAPIURL,
+			RunningURL:            wsRunningEndpoint,
+			Connector:             dy.WsConnect,
+			Subscriber:            dy.Subscribe,
+			Unsubscriber:          dy.Unsubscribe,
+			GenerateSubscriptions: dy.GenerateDefaultSubscriptions,
+			Features:              &dy.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

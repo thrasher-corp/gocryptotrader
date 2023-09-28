@@ -555,7 +555,6 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 			exch.API.Credentials.Subaccount,
 			exch.API.Credentials.PEMKey,
 			exch.API.Credentials.OTPSecret,
-			exch.API.Credentials.PrivateKey,
 		)
 	}
 

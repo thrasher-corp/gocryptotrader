@@ -960,7 +960,6 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PrivateKey,
 		)
 		validated := base.AreCredentialsValid(context.TODO())
 		base.API.AuthenticatedSupport = validated

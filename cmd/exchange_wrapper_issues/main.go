@@ -229,7 +229,7 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 		creds.OTPSecret = "-" // Ensure OTP is available for use
 	}
 
-	base.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.PEMKey, creds.OTPSecret, creds.PrivateKey)
+	base.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.PEMKey, creds.OTPSecret)
 
 	base.Config.API.Credentials.Key = creds.Key
 	base.Config.API.Credentials.Secret = creds.Secret
