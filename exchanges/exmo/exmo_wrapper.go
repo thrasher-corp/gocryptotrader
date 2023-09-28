@@ -215,7 +215,9 @@ func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var pair currency.Pair
 		pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
 		if err != nil {
-			return err
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 		}
 		if !enabled {
 			continue

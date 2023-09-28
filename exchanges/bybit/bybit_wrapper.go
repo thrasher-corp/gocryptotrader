@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -430,7 +431,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				if ticks.List[x].Symbol == "ZECUSDT" || ticks.List[x].Symbol == "DASHUSDT" {
 					continue
 				}
-				return err
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					return err
+				}
 			}
 
 			if !enabled {

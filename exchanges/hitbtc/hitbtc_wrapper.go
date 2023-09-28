@@ -327,7 +327,9 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var enabled bool
 		pair, enabled, err = h.MatchSymbolCheckEnabled(tick[x].Symbol, a, false)
 		if err != nil {
-			return err
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 		}
 
 		if !enabled {
