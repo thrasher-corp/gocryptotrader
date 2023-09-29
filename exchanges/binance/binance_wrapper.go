@@ -2445,6 +2445,20 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			marginType = margin.Isolated
 		}
 
+		var contracts []futures.Contract
+		contracts, err = b.GetFuturesContractDetails(ctx, req.Asset)
+		if err != nil {
+			return nil, err
+		}
+		var direction futures.ContractDirection
+		for i := range contracts {
+			if !contracts[i].Name.Equal(fPair) {
+				continue
+			}
+			direction = contracts[i].Direction
+			break
+		}
+
 		var c currency.Code
 		if collateralMode == collateral.SingleMode {
 			var collateralAsset *UAsset
@@ -2498,6 +2512,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
 			Currency:                     c,
+			ContractDirection:            direction,
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			Leverage:                     decimal.NewFromFloat(leverage),
 			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
@@ -2596,11 +2611,26 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			mmf = decimal.NewFromFloat(maintenanceMargin).Div(tc).Mul(decimal.NewFromInt(100))
 		}
 
+		var contracts []futures.Contract
+		contracts, err = b.GetFuturesContractDetails(ctx, req.Asset)
+		if err != nil {
+			return nil, err
+		}
+		var direction futures.ContractDirection
+		for i := range contracts {
+			if !contracts[i].Name.Equal(fPair) {
+				continue
+			}
+			direction = contracts[i].Direction
+			break
+		}
+
 		return &futures.PositionSummary{
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
+			ContractDirection:            direction,
 			Currency:                     currency.NewCode(accountAsset.Asset),
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
@@ -2868,9 +2898,11 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Name:           cp,
 				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
 				Asset:          item,
+				Direction:      futures.Linear,
 				StartDate:      ei.Symbols[i].OnboardDate.Time(),
 				EndDate:        ed,
 				IsActive:       ei.Symbols[i].Status == "TRADING",
+				Status:         ei.Symbols[i].Status,
 				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
 				Type:           ct,
 			})
@@ -2906,6 +2938,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				EndDate:        ed,
 				IsActive:       ei.Symbols[i].ContractStatus == "TRADING",
 				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+				Direction:      futures.Inverse,
 				Type:           ct,
 			})
 		}

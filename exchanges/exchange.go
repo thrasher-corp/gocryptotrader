@@ -1732,8 +1732,3 @@ func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ m
 func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	return -1, common.ErrNotYetImplemented
 }
-
-// GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (b *Base) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrFunctionNotSupported
-}

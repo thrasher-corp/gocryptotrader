@@ -318,9 +318,10 @@ type PositionsRequest struct {
 // PositionResponse are used to track open positions
 // in the order manager
 type PositionResponse struct {
-	Pair   currency.Pair
-	Asset  asset.Item
-	Orders []order.Detail
+	Pair              currency.Pair
+	Asset             asset.Item
+	ContractDirection ContractDirection
+	Orders            []order.Detail
 }
 
 // PositionSummary returns basic details on an open position
@@ -353,6 +354,9 @@ type PositionSummary struct {
 	CollateralUsed               decimal.Decimal
 	MarkPrice                    decimal.Decimal
 	CurrentSize                  decimal.Decimal
+	ContractSize                 decimal.Decimal
+	ContractMultiplier           decimal.Decimal
+	ContractDirection            ContractDirection
 	AverageOpenPrice             decimal.Decimal
 	PositionPNL                  decimal.Decimal
 	MaintenanceMarginFraction    decimal.Decimal

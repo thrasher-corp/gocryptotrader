@@ -1847,6 +1847,23 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		return nil, err
 	}
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+
+	var contracts []futures.Contract
+	contracts, err = ok.GetFuturesContractDetails(ctx, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	multiplier := 1.0
+	var direction futures.ContractDirection
+	for i := range contracts {
+		if !contracts[i].Name.Equal(fPair) {
+			continue
+		}
+		multiplier = contracts[i].Multiplier
+		direction = contracts[i].Direction
+		break
+	}
+
 	positionSummaries, err := ok.GetPositions(ctx, instrumentType, fPair.String(), "")
 	if err != nil {
 		return nil, err
@@ -1908,15 +1925,16 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		return nil, err
 	}
 	return &futures.PositionSummary{
-		Pair:                         req.Pair,
-		Asset:                        req.Asset,
-		MarginType:                   marginMode,
-		CollateralMode:               collateralMode,
-		Currency:                     currency.NewCode(positionSummary.Currency),
-		AvailableEquity:              availableEquity,
-		CashBalance:                  cashBalance,
-		DiscountEquity:               discountEquity,
-		EquityUSD:                    equityUSD,
+		Pair:            req.Pair,
+		Asset:           req.Asset,
+		MarginType:      marginMode,
+		CollateralMode:  collateralMode,
+		Currency:        currency.NewCode(positionSummary.Currency),
+		AvailableEquity: availableEquity,
+		CashBalance:     cashBalance,
+		DiscountEquity:  discountEquity,
+		EquityUSD:       equityUSD,
+
 		IsolatedEquity:               isolatedEquity,
 		IsolatedLiabilities:          isolatedLiabilities,
 		IsolatedUPL:                  isolatedUnrealisedProfit,
@@ -1931,7 +1949,10 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		EstimatedLiquidationPrice:    positionSummary.LiquidationPrice.Decimal(),
 		CollateralUsed:               positionSummary.Margin.Decimal(),
 		MarkPrice:                    positionSummary.MarkPrice.Decimal(),
-		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal(), // TODO: add field(s) for contract amount vs quote amount
+		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.NewFromFloat(multiplier)),
+		ContractSize:                 positionSummary.QuantityOfPosition.Decimal(),
+		ContractMultiplier:           decimal.NewFromFloat(multiplier),
+		ContractDirection:            direction,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
 		PositionPNL:                  positionSummary.UPNL.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
@@ -1957,19 +1978,40 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-ok.Features.Supports.MaximumOrderHistory))
 		}
 	}
-	if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+	err := common.StartEndTimeCheck(req.StartDate, req.EndDate)
+	if err != nil {
 		return nil, err
 	}
 	resp := make([]futures.PositionResponse, len(req.Pairs))
+	var contracts []futures.Contract
+	contracts, err = ok.GetFuturesContractDetails(ctx, req.Asset)
+	if err != nil {
+		return nil, err
+	}
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
 		if err != nil {
 			return nil, err
 		}
 		instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+
+		multiplier := 1.0
+		var direction futures.ContractDirection
+		if req.Asset.IsFutures() {
+			for j := range contracts {
+				if !contracts[j].Name.Equal(fPair) {
+					continue
+				}
+				multiplier = contracts[j].Multiplier
+				direction = contracts[j].Direction
+				break
+			}
+		}
+
 		resp[i] = futures.PositionResponse{
-			Pair:  req.Pairs[i],
-			Asset: req.Asset,
+			Pair:              req.Pairs[i],
+			Asset:             req.Asset,
+			ContractDirection: direction,
 		}
 
 		var positions []OrderDetail
@@ -2014,10 +2056,15 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			if orderStatus != order.Filled {
 				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
 			}
+			cost := positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64()
+			if multiplier != 1 {
+				cost *= multiplier
+			}
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
 				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
-				Amount:               orderAmount.Float64(), // TODO: add field(s) for contract amount vs quote amount
+				Amount:               orderAmount.Float64() * multiplier,
+				ContractAmount:       orderAmount.Float64(),
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
 				Fee:                  positions[j].TransactionFee.Float64(),
@@ -2032,7 +2079,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 				Date:                 positions[j].CreationTime,
 				LastUpdated:          positions[j].UpdateTime,
 				Pair:                 req.Pairs[i],
-				Cost:                 positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64(),
+				Cost:                 cost,
 				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
 			})
 		}
@@ -2159,19 +2206,25 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 				ct = futures.Quarterly
 			}
 		}
+		direction := futures.Linear
+		if result[i].SettlementCurrency == result[i].BaseCurrency {
+			direction = futures.Inverse
+		}
 		resp[i] = futures.Contract{
 			Exchange:             ok.Name,
 			Name:                 cp,
 			Underlying:           underlying,
-			SettlementCurrencies: currency.Currencies{settleCurr},
-			MarginCurrency:       settleCurr,
 			Asset:                item,
 			StartDate:            result[i].ListTime.Time,
 			EndDate:              result[i].ExpTime.Time,
 			IsActive:             result[i].State == "live",
-			Multiplier:           result[i].ContractMultiplier.Float64(),
-			MaxLeverage:          result[i].MaxLeverage.Float64(),
+			Status:               result[i].State,
 			Type:                 ct,
+			Direction:            direction,
+			SettlementCurrencies: currency.Currencies{settleCurr},
+			MarginCurrency:       settleCurr,
+			Multiplier:           result[i].ContractValue.Float64(),
+			MaxLeverage:          result[i].MaxLeverage.Float64(),
 		}
 	}
 	return resp, nil

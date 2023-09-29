@@ -17,7 +17,9 @@ type Contract struct {
 	StartDate  time.Time
 	EndDate    time.Time
 	IsActive   bool
+	Status     string
 	Type       ContractType
+	Direction  ContractDirection
 	// Optional values if the exchange offers them
 	SettlementCurrencies currency.Currencies
 	MarginCurrency       currency.Code
@@ -26,12 +28,42 @@ type Contract struct {
 	LatestRate           fundingrate.Rate
 }
 
+// ContractDirection holds the various style of contracts offered by futures exchanges
+type ContractDirection uint8
+
+// ContractDirection definitions
+const (
+	UnsetDirectionType ContractDirection = iota
+	Linear
+	Inverse
+	Quanto
+	LinearOrInverse
+)
+
+// String returns the string representation of a contract direction type
+func (d ContractDirection) String() string {
+	switch d {
+	case UnsetDirectionType:
+		return "unset"
+	case Linear:
+		return "linear"
+	case Inverse:
+		return "inverse"
+	case Quanto:
+		return "quanto"
+	case LinearOrInverse:
+		return "linearOrInverse"
+	default:
+		return "unknown"
+	}
+}
+
 // ContractType holds the various style of contracts offered by futures exchanges
 type ContractType uint8
 
-// Contract type definitions
+// ContractType definitions
 const (
-	Unset ContractType = iota
+	UnsetContractType ContractType = iota
 	Perpetual
 	LongDated
 	Weekly

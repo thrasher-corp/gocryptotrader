@@ -182,6 +182,7 @@ type Detail struct {
 	Leverage             float64
 	Price                float64
 	Amount               float64
+	ContractAmount       float64
 	LimitPriceUpper      float64
 	LimitPriceLower      float64
 	TriggerPrice         float64

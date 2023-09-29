@@ -1144,6 +1144,15 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					return nil, err
 				}
 			}
+			var direction futures.ContractDirection
+			switch {
+			case cp.Quote.Equal(currency.USDT):
+				direction = futures.Linear
+			case cp.Quote.Equal(currency.USD):
+				direction = futures.Quanto
+			default:
+				direction = futures.Inverse
+			}
 			resp = append(resp, futures.Contract{
 				Exchange:             b.Name,
 				Name:                 cp,
@@ -1151,7 +1160,9 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                item,
 				StartDate:            s,
 				IsActive:             marketInfo[x].State == "Open",
+				Status:               marketInfo[x].State,
 				Type:                 futures.Perpetual,
+				Direction:            direction,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
 				Multiplier:           float64(marketInfo[x].Multiplier),
 				LatestRate: fundingrate.Rate{
@@ -1205,6 +1216,13 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			case contractDuration <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
 				ct = futures.Yearly
 			}
+			direction := futures.Inverse
+			switch {
+			case strings.Contains(cp.Quote.String(), "USDT"):
+				direction = futures.Linear
+			case strings.Contains(cp.Quote.String(), "USD"):
+				direction = futures.Quanto
+			}
 			resp = append(resp, futures.Contract{
 				Exchange:             b.Name,
 				Name:                 cp,
@@ -1213,9 +1231,11 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				StartDate:            s,
 				EndDate:              e,
 				IsActive:             marketInfo[x].State == "Open",
+				Status:               marketInfo[x].State,
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
 				Multiplier:           float64(marketInfo[x].Multiplier),
+				Direction:            direction,
 			})
 		}
 	}

@@ -4453,6 +4453,12 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	if !stats.CurrentSize.IsZero() {
 		positionStats.CurrentSize = stats.CurrentSize.String()
 	}
+	if !stats.ContractMultiplier.IsZero() {
+		positionStats.ContractMultiplier = stats.ContractMultiplier.String()
+	}
+	if !stats.ContractSize.IsZero() {
+		positionStats.ContractSize = stats.ContractSize.String()
+	}
 	if !stats.AverageOpenPrice.IsZero() {
 		positionStats.AverageOpenPrice = stats.AverageOpenPrice.String()
 	}
@@ -4491,6 +4497,9 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	}
 	if !stats.IsolatedEquity.IsZero() {
 		positionStats.IsolatedEquity = stats.IsolatedEquity.String()
+	}
+	if stats.ContractDirection != futures.UnsetDirectionType {
+		positionStats.ContractDirection = stats.ContractDirection.String()
 	}
 	if !stats.IsolatedLiabilities.IsZero() {
 		positionStats.IsolatedLiabilities = stats.IsolatedLiabilities.String()
@@ -4596,27 +4605,29 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 				Base:      positionDetails[i].Pair.Base.String(),
 				Quote:     positionDetails[i].Pair.Quote.String(),
 			},
-			Orders: make([]*gctrpc.OrderDetails, len(positionDetails[i].Orders)),
+			ContractDirection: positionDetails[i].ContractDirection.String(),
+			Orders:            make([]*gctrpc.OrderDetails, len(positionDetails[i].Orders)),
 		}
 		for j := range positionDetails[i].Orders {
 			anyOrders = true
 			details.Orders[j] = &gctrpc.OrderDetails{
-				Exchange:      exch.GetName(),
-				Id:            positionDetails[i].Orders[j].OrderID,
-				ClientOrderId: positionDetails[i].Orders[j].ClientOrderID,
-				BaseCurrency:  positionDetails[i].Orders[j].Pair.Base.String(),
-				QuoteCurrency: positionDetails[i].Orders[j].Pair.Quote.String(),
-				AssetType:     positionDetails[i].Orders[j].AssetType.String(),
-				OrderSide:     positionDetails[i].Orders[j].Side.String(),
-				OrderType:     positionDetails[i].Orders[j].Type.String(),
-				CreationTime:  positionDetails[i].Orders[j].Date.Format(common.SimpleTimeFormatWithTimezone),
-				UpdateTime:    positionDetails[i].Orders[j].LastUpdated.Format(common.SimpleTimeFormatWithTimezone),
-				Status:        positionDetails[i].Orders[j].Status.String(),
-				Price:         positionDetails[i].Orders[j].Price,
-				Amount:        positionDetails[i].Orders[j].Amount,
-				OpenVolume:    positionDetails[i].Orders[j].RemainingAmount,
-				Fee:           positionDetails[i].Orders[j].Fee,
-				Cost:          positionDetails[i].Orders[j].Cost,
+				Exchange:       exch.GetName(),
+				Id:             positionDetails[i].Orders[j].OrderID,
+				ClientOrderId:  positionDetails[i].Orders[j].ClientOrderID,
+				BaseCurrency:   positionDetails[i].Orders[j].Pair.Base.String(),
+				QuoteCurrency:  positionDetails[i].Orders[j].Pair.Quote.String(),
+				AssetType:      positionDetails[i].Orders[j].AssetType.String(),
+				OrderSide:      positionDetails[i].Orders[j].Side.String(),
+				OrderType:      positionDetails[i].Orders[j].Type.String(),
+				CreationTime:   positionDetails[i].Orders[j].Date.Format(common.SimpleTimeFormatWithTimezone),
+				UpdateTime:     positionDetails[i].Orders[j].LastUpdated.Format(common.SimpleTimeFormatWithTimezone),
+				Status:         positionDetails[i].Orders[j].Status.String(),
+				Price:          positionDetails[i].Orders[j].Price,
+				Amount:         positionDetails[i].Orders[j].Amount,
+				OpenVolume:     positionDetails[i].Orders[j].RemainingAmount,
+				Fee:            positionDetails[i].Orders[j].Fee,
+				Cost:           positionDetails[i].Orders[j].Cost,
+				ContractAmount: positionDetails[i].Orders[j].ContractAmount,
 			}
 		}
 		positions[i] = details
