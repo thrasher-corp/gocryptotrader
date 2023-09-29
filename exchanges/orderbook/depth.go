@@ -165,7 +165,6 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) error {
 		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, update.UpdateTime)
 	}
 	d.updateAndAlert(update)
-	d.m.Unlock()
 	return nil
 }
 
