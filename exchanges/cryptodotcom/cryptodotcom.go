@@ -88,9 +88,10 @@ const (
 func (cr *Cryptodotcom) GetInstruments(ctx context.Context) (*InstrumentList, error) {
 	var resp *InstrumentList
 	err := cr.SendHTTPRequest(ctx, exchange.RestSpot, publicInstruments, publicInstrumentsRate, &resp)
-	if err != nil {
+	switch {
+	case err != nil:
 		return nil, err
-	} else if resp == nil {
+	case resp == nil:
 		return nil, common.ErrNoResponse
 	}
 	return resp, nil

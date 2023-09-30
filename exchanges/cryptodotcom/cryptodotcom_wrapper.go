@@ -108,6 +108,8 @@ func (cr *Cryptodotcom) SetDefaults() {
 				exchange.AutoWithdrawFiat,
 		},
 		Enabled: exchange.FeaturesEnabled{
+			FillsFeed:       true,
+			TradeFeed:       true,
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
@@ -178,6 +180,8 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 			Unsubscriber:          cr.Unsubscribe,
 			GenerateSubscriptions: cr.GenerateDefaultSubscriptions,
 			Features:              &cr.Features.Supports.WebsocketCapabilities,
+			FillsFeed:             exch.Features.Enabled.FillsFeed,
+			TradeFeed:             exch.Features.Enabled.TradeFeed,
 		})
 	if err != nil {
 		return err
@@ -858,8 +862,8 @@ func (cr *Cryptodotcom) WithdrawCryptocurrencyFunds(ctx context.Context, withdra
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID:     withdrawalResp.ID,
 		Name:   cr.Name,
+		ID:     withdrawalResp.ID,
 		Status: withdrawalResp.Status,
 	}, nil
 }

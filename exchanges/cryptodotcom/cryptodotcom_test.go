@@ -31,7 +31,6 @@ const (
 var cr = &Cryptodotcom{}
 
 func TestMain(m *testing.M) {
-	cr.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -43,6 +42,7 @@ func TestMain(m *testing.M) {
 	}
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	cr.SetDefaults()
 	if apiKey != "" && apiSecret != "" {
 		exchCfg.API.AuthenticatedSupport = true
 		exchCfg.API.AuthenticatedWebsocketSupport = true
