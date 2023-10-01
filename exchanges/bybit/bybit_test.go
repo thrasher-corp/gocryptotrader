@@ -3058,3 +3058,11 @@ func TestSetLeverage(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
+
+func TestWsConnecting(t *testing.T) {
+	err := b.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second * 25)
+}

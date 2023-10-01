@@ -49,8 +49,6 @@ type AccountFee struct {
 	List     []Fee  `json:"list"`
 }
 
-// ----------------------------------------------------------------------------
-
 // InstrumentsInfo representa a category, page indicator, and list of instrument information.
 type InstrumentsInfo struct {
 	Category       string           `json:"category"`

@@ -40,8 +40,8 @@ const (
 	getAccountWalletBalaceRate = 10
 	getAccountFeeRate          = 10
 
-	getAssetTransferQueryInfoRate             = 60 //
-	getAssetTransferQueryTransferCoinListRate = 60 //
+	getAssetTransferQueryInfoRate             = 60
+	getAssetTransferQueryTransferCoinListRate = 60
 	getAssetTransferCOinListRate              = 60
 	getAssetinterTransferListRate             = 60
 	getSubMemberListRate                      = 60

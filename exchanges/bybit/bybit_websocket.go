@@ -71,7 +71,7 @@ func (by *Bybit) WsConnect() error {
 
 	by.Websocket.Wg.Add(1)
 	go by.wsReadData(asset.Spot, by.Websocket.Conn)
-	if by.IsWebsocketAuthenticationSupported() {
+	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		err = by.WsAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
@@ -177,10 +177,11 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 			}
 			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+channelsToSubscribe[i].Currency.Format(pairFormat).String())
 		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
-			if chanMap[channelsToSubscribe[i].Channel]|selectedChannels > 0 {
+			if chanMap[channelsToSubscribe[i].Channel]&selectedChannels > 0 {
 				continue
 			}
 			authArg.Arguments = append(authArg.Arguments, channelsToSubscribe[i].Channel)
+			// adding the channel to selected channels so that we will not visit it again.
 			selectedChannels |= chanMap[channelsToSubscribe[i].Channel]
 		}
 		if len(arg.Arguments) >= 10 {
@@ -239,8 +240,12 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	var channels = []string{chanPublicTicker, chanOrderbook, chanPublicTrade}
-	if by.IsWebsocketAuthenticationSupported() {
+	var channels = []string{
+		chanPublicTicker,
+		chanOrderbook,
+		chanPublicTrade,
+	}
+	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{
 			chanPositions,
 			chanExecution,
@@ -257,6 +262,7 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		case chanPositions,
 			chanExecution,
 			chanOrder,
+			chanDCP,
 			chanWallet:
 			subscriptions = append(subscriptions,
 				stream.ChannelSubscription{
@@ -347,7 +353,6 @@ func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
 	case chanGreeks:
 		return by.wsProcessGreeks(respRaw)
 	case chanDCP:
-		// TODO: --
 		return nil
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
