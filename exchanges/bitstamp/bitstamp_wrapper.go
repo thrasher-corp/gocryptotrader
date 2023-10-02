@@ -1001,9 +1001,9 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 
 		for i := range candles.Data.OHLCV {
-			timstamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
-			if timstamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
-				timstamp.After(req.RangeHolder.Ranges[x].End.Time) {
+			timestamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			if timestamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
+				timestamp.After(req.RangeHolder.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{

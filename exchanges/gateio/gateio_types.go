@@ -1215,7 +1215,7 @@ type MarginAccountItem struct {
 	Quote        AccountBalanceInformation `json:"quote"`
 }
 
-// AccountBalanceInformation represents currency account balace information.
+// AccountBalanceInformation represents currency account balance information.
 type AccountBalanceInformation struct {
 	Available    convert.StringToFloat64 `json:"available"`
 	Borrowed     convert.StringToFloat64 `json:"borrowed"`

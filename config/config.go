@@ -1551,7 +1551,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 // ReadConfigFromFile reads the configuration from the given file
 // if target file is encrypted, prompts for encryption key
 // Also - if not in dryrun mode - it checks if the configuration needs to be encrypted
-// and stores the file as encrypted, if necessary (prompting for enryption key)
+// and stores the file as encrypted, if necessary (prompting for encryption key)
 func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
