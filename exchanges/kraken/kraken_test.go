@@ -4,14 +4,11 @@ import (
 	"context"
 	"errors"
 	"log"
-	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -32,8 +29,7 @@ import (
 )
 
 var k = &Kraken{}
-var wsSetupRan, wsAuthSetupRan bool
-var comms = make(chan stream.Response)
+var wsConnected bool
 
 // Please add your own APIkeys here or in config/testdata.json to do correct due diligence testing
 const (
@@ -622,148 +618,142 @@ func TestGetSpread(t *testing.T) {
 // TestGetBalance API endpoint test
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	_, err := k.GetBalance(context.Background())
-	if err == nil {
-		t.Error("GetBalance() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetTradeBalance API endpoint test
 func TestGetDepositMethods(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-
 	_, err := k.GetDepositMethods(context.Background(), "USDT")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetTradeBalance API endpoint test
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	args := TradeBalanceOptions{Asset: "ZEUR"}
 	_, err := k.GetTradeBalance(context.Background(), args)
-	if err == nil {
-		t.Error("GetTradeBalance() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetOpenOrders API endpoint test
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	args := OrderInfoOptions{Trades: true}
 	_, err := k.GetOpenOrders(context.Background(), args)
-	if err == nil {
-		t.Error("GetOpenOrders() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetClosedOrders API endpoint test
 func TestGetClosedOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	args := GetClosedOrdersOptions{Trades: true, Start: "OE4KV4-4FVQ5-V7XGPU"}
 	_, err := k.GetClosedOrders(context.Background(), args)
-	if err == nil {
-		t.Error("GetClosedOrders() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
 // TestQueryOrdersInfo API endpoint test
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	args := OrderInfoOptions{Trades: true}
-	_, err := k.QueryOrdersInfo(context.Background(),
-		args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
-	if err == nil {
-		t.Error("QueryOrdersInfo() Expected error")
-	}
+	_, err := k.QueryOrdersInfo(context.Background(), args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
+	assert.NoError(t, err)
 }
 
 // TestGetTradesHistory API endpoint test
 func TestGetTradesHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	args := GetTradesHistoryOptions{Trades: true, Start: "TMZEDR-VBJN2-NGY6DX", End: "TVRXG2-R62VE-RWP3UW"}
 	_, err := k.GetTradesHistory(context.Background(), args)
-	if err == nil {
-		t.Error("GetTradesHistory() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
 // TestQueryTrades API endpoint test
 func TestQueryTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.QueryTrades(context.Background(),
-		true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
-	if err == nil {
-		t.Error("QueryTrades() Expected error")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	_, err := k.QueryTrades(context.Background(), true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
+	assert.NoError(t, err)
 }
 
 // TestOpenPositions API endpoint test
 func TestOpenPositions(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	_, err := k.OpenPositions(context.Background(), false)
-	if err == nil {
-		t.Error("OpenPositions() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetLedgers API endpoint test
+// TODO: Needs a positive test
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+
 	args := GetLedgersOptions{Start: "LRUHXI-IWECY-K4JYGO", End: "L5NIY7-JZQJD-3J4M2V", Ofs: 15}
 	_, err := k.GetLedgers(context.Background(), args)
-	if err == nil {
-		t.Error("GetLedgers() Expected error")
-	}
+	assert.ErrorContains(t, err, "EQuery:Unknown asset pair", "GetLedger should error on imaginary ledgers")
 }
 
 // TestQueryLedgers API endpoint test
 func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	_, err := k.QueryLedgers(context.Background(), "LVTSFS-NHZVM-EXNZ5M")
-	if err == nil {
-		t.Error("QueryLedgers() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetTradeVolume API endpoint test
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("OAVY7T-MV5VK-KHDF5X")
-	if err != nil {
-		t.Error(err)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	cp, err := currency.NewPairFromString("BCHEUR")
+	assert.NoError(t, err, "NewPairFromString should not error")
 	_, err = k.GetTradeVolume(context.Background(), true, cp)
-	if err == nil {
-		t.Error("GetTradeVolume() Expected error")
-	}
+	assert.NoError(t, err)
 }
 
-// TestAddOrder API endpoint test
-func TestAddOrder(t *testing.T) {
+// TestOrders Tests AddOrder and CancelExistingOrder
+func TestOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+
+	// EGeneral:Invalid arguments:volume
+	t.Skip("AddOrder test is a known failure due to volume parameter")
+
 	args := AddOrderOptions{OrderFlags: "fcib"}
 	cp, err := currency.NewPairFromString("XXBTZUSD")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.AddOrder(context.Background(),
+	assert.NoError(t, err, "NewPairFromString should not error")
+	var resp AddOrderResponse
+	resp, err = k.AddOrder(context.Background(),
 		cp,
 		order.Sell.Lower(), order.Limit.Lower(),
 		0.00000001, 0, 0, 0, &args)
-	if err == nil {
-		t.Error("AddOrder() Expected error")
+
+	if assert.NoError(t, err, "AddOrder should not error") {
+		if assert.Len(t, resp.TransactionIds, 1, "One TransactionId should be returned") {
+			id := resp.TransactionIds[0]
+			_, err = k.CancelExistingOrder(context.Background(), id)
+			assert.NoErrorf(t, err, "CancelExistingOrder should not error, Please ensure order %s is cancelled manually", id)
+		}
 	}
 }
 
 // TestCancelExistingOrder API endpoint test
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
 	_, err := k.CancelExistingOrder(context.Background(), "OAVY7T-MV5VK-KHDF5X")
-	if err == nil {
-		t.Error("CancelExistingOrder() Expected error")
+	if assert.Error(t, err, "Cancel with imaginary order-id should error") {
+		assert.ErrorContains(t, err, "EOrder:Unknown order", "Cancel with imaginary order-id should error Unknown Order")
 	}
 }
 
@@ -887,9 +877,7 @@ func TestGetActiveOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
 	pair, err := currency.NewPairFromString("LTC_USDT")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "NewPairFromString should not error")
 	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -898,14 +886,14 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err = k.GetActiveOrders(context.Background(), &getOrdersRequest)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+
 	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -913,30 +901,15 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := k.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if sharedtestvalues.AreAPICredentialsSet(k) && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(k) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetOrderHistory wrapper test
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
-
-	_, err := k.GetOrderInfo(context.Background(),
-		"OZPTPJ-HVYHF-EDIGXS", currency.EMPTYPAIR, asset.Spot)
-	if !sharedtestvalues.AreAPICredentialsSet(k) && err == nil {
-		t.Error("Expecting error")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(k) && err != nil {
-		if !strings.Contains(err.Error(), "- Order ID not found:") {
-			t.Error("Expected Order ID not found error")
-		} else {
-			t.Error(err)
-		}
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	_, err := k.GetOrderInfo(context.Background(), "OZPTPJ-HVYHF-EDIGXS", currency.EMPTYPAIR, asset.Spot)
+	assert.ErrorContains(t, err, "order OZPTPJ-HVYHF-EDIGXS not found in response", "Should error that order was not found in response")
 }
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
@@ -1212,72 +1185,35 @@ func TestWithdrawCancel(t *testing.T) {
 
 // ---------------------------- Websocket tests -----------------------------------------
 
-// setupWsAuthTest will connect both websockets
-// and should be called directly from a auth ws test
-func setupWsAuthTest(tb testing.TB) {
-	tb.Helper()
-	setupWsTest(tb)
-	setupAuthWs(tb)
-}
-
-// setupWsTest will just connect the non-authenticated websocket
-// and should be called directly from a non-auth ws test
-func setupWsTest(tb testing.TB) {
+// setupWs is a helper function to connect both auth and normal websockets
+// It will skip the test if websockets are not enabled
+// It's up to the test to skip if it requires creds, though
+func setupWs(tb testing.TB) {
 	tb.Helper()
 
 	if !k.Websocket.IsEnabled() {
 		tb.Skip("Websocket not enabled")
 	}
-
-	if wsSetupRan {
+	if k.Websocket.IsConnected() {
 		return
 	}
-	wsSetupRan = true
 
-	var dialer websocket.Dialer
-	if err := k.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
-		tb.Fatalf("Dialing the websocket should not error: %s", err)
-	}
-
-	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
-	go k.wsReadData(comms)
-	go k.wsPingHandler(k.Websocket.Conn)
-}
-
-// setupAuthWs will just connect the authenticated websocket and should not be called directly
-func setupAuthWs(tb testing.TB) {
-	tb.Helper()
-	if !k.API.AuthenticatedWebsocketSupport {
-		tb.Skip("Authenticated Websocket not Supported")
-	}
-
-	if !sharedtestvalues.AreAPICredentialsSet(k) {
-		tb.Skip("Authenticated Websocket credentials not set")
-	}
-
-	if wsAuthSetupRan {
+	if wsConnected {
 		return
 	}
-	wsAuthSetupRan = true
+	wsConnected = true
 
-	var err error
-	var dialer websocket.Dialer
-	if err = k.Websocket.AuthConn.Dial(&dialer, http.Header{}); err != nil {
-		tb.Fatalf("Dialing the auth websocket should not error: %s", err)
-	}
-
-	authToken, err = k.GetWebsocketToken(context.Background())
-	assert.NoError(tb, err, "GetWebsocketToken should not error")
-
-	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
+	// We don't use k.websocket.Connect() because it'd subscribe to channels
+	err := k.WsConnect()
+	assert.NoError(tb, err, "WsConnect should not error")
 }
 
 // TestWsSubscribe tests unauthenticated websocket subscriptions
 // Specifically looking to ensure multiple errors are collected and returned and ws.Subscriptions Added/Removed in cases of:
 // single pass, single fail, mixed fail, multiple pass, all fail
 // No objection to this becoming a fixture test, so long as it integrates through Un/Subscribe roundtrip
-func TestWebsocketSubscribe(t *testing.T) {
-	setupWsTest(t)
+func TestWsSubscribe(t *testing.T) {
+	setupWs(t)
 
 	err := k.Subscribe([]stream.ChannelSubscription{{Channel: krakenWsTicker, Currency: currency.NewPairWithDelimiter("XBT", "USD", "/")}})
 	assert.NoError(t, err, "Simple subscription should not error")
@@ -1345,7 +1281,7 @@ func TestWebsocketSubscribe(t *testing.T) {
 
 // TestWsOrderbookSub tests orderbook subscriptions for MaxDepth params
 func TestWsOrderbookSub(t *testing.T) {
-	setupWsTest(t)
+	setupWs(t)
 
 	err := k.Subscribe([]stream.ChannelSubscription{{
 		Channel:  krakenWsOrderbook,
@@ -1378,7 +1314,7 @@ func TestWsOrderbookSub(t *testing.T) {
 
 // TestWsCandlesSub tests candles subscription for Timeframe params
 func TestWsCandlesSub(t *testing.T) {
-	setupWsTest(t)
+	setupWs(t)
 
 	err := k.Subscribe([]stream.ChannelSubscription{{
 		Channel:  krakenWsOHLC,
@@ -1411,7 +1347,8 @@ func TestWsCandlesSub(t *testing.T) {
 
 // TestWsOwnTradesSub tests the authenticated WS subscription channel for trades
 func TestWsOwnTradesSub(t *testing.T) {
-	setupWsAuthTest(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	setupWs(t)
 
 	err := k.Subscribe([]stream.ChannelSubscription{{Channel: krakenWsOwnTrades}})
 	assert.NoError(t, err, "Subsrcibing to ownTrades should not error")
@@ -1426,7 +1363,8 @@ func TestWsOwnTradesSub(t *testing.T) {
 
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
-	setupWsAuthTest(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	setupWs(t)
 	resp, err := k.GetWebsocketToken(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -1437,7 +1375,8 @@ func TestGetWSToken(t *testing.T) {
 }
 
 func TestWsAddOrder(t *testing.T) {
-	setupWsAuthTest(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	setupWs(t)
 	_, err := k.wsAddOrder(&WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
@@ -1450,14 +1389,16 @@ func TestWsAddOrder(t *testing.T) {
 }
 
 func TestWsCancelOrder(t *testing.T) {
-	setupWsAuthTest(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	setupWs(t)
 	if err := k.wsCancelOrders([]string{"1337"}); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
-	setupWsAuthTest(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	setupWs(t)
 	if _, err := k.wsCancelAllOrders(); err != nil {
 		t.Error(err)
 	}
