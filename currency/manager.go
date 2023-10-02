@@ -30,7 +30,7 @@ var (
 	ErrPairManagerNotInitialised = errors.New("pair manager not initialised")
 	// ErrAssetNotFound is returned when an asset does not exist in the pairstore
 	ErrAssetNotFound = errors.New("asset type not found in pair store")
-	// ErrCurrencyPairEmpty is an error when a currency pair is empty
+	// ErrSymbolStringEmpty is an error when a symbol string is empty
 	ErrSymbolStringEmpty = errors.New("symbol string is empty")
 
 	errPairStoreIsNil   = errors.New("pair store is nil")
