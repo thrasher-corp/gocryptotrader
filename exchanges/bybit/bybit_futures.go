@@ -122,7 +122,7 @@ func (by *Bybit) GetActiveFuturesOrders(ctx context.Context, symbol currency.Pai
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if cursor != "" {
@@ -345,7 +345,7 @@ func (by *Bybit) GetConditionalFuturesOrders(ctx context.Context, symbol currenc
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if cursor != "" {
@@ -583,8 +583,8 @@ func (by *Bybit) SetTradingAndStop(ctx context.Context, positionMode int64, symb
 	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetTradingStop, params, nil, &resp, futuresSetTradingStopRate)
 }
 
-// SetLeverage sets leverage
-func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) (float64, error) {
+// SetLeverageLevel sets leverage
+func (by *Bybit) SetLeverageLevel(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) (float64, error) {
 	resp := struct {
 		Result float64 `json:"result"`
 		Error
@@ -685,7 +685,7 @@ func (by *Bybit) GetTradeRecords(ctx context.Context, symbol currency.Pair, orde
 	if page != 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -721,7 +721,7 @@ func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, exec
 	if page > 0 && page <= 50 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
