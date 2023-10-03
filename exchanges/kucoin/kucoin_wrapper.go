@@ -1540,7 +1540,7 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		if contracts[i].IsInverse {
 			contractSettlementType = futures.Inverse
 		}
-		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - time.Hour*8).UTC()
+		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - time.Hour*8).Truncate(time.Hour).UTC()
 		resp[i] = futures.Contract{
 			Exchange:             ku.Name,
 			Name:                 cp,
