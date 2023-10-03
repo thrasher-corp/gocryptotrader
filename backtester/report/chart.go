@@ -6,8 +6,8 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // createUSDTotalsChart used for creating a chart in the HTML report
@@ -91,53 +91,47 @@ func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Cha
 
 // createPNLCharts shows a running history of all realised and unrealised PNL values
 // over time
-func createPNLCharts(items map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic) (*Chart, error) {
+func createPNLCharts(items map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}
 	response := &Chart{
 		AxisType: "linear",
 	}
-	for exch, assetMap := range items {
-		for item, baseMap := range assetMap {
-			for b, quoteMap := range baseMap {
-				for q, result := range quoteMap {
-					id := fmt.Sprintf("%v %v %v%v",
-						exch,
-						item,
-						b,
-						q)
-					uPNLName := fmt.Sprintf("%v Unrealised PNL", id)
-					rPNLName := fmt.Sprintf("%v Realised PNL", id)
+	for mapKey, result := range items {
+		id := fmt.Sprintf("%v %v %v%v",
+			mapKey.Exchange,
+			mapKey.Asset,
+			mapKey.Base,
+			mapKey.Quote)
+		uPNLName := fmt.Sprintf("%v Unrealised PNL", id)
+		rPNLName := fmt.Sprintf("%v Realised PNL", id)
 
-					unrealisedPNL := ChartLine{Name: uPNLName}
-					realisedPNL := ChartLine{Name: rPNLName}
-					for i := range result.Events {
-						if result.Events[i].PNL != nil {
-							realisedPNL.LinePlots = append(realisedPNL.LinePlots, LinePlot{
-								Value:     result.Events[i].PNL.GetRealisedPNL().PNL.InexactFloat64(),
-								UnixMilli: result.Events[i].Time.UnixMilli(),
-							})
-							unrealisedPNL.LinePlots = append(unrealisedPNL.LinePlots, LinePlot{
-								Value:     result.Events[i].PNL.GetUnrealisedPNL().PNL.InexactFloat64(),
-								UnixMilli: result.Events[i].Time.UnixMilli(),
-							})
-						}
-					}
-					if len(unrealisedPNL.LinePlots) == 0 || len(realisedPNL.LinePlots) == 0 {
-						continue
-					}
-					response.Data = append(response.Data, unrealisedPNL, realisedPNL)
-				}
+		unrealisedPNL := ChartLine{Name: uPNLName}
+		realisedPNL := ChartLine{Name: rPNLName}
+		for i := range result.Events {
+			if result.Events[i].PNL != nil {
+				realisedPNL.LinePlots = append(realisedPNL.LinePlots, LinePlot{
+					Value:     result.Events[i].PNL.GetRealisedPNL().PNL.InexactFloat64(),
+					UnixMilli: result.Events[i].Time.UnixMilli(),
+				})
+				unrealisedPNL.LinePlots = append(unrealisedPNL.LinePlots, LinePlot{
+					Value:     result.Events[i].PNL.GetUnrealisedPNL().PNL.InexactFloat64(),
+					UnixMilli: result.Events[i].Time.UnixMilli(),
+				})
 			}
 		}
+		if len(unrealisedPNL.LinePlots) == 0 || len(realisedPNL.LinePlots) == 0 {
+			continue
+		}
+		response.Data = append(response.Data, unrealisedPNL, realisedPNL)
 	}
 	return response, nil
 }
 
 // createFuturesSpotDiffChart highlights the difference in futures and spot prices
 // over time
-func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic) (*Chart, error) {
+func createFuturesSpotDiffChart(items map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}
@@ -146,32 +140,26 @@ func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[*currency.It
 		AxisType: "linear",
 	}
 
-	for _, assetMap := range items {
-		for item, baseMap := range assetMap {
-			for b, quoteMap := range baseMap {
-				for q, result := range quoteMap {
-					cp := currency.NewPair(b.Currency(), q.Currency())
-					if item.IsFutures() {
-						p := result.UnderlyingPair.Format(currency.EMPTYFORMAT)
-						diff, ok := currs[p]
-						if !ok {
-							diff = linkCurrencyDiff{}
-						}
-						diff.FuturesPair = cp
-						diff.SpotPair = p
-						diff.FuturesEvents = result.Events
-						currs[p] = diff
-					} else {
-						p := cp.Format(currency.EMPTYFORMAT)
-						diff, ok := currs[p]
-						if !ok {
-							diff = linkCurrencyDiff{}
-						}
-						diff.SpotEvents = result.Events
-						currs[p] = diff
-					}
-				}
+	for mapKey, result := range items {
+		cp := currency.NewPair(mapKey.Base.Currency(), mapKey.Quote.Currency())
+		if mapKey.Asset.IsFutures() {
+			p := result.UnderlyingPair.Format(currency.EMPTYFORMAT)
+			diff, ok := currs[p]
+			if !ok {
+				diff = linkCurrencyDiff{}
 			}
+			diff.FuturesPair = cp
+			diff.SpotPair = p
+			diff.FuturesEvents = result.Events
+			currs[p] = diff
+		} else {
+			p := cp.Format(currency.EMPTYFORMAT)
+			diff, ok := currs[p]
+			if !ok {
+				diff = linkCurrencyDiff{}
+			}
+			diff.SpotEvents = result.Events
+			currs[p] = diff
 		}
 	}
 

@@ -622,6 +622,9 @@ func (bt *BackTest) Stop() error {
 			log.Errorf(common.Backtester, "Could not close all positions on stop: %s", err)
 		}
 	}
+	if !bt.hasProcessedAnEvent {
+		return nil
+	}
 	err := bt.Statistic.CalculateAllResults()
 	if err != nil {
 		return err
