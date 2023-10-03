@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -44,7 +45,7 @@ type Portfolio struct {
 	riskFreeRate                       decimal.Decimal
 	sizeManager                        SizeHandler
 	riskManager                        risk.Handler
-	exchangeAssetPairPortfolioSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
+	exchangeAssetPairPortfolioSettings map[key.ExchangePairAsset]*Settings
 }
 
 // Handler contains all functions expected to operate a portfolio manager

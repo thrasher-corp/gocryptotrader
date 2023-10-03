@@ -46,6 +46,9 @@ const (
 )
 
 var (
+	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
+	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")

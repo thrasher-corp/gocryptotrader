@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -85,7 +86,7 @@ type TotalCollateralResponse struct {
 // the position controller and its all tracked happily
 type PositionController struct {
 	m                     sync.Mutex
-	multiPositionTrackers map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*MultiPositionTracker
+	multiPositionTrackers map[key.ExchangePairAsset]*MultiPositionTracker
 	updated               time.Time
 }
 

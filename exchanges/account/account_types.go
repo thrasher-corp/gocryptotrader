@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
@@ -32,7 +33,7 @@ type Accounts struct {
 	// TODO: Credential tracker to match to keys that are managed and return
 	// pointer.
 	// TODO: Have different cred struct for centralized verse DEFI exchanges.
-	SubAccounts map[Credentials]map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
+	SubAccounts map[Credentials]map[key.SubAccountCurrencyAsset]*ProtectedBalance
 }
 
 // Holdings is a generic type to hold each exchange's holdings for all enabled
