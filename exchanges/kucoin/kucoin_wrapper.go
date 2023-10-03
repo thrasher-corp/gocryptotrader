@@ -1564,3 +1564,8 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 	}
 	return resp, nil
 }
+
+// GetLatestFundingRates returns the latest funding rates data
+func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
