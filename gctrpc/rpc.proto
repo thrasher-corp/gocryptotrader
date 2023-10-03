@@ -1061,7 +1061,7 @@ message FuturesPositionStats {
   string current_size = 6;
   string contract_size = 7;
   string contract_multiplier = 8;
-  string contract_direction = 9;
+  string contract_settlement_type = 9;
   string break_even_price = 10;
   string average_open_price = 11;
   string recent_pnl = 12;
@@ -1098,7 +1098,7 @@ message FuturePosition {
   string realised_pnl = 13;
   string closing_date = 14;
   int64 order_count = 15;
-  string contract_direction = 16;
+  string contract_settlement_type = 16;
   repeated OrderDetails orders = 17;
   FuturesPositionStats position_stats = 18;
   FundingData funding_data = 19;

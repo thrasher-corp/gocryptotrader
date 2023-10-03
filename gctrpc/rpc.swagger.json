@@ -5547,7 +5547,7 @@
           "type": "string",
           "format": "int64"
         },
-        "contractDirection": {
+        "contractSettlementType": {
           "type": "string"
         },
         "orders": {
@@ -5592,7 +5592,7 @@
         "contractMultiplier": {
           "type": "string"
         },
-        "contractDirection": {
+        "contractSettlementType": {
           "type": "string"
         },
         "breakEvenPrice": {

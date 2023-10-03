@@ -1536,10 +1536,11 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		} else {
 			ct = futures.Quarterly
 		}
-		direction := futures.Linear
+		contractSettlementType := futures.Linear
 		if contracts[i].IsInverse {
-			direction = futures.Inverse
+			contractSettlementType = futures.Inverse
 		}
+		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - time.Hour*8).UTC()
 		resp[i] = futures.Contract{
 			Exchange:             ku.Name,
 			Name:                 cp,
@@ -1553,10 +1554,10 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			Status:               contracts[i].Status,
 			Multiplier:           contracts[i].Multiplier,
 			MaxLeverage:          contracts[i].MaxLeverage,
-			Direction:            direction,
+			SettlementType:       contractSettlementType,
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(contracts[i].FundingFeeRate),
-				Time: time.Unix(contracts[i].NextFundingRateTime, 0).Add(-time.Hour * 8), // kucoin contracts every 8 hours
+				Time: timeOfCurrentFundingRate, // kucoin pays every 8 hours
 			},
 			Type: ct,
 		}

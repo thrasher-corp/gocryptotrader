@@ -959,21 +959,21 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		return nil, err
 	}
 
-	request := &order.MultiOrderRequest{
+	req := &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{cp},
 		AssetType: a,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
 	if !start.IsZero() {
-		request.StartTime = start
+		req.StartTime = start
 	}
 	if !end.IsZero() {
-		request.EndTime = end
+		req.EndTime = end
 	}
 
 	var resp []order.Detail
-	resp, err = exch.GetActiveOrders(ctx, request)
+	resp, err = exch.GetActiveOrders(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1475,11 +1475,11 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 
 	status := make(map[string]string)
 	orders := strings.Split(r.OrdersId, ",")
-	request := make([]order.Cancel, len(orders))
+	req := make([]order.Cancel, len(orders))
 	for x := range orders {
 		orderID := orders[x]
 		status[orderID] = order.Cancelled.String()
-		request[x] = order.Cancel{
+		req[x] = order.Cancel{
 			AccountID:     r.AccountId,
 			OrderID:       orderID,
 			Side:          side,
@@ -1490,7 +1490,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, request)
+	_, err = exch.CancelBatchOrders(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1705,7 +1705,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		return nil, err
 	}
 
-	request := &withdraw.Request{
+	req := &withdraw.Request{
 		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
@@ -1734,7 +1734,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		if errOTP != nil {
 			return nil, errOTP
 		}
-		request.OneTimePassword = codeNum
+		req.OneTimePassword = codeNum
 	}
 
 	if exchCfg.API.Credentials.PIN != "" {
@@ -1742,12 +1742,12 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		if err != nil {
 			return nil, errPin
 		}
-		request.PIN = pinCode
+		req.PIN = pinCode
 	}
 
-	request.TradePassword = exchCfg.API.Credentials.TradePassword
+	req.TradePassword = exchCfg.API.Credentials.TradePassword
 
-	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
+	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1778,7 +1778,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		}
 	}
 
-	request := &withdraw.Request{
+	req := &withdraw.Request{
 		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
@@ -1804,7 +1804,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		if err != nil {
 			return nil, errOTP
 		}
-		request.OneTimePassword = codeNum
+		req.OneTimePassword = codeNum
 	}
 
 	if exchCfg.API.Credentials.PIN != "" {
@@ -1812,12 +1812,12 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		if err != nil {
 			return nil, errPIN
 		}
-		request.PIN = pinCode
+		req.PIN = pinCode
 	}
 
-	request.TradePassword = exchCfg.API.Credentials.TradePassword
+	req.TradePassword = exchCfg.API.Credentials.TradePassword
 
-	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
+	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -4498,8 +4498,8 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	if !stats.IsolatedEquity.IsZero() {
 		positionStats.IsolatedEquity = stats.IsolatedEquity.String()
 	}
-	if stats.ContractDirection != futures.UnsetDirectionType {
-		positionStats.ContractDirection = stats.ContractDirection.String()
+	if stats.ContractSettlementType != futures.UnsetDirectionType {
+		positionStats.ContractSettlementType = stats.ContractSettlementType.String()
 	}
 	if !stats.IsolatedLiabilities.IsZero() {
 		positionStats.IsolatedLiabilities = stats.IsolatedLiabilities.String()
@@ -4605,8 +4605,8 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 				Base:      positionDetails[i].Pair.Base.String(),
 				Quote:     positionDetails[i].Pair.Quote.String(),
 			},
-			ContractDirection: positionDetails[i].ContractDirection.String(),
-			Orders:            make([]*gctrpc.OrderDetails, len(positionDetails[i].Orders)),
+			ContractSettlementType: positionDetails[i].ContractSettlementType.String(),
+			Orders:                 make([]*gctrpc.OrderDetails, len(positionDetails[i].Orders)),
 		}
 		for j := range positionDetails[i].Orders {
 			anyOrders = true

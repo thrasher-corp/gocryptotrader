@@ -1180,19 +1180,19 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		} else {
 			ct = futures.Perpetual
 		}
-		var direction futures.ContractDirection
+		var contractSettlementType futures.ContractSettlementType
 		for j := range marketSummary[i].AvailableSettlement {
 			settlementCurrencies[j] = currency.NewCode(marketSummary[i].AvailableSettlement[j])
-			if direction == futures.LinearOrInverse {
+			if contractSettlementType == futures.LinearOrInverse {
 				continue
 			}
 			containsUSD := strings.Contains(marketSummary[i].AvailableSettlement[j], "USD")
 			if !containsUSD {
-				direction = futures.LinearOrInverse
+				contractSettlementType = futures.LinearOrInverse
 				continue
 			}
 			if containsUSD {
-				direction = futures.Linear
+				contractSettlementType = futures.Linear
 			}
 		}
 
@@ -1204,7 +1204,7 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			SettlementCurrencies: settlementCurrencies,
 			StartDate:            s,
 			EndDate:              e,
-			Direction:            direction,
+			SettlementType:       contractSettlementType,
 			IsActive:             marketSummary[i].Active,
 			Type:                 ct,
 		}

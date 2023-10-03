@@ -10,16 +10,16 @@ import (
 
 // Contract holds details on futures contracts
 type Contract struct {
-	Exchange   string
-	Name       currency.Pair
-	Underlying currency.Pair
-	Asset      asset.Item
-	StartDate  time.Time
-	EndDate    time.Time
-	IsActive   bool
-	Status     string
-	Type       ContractType
-	Direction  ContractDirection
+	Exchange       string
+	Name           currency.Pair
+	Underlying     currency.Pair
+	Asset          asset.Item
+	StartDate      time.Time
+	EndDate        time.Time
+	IsActive       bool
+	Status         string
+	Type           ContractType
+	SettlementType ContractSettlementType
 	// Optional values if the exchange offers them
 	SettlementCurrencies currency.Currencies
 	MarginCurrency       currency.Code
@@ -28,12 +28,12 @@ type Contract struct {
 	LatestRate           fundingrate.Rate
 }
 
-// ContractDirection holds the various style of contracts offered by futures exchanges
-type ContractDirection uint8
+// ContractSettlementType holds the various style of contracts offered by futures exchanges
+type ContractSettlementType uint8
 
-// ContractDirection definitions
+// ContractSettlementType definitions
 const (
-	UnsetDirectionType ContractDirection = iota
+	UnsetDirectionType ContractSettlementType = iota
 	Linear
 	Inverse
 	Quanto
@@ -41,7 +41,7 @@ const (
 )
 
 // String returns the string representation of a contract direction type
-func (d ContractDirection) String() string {
+func (d ContractSettlementType) String() string {
 	switch d {
 	case UnsetDirectionType:
 		return "unset"

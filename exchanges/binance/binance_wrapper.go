@@ -2450,12 +2450,12 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		if err != nil {
 			return nil, err
 		}
-		var direction futures.ContractDirection
+		var direction futures.ContractSettlementType
 		for i := range contracts {
 			if !contracts[i].Name.Equal(fPair) {
 				continue
 			}
-			direction = contracts[i].Direction
+			direction = contracts[i].SettlementType
 			break
 		}
 
@@ -2512,7 +2512,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
 			Currency:                     c,
-			ContractDirection:            direction,
+			ContractSettlementType:       direction,
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			Leverage:                     decimal.NewFromFloat(leverage),
 			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
@@ -2616,12 +2616,12 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		if err != nil {
 			return nil, err
 		}
-		var direction futures.ContractDirection
+		var settlementType futures.ContractSettlementType
 		for i := range contracts {
 			if !contracts[i].Name.Equal(fPair) {
 				continue
 			}
-			direction = contracts[i].Direction
+			settlementType = contracts[i].SettlementType
 			break
 		}
 
@@ -2630,7 +2630,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
-			ContractDirection:            direction,
+			ContractSettlementType:       settlementType,
 			Currency:                     currency.NewCode(accountAsset.Asset),
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
@@ -2898,7 +2898,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Name:           cp,
 				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
 				Asset:          item,
-				Direction:      futures.Linear,
+				SettlementType: futures.Linear,
 				StartDate:      ei.Symbols[i].OnboardDate.Time(),
 				EndDate:        ed,
 				IsActive:       ei.Symbols[i].Status == "TRADING",
@@ -2938,7 +2938,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				EndDate:        ed,
 				IsActive:       ei.Symbols[i].ContractStatus == "TRADING",
 				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
-				Direction:      futures.Inverse,
+				SettlementType: futures.Inverse,
 				Type:           ct,
 			})
 		}

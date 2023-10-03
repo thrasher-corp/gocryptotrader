@@ -1144,14 +1144,14 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					return nil, err
 				}
 			}
-			var direction futures.ContractDirection
+			var contractSettlementType futures.ContractSettlementType
 			switch {
 			case cp.Quote.Equal(currency.USDT):
-				direction = futures.Linear
+				contractSettlementType = futures.Linear
 			case cp.Quote.Equal(currency.USD):
-				direction = futures.Quanto
+				contractSettlementType = futures.Quanto
 			default:
-				direction = futures.Inverse
+				contractSettlementType = futures.Inverse
 			}
 			resp = append(resp, futures.Contract{
 				Exchange:             b.Name,
@@ -1162,7 +1162,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				IsActive:             marketInfo[x].State == "Open",
 				Status:               marketInfo[x].State,
 				Type:                 futures.Perpetual,
-				Direction:            direction,
+				SettlementType:       contractSettlementType,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
 				Multiplier:           float64(marketInfo[x].Multiplier),
 				LatestRate: fundingrate.Rate{
@@ -1216,12 +1216,12 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			case contractDuration <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
 				ct = futures.Yearly
 			}
-			direction := futures.Inverse
+			contractSettlementType := futures.Inverse
 			switch {
 			case strings.Contains(cp.Quote.String(), "USDT"):
-				direction = futures.Linear
+				contractSettlementType = futures.Linear
 			case strings.Contains(cp.Quote.String(), "USD"):
-				direction = futures.Quanto
+				contractSettlementType = futures.Quanto
 			}
 			resp = append(resp, futures.Contract{
 				Exchange:             b.Name,
@@ -1235,7 +1235,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
 				Multiplier:           float64(marketInfo[x].Multiplier),
-				Direction:            direction,
+				SettlementType:       contractSettlementType,
 			})
 		}
 	}

@@ -1758,20 +1758,20 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				ct = futures.SemiAnnually
 			}
 		}
-		direction := futures.Linear
+		contractSettlementType := futures.Linear
 		if cp.Base.Equal(currency.PI) || cp.Base.Equal(currency.FI) {
-			direction = futures.Inverse
+			contractSettlementType = futures.Inverse
 		}
 		resp[i] = futures.Contract{
-			Exchange:   k.Name,
-			Name:       cp,
-			Underlying: underlying,
-			Asset:      item,
-			StartDate:  s,
-			EndDate:    e,
-			Direction:  direction,
-			IsActive:   result.Instruments[i].Tradable,
-			Type:       ct,
+			Exchange:       k.Name,
+			Name:           cp,
+			Underlying:     underlying,
+			Asset:          item,
+			StartDate:      s,
+			EndDate:        e,
+			SettlementType: contractSettlementType,
+			IsActive:       result.Instruments[i].Tradable,
+			Type:           ct,
 		}
 	}
 	return resp, nil

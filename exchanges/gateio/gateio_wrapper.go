@@ -2013,12 +2013,12 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					return nil, err
 				}
 				settlePair := currency.NewCode(settlePairs[k])
-				direction := futures.Linear
+				contractSettlementType := futures.Linear
 				switch {
 				case name.Base.Equal(currency.BTC) && settlePair.Equal(currency.BTC):
-					direction = futures.Inverse
+					contractSettlementType = futures.Inverse
 				case !name.Base.Equal(settlePair) && !settlePair.Equal(currency.USDT):
-					direction = futures.Quanto
+					contractSettlementType = futures.Quanto
 				}
 				c := futures.Contract{
 					Exchange:             g.Name,
@@ -2027,7 +2027,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Asset:                item,
 					IsActive:             !contracts[j].InDelisting,
 					Type:                 futures.Perpetual,
-					Direction:            direction,
+					SettlementType:       contractSettlementType,
 					SettlementCurrencies: currency.Currencies{settlePair},
 					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
@@ -2090,7 +2090,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Asset:                item,
 					StartDate:            s,
 					EndDate:              e,
-					Direction:            futures.Linear,
+					SettlementType:       futures.Linear,
 					IsActive:             !contracts[j].InDelisting,
 					Type:                 ct,
 					SettlementCurrencies: currency.Currencies{currency.NewCode(settlePairs[k])},

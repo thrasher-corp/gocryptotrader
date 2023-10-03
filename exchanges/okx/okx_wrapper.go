@@ -1854,13 +1854,13 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		return nil, err
 	}
 	multiplier := 1.0
-	var direction futures.ContractDirection
+	var direction futures.ContractSettlementType
 	for i := range contracts {
 		if !contracts[i].Name.Equal(fPair) {
 			continue
 		}
 		multiplier = contracts[i].Multiplier
-		direction = contracts[i].Direction
+		direction = contracts[i].SettlementType
 		break
 	}
 
@@ -1952,7 +1952,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.NewFromFloat(multiplier)),
 		ContractSize:                 positionSummary.QuantityOfPosition.Decimal(),
 		ContractMultiplier:           decimal.NewFromFloat(multiplier),
-		ContractDirection:            direction,
+		ContractSettlementType:       direction,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
 		PositionPNL:                  positionSummary.UPNL.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
@@ -1996,22 +1996,22 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 		instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
 
 		multiplier := 1.0
-		var direction futures.ContractDirection
+		var contractSettlementType futures.ContractSettlementType
 		if req.Asset.IsFutures() {
 			for j := range contracts {
 				if !contracts[j].Name.Equal(fPair) {
 					continue
 				}
 				multiplier = contracts[j].Multiplier
-				direction = contracts[j].Direction
+				contractSettlementType = contracts[j].SettlementType
 				break
 			}
 		}
 
 		resp[i] = futures.PositionResponse{
-			Pair:              req.Pairs[i],
-			Asset:             req.Asset,
-			ContractDirection: direction,
+			Pair:                   req.Pairs[i],
+			Asset:                  req.Asset,
+			ContractSettlementType: contractSettlementType,
 		}
 
 		var positions []OrderDetail
@@ -2206,9 +2206,9 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 				ct = futures.Quarterly
 			}
 		}
-		direction := futures.Linear
+		contractSettlementType := futures.Linear
 		if result[i].SettlementCurrency == result[i].BaseCurrency {
-			direction = futures.Inverse
+			contractSettlementType = futures.Inverse
 		}
 		resp[i] = futures.Contract{
 			Exchange:             ok.Name,
@@ -2220,7 +2220,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			IsActive:             result[i].State == "live",
 			Status:               result[i].State,
 			Type:                 ct,
-			Direction:            direction,
+			SettlementType:       contractSettlementType,
 			SettlementCurrencies: currency.Currencies{settleCurr},
 			MarginCurrency:       settleCurr,
 			Multiplier:           result[i].ContractValue.Float64(),
