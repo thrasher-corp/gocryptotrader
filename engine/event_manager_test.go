@@ -299,7 +299,7 @@ func TestCheckEventCondition(t *testing.T) {
 	}
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if err != nil && !strings.Contains(err.Error(), "no tickers for") {
+	if err != nil && !strings.Contains(err.Error(), "no tickers associated") {
 		t.Error(err)
 	} else if err == nil {
 		t.Error("expected error")

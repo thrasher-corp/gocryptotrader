@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -234,23 +235,22 @@ func TestGenerateReport(t *testing.T) {
 			},
 			StrategyName: "testStrat",
 			RiskFreeRate: decimal.NewFromFloat(0.03),
-			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic{
-				e: {
-					a: {
-						p.Base.Item: {
-							p.Quote.Item: &statistics.CurrencyPairStatistic{
-								LowestClosePrice:         statistics.ValueAtTime{Value: decimal.NewFromInt(100)},
-								HighestClosePrice:        statistics.ValueAtTime{Value: decimal.NewFromInt(200)},
-								MarketMovement:           decimal.NewFromInt(100),
-								StrategyMovement:         decimal.NewFromInt(100),
-								CompoundAnnualGrowthRate: decimal.NewFromInt(1),
-								BuyOrders:                1,
-								SellOrders:               1,
-								ArithmeticRatios:         &statistics.Ratios{},
-								GeometricRatios:          &statistics.Ratios{},
-							},
-						},
-					},
+			ExchangeAssetPairStatistics: map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic{
+				{
+					Base:     p.Base.Item,
+					Quote:    p.Quote.Item,
+					Asset:    a,
+					Exchange: e,
+				}: {
+					LowestClosePrice:         statistics.ValueAtTime{Value: decimal.NewFromInt(100)},
+					HighestClosePrice:        statistics.ValueAtTime{Value: decimal.NewFromInt(200)},
+					MarketMovement:           decimal.NewFromInt(100),
+					StrategyMovement:         decimal.NewFromInt(100),
+					CompoundAnnualGrowthRate: decimal.NewFromInt(1),
+					BuyOrders:                1,
+					SellOrders:               1,
+					ArithmeticRatios:         &statistics.Ratios{},
+					GeometricRatios:          &statistics.Ratios{},
 				},
 			},
 			TotalBuyOrders:  1337,
@@ -339,11 +339,13 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item] = make(map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item] = &statistics.CurrencyPairStatistic{}
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: testExchange,
+		Base:     currency.BTC.Item,
+		Quote:    currency.USDT.Item,
+		Asset:    asset.Spot,
+	}] = &statistics.CurrencyPairStatistic{}
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
@@ -402,7 +404,12 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: testExchange,
+		Base:     currency.BTC.Item,
+		Quote:    currency.USDT.Item,
+		Asset:    asset.Spot,
+	}].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
@@ -419,7 +426,12 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: testExchange,
+		Base:     currency.BTC.Item,
+		Quote:    currency.USDT.Item,
+		Asset:    asset.Spot,
+	}].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
@@ -439,7 +451,12 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: testExchange,
+		Base:     currency.BTC.Item,
+		Quote:    currency.USDT.Item,
+		Asset:    asset.Spot,
+	}].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),

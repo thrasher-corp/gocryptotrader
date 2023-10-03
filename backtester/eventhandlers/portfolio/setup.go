@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
@@ -37,7 +37,7 @@ func (p *Portfolio) Reset() error {
 	if p == nil {
 		return gctcommon.ErrNilPointer
 	}
-	p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
 	p.riskFreeRate = decimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
@@ -60,24 +60,10 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 	}
 
 	if p.exchangeAssetPairPortfolioSettings == nil {
-		p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+		p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
 	}
 	name := strings.ToLower(setup.Exchange.GetName())
-	m, ok := p.exchangeAssetPairPortfolioSettings[name]
-	if !ok {
-		m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
-		p.exchangeAssetPairPortfolioSettings[name] = m
-	}
-	m2, ok := m[setup.Asset]
-	if !ok {
-		m2 = make(map[*currency.Item]map[*currency.Item]*Settings)
-		m[setup.Asset] = m2
-	}
-	m3, ok := m2[setup.Pair.Base.Item]
-	if !ok {
-		m3 = make(map[*currency.Item]*Settings)
-		m2[setup.Pair.Base.Item] = m3
-	}
+
 	settings := &Settings{
 		Exchange:          setup.Exchange,
 		exchangeName:      name,
@@ -112,6 +98,11 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		}
 		settings.FuturesTracker = tracker
 	}
-	m3[setup.Pair.Quote.Item] = settings
+	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
+		Exchange: name,
+		Base:     setup.Pair.Base.Item,
+		Quote:    setup.Pair.Quote.Item,
+		Asset:    setup.Asset,
+	}] = settings
 	return nil
 }
